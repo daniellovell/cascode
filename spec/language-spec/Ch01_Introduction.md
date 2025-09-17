@@ -67,46 +67,106 @@ Analog and mixed-signal (A/MS) IP underpins high-performance systems (clocking, 
 
 **Spec-only (engine picks topology)**
 
-```cas
-package analog.amp; import lib.ota.*;
+```java
+package analog.amp;
+import lib.ota.*;
 
 class AmpAuto implements Amplifier {
-  supply VDD=1.2V; ground GND; port in_p vip, in_n vin; port out vout; param CL=2pF;
-  env  { icmr in [0.55V..0.75V]; load C=CL; }
-  spec { gbw>=100MHz; pm>=60deg; gain>=70dB; swing(vout) in [0.2V..1.0V]; power<=1mW; }
-  slot Core: AmplifierStage; slot Comp: Compensator?;
-  synth { from lib.ota.*; fill Core, Comp; prefer inputPolarity=NMOS; objective minimize power; }
+  supply VDD = 1.2V;
+  ground GND;
+  port in_p vip, in_n vin;
+  port out vout;
+  param CL = 2pF;
+
+  env {
+    icmr in [0.55V..0.75V];
+    load C = CL;
+  }
+
+  spec {
+    gbw >= 100MHz;
+    pm >= 60deg;
+    gain >= 70dB;
+    swing(vout) in [0.2V..1.0V];
+    power <= 1mW;
+  }
+
+  slot Core: AmplifierStage;
+  slot Comp: Compensator?;
+
+  synth {
+    from lib.ota.*;
+    fill Core, Comp;
+    prefer inputPolarity = NMOS;
+    objective minimize power;
+  }
+
   bench { AC_OpenLoop; UnityUGF; Step; }
 }
 ```
 
 **Structural (5T OTA, concise)**
 
-```cas
-package analog.ota; import lib.motifs.*;
+```java
+package analog.ota;
+import lib.motifs.*;
+
 class OTA5T implements Amplifier {
-  supply VDD=1.8V; ground GND; port in_p vinp, in_n vinn; port out vout; bias vbias_n;
+  supply VDD = 1.8V;
+  ground GND;
+  port in_p vinp, in_n vinn;
+  port out vout;
+  bias vbias_n;
+
   use {
-    dp = new DiffPairNMOS(vinp, vinn) { gnd=GND; tail=vbias_n; };
-    attach FiveTLoadPMOS on dp { vdd=VDD; out=vout; };
+    dp = new DiffPairNMOS(vinp, vinn) {
+      gnd = GND;
+      tail = vbias_n;
+    };
+
+    attach FiveTLoadPMOS on dp {
+      vdd = VDD;
+      out = vout;
+    };
+
     C(vout, GND, 1pF);
   }
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(vout) in [0.2V..1.6V]; power<=2mW; }
+
+  spec {
+    gbw >= 50MHz;
+    gain >= 55dB;
+    pm >= 60deg;
+    swing(vout) in [0.2V..1.6V];
+    power <= 2mW;
+  }
 }
 ```
 
 **SPICE wrap (wide-swing mirror motif)**
 
-```cas
+```java
 motif WideSwingPMOSMirror implements CurrentMirror {
-  ports { sense, out: electrical; vdd: supply; }
-  params { m:int=1; Wp=2u; Lp=0.18u; }
+  ports {
+    sense, out: electrical;
+    vdd: supply;
+  }
+
+  params {
+    m: int = 1;
+    Wp = 2u;
+    Lp = 0.18u;
+  }
+
   wrap spice """
     .subckt WS_PMOS_MIRROR sense out vdd m=1 Wp=2u Lp=0.18u
     M1 out  sense vdd vdd pch W={Wp*m} L={Lp}
     M2 sense sense vdd vdd pch W={Wp}   L={Lp}
     .ends
-  """ map { sense=sense; out=out; vdd=vdd; }
+  """ map {
+    sense = sense;
+    out = out;
+    vdd = vdd;
+  }
 }
 ```
 
