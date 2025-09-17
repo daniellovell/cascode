@@ -1,29 +1,29 @@
 # cascode
 
-*Computer‑Aided Synthesis Code for analog & mixed‑signal design.*
+*Computer-Aided Synthesis Code for analog & mixed-signal design.*
 
 * **Language files:** `*.cas`
 * **Intermediate representation (IR):** `*.cir` (CasIR)
 
-**cascode** is a concise, object‑oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
+**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
 
-It’s designed to be **engineer‑friendly** (reads like a schematic), **LLM‑friendly** (classes, interfaces, and clear verbs), and **tool‑friendly** (typed units, canonical IR, contracts).
+It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
 
 ## Why cascode?
 
-* **Bridges behavior and structure.** Mix spec‑only requests (“meet GBW/PM/gain”) with structural guidance (“choose from {tele‑cascode, folded‑cascode}”).
-* **Motif‑centric.** Build with well‑named blocks: `DiffPairNMOS`, `PMOSCascodeLoad`, `MillerRz`, `StrongArmLatch`, etc.
-* **Concise structural sugar.** One‑liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
-* **Synthesis built‑in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
-* **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first‑class; contracts (`req`/`ens`) capture headroom and validity.
+* **Bridges behavior and structure.** Mix spec-only requests ("meet GBW/PM/gain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
+* **Motif-centric.** Build with well-named blocks: `DiffPairNMOS`, `PMOSCascodeLoad`, `MillerRz`, `StrongArmLatch`, etc.
+* **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
+* **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
+* **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first-class; contracts (`req`/`ens`) capture headroom and validity.
 * **CasIR.** A canonical typed graph that downstream tools and LLMs can reason about far better than raw SPICE.
 
 ---
 
 ## Language at a Glance
 
-### Spec‑only amplifier (you pick the topology)
+### Spec-only amplifier (you pick the topology)
 
 ```cas
 package analog.amp; import lib.ota.*;
@@ -106,7 +106,7 @@ use {
 }
 ```
 
-#### SPICE wrap as a reusable “lego” (wide‑swing mirror)
+#### SPICE wrap as a reusable "lego" (wide-swing mirror)
 
 ```cas
 motif WideSwingPMOSMirror implements CurrentMirror {
@@ -122,7 +122,7 @@ motif WideSwingPMOSMirror implements CurrentMirror {
 }
 ```
 
-#### Self‑biased inverter OTA / TIA (feedback sugar)
+#### Self-biased inverter OTA / TIA (feedback sugar)
 
 ```cas
 class InverterOTA implements Amplifier {
@@ -131,7 +131,7 @@ class InverterOTA implements Amplifier {
   use {
     inv = new InverterGm(vdd=VDD, gnd=GND);
     inv.in <- vin; inv.out -> vout;
-    fb R(vout -> vin, 20MΩ) { type=Auto; }  // MOS pseudo‑res if needed
+    fb R(vout -> vin, 20MOhm) { type=Auto; }  // MOS pseudo-res if needed
     C(vout, GND, 0.5pF);
   }
 
@@ -139,7 +139,7 @@ class InverterOTA implements Amplifier {
 }
 ```
 
-### Strong‑arm latch (clocked comparator)
+### Strong-arm latch (clocked comparator)
 
 ```cas
 class SALatch implements Comparator {
@@ -147,27 +147,27 @@ class SALatch implements Comparator {
 
   use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
 
-  spec { decision_time(phi@posedge, ΔVin=5mV) <= 300ps; offset <= 2mV; kickback_in <= 30mV; power <= 1mW; }
+  spec { decision_time(phi@posedge, DeltaVin=5mV) <= 300ps; offset <= 2mV; kickback_in <= 30mV; power <= 1mW; }
   bench { LatchDecision; OffsetMC; Kickback; }
   phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 }
 ```
 
-### System‑level sense chain (spec‑first pipeline)
+### System-level sense chain (spec-first pipeline)
 
 ```cas
 class SenseChainAuto {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   env {
-    source { Z=10Ω; range=[0V..1V]; }
+    source { Z=10Ohm; range=[0V..1V]; }
     load   { C=5pF; }
   }
 
   spec {
-    gain == 40dB ± 1dB over [10kHz..2MHz];
-    in_noise <= 20nV/√Hz at 100kHz;
-    settle(out, 1% step(0→1V)) <= 1us;
+    gain == 40dB +/- 1dB over [10kHz..2MHz];
+    in_noise <= 20nV/sqrtHz at 100kHz;
+    settle(out, 1% step(0->1V)) <= 1us;
     power <= 10mW;
   }
 
@@ -189,7 +189,7 @@ class SenseChainAuto {
 
 ---
 
-## From `.cas` to `.cir` to SPICE — The Synthesis/Verification Flow
+## From `.cas` to `.cir` to SPICE -- The Synthesis/Verification Flow
 
 1. **Parse & Normalize**
 
@@ -202,7 +202,7 @@ class SenseChainAuto {
 
 3. **Feasibility Guards** (fast checks)
 
-   * Headroom stacks, ICMR, GBW vs. power, PM (two‑stage guards), device/legal limits.
+   * Headroom stacks, ICMR, GBW vs. power, PM (two-stage guards), device/legal limits.
 
 4. **Topology Selection (if `synth {}` present)**
 
@@ -211,23 +211,23 @@ class SenseChainAuto {
 
 5. **Sizing Initialization**
 
-   * gm/Id + LUT‑backed fits (convex/GP where possible) to determine $V_{ov}$, currents, $W/L$, compensation values.
+   * gm/Id + LUT-backed fits (convex/GP where possible) to determine $V_{ov}$, currents, $W/L$, compensation values.
 
-6. **SPICE‑Level Verification**
+6. **SPICE-Level Verification**
 
-   * Auto‑generate benches (AC/Noise/Tran, PSS/PNOISE when relevant).
+   * Auto-generate benches (AC/Noise/Tran, PSS/PNOISE when relevant).
    * Run across PVT and a limited MC budget; aggregate metrics and margins.
 
 7. **Optimization Loop**
 
-   * If misses, run sizing optimization (GP, adjoint‑based gradients, or derivative‑free).
-   * If still infeasible, perform **minimal topological edits** within the chosen family; else re‑select topology (bounded).
+   * If misses, run sizing optimization (GP, adjoint-based gradients, or derivative-free).
+   * If still infeasible, perform **minimal topological edits** within the chosen family; else re-select topology (bounded).
 
 8. **Artifacts & Reports**
 
    * Outputs: `.cir` (CasIR), synthesized SPICE netlist(s), bench results, constraints/margins report, and provenance (which library blocks, parameters, and fits were used).
 
-> **Why CasIR?** It’s compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (roles, traits, benches) and provenance.
+> **Why CasIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (roles, traits, benches) and provenance.
 
 **CasIR snippet (for `OTA5T`)**:
 
