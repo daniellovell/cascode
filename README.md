@@ -258,7 +258,7 @@ cascode/
 ├─ README.md
 ├─ LICENSE
 ├─ spec/
-│  ├─ LanguageSpec.md
+│  ├─ language-spec/
 │  ├─ Grammar.ebnf
 │  └─ CasIR.md
 ├─ lib/
