@@ -46,7 +46,7 @@ In summary:
 
 ---
 
-### 1.5 Language in One Page (Informative)
+### 1.5 Cascode in a few examples
 
 **Spec-only definition of an amplifier (engine picks topology)**
 
@@ -92,38 +92,80 @@ class AmpAuto implements Amplifier {
 **Structural definition of a 5T OTA**
 
 ```java
-package analog.ota;
-import lib.motifs.*;
+package analog.ota; import lib.motifs.*;
+
+bundle Diff { p: electrical; n: electrical; }
 
 class OTA5T implements Amplifier {
-  supply VDD = 1.8V;
-  ground GND;
-  port in_p vinp, in_n vinn;
-  port out vout;
-  bias vbias_n;
+  supply VDD=1.8V; ground GND;
+  port in IN: Diff; port out OUT: electrical;
+
+  env  {
+    vdd = VDD;
+    load C = 1pF;          // bench load is mandatory via env
+    source Z = 50Ω;
+  }
 
   use {
-    dp = new DiffPairNMOS(vinp, vinn) {
-      gnd = GND;
-      tail = vbias_n;
-    };
+    dp   = new DiffPairNMOS() { in<-IN; };
+    tail = new TailNMOS()     { out->dp.src; ref<-GND; };
 
-    attach FiveTLoadPMOS on dp {
-      vdd = VDD;
-      out = vout;
+    // PMOS mirror: diode at left branch, taps to right + OUT
+    mirP = new CurrentMirror(polarity=PMOS) {
+      sense <- dp.drain_l;
+      vref  <- VDD;
+      taps  { n2:1, OUT:2; }
     };
-
-    C(vout, GND, 1pF);
   }
 
-  spec {
-    gbw >= 50MHz;
-    gain >= 55dB;
-    pm >= 60deg;
-    swing(vout) in [0.2V..1.6V];
-    power <= 2mW;
+  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(OUT) in [0.2V..1.6V]; power<=2mW; }
+}
+
+```
+
+**Two stages in cascade with slots**
+
+Option 1: Synthesis fills both slots
+
+```java
+class TwoStageAmp implements Amplifier {
+  supply VDD=1.2V; ground GND;
+  port in IN: Diff; port out OUT: electrical;
+  net N1: electrical;
+
+  slot S1: AmplifierStage bind { in<-IN; out->N1; }
+  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+
+  synth {
+    from lib.ota.*;
+    fill S1, S2;
+    S1.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // enable comp on first stage
+    S2.comp None;                                   // no comp on second
+    objective minimize power;
   }
 }
+```
+
+Option 2: Structural fill (no `synth` needed)
+
+```java
+class TwoStageAmp_Manual implements Amplifier {
+  supply VDD=1.2V; ground GND;
+  port in IN: Diff; port out OUT: electrical;
+  net N1: electrical;
+
+  slot S1: AmplifierStage bind { in<-IN; out->N1; }
+  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+
+  use {
+    fill S1 with FoldedCascodePMOS { /* params… */ };
+    S1.comp { style=MillerRC; Cc=Auto; }
+
+    fill S2 with CSStageNMOS       { /* params… */ };
+    S2.comp None;
+  }
+}
+
 ```
 
 **SPICE wrap (wide-swing NMOS mirror motif)**
