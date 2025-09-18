@@ -1,19 +1,12 @@
-# **cascode Language Specification - Chapters 1 & 2 (Draft v0.1)**
+
 
 ## **Chapter 1 - Introduction**
 
 ### 1.1 Purpose and Scope
 
-**cascode** is a concise, object-oriented analog description language for **mixed structural-behavioral** circuit design. It enables designers to:
+**cascode** is a concise, object-oriented analog description language designed for **mixed structural-behavioral** circuit design. The language empowers designers to express both **intent** (specifications and operating environment) and **structure** (motifs and interconnect) within a unified source file (`.cas`), enabling seamless synthesis and verification through a canonical intermediate representation (**CasIR**, `.cir`) and standard **SPICE** netlists.
 
-* express **intent** (specifications, operating environment) and **structure** (motifs, interconnect) in one source file (`.cas`), and
-* synthesize and verify implementations through a canonical intermediate representation, **CasIR** (`.cir`), and **SPICE** netlists.
-
-cascode is meant for:
-
-* Analog/RF IC designers who want to work **behaviorally** (spec-first) or **structurally** (schematic-style), or a hybrid.
-* Library authors who provide **reusable, characterized motifs** (native or wrapped SPICE) for the synthesis engine.
-* Tooling that performs **topology selection**, **gm/Id sizing**, and **SPICE verification**.
+The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit from the flexibility to work behaviorally with specification-driven design, structurally with schematic-style composition, or through hybrid approaches that combine both paradigms. Library authors can contribute **reusable, characterized motifs**—whether authored natively or wrapped from existing SPICE subcircuits—that integrate directly with the synthesis engine. Finally, automated tooling leverages cascode's structured representation to perform **topology selection**, **gm/Id sizing**, and comprehensive **SPICE verification**.
 
 This specification defines the language surface, core semantics, and the artifacts required by the toolchain. Detailed algorithms for topology search and sizing are out of scope; their **contracts and interfaces** are in scope.
 
@@ -21,17 +14,9 @@ This specification defines the language surface, core semantics, and the artifac
 
 ### 1.2 Motivation
 
-Analog and mixed-signal (A/MS) IP underpins high-performance systems (clocking, power management, sensing, high-speed I/O). Yet analog design automation lags RTL flows because design **intent** is captured at the wrong level (GUI schematics and raw SPICE), which obscures **structure**, **roles**, and **constraints**. As highlighted in the accompanying research proposal, this **representation gap** hinders:
+Analog and mixed-signal (A/MS) IP forms the foundation of high-performance systems, enabling critical functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance, analog design automation significantly lags behind RTL flows due to a fundamental issue: design **intent** is captured at inappropriate abstraction levels—through GUI schematics and raw SPICE netlists—that obscure essential **structure**, **roles**, and **constraints**. This **representation gap** systematically undermines **scalable synthesis** and optimization, prevents effective **reuse** of proven building blocks across different technologies, and inhibits **LLM-assisted** planning and diagnostics.
 
-* **scalable synthesis** and systematic optimization,
-* **reuse** of proven building blocks across technologies,
-* and **LLM-assisted** planning and diagnostics.
-
-**cascode** addresses this by:
-
-* making **intent first-class** (explicit specs, environment, benches),
-* making **structure canonical** (named motifs, typed ports, roles, patterns),
-* and providing **CasIR**, a normalized graph that is both tool- and LLM-friendly.
+**cascode** directly addresses these limitations through three architectural principles. First, the language elevates **intent to first-class status** by requiring explicit specifications, operating environments, and benchmark definitions. Second, it establishes **canonical structural representation** through named motifs, typed ports, well-defined roles, and recognizable patterns. Finally, it provides **CasIR**, a normalized graph representation designed for both automated tooling and machine learning applications.
 
 ---
 
@@ -39,23 +24,21 @@ Analog and mixed-signal (A/MS) IP underpins high-performance systems (clocking, 
 
 **Goals**
 
-* **Mixed abstraction**: support *spec-only*, *guided*, and *fully structural* descriptions.
-* **Concise & familiar**: Java/C#-style classes, interfaces, object initializers; schematic-like verbs.
-* **Motif-centric**: circuits are composed from **motifs** with typed ports and **contracts**.
-* **Typed units**: `1.2V`, `2pF`, `100MHz`, `60deg`, `1mW` with compile-time unit checking.
-* **Synthesis built-in**: `slot` + `synth` directives choose, size, and verify implementations.
-* **Interoperability**: `wrap spice` turns SPICE subcircuits into first-class motifs.
-* **Traceability**: CasIR preserves provenance, constraints, and bench intents.
+The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
+
+Type safety extends to physical dimensions through **typed units** (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates **synthesis as a native construct** via `slot` and `synth` directives that automatically choose, size, and verify implementations. **Interoperability** with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, **traceability** ensures that CasIR preserves complete provenance, constraints, and benchmark intents.
 
 **Non-Goals**
 
-* Replace SPICE device models or analog simulation semantics.
-* Guarantee unique optimality of chosen topologies (the engine may use heuristics/OMT).
-* Mandate a particular PDK, simulator, or gm/Id table format.
+Several capabilities remain explicitly outside the language scope. cascode does not replace SPICE device models or analog simulation semantics, instead leveraging these established foundations. The synthesis engine may employ heuristics and optimization modulo theories (OMT) without guaranteeing unique optimality of chosen topologies. Finally, the language avoids mandating specific PDK formats, simulators, or gm/Id table structures, maintaining flexibility across tool ecosystems.
 
 ---
 
 ### 1.4 Source Artifacts and File Types
+
+The cascode toolchain operates on three primary file types. **`.cas`** files contain cascode source code, encompassing modules, motifs, traits, specifications, and synthesis directives. **`.cir`** files represent the **CasIR** intermediate representation as typed graphs serialized in machine-readable formats (JSON, YAML, or CBOR) according to the schema defined in Chapter 7. Finally, **SPICE netlists** are generated for verification purposes, formatted according to simulator-specific requirements (such as Spectre).
+
+In summary:
 
 * **`.cas`** - *cascode* source (modules, motifs, traits, specs, synth directives).
 * **`.cir`** - **CasIR** intermediate representation (typed graph; machine-readable JSON/YAML/CBOR; schema in Chapter 7).
@@ -65,39 +48,40 @@ Analog and mixed-signal (A/MS) IP underpins high-performance systems (clocking, 
 
 ### 1.5 Language in One Page (Informative)
 
-**Spec-only (engine picks topology)**
+**Spec-only definition of an amplifier (engine picks topology)**
 
 ```java
-package analog.amp;
-import lib.ota.*;
+package analog.amp; import lib.ota.*;
+
+bundle Diff { p: electrical; n: electrical; }
 
 class AmpAuto implements Amplifier {
-  supply VDD = 1.2V;
-  ground GND;
-  port in_p vip, in_n vin;
-  port out vout;
-  param CL = 2pF;
+  supply VDD=1.2V; ground GND;
+  port in IN: Diff; port out OUT: electrical;
+  param CL=2pF;
 
-  env {
+  env  {
+    vdd = VDD;
     icmr in [0.55V..0.75V];
-    load C = CL;
+    load C = CL;           // mandatory bench load
+    source Z = 50Ω;        // mandatory bench source impedance
   }
 
   spec {
-    gbw >= 100MHz;
-    pm >= 60deg;
-    gain >= 70dB;
-    swing(vout) in [0.2V..1.0V];
-    power <= 1mW;
+    gbw>=100MHz; pm>=60deg; gain>=70dB;
+    swing(OUT) in [0.2V..1.0V];
+    power<=1mW;
   }
 
-  slot Core: AmplifierStage;
-  slot Comp: Compensator?;
+  slot Core: AmplifierStage bind { in<-IN; out->OUT; }
 
+  // Choose topology via synthesis and **enable** comp (or disable with 'None')
   synth {
     from lib.ota.*;
-    fill Core, Comp;
+    fill Core;
     prefer inputPolarity = NMOS;
+    // Optional compensation policy on the chosen Core
+    Core.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // or: Core.comp None;
     objective minimize power;
   }
 
@@ -105,7 +89,7 @@ class AmpAuto implements Amplifier {
 }
 ```
 
-**Structural (5T OTA, concise)**
+**Structural definition of a 5T OTA**
 
 ```java
 package analog.ota;
@@ -142,30 +126,37 @@ class OTA5T implements Amplifier {
 }
 ```
 
-**SPICE wrap (wide-swing mirror motif)**
+**SPICE wrap (wide-swing NMOS mirror motif)**
 
 ```java
-motif WideSwingPMOSMirror implements CurrentMirror {
+motif WideSwingNMOSMirror implements CurrentMirror {
   ports {
-    sense, out: electrical;
-    vdd: supply;
+    sense, out, ibias: electrical;
+    vss: supply;
   }
 
   params {
-    m: int = 1;
-    Wp = 2u;
-    Lp = 0.18u;
+    n: int = 1;     // mirror ratio parameter
+    Wn = 2u;        // base width
+    Ln = 0.18u;     // length
   }
 
   wrap spice """
-    .subckt WS_PMOS_MIRROR sense out vdd m=1 Wp=2u Lp=0.18u
-    M1 out  sense vdd vdd pch W={Wp*m} L={Lp}
-    M2 sense sense vdd vdd pch W={Wp}   L={Lp}
+    .subckt WS_NMOS_MIRROR sense out ibias vss n=1 Wn=2u Ln=0.18u
+    * M5 sized (W/L)/(n+1)^2
+    M5 ibias ibias vss vss nch   W={Wn/((n+1)*(n+1))} L={Ln}
+    * M1 and M4 sized (W/L)/n^2
+    M1 out  ibias N002 N002 nch  W={Wn/(n*n)}       L={Ln}
+    M4 sense ibias N001 N001 nch W={Wn/(n*n)}       L={Ln}
+    * M2 and M3 sized W/L
+    M2 N002 sense vss vss nch W={Wn} L={Ln}
+    M3 N001 sense vss vss nch W={Wn} L={Ln}
     .ends
   """ map {
     sense = sense;
     out = out;
-    vdd = vdd;
+    ibias = ibias;
+    vss = vss;
   }
 }
 ```
@@ -174,25 +165,23 @@ motif WideSwingPMOSMirror implements CurrentMirror {
 
 ### 1.6 CasIR and the Toolchain (Overview)
 
-The **compiler** takes `.cas` and produces **CasIR** (`.cir`), then drives a **synthesis/verification** pipeline:
+The **compiler** transforms `.cas` source files into **CasIR** (`.cir`) intermediate representation, then orchestrates a comprehensive **synthesis and verification** pipeline. The compilation process encompasses seven distinct phases:
 
-1. **Parsing & Normalization** -> units, roles, constraints, sugar expansion (`mirror`, `fb`, `pair`).
-2. **CasIR Emit** -> typed graph: nets, ports, motif instances, role tags, numeric/graph constraints, bench intents.
-3. **Feasibility Guards** -> headroom stacks, ICMR, GBW vs power, PM heuristics.
-4. **Topology Selection** (if `synth {}` present) -> SAT/SMT/OMT over a library of **Synthesizable** motifs/modules using their **char** manifests.
-5. **Sizing Initialization** -> gm/Id LUTs + convex/GP fits for currents, $V_{ov}$, $W/L$, compensation.
-6. **SPICE Verification** -> auto benches (AC/noise/transient; PVT/MC), metric aggregation.
-7. **Optimization & Minimal Edits** -> sizing tweaks; bounded structural edits within the chosen family.
+1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`.
+2. **CasIR Emission** generates a typed graph containing nets, ports, motif instances, role tags, numeric and graph constraints, and benchmark intents.
+3. **Feasibility Guards** validate headroom stacks, input common-mode range (ICMR), gain-bandwidth versus power tradeoffs, and phase margin heuristics.
+4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of **Synthesizable** motifs and modules, guided by their **char** manifests.
+5. **Sizing Initialization** leverages gm/Id lookup tables and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters.
+6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics.
+7. **Optimization & Minimal Edits** performs sizing refinements and bounded structural modifications within the selected topology family.
 
-Outputs: **CasIR**, **SPICE**, and a **diagnostics report** mapping spec margins to responsible blocks.
+The pipeline produces three primary outputs: **CasIR** intermediate representation, **SPICE** netlists for simulation, and a **diagnostics report** that traces specification margins to responsible circuit blocks.
 
 ---
 
 ### 1.7 Intended Audience
 
-* **Designers**: analog/RF/mixed-signal IC engineers.
-* **Library builders**: motif authors, technology integrators, PDK adapters.
-* **Tool developers**: synthesis and verification backends; IDEs.
+This specification serves three primary audiences. **Designers**—including analog, RF, and mixed-signal IC engineers—represent the primary users who will author `.cas` source files and interpret synthesis results. **Library builders** encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. **Tool developers** focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
 
 ---
 
