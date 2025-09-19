@@ -258,14 +258,27 @@ cascode/
 ├─ README.md
 ├─ LICENSE
 ├─ spec/
-│  ├─ language-spec/
-│  ├─ Grammar.ebnf
-│  └─ CasIR.md
+│  └─ language-spec/
+│     ├─ Ch01_Introduction.md
+│     ├─ Ch02_Core_Concepts.md
+│     ├─ Ch03_CasIR.md                 
+│     └─ Grammar.ebnf                  
+├─ spec/casir-schema/                  # JSON Schema for CasIR 
+│  ├─ casir-json-1.schema.json         # root schema 
+│  └─ casir-json-1-el.schema.json      # EL overlay 
 ├─ lib/
-│  ├─ motifs/               # standard motif library
+│  ├─ motifs/               # standard motif library (types + SPICE templates)
 │  ├─ traits/
 │  ├─ patterns/
-│  └─ tech/                 # tech adapters, gm/Id LUTs, fits (placeholders)
+│  └─ tech/                 # tech adapters, gm/Id LUTs, fitted models (stubs)
+├─ tools/
+│  ├─ cli/                  # `cascode` CLI (synth | verify | run | fmt)
+│  ├─ parser/               # ANTLR grammar + generated C# parser glue
+│  ├─ compiler/             # ADL to CasIR front end 
+│  ├─ synthesis/            # topology selection, sizing, optimization
+│  ├─ backends/
+│  │  └─ spice/             # SPICE netlist writer + bench emitters
+│  └─ casir/                # IR types, canonical JSON writer, schema validation
 ├─ examples/
 │  ├─ AmpAuto.cas
 │  ├─ AmpGuided.cas
@@ -275,16 +288,29 @@ cascode/
 │  ├─ InverterTIA.cas
 │  ├─ SALatch.cas
 │  └─ SenseChainAuto.cas
-├─ tools/
-│  ├─ cli/                  # cascode CLI
-│  └─ parser/
 ├─ tests/
-│  ├─ conformance/
-│  └─ golden/
+│  ├─ fixtures/
+│  │  └─ adl/                # source `.cas` inputs used by tests
+│  ├─ golden/
+│  │  ├─ ir/                 # canonical `.cir.json` snapshots (HL/ML/EL)
+│  │  └─ spice/              # tiny golden netlists (smoke tests)
+│  └─ conformance/           # parser/semantics cases, negative tests
 └─ docs/
    ├─ getting-started.md
    └─ benchmarks/AMSGENBench.md
 ```
+
+### Component Responsibilities
+- `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
+- `tools/compiler`: Front end that turns ADL into CasIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
+- `tools/casir`: CasIR object model, canonical JSON writer (sorted keys/ids, explicit units), and JSON Schema validation.
+- `tools/synthesis`: Slot fill, topology selection, sizing/optimization, and updating CasIR params (connectivity remains in `ports`).
+- `tools/backends/spice`: Netlist writers per simulator and bench emitters driven by CasIR `constraints.measure` and `harness`.
+
+### Notes
+- Build artifacts go in `build/` (not committed). Generated ANTLR sources are excluded from VCS.
+- CasIR on disk is JSON only; YAML is not used. Canonical writer ensures stable diffs.
+- JSON Schema lives under `spec/language-spec/schema/` and is the contract for `.cir.json` files.
 
 ---
 

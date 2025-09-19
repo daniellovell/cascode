@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cascode.dev/schemas/casir-json-1-el.schema.json",
+  "title": "CasIR JSON v1 (EL overlay)",
+  "allOf": [
+    { "$ref": "./casir-json-1.schema.json" },
+    {
+      "type": "object",
+      "properties": {
+        "level": { "const": "EL" },
+        "motifs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "params": {
+                "type": "object",
+                "additionalProperties": { "$ref": "./casir-json-1.schema.json#/$defs/Quantity" }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+

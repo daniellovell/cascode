@@ -1,4 +1,4 @@
-# **Chapter 2 — Core Concepts (Revised, v0.2)**
+# **Chapter 2 — Core Concepts**
 
 > This chapter defines the **semantic scaffolding** of *cascode*: the building blocks, how they relate, and the invariants the compiler and tools rely upon. Syntax is shown informally; the formal grammar appears in Chapter 11.
 > Normative keywords **MUST**, **MUST NOT**, **SHOULD**, **MAY** follow RFC 2119.

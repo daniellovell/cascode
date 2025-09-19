@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cascode.dev/schemas/casir-json-1.schema.json",
+  "title": "CasIR JSON v1",
+  "type": "object",
+  "additionalProperties": false,
+  "$comment": "Schema for CasIR connectivity-first JSON. Uniqueness of ids and foreign-key checks (ports -> nets) are enforced by tools, not by JSON Schema.",
+  "required": ["ir_version", "format", "level", "nets", "motifs"],
+  "properties": {
+    "ir_version": { "type": "integer", "const": 1 },
+    "format":     { "type": "string",  "const": "casir-json-1" },
+    "level":      { "type": "string",  "enum": ["HL", "ML", "EL"] },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "tool": { "type": "string" },
+        "when": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "nets": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Net" }
+    },
+
+    "bundles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Bundle" }
+    },
+
+    "motifs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Motif" }
+    },
+
+    "constraints": { "$ref": "#/$defs/Constraints" },
+
+    "harness": { "$ref": "#/$defs/Harness" },
+
+    "benches": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "provenance": { "$ref": "#/$defs/Provenance" },
+
+    "indices": { "$ref": "#/$defs/Indices" },
+
+    "extensions": { "type": "object" }
+  },
+
+  "$defs": {
+    "Identifier": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+    "PinPath":    { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" },
+    "PinRef":     { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$" },
+    "UnitString": { "type": "string" },
+
+    "Quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit"],
+      "properties": {
+        "value": { "type": "number" },
+        "unit":  { "$ref": "#/$defs/UnitString" }
+      }
+    },
+
+    "Symbolic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["symbolic"],
+      "properties": {
+        "symbolic": { "type": "string" }
+      }
+    },
+
+    "ParamValue": { "oneOf": [ {"$ref": "#/$defs/Quantity"}, {"$ref": "#/$defs/Symbolic"} ] },
+
+    "PortsMap": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/PinPath" },
+      "additionalProperties": { "$ref": "#/$defs/Identifier" }
+    },
+
+    "Net": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain"],
+      "properties": {
+        "id":     { "$ref": "#/$defs/Identifier" },
+        "domain": { "type": "string", "enum": ["supply", "ground", "electrical", "bias", "rf", "clk"] },
+        "rail":   { "$ref": "#/$defs/Identifier" },
+        "roles":  { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "Bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "fields"],
+      "properties": {
+        "id":   { "$ref": "#/$defs/Identifier" },
+        "type": { "type": "string", "enum": ["Diff"] },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["p", "n"],
+          "properties": {
+            "p": { "$ref": "#/$defs/Identifier" },
+            "n": { "$ref": "#/$defs/Identifier" }
+          }
+        }
+      }
+    },
+
+    "Motif": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "ports"],
+      "properties": {
+        "id":     { "$ref": "#/$defs/Identifier" },
+        "type":   { "$ref": "#/$defs/Identifier" },
+        "traits": { "type": "array", "items": { "$ref": "#/$defs/Identifier" } },
+        "ports":  { "$ref": "#/$defs/PortsMap" },
+        "params": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Identifier" },
+          "additionalProperties": { "$ref": "#/$defs/ParamValue" }
+        },
+        "pins_meta": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/PinPath" },
+          "additionalProperties": { "type": "object" }
+        },
+        "impl": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "char_ref": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "Constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "numeric": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/NumericConstraint" }
+        },
+        "tech": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/TechConstraint" }
+        },
+        "graph": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/GraphConstraint" }
+        },
+        "measure": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/MeasureIntent" }
+        }
+      }
+    },
+
+    "NumericConstraint": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "lhs", "op", "rhs"],
+      "properties": {
+        "id":   { "$ref": "#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["ineq", "eq"] },
+        "lhs":  { "type": "object", "required": ["metric"], "properties": { "metric": { "type": "string" } } },
+        "op":   { "type": "string", "enum": [">=", "<=", ">", "<", "=="] },
+        "rhs":  { "$ref": "#/$defs/Quantity" },
+        "scope":{
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "node":   { "$ref": "#/$defs/Identifier" },
+            "bundle": { "$ref": "#/$defs/Identifier" }
+          }
+        }
+      }
+    },
+
+    "TechConstraint": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["id", "kind", "on", "rule", "value", "unit"],
+      "properties": {
+        "id":   { "$ref": "#/$defs/Identifier" },
+        "kind": { "type": "string", "enum": ["limit", "legal"] },
+        "on":   { "type": "string" },
+        "rule": { "type": "string" },
+        "value":{ "type": "number" },
+        "unit": { "$ref": "#/$defs/UnitString" }
+      }
+    },
+
+    "GraphConstraint": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "rule", "select"],
+          "properties": {
+            "id":     { "$ref": "#/$defs/Identifier" },
+            "rule":   { "type": "string", "const": "cardinality" },
+            "select": { "type": "string" },
+            "min":    { "type": "integer" },
+            "max":    { "type": "integer" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "rule", "from", "to"],
+          "properties": {
+            "id":     { "$ref": "#/$defs/Identifier" },
+            "rule":   { "type": "string", "const": "path_exists" },
+            "from":   { "type": "string" },
+            "to":     { "type": "string" },
+            "through_types": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "rule", "from", "to_rail", "max_devices"],
+          "properties": {
+            "id":     { "$ref": "#/$defs/Identifier" },
+            "rule":   { "type": "string", "const": "stack_depth" },
+            "from":   { "type": "string" },
+            "to_rail":{ "type": "string" },
+            "max_devices": { "type": "integer", "minimum": 0 },
+            "types":  { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "rule", "left", "right"],
+          "properties": {
+            "id":     { "$ref": "#/$defs/Identifier" },
+            "rule":   { "type": "string", "const": "forbid_adjacent" },
+            "left":   { "type": "string" },
+            "right":  { "type": "string" },
+            "why":    { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "MeasureIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "bench", "metric"],
+      "properties": {
+        "id":    { "$ref": "#/$defs/Identifier" },
+        "bench": { "type": "string" },
+        "metric":{ "type": "string" },
+        "node":  { "$ref": "#/$defs/Identifier" },
+        "bundle":{ "$ref": "#/$defs/Identifier" }
+      }
+    },
+
+    "Harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supplies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["net", "value", "unit"],
+            "properties": {
+              "net":   { "$ref": "#/$defs/Identifier" },
+              "value": { "type": "number" },
+              "unit":  { "$ref": "#/$defs/UnitString" }
+            }
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["bundle", "Z", "unit"],
+            "properties": {
+              "bundle": { "$ref": "#/$defs/Identifier" },
+              "Z":      { "type": "number" },
+              "unit":   { "$ref": "#/$defs/UnitString" }
+            }
+          }
+        },
+        "loads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "node": { "$ref": "#/$defs/Identifier" },
+              "C":    { "type": "number" },
+              "unit": { "$ref": "#/$defs/UnitString" }
+            }
+          }
+        },
+        "icmr": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min", "max", "unit"],
+          "properties": {
+            "min":  { "type": "number" },
+            "max":  { "type": "number" },
+            "unit": { "$ref": "#/$defs/UnitString" }
+          }
+        },
+        "pvt": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "corners": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "Provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["file", "span"],
+            "properties": {
+              "file": { "type": "string" },
+              "span": { "type": "object", "required": ["from", "to"], "properties": { "from": {"type": "integer"}, "to": {"type": "integer"} }, "additionalProperties": false }
+            }
+          }
+        },
+        "pin_spans": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/PinRef" },
+          "additionalProperties": { "type": "object", "required": ["file", "from", "to"], "properties": { "file": {"type": "string"}, "from": {"type": "integer"}, "to": {"type": "integer"} }, "additionalProperties": false }
+        },
+        "aliases": {
+          "type": "array",
+          "items": { "type": "object", "additionalProperties": false, "required": ["name", "pin"], "properties": { "name": {"type": "string"}, "pin": {"$ref": "#/$defs/PinRef"} } }
+        },
+        "transforms": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "Indices": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "connectivity_hash": { "type": "string" },
+        "pin_to_net": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/PinRef" },
+          "additionalProperties": { "$ref": "#/$defs/Identifier" }
+        },
+        "net_to_pins": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Identifier" },
+          "additionalProperties": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/PinRef" }
+          }
+        },
+        "adjacency": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instance_to_instances": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/Identifier" },
+              "additionalProperties": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/Identifier" }
+              }
+            },
+            "net_to_instances": {
+              "type": "object",
+              "propertyNames": { "$ref": "#/$defs/Identifier" },
+              "additionalProperties": {
+                "type": "array",
+                "items": { "$ref": "#/$defs/Identifier" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
