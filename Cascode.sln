@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{9412C79B-34BD-41E5-826B-27CAB21E04E7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Cli", "tools\cli\Cascode.Cli.csproj", "{EB3B7AAC-2B41-4523-8257-A62DB8173151}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Workspace", "tools\workspace\Cascode.Workspace.csproj", "{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EB3B7AAC-2B41-4523-8257-A62DB8173151}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB3B7AAC-2B41-4523-8257-A62DB8173151}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB3B7AAC-2B41-4523-8257-A62DB8173151}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB3B7AAC-2B41-4523-8257-A62DB8173151}.Release|Any CPU.Build.0 = Release|Any CPU
+		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{EB3B7AAC-2B41-4523-8257-A62DB8173151} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
+		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
+	EndGlobalSection
+EndGlobal
