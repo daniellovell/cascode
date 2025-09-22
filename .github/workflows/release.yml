@@ -1,0 +1,134 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build ${{ matrix.rid }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+          - os: ubuntu-latest
+            rid: linux-arm64
+          - os: macos-latest
+            rid: osx-x64
+          - os: macos-latest
+            rid: osx-arm64
+          - os: windows-latest
+            rid: win-x64
+          - os: windows-latest
+            rid: win-arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: publish
+        run: |
+          dotnet publish tools/cli/Cascode.Cli.csproj -c Release -r ${{ matrix.rid }} -p:PublishSingleFile=true -p:SelfContained=true -p:PublishTrimmed=false -o build/out/${{ matrix.rid }}
+      - name: normalize binary name (unix)
+        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/out/${{ matrix.rid }}
+          if [[ -f Cascode.Cli ]]; then mv Cascode.Cli cascode; fi
+          if [[ -f cascode ]]; then chmod +x cascode; fi
+      - name: normalize binary name (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = "build/out/${{ matrix.rid }}"
+          if (Test-Path "$p/Cascode.Cli.exe") { Rename-Item "$p/Cascode.Cli.exe" "cascode.exe" -Force }
+      - name: archive (unix)
+        if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          cd build/out/${{ matrix.rid }}
+          tar -czf ../../cascode-${{ matrix.rid }}.tar.gz *
+      - name: archive (windows)
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Push-Location "build/out/${{ matrix.rid }}"
+          Compress-Archive -Path * -DestinationPath ../../cascode-${{ matrix.rid }}.zip -Force
+          Pop-Location
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cascode-${{ matrix.rid }}
+          path: build/cascode-${{ matrix.rid }}.*
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cascode-*
+          path: dist
+          merge-multiple: true
+      - name: create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  npm-publish:
+    needs: github-release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/npm/cascode-cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+      - name: set version from tag
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          node -e "let p=require('./package.json'); p.version='${TAG}'; require('fs').writeFileSync('package.json', JSON.stringify(p,null,2)+'\n')"
+      - run: npm install --ignore-scripts
+      - name: publish npm (prerelease)
+        if: contains(github.ref_name, '-')
+        run: npm publish --access public --tag next
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: publish npm (latest)
+        if: ${{ !contains(github.ref_name, '-') }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  nuget-publish:
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: set version from tag
+        run: |
+          TAG=${GITHUB_REF_NAME#v}
+          dotnet pack tools/cli/Cascode.Cli.csproj -c Release -p:PackageVersion=$TAG -o build/nuget
+      - name: publish to nuget
+        run: dotnet nuget push build/nuget/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key $NUGET_API_KEY
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

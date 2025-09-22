@@ -6,6 +6,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <!-- Enable packing as a .NET global tool (optional; used on release) -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>cascode</ToolCommandName>
+    <PackageId>Cascode.Cli</PackageId>
+    <Authors>Cascode contributors</Authors>
+    <Description>Cascode CLI — synthesize, verify, and run cascode ADL flows.</Description>
+    <RepositoryUrl>https://github.com/daniellovell/cascode</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/daniellovell/cascode</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Version>0.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

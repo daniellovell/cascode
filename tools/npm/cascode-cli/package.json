@@ -1,0 +1,47 @@
+{
+  "name": "@cascode/cascode-cli",
+  "version": "0.1.0",
+  "description": "Cascode CLI installer wrapper. Installs a prebuilt cascode binary for your platform.",
+  "homepage": "https://github.com/daniellovell/cascode",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniellovell/cascode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/daniellovell/cascode/issues"
+  },
+  "license": "UNLICENSED",
+  "private": false,
+  "bin": {
+    "cascode": "bin/cascode.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js",
+    "prepack": "node -e \"const fs=require('fs'); if(!fs.existsSync('bin/cascode.js')){console.error('Missing bin/cascode.js'); process.exit(1)}\""
+  },
+  "keywords": [
+    "eda",
+    "analog",
+    "circuit",
+    "synthesis",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "dependencies": {
+    "tar": "^6.2.1",
+    "unzipper": "^0.10.14"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "vendor/",
+    "README.md"
+  ]
+}
