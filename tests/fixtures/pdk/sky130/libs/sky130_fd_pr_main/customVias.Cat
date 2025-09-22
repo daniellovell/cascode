@@ -1,0 +1,5 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/diffConn type="cell"
+sky130_fd_pr_main/nwellTap type="cell"
+sky130_fd_pr_main/polyConn type="cell"
+sky130_fd_pr_main/subTap type="cell"

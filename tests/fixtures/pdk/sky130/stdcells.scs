@@ -1,0 +1,3 @@
+include $WORK_DIR/libs/sky130_scl_9T/spectre/sky130_scl_9T.scs 
+include $WORK_DIR/libs/sky130_scl_9T_LP/spectre/sky130_scl_9T_LP.scs 
+include $WORK_DIR/libs/sky130_scl_9T_HS/spectre/sky130_scl_9T_HS.scs

@@ -1,0 +1,3528 @@
+// Point Netlist Generated on: Apr  1 14:50:44 2025
+// Generated for: spectre
+// Design Netlist Generated on: Apr  1 14:50:40 2025
+// Design library name: work
+// Design cell name: allCells_LP
+// Design view name: schematic
+simulator lang=spectre
+global 0 VSS! VDD!
+include "/vols/wfo_devel/projects/reference_SKY130/tech/sky130_release_0.0.5/libs/sky130_fd_pr_main/../../models/sky130.lib.spice" section=tt
+
+// Library name: sky130_scl_9T_LP
+// Cell name: INVX2_LP
+// View name: schematic
+subckt INVX2_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+ends INVX2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI221X2_LP
+// View name: schematic
+subckt OAI221X2_LP A0 A1 B0 B1 C0 inh_VDD inh_VSS Y
+    mn4 (Y C0 net132 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (net128 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (net128 A1 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (net132 B0 net128 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (net132 B1 net128 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp3 (Y B1 net123 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (net115 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y A1 net115 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp2 (net123 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp4 (Y C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends OAI221X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: INVX16_LP
+// View name: schematic
+subckt INVX16_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=143.85f \
+        ad=117.6f ps=1.3925u pd=1.12u m=(1)*(8)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=212.35f \
+        ad=173.6f ps=1.8925u pd=1.52u m=2
+ends INVX16_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR4X2_LP
+// View name: schematic
+subckt OR4X2_LP A B C D inh_VDD inh_VSS Y
+    mn4 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (n0 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 D n3 inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f ad=75.6f \
+        ps=1.25u pd=820n m=1
+    mp1 (n2 B n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n3 C n2 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+ends OR4X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI221X2_LP
+// View name: schematic
+subckt AOI221X2_LP A0 A1 B0 B1 C0 inh_VDD inh_VSS Y
+    mn2 (Y B0 net116 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mn3 (net116 B1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn4 (Y C0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mn1 (Y A1 net124 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mn0 (net124 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mp3 (net104 B1 net103 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp2 (net104 B0 net103 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp0 (net103 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp1 (net103 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp4 (Y C0 net104 inh_VDD) pfet_01v8_hvt w=625n l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=1
+ends AOI221X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR4X2_LP
+// View name: schematic
+subckt NOR4X2_LP A B C D inh_VDD inh_VSS Y
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y D inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp3 (Y D n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f ad=328.6f \
+        ps=3.01u pd=3.01u m=1
+    mp2 (n2 C n1 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends NOR4X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI21X2_LP
+// View name: schematic
+subckt AOI21X2_LP A0 A1 B0 inh_VDD inh_VSS Y
+    mn2 (Y B0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (net74 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y A1 net74 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mp2 (Y B0 net70 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp1 (net70 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (net70 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends AOI21X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: MX2X1_LP
+// View name: schematic
+subckt MX2X1_LP A B S0 inh_VDD inh_VSS Y
+    mn3 (n5 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 S0 n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (S0b S0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n3 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 S0b n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n0 S0b n6 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n6 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (S0b S0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n0 S0 n4 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=1
+    mp1 (n4 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends MX2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI21X1_LP
+// View name: schematic
+subckt AOI21X1_LP A0 A1 B0 inh_VDD inh_VSS Y
+    mn2 (Y B0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net78 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y A1 net78 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (Y B0 net62 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (net62 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net62 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends AOI21X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFRX4_LP
+// View name: schematic
+subckt DFFRX4_LP CK D Q QN RN inh_VDD inh_VSS
+    mn36 (n25 mout n27 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n27 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn37 (n20 CKbb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn45 (n35 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn46 (qbint n30 n35 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn51 (n30 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n40 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb n41 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n41 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n26 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n26 RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp37 (n20 CKb n26 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp46 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=75.6f ps=1.25u pd=820n m=(1)*(2)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint RN inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=86.8f ad=164.3f ps=900n pd=1.77u m=1
+ends DFFRX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFX1_LP
+// View name: schematic
+subckt DFFX1_LP CK D Q QN inh_VDD inh_VSS
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n35 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb n35 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n25 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n30 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb n36 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n36 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp35 (n26 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n20 CKb n26 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI221X1_LP
+// View name: schematic
+subckt AOI221X1_LP A0 A1 B0 B1 C0 inh_VDD inh_VSS Y
+    mn2 (net120 B0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y B1 net120 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y C0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y A1 net128 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net128 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (net108 B1 net111 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (net108 B0 net111 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net111 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (net111 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (Y C0 net108 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends AOI221X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR4X1_LP
+// View name: schematic
+subckt NOR4X1_LP A B C D inh_VDD inh_VSS Y
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp3 (Y D n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f ad=164.3f \
+        ps=1.77u pd=1.77u m=1
+    mp2 (n2 C n1 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends NOR4X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI221X1_LP
+// View name: schematic
+subckt OAI221X1_LP A0 A1 B0 B1 C0 inh_VDD inh_VSS Y
+    mn4 (Y C0 net132 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net128 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net128 A1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net132 B0 net128 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (net132 B1 net128 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y B1 net123 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net115 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y A1 net115 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+    mp2 (net123 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (Y C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends OAI221X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DLY4X4_LP
+// View name: schematic
+subckt DLY4X4_LP A inh_VDD inh_VSS Y
+    mn14 (net345 inh_VDD net341 inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (net341 net353 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (net353 inh_VDD net349 inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (net349 net361 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (net361 inh_VDD net357 inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn9 (net357 net369 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn15 (net333 net345 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn6 (net377 inh_VDD net373 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net397 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (net385 inh_VDD net381 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net389 net397 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (net365 net377 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn16 (Y net333 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn3 (net381 net393 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net393 inh_VDD net389 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn8 (net369 inh_VDD net365 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (net373 net385 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (net369 inh_VSS net300 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (net300 net377 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp9 (net292 net369 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (net361 inh_VSS net292 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (net377 inh_VSS net308 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (net308 net385 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (net385 inh_VSS net316 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (net316 net393 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net393 inh_VSS net324 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net324 net397 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (net284 net361 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (net353 inh_VSS net284 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (net276 net353 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (net345 inh_VSS net276 inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=75.6f ps=1.25u pd=820n m=(1)*(1)
+    mp15 (net333 net345 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net397 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp16 (Y net333 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=106.175f ad=86.8f ps=1.1175u pd=900n m=(1)*(4)
+ends DLY4X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR4X1_LP
+// View name: schematic
+subckt OR4X1_LP A B C D inh_VDD inh_VSS Y
+    mn4 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=2
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 D n3 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=2
+    mp1 (n2 B n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n3 C n2 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+ends OR4X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: INVX1_LP
+// View name: schematic
+subckt INVX1_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=760n l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=1
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends INVX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: MX2X4_LP
+// View name: schematic
+subckt MX2X4_LP A B S0 inh_VDD inh_VSS Y
+    mn3 (n5 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 S0 n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (S0b S0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n3 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn2 (n0 S0b n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n0 S0b n6 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n6 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=251.1f \
+        ad=173.6f ps=2.265u pd=1.52u m=1
+    mp0 (S0b S0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n0 S0 n4 inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=1
+    mp1 (n4 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends MX2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKXOR2X1_LP
+// View name: schematic
+subckt CLKXOR2X1_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(820n) l=150n as=166.05f \
+        ad=114.8f ps=1.635u pd=1.1u m=(1)*(4)
+    mn3 (n0 B net139 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 n2 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net139 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 n2 net130 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n0 B n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=2
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp2 (net130 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends CLKXOR2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND3X1_LP
+// View name: schematic
+subckt AND3X1_LP A B C inh_VDD inh_VSS Y
+    mn3 (Y net086 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net0106 B net0102 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net0102 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net086 C net0106 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net086 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net086 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (net086 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=2
+    mp3 (Y net086 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=2
+ends AND3X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: INVX4_LP
+// View name: schematic
+subckt INVX4_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+ends INVX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: BUFX8_LP
+// View name: schematic
+subckt BUFX8_LP A inh_VDD inh_VSS Y
+    mn1 (inh_VSS n0 Y inh_VSS) nfet_01v8 w=(840n) l=150n as=170.1f \
+        ad=117.6f ps=1.665u pd=1.12u m=(1)*(4)
+    mn0 (inh_VSS A n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=251.1f \
+        ad=173.6f ps=2.265u pd=1.52u m=2
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=2
+ends BUFX8_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR4X4_LP
+// View name: schematic
+subckt NOR4X4_LP A B C D inh_VDD inh_VSS Y
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn3 (Y D inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp3 (Y D n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=251.1f ad=173.6f \
+        ps=2.265u pd=1.52u m=1
+    mp2 (n2 C n1 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+ends NOR4X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND3X2_LP
+// View name: schematic
+subckt AND3X2_LP A B C inh_VDD inh_VSS Y
+    mn3 (Y net95 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (net111 B net103 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net103 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net95 C net111 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net95 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net95 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (net95 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp3 (Y net95 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+ends AND3X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFX4_LP
+// View name: schematic
+subckt DFFX4_LP CK D Q QN inh_VDD inh_VSS
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn50 (n35 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb n35 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n25 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n30 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb n36 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp50 (n36 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=1
+    mp35 (n26 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n20 CKb n26 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=1
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=1
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFRX1_LP
+// View name: schematic
+subckt DFFRX1_LP CK D Q QN RN inh_VDD inh_VSS
+    mn36 (n25 mout n27 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n27 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn37 (n20 CKbb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (n35 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn46 (qbint n30 n35 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n40 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb n41 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n41 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n26 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n26 RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp37 (n20 CKb n26 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=1
+    mp46 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFRX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: TLATSRX1_LP
+// View name: schematic
+subckt TLATSRX1_LP D G Q QN RN SN inh_VDD inh_VSS
+    mn26 (n0 Gbb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN Qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Qbint Qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n25 Qint net3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n0 Gb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (Gb G net1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    NM0 (net1 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (Q Qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (Gbb Gb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (Qint n0 net2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    NM1 (net2 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    NM2 (net3 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    PM0 (Gb RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    PM1 (Qint SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n0 Gb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN Qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Qbint Qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp35 (n26 Qint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n0 Gbb n26 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp20 (Gb G inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (Q Qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=1
+    mp21 (Gbb Gb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    PM2 (n26 RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (Qint n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends TLATSRX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND4X2_LP
+// View name: schematic
+subckt NAND4X2_LP A B C D inh_VDD inh_VSS Y
+    mn1 (n1 B n2 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y D n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (n0 C n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n2 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp3 (Y D inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+ends NAND4X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XNOR2X4_LP
+// View name: schematic
+subckt XNOR2X4_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net145 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 n2 net145 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 B n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (n1 n2 n0 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (net112 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=46.5f \
+        ad=86.8f ps=770n pd=900n m=1
+    mp3 (n0 B net112 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+ends XNOR2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFSRX1_LP
+// View name: schematic
+subckt DFFSRX1_LP CK D Q QN RN SN inh_VDD inh_VSS
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n30 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn22 (RNb RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n40 qbint n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n40 RNb n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n42 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn53 (n35 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn32 (mout n20 net426 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout RNb net426 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (net426 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n41 qbint n43 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n43 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=1
+    mp36 (n20 CKb n31 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n31 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp32 (mout n20 net402 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (net402 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp22 (RNb RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp53 (n35 CKbb n41 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp50 (n41 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFSRX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: ADDHX1_LP
+// View name: schematic
+subckt ADDHX1_LP A B CO S inh_VDD inh_VSS
+    mn8 (CO COb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (COb B n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn6 (n4 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (S Sb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Sb B n2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n2 n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n1 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Sb n1 n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (CO COb inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp5 (S Sb inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp2 (n3 n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Sb n1 n3 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=1
+    mp4 (Sb B n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n1 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (COb B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (COb A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends ADDHX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI21X2_LP
+// View name: schematic
+subckt OAI21X2_LP A0 A1 B0 inh_VDD inh_VSS Y
+    mn2 (Y B0 n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (n0 A1 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n0 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp0 (n1 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y A1 n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f ad=328.6f \
+        ps=3.01u pd=3.01u m=1
+ends OAI21X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DLY1X4_LP
+// View name: schematic
+subckt DLY1X4_LP A inh_VDD inh_VSS Y
+    mn2 (n1 inh_VDD n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n4 n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y n2 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n2 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n1 inh_VSS n5 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp1 (n5 n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y n2 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=106.175f \
+        ad=86.8f ps=1.1175u pd=900n m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n2 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends DLY1X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI21X1_LP
+// View name: schematic
+subckt OAI21X1_LP A0 A1 B0 inh_VDD inh_VSS Y
+    mn2 (Y B0 n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 A1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y A1 n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=86.8f ad=86.8f \
+        ps=900n pd=900n m=4
+ends OAI21X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFSRX4_LP
+// View name: schematic
+subckt SDFFSRX4_LP CK D Q QN RN SE SI SN inh_VDD inh_VSS
+    mn13 (n2 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE n2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n0 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net573 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn35 (n6 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n6 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn22 (RNb RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net573 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn32 (mout n20 n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn53 (n35 CKb n10 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (n4 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n8 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n10 RNb n8 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout RNb n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n10 qbint n8 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mp14 (Db SEb n3 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (n3 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (n1 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n11 qbint n9 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n9 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net573 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=1
+    mp36 (n20 CKb n7 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n7 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp32 (mout n20 n5 inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp31 (n5 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp22 (RNb RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=1
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net573 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=1
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp53 (n35 CKbb n11 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n11 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFSRX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFSX4_LP
+// View name: schematic
+subckt DFFSX4_LP CK D Q QN SN inh_VDD inh_VSS
+    mn51 (n40 qbint n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n35 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n42 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net331 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn30 (n25 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout n20 n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n20 CKbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n30 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net331 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net331 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=106.175f ad=86.8f ps=1.1175u pd=900n m=1
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp36 (n20 CKb n31 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n31 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net331 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=1
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp52 (n35 CKbb n41 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n41 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n41 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFSX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: BUFX2_LP
+// View name: schematic
+subckt BUFX2_LP A inh_VDD inh_VSS Y
+    mn1 (inh_VSS n0 Y inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mn0 (inh_VSS A n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=(1)*(2)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=(1)*(1)
+ends BUFX2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND4X1_LP
+// View name: schematic
+subckt NAND4X1_LP A B C D inh_VDD inh_VSS Y
+    mn1 (n1 B n2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y D n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 C n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n2 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y D inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+ends NAND4X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DLY1X1_LP
+// View name: schematic
+subckt DLY1X1_LP A inh_VDD inh_VSS Y
+    mn2 (n1 inh_VDD n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n4 n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y n2 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n2 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n1 inh_VSS n5 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp1 (n5 n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y n2 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n2 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DLY1X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: BUFX4_LP
+// View name: schematic
+subckt BUFX4_LP A inh_VDD inh_VSS Y
+    mn1 (inh_VSS n0 Y inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (inh_VSS A n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=210.8f \
+        ad=173.6f ps=2.2u pd=1.52u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends BUFX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFSRX4_LP
+// View name: schematic
+subckt DFFSRX4_LP CK D Q QN RN SN inh_VDD inh_VSS
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn35 (n30 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn22 (RNb RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n40 qbint n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n40 RNb n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n42 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn53 (n35 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn32 (mout n20 net426 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout RNb net426 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (net426 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n41 qbint n43 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n43 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=106.175f ad=86.8f ps=1.1175u pd=900n m=1
+    mp36 (n20 CKb n31 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n31 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp32 (mout n20 net402 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (net402 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp22 (RNb RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp53 (n35 CKbb n41 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n41 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=86.8f ad=164.3f ps=900n pd=1.77u m=1
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFSRX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XNOR2X1_LP
+// View name: schematic
+subckt XNOR2X1_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net145 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 n2 net145 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 B n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n1 n2 n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net112 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 B net112 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends XNOR2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND2X1_LP
+// View name: schematic
+subckt AND2X1_LP A B inh_VDD inh_VSS Y
+    mn2 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net127 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 A net127 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n0 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp2 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+ends AND2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: INVX8_LP
+// View name: schematic
+subckt INVX8_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=170.1f \
+        ad=117.6f ps=1.665u pd=1.12u m=(1)*(4)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=251.1f \
+        ad=173.6f ps=2.265u pd=1.52u m=2
+ends INVX8_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND2X2_LP
+// View name: schematic
+subckt AND2X2_LP A B inh_VDD inh_VSS Y
+    mn2 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mn0 (net73 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B net73 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n0 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp2 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=2
+ends AND2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XNOR2X2_LP
+// View name: schematic
+subckt XNOR2X2_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net145 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 n2 net145 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 B n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n1 n2 n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net112 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 B net112 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+ends XNOR2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND4X4_LP
+// View name: schematic
+subckt NAND4X4_LP A B C D inh_VDD inh_VSS Y
+    mn1 (n1 B n2 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn3 (Y D n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn2 (n0 C n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (n2 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp3 (Y D inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+ends NAND4X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DFFSX1_LP
+// View name: schematic
+subckt DFFSX1_LP CK D Q QN SN inh_VDD inh_VSS
+    mn51 (n40 qbint n42 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n35 CKb n40 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n42 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn26 (n20 CKb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net331 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (n25 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout n20 n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n20 CKbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n30 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net331 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n20 CKbb n22 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net331 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=1
+    mp36 (n20 CKb n31 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n31 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net331 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n35 CKbb n41 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n41 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n41 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DFFSX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFSRX1_LP
+// View name: schematic
+subckt SDFFSRX1_LP CK D Q QN RN SE SI SN inh_VDD inh_VSS
+    mn13 (n2 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE n2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n0 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net573 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n6 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb n6 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn22 (RNb RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net573 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn32 (mout n20 n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn53 (n35 CKb n10 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (n4 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n8 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n10 RNb n8 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout RNb n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n10 qbint n8 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb n3 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (n3 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (n1 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n11 qbint n9 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n9 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net573 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=4
+    mp36 (n20 CKb n7 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n7 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp32 (mout n20 n5 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (n5 RNb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp22 (RNb RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net573 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp53 (n35 CKbb n11 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=4
+    mp50 (n11 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFSRX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: MX4X1_LP
+// View name: schematic
+subckt MX4X1_LP A B C D S0 S1 inh_VDD inh_VSS Y
+    mn9 (n1 S0 n9 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn6 (n7 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (n1 S0b n7 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n5 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (n0 S0 n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 S0b n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n3 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Y n2 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (S1b S1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n2 S1 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn8 (n9 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (n2 S1b n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (S0b S0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp9 (n1 S0b n10 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (n10 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (n1 S0 n8 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (n8 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (n0 S0b n6 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n6 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 S0 n4 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f ad=75.6f \
+        ps=1.25u pd=820n m=1
+    mp2 (n4 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Y n2 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (S0b S0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (n2 S1 n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (n1 S1b n2 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (S1b S1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends MX4X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI211X1_LP
+// View name: schematic
+subckt AOI211X1_LP A0 A1 B0 C0 inh_VDD inh_VSS Y
+    mn2 (Y B0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y C0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y A1 net95 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net95 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y C0 net82 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp2 (net82 B0 net91 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (net91 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net91 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends AOI211X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: TBUFX1_LP
+// View name: schematic
+subckt TBUFX1_LP A OE inh_VDD inh_VSS Y
+    mn5 (Y non inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (net144 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (OEb OE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (pon OE net144 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (non OEb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (non A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (non OEb net127 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp1 (net127 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y pon inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=1
+    mp3 (pon A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (pon OE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (OEb OE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends TBUFX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKBUFX8_LP
+// View name: schematic
+subckt CLKBUFX8_LP A inh_VDD inh_VSS Y
+    mn1 (Y net44 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=71.925f \
+        ad=58.8f ps=867.5n pd=700n m=(1)*(8)
+    mn0 (net44 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mp1 (Y net44 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.36u) l=150n as=232.9f \
+        ad=190.4f ps=2.0425u pd=1.64u m=(1)*(8)
+    mp0 (net44 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.36u) l=150n as=360.4f \
+        ad=190.4f ps=3.25u pd=1.64u m=(1)*(2)
+ends CLKBUFX8_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR2X2_LP
+// View name: schematic
+subckt NOR2X2_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (Y B net41 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp0 (net41 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends NOR2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND3X2_LP
+// View name: schematic
+subckt NAND3X2_LP A B C inh_VDD inh_VSS Y
+    mn1 (n0 B n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (Y C n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=173.6f \
+        ad=173.6f ps=1.52u pd=1.52u m=1
+ends NAND3X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKINVX4_LP
+// View name: schematic
+subckt CLKINVX4_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f ad=58.8f \
+        ps=1.035u pd=700n m=(1)*(4)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(820n) l=150n as=140.425f \
+        ad=114.8f ps=1.3675u pd=1.1u m=(1)*(8)
+ends CLKINVX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR2X2_LP
+// View name: schematic
+subckt OR2X2_LP A B inh_VDD inh_VSS Y
+    mn2 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n0 B n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f ad=75.6f \
+        ps=1.25u pd=820n m=2
+    mp2 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=2
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends OR2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFSX4_LP
+// View name: schematic
+subckt SDFFSX4_LP CK D Q QN SE SI SN inh_VDD inh_VSS
+    mn51 (net518 qbint net521 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n35 CKb net518 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (net521 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (net506 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE net506 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb net494 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (net494 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net492 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn31 (mout n20 net442 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (net478 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb net478 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn56 (net492 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (net442 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb net441 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (net441 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE net433 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (net433 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net492 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=106.175f \
+        ad=86.8f ps=1.1175u pd=900n m=1
+    mp36 (n20 CKb net417 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp35 (net417 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n35 CKbb net405 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (net405 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (net405 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp56 (net492 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=86.8f ad=164.3f ps=900n pd=1.77u m=1
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFSX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI211X1_LP
+// View name: schematic
+subckt OAI211X1_LP A0 A1 B0 C0 inh_VDD inh_VSS Y
+    mn1 (n0 A1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n1 B0 n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y C0 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (Y A1 n2 inh_VDD) pfet_01v8_hvt w=625n l=150n as=86.8f ad=164.3f \
+        ps=900n pd=1.77u m=1
+    mp0 (n2 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp3 (Y C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends OAI211X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI22X1_LP
+// View name: schematic
+subckt OAI22X1_LP A0 A1 B0 B1 inh_VDD inh_VSS Y
+    mn0 (net102 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y B1 net102 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net102 A1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (Y B0 net102 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y B1 net85 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y A1 net93 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (net93 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (net85 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends OAI22X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI211X2_LP
+// View name: schematic
+subckt OAI211X2_LP A0 A1 B0 C0 inh_VDD inh_VSS Y
+    mn1 (n0 A1 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n0 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (n1 B0 n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y C0 n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (Y A1 n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f ad=328.6f \
+        ps=3.01u pd=3.01u m=1
+    mp0 (n2 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp3 (Y C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends OAI211X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI22X2_LP
+// View name: schematic
+subckt OAI22X2_LP A0 A1 B0 B1 inh_VDD inh_VSS Y
+    mn0 (net102 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y B1 net102 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (net102 A1 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (Y B0 net102 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp3 (Y B1 net85 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y A1 net93 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=173.6f \
+        ad=328.6f ps=1.52u pd=3.01u m=4
+    mp0 (net93 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (net85 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends OAI22X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: ADDFX1_LP
+// View name: schematic
+subckt ADDFX1_LP A B CI CO S inh_VDD inh_VSS
+    mn9 (n6 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (n7 B n6 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (Sb CI n7 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (S Sb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (CO COb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (COb B n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n2 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (n4 CI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn8 (Sb COb n4 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn6 (n4 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (n4 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (COb CI n2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp9 (n8 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (n9 B n8 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (Sb CI n9 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=2
+    mp13 (S Sb inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp12 (CO COb inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+    mp1 (COb B n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n3 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (COb CI n3 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (n5 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (n5 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (n5 CI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n3 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (Sb COb n5 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends ADDFX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR2X1_LP
+// View name: schematic
+subckt OR2X1_LP A B inh_VDD inh_VSS Y
+    mn2 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n0 B n1 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=1
+    mp2 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends OR2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFX1_LP
+// View name: schematic
+subckt SDFFX1_LP CK D Q QN SE SI inh_VDD inh_VSS
+    mn13 (net461 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE net461 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb net449 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (net449 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net367 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (net436 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb net436 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (net429 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb net429 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n30 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net367 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n20 CKb Db inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb net392 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (net392 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE net384 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (net384 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb net376 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (net376 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net367 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=1
+    mp35 (net356 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n20 CKb net356 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net367 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: DLY2X4_LP
+// View name: schematic
+subckt DLY2X4_LP A inh_VDD inh_VSS Y
+    mn6 (n3 inh_VDD n10 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (n10 n2 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn8 (Y n4 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn4 (n2 inh_VDD n8 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n8 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n1 inh_VDD n6 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n6 n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (n4 n3 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (n3 inh_VSS n11 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (n11 n2 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (Y n4 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=125.55f \
+        ad=86.8f ps=1.335u pd=900n m=1
+    mp4 (n2 inh_VSS n9 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n9 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n1 inh_VSS n7 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=75.6f ps=1.25u pd=820n m=1
+    mp1 (n7 n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (n4 n3 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends DLY2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND3X1_LP
+// View name: schematic
+subckt NAND3X1_LP A B C inh_VDD inh_VSS Y
+    mn1 (n0 B n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (Y C n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+ends NAND3X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR2X1_LP
+// View name: schematic
+subckt NOR2X1_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (Y B net41 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (net41 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends NOR2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI211X2_LP
+// View name: schematic
+subckt AOI211X2_LP A0 A1 B0 C0 inh_VDD inh_VSS Y
+    mn2 (Y B0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y C0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y A1 net95 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (net95 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp3 (Y C0 net82 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=173.6f \
+        ad=328.6f ps=1.52u pd=3.01u m=1
+    mp2 (net82 B0 net91 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (net91 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (net91 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends AOI211X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKMX2X2_LP
+// View name: schematic
+subckt CLKMX2X2_LP A B S0 inh_VDD inh_VSS Y
+    mn3 (net140 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (S0b S0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 S0b net148 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net148 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(820n) l=150n as=166.05f \
+        ad=114.8f ps=1.635u pd=1.1u m=(1)*(4)
+    mn4 (n0 S0 net140 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n0 S0b net115 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (net115 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp2 (n0 S0 net123 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp0 (S0b S0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net123 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends CLKMX2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: BUFX16_LP
+// View name: schematic
+subckt BUFX16_LP A inh_VDD inh_VSS Y
+    mn1 (inh_VSS n0 Y inh_VSS) nfet_01v8 w=(840n) l=150n as=143.85f \
+        ad=117.6f ps=1.3925u pd=1.12u m=(1)*(8)
+    mn0 (inh_VSS A n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp1 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=212.35f \
+        ad=173.6f ps=1.8925u pd=1.52u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+ends BUFX16_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFSX1_LP
+// View name: schematic
+subckt SDFFSX1_LP CK D Q QN SE SI SN inh_VDD inh_VSS
+    mn51 (net518 qbint net521 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn52 (n35 CKb net518 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (net521 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (net506 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE net506 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb net494 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (net494 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net492 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn31 (mout n20 net442 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (net478 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb net478 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n35 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (net492 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n35 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (net442 SN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb net441 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (net441 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE net433 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (net433 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net492 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp36 (n20 CKb net417 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp35 (net417 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp52 (n35 CKbb net405 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (net405 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (net405 SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n35 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (net492 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n35 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout SN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp31 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFSX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKINVX1_LP
+// View name: schematic
+subckt CLKINVX1_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(820n) l=150n as=217.3f \
+        ad=114.8f ps=2.17u pd=1.1u m=(1)*(2)
+ends CLKINVX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: TBUFX4_LP
+// View name: schematic
+subckt TBUFX4_LP A OE inh_VDD inh_VSS Y
+    mn5 (Y non inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn3 (net144 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (OEb OE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (pon OE net144 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (non OEb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (non A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (non OEb net127 inh_VDD) pfet_01v8_hvt w=625n l=150n as=86.8f \
+        ad=164.3f ps=900n pd=1.77u m=1
+    mp1 (net127 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp5 (Y pon inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=106.175f \
+        ad=86.8f ps=1.1175u pd=900n m=1
+    mp3 (pon A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (pon OE inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (OEb OE inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+ends TBUFX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: TLATX1_LP
+// View name: schematic
+subckt TLATX1_LP D G Q QN inh_VDD inh_VSS
+    mn26 (n0 Gbb n21 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n21 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN Qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Qbint Qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n25 Qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n0 Gb n25 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (Gb G inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (Q Qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (Gbb Gb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (Qint n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp26 (n0 Gb n22 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n22 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN Qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp55 (Qbint Qint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=1
+    mp35 (n26 Qint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n0 Gbb n26 inh_VDD) pfet_01v8_hvt w=625n l=150n as=40.5f \
+        ad=75.6f ps=690n pd=820n m=1
+    mp20 (Gb G inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (Q Qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp21 (Gbb Gb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (Qint n0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends TLATX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: MX4X4_LP
+// View name: schematic
+subckt MX4X4_LP A B C D S0 S1 inh_VDD inh_VSS Y
+    mn9 (n1 S0 n9 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn6 (n7 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn7 (n1 S0b n7 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n5 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (n0 S0 n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 S0b n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n3 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Y n2 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn1 (S1b S1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n2 S1 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn8 (n9 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (n2 S1b n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (S0b S0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp9 (n1 S0b n10 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp8 (n10 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp7 (n1 S0 n8 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp6 (n8 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (n0 S0b n6 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n6 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 S0 n4 inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f ad=75.6f \
+        ps=1.25u pd=820n m=1
+    mp2 (n4 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Y n2 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp0 (S0b S0 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (n2 S1 n0 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp11 (n1 S1b n2 inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp1 (S1b S1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends MX4X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKINVX2_LP
+// View name: schematic
+subckt CLKINVX2_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=58.8f \
+        ps=1.25u pd=700n m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(820n) l=150n as=166.05f \
+        ad=114.8f ps=1.635u pd=1.1u m=(1)*(4)
+ends CLKINVX2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR2X4_LP
+// View name: schematic
+subckt NOR2X4_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp1 (Y B net41 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp0 (net41 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+ends NOR2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND3X4_LP
+// View name: schematic
+subckt NAND3X4_LP A B C inh_VDD inh_VSS Y
+    mn1 (n0 B n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn2 (Y C n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp2 (Y C inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+ends NAND3X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFX4_LP
+// View name: schematic
+subckt SDFFX4_LP CK D Q QN SE SI inh_VDD inh_VSS
+    mn13 (net461 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE net461 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb net449 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (net449 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN net367 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn50 (net436 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb net436 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (net429 mout inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn36 (n20 CKbb net429 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (qbint n30 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn56 (net367 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (CKbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (n30 CKbb mout inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (n20 CKb Db inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb net392 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (net392 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE net384 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (net384 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 CKbb net376 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (net376 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN net367 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=106.175f \
+        ad=86.8f ps=1.1175u pd=900n m=1
+    mp35 (net356 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n20 CKb net356 inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp56 (net367 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n \
+        as=86.8f ad=164.3f ps=900n pd=1.77u m=1
+    mp21 (CKbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 CKbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends SDFFX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKAND2X2_LP
+// View name: schematic
+subckt CLKAND2X2_LP A B inh_VDD inh_VSS Y
+    NM1 (net2 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    NM0 (net61 B net2 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (Y net61 inh_VSS inh_VSS) nfet_01v8 w=(820n) l=150n as=217.3f \
+        ad=217.3f ps=2.17u pd=2.17u m=(1)*(1)
+    mp1 (net61 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (net61 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=2
+    mp2 (Y net61 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=360.4f \
+        ad=360.4f ps=3.25u pd=3.25u m=2
+ends CLKAND2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI222X1_LP
+// View name: schematic
+subckt OAI222X1_LP A0 A1 B0 B1 C0 C1 inh_VDD inh_VSS Y
+    mn5 (Y C1 n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y C0 n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 B1 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 B0 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n1 A1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y C1 n4 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (n4 C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp3 (Y B1 n3 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (n3 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (Y A1 n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f ad=86.8f \
+        ps=1.77u pd=900n m=1
+    mp0 (n2 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends OAI222X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XOR2X4_LP
+// View name: schematic
+subckt XOR2X4_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn3 (n0 B net131 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 n2 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net131 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 n2 net130 inh_VDD) pfet_01v8_hvt w=625n l=150n as=46.5f \
+        ad=86.8f ps=770n pd=900n m=1
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp2 (net130 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends XOR2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR3X2_LP
+// View name: schematic
+subckt OR3X2_LP A B C inh_VDD inh_VSS Y
+    mn3 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp1 (n2 B n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=1
+    mp2 (n0 C n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f ad=95.4f \
+        ps=820n pd=1.25u m=1
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends OR3X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFRX4_LP
+// View name: schematic
+subckt SDFFRX4_LP CK D Q QN RN SE SI inh_VDD inh_VSS
+    mn36 (n5 mout n7 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n7 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn37 (n20 Ckbb n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (n3 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n1 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn45 (n9 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn46 (qbint n30 n9 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn51 (n30 CKb n11 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n11 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (mout Ckbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (Ckbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb n4 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (n4 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE n2 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (n2 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 Ckbb n8 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n8 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=106.175f ad=86.8f ps=1.1175u pd=900n m=1
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp46 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=75.6f ps=1.25u pd=820n m=(1)*(2)
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=1
+    mp45 (qbint RN inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n \
+        as=109.35f ad=75.6f ps=1.215u pd=820n m=1
+    mp35 (n6 RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n6 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp37 (n20 CKb n6 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (Ckbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 Ckbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=125.55f ad=86.8f ps=1.335u pd=900n m=(1)*(4)
+ends SDFFRX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI22X1_LP
+// View name: schematic
+subckt AOI22X1_LP A0 A1 B0 B1 inh_VDD inh_VSS Y
+    mn3 (Y B1 net98 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net102 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net98 B0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y A1 net102 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y B1 net89 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net89 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (net89 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y B0 net89 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends AOI22X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI222X1_LP
+// View name: schematic
+subckt AOI222X1_LP A0 A1 B0 B1 C0 C1 inh_VDD inh_VSS Y
+    mn5 (Y C1 net155 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (net155 C0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net147 B0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net139 A0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y A1 net139 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (Y B1 net147 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y C1 net118 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp4 (Y C0 net118 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp3 (net118 B1 net122 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (net118 B0 net122 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (net122 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp1 (net122 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n \
+        as=164.3f ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends AOI222X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND2X2_LP
+// View name: schematic
+subckt NAND2X2_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends NAND2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR3X2_LP
+// View name: schematic
+subckt NOR3X2_LP A B C inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y C n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=173.6f ad=173.6f \
+        ps=1.52u pd=1.52u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends NOR3X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI222X2_LP
+// View name: schematic
+subckt AOI222X2_LP A0 A1 B0 B1 C0 C1 inh_VDD inh_VSS Y
+    mn5 (Y C1 net155 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn4 (net155 C0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (net151 B0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (net147 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y A1 net147 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (Y B1 net151 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp5 (Y C1 net134 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp4 (Y C0 net134 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp3 (net134 B1 net126 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (net134 B0 net126 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (net126 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (net126 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends AOI222X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR3X1_LP
+// View name: schematic
+subckt NOR3X1_LP A B C inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp2 (Y C n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f ad=164.3f \
+        ps=1.77u pd=1.77u m=2
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends NOR3X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND2X1_LP
+// View name: schematic
+subckt NAND2X1_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B n0 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+ends NAND2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AOI22X2_LP
+// View name: schematic
+subckt AOI22X2_LP A0 A1 B0 B1 inh_VDD inh_VSS Y
+    mn3 (Y B1 net106 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (net98 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (net106 B0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (Y A1 net98 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mp3 (Y B1 net89 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp0 (net89 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (net89 A1 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n \
+        as=328.6f ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (Y B0 net89 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+ends AOI22X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKINVX8_LP
+// View name: schematic
+subckt CLKINVX8_LP A inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=71.925f \
+        ad=58.8f ps=867.5n pd=700n m=(1)*(8)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=(820n) l=150n as=127.613f \
+        ad=114.8f ps=1.23375u pd=1.1u m=(1)*(16)
+ends CLKINVX8_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OAI222X2_LP
+// View name: schematic
+subckt OAI222X2_LP A0 A1 B0 B1 C0 C1 inh_VDD inh_VSS Y
+    mn5 (Y C1 n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn4 (Y C0 n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (n0 B1 n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn2 (n0 B0 n1 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=222.6f \
+        ps=2.21u pd=2.21u m=(1)*(1)
+    mn0 (n1 A0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (n1 A1 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp5 (Y C1 n4 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp4 (n4 C0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp3 (Y B1 n3 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp2 (n3 B0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+    mp1 (Y A1 n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f ad=328.6f \
+        ps=3.01u pd=3.01u m=2
+    mp0 (n2 A0 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends OAI222X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKBUFX4_LP
+// View name: schematic
+subckt CLKBUFX4_LP A inh_VDD inh_VSS Y
+    mn1 (Y net44 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=85.05f \
+        ad=58.8f ps=1.035u pd=700n m=(1)*(4)
+    mn0 (net44 A inh_VSS inh_VSS) nfet_01v8 w=(1u) l=150n as=265f ad=265f \
+        ps=2.53u pd=2.53u m=(1)*(1)
+    mp1 (Y net44 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.36u) l=150n as=275.4f \
+        ad=190.4f ps=2.445u pd=1.64u m=(1)*(4)
+    mp0 (net44 A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=190.4f \
+        ad=360.4f ps=1.64u pd=3.25u m=4
+ends CLKBUFX4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: OR3X1_LP
+// View name: schematic
+subckt OR3X1_LP A B C inh_VDD inh_VSS Y
+    mn3 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (n0 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (n0 C inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=2
+    mp1 (n2 B n1 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (n0 C n2 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=95.4f ad=75.6f \
+        ps=1.25u pd=820n m=2
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends OR3X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND4X1_LP
+// View name: schematic
+subckt AND4X1_LP A B C D inh_VDD inh_VSS Y
+    mn3 (net116 D net132 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net132 C net128 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y net116 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn1 (net128 B net124 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net124 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (net116 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net116 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net116 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y net116 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp0 (net116 A inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+ends AND4X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: CLKBUFX2_LP
+// View name: schematic
+subckt CLKBUFX2_LP A inh_VDD inh_VSS Y
+    mn1 (Y net44 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn0 (net44 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mp1 (Y net44 inh_VDD inh_VDD) pfet_01v8_hvt w=(1.36u) l=150n as=360.4f \
+        ad=190.4f ps=3.25u pd=1.64u m=(1)*(2)
+    mp0 (net44 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=(1)*(1)
+ends CLKBUFX2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: SDFFRX1_LP
+// View name: schematic
+subckt SDFFRX1_LP CK D Q QN RN SE SI inh_VDD inh_VSS
+    mn36 (n5 mout n7 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn35 (n7 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn37 (n20 Ckbb n5 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn13 (n3 SI inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn14 (Db SE n3 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn12 (Db SEb n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn11 (n1 D inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn57 (QN qint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn55 (Q qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn45 (n9 RN inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn46 (qbint n30 n9 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn51 (n30 CKb n11 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn50 (n11 qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn20 (CKb CK inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn56 (qint qbint inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn40 (mout Ckbb n30 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn30 (mout n20 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn21 (Ckbb CKb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn10 (SEb SE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn25 (Db CKb n20 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp14 (Db SEb n4 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp13 (n4 SI inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp12 (Db SE n2 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp11 (n2 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp51 (n30 Ckbb n8 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp50 (n8 qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp55 (Q qbint inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=4
+    mp20 (CKb CK inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp46 (qbint n30 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp56 (qint qbint inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n \
+        as=95.4f ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp45 (qbint RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp35 (n6 RN inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp36 (n6 mout inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp37 (n20 CKb n6 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=4
+    mp40 (n30 CKb mout inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp30 (mout n20 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp21 (Ckbb CKb inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp25 (n20 Ckbb Db inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp10 (SEb SE inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp57 (QN qint inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=(1)*(1)
+ends SDFFRX1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XOR2X1_LP
+// View name: schematic
+subckt XOR2X1_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn3 (n0 B net131 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 n2 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net131 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 n2 net130 inh_VDD) pfet_01v8_hvt w=625n l=150n as=40.5f \
+        ad=75.6f ps=690n pd=820n m=1
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=164.3f ps=1.77u pd=1.77u m=1
+    mp2 (net130 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends XOR2X1_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: TBUFX8_LP
+// View name: schematic
+subckt TBUFX8_LP A OE inh_VDD inh_VSS Y
+    mn5 (Y non inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=71.925f \
+        ad=58.8f ps=867.5n pd=700n m=(1)*(8)
+    mn3 (net144 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn0 (OEb OE inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (pon OE net144 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn2 (non OEb inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mn1 (non A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=58.8f ps=1.25u pd=700n m=(1)*(2)
+    mp2 (non OEb net127 inh_VDD) pfet_01v8_hvt w=625n l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=1
+    mp1 (net127 A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp5 (Y pon inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=96.4875f \
+        ad=86.8f ps=1.00875u pd=900n m=1
+    mp3 (pon A inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp4 (pon OE inh_VDD inh_VDD) pfet_01v8_hvt w=(620n) l=150n as=164.3f \
+        ad=86.8f ps=1.77u pd=900n m=(1)*(2)
+    mp0 (OEb OE inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=75.6f \
+        ad=95.4f ps=820n pd=1.25u m=1
+ends TBUFX8_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: XOR2X2_LP
+// View name: schematic
+subckt XOR2X2_LP A B inh_VDD inh_VSS Y
+    mn1 (n2 B inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (n1 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn5 (Y n0 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn3 (n0 B net131 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (n0 n2 n1 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net131 n1 inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (n0 n2 net130 inh_VDD) pfet_01v8_hvt w=625n l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=1
+    mp1 (n2 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f ad=95.4f \
+        ps=1.25u pd=1.25u m=(1)*(1)
+    mp0 (n1 A inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp5 (Y n0 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp2 (net130 n1 inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+ends XOR2X2_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NOR3X4_LP
+// View name: schematic
+subckt NOR3X4_LP A B C inh_VDD inh_VSS Y
+    mn0 (Y A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn1 (Y B inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mn2 (Y C inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp1 (n1 B n0 inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp2 (Y C n1 inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f ad=173.6f \
+        ps=3.01u pd=1.52u m=1
+    mp0 (n0 A inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+ends NOR3X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: NAND2X4_LP
+// View name: schematic
+subckt NAND2X4_LP A B inh_VDD inh_VSS Y
+    mn1 (Y B n0 inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f ad=117.6f \
+        ps=2.21u pd=1.12u m=(1)*(2)
+    mn0 (n0 A inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=117.6f ps=2.21u pd=1.12u m=(1)*(2)
+    mp1 (Y B inh_VDD inh_VDD) pfet_01v8_hvt w=(1.24u) l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=(1)*(2)
+    mp0 (Y A inh_VDD inh_VDD) pfet_01v8_hvt w=1.13u l=150n as=328.6f \
+        ad=173.6f ps=3.01u pd=1.52u m=1
+ends NAND2X4_LP
+// End of subcircuit definition.
+
+// Library name: sky130_scl_9T_LP
+// Cell name: AND4X2_LP
+// View name: schematic
+subckt AND4X2_LP A B C D inh_VDD inh_VSS Y
+    mn3 (net100 D net132 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn2 (net132 C net124 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn4 (Y net100 inh_VSS inh_VSS) nfet_01v8 w=(840n) l=150n as=222.6f \
+        ad=222.6f ps=2.21u pd=2.21u m=(1)*(1)
+    mn1 (net124 B net120 inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mn0 (net120 A inh_VSS inh_VSS) nfet_01v8 w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp3 (net100 D inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp2 (net100 C inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp1 (net100 B inh_VDD inh_VDD) pfet_01v8_hvt w=(360n) l=150n as=95.4f \
+        ad=95.4f ps=1.25u pd=1.25u m=(1)*(1)
+    mp4 (Y net100 inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=328.6f \
+        ad=328.6f ps=3.01u pd=3.01u m=1
+    mp0 (net100 A inh_VDD inh_VDD) pfet_01v8_hvt w=625n l=150n as=40.5f \
+        ad=75.6f ps=690n pd=820n m=1
+ends AND4X2_LP
+// End of subcircuit definition.
+

@@ -1,0 +1,10 @@
+auCdlCDFPinCntrl = t
+
+;------------------------------
+; Work around for exporting issue in ICADVM 18.1 ISR8
+; https://support.cadence.com/apex/ArticleAttachmentPortal?id=a1O3w000009beiCEAQ&pageName=ArticleContent
+ errset(unless(isContextLoaded("dbRead")
+   loadContext(prependInstallPath("/etc/context/64bit/dbRead.cxt"))
+ );unless
+);errset
+; -----------------------------

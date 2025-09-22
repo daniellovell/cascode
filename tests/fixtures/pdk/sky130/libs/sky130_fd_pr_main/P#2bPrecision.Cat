@@ -1,0 +1,6 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/res_high_po_0p35 type="cell"
+sky130_fd_pr_main/res_high_po_0p69 type="cell"
+sky130_fd_pr_main/res_high_po_1p41 type="cell"
+sky130_fd_pr_main/res_high_po_2p85 type="cell"
+sky130_fd_pr_main/res_high_po_5p73 type="cell"

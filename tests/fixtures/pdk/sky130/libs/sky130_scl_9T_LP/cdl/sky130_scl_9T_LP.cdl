@@ -1,0 +1,5204 @@
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: ADDFX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:27 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    ADDFX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT ADDFX1_LP A B CI CO S
+*.PININFO A:I B:I CI:I CO:O S:O
+Mmn9 n6 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 n7 B n6 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 Sb CI n7 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 S Sb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 CO COb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 COb B n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n2 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 n4 CI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn8 Sb COb n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn6 n4 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 n4 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 COb CI n2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp9 n8 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 n9 B n8 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 Sb CI n9 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 S Sb VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp12 CO COb VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 COb B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n3 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 COb CI n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 n5 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp6 n5 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 n5 CI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n3 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp8 Sb COb n5 VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: ADDHX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:28 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    ADDHX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT ADDHX1_LP A B CO S
+*.PININFO A:I B:I CO:O S:O
+Mmn8 CO COb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 COb B n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn6 n4 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 S Sb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Sb B n2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n2 n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n1 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Sb n1 n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp8 CO COb VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp5 S Sb VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 n3 n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 Sb n1 n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 Sb B n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n1 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 COb B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp6 COb A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:29 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn2 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net127 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 A net127 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n0 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:31 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn2 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net73 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B net73 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n0 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND3X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:32 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND3X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND3X1_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn3 Y net086 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net0106 B net0102 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net0102 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net086 C net0106 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 net086 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net086 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 net086 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 Y net086 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND3X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:33 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND3X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND3X2_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn3 Y net95 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 net111 B net103 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net103 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net95 C net111 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 net95 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net95 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 net95 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 Y net95 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND4X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:35 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND4X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND4X1_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn3 net116 D net132 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net132 C net128 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y net116 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net128 B net124 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net124 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 net116 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net116 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 net116 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 Y net116 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net116 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AND4X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:36 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AND4X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AND4X2_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn3 net100 D net132 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net132 C net124 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y net100 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 net124 B net120 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net120 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 net100 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net100 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 net100 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 Y net100 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net100 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI211X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:37 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI211X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI211X1_LP A0 A1 B0 C0 Y
+*.PININFO A0:I A1:I B0:I C0:I Y:O
+Mmn2 Y B0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y C0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y A1 net95 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net95 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y C0 net82 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net82 B0 net91 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net91 A1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net91 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI211X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:39 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI211X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI211X2_LP A0 A1 B0 C0 Y
+*.PININFO A0:I A1:I B0:I C0:I Y:O
+Mmn2 Y B0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y C0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y A1 net95 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net95 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 Y C0 net82 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net82 B0 net91 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net91 A1 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net91 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI21X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:40 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI21X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI21X1_LP A0 A1 B0 Y
+*.PININFO A0:I A1:I B0:I Y:O
+Mmn2 Y B0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net78 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y A1 net78 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp2 Y B0 net62 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net62 A1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net62 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI21X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:41 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI21X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI21X2_LP A0 A1 B0 Y
+*.PININFO A0:I A1:I B0:I Y:O
+Mmn2 Y B0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net74 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y A1 net74 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp2 Y B0 net70 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net70 A1 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net70 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI221X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:43 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI221X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI221X1_LP A0 A1 B0 B1 C0 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I Y:O
+Mmn2 net120 B0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y B1 net120 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y C0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y A1 net128 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net128 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 net108 B1 net111 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net108 B0 net111 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net111 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net111 A1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 Y C0 net108 VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI221X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:44 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI221X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI221X2_LP A0 A1 B0 B1 C0 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I Y:O
+Mmn2 Y B0 net116 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 net116 B1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn4 Y C0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y A1 net124 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net124 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 net104 B1 net103 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net104 B0 net103 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net103 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net103 A1 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp4 Y C0 net104 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI222X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:45 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI222X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI222X1_LP A0 A1 B0 B1 C0 C1 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I C1:I Y:O
+Mmn5 Y C1 net155 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 net155 C0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net147 B0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net139 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y A1 net139 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y B1 net147 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp5 Y C1 net118 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 Y C0 net118 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 net118 B1 net122 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net118 B0 net122 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net122 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net122 A1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI222X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:47 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI222X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI222X2_LP A0 A1 B0 B1 C0 C1 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I C1:I Y:O
+Mmn5 Y C1 net155 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn4 net155 C0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 net151 B0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net147 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y A1 net147 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y B1 net151 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp5 Y C1 net134 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp4 Y C0 net134 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp3 net134 B1 net126 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net134 B0 net126 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net126 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net126 A1 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI22X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:48 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI22X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI22X1_LP A0 A1 B0 B1 Y
+*.PININFO A0:I A1:I B0:I B1:I Y:O
+Mmn3 Y B1 net98 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net102 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net98 B0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y A1 net102 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y B1 net89 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net89 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net89 A1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y B0 net89 VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: AOI22X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:49 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    AOI22X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT AOI22X2_LP A0 A1 B0 B1 Y
+*.PININFO A0:I A1:I B0:I B1:I Y:O
+Mmn3 Y B1 net106 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net98 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 net106 B0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y A1 net98 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 Y B1 net89 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net89 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net89 A1 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y B0 net89 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: BUFX16_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:51 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    BUFX16_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT BUFX16_LP A Y
+*.PININFO A:I Y:O
+Mmn1 VSS! n0 Y VSS! nfet_01v8 W=6.72u L=150n M=1
+Mmn0 VSS! A n0 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp1 Y n0 VDD! VDD! pfet_01v8_hvt W=9.92u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: BUFX2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:52 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    BUFX2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT BUFX2_LP A Y
+*.PININFO A:I Y:O
+Mmn1 VSS! n0 Y VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 VSS! A n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: BUFX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:53 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    BUFX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT BUFX4_LP A Y
+*.PININFO A:I Y:O
+Mmn1 VSS! n0 Y VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 VSS! A n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 Y n0 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: BUFX8_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:55 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    BUFX8_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT BUFX8_LP A Y
+*.PININFO A:I Y:O
+Mmn1 VSS! n0 Y VSS! nfet_01v8 W=3.36u L=150n M=1
+Mmn0 VSS! A n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y n0 VDD! VDD! pfet_01v8_hvt W=4.96u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKAND2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:56 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKAND2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKAND2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+MNM1 net2 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+MNM0 net61 B net2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 Y net61 VSS! VSS! nfet_01v8 W=820n L=150n M=1
+Mmp1 net61 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 net61 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 Y net61 VDD! VDD! pfet_01v8_hvt W=1.36u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKBUFX2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:58 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKBUFX2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKBUFX2_LP A Y
+*.PININFO A:I Y:O
+Mmn1 Y net44 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net44 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y net44 VDD! VDD! pfet_01v8_hvt W=2.72u L=150n M=1
+Mmp0 net44 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKBUFX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:48:59 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKBUFX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKBUFX4_LP A Y
+*.PININFO A:I Y:O
+Mmn1 Y net44 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 net44 A VSS! VSS! nfet_01v8 W=1u L=150n M=1
+Mmp1 Y net44 VDD! VDD! pfet_01v8_hvt W=5.44u L=150n M=1
+Mmp0 net44 A VDD! VDD! pfet_01v8_hvt W=1.36u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKBUFX8_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:01 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKBUFX8_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKBUFX8_LP A Y
+*.PININFO A:I Y:O
+Mmn1 Y net44 VSS! VSS! nfet_01v8 W=3.36u L=150n M=1
+Mmn0 net44 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y net44 VDD! VDD! pfet_01v8_hvt W=10.88u L=150n M=1
+Mmp0 net44 A VDD! VDD! pfet_01v8_hvt W=2.72u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKINVX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:02 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKINVX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKINVX1_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=1.64u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKINVX2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:04 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKINVX2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKINVX2_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=3.28u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKINVX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:05 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKINVX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKINVX4_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=6.56u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKINVX8_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:06 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKINVX8_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKINVX8_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=3.36u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=13.12u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKMX2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:08 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKMX2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKMX2X2_LP A B S0 Y
+*.PININFO A:I B:I S0:I Y:O
+Mmn3 net140 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 S0b S0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 S0b net148 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net148 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=3.28u L=150n M=1
+Mmn4 n0 S0 net140 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp4 n0 S0b net115 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 net115 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n0 S0 net123 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 S0b S0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 net123 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: CLKXOR2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:09 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    CLKXOR2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT CLKXOR2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=3.28u L=150n M=1
+Mmn3 n0 B net139 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 n2 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net139 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 n0 n2 net130 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n0 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net130 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFRX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:11 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFRX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFRX1_LP CK D Q QN RN
+*.PININFO CK:I D:I RN:I Q:O QN:O
+Mmn36 n25 mout n27 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n27 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn37 n20 CKbb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 n35 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn46 qbint n30 n35 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n40 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n26 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n26 RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp37 n20 CKb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp46 qbint n30 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFRX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:12 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFRX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFRX4_LP CK D Q QN RN
+*.PININFO CK:I D:I RN:I Q:O QN:O
+Mmn36 n25 mout n27 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n27 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn37 n20 CKbb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn45 n35 RN VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn46 qbint n30 n35 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn51 n30 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n40 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n26 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n26 RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp37 n20 CKb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp46 qbint n30 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint RN VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFSRX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:13 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFSRX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFSRX1_LP CK D Q QN RN SN
+*.PININFO CK:I D:I RN:I SN:I Q:O QN:O
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n30 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn22 RNb RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n40 qbint n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n40 RNb n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n42 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn53 n35 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn32 mout n20 net426 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout RNb net426 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 net426 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n41 qbint n43 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n43 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp36 n20 CKb n31 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n31 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp32 mout n20 net402 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 net402 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp22 RNb RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp53 n35 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFSRX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:15 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFSRX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFSRX4_LP CK D Q QN RN SN
+*.PININFO CK:I D:I RN:I SN:I Q:O QN:O
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn35 n30 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn22 RNb RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n40 qbint n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n40 RNb n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n42 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn53 n35 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn32 mout n20 net426 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout RNb net426 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 net426 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n41 qbint n43 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n43 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp36 n20 CKb n31 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n31 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp32 mout n20 net402 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 net402 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp22 RNb RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp53 n35 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFSX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:16 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFSX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFSX1_LP CK D Q QN SN
+*.PININFO CK:I D:I SN:I Q:O QN:O
+Mmn51 n40 qbint n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n35 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n42 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net331 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 n25 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout n20 n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n20 CKbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n30 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net331 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net331 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp36 n20 CKb n31 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n31 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net331 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n35 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n41 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFSX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:18 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFSX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFSX4_LP CK D Q QN SN
+*.PININFO CK:I D:I SN:I Q:O QN:O
+Mmn51 n40 qbint n42 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n35 CKb n40 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n42 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net331 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn30 n25 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout n20 n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n20 CKbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n30 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net331 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net331 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp36 n20 CKb n31 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n31 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net331 qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp52 n35 CKbb n41 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n41 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n41 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:19 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFX1_LP CK D Q QN
+*.PININFO CK:I D:I Q:O QN:O
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n35 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb n35 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n25 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n30 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb n36 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n36 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp35 n26 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n20 CKb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n30 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DFFX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:20 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DFFX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DFFX4_LP CK D Q QN
+*.PININFO CK:I D:I Q:O QN:O
+Mmn26 n20 CKb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn50 n35 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb n35 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n25 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n30 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n20 CKbb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb n36 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n36 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp35 n26 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n20 CKb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n30 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DLY1X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:22 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DLY1X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DLY1X1_LP A Y
+*.PININFO A:I Y:O
+Mmn2 n1 VDD! n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n4 n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y n2 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n2 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp2 n1 VSS! n5 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n5 n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 Y n2 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n2 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DLY1X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:23 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DLY1X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DLY1X4_LP A Y
+*.PININFO A:I Y:O
+Mmn2 n1 VDD! n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n4 n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y n2 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n2 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp2 n1 VSS! n5 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n5 n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 Y n2 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n2 n1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DLY2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:25 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DLY2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DLY2X4_LP A Y
+*.PININFO A:I Y:O
+Mmn6 n3 VDD! n10 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 n10 n2 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn8 Y n4 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn4 n2 VDD! n8 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n8 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n1 VDD! n6 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n6 n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 n4 n3 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp6 n3 VSS! n11 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 n11 n2 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp8 Y n4 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp4 n2 VSS! n9 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n9 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n1 VSS! n7 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n7 n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 n4 n3 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: DLY4X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:26 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    DLY4X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT DLY4X4_LP A Y
+*.PININFO A:I Y:O
+Mmn14 net345 VDD! net341 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 net341 net353 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 net353 VDD! net349 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 net349 net361 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 net361 VDD! net357 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn9 net357 net369 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn15 net333 net345 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn6 net377 VDD! net373 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net397 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 net385 VDD! net381 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net389 net397 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 net365 net377 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn16 Y net333 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn3 net381 net393 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net393 VDD! net389 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn8 net369 VDD! net365 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 net373 net385 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp8 net369 VSS! net300 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 net300 net377 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp9 net292 net369 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 net361 VSS! net292 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp6 net377 VSS! net308 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 net308 net385 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 net385 VSS! net316 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 net316 net393 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net393 VSS! net324 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 net324 net397 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 net284 net361 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 net353 VSS! net284 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 net276 net353 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp14 net345 VSS! net276 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp15 net333 net345 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net397 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp16 Y net333 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: INVX16_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:28 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    INVX16_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT INVX16_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=6.72u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=9.92u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: INVX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:29 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    INVX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT INVX1_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: INVX2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:31 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    INVX2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT INVX2_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: INVX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:32 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    INVX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT INVX4_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: INVX8_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:33 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    INVX8_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT INVX8_LP A Y
+*.PININFO A:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=3.36u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=4.96u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: MX2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:35 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    MX2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT MX2X1_LP A B S0 Y
+*.PININFO A:I B:I S0:I Y:O
+Mmn3 n5 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 S0 n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 S0b S0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n3 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 S0b n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp4 n0 S0b n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n6 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 S0b S0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n0 S0 n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n4 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: MX2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:36 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    MX2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT MX2X4_LP A B S0 Y
+*.PININFO A:I B:I S0:I Y:O
+Mmn3 n5 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 S0 n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 S0b S0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n3 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn2 n0 S0b n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp4 n0 S0b n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n6 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 S0b S0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n0 S0 n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n4 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: MX4X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:38 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    MX4X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT MX4X1_LP A B C D S0 S1 Y
+*.PININFO A:I B:I C:I D:I S0:I S1:I Y:O
+Mmn9 n1 S0 n9 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn6 n7 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 n1 S0b n7 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n5 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 n0 S0 n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 S0b n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n3 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Y n2 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 S1b S1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n2 S1 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn8 n9 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 n2 S1b n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 S0b S0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp9 n1 S0b n10 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp8 n10 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 n1 S0 n8 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp6 n8 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 n0 S0b n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n6 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 S0 n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n4 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Y n2 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 S0b S0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 n2 S1 n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 n1 S1b n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 S1b S1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: MX4X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:39 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    MX4X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT MX4X4_LP A B C D S0 S1 Y
+*.PININFO A:I B:I C:I D:I S0:I S1:I Y:O
+Mmn9 n1 S0 n9 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn6 n7 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn7 n1 S0b n7 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n5 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 n0 S0 n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 S0b n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n3 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Y n2 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn1 S1b S1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n2 S1 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn8 n9 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 n2 S1b n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 S0b S0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp9 n1 S0b n10 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp8 n10 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp7 n1 S0 n8 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp6 n8 C VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 n0 S0b n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n6 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 S0 n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n4 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Y n2 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 S0b S0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 n2 S1 n0 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp11 n1 S1b n2 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 S1b S1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:41 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:42 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:43 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND2X4_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B n0 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND3X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:47 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND3X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND3X1_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn1 n0 B n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 Y C n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND3X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:48 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND3X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND3X2_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn1 n0 B n1 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 Y C n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND3X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:49 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND3X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND3X4_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn1 n0 B n1 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn2 Y C n0 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND4X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:51 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND4X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND4X1_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn1 n1 B n2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y D n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 C n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n2 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y D VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND4X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:52 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND4X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND4X2_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn1 n1 B n2 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y D n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 n0 C n1 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n2 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 Y D VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NAND4X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:54 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NAND4X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NAND4X4_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn1 n1 B n2 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn3 Y D n0 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn2 n0 C n1 VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 n2 A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp3 Y D VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp2 Y C VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp1 Y B VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 Y A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:55 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 Y B net41 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net41 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:56 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y B net41 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net41 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:49:58 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR2X4_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 Y B VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp1 Y B net41 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 net41 A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR3X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:00 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR3X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR3X1_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 Y C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y C n1 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR3X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:01 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR3X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR3X2_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 Y C VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y C n1 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR3X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:03 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR3X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR3X4_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn0 Y A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn2 Y C VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp2 Y C n1 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR4X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:05 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR4X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR4X1_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn2 Y C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 Y D n2 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 n2 C n1 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR4X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:06 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR4X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR4X2_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn2 Y C VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y D VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp3 Y D n2 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 n2 C n1 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: NOR4X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:08 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    NOR4X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT NOR4X4_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn2 Y C VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn3 Y D VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 Y A VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn1 Y B VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmp1 n1 B n0 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp3 Y D n2 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp2 n2 C n1 VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp0 n0 A VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI211X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:09 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI211X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI211X1_LP A0 A1 B0 C0 Y
+*.PININFO A0:I A1:I B0:I C0:I Y:O
+Mmn1 n0 A1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n1 B0 n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y C0 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 Y A1 n2 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n2 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 Y C0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y B0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI211X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:11 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI211X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI211X2_LP A0 A1 B0 C0 Y
+*.PININFO A0:I A1:I B0:I C0:I Y:O
+Mmn1 n0 A1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n0 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 n1 B0 n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y C0 n1 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp1 Y A1 n2 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n2 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp3 Y C0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y B0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI21X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:12 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI21X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI21X1_LP A0 A1 B0 Y
+*.PININFO A0:I A1:I B0:I Y:O
+Mmn2 Y B0 n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 A1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 n1 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 Y B0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y A1 n1 VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI21X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:13 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI21X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI21X2_LP A0 A1 B0 Y
+*.PININFO A0:I A1:I B0:I Y:O
+Mmn2 Y B0 n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 n0 A1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n0 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp0 n1 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 Y B0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y A1 n1 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI221X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:15 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI221X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI221X1_LP A0 A1 B0 B1 C0 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I Y:O
+Mmn4 Y C0 net132 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 net128 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net128 A1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net132 B0 net128 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 net132 B1 net128 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y B1 net123 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net115 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y A1 net115 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net123 B0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 Y C0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI221X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:17 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI221X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI221X2_LP A0 A1 B0 B1 C0 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I Y:O
+Mmn4 Y C0 net132 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 net128 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 net128 A1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 net132 B0 net128 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 net132 B1 net128 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 Y B1 net123 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net115 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y A1 net115 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net123 B0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp4 Y C0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI222X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:18 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI222X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI222X1_LP A0 A1 B0 B1 C0 C1 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I C1:I Y:O
+Mmn5 Y C1 n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 Y C0 n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 B1 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 B0 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n1 A1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp5 Y C1 n4 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 n4 C0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 Y B1 n3 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 n3 B0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y A1 n2 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n2 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI222X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:20 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI222X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI222X2_LP A0 A1 B0 B1 C0 C1 Y
+*.PININFO A0:I A1:I B0:I B1:I C0:I C1:I Y:O
+Mmn5 Y C1 n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn4 Y C0 n0 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 n0 B1 n1 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 n0 B0 n1 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n1 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 n1 A1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp5 Y C1 n4 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp4 n4 C0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp3 Y B1 n3 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 n3 B0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y A1 n2 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n2 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI22X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:21 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI22X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI22X1_LP A0 A1 B0 B1 Y
+*.PININFO A0:I A1:I B0:I B1:I Y:O
+Mmn0 net102 A0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 Y B1 net102 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 net102 A1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 Y B0 net102 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y B1 net85 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 Y A1 net93 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 net93 A0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net85 B0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OAI22X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:22 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OAI22X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OAI22X2_LP A0 A1 B0 B1 Y
+*.PININFO A0:I A1:I B0:I B1:I Y:O
+Mmn0 net102 A0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 Y B1 net102 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 net102 A1 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 Y B0 net102 VSS! nfet_01v8 W=840n L=150n M=1
+Mmp3 Y B1 net85 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 Y A1 net93 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 net93 A0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net85 B0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:24 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn2 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n0 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:25 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn2 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp1 n0 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR3X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:27 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR3X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR3X1_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn3 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 n2 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n0 C n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR3X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:29 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR3X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR3X2_LP A B C Y
+*.PININFO A:I B:I C:I Y:O
+Mmn3 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 n2 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n0 C n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR4X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:30 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR4X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR4X1_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn4 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp4 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 D n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n3 C n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: OR4X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:32 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    OR4X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT OR4X2_LP A B C D Y
+*.PININFO A:I B:I C:I D:I Y:O
+Mmn4 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 n0 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n0 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 n0 C VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 n0 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp4 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 D n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 n3 C n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFRX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:33 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFRX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFRX1_LP CK D Q QN RN SE SI
+*.PININFO CK:I D:I RN:I SE:I SI:I Q:O QN:O
+Mmn36 n5 mout n7 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n7 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn37 n20 Ckbb n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 n3 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n1 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 n9 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn46 qbint n30 n9 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb n11 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n11 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 mout Ckbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 Ckbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 n4 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 n2 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 Ckbb n8 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n8 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp46 qbint n30 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n6 RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n6 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp37 n20 CKb n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 Ckbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 Ckbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFRX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:34 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFRX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFRX4_LP CK D Q QN RN SE SI
+*.PININFO CK:I D:I RN:I SE:I SI:I Q:O QN:O
+Mmn36 n5 mout n7 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n7 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn37 n20 Ckbb n5 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 n3 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE n3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n1 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN qint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn45 n9 RN VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn46 qbint n30 n9 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn51 n30 CKb n11 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n11 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 qint qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 mout Ckbb n30 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 Ckbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb n4 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 n4 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE n2 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 n2 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 Ckbb n8 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n8 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp46 qbint n30 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 qint qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp45 qbint RN VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp35 n6 RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n6 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp37 n20 CKb n6 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 Ckbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 Ckbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN qint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFSRX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:36 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFSRX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFSRX1_LP CK D Q QN RN SE SI SN
+*.PININFO CK:I D:I RN:I SE:I SI:I SN:I Q:O QN:O
+Mmn13 n2 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE n2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n0 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net573 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n6 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n6 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn22 RNb RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net573 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn32 mout n20 n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn53 n35 CKb n10 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 n4 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n8 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n10 RNb n8 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout RNb n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n10 qbint n8 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 n3 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 n1 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n11 qbint n9 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n9 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net573 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp36 n20 CKb n7 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n7 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp32 mout n20 n5 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 n5 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp22 RNb RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net573 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp53 n35 CKbb n11 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n11 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFSRX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:37 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFSRX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFSRX4_LP CK D Q QN RN SE SI SN
+*.PININFO CK:I D:I RN:I SE:I SI:I SN:I Q:O QN:O
+Mmn13 n2 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE n2 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb n0 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 n0 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net573 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn35 n6 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb n6 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn22 RNb RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net573 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn32 mout n20 n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn53 n35 CKb n10 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 n4 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 n8 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n10 RNb n8 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout RNb n4 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n10 qbint n8 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp14 Db SEb n3 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 n3 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE n1 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 n1 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n11 qbint n9 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n9 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net573 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp36 n20 CKb n7 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 n7 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp32 mout n20 n5 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 n5 RNb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp22 RNb RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net573 qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp53 n35 CKbb n11 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 n11 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFSX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:39 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFSX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFSX1_LP CK D Q QN SE SI SN
+*.PININFO CK:I D:I SE:I SI:I SN:I Q:O QN:O
+Mmn51 net518 qbint net521 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n35 CKb net518 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 net521 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 net506 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE net506 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb net494 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 net494 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net492 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn31 mout n20 net442 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 net478 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb net478 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net492 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 net442 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb net441 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 net441 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE net433 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 net433 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net492 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp36 n20 CKb net417 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 net417 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n35 CKbb net405 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 net405 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 net405 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net492 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFSX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:40 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFSX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFSX4_LP CK D Q QN SE SI SN
+*.PININFO CK:I D:I SE:I SI:I SN:I Q:O QN:O
+Mmn51 net518 qbint net521 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn52 n35 CKb net518 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 net521 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn13 net506 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE net506 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb net494 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 net494 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net492 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn31 mout n20 net442 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 net478 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb net478 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n35 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn56 net492 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n35 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 Db CKb n20 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 net442 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb net441 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 net441 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE net433 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 net433 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net492 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp36 n20 CKb net417 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp35 net417 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp52 n35 CKbb net405 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 net405 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 net405 SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n35 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 net492 qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n35 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp31 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:42 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFX1_LP CK D Q QN SE SI
+*.PININFO CK:I D:I SE:I SI:I Q:O QN:O
+Mmn13 net461 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE net461 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb net449 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 net449 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net367 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn50 net436 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb net436 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 net429 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb net429 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n30 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 net367 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n20 CKb Db VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb net392 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 net392 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE net384 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 net384 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb net376 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 net376 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net367 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp35 net356 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n20 CKb net356 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n30 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 net367 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: SDFFX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:43 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    SDFFX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT SDFFX4_LP CK D Q QN SE SI
+*.PININFO CK:I D:I SE:I SI:I Q:O QN:O
+Mmn13 net461 SI VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn14 Db SE net461 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn12 Db SEb net449 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn11 net449 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN net367 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn55 Q qbint VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn50 net436 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn51 n30 CKb net436 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 net429 mout VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n20 CKbb net429 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 CKb CK VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn45 qbint n30 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn56 net367 qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 CKbb CKb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn40 n30 CKbb mout VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 mout n20 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn10 SEb SE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n20 CKb Db VSS! nfet_01v8 W=420n L=150n M=1
+Mmp14 Db SEb net392 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp13 net392 SI VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp12 Db SE net384 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp11 net384 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp51 n30 CKbb net376 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp50 net376 qbint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN net367 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp55 Q qbint VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp35 net356 mout VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n20 CKb net356 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 CKb CK VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp45 qbint n30 VDD! VDD! pfet_01v8_hvt W=1.08u L=150n M=1
+Mmp56 net367 qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 CKbb CKb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp40 n30 CKb mout VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 mout n20 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n20 CKbb Db VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp10 SEb SE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: TBUFX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:45 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    TBUFX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT TBUFX1_LP A OE Y
+*.PININFO A:I OE:I Y:O
+Mmn5 Y non VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 net144 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 OEb OE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 pon OE net144 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 non OEb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 non A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp2 non OEb net127 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 net127 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y pon VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 pon A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 pon OE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 OEb OE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: TBUFX4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:46 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    TBUFX4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT TBUFX4_LP A OE Y
+*.PININFO A:I OE:I Y:O
+Mmn5 Y non VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn3 net144 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 OEb OE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 pon OE net144 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 non OEb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn1 non A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp2 non OEb net127 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 net127 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp5 Y pon VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp3 pon A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 pon OE VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 OEb OE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: TBUFX8_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:48 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    TBUFX8_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT TBUFX8_LP A OE Y
+*.PININFO A:I OE:I Y:O
+Mmn5 Y non VSS! VSS! nfet_01v8 W=3.36u L=150n M=1
+Mmn3 net144 A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 OEb OE VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 pon OE net144 VSS! nfet_01v8 W=840n L=150n M=1
+Mmn2 non OEb VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn1 non A VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmp2 non OEb net127 VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp1 net127 A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp5 Y pon VDD! VDD! pfet_01v8_hvt W=4.96u L=150n M=1
+Mmp3 pon A VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp4 pon OE VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp0 OEb OE VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: TLATSRX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:49 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    TLATSRX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT TLATSRX1_LP D G Q QN RN SN
+*.PININFO D:I G:I RN:I SN:I Q:O QN:O
+Mmn26 n0 Gbb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN Qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Qbint Qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n25 Qint net3 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n0 Gb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 Gb G net1 VSS! nfet_01v8 W=420n L=150n M=1
+MNM0 net1 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 Q Qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 Gbb Gb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 Qint n0 net2 VSS! nfet_01v8 W=420n L=150n M=1
+MNM1 net2 SN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+MNM2 net3 RN VSS! VSS! nfet_01v8 W=420n L=150n M=1
+MPM0 Gb RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+MPM1 Qint SN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp26 n0 Gb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN Qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Qbint Qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp35 n26 Qint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n0 Gbb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 Gb G VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 Q Qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 Gbb Gb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+MPM2 n26 RN VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 Qint n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: TLATX1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:50 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VSS!
++        VDD!
+
+*.PIN VSS!
+*+    VDD!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    TLATX1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT TLATX1_LP D G Q QN
+*.PININFO D:I G:I Q:O QN:O
+Mmn26 n0 Gbb n21 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn25 n21 D VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn57 QN Qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn55 Qbint Qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn35 n25 Qint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn36 n0 Gb n25 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn20 Gb G VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn56 Q Qbint VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn21 Gbb Gb VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn30 Qint n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp26 n0 Gb n22 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp25 n22 D VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp57 QN Qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp55 Qbint Qint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp35 n26 Qint VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp36 n0 Gbb n26 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp20 Gb G VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp56 Q Qbint VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp21 Gbb Gb VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp30 Qint n0 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XNOR2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:52 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XNOR2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XNOR2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net145 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 n2 net145 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 B n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n1 n2 n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net112 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 B net112 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XNOR2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:53 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XNOR2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XNOR2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net145 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 n2 net145 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 B n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n1 n2 n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp2 net112 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp3 n0 B net112 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XNOR2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:55 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XNOR2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XNOR2X4_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net145 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 n2 net145 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 B n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 n1 n2 n0 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net112 n1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp3 n0 B net112 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XOR2X1_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:56 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XOR2X1_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XOR2X1_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn3 n0 B net131 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 n2 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net131 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 n0 n2 net130 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n1 B n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp2 net130 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XOR2X2_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:57 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XOR2X2_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XOR2X2_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=840n L=150n M=1
+Mmn3 n0 B net131 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 n2 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net131 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 n0 n2 net130 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp4 n1 B n0 VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=1.24u L=150n M=1
+Mmp2 net130 n1 VDD! VDD! pfet_01v8_hvt W=540n L=150n M=1
+.ENDS
+
+************************************************************************
+* auCdl Netlist:
+* 
+* Library Name:  sky130_scl_9T_LP
+* Top Cell Name: XOR2X4_LP
+* View Name:     schematic
+* Netlisted on:  Feb 28 11:50:59 2025
+************************************************************************
+
+*.BIPOLAR
+*.RESI = 2000
+*.RESVAL
+*.CAPVAL
+*.DIOPERI
+*.DIOAREA
+*.EQUATION
+*.SCALE METER
+*.MEGA
+.PARAM
+
+*.GLOBAL VDD!
++        VSS!
+
+*.PIN VDD!
+*+    VSS!
+
+************************************************************************
+* Library Name: sky130_scl_9T_LP
+* Cell Name:    XOR2X4_LP
+* View Name:    schematic
+************************************************************************
+
+.SUBCKT XOR2X4_LP A B Y
+*.PININFO A:I B:I Y:O
+Mmn1 n2 B VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn0 n1 A VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmn5 Y n0 VSS! VSS! nfet_01v8 W=1.68u L=150n M=1
+Mmn3 n0 B net131 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn4 n0 n2 n1 VSS! nfet_01v8 W=420n L=150n M=1
+Mmn2 net131 n1 VSS! VSS! nfet_01v8 W=420n L=150n M=1
+Mmp3 n0 n2 net130 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp1 n2 B VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp4 n1 B n0 VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp0 n1 A VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+Mmp5 Y n0 VDD! VDD! pfet_01v8_hvt W=2.48u L=150n M=1
+Mmp2 net130 n1 VDD! VDD! pfet_01v8_hvt W=620n L=150n M=1
+.ENDS
+

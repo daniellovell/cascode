@@ -1,0 +1,2578 @@
+*
+*|DSPF 1.5
+*
+*|DATE "Wed Jan  8 18:44:03 2025"
+*|VENDOR "Cadence Design Systems"
+*|PROGRAM "Cadence Quantus Extraction"
+*|VERSION "22.1.0-p089 Linux 64 bit - (Thu Jan 19 11:47:08 PST 2023)"
+*|DESIGN TBUFX8_HS
+*|DIVIDER /
+*|DELIMITER :
+*|DeviceFingerDelim "@"
+*|BUSBIT []
+*|GLOBAL_TEMPERATURE 25
+*|OPERATING_TEMPERATURE 25
+
+** *VIA_COVERAGE_CODES
+** *index FF FS FP FU SF SS SP SU PF PS PP PU UF US UP UU X_by_Y
+** * "FF" stands for Full landing and Full coverage
+** *0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+** *1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1x1
+** *2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1x1
+** *3 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1x1
+** *4 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1x1
+** *5 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 1x1
+** *6 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1x1
+** *7 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1x1
+** *8 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1x1
+** *9 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1x1
+** *10 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1x1
+** *11 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1x1
+** *12 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1x1
+** *13 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1x1
+** *14 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1x1
+** *15 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1x1
+** *16 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1x1
+
+** *RESISTOR_TYPES
+** *1 SHORTING_ELEMENT
+** *2 PRES_NG
+** *3 PRES_PG
+** *4 PRES_NF
+** *5 PRES_PF
+** *6 TCN_NDIFF
+** *7 TCN_PDIFF
+** *8 TCN_NFIELD
+** *9 TCN_PFIELD
+** *10 QUALITY_EXTRACTED
+** *11 GCNLAND
+** *12 TCNLAND
+** *13 DUMMY
+** *14 RSD
+** *15 BRIDGE
+
+** *RESISTOR_CURRENT_DIRECTION
+** *0 HORIZONTAL
+** *1 VERTICAL
+** *2 45 DEGREE
+
+** QRC_TECH_DIR /vols/wfo_devel/projects/reference_SKY130/tech/sky130_release_0.0.4/quantus/extraction/typical 
+** HIERARCHICAL_SPLIT_PINS_DELIMITER '%'
+** caps2d version: 10
+*
+.SUBCKT  TBUFX8_HS A OE Y
+*
+*Net Section
+*
+*|GROUND_NET VSS!
+*
+*LAYER_MAP
+*0 none
+*1 metal1
+*2 li
+*3 poly
+*4 diff
+*5 licon_diff
+*6 mcon
+*7 licon
+*8 FOX
+
+*|NET A 4.05533e-15
+*|P (A X 0 1.8550 1.5650) // $llx=1.8550 $lly=1.5650 $urx=1.8550 $ury=1.5650 $lvl=1
+*|I (Mmp1@1:g Mmp1@1 g X 0 0.9650 3.0150) // $llx=0.9650 $lly=3.0150 $urx=0.9650 $ury=3.0150 $lvl=3
+*|I (Mmp1:g Mmp1 g X 0 1.3950 3.0150) // $llx=1.3950 $lly=3.0150 $urx=1.3950 $ury=3.0150 $lvl=3
+*|I (Mmp3@1:g Mmp3@1 g X 0 3.7250 3.0150) // $llx=3.7250 $lly=3.0150 $urx=3.7250 $ury=3.0150 $lvl=3
+*|I (Mmp3:g Mmp3 g X 0 4.1550 3.0150) // $llx=4.1550 $lly=3.0150 $urx=4.1550 $ury=3.0150 $lvl=3
+*|I (Mmn1@1:g Mmn1@1 g X 0 0.9650 0.7750) // $llx=0.9650 $lly=0.7750 $urx=0.9650 $ury=0.7750 $lvl=3
+*|I (Mmn1:g Mmn1 g X 0 1.3950 0.7750) // $llx=1.3950 $lly=0.7750 $urx=1.3950 $ury=0.7750 $lvl=3
+*|I (Mmn3:g Mmn3 g X 0 2.6850 0.7750) // $llx=2.6850 $lly=0.7750 $urx=2.6850 $ury=0.7750 $lvl=3
+*|I (Mmn3@1:g Mmn3@1 g X 0 3.1150 0.7750) // $llx=3.1150 $lly=0.7750 $urx=3.1150 $ury=0.7750 $lvl=3
+*|S (A:29 1.3950 3.8950) // $llx=1.3950 $lly=3.8950 $urx=1.3950 $ury=3.8950 $lvl=3
+*|S (A:30 1.3950 1.4300) // $llx=1.3950 $lly=1.4300 $urx=1.3950 $ury=1.4300 $lvl=3
+*|S (A:31 1.1650 1.4300) // $llx=1.1650 $lly=1.4300 $urx=1.1650 $ury=1.4300 $lvl=3
+*|S (A:32 0.9650 1.4300) // $llx=0.9650 $lly=1.4300 $urx=0.9650 $ury=1.4300 $lvl=3
+*|S (A:33 0.9500 1.2650) // $llx=0.9500 $lly=1.2650 $urx=0.9500 $ury=1.2650 $lvl=3
+*|S (A:34 1.3950 0.2450) // $llx=1.3950 $lly=0.2450 $urx=1.3950 $ury=0.2450 $lvl=3
+*|S (A:35 0.9500 1.5945) // $llx=0.9500 $lly=1.5945 $urx=0.9500 $ury=1.5945 $lvl=3
+*|S (A:36 0.9650 3.8950) // $llx=0.9650 $lly=3.8950 $urx=0.9650 $ury=3.8950 $lvl=3
+*|S (A:37 0.9650 0.2450) // $llx=0.9650 $lly=0.2450 $urx=0.9650 $ury=0.2450 $lvl=3
+*|S (A:38 4.1550 3.8950) // $llx=4.1550 $lly=3.8950 $urx=4.1550 $ury=3.8950 $lvl=3
+*|S (A:39 4.1550 2.0650) // $llx=4.1550 $lly=2.0650 $urx=4.1550 $ury=2.0650 $lvl=3
+*|S (A:40 3.7250 2.0650) // $llx=3.7250 $lly=2.0650 $urx=3.7250 $ury=2.0650 $lvl=3
+*|S (A:41 3.4200 2.0650) // $llx=3.4200 $lly=2.0650 $urx=3.4200 $ury=2.0650 $lvl=3
+*|S (A:42 3.4200 1.4300) // $llx=3.4200 $lly=1.4300 $urx=3.4200 $ury=1.4300 $lvl=3
+*|S (A:43 3.1150 1.4300) // $llx=3.1150 $lly=1.4300 $urx=3.1150 $ury=1.4300 $lvl=3
+*|S (A:44 3.7250 3.8950) // $llx=3.7250 $lly=3.8950 $urx=3.7250 $ury=3.8950 $lvl=3
+*|S (A:45 3.1150 0.2450) // $llx=3.1150 $lly=0.2450 $urx=3.1150 $ury=0.2450 $lvl=3
+*|S (A:46 2.6850 1.4300) // $llx=2.6850 $lly=1.4300 $urx=2.6850 $ury=1.4300 $lvl=3
+*|S (A:47 2.6850 0.2450) // $llx=2.6850 $lly=0.2450 $urx=2.6850 $ury=0.2450 $lvl=3
+*|S (A:48 3.4950 1.4300) // $llx=3.4950 $lly=1.4300 $urx=3.4950 $ury=1.4300 $lvl=2
+*|S (A:49 3.1150 1.4300) // $llx=3.1150 $lly=1.4300 $urx=3.1150 $ury=1.4300 $lvl=2
+*|S (A:50 1.8400 1.4300) // $llx=1.8400 $lly=1.4300 $urx=1.8400 $ury=1.4300 $lvl=2
+*|S (A:51 1.1650 1.4300) // $llx=1.1650 $lly=1.4300 $urx=1.1650 $ury=1.4300 $lvl=2
+*|S (A:52 0.8300 1.4300) // $llx=0.8300 $lly=1.4300 $urx=0.8300 $ury=1.4300 $lvl=2
+*|S (A:53 1.8400 2.0850) // $llx=1.8400 $lly=2.0850 $urx=1.8400 $ury=2.0850 $lvl=1
+*|S (A:54 1.8400 1.4300) // $llx=1.8400 $lly=1.4300 $urx=1.8400 $ury=1.4300 $lvl=1
+*|S (A:55 1.8400 0.8450) // $llx=1.8400 $lly=0.8450 $urx=1.8400 $ury=0.8450 $lvl=1
+CA1 Mmn3@1:g VSS! 4.83441e-18 $lvl=3
+CA2 Mmn1@1:g VSS! 4.08808e-18 $lvl=3
+CA3 A:53 VSS! 1.93837e-17 $lvl=1
+CA4 A:55 VSS! 1.04182e-17 $lvl=1
+CA5 A:38 VSS! 4.74927e-18 $lvl=3
+CA6 A:44 VSS! 4.49125e-18 $lvl=3
+CA7 A:47 VSS! 4.45117e-18 $lvl=3
+CA8 A:29 VSS! 4.66253e-18 $lvl=3
+CA9 A:36 VSS! 5.15669e-18 $lvl=3
+CA10 A:34 VSS! 2.24751e-18 $lvl=3
+CA11 A:51 VSS! 8.01491e-18 $lvl=2
+CA12 A:49 VSS! 9.94049e-18 $lvl=2
+CA13 A:52 VSS! 6.04611e-18 $lvl=2
+CA14 A:50 VSS! 1.33073e-17 $lvl=2
+CA15 A:31 VSS! 3.31873e-17 $lvl=3
+CA16 A:43 VSS! 3.52754e-17 $lvl=3
+CA17 A:49 net144:17 5.66733e-18 $lvl1=2 $lvl2=1
+CA18 A:43 net144:10 4.34775e-18 $lvl1=3 $lvl2=2
+CA19 A:49 net144:2 3.84328e-18 $lvl1=2 $lvl2=2
+CA20 A:43 net144:6 3.38838e-18 $lvl1=3 $lvl2=2
+CA21 A:49 net144:16 2.75261e-18 $lvl1=2 $lvl2=1
+CA22 A:49 net144:6 2.59946e-18 $lvl1=2 $lvl2=2
+CA23 A:43 Mmn3:d 2.06644e-18 $lvl1=3 $lvl2=4
+CA24 A:43 Mmn4:s 1.29564e-18 $lvl1=3 $lvl2=4
+CA25 A:49 net144:10 9.28283e-18 $lvl1=2 $lvl2=2
+CA26 A:49 net144 1.76561e-17 $lvl1=2 $lvl2=2
+CA27 A:43 net144 1.34631e-17 $lvl1=3 $lvl2=2
+CA28 A:47 net144 1.27313e-16 $lvl1=3 $lvl2=2
+CA29 Mmn3@1:g net144 1.2921e-16 $lvl1=3 $lvl2=2
+CA30 A:44 pon:42 2.52826e-16 $lvl1=3 $lvl2=2
+CA31 A:38 pon:42 2.52278e-16 $lvl1=3 $lvl2=2
+CA32 A:53 net127:10 1.24174e-18 $lvl1=1 $lvl2=2
+CA33 A:31 net127:5 1.13893e-18 $lvl1=3 $lvl2=2
+CA34 A:44 net127:11 1.09584e-18 $lvl1=3 $lvl2=2
+CA35 A:29 net127:6 9.50187e-19 $lvl1=3 $lvl2=2
+CA36 A:31 net127 9.4828e-19 $lvl1=3 $lvl2=2
+CA37 A:29 net127:5 8.65364e-19 $lvl1=3 $lvl2=2
+CA38 A:29 net127 2.48749e-16 $lvl1=3 $lvl2=2
+CA39 A:36 net127 2.50027e-16 $lvl1=3 $lvl2=2
+CA40 A:55 non:54 9.18441e-18 $lvl1=1 $lvl2=2
+CA41 A:50 non:75 7.86086e-18 $lvl1=2 $lvl2=1
+CA42 A:55 non:70 7.25206e-18 $lvl1=1 $lvl2=1
+CA43 A:55 non:73 5.10282e-18 $lvl1=1 $lvl2=1
+CA44 A:55 non:57 3.05658e-18 $lvl1=1 $lvl2=2
+CA45 A:31 Mmn1@1:d 2.72258e-18 $lvl1=3 $lvl2=4
+CA46 A:43 non:76 2.02524e-18 $lvl1=3 $lvl2=1
+CA47 A:49 non:54 1.67597e-18 $lvl1=2 $lvl2=2
+CA48 A:49 non:75 1.15218e-17 $lvl1=2 $lvl2=1
+CA49 Mmn1@1:g non:50 1.27805e-16 $lvl1=3 $lvl2=2
+CA50 A:55 non:72 3.679e-17 $lvl1=1 $lvl2=1
+CA51 A:49 non:76 2.02694e-17 $lvl1=2 $lvl2=1
+CA52 A:50 non:54 2.47269e-17 $lvl1=2 $lvl2=2
+CA53 A:55 non:75 1.46952e-17 $lvl1=1 $lvl2=1
+CA54 A:31 non:50 1.56016e-17 $lvl1=3 $lvl2=2
+CA55 A:53 non:75 1.58444e-17 $lvl1=1 $lvl2=1
+CA56 A:34 non:50 1.2601e-16 $lvl1=3 $lvl2=2
+CA57 A:51 non:50 1.68685e-17 $lvl1=2 $lvl2=2
+CA58 A:50 OEb:41 8.33963e-18 $lvl1=2 $lvl2=2
+CA59 A:49 OEb:17 8.19174e-18 $lvl1=2 $lvl2=3
+CA60 A:50 OEb:49 6.2585e-18 $lvl1=2 $lvl2=1
+CA61 A:53 OEb:41 5.78621e-18 $lvl1=1 $lvl2=2
+CA62 A:50 OEb:17 5.45267e-18 $lvl1=2 $lvl2=3
+CA63 A:53 OEb:40 5.3318e-18 $lvl1=1 $lvl2=2
+CA64 A:50 OEb:40 4.80526e-18 $lvl1=2 $lvl2=2
+CA65 A:43 OEb:38 3.79282e-18 $lvl1=3 $lvl2=2
+CA66 A:50 OEb:38 3.46448e-18 $lvl1=2 $lvl2=2
+CA67 A:51 OEb:50 3.33268e-18 $lvl1=2 $lvl2=1
+CA68 A:52 OEb:44 3.29935e-18 $lvl1=2 $lvl2=1
+CA69 A:50 OEb 2.4497e-18 $lvl1=2 $lvl2=3
+CA70 A:49 OEb:40 2.39453e-18 $lvl1=2 $lvl2=2
+CA71 A:51 OEb:44 2.2734e-18 $lvl1=2 $lvl2=1
+CA72 A:31 OEb 2.02702e-18 $lvl1=3 $lvl2=3
+CA73 A:50 OEb:50 1.97151e-18 $lvl1=2 $lvl2=1
+CA74 A:50 OEb:26 1.89953e-18 $lvl1=2 $lvl2=3
+CA75 A:50 OEb:52 1.73279e-18 $lvl1=2 $lvl2=1
+CA76 A:31 OEb:50 1.50708e-18 $lvl1=3 $lvl2=1
+CA77 A:52 OEb:49 1.4602e-18 $lvl1=2 $lvl2=1
+CA78 A:31 OEb:49 1.40689e-18 $lvl1=3 $lvl2=1
+CA79 A:53 OEb:44 1.23554e-18 $lvl1=1 $lvl2=1
+CA80 A:31 OEb:44 1.18011e-18 $lvl1=3 $lvl2=1
+CA81 A:49 OEb:26 1.09397e-18 $lvl1=2 $lvl2=3
+CA82 A:55 OEb:52 1.04482e-18 $lvl1=1 $lvl2=1
+CA83 A:51 OEb:41 1.02653e-18 $lvl1=2 $lvl2=2
+CA84 A:49 OEb:52 1.01528e-18 $lvl1=2 $lvl2=1
+CA85 A:31 OEb:41 9.49667e-19 $lvl1=3 $lvl2=2
+CA86 A:43 OEb:26 8.12461e-19 $lvl1=3 $lvl2=3
+CA87 A:51 OEb:49 1.5216e-17 $lvl1=2 $lvl2=1
+CA88 A:53 OEb:50 5.08802e-17 $lvl1=1 $lvl2=1
+CA89 A:49 OEb:38 1.16199e-17 $lvl1=2 $lvl2=2
+CA90 A:53 OEb:51 1.05914e-17 $lvl1=1 $lvl2=1
+CA91 A:55 OEb:49 4.45272e-17 $lvl1=1 $lvl2=1
+CA92 A:53 OEb:52 5.24501e-17 $lvl1=1 $lvl2=1
+CA93 A:43 OEb:17 1.01121e-17 $lvl1=3 $lvl2=3
+CA94 A:53 OEb:49 4.03891e-17 $lvl1=1 $lvl2=1
+CA95 A:31 VSS!:43 9.83944e-18 $lvl1=3 $lvl2=2
+CA96 A:47 VSS!:15 8.97395e-18 $lvl1=3 $lvl2=2
+CA97 A:51 VSS!:40 8.66227e-18 $lvl1=2 $lvl2=2
+CA98 A:34 VSS!:16 8.48861e-18 $lvl1=3 $lvl2=2
+CA99 A:55 VSS!:40 7.85107e-18 $lvl1=1 $lvl2=2
+CA100 Mmn3@1:g VSS!:14 7.64681e-18 $lvl1=3 $lvl2=2
+CA101 A:50 VSS!:37 7.54949e-18 $lvl1=2 $lvl2=2
+CA102 A:52 VSS!:43 7.50813e-18 $lvl1=2 $lvl2=2
+CA103 Mmn1@1:g VSS!:17 7.4246e-18 $lvl1=3 $lvl2=2
+CA104 A:31 VSS!:40 6.62783e-18 $lvl1=3 $lvl2=2
+CA105 A:51 VSS!:43 4.69844e-18 $lvl1=2 $lvl2=2
+CA106 A:43 VSS!:37 3.39519e-18 $lvl1=3 $lvl2=2
+CA107 A:43 Mmn3@1:s 3.03355e-18 $lvl1=3 $lvl2=4
+CA108 A:49 VSS!:37 1.59189e-17 $lvl1=2 $lvl2=2
+CA109 A:43 VSS!:34 1.66676e-17 $lvl1=3 $lvl2=2
+CA110 A:34 VSS!:40 1.29965e-16 $lvl1=3 $lvl2=2
+CA111 A:50 VSS!:40 1.55274e-17 $lvl1=2 $lvl2=2
+CA112 A:49 VSS!:34 1.56328e-17 $lvl1=2 $lvl2=2
+CA113 A:47 VSS!:37 1.28176e-16 $lvl1=3 $lvl2=2
+CA114 Mmn1@1:g VSS!:43 1.24669e-16 $lvl1=3 $lvl2=2
+CA115 Mmn3@1:g VSS!:34 1.29981e-16 $lvl1=3 $lvl2=2
+CA116 A:38 VDD!:10 9.24953e-18 $lvl1=3 $lvl2=2
+CA117 A:44 VDD!:10 8.05462e-18 $lvl1=3 $lvl2=2
+CA118 A:29 VDD!:6 6.9364e-18 $lvl1=3 $lvl2=2
+CA119 A:36 VDD!:4 5.19079e-18 $lvl1=3 $lvl2=2
+CA120 A:53 VDD! 4.29015e-18 $lvl1=1 $lvl2=1
+CA121 A:53 VDD!:9 3.27568e-18 $lvl1=1 $lvl2=2
+CA122 A:55 VDD! 3.05105e-18 $lvl1=1 $lvl2=1
+CA123 A:31 VDD! 2.66466e-18 $lvl1=3 $lvl2=1
+CA124 A:43 VDD! 1.89015e-18 $lvl1=3 $lvl2=1
+CA125 A:36 VDD!:3 2.5209e-16 $lvl1=3 $lvl2=2
+CA126 A:44 VDD!:13 2.55686e-16 $lvl1=3 $lvl2=2
+CA127 A:29 VDD!:9 2.53997e-16 $lvl1=3 $lvl2=2
+CA128 A:38 VDD!:20 2.48695e-16 $lvl1=3 $lvl2=2
+CA129 A:31 OE:41 6.7405e-18 $lvl1=3 $lvl2=2
+CA130 A:52 OE:41 5.91808e-18 $lvl1=2 $lvl2=2
+CA131 A:49 OE:47 5.65801e-18 $lvl1=2 $lvl2=1
+CA132 A:51 OE:41 5.07784e-18 $lvl1=2 $lvl2=2
+CA133 A:49 OE:46 5.0005e-18 $lvl1=2 $lvl2=2
+CA134 A:43 OE:46 4.33997e-18 $lvl1=3 $lvl2=2
+CA135 A:31 OE:23 3.8429e-18 $lvl1=3 $lvl2=3
+CA136 A:51 OE:54 3.33556e-18 $lvl1=2 $lvl2=1
+CA137 A:38 OE:28 2.682e-18 $lvl1=3 $lvl2=3
+CA138 A:49 OE:45 2.41023e-18 $lvl1=2 $lvl2=2
+CA139 A:44 OE:46 2.32982e-18 $lvl1=3 $lvl2=2
+CA140 A:51 OE:42 2.31917e-18 $lvl1=2 $lvl2=2
+CA141 A:53 OE:54 2.11125e-18 $lvl1=1 $lvl2=1
+CA142 A:36 OE:23 1.79574e-18 $lvl1=3 $lvl2=3
+CA143 A:52 OE:54 1.45754e-18 $lvl1=2 $lvl2=1
+CA144 A:38 OE:46 1.34909e-18 $lvl1=3 $lvl2=2
+CA145 A:31 OE:42 1.03488e-18 $lvl1=3 $lvl2=2
+CA146 A:52 OE:23 1.01919e-18 $lvl1=2 $lvl2=3
+ReA1 A:53 A 0.250000 $metal1  $L=0.52 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=1.710000 $LLY=1.565000 $URX=1.970000 $URY=2.085000 $lvl=1
+ReA2 A A:54 0.064904 $metal1  $L=0.135 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=1.725000 $LLY=1.430000 $URX=1.985000 $URY=1.565000 $lvl=1
+ReA3 A:54 A:55 0.281250 $metal1  $L=0.585 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=1.710000 $LLY=0.845000 $URX=1.970000 $URY=1.430000 $lvl=1
+RfA4 A:48 A:49 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=3.115000 $LLY=1.345000 $URX=3.495000 $URY=1.515000 $lvl=2
+RfA5 A:49 A:50 96.000000 $li  $L=1.275 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=1.840000 $LLY=1.345000 $URX=3.115000 $URY=1.515000 $lvl=2
+RfA6 A:50 A:51 50.823528 $li  $L=0.675 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=1.165000 $LLY=1.345000 $URX=1.840000 $URY=1.515000 $lvl=2
+RfA7 A:51 A:52 25.223530 $li  $L=0.335 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=0.830000 $LLY=1.345000 $URX=1.165000 $URY=1.515000 $lvl=2
+RgA8 A:29 Mmp1:g 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.320000 $LLY=3.015000 $URX=1.470000 $URY=3.895000 $lvl=3
+RgA9 Mmp1:g A:30 509.233002 $poly  $L=1.58475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.320000 $LLY=1.430000 $URX=1.470000 $URY=3.015000 $lvl=3
+RgA10 A:30 A:31 33.630455 $poly  $L=0.23025 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=1.165000 $LLY=1.265000 $URX=1.395000 $URY=1.595000 $lvl=3
+RgA11 A:31 A:32 29.175608 $poly  $L=0.19975 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=0.965000 $LLY=1.265000 $URX=1.165000 $URY=1.595000 $lvl=3
+RgA12 A:32 A:33 44.187447 $poly  $L=0.16475 $W=0.180000 $SI_W=0.18 $TYPE=10 $DIR=1 $LLX=0.860000 $LLY=1.265000 $URX=1.040000 $URY=1.430000 $lvl=3
+RgA13 A:33 Mmn1@1:g 157.520279 $poly  $L=0.49 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.890000 $LLY=0.775000 $URX=1.040000 $URY=1.265000 $lvl=3
+RgA14 A:30 Mmn1:g 210.553665 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.320000 $LLY=0.775000 $URX=1.470000 $URY=1.430000 $lvl=3
+RgA15 Mmn1:g A:34 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.320000 $LLY=0.245000 $URX=1.470000 $URY=0.775000 $lvl=3
+RgA16 A:32 A:35 44.053562 $poly  $L=0.16425 $W=0.180000 $SI_W=0.18 $TYPE=10 $DIR=1 $LLX=0.860000 $LLY=1.430500 $URX=1.040000 $URY=1.594500 $lvl=3
+RgA17 A:35 Mmp1@1:g 456.360291 $poly  $L=1.42 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.890000 $LLY=1.594500 $URX=1.040000 $URY=3.014500 $lvl=3
+RgA18 Mmp1@1:g A:36 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.890000 $LLY=3.015000 $URX=1.040000 $URY=3.895000 $lvl=3
+RgA19 Mmn1@1:g A:37 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.890000 $LLY=0.245000 $URX=1.040000 $URY=0.775000 $lvl=3
+RgA20 A:38 Mmp3:g 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.080000 $LLY=3.015000 $URX=4.230000 $URY=3.895000 $lvl=3
+RgA21 Mmp3:g A:39 305.186340 $poly  $L=0.94975 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.080000 $LLY=2.065000 $URX=4.230000 $URY=3.015000 $lvl=3
+RgA22 A:39 A:40 138.173340 $poly  $L=0.43 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=3.725000 $LLY=1.990000 $URX=4.155000 $URY=2.140000 $lvl=3
+RgA23 A:40 A:41 98.006668 $poly  $L=0.305 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=3.420000 $LLY=1.990000 $URX=3.725000 $URY=2.140000 $lvl=3
+RgA24 A:41 A:42 204.046661 $poly  $L=0.635 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.345000 $LLY=1.430000 $URX=3.495000 $URY=2.065000 $lvl=3
+RgA25 A:42 A:43 54.492783 $poly  $L=0.30525 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=3.115000 $LLY=1.295000 $URX=3.420000 $URY=1.565000 $lvl=3
+RgA26 A:40 Mmp3@1:g 305.186340 $poly  $L=0.94975 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.650000 $LLY=2.065000 $URX=3.800000 $URY=3.015000 $lvl=3
+RgA27 Mmp3@1:g A:44 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.650000 $LLY=3.015000 $URX=3.800000 $URY=3.895000 $lvl=3
+RgA28 A:43 Mmn3@1:g 191.193329 $poly  $L=0.655 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.040000 $LLY=0.775000 $URX=3.190000 $URY=1.430000 $lvl=3
+RgA29 Mmn3@1:g A:45 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.040000 $LLY=0.245000 $URX=3.190000 $URY=0.775000 $lvl=3
+RgA30 A:43 A:46 76.718338 $poly  $L=0.42975 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=2.685000 $LLY=1.295000 $URX=3.115000 $URY=1.565000 $lvl=3
+RgA31 A:46 Mmn3:g 210.553665 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.610000 $LLY=0.775000 $URX=2.760000 $URY=1.430000 $lvl=3
+RgA32 Mmn3:g A:47 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.610000 $LLY=0.245000 $URX=2.760000 $URY=0.775000 $lvl=3
+RjA33 A:50 A:54 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RiA34 A:43 A:49 7.500000 $licon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=7
+RiA35 A:31 A:51 7.500000 $licon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=7
+*
+*|NET Y 6.5356e-15
+*|P (Y X 0 8.2950 1.4950) // $llx=8.2950 $lly=1.4950 $urx=8.2950 $ury=1.4950 $lvl=1
+*|I (Mmp5@2:d Mmp5@2 d X 0 5.5205 3.0150) // $llx=5.5205 $lly=3.0150 $urx=5.5205 $ury=3.0150 $lvl=4
+*|I (Mmp5@5:d Mmp5@5 d X 0 5.7995 3.0150) // $llx=5.7995 $lly=3.0150 $urx=5.7995 $ury=3.0150 $lvl=4
+*|I (Mmp5@1:d Mmp5@1 d X 0 6.3805 3.0150) // $llx=6.3805 $lly=3.0150 $urx=6.3805 $ury=3.0150 $lvl=4
+*|I (Mmp5@3:d Mmp5@3 d X 0 6.6595 3.0150) // $llx=6.6595 $lly=3.0150 $urx=6.6595 $ury=3.0150 $lvl=4
+*|I (Mmp5@4:d Mmp5@4 d X 0 7.2405 3.0150) // $llx=7.2405 $lly=3.0150 $urx=7.2405 $ury=3.0150 $lvl=4
+*|I (Mmp5@6:d Mmp5@6 d X 0 7.5195 3.0150) // $llx=7.5195 $lly=3.0150 $urx=7.5195 $ury=3.0150 $lvl=4
+*|I (Mmp5:d Mmp5 d X 0 8.1005 3.0150) // $llx=8.1005 $lly=3.0150 $urx=8.1005 $ury=3.0150 $lvl=4
+*|I (Mmp5@7:d Mmp5@7 d X 0 8.3795 3.0150) // $llx=8.3795 $lly=3.0150 $urx=8.3795 $ury=3.0150 $lvl=4
+*|I (Mmn5:d Mmn5 d X 0 5.5205 0.7750) // $llx=5.5205 $lly=0.7750 $urx=5.5205 $ury=0.7750 $lvl=4
+*|I (Mmn5@6:d Mmn5@6 d X 0 5.7995 0.7750) // $llx=5.7995 $lly=0.7750 $urx=5.7995 $ury=0.7750 $lvl=4
+*|I (Mmn5@3:d Mmn5@3 d X 0 6.3805 0.7750) // $llx=6.3805 $lly=0.7750 $urx=6.3805 $ury=0.7750 $lvl=4
+*|I (Mmn5@4:d Mmn5@4 d X 0 6.6595 0.7750) // $llx=6.6595 $lly=0.7750 $urx=6.6595 $ury=0.7750 $lvl=4
+*|I (Mmn5@5:d Mmn5@5 d X 0 7.2405 0.7750) // $llx=7.2405 $lly=0.7750 $urx=7.2405 $ury=0.7750 $lvl=4
+*|I (Mmn5@2:d Mmn5@2 d X 0 7.5195 0.7750) // $llx=7.5195 $lly=0.7750 $urx=7.5195 $ury=0.7750 $lvl=4
+*|I (Mmn5@1:d Mmn5@1 d X 0 8.1005 0.7750) // $llx=8.1005 $lly=0.7750 $urx=8.1005 $ury=0.7750 $lvl=4
+*|I (Mmn5@7:d Mmn5@7 d X 0 8.3795 0.7750) // $llx=8.3795 $lly=0.7750 $urx=8.3795 $ury=0.7750 $lvl=4
+*|S (Y:1 5.6600 3.7450) // $llx=5.6600 $lly=3.7450 $urx=5.6600 $ury=3.7450 $lvl=2
+*|S (Y:3 5.6600 3.0150) // $llx=5.6600 $lly=3.0150 $urx=5.6600 $ury=3.0150 $lvl=2
+*|S (Y:4 5.6600 2.5700) // $llx=5.6600 $lly=2.5700 $urx=5.6600 $ury=2.5700 $lvl=2
+*|S (Y:5 5.6600 1.1550) // $llx=5.6600 $lly=1.1550 $urx=5.6600 $ury=1.1550 $lvl=2
+*|S (Y:6 5.6600 0.8100) // $llx=5.6600 $lly=0.8100 $urx=5.6600 $ury=0.8100 $lvl=2
+*|S (Y:8 5.6600 0.7750) // $llx=5.6600 $lly=0.7750 $urx=5.6600 $ury=0.7750 $lvl=2
+*|S (Y:9 5.6600 0.3950) // $llx=5.6600 $lly=0.3950 $urx=5.6600 $ury=0.3950 $lvl=2
+*|S (Y:10 6.5200 3.7450) // $llx=6.5200 $lly=3.7450 $urx=6.5200 $ury=3.7450 $lvl=2
+*|S (Y:12 6.5200 3.0150) // $llx=6.5200 $lly=3.0150 $urx=6.5200 $ury=3.0150 $lvl=2
+*|S (Y:13 6.5200 2.7500) // $llx=6.5200 $lly=2.7500 $urx=6.5200 $ury=2.7500 $lvl=2
+*|S (Y:14 6.5200 1.1550) // $llx=6.5200 $lly=1.1550 $urx=6.5200 $ury=1.1550 $lvl=2
+*|S (Y:15 6.5200 0.8100) // $llx=6.5200 $lly=0.8100 $urx=6.5200 $ury=0.8100 $lvl=2
+*|S (Y:17 6.5200 0.7750) // $llx=6.5200 $lly=0.7750 $urx=6.5200 $ury=0.7750 $lvl=2
+*|S (Y:18 6.5200 0.3950) // $llx=6.5200 $lly=0.3950 $urx=6.5200 $ury=0.3950 $lvl=2
+*|S (Y:19 7.3800 3.7450) // $llx=7.3800 $lly=3.7450 $urx=7.3800 $ury=3.7450 $lvl=2
+*|S (Y:21 7.3800 3.0150) // $llx=7.3800 $lly=3.0150 $urx=7.3800 $ury=3.0150 $lvl=2
+*|S (Y:22 7.3800 2.7500) // $llx=7.3800 $lly=2.7500 $urx=7.3800 $ury=2.7500 $lvl=2
+*|S (Y:23 7.3800 1.1550) // $llx=7.3800 $lly=1.1550 $urx=7.3800 $ury=1.1550 $lvl=2
+*|S (Y:24 7.3800 0.8100) // $llx=7.3800 $lly=0.8100 $urx=7.3800 $ury=0.8100 $lvl=2
+*|S (Y:26 7.3800 0.7750) // $llx=7.3800 $lly=0.7750 $urx=7.3800 $ury=0.7750 $lvl=2
+*|S (Y:27 7.3800 0.3950) // $llx=7.3800 $lly=0.3950 $urx=7.3800 $ury=0.3950 $lvl=2
+*|S (Y:28 8.2400 3.7450) // $llx=8.2400 $lly=3.7450 $urx=8.2400 $ury=3.7450 $lvl=2
+*|S (Y:30 8.2400 3.0150) // $llx=8.2400 $lly=3.0150 $urx=8.2400 $ury=3.0150 $lvl=2
+*|S (Y:31 8.2400 2.7500) // $llx=8.2400 $lly=2.7500 $urx=8.2400 $ury=2.7500 $lvl=2
+*|S (Y:32 8.2400 1.1550) // $llx=8.2400 $lly=1.1550 $urx=8.2400 $ury=1.1550 $lvl=2
+*|S (Y:33 8.2400 0.8100) // $llx=8.2400 $lly=0.8100 $urx=8.2400 $ury=0.8100 $lvl=2
+*|S (Y:35 8.2400 0.7750) // $llx=8.2400 $lly=0.7750 $urx=8.2400 $ury=0.7750 $lvl=2
+*|S (Y:36 8.2400 0.3950) // $llx=8.2400 $lly=0.3950 $urx=8.2400 $ury=0.3950 $lvl=2
+*|S (Y:37 8.2675 3.2550) // $llx=8.2675 $lly=3.2550 $urx=8.2675 $ury=3.2550 $lvl=1
+*|S (Y:38 8.2400 2.7500) // $llx=8.2400 $lly=2.7500 $urx=8.2400 $ury=2.7500 $lvl=1
+*|S (Y:39 7.3800 1.5000) // $llx=7.3800 $lly=1.5000 $urx=7.3800 $ury=1.5000 $lvl=1
+*|S (Y:40 6.5200 1.5000) // $llx=6.5200 $lly=1.5000 $urx=6.5200 $ury=1.5000 $lvl=1
+*|S (Y:41 5.6600 1.5000) // $llx=5.6600 $lly=1.5000 $urx=5.6600 $ury=1.5000 $lvl=1
+*|S (Y:42 5.6600 0.8100) // $llx=5.6600 $lly=0.8100 $urx=5.6600 $ury=0.8100 $lvl=1
+*|S (Y:43 8.2400 0.8100) // $llx=8.2400 $lly=0.8100 $urx=8.2400 $ury=0.8100 $lvl=1
+*|S (Y:44 8.2675 0.4850) // $llx=8.2675 $lly=0.4850 $urx=8.2675 $ury=0.4850 $lvl=1
+*|S (Y:45 7.3800 0.8100) // $llx=7.3800 $lly=0.8100 $urx=7.3800 $ury=0.8100 $lvl=1
+*|S (Y:46 7.3800 0.4850) // $llx=7.3800 $lly=0.4850 $urx=7.3800 $ury=0.4850 $lvl=1
+*|S (Y:47 7.3800 2.7500) // $llx=7.3800 $lly=2.7500 $urx=7.3800 $ury=2.7500 $lvl=1
+*|S (Y:48 7.3800 3.2550) // $llx=7.3800 $lly=3.2550 $urx=7.3800 $ury=3.2550 $lvl=1
+*|S (Y:49 6.5200 0.8100) // $llx=6.5200 $lly=0.8100 $urx=6.5200 $ury=0.8100 $lvl=1
+*|S (Y:50 6.5200 0.4850) // $llx=6.5200 $lly=0.4850 $urx=6.5200 $ury=0.4850 $lvl=1
+*|S (Y:51 6.5200 2.7500) // $llx=6.5200 $lly=2.7500 $urx=6.5200 $ury=2.7500 $lvl=1
+*|S (Y:52 6.5200 3.2550) // $llx=6.5200 $lly=3.2550 $urx=6.5200 $ury=3.2550 $lvl=1
+*|S (Y:53 5.6600 2.5700) // $llx=5.6600 $lly=2.5700 $urx=5.6600 $ury=2.5700 $lvl=1
+*|S (Y:54 5.6600 2.8950) // $llx=5.6600 $lly=2.8950 $urx=5.6600 $ury=2.8950 $lvl=1
+*|S (Y:55 5.6600 0.4850) // $llx=5.6600 $lly=0.4850 $urx=5.6600 $ury=0.4850 $lvl=1
+CC1 Mmn5@1:d VSS! 6.51427e-19 $lvl=4
+CC2 Mmn5@5:d VSS! 1.36222e-19 $lvl=4
+CC3 Mmn5@3:d VSS! 6.24686e-19 $lvl=4
+CC4 Mmn5:d VSS! 6.2576e-19 $lvl=4
+CC5 Mmp5:d VSS! 1.7372e-18 $lvl=4
+CC6 Mmp5@4:d VSS! 9.10609e-19 $lvl=4
+CC7 Mmp5@1:d VSS! 1.70495e-18 $lvl=4
+CC8 Mmp5@2:d VSS! 5.28275e-19 $lvl=4
+CC9 Y:51 VSS! 7.20199e-18 $lvl=1
+CC10 Y:49 VSS! 6.52584e-18 $lvl=1
+CC11 Y:47 VSS! 9.44816e-18 $lvl=1
+CC12 Y:45 VSS! 5.50255e-18 $lvl=1
+CC13 Y:43 VSS! 7.6239e-18 $lvl=1
+CC14 Y:42 VSS! 8.35625e-18 $lvl=1
+CC15 Y:38 VSS! 9.84624e-18 $lvl=1
+CC16 Y:37 VSS! 3.49924e-18 $lvl=1
+CC17 Y:54 VSS! 1.25743e-17 $lvl=1
+CC18 Y:55 VSS! 2.79422e-18 $lvl=1
+CC19 Y:39 VSS! 6.90426e-18 $lvl=1
+CC20 Y:40 VSS! 5.99321e-18 $lvl=1
+CC21 Y:41 VSS! 1.01964e-17 $lvl=1
+CC22 Y:35 VSS! 8.89221e-18 $lvl=2
+CC23 Y:36 VSS! 1.69794e-18 $lvl=2
+CC24 Y:23 VSS! 7.35243e-18 $lvl=2
+CC25 Y:27 VSS! 2.23306e-18 $lvl=2
+CC26 Y:19 VSS! 2.06143e-18 $lvl=2
+CC27 Y:14 VSS! 9.01047e-18 $lvl=2
+CC28 Y:18 VSS! 1.52374e-18 $lvl=2
+CC29 Y:10 VSS! 2.86643e-18 $lvl=2
+CC30 Y:5 VSS! 3.74573e-18 $lvl=2
+CC31 Y:9 VSS! 2.33517e-18 $lvl=2
+CC32 Y:1 VSS! 8.36586e-18 $lvl=2
+CC33 Y:6 VSS! 2.65941e-18 $lvl=2
+CC34 Y:4 VSS! 3.36315e-18 $lvl=2
+CC35 Y:15 VSS! 1.25532e-18 $lvl=2
+CC36 Y:13 VSS! 1.0678e-18 $lvl=2
+CC37 Y:24 VSS! 1.8947e-18 $lvl=2
+CC38 Y:22 VSS! 2.56395e-18 $lvl=2
+CC39 Y:33 VSS! 1.93979e-18 $lvl=2
+CC40 Y:31 VSS! 3.72734e-18 $lvl=2
+CC41 Y VSS! 5.91364e-18 $lvl=1
+CC42 Y:41 pon:64 9.20935e-18 $lvl1=1 $lvl2=1
+CC43 Y:51 pon:57 8.29499e-18 $lvl1=1 $lvl2=2
+CC44 Y:13 pon:60 7.36867e-18 $lvl1=2 $lvl2=1
+CC45 Y:41 pon:57 7.02082e-18 $lvl1=1 $lvl2=2
+CC46 Y:22 pon:57 6.01742e-18 $lvl1=2 $lvl2=2
+CC47 Y:54 pon:57 5.84826e-18 $lvl1=1 $lvl2=2
+CC48 Y:4 pon:60 4.96216e-18 $lvl1=2 $lvl2=1
+CC49 Y:13 pon:57 4.8897e-18 $lvl1=2 $lvl2=2
+CC50 Y:1 pon:64 4.73457e-18 $lvl1=2 $lvl2=1
+CC51 Y:10 pon:60 4.31782e-18 $lvl1=2 $lvl2=1
+CC52 Y:13 pon:58 3.87497e-18 $lvl1=2 $lvl2=1
+CC53 Y:4 pon:58 3.5478e-18 $lvl1=2 $lvl2=1
+CC54 Y:4 pon:57 3.49442e-18 $lvl1=2 $lvl2=2
+CC55 Y:41 pon:56 3.40693e-18 $lvl1=1 $lvl2=2
+CC56 Y:40 pon:56 3.22884e-18 $lvl1=1 $lvl2=2
+CC57 Y:40 pon:30 3.19221e-18 $lvl1=1 $lvl2=3
+CC58 Y:4 pon:64 2.59284e-18 $lvl1=2 $lvl2=1
+CC59 Y:42 pon:64 2.55892e-18 $lvl1=1 $lvl2=1
+CC60 Mmp5@4:d pon:30 2.48806e-18 $lvl1=4 $lvl2=3
+CC61 Mmp5@2:d pon:30 2.37592e-18 $lvl1=4 $lvl2=3
+CC62 Mmp5@1:d pon:30 2.36687e-18 $lvl1=4 $lvl2=3
+CC63 Y:51 pon:64 2.21636e-18 $lvl1=1 $lvl2=1
+CC64 Y:47 pon:60 2.05234e-18 $lvl1=1 $lvl2=1
+CC65 Y:51 pon:56 1.97827e-18 $lvl1=1 $lvl2=2
+CC66 Y pon:30 1.91341e-18 $lvl1=1 $lvl2=3
+CC67 Y:54 pon:56 1.81059e-18 $lvl1=1 $lvl2=2
+CC68 Y:54 pon:55 1.57588e-18 $lvl1=1 $lvl2=2
+CC69 Y:47 pon:58 1.47625e-18 $lvl1=1 $lvl2=1
+CC70 Y:41 pon:30 1.29381e-18 $lvl1=1 $lvl2=3
+CC71 Y:49 pon:64 1.17233e-18 $lvl1=1 $lvl2=1
+CC72 Y:1 pon:56 1.1679e-18 $lvl1=2 $lvl2=2
+CC73 Y:4 pon:56 1.158e-18 $lvl1=2 $lvl2=2
+CC74 Y:10 pon:58 1.14869e-18 $lvl1=2 $lvl2=1
+CC75 Y:47 pon:30 1.10477e-18 $lvl1=1 $lvl2=3
+CC76 Y:10 pon:56 1.10376e-18 $lvl1=2 $lvl2=2
+CC77 Y:47 pon:64 1.02248e-18 $lvl1=1 $lvl2=1
+CC78 Y:13 pon:56 1.00549e-18 $lvl1=2 $lvl2=2
+CC79 Y:13 pon:30 9.93741e-19 $lvl1=2 $lvl2=3
+CC80 Y:51 pon:30 9.91379e-19 $lvl1=1 $lvl2=3
+CC81 Y:10 pon:57 1.55007e-17 $lvl1=2 $lvl2=2
+CC82 Y:1 pon:30 1.22476e-17 $lvl1=2 $lvl2=3
+CC83 Y:1 pon:40 2.47082e-16 $lvl1=2 $lvl2=3
+CC84 Y:47 pon:57 1.34733e-17 $lvl1=1 $lvl2=2
+CC85 Y:19 pon:37 2.53177e-16 $lvl1=2 $lvl2=3
+CC86 Y:51 pon:60 6.86118e-17 $lvl1=1 $lvl2=1
+CC87 Y:31 pon:57 1.94171e-17 $lvl1=2 $lvl2=2
+CC88 Y:38 pon:57 1.01771e-17 $lvl1=1 $lvl2=2
+CC89 Y:31 pon:25 2.47851e-16 $lvl1=2 $lvl2=3
+CC90 Y:19 pon:57 1.73896e-17 $lvl1=2 $lvl2=2
+CC91 Y:10 pon:30 1.18483e-17 $lvl1=2 $lvl2=3
+CC92 Y:1 pon:60 2.06632e-17 $lvl1=2 $lvl2=1
+CC93 Y:31 pon:30 1.18035e-17 $lvl1=2 $lvl2=3
+CC94 Y:54 pon:58 5.93083e-17 $lvl1=1 $lvl2=1
+CC95 Y:54 pon:64 3.0511e-17 $lvl1=1 $lvl2=1
+CC96 Y:10 pon:39 2.56463e-16 $lvl1=2 $lvl2=3
+CC97 Y:19 pon:30 1.09497e-17 $lvl1=2 $lvl2=3
+CC98 Y:10 Mmp5@3:g 2.52116e-16 $lvl1=2 $lvl2=3
+CC99 Y:40 pon:58 3.27412e-17 $lvl1=1 $lvl2=1
+CC100 Y:19 pon:36 2.44111e-16 $lvl1=2 $lvl2=3
+CC101 Y:51 pon:58 5.98049e-17 $lvl1=1 $lvl2=1
+CC102 Y:31 pon:35 2.44808e-16 $lvl1=2 $lvl2=3
+CC103 Y:40 pon:57 1.36009e-17 $lvl1=1 $lvl2=2
+CC104 Y:54 pon:60 5.70911e-17 $lvl1=1 $lvl2=1
+CC105 Y:1 pon:57 1.48197e-17 $lvl1=2 $lvl2=2
+CC106 Y:41 pon:58 3.50987e-17 $lvl1=1 $lvl2=1
+CC107 Y:1 pon 2.4856e-16 $lvl1=2 $lvl2=3
+CC108 Y pon:57 1.46658e-17 $lvl1=1 $lvl2=2
+CC109 Y:39 pon:57 1.97882e-17 $lvl1=1 $lvl2=2
+CC110 Y:55 non:69 7.87598e-18 $lvl1=1 $lvl2=1
+CC111 Y:6 non:69 5.40612e-18 $lvl1=2 $lvl2=1
+CC112 Y:24 non:64 4.62597e-18 $lvl1=2 $lvl2=2
+CC113 Y:15 non:64 4.54397e-18 $lvl1=2 $lvl2=2
+CC114 Y:49 non:64 4.45204e-18 $lvl1=1 $lvl2=2
+CC115 Y:45 non:64 4.02252e-18 $lvl1=1 $lvl2=2
+CC116 Y:43 non:64 3.92757e-18 $lvl1=1 $lvl2=2
+CC117 Y:6 non:64 3.81792e-18 $lvl1=2 $lvl2=2
+CC118 Y:33 non:64 3.37793e-18 $lvl1=2 $lvl2=2
+CC119 Y:42 non:64 3.29474e-18 $lvl1=1 $lvl2=2
+CC120 Mmn5:d non:41 2.92348e-18 $lvl1=4 $lvl2=3
+CC121 Y:54 non:67 2.73235e-18 $lvl1=1 $lvl2=1
+CC122 Y:41 non:65 2.68426e-18 $lvl1=1 $lvl2=2
+CC123 Y:5 non:66 2.67618e-18 $lvl1=2 $lvl2=2
+CC124 Mmn5@1:d non:41 2.60224e-18 $lvl1=4 $lvl2=3
+CC125 Y:6 non:67 2.26743e-18 $lvl1=2 $lvl2=1
+CC126 Y non:41 2.08815e-18 $lvl1=1 $lvl2=3
+CC127 Mmn5@3:d non:41 2.06367e-18 $lvl1=4 $lvl2=3
+CC128 Y:41 non:69 1.79454e-18 $lvl1=1 $lvl2=1
+CC129 Y:40 non:41 1.72033e-18 $lvl1=1 $lvl2=3
+CC130 Y:41 non:66 1.68496e-18 $lvl1=1 $lvl2=2
+CC131 Mmn5@5:d non:41 1.49735e-18 $lvl1=4 $lvl2=3
+CC132 Y:49 non:69 1.26687e-18 $lvl1=1 $lvl2=1
+CC133 Y:39 non:41 1.26054e-18 $lvl1=1 $lvl2=3
+CC134 Y:38 non:64 1.12708e-18 $lvl1=1 $lvl2=2
+CC135 Y:47 non:64 1.04751e-18 $lvl1=1 $lvl2=2
+CC136 Y:5 non:64 1.43049e-17 $lvl1=2 $lvl2=2
+CC137 Y:5 non:33 1.26473e-16 $lvl1=2 $lvl2=3
+CC138 Y:14 non:64 1.62223e-17 $lvl1=2 $lvl2=2
+CC139 Y:41 non:64 1.95096e-17 $lvl1=1 $lvl2=2
+CC140 Y:35 non:64 1.53711e-17 $lvl1=2 $lvl2=2
+CC141 Y:14 Mmn5@3:g 1.25688e-16 $lvl1=2 $lvl2=3
+CC142 Y:23 non:64 1.67381e-17 $lvl1=2 $lvl2=2
+CC143 Y:41 non:67 3.84674e-17 $lvl1=1 $lvl2=1
+CC144 Y non:64 2.37416e-17 $lvl1=1 $lvl2=2
+CC145 Y:14 non:41 1.63109e-17 $lvl1=2 $lvl2=3
+CC146 Y:5 non:36 1.26185e-16 $lvl1=2 $lvl2=3
+CC147 Y:23 Mmn5@5:g 1.23327e-16 $lvl1=2 $lvl2=3
+CC148 Y:35 non:47 1.247e-16 $lvl1=2 $lvl2=3
+CC149 Y:42 non:67 2.8901e-17 $lvl1=1 $lvl2=1
+CC150 Y:35 Mmn5@7:g 1.27577e-16 $lvl1=2 $lvl2=3
+CC151 Y:14 Mmn5@4:g 1.26122e-16 $lvl1=2 $lvl2=3
+CC152 Y:35 non:41 1.40557e-17 $lvl1=2 $lvl2=3
+CC153 Y:42 non:69 3.82639e-17 $lvl1=1 $lvl2=1
+CC154 Y:23 non:41 1.52334e-17 $lvl1=2 $lvl2=3
+CC155 Y:39 non:64 3.02533e-17 $lvl1=1 $lvl2=2
+CC156 Y:5 non:41 1.29139e-17 $lvl1=2 $lvl2=3
+CC157 Y:40 non:64 3.017e-17 $lvl1=1 $lvl2=2
+CC158 Y:23 Mmn5@2:g 1.31623e-16 $lvl1=2 $lvl2=3
+CC159 Y:43 VSS!:22 9.19174e-18 $lvl1=1 $lvl2=2
+CC160 Y:45 VSS!:25 8.53734e-18 $lvl1=1 $lvl2=2
+CC161 Y:45 VSS!:22 8.37773e-18 $lvl1=1 $lvl2=2
+CC162 Y:49 VSS!:28 8.11502e-18 $lvl1=1 $lvl2=2
+CC163 Y:27 VSS!:9 7.48761e-18 $lvl1=2 $lvl2=2
+CC164 Y:18 VSS!:10 7.21095e-18 $lvl1=2 $lvl2=2
+CC165 Y:9 VSS!:14 6.69478e-18 $lvl1=2 $lvl2=2
+CC166 Y VSS!:1 6.17707e-18 $lvl1=1 $lvl2=2
+CC167 Y:18 VSS!:9 6.11286e-18 $lvl1=2 $lvl2=2
+CC168 Y:9 VSS!:10 5.76836e-18 $lvl1=2 $lvl2=2
+CC169 Y:49 VSS!:25 5.74615e-18 $lvl1=1 $lvl2=2
+CC170 Y:43 VSS!:44 5.5371e-18 $lvl1=1 $lvl2=1
+CC171 Y:42 VSS!:28 5.39719e-18 $lvl1=1 $lvl2=2
+CC172 Y:27 VSS!:8 5.39358e-18 $lvl1=2 $lvl2=2
+CC173 Y:18 VSS!:28 5.35325e-18 $lvl1=2 $lvl2=2
+CC174 Y:49 VSS!:45 5.33414e-18 $lvl1=1 $lvl2=1
+CC175 Y:27 VSS!:22 5.15021e-18 $lvl1=2 $lvl2=2
+CC176 Y:9 VSS!:31 5.10614e-18 $lvl1=2 $lvl2=2
+CC177 Y:18 VSS!:25 4.93883e-18 $lvl1=2 $lvl2=2
+CC178 Y:36 VSS!:1 4.93854e-18 $lvl1=2 $lvl2=2
+CC179 Y:36 VSS!:22 4.87753e-18 $lvl1=2 $lvl2=2
+CC180 Mmn5@1:d VSS!:8 4.66578e-18 $lvl1=4 $lvl2=2
+CC181 Y:27 VSS!:25 4.46914e-18 $lvl1=2 $lvl2=2
+CC182 Y:9 VSS!:28 4.02819e-18 $lvl1=2 $lvl2=2
+CC183 Y:14 VSS!:10 3.61873e-18 $lvl1=2 $lvl2=2
+CC184 Y:40 VSS!:28 3.57859e-18 $lvl1=1 $lvl2=2
+CC185 Y:14 VSS!:9 3.39835e-18 $lvl1=2 $lvl2=2
+CC186 Y:41 VSS!:46 3.23341e-18 $lvl1=1 $lvl2=1
+CC187 Y:40 VSS!:46 2.96245e-18 $lvl1=1 $lvl2=1
+CC188 Y:5 VSS!:10 2.81032e-18 $lvl1=2 $lvl2=2
+CC189 Y:33 VSS!:8 2.67726e-18 $lvl1=2 $lvl2=2
+CC190 Mmn5@5:d VSS!:9 2.57614e-18 $lvl1=4 $lvl2=2
+CC191 Y:23 VSS!:9 2.29862e-18 $lvl1=2 $lvl2=2
+CC192 Y:15 VSS!:46 2.28182e-18 $lvl1=2 $lvl2=1
+CC193 Y VSS!:44 2.26812e-18 $lvl1=1 $lvl2=1
+CC194 Y:39 VSS!:22 2.23665e-18 $lvl1=1 $lvl2=2
+CC195 Y:18 VSS!:12 2.23423e-18 $lvl1=2 $lvl2=2
+CC196 Y:33 VSS!:45 2.21213e-18 $lvl1=2 $lvl2=1
+CC197 Y:43 VSS!:5 2.15969e-18 $lvl1=1 $lvl2=2
+CC198 Y:9 VSS!:12 2.13172e-18 $lvl1=2 $lvl2=2
+CC199 Mmn5@5:d VSS!:25 2.11654e-18 $lvl1=4 $lvl2=2
+CC200 Y:6 VSS!:46 2.05873e-18 $lvl1=2 $lvl2=1
+CC201 Y:41 VSS!:28 2.05343e-18 $lvl1=1 $lvl2=2
+CC202 Y VSS!:45 2.02855e-18 $lvl1=1 $lvl2=1
+CC203 Y:24 VSS!:9 1.99791e-18 $lvl1=2 $lvl2=2
+CC204 Y:23 VSS!:8 1.97323e-18 $lvl1=2 $lvl2=2
+CC205 Y:36 VSS!:5 1.96041e-18 $lvl1=2 $lvl2=2
+CC206 Y:45 VSS!:5 1.92336e-18 $lvl1=1 $lvl2=2
+CC207 Y:5 VSS!:14 1.9149e-18 $lvl1=2 $lvl2=2
+CC208 Y:27 VSS!:5 1.9121e-18 $lvl1=2 $lvl2=2
+CC209 Y:27 VSS!:45 1.82707e-18 $lvl1=2 $lvl2=1
+CC210 Y:49 VSS!:12 1.75823e-18 $lvl1=1 $lvl2=2
+CC211 Y:54 VSS!:46 1.75532e-18 $lvl1=1 $lvl2=1
+CC212 Y:39 VSS!:46 1.73953e-18 $lvl1=1 $lvl2=1
+CC213 Y:18 VSS!:46 1.72384e-18 $lvl1=2 $lvl2=1
+CC214 Y:35 Mmn5@2:s 1.72171e-18 $lvl1=2 $lvl2=4
+CC215 Y:39 VSS!:25 1.71967e-18 $lvl1=1 $lvl2=2
+CC216 Y:9 VSS!:46 1.63137e-18 $lvl1=2 $lvl2=1
+CC217 Y:39 VSS!:45 1.61985e-18 $lvl1=1 $lvl2=1
+CC218 Y:36 VSS!:45 1.56817e-18 $lvl1=2 $lvl2=1
+CC219 Y:42 VSS!:31 1.53654e-18 $lvl1=1 $lvl2=2
+CC220 Y:6 VSS!:14 1.52595e-18 $lvl1=2 $lvl2=2
+CC221 Y:38 VSS!:1 1.50461e-18 $lvl1=1 $lvl2=2
+CC222 Y:38 VSS!:45 1.48863e-18 $lvl1=1 $lvl2=1
+CC223 Y:15 VSS!:10 1.46692e-18 $lvl1=2 $lvl2=2
+CC224 Y:43 VSS!:8 1.43122e-18 $lvl1=1 $lvl2=2
+CC225 Y:6 VSS!:12 1.41216e-18 $lvl1=2 $lvl2=2
+CC226 Y:6 VSS!:10 1.40808e-18 $lvl1=2 $lvl2=2
+CC227 Y:40 VSS!:25 1.37153e-18 $lvl1=1 $lvl2=2
+CC228 Y:49 VSS!:9 1.3687e-18 $lvl1=1 $lvl2=2
+CC229 Mmn5:d VSS!:14 1.36027e-18 $lvl1=4 $lvl2=2
+CC230 Y:45 VSS!:8 1.35044e-18 $lvl1=1 $lvl2=2
+CC231 Y:24 VSS!:45 1.34299e-18 $lvl1=2 $lvl2=1
+CC232 Y:45 VSS!:9 1.33095e-18 $lvl1=1 $lvl2=2
+CC233 Y:38 VSS!:44 1.29864e-18 $lvl1=1 $lvl2=1
+CC234 Y:45 VSS!:44 1.22385e-18 $lvl1=1 $lvl2=1
+CC235 Y:15 VSS!:9 1.1964e-18 $lvl1=2 $lvl2=2
+CC236 Mmn5@5:d VSS!:22 1.19214e-18 $lvl1=4 $lvl2=2
+CC237 Y:55 VSS!:12 1.07389e-18 $lvl1=1 $lvl2=2
+CC238 Y:33 VSS!:5 1.00584e-18 $lvl1=2 $lvl2=2
+CC239 Mmn5:d VSS!:31 1.00052e-18 $lvl1=4 $lvl2=2
+CC240 Mmn5@3:d VSS!:25 9.81573e-19 $lvl1=4 $lvl2=2
+CC241 Y:49 VSS!:10 9.80702e-19 $lvl1=1 $lvl2=2
+CC242 Y:24 VSS!:8 9.68043e-19 $lvl1=2 $lvl2=2
+CC243 Mmn5@5:d VSS!:8 9.34613e-19 $lvl1=4 $lvl2=2
+CC244 Y:38 VSS!:46 9.2443e-19 $lvl1=1 $lvl2=1
+CC245 Y:14 Mmn5@4:s 9.23097e-19 $lvl1=2 $lvl2=4
+CC246 Y:47 VSS!:46 8.95256e-19 $lvl1=1 $lvl2=1
+CC247 Y:24 VSS!:5 8.93229e-19 $lvl1=2 $lvl2=2
+CC248 Y:5 VSS!:46 8.48983e-19 $lvl1=2 $lvl2=1
+CC249 Y:15 VSS!:12 8.45978e-19 $lvl1=2 $lvl2=2
+CC250 Y:40 VSS!:45 8.06176e-19 $lvl1=1 $lvl2=1
+CC251 Y:35 VSS!:6 7.88712e-19 $lvl1=2 $lvl2=4
+CC252 Y:5 VSS!:28 3.50145e-17 $lvl1=2 $lvl2=2
+CC253 Y:6 VSS!:31 1.58473e-17 $lvl1=2 $lvl2=2
+CC254 Y:43 VSS!:45 4.74035e-17 $lvl1=1 $lvl2=1
+CC255 Y:55 VSS!:46 2.01176e-17 $lvl1=1 $lvl2=1
+CC256 Y:45 VSS!:46 1.11378e-17 $lvl1=1 $lvl2=1
+CC257 Y:15 VSS!:25 1.37415e-17 $lvl1=2 $lvl2=2
+CC258 Y:15 VSS!:28 1.40769e-17 $lvl1=2 $lvl2=2
+CC259 Y:45 VSS!:45 3.74771e-17 $lvl1=1 $lvl2=1
+CC260 Y:35 VSS!:8 1.20874e-17 $lvl1=2 $lvl2=2
+CC261 Y:49 VSS!:46 4.34511e-17 $lvl1=1 $lvl2=1
+CC262 Y:24 VSS!:22 1.45937e-17 $lvl1=2 $lvl2=2
+CC263 Y:35 VSS!:22 4.02795e-17 $lvl1=2 $lvl2=2
+CC264 Y:24 VSS!:25 1.48952e-17 $lvl1=2 $lvl2=2
+CC265 Y:36 VSS!:8 1.36271e-17 $lvl1=2 $lvl2=2
+CC266 Y:33 VSS!:1 1.46764e-17 $lvl1=2 $lvl2=2
+CC267 Y:33 VSS!:22 1.44486e-17 $lvl1=2 $lvl2=2
+CC268 Y:23 VSS!:25 4.13382e-17 $lvl1=2 $lvl2=2
+CC269 Y:5 VSS!:31 3.26078e-17 $lvl1=2 $lvl2=2
+CC270 Y:14 VSS!:28 3.08862e-17 $lvl1=2 $lvl2=2
+CC271 Y:35 VSS!:1 3.69682e-17 $lvl1=2 $lvl2=2
+CC272 Y:42 VSS!:46 1.53367e-17 $lvl1=1 $lvl2=1
+CC273 Y:23 VSS!:22 3.6901e-17 $lvl1=2 $lvl2=2
+CC274 Y:6 VSS!:28 1.5095e-17 $lvl1=2 $lvl2=2
+CC275 Y:43 VSS!:1 1.44344e-17 $lvl1=1 $lvl2=2
+CC276 Y:14 VSS!:25 4.05446e-17 $lvl1=2 $lvl2=2
+CC277 Y:51 VDD! 8.82105e-18 $lvl1=1 $lvl2=1
+CC278 Y:38 VDD!:45 8.73428e-18 $lvl1=1 $lvl2=1
+CC279 Y:37 VDD!:45 8.6339e-18 $lvl1=1 $lvl2=1
+CC280 Y:54 VDD!:24 8.13286e-18 $lvl1=1 $lvl2=2
+CC281 Y:31 VDD!:45 7.7022e-18 $lvl1=2 $lvl2=1
+CC282 Y:45 VDD! 7.64735e-18 $lvl1=1 $lvl2=1
+CC283 Y:47 VDD!:46 7.36131e-18 $lvl1=1 $lvl2=1
+CC284 Y:10 VDD!:46 6.81705e-18 $lvl1=2 $lvl2=1
+CC285 Y:19 VDD!:45 6.00919e-18 $lvl1=2 $lvl2=1
+CC286 Y:19 VDD! 5.97365e-18 $lvl1=2 $lvl2=1
+CC287 Y:10 VDD! 5.84795e-18 $lvl1=2 $lvl2=1
+CC288 Y:1 VDD!:46 5.67377e-18 $lvl1=2 $lvl2=1
+CC289 Y:51 VDD!:27 5.46492e-18 $lvl1=1 $lvl2=2
+CC290 Y:37 VDD!:42 5.35468e-18 $lvl1=1 $lvl2=2
+CC291 Y:39 VDD! 5.2516e-18 $lvl1=1 $lvl2=1
+CC292 Y:40 VDD! 5.24723e-18 $lvl1=1 $lvl2=1
+CC293 Y:54 VDD! 5.11528e-18 $lvl1=1 $lvl2=1
+CC294 Y:49 VDD! 4.3708e-18 $lvl1=1 $lvl2=1
+CC295 Y:31 VDD! 4.1308e-18 $lvl1=2 $lvl2=1
+CC296 Y:51 VDD!:45 3.98368e-18 $lvl1=1 $lvl2=1
+CC297 Y:38 VDD!:44 3.92971e-18 $lvl1=1 $lvl2=1
+CC298 Y:42 VDD! 3.57108e-18 $lvl1=1 $lvl2=1
+CC299 Y:41 VDD! 3.49705e-18 $lvl1=1 $lvl2=1
+CC300 Y VDD!:42 3.38749e-18 $lvl1=1 $lvl2=2
+CC301 Y:54 VDD!:46 3.15116e-18 $lvl1=1 $lvl2=1
+CC302 Y:31 VDD!:37 2.8025e-18 $lvl1=2 $lvl2=2
+CC303 Y:37 VDD! 2.73711e-18 $lvl1=1 $lvl2=1
+CC304 Y:19 VDD!:37 2.7019e-18 $lvl1=2 $lvl2=2
+CC305 Y:54 VDD!:27 2.52519e-18 $lvl1=1 $lvl2=2
+CC306 Y:37 VDD!:36 2.45694e-18 $lvl1=1 $lvl2=2
+CC307 Mmp5@4:d VDD!:29 2.24098e-18 $lvl1=4 $lvl2=2
+CC308 Y:1 VDD!:14 2.19218e-18 $lvl1=2 $lvl2=2
+CC309 Y:10 VDD!:14 1.97473e-18 $lvl1=2 $lvl2=2
+CC310 Mmp5@4:d VDD!:36 1.8121e-18 $lvl1=4 $lvl2=2
+CC311 Y:38 VDD!:46 1.69885e-18 $lvl1=1 $lvl2=1
+CC312 Mmp5:d VDD!:33 1.65712e-18 $lvl1=4 $lvl2=2
+CC313 Y:19 VDD!:15 1.65698e-18 $lvl1=2 $lvl2=4
+CC314 Y:47 VDD!:44 1.60394e-18 $lvl1=1 $lvl2=1
+CC315 Y:41 VDD!:46 1.46495e-18 $lvl1=1 $lvl2=1
+CC316 Y:37 VDD!:44 1.39459e-18 $lvl1=1 $lvl2=1
+CC317 Mmp5@2:d VDD!:21 1.3667e-18 $lvl1=4 $lvl2=2
+CC318 Mmp5@2:d VDD!:25 1.30771e-18 $lvl1=4 $lvl2=2
+CC319 Y:19 VDD!:46 1.28932e-18 $lvl1=2 $lvl2=1
+CC320 Y:38 VDD!:33 1.16588e-18 $lvl1=1 $lvl2=2
+CC321 Mmp5:d VDD!:36 1.15489e-18 $lvl1=4 $lvl2=2
+CC322 Y:43 VDD!:42 1.14935e-18 $lvl1=1 $lvl2=2
+CC323 Y:40 VDD!:46 1.12638e-18 $lvl1=1 $lvl2=1
+CC324 Y VDD!:45 1.12281e-18 $lvl1=1 $lvl2=1
+CC325 Mmp5@2:d VDD!:27 1.10386e-18 $lvl1=4 $lvl2=2
+CC326 Y:55 VDD! 1.10309e-18 $lvl1=1 $lvl2=1
+CC327 Y:22 VDD!:45 1.07513e-18 $lvl1=2 $lvl2=1
+CC328 Y VDD!:46 1.05341e-18 $lvl1=1 $lvl2=1
+CC329 Y:31 VDD!:15 1.04009e-18 $lvl1=2 $lvl2=4
+CC330 Y:10 Mmp5@5:s 1.0378e-18 $lvl1=2 $lvl2=4
+CC331 Y:13 VDD!:46 1.00113e-18 $lvl1=2 $lvl2=1
+CC332 Y:10 VDD!:15 9.94675e-19 $lvl1=2 $lvl2=4
+CC333 Y VDD!:44 9.69493e-19 $lvl1=1 $lvl2=1
+CC334 Y:37 VDD!:33 9.4909e-19 $lvl1=1 $lvl2=2
+CC335 Y:39 VDD!:36 9.32709e-19 $lvl1=1 $lvl2=2
+CC336 Y:39 VDD!:46 9.30298e-19 $lvl1=1 $lvl2=1
+CC337 Y:31 VDD!:44 9.2601e-19 $lvl1=2 $lvl2=1
+CC338 Y:19 Mmp5@6:s 8.95335e-19 $lvl1=2 $lvl2=4
+CC339 Y:40 VDD!:32 8.91757e-19 $lvl1=1 $lvl2=2
+CC340 Y:39 VDD!:45 8.72943e-19 $lvl1=1 $lvl2=1
+CC341 Y:31 Mmp5@7:s 8.7164e-19 $lvl1=2 $lvl2=4
+CC342 Y:1 VDD!:15 8.11368e-19 $lvl1=2 $lvl2=4
+CC343 Mmp5@1:d VDD!:32 7.90397e-19 $lvl1=4 $lvl2=2
+CC344 Mmp5@2:d VDD!:24 7.79195e-19 $lvl1=4 $lvl2=2
+CC345 Y:43 VDD! 1.4576e-17 $lvl1=1 $lvl2=1
+CC346 Y:31 VDD!:33 2.50435e-17 $lvl1=2 $lvl2=2
+CC347 Y:38 VDD! 2.66215e-17 $lvl1=1 $lvl2=1
+CC348 Y:47 VDD!:45 1.38925e-17 $lvl1=1 $lvl2=1
+CC349 Y:19 VDD!:32 9.5165e-17 $lvl1=2 $lvl2=2
+CC350 Y:19 VDD!:36 9.71499e-17 $lvl1=2 $lvl2=2
+CC351 Y:51 VDD!:32 1.28111e-17 $lvl1=1 $lvl2=2
+CC352 Y:13 VDD!:27 1.89205e-17 $lvl1=2 $lvl2=2
+CC353 Y:51 VDD!:46 1.25589e-17 $lvl1=1 $lvl2=1
+CC354 Y:31 VDD!:36 1.16827e-16 $lvl1=2 $lvl2=2
+CC355 Y:10 VDD!:32 8.67463e-17 $lvl1=2 $lvl2=2
+CC356 Y:1 VDD!:27 9.68627e-17 $lvl1=2 $lvl2=2
+CC357 Y:4 VDD!:27 1.39632e-17 $lvl1=2 $lvl2=2
+CC358 Y:19 VDD!:33 1.05893e-17 $lvl1=2 $lvl2=2
+CC359 Y:1 VDD!:24 9.58592e-17 $lvl1=2 $lvl2=2
+CC360 Y:19 VDD!:29 1.33655e-17 $lvl1=2 $lvl2=2
+CC361 Y:31 VDD!:42 1.14977e-16 $lvl1=2 $lvl2=2
+CC362 Y:10 VDD!:29 1.10186e-17 $lvl1=2 $lvl2=2
+CC363 Y:10 VDD!:25 1.43057e-17 $lvl1=2 $lvl2=2
+CC364 Y:1 VDD!:25 1.15613e-17 $lvl1=2 $lvl2=2
+CC365 Y:1 VDD!:21 1.09384e-17 $lvl1=2 $lvl2=2
+CC366 Y:38 VDD!:42 2.51195e-17 $lvl1=1 $lvl2=2
+CC367 Y:38 VDD!:36 1.39592e-17 $lvl1=1 $lvl2=2
+CC368 Y:4 VDD!:24 1.57953e-17 $lvl1=2 $lvl2=2
+CC369 Y:22 VDD!:32 2.3019e-17 $lvl1=2 $lvl2=2
+CC370 Y:47 VDD!:32 1.34583e-17 $lvl1=1 $lvl2=2
+CC371 Y:47 VDD!:36 1.35869e-17 $lvl1=1 $lvl2=2
+CC372 Y:13 VDD!:32 2.27873e-17 $lvl1=2 $lvl2=2
+CC373 Y VDD! 1.35654e-17 $lvl1=1 $lvl2=1
+CC374 Y:22 VDD!:36 2.2482e-17 $lvl1=2 $lvl2=2
+CC375 Y:47 VDD! 1.15968e-17 $lvl1=1 $lvl2=1
+CC376 Y:10 VDD!:27 9.16272e-17 $lvl1=2 $lvl2=2
+ReC75 Y:37 Y:38 0.221491 $metal1  $L=0.505 $W=0.285000 $SI_W=0.285 $TYPE=10 $DIR=1 $LLX=8.125000 $LLY=2.750000 $URX=8.410000 $URY=3.255000 $lvl=1
+ReC76 Y:38 Y 0.550439 $metal1  $L=1.255 $W=0.285000 $SI_W=0.285 $TYPE=10 $DIR=1 $LLX=8.125000 $LLY=1.495000 $URX=8.410000 $URY=2.750000 $lvl=1
+ReC77 Y Y:39 0.479317 $metal1  $L=0.91475 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=7.380000 $LLY=1.385000 $URX=8.295000 $URY=1.615000 $lvl=1
+ReC78 Y:39 Y:40 0.467391 $metal1  $L=0.86 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=6.520000 $LLY=1.385000 $URX=7.380000 $URY=1.615000 $lvl=1
+ReC79 Y:40 Y:41 0.467391 $metal1  $L=0.86 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=5.660000 $LLY=1.385000 $URX=6.520000 $URY=1.615000 $lvl=1
+ReC80 Y:41 Y:42 0.375136 $metal1  $L=0.69025 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.545000 $LLY=0.810000 $URX=5.775000 $URY=1.500000 $lvl=1
+ReC81 Y Y:43 0.300439 $metal1  $L=0.685 $W=0.285000 $SI_W=0.285 $TYPE=10 $DIR=1 $LLX=8.125000 $LLY=0.810000 $URX=8.410000 $URY=1.495000 $lvl=1
+ReC82 Y:43 Y:44 0.142544 $metal1  $L=0.325 $W=0.285000 $SI_W=0.285 $TYPE=10 $DIR=1 $LLX=8.125000 $LLY=0.485000 $URX=8.410000 $URY=0.810000 $lvl=1
+ReC83 Y:39 Y:45 0.375136 $metal1  $L=0.69025 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=7.265000 $LLY=0.810000 $URX=7.495000 $URY=1.500000 $lvl=1
+ReC84 Y:45 Y:46 0.176630 $metal1  $L=0.325 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=7.265000 $LLY=0.485000 $URX=7.495000 $URY=0.810000 $lvl=1
+ReC85 Y:39 Y:47 0.679212 $metal1  $L=1.24975 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=7.265000 $LLY=1.500000 $URX=7.495000 $URY=2.750000 $lvl=1
+ReC86 Y:47 Y:48 0.274457 $metal1  $L=0.505 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=7.265000 $LLY=2.750000 $URX=7.495000 $URY=3.255000 $lvl=1
+ReC87 Y:40 Y:49 0.375136 $metal1  $L=0.69025 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=6.405000 $LLY=0.810000 $URX=6.635000 $URY=1.500000 $lvl=1
+ReC88 Y:49 Y:50 0.176630 $metal1  $L=0.325 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=6.405000 $LLY=0.485000 $URX=6.635000 $URY=0.810000 $lvl=1
+ReC89 Y:40 Y:51 0.679212 $metal1  $L=1.24975 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=6.405000 $LLY=1.500000 $URX=6.635000 $URY=2.750000 $lvl=1
+ReC90 Y:51 Y:52 0.274457 $metal1  $L=0.505 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=6.405000 $LLY=2.750000 $URX=6.635000 $URY=3.255000 $lvl=1
+ReC91 Y:41 Y:53 0.581386 $metal1  $L=1.06975 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.545000 $LLY=1.500000 $URX=5.775000 $URY=2.570000 $lvl=1
+ReC92 Y:53 Y:54 0.176630 $metal1  $L=0.325 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.545000 $LLY=2.570000 $URX=5.775000 $URY=2.895000 $lvl=1
+ReC93 Y:42 Y:55 0.176630 $metal1  $L=0.325 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.545000 $LLY=0.485000 $URX=5.775000 $URY=0.810000 $lvl=1
+RfC94 Y:1 Y:3 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.575000 $LLY=3.015000 $URX=5.745000 $URY=3.745000 $lvl=2
+RfC95 Y:3 Y:4 13.725301 $li  $L=0.445 $W=0.170000 $SI_W=0.415 $TYPE=10 $DIR=1 $LLX=5.575000 $LLY=2.570000 $URX=5.745000 $URY=3.015000 $lvl=2
+RfC96 Y:5 Y:6 25.976471 $li  $L=0.345 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.575000 $LLY=0.810000 $URX=5.745000 $URY=1.155000 $lvl=2
+RfC97 Y:6 Y:8 0.923711 $li  $L=0.035 $W=0.170000 $SI_W=0.485 $TYPE=10 $DIR=1 $LLX=5.575000 $LLY=0.775000 $URX=5.745000 $URY=0.810000 $lvl=2
+RfC98 Y:8 Y:9 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.575000 $LLY=0.395000 $URX=5.745000 $URY=0.775000 $lvl=2
+RfC99 Y:10 Y:12 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.435000 $LLY=3.015000 $URX=6.605000 $URY=3.745000 $lvl=2
+RfC100 Y:12 Y:13 4.376774 $li  $L=0.265 $W=0.170000 $SI_W=0.775 $TYPE=10 $DIR=1 $LLX=6.435000 $LLY=2.750000 $URX=6.605000 $URY=3.015000 $lvl=2
+RfC101 Y:14 Y:15 25.976471 $li  $L=0.345 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.435000 $LLY=0.810000 $URX=6.605000 $URY=1.155000 $lvl=2
+RfC102 Y:15 Y:17 0.923711 $li  $L=0.035 $W=0.170000 $SI_W=0.485 $TYPE=10 $DIR=1 $LLX=6.435000 $LLY=0.775000 $URX=6.605000 $URY=0.810000 $lvl=2
+RfC103 Y:17 Y:18 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.435000 $LLY=0.395000 $URX=6.605000 $URY=0.775000 $lvl=2
+RfC104 Y:19 Y:21 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.295000 $LLY=3.015000 $URX=7.465000 $URY=3.745000 $lvl=2
+RfC105 Y:21 Y:22 4.376774 $li  $L=0.265 $W=0.170000 $SI_W=0.775 $TYPE=10 $DIR=1 $LLX=7.295000 $LLY=2.750000 $URX=7.465000 $URY=3.015000 $lvl=2
+RfC106 Y:23 Y:24 25.976471 $li  $L=0.345 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.295000 $LLY=0.810000 $URX=7.465000 $URY=1.155000 $lvl=2
+RfC107 Y:24 Y:26 0.923711 $li  $L=0.035 $W=0.170000 $SI_W=0.485 $TYPE=10 $DIR=1 $LLX=7.295000 $LLY=0.775000 $URX=7.465000 $URY=0.810000 $lvl=2
+RfC108 Y:26 Y:27 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.295000 $LLY=0.395000 $URX=7.465000 $URY=0.775000 $lvl=2
+RfC109 Y:28 Y:30 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.155000 $LLY=3.015000 $URX=8.325000 $URY=3.745000 $lvl=2
+RfC110 Y:30 Y:31 4.376774 $li  $L=0.265 $W=0.170000 $SI_W=0.775 $TYPE=10 $DIR=1 $LLX=8.155000 $LLY=2.750000 $URX=8.325000 $URY=3.015000 $lvl=2
+RfC111 Y:32 Y:33 25.976471 $li  $L=0.345 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.155000 $LLY=0.810000 $URX=8.325000 $URY=1.155000 $lvl=2
+RfC112 Y:33 Y:35 0.923711 $li  $L=0.035 $W=0.170000 $SI_W=0.485 $TYPE=10 $DIR=1 $LLX=8.155000 $LLY=0.775000 $URX=8.325000 $URY=0.810000 $lvl=2
+RfC113 Y:35 Y:36 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.155000 $LLY=0.395000 $URX=8.325000 $URY=0.775000 $lvl=2
+RhC114 Mmn5:d Y:8 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhC115 Mmn5@3:d Y:17 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhC116 Mmn5@5:d Y:26 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhC117 Mmn5@1:d Y:35 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+Rh_2_C118 Mmp5@2:d Y:3 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_C119 Mmp5@1:d Y:12 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_C120 Mmp5@4:d Y:21 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_C121 Mmp5:d Y:30 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+RjC122 Y:31 Y:38 50.666668 $mcon  $A=0.0867 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0867 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.086700 $URY=-3.000000 $lvl=6
+RjC123 Y:6 Y:42 76.000000 $mcon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=6
+RjC124 Y:33 Y:43 76.000000 $mcon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=6
+RjC125 Y:24 Y:45 76.000000 $mcon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=6
+RjC126 Y:22 Y:47 50.666668 $mcon  $A=0.0867 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0867 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.086700 $URY=-3.000000 $lvl=6
+RjC127 Y:15 Y:49 76.000000 $mcon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=6
+RjC128 Y:13 Y:51 50.666668 $mcon  $A=0.0867 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0867 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.086700 $URY=-3.000000 $lvl=6
+RjC129 Y:4 Y:53 76.000000 $mcon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=6
+RmwC130 Mmp5@5:d Mmp5@2:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC131 Mmp5@3:d Mmp5@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC132 Mmp5@6:d Mmp5@4:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC133 Mmp5@7:d Mmp5:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC134 Mmn5@6:d Mmn5:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC135 Mmn5@4:d Mmn5@3:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC136 Mmn5@2:d Mmn5@5:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwC137 Mmn5@7:d Mmn5@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET OEb 3.32306e-15
+*|I (Mmp2@1:g Mmp2@1 g X 0 2.3450 3.0150) // $llx=2.3450 $lly=3.0150 $urx=2.3450 $ury=3.0150 $lvl=3
+*|I (Mmp2:g Mmp2 g X 0 2.7750 3.0150) // $llx=2.7750 $lly=3.0150 $urx=2.7750 $ury=3.0150 $lvl=3
+*|I (Mmp0:d Mmp0 d X 0 0.3995 3.3550) // $llx=0.3995 $lly=3.3550 $urx=0.3995 $ury=3.3550 $lvl=4
+*|I (Mmn2@1:g Mmn2@1 g X 0 1.8250 0.7750) // $llx=1.8250 $lly=0.7750 $urx=1.8250 $ury=0.7750 $lvl=3
+*|I (Mmn2:g Mmn2 g X 0 2.2550 0.7750) // $llx=2.2550 $lly=0.7750 $urx=2.2550 $ury=0.7750 $lvl=3
+*|I (Mmn0:d Mmn0 d X 0 0.3995 0.6075) // $llx=0.3995 $lly=0.6075 $urx=0.3995 $ury=0.6075 $lvl=4
+*|S (OEb 1.8250 0.7750) // $llx=1.8250 $lly=0.7750 $urx=1.8250 $ury=0.7750 $lvl=3
+*|S (OEb:15 2.7750 3.8950) // $llx=2.7750 $lly=3.8950 $urx=2.7750 $ury=3.8950 $lvl=3
+*|S (OEb:16 2.7750 1.9500) // $llx=2.7750 $lly=1.9500 $urx=2.7750 $ury=1.9500 $lvl=3
+*|S (OEb:17 2.5450 1.9500) // $llx=2.5450 $lly=1.9500 $urx=2.5450 $ury=1.9500 $lvl=3
+*|S (OEb:18 2.3000 1.9500) // $llx=2.3000 $lly=1.9500 $urx=2.3000 $ury=1.9500 $lvl=3
+*|S (OEb:19 2.3150 1.7845) // $llx=2.3150 $lly=1.7845 $urx=2.3150 $ury=1.7845 $lvl=3
+*|S (OEb:20 2.3000 1.3250) // $llx=2.3000 $lly=1.3250 $urx=2.3000 $ury=1.3250 $lvl=3
+*|S (OEb:21 2.2100 1.3250) // $llx=2.2100 $lly=1.3250 $urx=2.2100 $ury=1.3250 $lvl=3
+*|S (OEb:22 1.8250 1.3250) // $llx=1.8250 $lly=1.3250 $urx=1.8250 $ury=1.3250 $lvl=3
+*|S (OEb:23 2.3000 2.1150) // $llx=2.3000 $lly=2.1150 $urx=2.3000 $ury=2.1150 $lvl=3
+*|S (OEb:24 2.3450 3.8950) // $llx=2.3450 $lly=3.8950 $urx=2.3450 $ury=3.8950 $lvl=3
+*|S (OEb:25 2.3895 1.3250) // $llx=2.3895 $lly=1.3250 $urx=2.3895 $ury=1.3250 $lvl=3
+*|S (OEb:26 2.2550 0.2450) // $llx=2.2550 $lly=0.2450 $urx=2.2550 $ury=0.2450 $lvl=3
+*|S (OEb:27 1.8250 0.2450) // $llx=1.8250 $lly=0.2450 $urx=1.8250 $ury=0.2450 $lvl=3
+*|S (OEb:28 0.2600 3.7450) // $llx=0.2600 $lly=3.7450 $urx=0.2600 $ury=3.7450 $lvl=2
+*|S (OEb:30 0.2600 3.3550) // $llx=0.2600 $lly=3.3550 $urx=0.2600 $ury=3.3550 $lvl=2
+*|S (OEb:31 0.2600 3.3400) // $llx=0.2600 $lly=3.3400 $urx=0.2600 $ury=3.3400 $lvl=2
+*|S (OEb:32 0.2600 2.9650) // $llx=0.2600 $lly=2.9650 $urx=0.2600 $ury=2.9650 $lvl=2
+*|S (OEb:33 0.2600 0.8200) // $llx=0.2600 $lly=0.8200 $urx=0.2600 $ury=0.8200 $lvl=2
+*|S (OEb:34 0.2600 0.6550) // $llx=0.2600 $lly=0.6550 $urx=0.2600 $ury=0.6550 $lvl=2
+*|S (OEb:36 0.2600 0.6050) // $llx=0.2600 $lly=0.6050 $urx=0.2600 $ury=0.6050 $lvl=2
+*|S (OEb:37 0.2600 0.3950) // $llx=0.2600 $lly=0.3950 $urx=0.2600 $ury=0.3950 $lvl=2
+*|S (OEb:38 2.8800 1.9500) // $llx=2.8800 $lly=1.9500 $urx=2.8800 $ury=1.9500 $lvl=2
+*|S (OEb:39 2.5450 1.9500) // $llx=2.5450 $lly=1.9500 $urx=2.5450 $ury=1.9500 $lvl=2
+*|S (OEb:40 2.2550 1.9500) // $llx=2.2550 $lly=1.9500 $urx=2.2550 $ury=1.9500 $lvl=2
+*|S (OEb:41 1.9650 1.9500) // $llx=1.9650 $lly=1.9500 $urx=1.9650 $ury=1.9500 $lvl=2
+*|S (OEb:42 0.2600 0.5100) // $llx=0.2600 $lly=0.5100 $urx=0.2600 $ury=0.5100 $lvl=1
+*|S (OEb:43 0.2600 0.6550) // $llx=0.2600 $lly=0.6550 $urx=0.2600 $ury=0.6550 $lvl=1
+*|S (OEb:44 0.2600 0.7995) // $llx=0.2600 $lly=0.7995 $urx=0.2600 $ury=0.7995 $lvl=1
+*|S (OEb:45 0.2800 0.9150) // $llx=0.2800 $lly=0.9150 $urx=0.2800 $ury=0.9150 $lvl=1
+*|S (OEb:46 0.2800 0.9845) // $llx=0.2800 $lly=0.9845 $urx=0.2800 $ury=0.9845 $lvl=1
+*|S (OEb:47 0.2600 3.1950) // $llx=0.2600 $lly=3.1950 $urx=0.2600 $ury=3.1950 $lvl=1
+*|S (OEb:48 0.2600 3.3400) // $llx=0.2600 $lly=3.3400 $urx=0.2600 $ury=3.3400 $lvl=1
+*|S (OEb:49 1.4450 0.9150) // $llx=1.4450 $lly=0.9150 $urx=1.4450 $ury=0.9150 $lvl=1
+*|S (OEb:50 1.4450 2.5300) // $llx=1.4450 $lly=2.5300 $urx=1.4450 $ury=2.5300 $lvl=1
+*|S (OEb:51 2.2250 2.5300) // $llx=2.2250 $lly=2.5300 $urx=2.2250 $ury=2.5300 $lvl=1
+*|S (OEb:52 2.2550 2.0645) // $llx=2.2550 $lly=2.0645 $urx=2.2550 $ury=2.0645 $lvl=1
+*|S (OEb:53 2.2550 1.9500) // $llx=2.2550 $lly=1.9500 $urx=2.2550 $ury=1.9500 $lvl=1
+CF1 Mmn0:d VSS! 1.8206e-18 $lvl=4
+CF2 Mmp0:d VSS! 1.51859e-18 $lvl=4
+CF3 OEb:52 VSS! 1.08012e-17 $lvl=1
+CF4 OEb:48 VSS! 1.30951e-17 $lvl=1
+CF5 OEb:44 VSS! 1.37865e-17 $lvl=1
+CF6 OEb:43 VSS! 4.94149e-18 $lvl=1
+CF7 OEb:49 VSS! 9.05071e-18 $lvl=1
+CF8 OEb:50 VSS! 8.19566e-18 $lvl=1
+CF9 OEb:51 VSS! 5.59152e-18 $lvl=1
+CF10 OEb:15 VSS! 2.79941e-18 $lvl=3
+CF11 OEb:24 VSS! 2.40292e-18 $lvl=3
+CF12 OEb:26 VSS! 2.27709e-18 $lvl=3
+CF13 OEb:38 VSS! 5.40649e-18 $lvl=2
+CF14 OEb:41 VSS! 6.8965e-18 $lvl=2
+CF15 OEb:33 VSS! 1.21896e-17 $lvl=2
+CF16 OEb:37 VSS! 1.60927e-18 $lvl=2
+CF17 OEb:28 VSS! 3.10359e-18 $lvl=2
+CF18 OEb:32 VSS! 2.86525e-18 $lvl=2
+CF19 OEb:34 VSS! 3.18412e-18 $lvl=2
+CF20 OEb:31 VSS! 1.62499e-18 $lvl=2
+CF21 OEb:40 VSS! 3.16314e-18 $lvl=2
+CF22 OEb:17 VSS! 2.58654e-17 $lvl=3
+CF23 OEb VSS! 2.1549e-18 $lvl=3
+CF24 OEb:50 net127 7.24116e-18 $lvl1=1 $lvl2=2
+CF25 OEb:38 net127:15 6.43415e-18 $lvl1=2 $lvl2=2
+CF26 OEb:50 net127:5 5.95319e-18 $lvl1=1 $lvl2=2
+CF27 OEb:41 net127:10 5.79053e-18 $lvl1=2 $lvl2=2
+CF28 OEb:17 net127:6 4.05521e-18 $lvl1=3 $lvl2=2
+CF29 OEb:40 net127:10 4.04152e-18 $lvl1=2 $lvl2=2
+CF30 OEb:51 net127:10 3.86107e-18 $lvl1=1 $lvl2=2
+CF31 OEb:38 net127:10 3.69672e-18 $lvl1=2 $lvl2=2
+CF32 OEb:17 net127:11 3.16774e-18 $lvl1=3 $lvl2=2
+CF33 OEb:17 net127:15 2.98132e-18 $lvl1=3 $lvl2=2
+CF34 OEb:41 net127:6 2.8396e-18 $lvl1=2 $lvl2=2
+CF35 OEb:17 net127:10 2.57135e-18 $lvl1=3 $lvl2=2
+CF36 OEb:50 net127:6 2.46206e-18 $lvl1=1 $lvl2=2
+CF37 OEb:51 net127:20 2.38465e-18 $lvl1=1 $lvl2=1
+CF38 OEb:48 net127:20 2.10335e-18 $lvl1=1 $lvl2=1
+CF39 OEb:38 net127:11 1.82738e-18 $lvl1=2 $lvl2=2
+CF40 OEb:52 net127:10 1.66242e-18 $lvl1=1 $lvl2=2
+CF41 OEb:17 Mmp2@1:s 1.64448e-18 $lvl1=3 $lvl2=4
+CF42 OEb:17 Mmp2:s 1.40398e-18 $lvl1=3 $lvl2=4
+CF43 OEb:38 net127:6 1.06207e-18 $lvl1=2 $lvl2=2
+CF44 OEb:40 net127:6 1.01205e-18 $lvl1=2 $lvl2=2
+CF45 OEb:51 net127:7 1.00728e-18 $lvl1=1 $lvl2=2
+CF46 OEb:52 net127:19 9.37109e-19 $lvl1=1 $lvl2=1
+CF47 OEb:50 net127:10 9.22184e-19 $lvl1=1 $lvl2=2
+CF48 OEb:50 net127:2 8.74526e-19 $lvl1=1 $lvl2=2
+CF49 OEb:24 net127:11 7.88543e-19 $lvl1=3 $lvl2=2
+CF50 OEb:50 net127:20 1.89418e-17 $lvl1=1 $lvl2=1
+CF51 OEb:24 net127:6 2.54044e-16 $lvl1=3 $lvl2=2
+CF52 OEb:51 net127:6 1.03285e-17 $lvl1=1 $lvl2=2
+CF53 OEb:15 net127:11 2.50342e-16 $lvl1=3 $lvl2=2
+CF54 OEb:50 net127:19 1.06511e-17 $lvl1=1 $lvl2=1
+CF55 OEb:51 net127:19 2.00962e-17 $lvl1=1 $lvl2=1
+CF56 OEb:52 non:76 9.31476e-18 $lvl1=1 $lvl2=1
+CF57 OEb:38 non:62 8.52366e-18 $lvl1=2 $lvl2=2
+CF58 OEb:38 non:76 8.31898e-18 $lvl1=2 $lvl2=1
+CF59 OEb:44 non:73 8.05206e-18 $lvl1=1 $lvl2=1
+CF60 OEb:49 non:72 6.71199e-18 $lvl1=1 $lvl2=1
+CF61 OEb:17 non:58 6.15194e-18 $lvl1=3 $lvl2=2
+CF62 OEb:17 non:62 6.11298e-18 $lvl1=3 $lvl2=2
+CF63 OEb:52 non:77 5.79142e-18 $lvl1=1 $lvl2=1
+CF64 OEb:49 non:53 4.93506e-18 $lvl1=1 $lvl2=2
+CF65 OEb:38 non:77 4.55522e-18 $lvl1=2 $lvl2=1
+CF66 OEb:52 non:78 3.81517e-18 $lvl1=1 $lvl2=1
+CF67 OEb:51 non:77 3.22157e-18 $lvl1=1 $lvl2=1
+CF68 OEb:40 non:75 3.14856e-18 $lvl1=2 $lvl2=1
+CF69 OEb:51 non:58 2.86112e-18 $lvl1=1 $lvl2=2
+CF70 OEb:51 non:61 2.62678e-18 $lvl1=1 $lvl2=2
+CF71 OEb:43 non:73 2.40906e-18 $lvl1=1 $lvl2=1
+CF72 OEb:40 non:62 2.40384e-18 $lvl1=2 $lvl2=2
+CF73 OEb:38 non:58 2.37302e-18 $lvl1=2 $lvl2=2
+CF74 OEb:38 non:75 2.17923e-18 $lvl1=2 $lvl2=1
+CF75 OEb:44 non:50 2.15829e-18 $lvl1=1 $lvl2=2
+CF76 OEb:17 Mmp2@1:d 1.93774e-18 $lvl1=3 $lvl2=4
+CF77 OEb:51 non:76 1.62593e-18 $lvl1=1 $lvl2=1
+CF78 OEb:51 non:62 1.52724e-18 $lvl1=1 $lvl2=2
+CF79 OEb:17 non:76 1.4941e-18 $lvl1=3 $lvl2=1
+CF80 OEb:52 non:62 1.35484e-18 $lvl1=1 $lvl2=2
+CF81 OEb:49 non:70 1.15263e-18 $lvl1=1 $lvl2=1
+CF82 OEb:44 non:53 1.09195e-18 $lvl1=1 $lvl2=2
+CF83 OEb:50 non:78 1.02601e-18 $lvl1=1 $lvl2=1
+CF84 OEb:49 non:75 1.02313e-18 $lvl1=1 $lvl2=1
+CF85 OEb:40 non:76 9.31155e-19 $lvl1=2 $lvl2=1
+CF86 OEb:17 non:77 9.00818e-19 $lvl1=3 $lvl2=1
+CF87 OEb:50 non:75 7.33652e-19 $lvl1=1 $lvl2=1
+CF88 OEb:51 non:75 6.88347e-19 $lvl1=1 $lvl2=1
+CF89 OEb:15 non:62 6.6664e-19 $lvl1=3 $lvl2=2
+CF90 OEb:40 non:58 6.27545e-19 $lvl1=2 $lvl2=2
+CF91 OEb:40 non:77 6.16223e-19 $lvl1=2 $lvl2=1
+CF92 OEb:49 non:54 6.09705e-19 $lvl1=1 $lvl2=2
+CF93 OEb:38 non:78 6.09509e-19 $lvl1=2 $lvl2=1
+CF94 OEb:50 non:77 5.82616e-19 $lvl1=1 $lvl2=1
+CF95 OEb:51 non:78 2.66176e-17 $lvl1=1 $lvl2=1
+CF96 OEb:52 non:75 1.5491e-17 $lvl1=1 $lvl2=1
+CF97 OEb:26 non:54 1.2727e-16 $lvl1=3 $lvl2=2
+CF98 OEb:49 non:50 1.3276e-17 $lvl1=1 $lvl2=2
+CF99 OEb:15 non:58 2.47956e-16 $lvl1=3 $lvl2=2
+CF100 OEb:49 non:73 5.66128e-17 $lvl1=1 $lvl2=1
+CF101 OEb:24 non:58 2.51329e-16 $lvl1=3 $lvl2=2
+CF102 OEb non:54 1.28793e-16 $lvl1=3 $lvl2=2
+CF103 OEb VSS!:16 8.29293e-18 $lvl1=3 $lvl2=2
+CF104 OEb:37 VSS!:18 7.6901e-18 $lvl1=2 $lvl2=2
+CF105 OEb:26 VSS!:15 7.12361e-18 $lvl1=3 $lvl2=2
+CF106 OEb:34 VSS!:43 6.88714e-18 $lvl1=2 $lvl2=2
+CF107 OEb:49 VSS!:43 6.51804e-18 $lvl1=1 $lvl2=2
+CF108 OEb:49 VSS!:46 6.41896e-18 $lvl1=1 $lvl2=1
+CF109 OEb:37 VSS!:17 5.84932e-18 $lvl1=2 $lvl2=2
+CF110 OEb:33 VSS!:17 5.30182e-18 $lvl1=2 $lvl2=2
+CF111 OEb:44 VSS!:47 5.20315e-18 $lvl1=1 $lvl2=1
+CF112 OEb:37 VSS!:43 4.21182e-18 $lvl1=2 $lvl2=2
+CF113 OEb:33 VSS!:18 3.59355e-18 $lvl1=2 $lvl2=2
+CF114 OEb:43 VSS!:43 2.69187e-18 $lvl1=1 $lvl2=2
+CF115 OEb:33 VSS!:6 2.49582e-18 $lvl1=2 $lvl2=4
+CF116 OEb:37 VSS!:47 2.01388e-18 $lvl1=2 $lvl2=1
+CF117 OEb:48 VSS!:46 1.80862e-18 $lvl1=1 $lvl2=1
+CF118 OEb:34 VSS!:18 1.66861e-18 $lvl1=2 $lvl2=2
+CF119 OEb:43 VSS!:18 1.62726e-18 $lvl1=1 $lvl2=2
+CF120 OEb:34 VSS!:47 1.52745e-18 $lvl1=2 $lvl2=1
+CF121 OEb:33 VSS!:47 1.48631e-18 $lvl1=2 $lvl2=1
+CF122 OEb:26 VSS!:16 1.45128e-18 $lvl1=3 $lvl2=2
+CF123 OEb:37 VSS!:12 1.40638e-18 $lvl1=2 $lvl2=2
+CF124 OEb:43 VSS!:17 1.24745e-18 $lvl1=1 $lvl2=2
+CF125 OEb:50 VSS!:46 1.23696e-18 $lvl1=1 $lvl2=1
+CF126 OEb:43 VSS!:12 1.21576e-18 $lvl1=1 $lvl2=2
+CF127 OEb:44 VSS!:18 1.20733e-18 $lvl1=1 $lvl2=2
+CF128 Mmn0:d VSS!:17 1.13514e-18 $lvl1=4 $lvl2=2
+CF129 OEb:34 VSS!:17 1.03525e-18 $lvl1=2 $lvl2=2
+CF130 OEb:33 VSS!:46 9.6699e-19 $lvl1=2 $lvl2=1
+CF131 OEb:44 VSS!:17 9.00666e-19 $lvl1=1 $lvl2=2
+CF132 OEb VSS!:37 8.68488e-19 $lvl1=3 $lvl2=2
+CF133 OEb:37 VSS!:46 8.49465e-19 $lvl1=2 $lvl2=1
+CF134 OEb:34 VSS!:46 8.29706e-19 $lvl1=2 $lvl2=1
+CF135 OEb VSS!:15 8.06943e-19 $lvl1=3 $lvl2=2
+CF136 Mmn0:d VSS!:43 7.90366e-19 $lvl1=4 $lvl2=2
+CF137 OEb:49 VSS!:40 1.01889e-17 $lvl1=1 $lvl2=2
+CF138 OEb:44 VSS!:46 1.19405e-17 $lvl1=1 $lvl2=1
+CF139 OEb:26 VSS!:37 1.29397e-16 $lvl1=3 $lvl2=2
+CF140 OEb:33 VSS!:43 2.20238e-17 $lvl1=2 $lvl2=2
+CF141 OEb:44 VSS!:43 2.05052e-17 $lvl1=1 $lvl2=2
+CF142 OEb:43 VSS!:47 1.76576e-17 $lvl1=1 $lvl2=1
+CF143 OEb:43 VSS!:46 1.62601e-17 $lvl1=1 $lvl2=1
+CF144 OEb VSS!:40 1.26581e-16 $lvl1=3 $lvl2=2
+ReF278 OEb:42 OEb:43 0.078804 $metal1  $L=0.145 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=0.145000 $LLY=0.510000 $URX=0.375000 $URY=0.655000 $lvl=1
+ReF279 OEb:43 OEb:44 0.078668 $metal1  $L=0.1445 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=0.145000 $LLY=0.655000 $URX=0.375000 $URY=0.799500 $lvl=1
+ReF280 OEb:44 OEb:45 0.075794 $metal1  $L=0.115 $W=0.190000 $SI_W=0.19 $TYPE=10 $DIR=1 $LLX=0.185000 $LLY=0.799500 $URX=0.375000 $URY=0.914500 $lvl=1
+ReF281 OEb:45 OEb:46 0.046076 $metal1  $L=0.0695 $W=0.190000 $SI_W=0.19 $TYPE=10 $DIR=1 $LLX=0.185000 $LLY=0.915000 $URX=0.375000 $URY=0.984500 $lvl=1
+ReF282 OEb:46 OEb:47 1.973515 $metal1  $L=2.21 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=1 $LLX=0.185000 $LLY=0.985000 $URX=0.325000 $URY=3.195000 $lvl=1
+ReF283 OEb:47 OEb:48 0.088170 $metal1  $L=0.1445 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=0.145000 $LLY=3.195500 $URX=0.375000 $URY=3.340000 $lvl=1
+ReF284 OEb:45 OEb:49 1.040405 $metal1  $L=1.16525 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=0 $LLX=0.280000 $LLY=0.845000 $URX=1.445000 $URY=0.985000 $lvl=1
+ReF285 OEb:49 OEb:50 1.441964 $metal1  $L=1.615 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=1 $LLX=1.375000 $LLY=0.915000 $URX=1.515000 $URY=2.530000 $lvl=1
+ReF286 OEb:50 OEb:51 0.696429 $metal1  $L=0.78 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=0 $LLX=1.445000 $LLY=2.460000 $URX=2.225000 $URY=2.600000 $lvl=1
+ReF287 OEb:51 OEb:52 0.415510 $metal1  $L=0.46525 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=1 $LLX=2.155000 $LLY=2.065000 $URX=2.295000 $URY=2.530000 $lvl=1
+ReF288 OEb:52 OEb:53 0.062765 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=1 $LLX=2.110000 $LLY=1.950000 $URX=2.400000 $URY=2.064000 $lvl=1
+RfF289 OEb:28 OEb:30 29.364706 $li  $L=0.39 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=3.355000 $URX=0.345000 $URY=3.745000 $lvl=2
+RfF290 OEb:30 OEb:31 1.129412 $li  $L=0.015 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=3.340000 $URX=0.345000 $URY=3.355000 $lvl=2
+RfF291 OEb:31 OEb:32 28.235294 $li  $L=0.375 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=2.965000 $URX=0.345000 $URY=3.340000 $lvl=2
+RfF292 OEb:33 OEb:34 12.423529 $li  $L=0.165 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=0.655000 $URX=0.345000 $URY=0.820000 $lvl=2
+RfF293 OEb:34 OEb:36 3.764706 $li  $L=0.05 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=0.605000 $URX=0.345000 $URY=0.655000 $lvl=2
+RfF294 OEb:36 OEb:37 15.811765 $li  $L=0.21 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.175000 $LLY=0.395000 $URX=0.345000 $URY=0.605000 $lvl=2
+RfF295 OEb:38 OEb:39 25.223530 $li  $L=0.335 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=2.545000 $LLY=1.865000 $URX=2.880000 $URY=2.035000 $lvl=2
+RfF296 OEb:39 OEb:40 21.835293 $li  $L=0.29 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=2.255000 $LLY=1.865000 $URX=2.545000 $URY=2.035000 $lvl=2
+RfF297 OEb:40 OEb:41 21.835293 $li  $L=0.29 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=1.965000 $LLY=1.865000 $URX=2.255000 $URY=2.035000 $lvl=2
+RgF298 OEb:15 Mmp2:g 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.700000 $LLY=3.015000 $URX=2.850000 $URY=3.895000 $lvl=3
+RgF299 Mmp2:g OEb:16 342.139679 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.700000 $LLY=1.950000 $URX=2.850000 $URY=3.015000 $lvl=3
+RgF300 OEb:16 OEb:17 33.630455 $poly  $L=0.23025 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=2.545000 $LLY=1.785000 $URX=2.775000 $URY=2.115000 $lvl=3
+RgF301 OEb:17 OEb:18 35.748333 $poly  $L=0.24475 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=2.300000 $LLY=1.785000 $URX=2.545000 $URY=2.115000 $lvl=3
+RgF302 OEb:18 OEb:19 60.832844 $poly  $L=0.16525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.210000 $LLY=1.785000 $URX=2.360000 $URY=1.950000 $lvl=3
+RgF303 OEb:19 OEb:20 164.268341 $poly  $L=0.45925 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.240000 $LLY=1.325500 $URX=2.390000 $URY=1.784500 $lvl=3
+RgF304 OEb:20 OEb:21 28.920000 $poly  $L=0.09 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=2.210000 $LLY=1.250000 $URX=2.300000 $URY=1.400000 $lvl=3
+RgF305 OEb:21 OEb:22 123.713333 $poly  $L=0.385 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=1.825000 $LLY=1.250000 $URX=2.210000 $URY=1.400000 $lvl=3
+RgF306 OEb:22 OEb 176.813660 $poly  $L=0.55025 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.750000 $LLY=0.775000 $URX=1.900000 $URY=1.325000 $lvl=3
+RgF307 OEb:18 OEb:23 62.123707 $poly  $L=0.16475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.210000 $LLY=1.950000 $URX=2.360000 $URY=2.115000 $lvl=3
+RgF308 OEb:23 Mmp2@1:g 307.046661 $poly  $L=0.8995 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.270000 $LLY=2.115500 $URX=2.420000 $URY=3.015000 $lvl=3
+RgF309 Mmp2@1:g OEb:24 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.270000 $LLY=3.015000 $URX=2.420000 $URY=3.895000 $lvl=3
+RgF310 OEb:20 OEb:25 28.679001 $poly  $L=0.08925 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=2.300000 $LLY=1.250000 $URX=2.389000 $URY=1.400000 $lvl=3
+RgF311 OEb:21 Mmn2:g 194.740646 $poly  $L=0.55025 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.180000 $LLY=0.775000 $URX=2.330000 $URY=1.325000 $lvl=3
+RgF312 Mmn2:g OEb:26 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=2.180000 $LLY=0.245000 $URX=2.330000 $URY=0.775000 $lvl=3
+RgF313 OEb OEb:27 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=1.750000 $LLY=0.245000 $URX=1.900000 $URY=0.775000 $lvl=3
+RhF314 Mmn0:d OEb:36 15.000000 $licon_diff  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=5
+Rh_2_F315 Mmp0:d OEb:30 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RjF316 OEb:34 OEb:43 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjF317 OEb:31 OEb:48 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjF318 OEb:40 OEb:53 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RiF319 OEb:17 OEb:39 7.500000 $licon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=7
+RmwF320 Mmn2@1:g OEb 0.001000 $poly $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET net127 2.58153e-15
+*|I (Mmp1@1:d Mmp1@1 d X 0 1.0405 3.0150) // $llx=1.0405 $lly=3.0150 $urx=1.0405 $ury=3.0150 $lvl=4
+*|I (Mmp1:d Mmp1 d X 0 1.3195 3.0150) // $llx=1.3195 $lly=3.0150 $urx=1.3195 $ury=3.0150 $lvl=4
+*|I (Mmp2@1:s Mmp2@1 s X 0 2.2695 3.0150) // $llx=2.2695 $lly=3.0150 $urx=2.2695 $ury=3.0150 $lvl=4
+*|I (Mmp2:s Mmp2 s X 0 2.8505 3.0150) // $llx=2.8505 $lly=3.0150 $urx=2.8505 $ury=3.0150 $lvl=4
+*|S (net127 1.1800 3.7450) // $llx=1.1800 $lly=3.7450 $urx=1.1800 $ury=3.7450 $lvl=2
+*|S (net127:2 1.1800 3.0900) // $llx=1.1800 $lly=3.0900 $urx=1.1800 $ury=3.0900 $lvl=2
+*|S (net127:4 1.1800 3.0150) // $llx=1.1800 $lly=3.0150 $urx=1.1800 $ury=3.0150 $lvl=2
+*|S (net127:5 1.1800 2.2850) // $llx=1.1800 $lly=2.2850 $urx=1.1800 $ury=2.2850 $lvl=2
+*|S (net127:6 2.1300 3.7450) // $llx=2.1300 $lly=3.7450 $urx=2.1300 $ury=3.7450 $lvl=2
+*|S (net127:7 2.1300 3.0900) // $llx=2.1300 $lly=3.0900 $urx=2.1300 $ury=3.0900 $lvl=2
+*|S (net127:9 2.1300 3.0150) // $llx=2.1300 $lly=3.0150 $urx=2.1300 $ury=3.0150 $lvl=2
+*|S (net127:10 2.1300 2.2850) // $llx=2.1300 $lly=2.2850 $urx=2.1300 $ury=2.2850 $lvl=2
+*|S (net127:11 2.9900 3.7450) // $llx=2.9900 $lly=3.7450 $urx=2.9900 $ury=3.7450 $lvl=2
+*|S (net127:12 2.9900 3.0900) // $llx=2.9900 $lly=3.0900 $urx=2.9900 $ury=3.0900 $lvl=2
+*|S (net127:14 2.9900 3.0150) // $llx=2.9900 $lly=3.0150 $urx=2.9900 $ury=3.0150 $lvl=2
+*|S (net127:15 2.9900 2.2850) // $llx=2.9900 $lly=2.2850 $urx=2.9900 $ury=2.2850 $lvl=2
+*|S (net127:16 2.9900 3.0900) // $llx=2.9900 $lly=3.0900 $urx=2.9900 $ury=3.0900 $lvl=1
+*|S (net127:17 2.8750 3.0900) // $llx=2.8750 $lly=3.0900 $urx=2.8750 $ury=3.0900 $lvl=1
+*|S (net127:18 2.1300 3.0900) // $llx=2.1300 $lly=3.0900 $urx=2.1300 $ury=3.0900 $lvl=1
+*|S (net127:19 2.0150 3.0900) // $llx=2.0150 $lly=3.0900 $urx=2.0150 $ury=3.0900 $lvl=1
+*|S (net127:20 1.2945 3.0900) // $llx=1.2945 $lly=3.0900 $urx=1.2945 $ury=3.0900 $lvl=1
+*|S (net127:21 1.1800 3.0900) // $llx=1.1800 $lly=3.0900 $urx=1.1800 $ury=3.0900 $lvl=1
+CH1 Mmp2:s VSS! 2.70092e-18 $lvl=4
+CH2 Mmp2@1:s VSS! 1.13404e-18 $lvl=4
+CH3 Mmp1@1:d VSS! 1.96358e-18 $lvl=4
+CH4 net127:20 VSS! 6.36429e-18 $lvl=1
+CH5 net127:19 VSS! 8.24227e-18 $lvl=1
+CH6 net127:17 VSS! 7.5073e-18 $lvl=1
+CH7 net127:11 VSS! 9.09003e-18 $lvl=2
+CH8 net127:15 VSS! 7.56919e-18 $lvl=2
+CH9 net127:6 VSS! 9.24709e-18 $lvl=2
+CH10 net127:10 VSS! 3.42053e-18 $lvl=2
+CH11 net127:5 VSS! 7.41569e-18 $lvl=2
+CH12 net127:2 VSS! 1.00965e-18 $lvl=2
+CH13 net127:7 VSS! 1.27952e-18 $lvl=2
+CH14 net127:12 VSS! 1.49574e-18 $lvl=2
+CH15 net127 VSS! 7.72202e-18 $lvl=2
+ReH379 net127:16 net127:17 0.059095 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=0 $LLX=2.875500 $LLY=2.945000 $URX=2.989500 $URY=3.235000 $lvl=1
+ReH380 net127:17 net127:18 0.443427 $metal1  $L=0.745 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=0 $LLX=2.130000 $LLY=3.035000 $URX=2.875000 $URY=3.235000 $lvl=1
+ReH381 net127:18 net127:19 0.059095 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=0 $LLX=2.015500 $LLY=2.945000 $URX=2.130000 $URY=3.235000 $lvl=1
+ReH382 net127:19 net127:20 0.450216 $metal1  $L=0.72 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=0 $LLX=1.295000 $LLY=3.035000 $URX=2.015000 $URY=3.235000 $lvl=1
+ReH383 net127:20 net127:21 0.059095 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=0 $LLX=1.180000 $LLY=2.945000 $URX=1.294500 $URY=3.235000 $lvl=1
+RfH384 net127 net127:2 49.317650 $li  $L=0.655 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.095000 $LLY=3.090000 $URX=1.265000 $URY=3.745000 $lvl=2
+RfH385 net127:2 net127:4 5.647059 $li  $L=0.075 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.095000 $LLY=3.015000 $URX=1.265000 $URY=3.090000 $lvl=2
+RfH386 net127:4 net127:5 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.095000 $LLY=2.285000 $URX=1.265000 $URY=3.015000 $lvl=2
+RfH387 net127:6 net127:7 49.317650 $li  $L=0.655 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.045000 $LLY=3.090000 $URX=2.215000 $URY=3.745000 $lvl=2
+RfH388 net127:7 net127:9 5.647059 $li  $L=0.075 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.045000 $LLY=3.015000 $URX=2.215000 $URY=3.090000 $lvl=2
+RfH389 net127:9 net127:10 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.045000 $LLY=2.285000 $URX=2.215000 $URY=3.015000 $lvl=2
+RfH390 net127:11 net127:12 49.317650 $li  $L=0.655 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.905000 $LLY=3.090000 $URX=3.075000 $URY=3.745000 $lvl=2
+RfH391 net127:12 net127:14 5.647059 $li  $L=0.075 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.905000 $LLY=3.015000 $URX=3.075000 $URY=3.090000 $lvl=2
+RfH392 net127:14 net127:15 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.905000 $LLY=2.285000 $URX=3.075000 $URY=3.015000 $lvl=2
+Rh_2_H393 Mmp1@1:d net127:4 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_H394 Mmp2@1:s net127:9 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_H395 Mmp2:s net127:14 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+RjH396 net127:12 net127:16 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjH397 net127:7 net127:18 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjH398 net127:2 net127:21 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RmwH399 Mmp1:d Mmp1@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET pon 7.99366e-15
+*|I (Mmp5@2:g Mmp5@2 g X 0 5.4450 3.0150) // $llx=5.4450 $lly=3.0150 $urx=5.4450 $ury=3.0150 $lvl=3
+*|I (Mmp5@5:g Mmp5@5 g X 0 5.8750 3.0150) // $llx=5.8750 $lly=3.0150 $urx=5.8750 $ury=3.0150 $lvl=3
+*|I (Mmp5@1:g Mmp5@1 g X 0 6.3050 3.0150) // $llx=6.3050 $lly=3.0150 $urx=6.3050 $ury=3.0150 $lvl=3
+*|I (Mmp5@3:g Mmp5@3 g X 0 6.7350 3.0150) // $llx=6.7350 $lly=3.0150 $urx=6.7350 $ury=3.0150 $lvl=3
+*|I (Mmp5@4:g Mmp5@4 g X 0 7.1650 3.0150) // $llx=7.1650 $lly=3.0150 $urx=7.1650 $ury=3.0150 $lvl=3
+*|I (Mmp5@6:g Mmp5@6 g X 0 7.5950 3.0150) // $llx=7.5950 $lly=3.0150 $urx=7.5950 $ury=3.0150 $lvl=3
+*|I (Mmp5:g Mmp5 g X 0 8.0250 3.0150) // $llx=8.0250 $lly=3.0150 $urx=8.0250 $ury=3.0150 $lvl=3
+*|I (Mmp5@7:g Mmp5@7 g X 0 8.4550 3.0150) // $llx=8.4550 $lly=3.0150 $urx=8.4550 $ury=3.0150 $lvl=3
+*|I (Mmp4@1:d Mmp4@1 d X 0 4.6605 3.0150) // $llx=4.6605 $lly=3.0150 $urx=4.6605 $ury=3.0150 $lvl=4
+*|I (Mmp4:d Mmp4 d X 0 4.9395 3.0150) // $llx=4.9395 $lly=3.0150 $urx=4.9395 $ury=3.0150 $lvl=4
+*|I (Mmp3@1:d Mmp3@1 d X 0 3.8005 3.0150) // $llx=3.8005 $lly=3.0150 $urx=3.8005 $ury=3.0150 $lvl=4
+*|I (Mmp3:d Mmp3 d X 0 4.0795 3.0150) // $llx=4.0795 $lly=3.0150 $urx=4.0795 $ury=3.0150 $lvl=4
+*|I (Mmn4:d Mmn4 d X 0 4.1405 0.7750) // $llx=4.1405 $lly=0.7750 $urx=4.1405 $ury=0.7750 $lvl=4
+*|I (Mmn4@1:d Mmn4@1 d X 0 4.4195 0.7750) // $llx=4.4195 $lly=0.7750 $urx=4.4195 $ury=0.7750 $lvl=4
+*|S (pon 5.4450 3.0150) // $llx=5.4450 $lly=3.0150 $urx=5.4450 $ury=3.0150 $lvl=3
+*|S (pon:25 8.4550 3.8950) // $llx=8.4550 $lly=3.8950 $urx=8.4550 $ury=3.8950 $lvl=3
+*|S (pon:26 8.4550 1.9500) // $llx=8.4550 $lly=1.9500 $urx=8.4550 $ury=1.9500 $lvl=3
+*|S (pon:27 8.0250 1.9500) // $llx=8.0250 $lly=1.9500 $urx=8.0250 $ury=1.9500 $lvl=3
+*|S (pon:28 7.5950 1.9500) // $llx=7.5950 $lly=1.9500 $urx=7.5950 $ury=1.9500 $lvl=3
+*|S (pon:29 7.1650 1.9500) // $llx=7.1650 $lly=1.9500 $urx=7.1650 $ury=1.9500 $lvl=3
+*|S (pon:30 6.9500 1.9500) // $llx=6.9500 $lly=1.9500 $urx=6.9500 $ury=1.9500 $lvl=3
+*|S (pon:31 6.7350 1.9500) // $llx=6.7350 $lly=1.9500 $urx=6.7350 $ury=1.9500 $lvl=3
+*|S (pon:32 6.3050 1.9500) // $llx=6.3050 $lly=1.9500 $urx=6.3050 $ury=1.9500 $lvl=3
+*|S (pon:33 5.8750 1.9500) // $llx=5.8750 $lly=1.9500 $urx=5.8750 $ury=1.9500 $lvl=3
+*|S (pon:34 5.4450 1.9500) // $llx=5.4450 $lly=1.9500 $urx=5.4450 $ury=1.9500 $lvl=3
+*|S (pon:35 8.0250 3.8950) // $llx=8.0250 $lly=3.8950 $urx=8.0250 $ury=3.8950 $lvl=3
+*|S (pon:36 7.5950 3.8950) // $llx=7.5950 $lly=3.8950 $urx=7.5950 $ury=3.8950 $lvl=3
+*|S (pon:37 7.1650 3.8950) // $llx=7.1650 $lly=3.8950 $urx=7.1650 $ury=3.8950 $lvl=3
+*|S (pon:38 6.7350 3.8950) // $llx=6.7350 $lly=3.8950 $urx=6.7350 $ury=3.8950 $lvl=3
+*|S (pon:39 6.3050 3.8950) // $llx=6.3050 $lly=3.8950 $urx=6.3050 $ury=3.8950 $lvl=3
+*|S (pon:40 5.8750 3.8950) // $llx=5.8750 $lly=3.8950 $urx=5.8750 $ury=3.8950 $lvl=3
+*|S (pon:41 5.4450 3.8950) // $llx=5.4450 $lly=3.8950 $urx=5.4450 $ury=3.8950 $lvl=3
+*|S (pon:42 3.9400 3.7450) // $llx=3.9400 $lly=3.7450 $urx=3.9400 $ury=3.7450 $lvl=2
+*|S (pon:43 3.9400 3.2350) // $llx=3.9400 $lly=3.2350 $urx=3.9400 $ury=3.2350 $lvl=2
+*|S (pon:45 3.9400 3.0150) // $llx=3.9400 $lly=3.0150 $urx=3.9400 $ury=3.0150 $lvl=2
+*|S (pon:46 3.9400 2.2850) // $llx=3.9400 $lly=2.2850 $urx=3.9400 $ury=2.2850 $lvl=2
+*|S (pon:47 4.2800 1.1550) // $llx=4.2800 $lly=1.1550 $urx=4.2800 $ury=1.1550 $lvl=2
+*|S (pon:48 4.2800 0.8950) // $llx=4.2800 $lly=0.8950 $urx=4.2800 $ury=0.8950 $lvl=2
+*|S (pon:50 4.2800 0.7750) // $llx=4.2800 $lly=0.7750 $urx=4.2800 $ury=0.7750 $lvl=2
+*|S (pon:51 4.2800 0.3950) // $llx=4.2800 $lly=0.3950 $urx=4.2800 $ury=0.3950 $lvl=2
+*|S (pon:52 4.8000 3.7450) // $llx=4.8000 $lly=3.7450 $urx=4.8000 $ury=3.7450 $lvl=2
+*|S (pon:54 4.8000 3.0150) // $llx=4.8000 $lly=3.0150 $urx=4.8000 $ury=3.0150 $lvl=2
+*|S (pon:55 4.8000 2.7500) // $llx=4.8000 $lly=2.7500 $urx=4.8000 $ury=2.7500 $lvl=2
+*|S (pon:56 6.0900 1.9500) // $llx=6.0900 $lly=1.9500 $urx=6.0900 $ury=1.9500 $lvl=2
+*|S (pon:57 6.9500 1.9500) // $llx=6.9500 $lly=1.9500 $urx=6.9500 $ury=1.9500 $lvl=2
+*|S (pon:58 6.0900 1.8050) // $llx=6.0900 $lly=1.8050 $urx=6.0900 $ury=1.8050 $lvl=1
+*|S (pon:59 6.0900 1.9500) // $llx=6.0900 $lly=1.9500 $urx=6.0900 $ury=1.9500 $lvl=1
+*|S (pon:60 6.0900 3.2650) // $llx=6.0900 $lly=3.2650 $urx=6.0900 $ury=3.2650 $lvl=1
+*|S (pon:61 4.8000 3.2650) // $llx=4.8000 $lly=3.2650 $urx=4.8000 $ury=3.2650 $lvl=1
+*|S (pon:62 4.0545 3.2350) // $llx=4.0545 $lly=3.2350 $urx=4.0545 $ury=3.2350 $lvl=1
+*|S (pon:63 3.9400 3.2350) // $llx=3.9400 $lly=3.2350 $urx=3.9400 $ury=3.2350 $lvl=1
+*|S (pon:64 4.8000 2.7500) // $llx=4.8000 $lly=2.7500 $urx=4.8000 $ury=2.7500 $lvl=1
+*|S (pon:65 4.8000 1.0400) // $llx=4.8000 $lly=1.0400 $urx=4.8000 $ury=1.0400 $lvl=1
+*|S (pon:66 4.3945 0.9525) // $llx=4.3945 $lly=0.9525 $urx=4.3945 $ury=0.9525 $lvl=1
+*|S (pon:67 4.2800 0.8950) // $llx=4.2800 $lly=0.8950 $urx=4.2800 $ury=0.8950 $lvl=1
+CI1 Mmn4:d VSS! 4.18033e-18 $lvl=4
+CI2 Mmp3@1:d VSS! 2.21418e-18 $lvl=4
+CI3 Mmp4@1:d VSS! 3.54786e-18 $lvl=4
+CI4 Mmp5@3:g VSS! 1.55997e-18 $lvl=3
+CI5 pon:66 VSS! 1.2401e-17 $lvl=1
+CI6 pon:64 VSS! 2.28139e-17 $lvl=1
+CI7 pon:62 VSS! 1.0556e-17 $lvl=1
+CI8 pon:58 VSS! 1.17681e-17 $lvl=1
+CI9 pon:60 VSS! 1.18067e-17 $lvl=1
+CI10 pon:25 VSS! 2.50581e-18 $lvl=3
+CI11 pon:35 VSS! 2.50448e-18 $lvl=3
+CI12 pon:36 VSS! 2.02598e-18 $lvl=3
+CI13 pon:37 VSS! 3.29378e-18 $lvl=3
+CI14 pon:39 VSS! 2.55424e-18 $lvl=3
+CI15 pon:40 VSS! 2.22783e-18 $lvl=3
+CI16 pon:57 VSS! 1.18821e-17 $lvl=2
+CI17 pon:52 VSS! 6.85113e-18 $lvl=2
+CI18 pon:47 VSS! 1.56141e-17 $lvl=2
+CI19 pon:51 VSS! 5.81163e-18 $lvl=2
+CI20 pon:42 VSS! 7.86763e-18 $lvl=2
+CI21 pon:46 VSS! 4.07231e-18 $lvl=2
+CI22 pon:43 VSS! 1.16741e-18 $lvl=2
+CI23 pon:48 VSS! 1.32753e-18 $lvl=2
+CI24 pon:55 VSS! 4.42912e-18 $lvl=2
+CI25 pon:56 VSS! 2.28011e-18 $lvl=2
+CI26 pon:30 VSS! 7.46268e-17 $lvl=3
+CI27 pon VSS! 3.33307e-18 $lvl=3
+CI28 pon:48 net144:14 7.22303e-18 $lvl1=2 $lvl2=2
+CI29 pon:48 net144:6 6.12924e-18 $lvl1=2 $lvl2=2
+CI30 pon:51 net144:6 6.09352e-18 $lvl1=2 $lvl2=2
+CI31 pon:51 net144:14 5.85206e-18 $lvl1=2 $lvl2=2
+CI32 pon:48 net144:9 4.74663e-18 $lvl1=2 $lvl2=2
+CI33 pon:64 net144:16 4.50302e-18 $lvl1=1 $lvl2=1
+CI34 pon:66 net144:9 3.94989e-18 $lvl1=1 $lvl2=2
+CI35 pon:66 net144:11 3.49772e-18 $lvl1=1 $lvl2=2
+CI36 pon:66 net144:10 3.31763e-18 $lvl1=1 $lvl2=2
+CI37 pon:66 net144:14 3.20868e-18 $lvl1=1 $lvl2=2
+CI38 pon:64 net144:10 2.5692e-18 $lvl1=1 $lvl2=2
+CI39 pon:48 net144:16 2.39928e-18 $lvl1=2 $lvl2=1
+CI40 pon:48 net144:10 1.49433e-18 $lvl1=2 $lvl2=2
+CI41 pon:48 net144:11 1.38317e-18 $lvl1=2 $lvl2=2
+CI42 pon:47 net144:9 1.18325e-18 $lvl1=2 $lvl2=2
+CI43 Mmn4:d net144:6 1.16453e-18 $lvl1=4 $lvl2=2
+CI44 pon:66 net144:6 8.9967e-19 $lvl1=1 $lvl2=2
+CI45 pon:47 Mmn4:s 8.81648e-19 $lvl1=2 $lvl2=4
+CI46 pon:64 net144:11 1.83326e-17 $lvl1=1 $lvl2=2
+CI47 pon:47 net144:14 4.09095e-17 $lvl1=2 $lvl2=2
+CI48 pon:47 net144:10 1.37474e-17 $lvl1=2 $lvl2=2
+CI49 pon:66 net144:16 3.73801e-17 $lvl1=1 $lvl2=1
+CI50 pon:47 net144:6 4.12162e-17 $lvl1=2 $lvl2=2
+CI51 pon:64 net144:14 1.28933e-17 $lvl1=1 $lvl2=2
+CI52 pon:47 net144:11 1.33775e-17 $lvl1=2 $lvl2=2
+CI53 pon:47 VSS!:14 7.82754e-18 $lvl1=2 $lvl2=2
+CI54 pon:64 VSS!:46 6.48743e-18 $lvl1=1 $lvl2=1
+CI55 pon:64 VSS!:31 2.80196e-18 $lvl1=1 $lvl2=2
+CI56 pon:51 VSS!:14 1.25493e-17 $lvl1=2 $lvl2=2
+ReI400 pon:58 pon:59 0.078804 $metal1  $L=0.145 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.975000 $LLY=1.805000 $URX=6.205000 $URY=1.950000 $lvl=1
+ReI401 pon:59 pon:60 0.714810 $metal1  $L=1.31525 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.975000 $LLY=1.950000 $URX=6.205000 $URY=3.265000 $lvl=1
+ReI402 pon:60 pon:61 0.701087 $metal1  $L=1.29 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=4.800000 $LLY=3.150000 $URX=6.090000 $URY=3.380000 $lvl=1
+ReI403 pon:61 pon:62 0.405135 $metal1  $L=0.74525 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=4.055000 $LLY=3.150000 $URX=4.800000 $URY=3.380000 $lvl=1
+ReI404 pon:62 pon:63 0.053985 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=0 $LLX=3.940000 $LLY=3.090000 $URX=4.054000 $URY=3.380000 $lvl=1
+ReI405 pon:61 pon:64 0.280027 $metal1  $L=0.51525 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=4.685000 $LLY=2.750000 $URX=4.915000 $URY=3.265000 $lvl=1
+ReI406 pon:64 pon:65 0.929212 $metal1  $L=1.70975 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=4.685000 $LLY=1.040000 $URX=4.915000 $URY=2.750000 $lvl=1
+ReI407 pon:65 pon:66 0.220322 $metal1  $L=0.40525 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=4.395000 $LLY=0.925000 $URX=4.800000 $URY=1.155000 $lvl=1
+ReI408 pon:66 pon:67 0.048561 $metal1  $L=0.1145 $W=0.405000 $SI_W=0.405 $TYPE=10 $DIR=0 $LLX=4.279500 $LLY=0.750000 $URX=4.394000 $URY=1.155000 $lvl=1
+RfI409 pon:42 pon:43 38.400002 $li  $L=0.51 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.855000 $LLY=3.235000 $URX=4.025000 $URY=3.745000 $lvl=2
+RfI410 pon:43 pon:45 16.564707 $li  $L=0.22 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.855000 $LLY=3.015000 $URX=4.025000 $URY=3.235000 $lvl=2
+RfI411 pon:45 pon:46 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.855000 $LLY=2.285000 $URX=4.025000 $URY=3.015000 $lvl=2
+RfI412 pon:47 pon:48 19.576471 $li  $L=0.26 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.195000 $LLY=0.895000 $URX=4.365000 $URY=1.155000 $lvl=2
+RfI413 pon:48 pon:50 9.035295 $li  $L=0.12 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.195000 $LLY=0.775000 $URX=4.365000 $URY=0.895000 $lvl=2
+RfI414 pon:50 pon:51 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.195000 $LLY=0.395000 $URX=4.365000 $URY=0.775000 $lvl=2
+RfI415 pon:52 pon:54 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.715000 $LLY=3.015000 $URX=4.885000 $URY=3.745000 $lvl=2
+RfI416 pon:54 pon:55 4.376774 $li  $L=0.265 $W=0.170000 $SI_W=0.775 $TYPE=10 $DIR=1 $LLX=4.715000 $LLY=2.750000 $URX=4.885000 $URY=3.015000 $lvl=2
+RfI417 pon:56 pon:57 64.752945 $li  $L=0.86 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=6.090000 $LLY=1.865000 $URX=6.950000 $URY=2.035000 $lvl=2
+RgI418 pon:25 Mmp5@7:g 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=8.380000 $LLY=3.015000 $URX=8.530000 $URY=3.895000 $lvl=3
+RgI419 Mmp5@7:g pon:26 342.139679 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=8.380000 $LLY=1.950000 $URX=8.530000 $URY=3.015000 $lvl=3
+RgI420 pon:26 pon:27 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=8.025000 $LLY=1.815000 $URX=8.455000 $URY=2.085000 $lvl=3
+RgI421 pon:27 pon:28 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=7.595000 $LLY=1.815000 $URX=8.025000 $URY=2.085000 $lvl=3
+RgI422 pon:28 pon:29 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=7.165000 $LLY=1.815000 $URX=7.595000 $URY=2.085000 $lvl=3
+RgI423 pon:29 pon:30 38.426109 $poly  $L=0.21525 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.950000 $LLY=1.815000 $URX=7.165000 $URY=2.085000 $lvl=3
+RgI424 pon:30 pon:31 38.336849 $poly  $L=0.21475 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.735000 $LLY=1.815000 $URX=6.950000 $URY=2.085000 $lvl=3
+RgI425 pon:31 pon:32 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.305000 $LLY=1.815000 $URX=6.735000 $URY=2.085000 $lvl=3
+RgI426 pon:32 pon:33 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=5.875000 $LLY=1.815000 $URX=6.305000 $URY=2.085000 $lvl=3
+RgI427 pon:33 pon:34 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=5.445000 $LLY=1.815000 $URX=5.875000 $URY=2.085000 $lvl=3
+RgI428 pon:34 pon 342.139679 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.370000 $LLY=1.950000 $URX=5.520000 $URY=3.015000 $lvl=3
+RgI429 pon:27 Mmp5:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.950000 $LLY=1.950000 $URX=8.100000 $URY=3.015000 $lvl=3
+RgI430 Mmp5:g pon:35 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.950000 $LLY=3.015000 $URX=8.100000 $URY=3.895000 $lvl=3
+RgI431 pon:28 Mmp5@6:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.520000 $LLY=1.950000 $URX=7.670000 $URY=3.015000 $lvl=3
+RgI432 Mmp5@6:g pon:36 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.520000 $LLY=3.015000 $URX=7.670000 $URY=3.895000 $lvl=3
+RgI433 pon:29 Mmp5@4:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.090000 $LLY=1.950000 $URX=7.240000 $URY=3.015000 $lvl=3
+RgI434 Mmp5@4:g pon:37 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.090000 $LLY=3.015000 $URX=7.240000 $URY=3.895000 $lvl=3
+RgI435 pon:31 Mmp5@3:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.660000 $LLY=1.950000 $URX=6.810000 $URY=3.015000 $lvl=3
+RgI436 Mmp5@3:g pon:38 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.660000 $LLY=3.015000 $URX=6.810000 $URY=3.895000 $lvl=3
+RgI437 pon:32 Mmp5@1:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.230000 $LLY=1.950000 $URX=6.380000 $URY=3.015000 $lvl=3
+RgI438 Mmp5@1:g pon:39 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.230000 $LLY=3.015000 $URX=6.380000 $URY=3.895000 $lvl=3
+RgI439 pon:33 Mmp5@5:g 322.895386 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.800000 $LLY=1.950000 $URX=5.950000 $URY=3.015000 $lvl=3
+RgI440 Mmp5@5:g pon:40 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.800000 $LLY=3.015000 $URX=5.950000 $URY=3.895000 $lvl=3
+RgI441 pon pon:41 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.370000 $LLY=3.015000 $URX=5.520000 $URY=3.895000 $lvl=3
+RhI442 Mmn4:d pon:50 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+Rh_2_I443 Mmp3@1:d pon:45 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_I444 Mmp4@1:d pon:54 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+RjI445 pon:56 pon:59 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjI446 pon:43 pon:63 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjI447 pon:55 pon:64 50.666668 $mcon  $A=0.0867 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0867 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.086700 $URY=-3.000000 $lvl=6
+RjI448 pon:48 pon:67 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RiI449 pon:30 pon:57 2.142857 $licon  $A=0.2023 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.2023 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.202300 $URY=-7.000000 $lvl=7
+RmwI450 Mmp5@2:g pon 0.001000 $poly $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwI451 Mmp4:d Mmp4@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwI452 Mmp3:d Mmp3@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwI453 Mmn4@1:d Mmn4:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET non 6.55017e-15
+*|I (Mmp2@1:d Mmp2@1 d X 0 2.4205 3.0150) // $llx=2.4205 $lly=3.0150 $urx=2.4205 $ury=3.0150 $lvl=4
+*|I (Mmp2:d Mmp2 d X 0 2.6995 3.0150) // $llx=2.6995 $lly=3.0150 $urx=2.6995 $ury=3.0150 $lvl=4
+*|I (Mmn1@1:d Mmn1@1 d X 0 1.0405 0.7750) // $llx=1.0405 $lly=0.7750 $urx=1.0405 $ury=0.7750 $lvl=4
+*|I (Mmn1:d Mmn1 d X 0 1.3195 0.7750) // $llx=1.3195 $lly=0.7750 $urx=1.3195 $ury=0.7750 $lvl=4
+*|I (Mmn2@1:d Mmn2@1 d X 0 1.9005 0.7750) // $llx=1.9005 $lly=0.7750 $urx=1.9005 $ury=0.7750 $lvl=4
+*|I (Mmn2:d Mmn2 d X 0 2.1795 0.7750) // $llx=2.1795 $lly=0.7750 $urx=2.1795 $ury=0.7750 $lvl=4
+*|I (Mmn5:g Mmn5 g X 0 5.4450 0.7750) // $llx=5.4450 $lly=0.7750 $urx=5.4450 $ury=0.7750 $lvl=3
+*|I (Mmn5@6:g Mmn5@6 g X 0 5.8750 0.7750) // $llx=5.8750 $lly=0.7750 $urx=5.8750 $ury=0.7750 $lvl=3
+*|I (Mmn5@3:g Mmn5@3 g X 0 6.3050 0.7750) // $llx=6.3050 $lly=0.7750 $urx=6.3050 $ury=0.7750 $lvl=3
+*|I (Mmn5@4:g Mmn5@4 g X 0 6.7350 0.7750) // $llx=6.7350 $lly=0.7750 $urx=6.7350 $ury=0.7750 $lvl=3
+*|I (Mmn5@5:g Mmn5@5 g X 0 7.1650 0.7750) // $llx=7.1650 $lly=0.7750 $urx=7.1650 $ury=0.7750 $lvl=3
+*|I (Mmn5@2:g Mmn5@2 g X 0 7.5950 0.7750) // $llx=7.5950 $lly=0.7750 $urx=7.5950 $ury=0.7750 $lvl=3
+*|I (Mmn5@1:g Mmn5@1 g X 0 8.0250 0.7750) // $llx=8.0250 $lly=0.7750 $urx=8.0250 $ury=0.7750 $lvl=3
+*|I (Mmn5@7:g Mmn5@7 g X 0 8.4550 0.7750) // $llx=8.4550 $lly=0.7750 $urx=8.4550 $ury=0.7750 $lvl=3
+*|S (non 5.4450 0.7750) // $llx=5.4450 $lly=0.7750 $urx=5.4450 $ury=0.7750 $lvl=3
+*|S (non:33 5.4450 0.2450) // $llx=5.4450 $lly=0.2450 $urx=5.4450 $ury=0.2450 $lvl=3
+*|S (non:34 5.4450 1.4300) // $llx=5.4450 $lly=1.4300 $urx=5.4450 $ury=1.4300 $lvl=3
+*|S (non:35 5.8750 1.4300) // $llx=5.8750 $lly=1.4300 $urx=5.8750 $ury=1.4300 $lvl=3
+*|S (non:36 5.8750 0.2450) // $llx=5.8750 $lly=0.2450 $urx=5.8750 $ury=0.2450 $lvl=3
+*|S (non:37 6.3050 1.4300) // $llx=6.3050 $lly=1.4300 $urx=6.3050 $ury=1.4300 $lvl=3
+*|S (non:38 6.3050 0.2450) // $llx=6.3050 $lly=0.2450 $urx=6.3050 $ury=0.2450 $lvl=3
+*|S (non:39 6.7350 1.4300) // $llx=6.7350 $lly=1.4300 $urx=6.7350 $ury=1.4300 $lvl=3
+*|S (non:40 6.7350 0.2450) // $llx=6.7350 $lly=0.2450 $urx=6.7350 $ury=0.2450 $lvl=3
+*|S (non:41 6.9500 1.4300) // $llx=6.9500 $lly=1.4300 $urx=6.9500 $ury=1.4300 $lvl=3
+*|S (non:42 7.1650 1.4300) // $llx=7.1650 $lly=1.4300 $urx=7.1650 $ury=1.4300 $lvl=3
+*|S (non:43 7.1650 0.2450) // $llx=7.1650 $lly=0.2450 $urx=7.1650 $ury=0.2450 $lvl=3
+*|S (non:44 7.5950 1.4300) // $llx=7.5950 $lly=1.4300 $urx=7.5950 $ury=1.4300 $lvl=3
+*|S (non:45 7.5950 0.2450) // $llx=7.5950 $lly=0.2450 $urx=7.5950 $ury=0.2450 $lvl=3
+*|S (non:46 8.0250 1.4300) // $llx=8.0250 $lly=1.4300 $urx=8.0250 $ury=1.4300 $lvl=3
+*|S (non:47 8.0250 0.2450) // $llx=8.0250 $lly=0.2450 $urx=8.0250 $ury=0.2450 $lvl=3
+*|S (non:48 8.4550 1.4300) // $llx=8.4550 $lly=1.4300 $urx=8.4550 $ury=1.4300 $lvl=3
+*|S (non:49 8.4550 0.2450) // $llx=8.4550 $lly=0.2450 $urx=8.4550 $ury=0.2450 $lvl=3
+*|S (non:50 1.1800 1.1550) // $llx=1.1800 $lly=1.1550 $urx=1.1800 $ury=1.1550 $lvl=2
+*|S (non:52 1.1800 0.7750) // $llx=1.1800 $lly=0.7750 $urx=1.1800 $ury=0.7750 $lvl=2
+*|S (non:53 1.1800 0.5600) // $llx=1.1800 $lly=0.5600 $urx=1.1800 $ury=0.5600 $lvl=2
+*|S (non:54 2.0400 1.1550) // $llx=2.0400 $lly=1.1550 $urx=2.0400 $ury=1.1550 $lvl=2
+*|S (non:56 2.0400 0.7750) // $llx=2.0400 $lly=0.7750 $urx=2.0400 $ury=0.7750 $lvl=2
+*|S (non:57 2.0400 0.5600) // $llx=2.0400 $lly=0.5600 $urx=2.0400 $ury=0.5600 $lvl=2
+*|S (non:58 2.5600 3.7450) // $llx=2.5600 $lly=3.7450 $urx=2.5600 $ury=3.7450 $lvl=2
+*|S (non:60 2.5600 3.0150) // $llx=2.5600 $lly=3.0150 $urx=2.5600 $ury=3.0150 $lvl=2
+*|S (non:61 2.5600 2.7500) // $llx=2.5600 $lly=2.7500 $urx=2.5600 $ury=2.7500 $lvl=2
+*|S (non:62 2.5600 2.2850) // $llx=2.5600 $lly=2.2850 $urx=2.5600 $ury=2.2850 $lvl=2
+*|S (non:63 8.4050 1.4300) // $llx=8.4050 $lly=1.4300 $urx=8.4050 $ury=1.4300 $lvl=2
+*|S (non:64 6.9500 1.4300) // $llx=6.9500 $lly=1.4300 $urx=6.9500 $ury=1.4300 $lvl=2
+*|S (non:65 5.2300 1.4300) // $llx=5.2300 $lly=1.4300 $urx=5.2300 $ury=1.4300 $lvl=2
+*|S (non:66 5.0650 1.4300) // $llx=5.0650 $lly=1.4300 $urx=5.0650 $ury=1.4300 $lvl=2
+*|S (non:67 5.2300 1.5750) // $llx=5.2300 $lly=1.5750 $urx=5.2300 $ury=1.5750 $lvl=1
+*|S (non:68 5.2300 1.4300) // $llx=5.2300 $lly=1.4300 $urx=5.2300 $ury=1.4300 $lvl=1
+*|S (non:69 5.2300 0.4750) // $llx=5.2300 $lly=0.4750 $urx=5.2300 $ury=0.4750 $lvl=1
+*|S (non:70 2.4400 0.4750) // $llx=2.4400 $lly=0.4750 $urx=2.4400 $ury=0.4750 $lvl=1
+*|S (non:71 2.0400 0.5600) // $llx=2.0400 $lly=0.5600 $urx=2.0400 $ury=0.5600 $lvl=1
+*|S (non:72 1.9250 0.5325) // $llx=1.9250 $lly=0.5325 $urx=1.9250 $ury=0.5325 $lvl=1
+*|S (non:73 1.2945 0.5325) // $llx=1.2945 $lly=0.5325 $urx=1.2945 $ury=0.5325 $lvl=1
+*|S (non:74 1.1800 0.5600) // $llx=1.1800 $lly=0.5600 $urx=1.1800 $ury=0.5600 $lvl=1
+*|S (non:75 2.4400 1.4300) // $llx=2.4400 $lly=1.4300 $urx=2.4400 $ury=1.4300 $lvl=1
+*|S (non:76 3.0200 1.4300) // $llx=3.0200 $lly=1.4300 $urx=3.0200 $ury=1.4300 $lvl=1
+*|S (non:77 3.0200 2.7050) // $llx=3.0200 $lly=2.7050 $urx=3.0200 $ury=2.7050 $lvl=1
+*|S (non:78 2.6745 2.7500) // $llx=2.6745 $lly=2.7500 $urx=2.6745 $ury=2.7500 $lvl=1
+*|S (non:79 2.5600 2.7500) // $llx=2.5600 $lly=2.7500 $urx=2.5600 $ury=2.7500 $lvl=1
+CG1 Mmn5@7:g VSS! 3.04396e-18 $lvl=3
+CG2 Mmn5@2:g VSS! 2.60703e-18 $lvl=3
+CG3 Mmn5@5:g VSS! 3.53722e-18 $lvl=3
+CG4 Mmn5@4:g VSS! 2.53458e-18 $lvl=3
+CG5 Mmn5@3:g VSS! 3.49608e-18 $lvl=3
+CG6 Mmn2@1:d VSS! 1.2837e-18 $lvl=4
+CG7 Mmn1@1:d VSS! 2.32377e-18 $lvl=4
+CG8 Mmp2@1:d VSS! 4.29428e-18 $lvl=4
+CG9 non:78 VSS! 1.23478e-17 $lvl=1
+CG10 non:73 VSS! 4.67075e-18 $lvl=1
+CG11 non:72 VSS! 7.57286e-18 $lvl=1
+CG12 non:67 VSS! 1.31711e-17 $lvl=1
+CG13 non:69 VSS! 1.1315e-17 $lvl=1
+CG14 non:77 VSS! 1.39445e-17 $lvl=1
+CG15 non:76 VSS! 1.38697e-17 $lvl=1
+CG16 non:75 VSS! 9.14979e-18 $lvl=1
+CG17 non:70 VSS! 1.38969e-17 $lvl=1
+CG18 non:33 VSS! 3.05011e-18 $lvl=3
+CG19 non:36 VSS! 2.56579e-18 $lvl=3
+CG20 non:47 VSS! 3.1069e-18 $lvl=3
+CG21 non:64 VSS! 1.2965e-17 $lvl=2
+CG22 non:66 VSS! 9.29095e-18 $lvl=2
+CG23 non:58 VSS! 8.22481e-18 $lvl=2
+CG24 non:62 VSS! 2.06603e-18 $lvl=2
+CG25 non:54 VSS! 1.76765e-17 $lvl=2
+CG26 non:50 VSS! 8.48054e-18 $lvl=2
+CG27 non:53 VSS! 1.36538e-18 $lvl=2
+CG28 non:57 VSS! 1.1688e-18 $lvl=2
+CG29 non:61 VSS! 2.1757e-18 $lvl=2
+CG30 non:65 VSS! 4.55634e-18 $lvl=2
+CG31 non:41 VSS! 8.23374e-17 $lvl=3
+CG32 non:70 net144 7.58147e-18 $lvl1=1 $lvl2=2
+CG33 non:69 net144:6 7.27397e-18 $lvl1=1 $lvl2=2
+CG34 non:70 net144:6 7.08436e-18 $lvl1=1 $lvl2=2
+CG35 non:70 net144:2 6.79903e-18 $lvl1=1 $lvl2=2
+CG36 non:70 net144:5 5.5839e-18 $lvl1=1 $lvl2=2
+CG37 non:76 net144:16 5.24085e-18 $lvl1=1 $lvl2=1
+CG38 non:75 net144:2 3.54249e-18 $lvl1=1 $lvl2=2
+CG39 non:66 net144:14 2.60554e-18 $lvl1=2 $lvl2=2
+CG40 non:65 net144:11 1.84673e-18 $lvl1=2 $lvl2=2
+CG41 non:76 net144:2 1.82095e-18 $lvl1=1 $lvl2=2
+CG42 non:76 net144 1.58749e-18 $lvl1=1 $lvl2=2
+CG43 non:70 net144:9 1.45345e-18 $lvl1=1 $lvl2=2
+CG44 non:67 net144:14 1.42856e-18 $lvl1=1 $lvl2=2
+CG45 non:67 net144:11 1.30685e-18 $lvl1=1 $lvl2=2
+CG46 non:69 net144:9 1.28674e-18 $lvl1=1 $lvl2=2
+CG47 non:75 net144 1.1562e-18 $lvl1=1 $lvl2=2
+CG48 non:69 net144:17 9.73264e-19 $lvl1=1 $lvl2=1
+CG49 non:33 net144:14 8.45542e-19 $lvl1=3 $lvl2=2
+CG50 non:76 net144:10 7.57512e-19 $lvl1=1 $lvl2=2
+CG51 non:76 net144:17 4.87021e-17 $lvl1=1 $lvl2=1
+CG52 non:69 net144:14 1.64401e-17 $lvl1=1 $lvl2=2
+CG53 non:70 net144:17 7.28397e-17 $lvl1=1 $lvl2=1
+CG54 non:70 net144:16 3.60501e-17 $lvl1=1 $lvl2=1
+CG55 non:66 net144:11 8.7632e-18 $lvl1=2 $lvl2=2
+CG56 non:75 net144:17 2.21408e-17 $lvl1=1 $lvl2=1
+CG57 non:69 net144:16 2.52969e-17 $lvl1=1 $lvl2=1
+CG58 non:69 pon:51 6.11548e-18 $lvl1=1 $lvl2=2
+CG59 non:69 pon:47 5.9914e-18 $lvl1=1 $lvl2=2
+CG60 non:69 pon:48 5.71724e-18 $lvl1=1 $lvl2=2
+CG61 non:64 pon:56 4.95431e-18 $lvl1=2 $lvl2=2
+CG62 non:65 pon:64 4.20431e-18 $lvl1=2 $lvl2=1
+CG63 non:66 pon:64 3.3189e-18 $lvl1=2 $lvl2=1
+CG64 non:69 pon:66 5.0005e-17 $lvl1=1 $lvl2=1
+CG65 non:41 pon:57 2.30043e-17 $lvl1=3 $lvl2=2
+CG66 non:69 pon:64 3.50139e-17 $lvl1=1 $lvl2=1
+CG67 non:64 pon:57 4.80267e-17 $lvl1=2 $lvl2=2
+CG68 non:64 pon:30 2.48909e-17 $lvl1=2 $lvl2=3
+CG69 non:41 pon:30 8.3037e-17 $lvl1=3 $lvl2=3
+CG70 non:67 pon:64 7.18519e-17 $lvl1=1 $lvl2=1
+CG71 non:58 net127:19 7.07969e-18 $lvl1=2 $lvl2=1
+CG72 non:58 net127:17 6.24679e-18 $lvl1=2 $lvl2=1
+CG73 non:77 net127:15 6.06495e-18 $lvl1=1 $lvl2=2
+CG74 non:62 net127:15 3.85118e-18 $lvl1=2 $lvl2=2
+CG75 non:62 net127:10 3.53151e-18 $lvl1=2 $lvl2=2
+CG76 non:62 net127:6 3.47527e-18 $lvl1=2 $lvl2=2
+CG77 non:77 net127:12 3.04782e-18 $lvl1=1 $lvl2=2
+CG78 non:62 net127:11 3.03345e-18 $lvl1=2 $lvl2=2
+CG79 non:58 net127:10 2.90875e-18 $lvl1=2 $lvl2=2
+CG80 non:58 net127:15 2.89146e-18 $lvl1=2 $lvl2=2
+CG81 non:61 net127:6 2.87351e-18 $lvl1=2 $lvl2=2
+CG82 non:61 net127:11 2.80258e-18 $lvl1=2 $lvl2=2
+CG83 non:58 net127:12 2.73969e-18 $lvl1=2 $lvl2=2
+CG84 non:58 net127:7 2.4999e-18 $lvl1=2 $lvl2=2
+CG85 non:61 net127:19 2.42822e-18 $lvl1=2 $lvl2=1
+CG86 non:61 net127:17 2.19653e-18 $lvl1=2 $lvl2=1
+CG87 non:58 Mmp2@1:s 2.16225e-18 $lvl1=2 $lvl2=4
+CG88 non:78 net127:6 1.79964e-18 $lvl1=1 $lvl2=2
+CG89 non:78 net127:11 1.63002e-18 $lvl1=1 $lvl2=2
+CG90 non:77 net127:19 1.56228e-18 $lvl1=1 $lvl2=1
+CG91 non:76 net127:15 1.5074e-18 $lvl1=1 $lvl2=2
+CG92 non:61 net127:7 1.30673e-18 $lvl1=2 $lvl2=2
+CG93 non:61 net127:12 1.30291e-18 $lvl1=2 $lvl2=2
+CG94 non:58 net127:11 8.80407e-17 $lvl1=2 $lvl2=2
+CG95 non:78 net127:17 2.86497e-17 $lvl1=1 $lvl2=1
+CG96 non:77 net127:17 4.24882e-17 $lvl1=1 $lvl2=1
+CG97 non:78 net127:19 3.30564e-17 $lvl1=1 $lvl2=1
+CG98 non:58 net127:6 9.07206e-17 $lvl1=2 $lvl2=2
+CG99 non:77 net127:11 1.46693e-17 $lvl1=1 $lvl2=2
+CG100 non:70 VSS!:12 9.42738e-18 $lvl1=1 $lvl2=2
+CG101 non:69 VSS!:12 9.24359e-18 $lvl1=1 $lvl2=2
+CG102 non:53 VSS!:43 8.66468e-18 $lvl1=2 $lvl2=2
+CG103 non:53 VSS!:40 8.26368e-18 $lvl1=2 $lvl2=2
+CG104 Mmn5@5:g VSS!:9 8.26006e-18 $lvl1=3 $lvl2=2
+CG105 Mmn5@3:g VSS!:10 8.22473e-18 $lvl1=3 $lvl2=2
+CG106 non:47 VSS!:8 8.13456e-18 $lvl1=3 $lvl2=2
+CG107 non:57 VSS!:40 7.84e-18 $lvl1=2 $lvl2=2
+CG108 Mmn5@7:g VSS!:8 7.70393e-18 $lvl1=3 $lvl2=2
+CG109 non:75 VSS!:37 7.57512e-18 $lvl1=1 $lvl2=2
+CG110 non:33 VSS!:14 7.13472e-18 $lvl1=3 $lvl2=2
+CG111 non:57 VSS!:37 7.03996e-18 $lvl1=2 $lvl2=2
+CG112 non:73 VSS!:40 6.82838e-18 $lvl1=1 $lvl2=2
+CG113 non:64 VSS!:1 6.62889e-18 $lvl1=2 $lvl2=2
+CG114 non:67 VSS!:31 6.43548e-18 $lvl1=1 $lvl2=2
+CG115 non:36 VSS!:10 6.24424e-18 $lvl1=3 $lvl2=2
+CG116 non:70 VSS!:14 6.06425e-18 $lvl1=1 $lvl2=2
+CG117 non:70 VSS!:15 5.56319e-18 $lvl1=1 $lvl2=2
+CG118 Mmn5@4:g VSS!:9 5.46342e-18 $lvl1=3 $lvl2=2
+CG119 Mmn5@2:g VSS!:8 4.90663e-18 $lvl1=3 $lvl2=2
+CG120 non:72 VSS!:40 4.78449e-18 $lvl1=1 $lvl2=2
+CG121 non:41 VSS!:1 3.98503e-18 $lvl1=3 $lvl2=2
+CG122 non:72 VSS!:12 3.74221e-18 $lvl1=1 $lvl2=2
+CG123 non:53 VSS!:46 3.26452e-18 $lvl1=2 $lvl2=1
+CG124 non:41 Mmn5@2:s 3.21446e-18 $lvl1=3 $lvl2=4
+CG125 non:73 VSS!:12 3.15341e-18 $lvl1=1 $lvl2=2
+CG126 non:41 VSS!:31 3.0776e-18 $lvl1=3 $lvl2=2
+CG127 non:75 VSS!:46 2.99779e-18 $lvl1=1 $lvl2=1
+CG128 non:73 VSS!:43 2.77939e-18 $lvl1=1 $lvl2=2
+CG129 Mmn5@2:g VSS!:9 2.68987e-18 $lvl1=3 $lvl2=2
+CG130 non:54 VSS!:12 2.63967e-18 $lvl1=2 $lvl2=2
+CG131 non:65 VSS!:31 2.63278e-18 $lvl1=2 $lvl2=2
+CG132 non:57 VSS!:46 2.48444e-18 $lvl1=2 $lvl2=1
+CG133 non:72 VSS!:16 2.41748e-18 $lvl1=1 $lvl2=2
+CG134 non:76 VSS!:46 2.40485e-18 $lvl1=1 $lvl2=1
+CG135 Mmn2@1:d VSS!:15 2.30758e-18 $lvl1=4 $lvl2=2
+CG136 Mmn5@4:g VSS!:10 2.22898e-18 $lvl1=3 $lvl2=2
+CG137 non:53 VSS!:12 1.95564e-18 $lvl1=2 $lvl2=2
+CG138 non:36 VSS!:14 1.89545e-18 $lvl1=3 $lvl2=2
+CG139 non:76 VSS!:34 1.85621e-18 $lvl1=1 $lvl2=2
+CG140 non:73 VSS!:16 1.7886e-18 $lvl1=1 $lvl2=2
+CG141 non:53 VSS!:16 1.70459e-18 $lvl1=2 $lvl2=2
+CG142 non:53 VSS!:17 1.64801e-18 $lvl1=2 $lvl2=2
+CG143 non:57 VSS!:12 1.61607e-18 $lvl1=2 $lvl2=2
+CG144 non:57 VSS!:15 1.5968e-18 $lvl1=2 $lvl2=2
+CG145 non:41 Mmn5@6:s 1.56754e-18 $lvl1=3 $lvl2=4
+CG146 non:41 Mmn5@4:s 1.56196e-18 $lvl1=3 $lvl2=4
+CG147 non:67 VSS!:46 1.49737e-18 $lvl1=1 $lvl2=1
+CG148 Mmn1@1:d VSS!:16 1.3656e-18 $lvl1=4 $lvl2=2
+CG149 non:50 VSS!:12 1.25206e-18 $lvl1=2 $lvl2=2
+CG150 non:57 VSS!:16 1.22042e-18 $lvl1=2 $lvl2=2
+CG151 non:73 VSS!:17 1.21213e-18 $lvl1=1 $lvl2=2
+CG152 non:41 Mmn5:s 1.20822e-18 $lvl1=3 $lvl2=4
+CG153 Mmn2@1:d VSS!:40 1.20683e-18 $lvl1=4 $lvl2=2
+CG154 non:33 VSS!:10 1.19195e-18 $lvl1=3 $lvl2=2
+CG155 non:72 VSS!:37 1.13562e-18 $lvl1=1 $lvl2=2
+CG156 non:66 VSS!:31 1.99998e-17 $lvl1=2 $lvl2=2
+CG157 Mmn5@5:g VSS!:25 1.25651e-16 $lvl1=3 $lvl2=2
+CG158 non:50 VSS!:43 5.01388e-17 $lvl1=2 $lvl2=2
+CG159 non:70 VSS!:46 1.81565e-16 $lvl1=1 $lvl2=1
+CG160 non:41 VSS!:25 1.44896e-17 $lvl1=3 $lvl2=2
+CG161 non:73 VSS!:46 7.9297e-17 $lvl1=1 $lvl2=1
+CG162 non:33 VSS!:31 1.27849e-16 $lvl1=3 $lvl2=2
+CG163 non:54 VSS!:15 1.0511e-17 $lvl1=2 $lvl2=2
+CG164 Mmn5@4:g VSS!:25 1.2608e-16 $lvl1=3 $lvl2=2
+CG165 non:64 VSS!:22 1.89034e-17 $lvl1=2 $lvl2=2
+CG166 Mmn5@2:g VSS!:22 1.28825e-16 $lvl1=3 $lvl2=2
+CG167 Mmn5@7:g VSS!:1 1.29617e-16 $lvl1=3 $lvl2=2
+CG168 non:54 VSS!:16 1.19324e-17 $lvl1=2 $lvl2=2
+CG169 non:64 VSS!:25 1.81106e-17 $lvl1=2 $lvl2=2
+CG170 non:70 VSS!:37 1.93595e-17 $lvl1=1 $lvl2=2
+CG171 non:50 VSS!:16 1.11627e-17 $lvl1=2 $lvl2=2
+CG172 non:47 VSS!:22 1.29278e-16 $lvl1=3 $lvl2=2
+CG173 non:41 VSS!:22 1.52904e-17 $lvl1=3 $lvl2=2
+CG174 non:41 VSS!:28 1.42446e-17 $lvl1=3 $lvl2=2
+CG175 non:54 VSS!:37 4.82901e-17 $lvl1=2 $lvl2=2
+CG176 non:50 VSS!:17 1.13816e-17 $lvl1=2 $lvl2=2
+CG177 non:64 VSS!:28 1.83994e-17 $lvl1=2 $lvl2=2
+CG178 non:72 VSS!:46 7.49388e-17 $lvl1=1 $lvl2=1
+CG179 non:69 VSS!:14 1.03909e-17 $lvl1=1 $lvl2=2
+CG180 non:70 VSS!:34 1.47771e-17 $lvl1=1 $lvl2=2
+CG181 non:69 VSS!:31 2.29732e-17 $lvl1=1 $lvl2=2
+CG182 non:54 VSS!:40 4.61138e-17 $lvl1=2 $lvl2=2
+CG183 non:36 VSS!:28 1.24429e-16 $lvl1=3 $lvl2=2
+CG184 non:69 VSS!:46 1.94174e-16 $lvl1=1 $lvl2=1
+CG185 non:50 VSS!:40 4.90741e-17 $lvl1=2 $lvl2=2
+CG186 Mmn5@3:g VSS!:28 1.26423e-16 $lvl1=3 $lvl2=2
+ReG321 non:67 non:68 0.078804 $metal1  $L=0.145 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.115000 $LLY=1.430000 $URX=5.345000 $URY=1.575000 $lvl=1
+ReG322 non:68 non:69 0.518886 $metal1  $L=0.95475 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=5.115000 $LLY=0.475000 $URX=5.345000 $URY=1.430000 $lvl=1
+ReG323 non:69 non:70 1.516304 $metal1  $L=2.79 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=2.440000 $LLY=0.360000 $URX=5.230000 $URY=0.590000 $lvl=1
+ReG324 non:70 non:71 0.196694 $metal1  $L=0.40025 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=2.040000 $LLY=0.360000 $URX=2.440000 $URY=0.590000 $lvl=1
+ReG325 non:71 non:72 0.050857 $metal1  $L=0.1145 $W=0.345000 $SI_W=0.345 $TYPE=10 $DIR=0 $LLX=1.925500 $LLY=0.360000 $URX=2.040000 $URY=0.705000 $lvl=1
+ReG326 non:72 non:73 0.342572 $metal1  $L=0.63 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=1.295000 $LLY=0.360000 $URX=1.925000 $URY=0.590000 $lvl=1
+ReG327 non:73 non:74 0.050857 $metal1  $L=0.1145 $W=0.345000 $SI_W=0.345 $TYPE=10 $DIR=0 $LLX=1.180000 $LLY=0.360000 $URX=1.294500 $URY=0.705000 $lvl=1
+ReG328 non:70 non:75 0.587520 $metal1  $L=0.955 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=1 $LLX=2.340000 $LLY=0.475000 $URX=2.540000 $URY=1.430000 $lvl=1
+ReG329 non:75 non:76 0.362500 $metal1  $L=0.58 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=0 $LLX=2.440000 $LLY=1.330000 $URX=3.020000 $URY=1.530000 $lvl=1
+ReG330 non:76 non:77 0.796875 $metal1  $L=1.275 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=1 $LLX=2.920000 $LLY=1.430000 $URX=3.120000 $URY=2.705000 $lvl=1
+ReG331 non:77 non:78 0.215889 $metal1  $L=0.34525 $W=0.200000 $SI_W=0.2 $TYPE=10 $DIR=0 $LLX=2.675000 $LLY=2.605000 $URX=3.020000 $URY=2.805000 $lvl=1
+ReG332 non:78 non:79 0.059095 $metal1  $L=0.1145 $W=0.290000 $SI_W=0.29 $TYPE=10 $DIR=0 $LLX=2.560000 $LLY=2.605000 $URX=2.674500 $URY=2.895000 $lvl=1
+RfG333 non:50 non:52 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.095000 $LLY=0.775000 $URX=1.265000 $URY=1.155000 $lvl=2
+RfG334 non:52 non:53 16.188236 $li  $L=0.215 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.095000 $LLY=0.560000 $URX=1.265000 $URY=0.775000 $lvl=2
+RfG335 non:54 non:56 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.955000 $LLY=0.775000 $URX=2.125000 $URY=1.155000 $lvl=2
+RfG336 non:56 non:57 16.188236 $li  $L=0.215 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.955000 $LLY=0.560000 $URX=2.125000 $URY=0.775000 $lvl=2
+RfG337 non:58 non:60 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.475000 $LLY=3.015000 $URX=2.645000 $URY=3.745000 $lvl=2
+RfG338 non:60 non:61 19.952942 $li  $L=0.265 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.475000 $LLY=2.750000 $URX=2.645000 $URY=3.015000 $lvl=2
+RfG339 non:61 non:62 35.011765 $li  $L=0.465 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.475000 $LLY=2.285000 $URX=2.645000 $URY=2.750000 $lvl=2
+RfG340 non:63 non:64 109.552940 $li  $L=1.455 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=6.950000 $LLY=1.345000 $URX=8.405000 $URY=1.515000 $lvl=2
+RfG341 non:64 non:65 129.505875 $li  $L=1.72 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=5.230000 $LLY=1.345000 $URX=6.950000 $URY=1.515000 $lvl=2
+RfG342 non:65 non:66 12.423529 $li  $L=0.165 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=5.065000 $LLY=1.345000 $URX=5.230000 $URY=1.515000 $lvl=2
+RgG343 non:33 non 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.370000 $LLY=0.245000 $URX=5.520000 $URY=0.775000 $lvl=3
+RgG344 non non:34 210.553665 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.370000 $LLY=0.775000 $URX=5.520000 $URY=1.430000 $lvl=3
+RgG345 non:34 non:35 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=5.445000 $LLY=1.295000 $URX=5.875000 $URY=1.565000 $lvl=3
+RgG346 non:35 Mmn5@6:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.800000 $LLY=0.775000 $URX=5.950000 $URY=1.430000 $lvl=3
+RgG347 Mmn5@6:g non:36 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=5.800000 $LLY=0.245000 $URX=5.950000 $URY=0.775000 $lvl=3
+RgG348 non:35 non:37 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=5.875000 $LLY=1.295000 $URX=6.305000 $URY=1.565000 $lvl=3
+RgG349 non:37 Mmn5@3:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.230000 $LLY=0.775000 $URX=6.380000 $URY=1.430000 $lvl=3
+RgG350 Mmn5@3:g non:38 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.230000 $LLY=0.245000 $URX=6.380000 $URY=0.775000 $lvl=3
+RgG351 non:37 non:39 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.305000 $LLY=1.295000 $URX=6.735000 $URY=1.565000 $lvl=3
+RgG352 non:39 Mmn5@4:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.660000 $LLY=0.775000 $URX=6.810000 $URY=1.430000 $lvl=3
+RgG353 Mmn5@4:g non:40 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=6.660000 $LLY=0.245000 $URX=6.810000 $URY=0.775000 $lvl=3
+RgG354 non:39 non:41 38.336849 $poly  $L=0.21475 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.735000 $LLY=1.295000 $URX=6.950000 $URY=1.565000 $lvl=3
+RgG355 non:41 non:42 38.426109 $poly  $L=0.21525 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=6.950000 $LLY=1.295000 $URX=7.165000 $URY=1.565000 $lvl=3
+RgG356 non:42 Mmn5@5:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.090000 $LLY=0.775000 $URX=7.240000 $URY=1.430000 $lvl=3
+RgG357 Mmn5@5:g non:43 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.090000 $LLY=0.245000 $URX=7.240000 $URY=0.775000 $lvl=3
+RgG358 non:42 non:44 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=7.165000 $LLY=1.295000 $URX=7.595000 $URY=1.565000 $lvl=3
+RgG359 non:44 Mmn5@2:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.520000 $LLY=0.775000 $URX=7.670000 $URY=1.430000 $lvl=3
+RgG360 Mmn5@2:g non:45 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.520000 $LLY=0.245000 $URX=7.670000 $URY=0.775000 $lvl=3
+RgG361 non:44 non:46 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=7.595000 $LLY=1.295000 $URX=8.025000 $URY=1.565000 $lvl=3
+RgG362 non:46 Mmn5@1:g 191.237961 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.950000 $LLY=0.775000 $URX=8.100000 $URY=1.430000 $lvl=3
+RgG363 Mmn5@1:g non:47 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=7.950000 $LLY=0.245000 $URX=8.100000 $URY=0.775000 $lvl=3
+RgG364 non:46 non:48 76.762962 $poly  $L=0.43 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=0 $LLX=8.025000 $LLY=1.295000 $URX=8.455000 $URY=1.565000 $lvl=3
+RgG365 non:48 Mmn5@7:g 210.553665 $poly  $L=0.65525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=8.380000 $LLY=0.775000 $URX=8.530000 $URY=1.430000 $lvl=3
+RgG366 Mmn5@7:g non:49 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=8.380000 $LLY=0.245000 $URX=8.530000 $URY=0.775000 $lvl=3
+RhG367 Mmn1@1:d non:52 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhG368 Mmn2@1:d non:56 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+Rh_2_G369 Mmp2@1:d non:60 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+RjG370 non:65 non:68 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjG371 non:57 non:71 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjG372 non:53 non:74 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjG373 non:61 non:79 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RiG374 non:41 non:64 2.142857 $licon  $A=0.2023 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.2023 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.202300 $URY=-7.000000 $lvl=7
+RmwG375 Mmp2:d Mmp2@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwG376 Mmn1:d Mmn1@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwG377 Mmn2:d Mmn2@1:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwG378 Mmn5:g non 0.001000 $poly $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET OE 3.61595e-15
+*|P (OE X 0 3.6950 1.9850) // $llx=3.6950 $lly=1.9850 $urx=3.6950 $ury=1.9850 $lvl=1
+*|I (Mmp0:g Mmp0 g X 0 0.4750 3.3550) // $llx=0.4750 $lly=3.3550 $urx=0.4750 $ury=3.3550 $lvl=3
+*|I (Mmp4@1:g Mmp4@1 g X 0 4.5850 3.0150) // $llx=4.5850 $lly=3.0150 $urx=4.5850 $ury=3.0150 $lvl=3
+*|I (Mmp4:g Mmp4 g X 0 5.0150 3.0150) // $llx=5.0150 $lly=3.0150 $urx=5.0150 $ury=3.0150 $lvl=3
+*|I (Mmn4:g Mmn4 g X 0 4.0650 0.7750) // $llx=4.0650 $lly=0.7750 $urx=4.0650 $ury=0.7750 $lvl=3
+*|I (Mmn4@1:g Mmn4@1 g X 0 4.4950 0.7750) // $llx=4.4950 $lly=0.7750 $urx=4.4950 $ury=0.7750 $lvl=3
+*|I (Mmn0:g Mmn0 g X 0 0.4750 0.6075) // $llx=0.4750 $lly=0.6075 $urx=0.4750 $ury=0.6075 $lvl=3
+*|S (OE:22 0.4750 3.8950) // $llx=0.4750 $lly=3.8950 $urx=0.4750 $ury=3.8950 $lvl=3
+*|S (OE:23 0.4750 1.9500) // $llx=0.4750 $lly=1.9500 $urx=0.4750 $ury=1.9500 $lvl=3
+*|S (OE:24 0.4750 1.7850) // $llx=0.4750 $lly=1.7850 $urx=0.4750 $ury=1.7850 $lvl=3
+*|S (OE:25 0.4750 0.2450) // $llx=0.4750 $lly=0.2450 $urx=0.4750 $ury=0.2450 $lvl=3
+*|S (OE:26 5.0150 3.8950) // $llx=5.0150 $lly=3.8950 $urx=5.0150 $ury=3.8950 $lvl=3
+*|S (OE:27 5.0150 1.9500) // $llx=5.0150 $lly=1.9500 $urx=5.0150 $ury=1.9500 $lvl=3
+*|S (OE:28 4.7850 1.9500) // $llx=4.7850 $lly=1.9500 $urx=4.7850 $ury=1.9500 $lvl=3
+*|S (OE:29 4.5400 1.9500) // $llx=4.5400 $lly=1.9500 $urx=4.5400 $ury=1.9500 $lvl=3
+*|S (OE:30 4.5550 1.7845) // $llx=4.5550 $lly=1.7845 $urx=4.5550 $ury=1.7845 $lvl=3
+*|S (OE:31 4.5400 1.3250) // $llx=4.5400 $lly=1.3250 $urx=4.5400 $ury=1.3250 $lvl=3
+*|S (OE:32 4.4500 1.3250) // $llx=4.4500 $lly=1.3250 $urx=4.4500 $ury=1.3250 $lvl=3
+*|S (OE:33 4.0650 1.3250) // $llx=4.0650 $lly=1.3250 $urx=4.0650 $ury=1.3250 $lvl=3
+*|S (OE:34 4.5400 2.1150) // $llx=4.5400 $lly=2.1150 $urx=4.5400 $ury=2.1150 $lvl=3
+*|S (OE:35 4.5850 3.8950) // $llx=4.5850 $lly=3.8950 $urx=4.5850 $ury=3.8950 $lvl=3
+*|S (OE:36 4.6295 1.3250) // $llx=4.6295 $lly=1.3250 $urx=4.6295 $ury=1.3250 $lvl=3
+*|S (OE:37 4.4950 0.2450) // $llx=4.4950 $lly=0.2450 $urx=4.4950 $ury=0.2450 $lvl=3
+*|S (OE:38 4.0650 0.2450) // $llx=4.0650 $lly=0.2450 $urx=4.0650 $ury=0.2450 $lvl=3
+*|S (OE:39 0.3100 1.9500) // $llx=0.3100 $lly=1.9500 $urx=0.3100 $ury=1.9500 $lvl=2
+*|S (OE:40 0.4750 1.9500) // $llx=0.4750 $lly=1.9500 $urx=0.4750 $ury=1.9500 $lvl=2
+*|S (OE:41 0.6600 1.8700) // $llx=0.6600 $lly=1.8700 $urx=0.6600 $ury=1.8700 $lvl=2
+*|S (OE:42 0.7450 1.8700) // $llx=0.7450 $lly=1.8700 $urx=0.7450 $ury=1.8700 $lvl=2
+*|S (OE:43 5.2900 1.9500) // $llx=5.2900 $lly=1.9500 $urx=5.2900 $ury=1.9500 $lvl=2
+*|S (OE:44 4.7850 1.9500) // $llx=4.7850 $lly=1.9500 $urx=4.7850 $ury=1.9500 $lvl=2
+*|S (OE:45 3.6800 1.9500) // $llx=3.6800 $lly=1.9500 $urx=3.6800 $ury=1.9500 $lvl=2
+*|S (OE:46 3.5150 1.9500) // $llx=3.5150 $lly=1.9500 $urx=3.5150 $ury=1.9500 $lvl=2
+*|S (OE:47 3.6800 1.4850) // $llx=3.6800 $lly=1.4850 $urx=3.6800 $ury=1.4850 $lvl=1
+*|S (OE:48 3.6800 1.9500) // $llx=3.6800 $lly=1.9500 $urx=3.6800 $ury=1.9500 $lvl=1
+*|S (OE:49 3.6900 2.7525) // $llx=3.6900 $lly=2.7525 $urx=3.6900 $ury=2.7525 $lvl=1
+*|S (OE:50 3.5000 2.7525) // $llx=3.5000 $lly=2.7525 $urx=3.5000 $ury=2.7525 $lvl=1
+*|S (OE:51 3.5000 3.4900) // $llx=3.5000 $lly=3.4900 $urx=3.5000 $ury=3.4900 $lvl=1
+*|S (OE:52 0.7450 3.4900) // $llx=0.7450 $lly=3.4900 $urx=0.7450 $ury=3.4900 $lvl=1
+*|S (OE:53 0.7450 2.0145) // $llx=0.7450 $lly=2.0145 $urx=0.7450 $ury=2.0145 $lvl=1
+*|S (OE:54 0.7450 1.8700) // $llx=0.7450 $lly=1.8700 $urx=0.7450 $ury=1.8700 $lvl=1
+CB1 Mmn0:g VSS! 2.55698e-18 $lvl=3
+CB2 Mmn4@1:g VSS! 3.4408e-18 $lvl=3
+CB3 Mmn4:g VSS! 3.98509e-18 $lvl=3
+CB4 OE:54 VSS! 1.21679e-17 $lvl=1
+CB5 OE:48 VSS! 1.31527e-17 $lvl=1
+CB6 OE:47 VSS! 1.18508e-17 $lvl=1
+CB7 OE:50 VSS! 1.25112e-17 $lvl=1
+CB8 OE:51 VSS! 8.09353e-18 $lvl=1
+CB9 OE:52 VSS! 1.00999e-17 $lvl=1
+CB10 OE:26 VSS! 2.62214e-18 $lvl=3
+CB11 OE:35 VSS! 2.37154e-18 $lvl=3
+CB12 OE:22 VSS! 2.49975e-18 $lvl=3
+CB13 OE:44 VSS! 1.93872e-17 $lvl=2
+CB14 OE:46 VSS! 1.16174e-17 $lvl=2
+CB15 OE:41 VSS! 7.01218e-18 $lvl=2
+CB16 OE:39 VSS! 6.83584e-18 $lvl=2
+CB17 OE:42 VSS! 5.66999e-18 $lvl=2
+CB18 OE:45 VSS! 6.63418e-18 $lvl=2
+CB19 OE:23 VSS! 1.93235e-17 $lvl=3
+CB20 OE:28 VSS! 2.6274e-17 $lvl=3
+CB21 OE:44 net144:10 5.56246e-18 $lvl1=2 $lvl2=2
+CB22 OE:47 net144:17 4.46795e-18 $lvl1=1 $lvl2=1
+CB23 OE:45 net144:10 3.21952e-18 $lvl1=2 $lvl2=2
+CB24 Mmn4:g net144:10 2.50452e-18 $lvl1=3 $lvl2=2
+CB25 Mmn4@1:g net144:11 2.33219e-18 $lvl1=3 $lvl2=2
+CB26 OE:48 net144:16 1.85175e-18 $lvl1=1 $lvl2=1
+CB27 OE:28 net144:10 1.61973e-18 $lvl1=3 $lvl2=2
+CB28 OE:46 net144:11 1.49672e-18 $lvl1=2 $lvl2=2
+CB29 OE:28 net144:14 1.20308e-18 $lvl1=3 $lvl2=2
+CB30 OE:48 net144:10 1.04956e-18 $lvl1=1 $lvl2=2
+CB31 OE:47 net144:11 9.92519e-19 $lvl1=1 $lvl2=2
+CB32 OE:48 net144:17 9.28823e-19 $lvl1=1 $lvl2=1
+CB33 Mmn4:g net144:11 8.18929e-19 $lvl1=3 $lvl2=2
+CB34 OE:47 net144:9 7.37158e-19 $lvl1=1 $lvl2=2
+CB35 OE:28 Mmn4@1:s 6.32915e-19 $lvl1=3 $lvl2=4
+CB36 OE:47 net144:6 6.24516e-19 $lvl1=1 $lvl2=2
+CB37 Mmn4@1:g net144:6 6.17564e-19 $lvl1=3 $lvl2=2
+CB38 OE:28 net144:11 9.08353e-18 $lvl1=3 $lvl2=2
+CB39 Mmn4:g net144:6 1.29297e-16 $lvl1=3 $lvl2=2
+CB40 OE:46 net144:10 1.18523e-17 $lvl1=2 $lvl2=2
+CB41 OE:44 net144:11 1.44837e-17 $lvl1=2 $lvl2=2
+CB42 OE:47 net144:10 9.11807e-18 $lvl1=1 $lvl2=2
+CB43 OE:47 net144:16 2.45722e-17 $lvl1=1 $lvl2=1
+CB44 Mmn4@1:g net144:14 1.27165e-16 $lvl1=3 $lvl2=2
+CB45 OE:50 pon:64 9.98072e-18 $lvl1=1 $lvl2=1
+CB46 OE:46 pon:46 9.4779e-18 $lvl1=2 $lvl2=2
+CB47 OE:48 pon:64 9.41636e-18 $lvl1=1 $lvl2=1
+CB48 OE:47 pon:64 6.92792e-18 $lvl1=1 $lvl2=1
+CB49 OE:44 pon:55 5.78337e-18 $lvl1=2 $lvl2=2
+CB50 OE:47 pon:66 5.03592e-18 $lvl1=1 $lvl2=1
+CB51 OE:44 pon:30 3.97407e-18 $lvl1=2 $lvl2=3
+CB52 OE:46 pon:42 3.74871e-18 $lvl1=2 $lvl2=2
+CB53 OE:28 pon:30 3.65732e-18 $lvl1=3 $lvl2=3
+CB54 OE:51 pon:42 3.2943e-18 $lvl1=1 $lvl2=2
+CB55 OE:48 pon:42 2.77889e-18 $lvl1=1 $lvl2=2
+CB56 OE:48 pon:46 2.75746e-18 $lvl1=1 $lvl2=2
+CB57 OE:44 pon:46 2.38358e-18 $lvl1=2 $lvl2=2
+CB58 OE:51 pon:64 2.3629e-18 $lvl1=1 $lvl2=1
+CB59 OE:45 pon:46 2.33916e-18 $lvl1=2 $lvl2=2
+CB60 OE:50 pon:43 2.33171e-18 $lvl1=1 $lvl2=2
+CB61 OE:50 pon:46 2.14238e-18 $lvl1=1 $lvl2=2
+CB62 OE:51 pon:43 1.93028e-18 $lvl1=1 $lvl2=2
+CB63 OE:28 pon:64 1.89857e-18 $lvl1=3 $lvl2=1
+CB64 OE:46 pon:64 1.73368e-18 $lvl1=2 $lvl2=1
+CB65 OE:28 Mmp4@1:d 1.6382e-18 $lvl1=3 $lvl2=4
+CB66 OE:28 pon 1.48923e-18 $lvl1=3 $lvl2=3
+CB67 OE:48 pon:62 1.48009e-18 $lvl1=1 $lvl2=1
+CB68 OE:44 pon:42 1.35258e-18 $lvl1=2 $lvl2=2
+CB69 OE:48 pon:66 1.183e-18 $lvl1=1 $lvl2=1
+CB70 OE:28 pon:55 9.61295e-19 $lvl1=3 $lvl2=2
+CB71 OE:28 pon:57 9.2468e-19 $lvl1=3 $lvl2=2
+CB72 OE:26 pon:52 2.53434e-16 $lvl1=3 $lvl2=2
+CB73 OE:44 pon:57 1.18492e-17 $lvl1=2 $lvl2=2
+CB74 OE:50 pon:42 1.26149e-17 $lvl1=1 $lvl2=2
+CB75 OE:50 pon:62 2.58655e-17 $lvl1=1 $lvl2=1
+CB76 OE:44 pon:64 2.74407e-17 $lvl1=2 $lvl2=1
+CB77 OE:28 pon:52 1.42857e-17 $lvl1=3 $lvl2=2
+CB78 Mmn4@1:g pon:47 1.2913e-16 $lvl1=3 $lvl2=2
+CB79 Mmn4:g pon:47 1.24943e-16 $lvl1=3 $lvl2=2
+CB80 OE:35 pon:52 2.56241e-16 $lvl1=3 $lvl2=2
+CB81 OE:44 pon:52 1.60081e-17 $lvl1=2 $lvl2=2
+CB82 OE:51 pon:62 2.44937e-17 $lvl1=1 $lvl2=1
+CB83 OE:52 net127:6 7.98543e-18 $lvl1=1 $lvl2=2
+CB84 OE:51 net127:6 7.72727e-18 $lvl1=1 $lvl2=2
+CB85 OE:54 net127:20 6.37077e-18 $lvl1=1 $lvl2=1
+CB86 OE:51 net127:12 5.24606e-18 $lvl1=1 $lvl2=2
+CB87 OE:52 net127:2 5.21656e-18 $lvl1=1 $lvl2=2
+CB88 OE:54 net127 3.84672e-18 $lvl1=1 $lvl2=2
+CB89 OE:54 net127:5 3.06926e-18 $lvl1=1 $lvl2=2
+CB90 OE:50 net127:11 2.94405e-18 $lvl1=1 $lvl2=2
+CB91 OE:50 net127:12 2.34171e-18 $lvl1=1 $lvl2=2
+CB92 OE:41 net127:5 2.32989e-18 $lvl1=2 $lvl2=2
+CB93 OE:52 net127:7 1.57417e-18 $lvl1=1 $lvl2=2
+CB94 OE:41 net127 1.50565e-18 $lvl1=2 $lvl2=2
+CB95 OE:51 net127:7 1.46236e-18 $lvl1=1 $lvl2=2
+CB96 OE:46 net127:11 1.07936e-18 $lvl1=2 $lvl2=2
+CB97 OE:51 net127:11 1.65695e-17 $lvl1=1 $lvl2=2
+CB98 OE:50 net127:17 1.30345e-17 $lvl1=1 $lvl2=1
+CB99 OE:51 net127:19 4.30378e-17 $lvl1=1 $lvl2=1
+CB100 OE:51 net127:17 6.6756e-17 $lvl1=1 $lvl2=1
+CB101 OE:52 net127:20 9.201e-17 $lvl1=1 $lvl2=1
+CB102 OE:52 net127:19 4.55699e-17 $lvl1=1 $lvl2=1
+CB103 OE:52 net127 1.62969e-17 $lvl1=1 $lvl2=2
+CB104 OE:44 non:66 7.15258e-18 $lvl1=2 $lvl2=2
+CB105 OE:28 non:66 4.49872e-18 $lvl1=3 $lvl2=2
+CB106 OE:51 non:77 3.04378e-18 $lvl1=1 $lvl2=1
+CB107 OE:44 non:65 2.52555e-18 $lvl1=2 $lvl2=2
+CB108 OE:47 non:77 2.47883e-18 $lvl1=1 $lvl2=1
+CB109 OE:44 non:67 2.30024e-18 $lvl1=2 $lvl2=1
+CB110 OE:50 non:76 2.00272e-18 $lvl1=1 $lvl2=1
+CB111 OE:51 non:78 1.72787e-18 $lvl1=1 $lvl2=1
+CB112 OE:28 non:41 1.5524e-18 $lvl1=3 $lvl2=3
+CB113 OE:46 non:76 1.49614e-18 $lvl1=2 $lvl2=1
+CB114 OE:44 non:64 1.19962e-18 $lvl1=2 $lvl2=2
+CB115 OE:44 non:41 1.16257e-18 $lvl1=2 $lvl2=3
+CB116 OE:45 non:76 1.15743e-18 $lvl1=2 $lvl2=1
+CB117 OE:47 non:70 8.5854e-19 $lvl1=1 $lvl2=1
+CB118 OE:47 non:69 8.51986e-19 $lvl1=1 $lvl2=1
+CB119 OE:48 non:77 1.29131e-17 $lvl1=1 $lvl2=1
+CB120 OE:47 non:76 1.68702e-17 $lvl1=1 $lvl2=1
+CB121 OE:50 non:77 2.48683e-17 $lvl1=1 $lvl2=1
+CB122 OE:51 non:58 1.50698e-17 $lvl1=1 $lvl2=2
+CB123 OE:48 non:76 1.12194e-17 $lvl1=1 $lvl2=1
+CB124 OE:52 OEb:50 5.09356e-18 $lvl1=1 $lvl2=1
+CB125 OE:39 OEb:48 4.9435e-18 $lvl1=2 $lvl2=1
+CB126 OE:23 OEb:44 3.33574e-18 $lvl1=3 $lvl2=1
+CB127 OE:52 OEb:28 3.08704e-18 $lvl1=1 $lvl2=2
+CB128 OE:23 OEb:48 2.35253e-18 $lvl1=3 $lvl2=1
+CB129 OE:41 OEb:44 2.28442e-18 $lvl1=2 $lvl2=1
+CB130 OE:42 OEb:44 1.98934e-18 $lvl1=2 $lvl2=1
+CB131 OE:52 OEb:32 1.60403e-18 $lvl1=1 $lvl2=2
+CB132 OE:52 OEb:31 1.43424e-18 $lvl1=1 $lvl2=2
+CB133 OE:42 OEb:50 1.4121e-18 $lvl1=2 $lvl2=1
+CB134 OE:52 OEb:44 1.38598e-18 $lvl1=1 $lvl2=1
+CB135 OE:52 OEb:51 1.231e-18 $lvl1=1 $lvl2=1
+CB136 OE:22 OEb:32 1.22107e-18 $lvl1=3 $lvl2=2
+CB137 OE:41 OEb:50 1.19562e-18 $lvl1=2 $lvl2=1
+CB138 OE:46 OEb:17 9.94409e-19 $lvl1=2 $lvl2=3
+CB139 OE:46 OEb:38 9.94268e-19 $lvl1=2 $lvl2=2
+CB140 Mmn0:g OEb:37 9.39693e-19 $lvl1=3 $lvl2=2
+CB141 OE:51 OEb:51 8.03189e-19 $lvl1=1 $lvl2=1
+CB142 OE:41 OEb:48 7.7044e-19 $lvl1=2 $lvl2=1
+CB143 OE:23 OEb:33 7.63743e-19 $lvl1=3 $lvl2=2
+CB144 OE:54 OEb:32 7.27488e-19 $lvl1=1 $lvl2=2
+CB145 OE:51 OEb:50 7.14066e-19 $lvl1=1 $lvl2=1
+CB146 OE:42 OEb:49 6.95619e-19 $lvl1=2 $lvl2=1
+CB147 OE:41 OEb:49 6.2071e-19 $lvl1=2 $lvl2=1
+CB148 OE:23 OEb:28 6.07789e-19 $lvl1=3 $lvl2=2
+CB149 OE:54 OEb:43 5.9575e-19 $lvl1=1 $lvl2=1
+CB150 OE:54 OEb:28 5.70674e-19 $lvl1=1 $lvl2=2
+CB151 OE:54 OEb:51 5.6878e-19 $lvl1=1 $lvl2=1
+CB152 Mmn0:g OEb:33 6.78932e-17 $lvl1=3 $lvl2=2
+CB153 OE:54 OEb:49 1.18166e-17 $lvl1=1 $lvl2=1
+CB154 OE:54 OEb:44 3.95254e-17 $lvl1=1 $lvl2=1
+CB155 OE:54 OEb:50 2.6574e-17 $lvl1=1 $lvl2=1
+CB156 OE:52 OEb:48 4.98506e-17 $lvl1=1 $lvl2=1
+CB157 OE:22 OEb:28 1.30505e-16 $lvl1=3 $lvl2=2
+CB158 OE:39 OEb:44 1.10388e-17 $lvl1=2 $lvl2=1
+CB159 OE:54 OEb:48 3.81145e-17 $lvl1=1 $lvl2=1
+CB160 Mmn4:g VSS!:14 9.59196e-18 $lvl1=3 $lvl2=2
+CB161 Mmn4@1:g VSS!:14 9.40241e-18 $lvl1=3 $lvl2=2
+CB162 Mmn0:g VSS!:17 6.39716e-18 $lvl1=3 $lvl2=2
+CB163 OE:23 VSS!:43 1.928e-18 $lvl1=3 $lvl2=2
+CB164 OE:41 VSS!:43 1.51158e-18 $lvl1=2 $lvl2=2
+CB165 OE:47 VSS!:46 1.32693e-18 $lvl1=1 $lvl2=1
+CB166 OE:54 VSS!:46 1.31991e-18 $lvl1=1 $lvl2=1
+CB167 Mmn0:g VSS!:43 4.04069e-17 $lvl1=3 $lvl2=2
+CB168 OE:54 VDD! 9.96813e-18 $lvl1=1 $lvl2=1
+CB169 OE:22 VDD!:4 8.98071e-18 $lvl1=3 $lvl2=2
+CB170 OE:51 VDD! 8.77704e-18 $lvl1=1 $lvl2=1
+CB171 OE:35 VDD!:10 8.11802e-18 $lvl1=3 $lvl2=2
+CB172 OE:28 VDD!:20 6.72103e-18 $lvl1=3 $lvl2=2
+CB173 OE:26 VDD!:21 6.6742e-18 $lvl1=3 $lvl2=2
+CB174 OE:48 VDD!:13 5.89059e-18 $lvl1=1 $lvl2=2
+CB175 OE:28 VDD!:24 5.76416e-18 $lvl1=3 $lvl2=2
+CB176 OE:45 VDD!:13 5.00382e-18 $lvl1=2 $lvl2=2
+CB177 OE:28 VDD! 4.90262e-18 $lvl1=3 $lvl2=1
+CB178 OE:39 VDD! 4.86072e-18 $lvl1=2 $lvl2=1
+CB179 OE:52 VDD!:6 4.68537e-18 $lvl1=1 $lvl2=2
+CB180 OE:39 VDD!:3 4.54911e-18 $lvl1=2 $lvl2=2
+CB181 OE:51 VDD!:10 4.38143e-18 $lvl1=1 $lvl2=2
+CB182 OE:50 VDD! 4.34411e-18 $lvl1=1 $lvl2=1
+CB183 OE:46 VDD!:20 4.30675e-18 $lvl1=2 $lvl2=2
+CB184 OE:52 VDD!:14 4.12322e-18 $lvl1=1 $lvl2=2
+CB185 OE:50 VDD!:46 4.11695e-18 $lvl1=1 $lvl2=1
+CB186 OE:51 VDD!:14 3.76754e-18 $lvl1=1 $lvl2=2
+CB187 OE:50 VDD!:20 3.42927e-18 $lvl1=1 $lvl2=2
+CB188 OE:52 VDD!:47 3.30534e-18 $lvl1=1 $lvl2=1
+CB189 OE:48 VDD! 3.17897e-18 $lvl1=1 $lvl2=1
+CB190 OE:52 VDD!:4 2.84225e-18 $lvl1=1 $lvl2=2
+CB191 OE:47 VDD! 2.82345e-18 $lvl1=1 $lvl2=1
+CB192 OE:23 Mmp1@1:s 2.32445e-18 $lvl1=3 $lvl2=4
+CB193 OE:48 VDD!:20 2.08232e-18 $lvl1=1 $lvl2=2
+CB194 OE:54 VDD!:46 1.63524e-18 $lvl1=1 $lvl2=1
+CB195 OE:42 VDD!:3 1.48432e-18 $lvl1=2 $lvl2=2
+CB196 OE:26 VDD!:10 1.45875e-18 $lvl1=3 $lvl2=2
+CB197 OE:51 VDD!:6 1.41356e-18 $lvl1=1 $lvl2=2
+CB198 OE:28 Mmp4@1:s 1.37093e-18 $lvl1=3 $lvl2=4
+CB199 OE:46 VDD! 1.3289e-18 $lvl1=2 $lvl2=1
+CB200 OE:41 VDD! 1.1069e-18 $lvl1=2 $lvl2=1
+CB201 OE:35 VDD!:21 1.06382e-18 $lvl1=3 $lvl2=2
+CB202 OE:51 VDD!:46 8.28627e-17 $lvl1=1 $lvl2=1
+CB203 OE:52 VDD! 1.17689e-17 $lvl1=1 $lvl2=1
+CB204 OE:23 VDD! 1.25221e-17 $lvl1=3 $lvl2=1
+CB205 OE:35 VDD!:20 2.60626e-16 $lvl1=3 $lvl2=2
+CB206 OE:50 VDD!:13 2.41401e-17 $lvl1=1 $lvl2=2
+CB207 OE:44 VDD!:24 1.05303e-17 $lvl1=2 $lvl2=2
+CB208 OE:46 VDD!:13 1.02836e-17 $lvl1=2 $lvl2=2
+CB209 OE:52 VDD!:9 1.62365e-17 $lvl1=1 $lvl2=2
+CB210 OE:26 VDD!:24 2.49482e-16 $lvl1=3 $lvl2=2
+CB211 OE:41 VDD!:3 1.03623e-17 $lvl1=2 $lvl2=2
+CB212 OE:51 VDD!:13 1.81742e-17 $lvl1=1 $lvl2=2
+CB213 OE:22 VDD!:3 6.99349e-17 $lvl1=3 $lvl2=2
+CB214 OE:44 VDD!:20 1.3824e-17 $lvl1=2 $lvl2=2
+CB215 OE:52 VDD!:3 3.04522e-17 $lvl1=1 $lvl2=2
+CB216 OE:23 VDD!:3 1.07876e-17 $lvl1=3 $lvl2=2
+CB217 OE:54 VDD!:3 1.75789e-17 $lvl1=1 $lvl2=2
+CB218 OE:52 VDD!:46 8.24818e-17 $lvl1=1 $lvl2=1
+ReB36 OE:47 OE:48 0.223558 $metal1  $L=0.465 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=3.550000 $LLY=1.485000 $URX=3.810000 $URY=1.950000 $lvl=1
+ReB37 OE:48 OE 0.016827 $metal1  $L=0.035 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=3.550000 $LLY=1.950000 $URX=3.810000 $URY=1.985000 $lvl=1
+ReB38 OE OE:49 0.370059 $metal1  $L=0.76775 $W=0.260000 $SI_W=0.26 $TYPE=10 $DIR=1 $LLX=3.550000 $LLY=1.984500 $URX=3.810000 $URY=2.752500 $lvl=1
+ReB39 OE:49 OE:50 0.128378 $metal1  $L=0.19 $W=0.185000 $SI_W=0.185 $TYPE=10 $DIR=0 $LLX=3.500000 $LLY=2.660000 $URX=3.690000 $URY=2.845000 $lvl=1
+ReB40 OE:50 OE:51 0.658482 $metal1  $L=0.7375 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=1 $LLX=3.430000 $LLY=2.752500 $URX=3.570000 $URY=3.490500 $lvl=1
+ReB41 OE:51 OE:52 2.459821 $metal1  $L=2.755 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=0 $LLX=0.745000 $LLY=3.420000 $URX=3.500000 $URY=3.560000 $lvl=1
+ReB42 OE:52 OE:53 1.317323 $metal1  $L=1.47525 $W=0.140000 $SI_W=0.14 $TYPE=10 $DIR=1 $LLX=0.675000 $LLY=2.015000 $URX=0.815000 $URY=3.490000 $lvl=1
+ReB43 OE:53 OE:54 0.088170 $metal1  $L=0.1445 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=1 $LLX=0.630000 $LLY=1.870000 $URX=0.860000 $URY=2.014500 $lvl=1
+RfB44 OE:39 OE:40 12.423529 $li  $L=0.165 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=0.310000 $LLY=1.865000 $URX=0.475000 $URY=2.035000 $lvl=2
+RfB45 OE:40 OE:41 13.939109 $li  $L=0.185 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=0.475000 $LLY=1.865000 $URX=0.660000 $URY=2.035000 $lvl=2
+RfB46 OE:41 OE:42 4.832111 $li  $L=0.0845 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=0.660500 $LLY=1.705000 $URX=0.745000 $URY=2.035000 $lvl=2
+RfB47 OE:43 OE:44 38.023529 $li  $L=0.505 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=4.785000 $LLY=1.865000 $URX=5.290000 $URY=2.035000 $lvl=2
+RfB48 OE:44 OE:45 83.199997 $li  $L=1.105 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=3.680000 $LLY=1.865000 $URX=4.785000 $URY=2.035000 $lvl=2
+RfB49 OE:45 OE:46 12.423529 $li  $L=0.165 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=3.515000 $LLY=1.865000 $URX=3.680000 $URY=2.035000 $lvl=2
+RgB50 OE:22 Mmp0:g 173.519989 $poly  $L=0.54 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.400000 $LLY=3.355000 $URX=0.550000 $URY=3.895000 $lvl=3
+RgB51 Mmp0:g OE:23 432.632416 $poly  $L=1.405 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.400000 $LLY=1.950000 $URX=0.550000 $URY=3.355000 $lvl=3
+RgB52 OE:23 OE:24 34.134449 $poly  $L=0.1645 $W=0.270000 $SI_W=0.27 $TYPE=10 $DIR=1 $LLX=0.340000 $LLY=1.785500 $URX=0.610000 $URY=1.950000 $lvl=3
+RgB53 OE:24 Mmn0:g 378.414642 $poly  $L=1.1775 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.400000 $LLY=0.607500 $URX=0.550000 $URY=1.785000 $lvl=3
+RgB54 Mmn0:g OE:25 116.483322 $poly  $L=0.3625 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=0.400000 $LLY=0.245000 $URX=0.550000 $URY=0.607500 $lvl=3
+RgB55 OE:26 Mmp4:g 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.940000 $LLY=3.015000 $URX=5.090000 $URY=3.895000 $lvl=3
+RgB56 Mmp4:g OE:27 342.139679 $poly  $L=1.06475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.940000 $LLY=1.950000 $URX=5.090000 $URY=3.015000 $lvl=3
+RgB57 OE:27 OE:28 33.630455 $poly  $L=0.23025 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=4.785000 $LLY=1.785000 $URX=5.015000 $URY=2.115000 $lvl=3
+RgB58 OE:28 OE:29 35.748333 $poly  $L=0.24475 $W=0.330000 $SI_W=0.33 $TYPE=10 $DIR=0 $LLX=4.540000 $LLY=1.785000 $URX=4.785000 $URY=2.115000 $lvl=3
+RgB59 OE:29 OE:30 60.832844 $poly  $L=0.16525 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.450000 $LLY=1.785000 $URX=4.600000 $URY=1.950000 $lvl=3
+RgB60 OE:30 OE:31 164.268341 $poly  $L=0.45925 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.480000 $LLY=1.325500 $URX=4.630000 $URY=1.784500 $lvl=3
+RgB61 OE:31 OE:32 28.920000 $poly  $L=0.09 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=4.450000 $LLY=1.250000 $URX=4.540000 $URY=1.400000 $lvl=3
+RgB62 OE:32 OE:33 123.713333 $poly  $L=0.385 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=4.065000 $LLY=1.250000 $URX=4.450000 $URY=1.400000 $lvl=3
+RgB63 OE:33 Mmn4:g 176.813660 $poly  $L=0.55025 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.990000 $LLY=0.775000 $URX=4.140000 $URY=1.325000 $lvl=3
+RgB64 OE:29 OE:34 62.123707 $poly  $L=0.16475 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.450000 $LLY=1.950000 $URX=4.600000 $URY=2.115000 $lvl=3
+RgB65 OE:34 Mmp4@1:g 307.046661 $poly  $L=0.8995 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.510000 $LLY=2.115500 $URX=4.660000 $URY=3.015000 $lvl=3
+RgB66 Mmp4@1:g OE:35 282.773346 $poly  $L=0.88 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.510000 $LLY=3.015000 $URX=4.660000 $URY=3.895000 $lvl=3
+RgB67 OE:31 OE:36 28.679001 $poly  $L=0.08925 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=0 $LLX=4.540000 $LLY=1.250000 $URX=4.629000 $URY=1.400000 $lvl=3
+RgB68 OE:32 Mmn4@1:g 194.740646 $poly  $L=0.55025 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.420000 $LLY=0.775000 $URX=4.570000 $URY=1.325000 $lvl=3
+RgB69 Mmn4@1:g OE:37 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=4.420000 $LLY=0.245000 $URX=4.570000 $URY=0.775000 $lvl=3
+RgB70 Mmn4:g OE:38 170.306671 $poly  $L=0.53 $W=0.150000 $SI_W=0.15 $TYPE=10 $DIR=1 $LLX=3.990000 $LLY=0.245000 $URX=4.140000 $URY=0.775000 $lvl=3
+RjB71 OE:45 OE:48 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjB72 OE:42 OE:54 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RiB73 OE:23 OE:40 15.000000 $licon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=7
+RiB74 OE:28 OE:44 7.500000 $licon  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=7
+*
+*|NET VDD! 8.38537e-15
+*|P (VDD! X 0 4.8250 4.1450) // $llx=4.8250 $lly=4.1450 $urx=4.8250 $ury=4.1450 $lvl=1
+*|I (Mmp1@1:s Mmp1@1 s X 0 0.8895 3.0150) // $llx=0.8895 $lly=3.0150 $urx=0.8895 $ury=3.0150 $lvl=4
+*|I (Mmp1@1:b Mmp1@1 b X 0 0.9650 3.0150) // $llx=0.9650 $lly=3.0150 $urx=0.9650 $ury=3.0150 $lvl=8
+*|I (Mmp1:s Mmp1 s X 0 1.4705 3.0150) // $llx=1.4705 $lly=3.0150 $urx=1.4705 $ury=3.0150 $lvl=4
+*|I (Mmp1:b Mmp1 b X 0 1.3950 3.0150) // $llx=1.3950 $lly=3.0150 $urx=1.3950 $ury=3.0150 $lvl=8
+*|I (Mmp2@1:b Mmp2@1 b X 0 2.3450 3.0150) // $llx=2.3450 $lly=3.0150 $urx=2.3450 $ury=3.0150 $lvl=8
+*|I (Mmp2:b Mmp2 b X 0 2.7750 3.0150) // $llx=2.7750 $lly=3.0150 $urx=2.7750 $ury=3.0150 $lvl=8
+*|I (Mmp5@2:s Mmp5@2 s X 0 5.3695 3.0150) // $llx=5.3695 $lly=3.0150 $urx=5.3695 $ury=3.0150 $lvl=4
+*|I (Mmp5@2:b Mmp5@2 b X 0 5.4450 3.0150) // $llx=5.4450 $lly=3.0150 $urx=5.4450 $ury=3.0150 $lvl=8
+*|I (Mmp5@5:s Mmp5@5 s X 0 5.9505 3.0150) // $llx=5.9505 $lly=3.0150 $urx=5.9505 $ury=3.0150 $lvl=4
+*|I (Mmp5@5:b Mmp5@5 b X 0 5.8750 3.0150) // $llx=5.8750 $lly=3.0150 $urx=5.8750 $ury=3.0150 $lvl=8
+*|I (Mmp5@1:s Mmp5@1 s X 0 6.2295 3.0150) // $llx=6.2295 $lly=3.0150 $urx=6.2295 $ury=3.0150 $lvl=4
+*|I (Mmp5@1:b Mmp5@1 b X 0 6.3050 3.0150) // $llx=6.3050 $lly=3.0150 $urx=6.3050 $ury=3.0150 $lvl=8
+*|I (Mmp5@3:s Mmp5@3 s X 0 6.8105 3.0150) // $llx=6.8105 $lly=3.0150 $urx=6.8105 $ury=3.0150 $lvl=4
+*|I (Mmp5@3:b Mmp5@3 b X 0 6.7350 3.0150) // $llx=6.7350 $lly=3.0150 $urx=6.7350 $ury=3.0150 $lvl=8
+*|I (Mmp5@4:s Mmp5@4 s X 0 7.0895 3.0150) // $llx=7.0895 $lly=3.0150 $urx=7.0895 $ury=3.0150 $lvl=4
+*|I (Mmp5@4:b Mmp5@4 b X 0 7.1650 3.0150) // $llx=7.1650 $lly=3.0150 $urx=7.1650 $ury=3.0150 $lvl=8
+*|I (Mmp5@6:s Mmp5@6 s X 0 7.6705 3.0150) // $llx=7.6705 $lly=3.0150 $urx=7.6705 $ury=3.0150 $lvl=4
+*|I (Mmp5@6:b Mmp5@6 b X 0 7.5950 3.0150) // $llx=7.5950 $lly=3.0150 $urx=7.5950 $ury=3.0150 $lvl=8
+*|I (Mmp5:s Mmp5 s X 0 7.9495 3.0150) // $llx=7.9495 $lly=3.0150 $urx=7.9495 $ury=3.0150 $lvl=4
+*|I (Mmp5:b Mmp5 b X 0 8.0250 3.0150) // $llx=8.0250 $lly=3.0150 $urx=8.0250 $ury=3.0150 $lvl=8
+*|I (Mmp5@7:s Mmp5@7 s X 0 8.5305 3.0150) // $llx=8.5305 $lly=3.0150 $urx=8.5305 $ury=3.0150 $lvl=4
+*|I (Mmp5@7:b Mmp5@7 b X 0 8.4550 3.0150) // $llx=8.4550 $lly=3.0150 $urx=8.4550 $ury=3.0150 $lvl=8
+*|I (Mmp0:s Mmp0 s X 0 0.5505 3.3550) // $llx=0.5505 $lly=3.3550 $urx=0.5505 $ury=3.3550 $lvl=4
+*|I (Mmp0:b Mmp0 b X 0 0.4750 3.3550) // $llx=0.4750 $lly=3.3550 $urx=0.4750 $ury=3.3550 $lvl=8
+*|I (Mmp4@1:s Mmp4@1 s X 0 4.5095 3.0150) // $llx=4.5095 $lly=3.0150 $urx=4.5095 $ury=3.0150 $lvl=4
+*|I (Mmp4@1:b Mmp4@1 b X 0 4.5850 3.0150) // $llx=4.5850 $lly=3.0150 $urx=4.5850 $ury=3.0150 $lvl=8
+*|I (Mmp4:s Mmp4 s X 0 5.0905 3.0150) // $llx=5.0905 $lly=3.0150 $urx=5.0905 $ury=3.0150 $lvl=4
+*|I (Mmp4:b Mmp4 b X 0 5.0150 3.0150) // $llx=5.0150 $lly=3.0150 $urx=5.0150 $ury=3.0150 $lvl=8
+*|I (Mmp3@1:s Mmp3@1 s X 0 3.6495 3.0150) // $llx=3.6495 $lly=3.0150 $urx=3.6495 $ury=3.0150 $lvl=4
+*|I (Mmp3@1:b Mmp3@1 b X 0 3.7250 3.0150) // $llx=3.7250 $lly=3.0150 $urx=3.7250 $ury=3.0150 $lvl=8
+*|I (Mmp3:s Mmp3 s X 0 4.2305 3.0150) // $llx=4.2305 $lly=3.0150 $urx=4.2305 $ury=3.0150 $lvl=4
+*|I (Mmp3:b Mmp3 b X 0 4.1550 3.0150) // $llx=4.1550 $lly=3.0150 $urx=4.1550 $ury=3.0150 $lvl=8
+*|S (VDD!:1 0.7500 2.2850) // $llx=0.7500 $lly=2.2850 $urx=0.7500 $ury=2.2850 $lvl=2
+*|S (VDD!:3 0.7500 3.0150) // $llx=0.7500 $lly=3.0150 $urx=0.7500 $ury=3.0150 $lvl=2
+*|S (VDD!:4 0.7500 4.1400) // $llx=0.7500 $lly=4.1400 $urx=0.7500 $ury=4.1400 $lvl=2
+*|S (VDD!:5 0.0000 4.1400) // $llx=0.0000 $lly=4.1400 $urx=0.0000 $ury=4.1400 $lvl=2
+*|S (VDD!:6 1.6100 4.1400) // $llx=1.6100 $lly=4.1400 $urx=1.6100 $ury=4.1400 $lvl=2
+*|S (VDD!:8 1.6100 3.0150) // $llx=1.6100 $lly=3.0150 $urx=1.6100 $ury=3.0150 $lvl=2
+*|S (VDD!:9 1.6100 2.2850) // $llx=1.6100 $lly=2.2850 $urx=1.6100 $ury=2.2850 $lvl=2
+*|S (VDD!:10 3.5100 4.1400) // $llx=3.5100 $lly=4.1400 $urx=3.5100 $ury=4.1400 $lvl=2
+*|S (VDD!:12 3.5100 3.0150) // $llx=3.5100 $lly=3.0150 $urx=3.5100 $ury=3.0150 $lvl=2
+*|S (VDD!:13 3.5100 2.2850) // $llx=3.5100 $lly=2.2850 $urx=3.5100 $ury=2.2850 $lvl=2
+*|S (VDD!:14 3.6800 4.1400) // $llx=3.6800 $lly=4.1400 $urx=3.6800 $ury=4.1400 $lvl=2
+*|S (VDD!:15 3.6800 4.1400) // $llx=3.6800 $lly=4.1400 $urx=3.6800 $ury=4.1400 $lvl=4
+*|S (VDD!:17 4.3700 4.1400) // $llx=4.3700 $lly=4.1400 $urx=4.3700 $ury=4.1400 $lvl=2
+*|S (VDD!:19 4.3700 3.0150) // $llx=4.3700 $lly=3.0150 $urx=4.3700 $ury=3.0150 $lvl=2
+*|S (VDD!:20 4.3700 2.2850) // $llx=4.3700 $lly=2.2850 $urx=4.3700 $ury=2.2850 $lvl=2
+*|S (VDD!:21 5.2300 4.1400) // $llx=5.2300 $lly=4.1400 $urx=5.2300 $ury=4.1400 $lvl=2
+*|S (VDD!:23 5.2300 3.0150) // $llx=5.2300 $lly=3.0150 $urx=5.2300 $ury=3.0150 $lvl=2
+*|S (VDD!:24 5.2300 2.2850) // $llx=5.2300 $lly=2.2850 $urx=5.2300 $ury=2.2850 $lvl=2
+*|S (VDD!:25 6.0900 4.1400) // $llx=6.0900 $lly=4.1400 $urx=6.0900 $ury=4.1400 $lvl=2
+*|S (VDD!:27 6.0900 3.0150) // $llx=6.0900 $lly=3.0150 $urx=6.0900 $ury=3.0150 $lvl=2
+*|S (VDD!:28 6.0900 2.2850) // $llx=6.0900 $lly=2.2850 $urx=6.0900 $ury=2.2850 $lvl=2
+*|S (VDD!:29 6.9500 4.1400) // $llx=6.9500 $lly=4.1400 $urx=6.9500 $ury=4.1400 $lvl=2
+*|S (VDD!:31 6.9500 3.0150) // $llx=6.9500 $lly=3.0150 $urx=6.9500 $ury=3.0150 $lvl=2
+*|S (VDD!:32 6.9500 2.2850) // $llx=6.9500 $lly=2.2850 $urx=6.9500 $ury=2.2850 $lvl=2
+*|S (VDD!:33 7.8100 4.1400) // $llx=7.8100 $lly=4.1400 $urx=7.8100 $ury=4.1400 $lvl=2
+*|S (VDD!:35 7.8100 3.0150) // $llx=7.8100 $lly=3.0150 $urx=7.8100 $ury=3.0150 $lvl=2
+*|S (VDD!:36 7.8100 2.2850) // $llx=7.8100 $lly=2.2850 $urx=7.8100 $ury=2.2850 $lvl=2
+*|S (VDD!:37 8.0500 4.1400) // $llx=8.0500 $lly=4.1400 $urx=8.0500 $ury=4.1400 $lvl=2
+*|S (VDD!:39 8.6700 4.1400) // $llx=8.6700 $lly=4.1400 $urx=8.6700 $ury=4.1400 $lvl=2
+*|S (VDD!:41 8.6700 3.0150) // $llx=8.6700 $lly=3.0150 $urx=8.6700 $ury=3.0150 $lvl=2
+*|S (VDD!:42 8.6700 2.2850) // $llx=8.6700 $lly=2.2850 $urx=8.6700 $ury=2.2850 $lvl=2
+*|S (VDD!:43 9.1995 4.1400) // $llx=9.1995 $lly=4.1400 $urx=9.1995 $ury=4.1400 $lvl=2
+*|S (VDD!:44 9.2000 4.1400) // $llx=9.2000 $lly=4.1400 $urx=9.2000 $ury=4.1400 $lvl=1
+*|S (VDD!:45 8.0500 4.1400) // $llx=8.0500 $lly=4.1400 $urx=8.0500 $ury=4.1400 $lvl=1
+*|S (VDD!:46 3.6800 4.1400) // $llx=3.6800 $lly=4.1400 $urx=3.6800 $ury=4.1400 $lvl=1
+*|S (VDD!:47 0.0000 4.1400) // $llx=0.0000 $lly=4.1400 $urx=0.0000 $ury=4.1400 $lvl=1
+CD1 Mmp3@1:s VSS! 2.42256e-18 $lvl=4
+CD2 Mmp4@1:s VSS! 1.2395e-18 $lvl=4
+CD3 Mmp5@7:s VSS! 2.70289e-18 $lvl=4
+CD4 Mmp5@6:s VSS! 7.57901e-19 $lvl=4
+CD5 Mmp5@3:s VSS! 1.31712e-18 $lvl=4
+CD6 Mmp5@5:s VSS! 7.32133e-19 $lvl=4
+CD7 Mmp5@2:s VSS! 3.13434e-18 $lvl=4
+CD8 Mmp1:s VSS! 2.50557e-18 $lvl=4
+CD9 Mmp1@1:s VSS! 1.97371e-18 $lvl=4
+CD10 VDD!:46 VSS! 3.03783e-17 $lvl=1
+CD11 VDD!:45 VSS! 1.19869e-17 $lvl=1
+CD12 VDD!:44 VSS! 5.68846e-18 $lvl=1
+CD13 VDD!:47 VSS! 8.89603e-18 $lvl=1
+CD14 VDD!:27 VSS! 4.1189e-18 $lvl=2
+CD15 VDD!:3 VSS! 8.47345e-18 $lvl=2
+CD16 VDD!:9 VSS! 1.4983e-17 $lvl=2
+CD17 VDD!:13 VSS! 9.69403e-18 $lvl=2
+CD18 VDD!:20 VSS! 7.54685e-18 $lvl=2
+CD19 VDD!:24 VSS! 3.60994e-18 $lvl=2
+CD20 VDD!:32 VSS! 6.04085e-18 $lvl=2
+CD21 VDD!:36 VSS! 3.39244e-18 $lvl=2
+CD22 VDD!:42 VSS! 1.24566e-17 $lvl=2
+CD23 VDD!:43 VSS! 3.04347e-18 $lvl=2
+CD24 VDD!:33 VSS! 4.90233e-18 $lvl=2
+CD25 VDD!:29 VSS! 4.76692e-18 $lvl=2
+CD26 VDD!:25 VSS! 3.77802e-18 $lvl=2
+CD27 VDD!:21 VSS! 3.75297e-18 $lvl=2
+CD28 VDD!:10 VSS! 8.37727e-18 $lvl=2
+CD29 VDD!:6 VSS! 5.8969e-18 $lvl=2
+CD30 VDD!:4 VSS! 2.72057e-18 $lvl=2
+CD31 VDD!:5 VSS! 3.37029e-18 $lvl=2
+CD32 VDD!:15 VSS! 7.29607e-18 $lvl=4
+CD33 VDD!:14 VSS! 8.41218e-18 $lvl=2
+CD34 VDD!:37 VSS! 2.47554e-18 $lvl=2
+CD35 VDD! VSS! 2.7155e-17 $lvl=1
+CD36 VDD! net144:17 3.19957e-18 $lvl1=1 $lvl2=1
+CD37 VDD!:33 pon:25 9.72605e-18 $lvl1=2 $lvl2=3
+CD38 VDD!:27 pon:58 9.61316e-18 $lvl1=2 $lvl2=1
+CD39 VDD!:29 pon:37 9.11975e-18 $lvl1=2 $lvl2=3
+CD40 VDD!:20 pon:46 8.57897e-18 $lvl1=2 $lvl2=2
+CD41 VDD!:27 pon:57 7.90897e-18 $lvl1=2 $lvl2=2
+CD42 VDD!:33 pon:35 7.65445e-18 $lvl1=2 $lvl2=3
+CD43 VDD!:25 pon:39 6.40456e-18 $lvl1=2 $lvl2=3
+CD44 VDD! pon:60 6.17667e-18 $lvl1=1 $lvl2=1
+CD45 VDD!:13 pon:46 5.86121e-18 $lvl1=2 $lvl2=2
+CD46 VDD!:46 pon:52 5.80966e-18 $lvl1=1 $lvl2=2
+CD47 VDD!:46 pon:42 5.63196e-18 $lvl1=1 $lvl2=2
+CD48 VDD!:25 pon:40 5.44762e-18 $lvl1=2 $lvl2=3
+CD49 VDD!:24 pon:60 5.32666e-18 $lvl1=2 $lvl2=1
+CD50 VDD!:21 pon 5.15783e-18 $lvl1=2 $lvl2=3
+CD51 VDD!:42 pon:57 5.11666e-18 $lvl1=2 $lvl2=2
+CD52 VDD!:42 pon:30 4.97403e-18 $lvl1=2 $lvl2=3
+CD53 VDD!:33 pon:36 4.81285e-18 $lvl1=2 $lvl2=3
+CD54 VDD!:27 pon:56 4.69573e-18 $lvl1=2 $lvl2=2
+CD55 VDD! pon:62 4.49563e-18 $lvl1=1 $lvl2=1
+CD56 VDD!:29 Mmp5@3:g 4.1079e-18 $lvl1=2 $lvl2=3
+CD57 VDD! pon:58 3.69498e-18 $lvl1=1 $lvl2=1
+CD58 VDD!:29 pon:36 3.57719e-18 $lvl1=2 $lvl2=3
+CD59 VDD!:25 Mmp5@3:g 3.37431e-18 $lvl1=2 $lvl2=3
+CD60 VDD!:14 pon:42 3.28355e-18 $lvl1=2 $lvl2=2
+CD61 VDD!:24 pon:57 3.0736e-18 $lvl1=2 $lvl2=2
+CD62 VDD!:13 pon:62 3.03358e-18 $lvl1=2 $lvl2=1
+CD63 VDD! pon:57 3.03122e-18 $lvl1=1 $lvl2=2
+CD64 VDD! pon:66 3.01357e-18 $lvl1=1 $lvl2=1
+CD65 VDD!:14 pon:52 2.88267e-18 $lvl1=2 $lvl2=2
+CD66 VDD!:13 pon:43 2.72279e-18 $lvl1=2 $lvl2=2
+CD67 Mmp5@5:s pon:30 2.58148e-18 $lvl1=4 $lvl2=3
+CD68 VDD!:24 pon:30 2.39856e-18 $lvl1=2 $lvl2=3
+CD69 VDD!:20 pon:43 2.30827e-18 $lvl1=2 $lvl2=2
+CD70 VDD!:24 Mmp4@1:d 2.03402e-18 $lvl1=2 $lvl2=4
+CD71 VDD!:10 Mmp3@1:d 2.03277e-18 $lvl1=2 $lvl2=4
+CD72 VDD!:21 pon:40 1.73768e-18 $lvl1=2 $lvl2=3
+CD73 VDD!:14 pon:64 1.63331e-18 $lvl1=2 $lvl2=1
+CD74 VDD!:45 pon:60 1.5753e-18 $lvl1=1 $lvl2=1
+CD75 VDD!:10 pon:62 1.56443e-18 $lvl1=2 $lvl2=1
+CD76 VDD!:21 pon:64 1.51327e-18 $lvl1=2 $lvl2=1
+CD77 Mmp5@6:s pon:30 1.50255e-18 $lvl1=4 $lvl2=3
+CD78 VDD!:13 Mmp3@1:d 1.429e-18 $lvl1=2 $lvl2=4
+CD79 VDD!:25 pon:60 1.37964e-18 $lvl1=2 $lvl2=1
+CD80 VDD!:36 pon:36 2.49285e-16 $lvl1=2 $lvl2=3
+CD81 VDD!:46 pon:62 2.39249e-17 $lvl1=1 $lvl2=1
+CD82 VDD!:10 pon:42 2.44602e-17 $lvl1=2 $lvl2=2
+CD83 VDD!:21 pon:52 1.1677e-17 $lvl1=2 $lvl2=2
+CD84 VDD!:36 pon:30 1.14877e-17 $lvl1=2 $lvl2=3
+CD85 VDD! pon:64 1.48758e-17 $lvl1=1 $lvl2=1
+CD86 VDD!:46 pon:64 4.69727e-17 $lvl1=1 $lvl2=1
+CD87 VDD!:27 pon:30 1.35117e-17 $lvl1=2 $lvl2=3
+CD88 VDD! pon:30 2.04542e-17 $lvl1=1 $lvl2=3
+CD89 VDD!:20 pon:55 2.31113e-17 $lvl1=2 $lvl2=2
+CD90 VDD! pon:52 1.14204e-17 $lvl1=1 $lvl2=2
+CD91 VDD!:27 pon:60 3.13621e-17 $lvl1=2 $lvl2=1
+CD92 VDD!:32 Mmp5@3:g 2.56502e-16 $lvl1=2 $lvl2=3
+CD93 VDD!:32 pon:37 2.49376e-16 $lvl1=2 $lvl2=3
+CD94 VDD!:20 pon:64 2.13946e-17 $lvl1=2 $lvl2=1
+CD95 VDD!:20 pon:42 9.57802e-17 $lvl1=2 $lvl2=2
+CD96 VDD!:24 pon:52 9.03826e-17 $lvl1=2 $lvl2=2
+CD97 VDD!:32 pon:30 1.24003e-17 $lvl1=2 $lvl2=3
+CD98 VDD!:36 pon:57 1.17517e-17 $lvl1=2 $lvl2=2
+CD99 VDD!:20 pon:62 1.35441e-17 $lvl1=2 $lvl2=1
+CD100 VDD!:27 pon:39 2.456e-16 $lvl1=2 $lvl2=3
+CD101 VDD!:10 pon:52 1.27539e-17 $lvl1=2 $lvl2=2
+CD102 VDD!:13 pon:42 9.36641e-17 $lvl1=2 $lvl2=2
+CD103 VDD!:42 pon:25 2.44032e-16 $lvl1=2 $lvl2=3
+CD104 VDD!:24 pon:64 2.88354e-17 $lvl1=2 $lvl2=1
+CD105 VDD!:27 pon:40 2.5522e-16 $lvl1=2 $lvl2=3
+CD106 VDD!:20 pon:52 9.01765e-17 $lvl1=2 $lvl2=2
+CD107 VDD!:32 pon:57 1.35038e-17 $lvl1=2 $lvl2=2
+CD108 VDD!:24 pon 2.46841e-16 $lvl1=2 $lvl2=3
+CD109 VDD!:24 pon:55 2.36298e-17 $lvl1=2 $lvl2=2
+CD110 VDD!:46 pon:60 3.41842e-17 $lvl1=1 $lvl2=1
+CD111 VDD!:36 pon:35 2.61123e-16 $lvl1=2 $lvl2=3
+CD112 VDD!:13 Mmp2:s 9.37264e-18 $lvl1=2 $lvl2=4
+CD113 VDD!:9 net127:19 8.57924e-18 $lvl1=2 $lvl2=1
+CD114 VDD!:3 net127:5 8.14201e-18 $lvl1=2 $lvl2=2
+CD115 VDD!:9 net127:5 7.57207e-18 $lvl1=2 $lvl2=2
+CD116 Mmp3@1:s net127:11 7.10721e-18 $lvl1=4 $lvl2=2
+CD117 VDD!:9 Mmp2@1:s 6.51575e-18 $lvl1=2 $lvl2=4
+CD118 VDD!:13 net127:15 5.86127e-18 $lvl1=2 $lvl2=2
+CD119 VDD!:46 net127:19 5.46396e-18 $lvl1=1 $lvl2=1
+CD120 VDD!:9 net127:10 5.24893e-18 $lvl1=2 $lvl2=2
+CD121 VDD!:46 net127:11 5.03658e-18 $lvl1=1 $lvl2=2
+CD122 VDD!:46 net127:6 4.85999e-18 $lvl1=1 $lvl2=2
+CD123 VDD!:46 net127:20 4.61125e-18 $lvl1=1 $lvl2=1
+CD124 VDD! net127:20 4.38655e-18 $lvl1=1 $lvl2=1
+CD125 VDD!:46 net127 4.34197e-18 $lvl1=1 $lvl2=2
+CD126 VDD! net127:19 4.21132e-18 $lvl1=1 $lvl2=1
+CD127 VDD!:46 net127:17 4.17438e-18 $lvl1=1 $lvl2=1
+CD128 VDD!:14 net127:6 3.43334e-18 $lvl1=2 $lvl2=2
+CD129 VDD!:13 net127:12 3.15825e-18 $lvl1=2 $lvl2=2
+CD130 VDD!:9 net127:2 3.02451e-18 $lvl1=2 $lvl2=2
+CD131 VDD!:3 net127:2 2.96767e-18 $lvl1=2 $lvl2=2
+CD132 VDD!:14 net127:11 2.95501e-18 $lvl1=2 $lvl2=2
+CD133 VDD!:14 net127 2.90729e-18 $lvl1=2 $lvl2=2
+CD134 VDD!:3 net127:20 2.80912e-18 $lvl1=2 $lvl2=1
+CD135 VDD!:6 Mmp2@1:s 2.62253e-18 $lvl1=2 $lvl2=4
+CD136 VDD! net127:17 2.59962e-18 $lvl1=1 $lvl2=1
+CD137 VDD!:10 Mmp2:s 2.36433e-18 $lvl1=2 $lvl2=4
+CD138 VDD!:9 net127:7 2.14251e-18 $lvl1=2 $lvl2=2
+CD139 VDD!:3 Mmp1@1:d 2.07843e-18 $lvl1=2 $lvl2=4
+CD140 VDD!:15 net127:11 1.8103e-18 $lvl1=4 $lvl2=2
+CD141 VDD!:13 net127:17 1.79433e-18 $lvl1=2 $lvl2=1
+CD142 VDD!:4 Mmp1@1:d 1.49272e-18 $lvl1=2 $lvl2=4
+CD143 VDD!:6 Mmp1@1:d 1.32909e-18 $lvl1=2 $lvl2=4
+CD144 VDD!:13 net127:11 9.60236e-17 $lvl1=2 $lvl2=2
+CD145 VDD!:9 net127:6 9.17664e-17 $lvl1=2 $lvl2=2
+CD146 VDD!:10 net127:11 2.60485e-17 $lvl1=2 $lvl2=2
+CD147 VDD!:6 net127 1.31678e-17 $lvl1=2 $lvl2=2
+CD148 Mmp1:s net127:6 1.08582e-17 $lvl1=4 $lvl2=2
+CD149 VDD!:4 net127 1.25655e-17 $lvl1=2 $lvl2=2
+CD150 VDD! net127:11 1.88406e-17 $lvl1=1 $lvl2=2
+CD151 VDD! net127:6 2.16308e-17 $lvl1=1 $lvl2=2
+CD152 VDD!:3 net127 9.94127e-17 $lvl1=2 $lvl2=2
+CD153 VDD!:9 net127 8.98962e-17 $lvl1=2 $lvl2=2
+CD154 VDD!:6 net127:6 2.45865e-17 $lvl1=2 $lvl2=2
+CD155 VDD!:9 net127:20 1.09146e-17 $lvl1=2 $lvl2=1
+CD156 VDD!:6 non:58 9.54486e-18 $lvl1=2 $lvl2=2
+CD157 VDD! non:70 8.52317e-18 $lvl1=1 $lvl2=1
+CD158 VDD! non:69 7.92788e-18 $lvl1=1 $lvl2=1
+CD159 VDD!:13 non:77 6.72567e-18 $lvl1=2 $lvl2=1
+CD160 VDD! non:73 5.22213e-18 $lvl1=1 $lvl2=1
+CD161 VDD!:46 non:58 4.73127e-18 $lvl1=1 $lvl2=2
+CD162 VDD! non:41 4.11441e-18 $lvl1=1 $lvl2=3
+CD163 VDD! non:75 3.90238e-18 $lvl1=1 $lvl2=1
+CD164 VDD! non:76 3.48361e-18 $lvl1=1 $lvl2=1
+CD165 VDD! non:72 3.43333e-18 $lvl1=1 $lvl2=1
+CD166 VDD! non:77 3.08426e-18 $lvl1=1 $lvl2=1
+CD167 VDD! non:58 1.02031e-17 $lvl1=1 $lvl2=2
+CD168 VDD!:10 non:58 1.03705e-17 $lvl1=2 $lvl2=2
+CD169 VDD! OEb:43 9.33292e-18 $lvl1=1 $lvl2=1
+CD170 VDD!:10 OEb:15 7.32547e-18 $lvl1=2 $lvl2=3
+CD171 VDD!:6 OEb:24 7.10894e-18 $lvl1=2 $lvl2=3
+CD172 VDD! OEb:50 6.8902e-18 $lvl1=1 $lvl2=1
+CD173 VDD! OEb:49 6.01604e-18 $lvl1=1 $lvl2=1
+CD174 VDD!:47 OEb:28 5.41595e-18 $lvl1=1 $lvl2=2
+CD175 VDD! OEb:17 5.25484e-18 $lvl1=1 $lvl2=3
+CD176 VDD! OEb:32 4.64229e-18 $lvl1=1 $lvl2=2
+CD177 VDD!:9 OEb:41 4.16975e-18 $lvl1=2 $lvl2=2
+CD178 VDD!:9 OEb:51 3.853e-18 $lvl1=2 $lvl2=1
+CD179 VDD!:46 OEb:28 3.60022e-18 $lvl1=1 $lvl2=2
+CD180 VDD! OEb:52 2.7672e-18 $lvl1=1 $lvl2=1
+CD181 VDD!:15 OEb:28 2.75284e-18 $lvl1=4 $lvl2=2
+CD182 VDD! OEb:34 2.52525e-18 $lvl1=1 $lvl2=2
+CD183 VDD!:3 OEb:50 2.34345e-18 $lvl1=2 $lvl2=1
+CD184 VDD!:46 OEb:50 2.21954e-18 $lvl1=1 $lvl2=1
+CD185 VDD! OEb:37 1.99878e-18 $lvl1=1 $lvl2=2
+CD186 VDD! OEb:51 1.99388e-18 $lvl1=1 $lvl2=1
+CD187 VDD!:46 OEb:44 1.93011e-18 $lvl1=1 $lvl2=1
+CD188 VDD!:5 OEb:48 1.70202e-18 $lvl1=2 $lvl2=1
+CD189 VDD!:10 OEb:24 1.68263e-18 $lvl1=2 $lvl2=3
+CD190 VDD!:13 OEb:17 1.60812e-18 $lvl1=2 $lvl2=3
+CD191 VDD!:3 OEb:44 1.60289e-18 $lvl1=2 $lvl2=1
+CD192 VDD!:3 OEb:31 1.50839e-18 $lvl1=2 $lvl2=2
+CD193 VDD!:14 OEb:28 1.50378e-18 $lvl1=2 $lvl2=2
+CD194 VDD!:9 OEb:17 1.39599e-18 $lvl1=2 $lvl2=3
+CD195 VDD!:46 OEb:51 1.3883e-18 $lvl1=1 $lvl2=1
+CD196 VDD!:4 OEb:48 1.18368e-18 $lvl1=2 $lvl2=1
+CD197 VDD!:9 OEb:24 1.11327e-18 $lvl1=2 $lvl2=3
+CD198 VDD!:4 Mmp0:d 1.07878e-18 $lvl1=2 $lvl2=4
+CD199 Mmp1@1:s OEb:28 9.95097e-19 $lvl1=4 $lvl2=2
+CD200 VDD!:13 OEb:15 9.83407e-19 $lvl1=2 $lvl2=3
+CD201 VDD!:6 OEb:15 9.44368e-19 $lvl1=2 $lvl2=3
+CD202 VDD!:46 OEb:49 9.06974e-19 $lvl1=1 $lvl2=1
+CD203 VDD!:13 OEb:38 8.63136e-19 $lvl1=2 $lvl2=2
+CD204 VDD!:3 Mmp0:d 8.23684e-19 $lvl1=2 $lvl2=4
+CD205 VDD!:14 OEb:48 7.63369e-19 $lvl1=2 $lvl2=1
+CD206 VDD! OEb:31 7.61452e-19 $lvl1=1 $lvl2=2
+CD207 VDD!:46 OEb:48 1.45375e-17 $lvl1=1 $lvl2=1
+CD208 VDD!:4 OEb:28 1.16087e-17 $lvl1=2 $lvl2=2
+CD209 VDD!:47 OEb:48 1.18975e-17 $lvl1=1 $lvl2=1
+CD210 VDD!:3 OEb:32 1.14683e-17 $lvl1=2 $lvl2=2
+CD211 VDD!:9 OEb:50 1.8965e-17 $lvl1=2 $lvl2=1
+CD212 VDD!:3 OEb:28 3.92716e-17 $lvl1=2 $lvl2=2
+CD213 VDD! OEb:48 3.84726e-17 $lvl1=1 $lvl2=1
+CD214 VDD! OEb:44 3.94951e-17 $lvl1=1 $lvl2=1
+CD215 VDD!:3 OEb:48 1.59273e-17 $lvl1=2 $lvl2=1
+CD216 VDD! OEb:33 1.20724e-17 $lvl1=1 $lvl2=2
+CD217 VDD!:5 OEb:28 1.22328e-17 $lvl1=2 $lvl2=2
+CD218 VDD! OEb:28 3.59853e-17 $lvl1=1 $lvl2=2
+CD219 VDD! VSS!:5 6.81122e-18 $lvl1=1 $lvl2=2
+CD220 VDD!:46 VSS!:46 4.27521e-18 $lvl1=1 $lvl2=1
+CD221 VDD! VSS!:1 2.45076e-17 $lvl1=1 $lvl2=2
+CD222 VDD! VSS!:46 1.53362e-16 $lvl1=1 $lvl2=1
+CD223 VDD! VSS!:45 4.42468e-17 $lvl1=1 $lvl2=1
+CD224 VDD! VSS!:44 3.91895e-17 $lvl1=1 $lvl2=1
+CD225 VDD! VSS!:47 2.67006e-17 $lvl1=1 $lvl2=1
+CD226 VDD! VSS!:19 1.46808e-17 $lvl1=1 $lvl2=2
+CD227 VDD! VSS!:8 4.11959e-17 $lvl1=1 $lvl2=2
+CD228 VDD! VSS!:9 2.79097e-17 $lvl1=1 $lvl2=2
+CD229 VDD! VSS!:12 2.02349e-17 $lvl1=1 $lvl2=2
+CD230 VDD! VSS!:10 1.91599e-17 $lvl1=1 $lvl2=2
+CD231 VDD! VSS!:14 6.57386e-17 $lvl1=1 $lvl2=2
+CD232 VDD! VSS!:15 2.3372e-17 $lvl1=1 $lvl2=2
+CD233 VDD! VSS!:16 1.85794e-17 $lvl1=1 $lvl2=2
+CD234 VDD! VSS!:17 2.96886e-17 $lvl1=1 $lvl2=2
+CD235 VDD! VSS!:18 1.63508e-17 $lvl1=1 $lvl2=2
+ReD138 VDD!:44 VDD!:45 0.359375 $metal1  $L=1.15 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=8.050000 $LLY=3.940000 $URX=9.200000 $URY=4.340000 $lvl=1
+ReD139 VDD!:45 VDD! 1.007812 $metal1  $L=3.225 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=4.825000 $LLY=3.940000 $URX=8.050000 $URY=4.340000 $lvl=1
+ReD140 VDD! VDD!:46 0.357812 $metal1  $L=1.145 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=3.680000 $LLY=3.940000 $URX=4.825000 $URY=4.340000 $lvl=1
+ReD141 VDD!:46 VDD!:47 1.150000 $metal1  $L=3.68 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=0.000000 $LLY=3.940000 $URX=3.680000 $URY=4.340000 $lvl=1
+RfD142 VDD!:1 VDD!:3 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.665000 $LLY=2.285000 $URX=0.835000 $URY=3.015000 $lvl=2
+RfD143 VDD!:3 VDD!:4 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.665000 $LLY=3.015000 $URX=0.835000 $URY=4.140000 $lvl=2
+RfD144 VDD!:4 VDD!:5 38.412800 $li  $L=0.75025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=0.000000 $LLY=4.015000 $URX=0.750000 $URY=4.265000 $lvl=2
+RfD145 VDD!:4 VDD!:6 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=0.750000 $LLY=4.015000 $URX=1.610000 $URY=4.265000 $lvl=2
+RfD146 VDD!:6 VDD!:8 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.525000 $LLY=3.015000 $URX=1.695000 $URY=4.140000 $lvl=2
+RfD147 VDD!:8 VDD!:9 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.525000 $LLY=2.285000 $URX=1.695000 $URY=3.015000 $lvl=2
+RfD148 VDD!:6 VDD!:10 97.279999 $li  $L=1.9 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=1.610000 $LLY=4.015000 $URX=3.510000 $URY=4.265000 $lvl=2
+RfD149 VDD!:10 VDD!:12 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.425000 $LLY=3.015000 $URX=3.595000 $URY=4.140000 $lvl=2
+RfD150 VDD!:12 VDD!:13 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.425000 $LLY=2.285000 $URX=3.595000 $URY=3.015000 $lvl=2
+RfD151 VDD!:10 VDD!:14 8.691200 $li  $L=0.16975 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=3.510000 $LLY=4.015000 $URX=3.680000 $URY=4.265000 $lvl=2
+RfD152 VDD!:14 VDD!:17 35.340801 $li  $L=0.69025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=3.680000 $LLY=4.015000 $URX=4.370000 $URY=4.265000 $lvl=2
+RfD153 VDD!:17 VDD!:19 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.285000 $LLY=3.015000 $URX=4.455000 $URY=4.140000 $lvl=2
+RfD154 VDD!:19 VDD!:20 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.285000 $LLY=2.285000 $URX=4.455000 $URY=3.015000 $lvl=2
+RfD155 VDD!:17 VDD!:21 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=4.370000 $LLY=4.015000 $URX=5.230000 $URY=4.265000 $lvl=2
+RfD156 VDD!:21 VDD!:23 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.145000 $LLY=3.015000 $URX=5.315000 $URY=4.140000 $lvl=2
+RfD157 VDD!:23 VDD!:24 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.145000 $LLY=2.285000 $URX=5.315000 $URY=3.015000 $lvl=2
+RfD158 VDD!:21 VDD!:25 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=5.230000 $LLY=4.015000 $URX=6.090000 $URY=4.265000 $lvl=2
+RfD159 VDD!:25 VDD!:27 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.005000 $LLY=3.015000 $URX=6.175000 $URY=4.140000 $lvl=2
+RfD160 VDD!:27 VDD!:28 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.005000 $LLY=2.285000 $URX=6.175000 $URY=3.015000 $lvl=2
+RfD161 VDD!:25 VDD!:29 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=6.090000 $LLY=4.015000 $URX=6.950000 $URY=4.265000 $lvl=2
+RfD162 VDD!:29 VDD!:31 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.865000 $LLY=3.015000 $URX=7.035000 $URY=4.140000 $lvl=2
+RfD163 VDD!:31 VDD!:32 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.865000 $LLY=2.285000 $URX=7.035000 $URY=3.015000 $lvl=2
+RfD164 VDD!:29 VDD!:33 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=6.950000 $LLY=4.015000 $URX=7.810000 $URY=4.265000 $lvl=2
+RfD165 VDD!:33 VDD!:35 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.725000 $LLY=3.015000 $URX=7.895000 $URY=4.140000 $lvl=2
+RfD166 VDD!:35 VDD!:36 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.725000 $LLY=2.285000 $URX=7.895000 $URY=3.015000 $lvl=2
+RfD167 VDD!:33 VDD!:37 12.275200 $li  $L=0.23975 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=7.810000 $LLY=4.015000 $URX=8.050000 $URY=4.265000 $lvl=2
+RfD168 VDD!:37 VDD!:39 31.756802 $li  $L=0.62025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=8.050000 $LLY=4.015000 $URX=8.670000 $URY=4.265000 $lvl=2
+RfD169 VDD!:39 VDD!:41 81.706917 $li  $L=1.12525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.585000 $LLY=3.015000 $URX=8.755000 $URY=4.140000 $lvl=2
+RfD170 VDD!:41 VDD!:42 54.964703 $li  $L=0.73 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.585000 $LLY=2.285000 $URX=8.755000 $URY=3.015000 $lvl=2
+RfD171 VDD!:39 VDD!:43 27.097599 $li  $L=0.52925 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=8.670000 $LLY=4.015000 $URX=9.199000 $URY=4.265000 $lvl=2
+Rh_1_D172 VDD!:15 VDD!:14 1.000000 $licon_diff  $A=0.4335 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.4335 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.433500 $URY=-15.000000 $lvl=5
+Rh_1_D173 VDD!:15 VDD!:37 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D174 Mmp1@1:s VDD!:3 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D175 Mmp1:s VDD!:8 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D176 Mmp3@1:s VDD!:12 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D177 Mmp4@1:s VDD!:19 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D178 Mmp5@2:s VDD!:23 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D179 Mmp5@5:s VDD!:27 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D180 Mmp5@3:s VDD!:31 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D181 Mmp5@6:s VDD!:35 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_2_D182 Mmp5@7:s VDD!:41 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+RjD183 VDD!:37 VDD!:45 38.000000 $mcon  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=6
+RjD184 VDD!:14 VDD!:46 10.133333 $mcon  $A=0.4335 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.4335 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.433500 $URY=-15.000000 $lvl=6
+RmwD185 Mmp1@1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD186 Mmp1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD187 Mmp2@1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD188 Mmp2:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD189 Mmp5@2:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD190 Mmp5@5:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD191 Mmp5@1:s Mmp5@5:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD192 Mmp5@1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD193 Mmp5@3:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD194 Mmp5@4:s Mmp5@3:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD195 Mmp5@4:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD196 Mmp5@6:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD197 Mmp5:s Mmp5@6:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD198 Mmp5:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD199 Mmp5@7:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD200 Mmp0:s Mmp1@1:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD201 Mmp0:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD202 Mmp4@1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD203 Mmp4:s Mmp5@2:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD204 Mmp4:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD205 Mmp3@1:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD206 Mmp3:s Mmp4@1:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwD207 Mmp3:b VDD! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET net144 1.64036e-15
+*|I (Mmn3:d Mmn3 d X 0 2.7605 0.7750) // $llx=2.7605 $lly=0.7750 $urx=2.7605 $ury=0.7750 $lvl=4
+*|I (Mmn3@1:d Mmn3@1 d X 0 3.0395 0.7750) // $llx=3.0395 $lly=0.7750 $urx=3.0395 $ury=0.7750 $lvl=4
+*|I (Mmn4:s Mmn4 s X 0 3.9895 0.7750) // $llx=3.9895 $lly=0.7750 $urx=3.9895 $ury=0.7750 $lvl=4
+*|I (Mmn4@1:s Mmn4@1 s X 0 4.5705 0.7750) // $llx=4.5705 $lly=0.7750 $urx=4.5705 $ury=0.7750 $lvl=4
+*|S (net144 2.9000 1.1550) // $llx=2.9000 $lly=1.1550 $urx=2.9000 $ury=1.1550 $lvl=2
+*|S (net144:2 2.9000 0.9550) // $llx=2.9000 $lly=0.9550 $urx=2.9000 $ury=0.9550 $lvl=2
+*|S (net144:4 2.9000 0.7750) // $llx=2.9000 $lly=0.7750 $urx=2.9000 $ury=0.7750 $lvl=2
+*|S (net144:5 2.9000 0.3950) // $llx=2.9000 $lly=0.3950 $urx=2.9000 $ury=0.3950 $lvl=2
+*|S (net144:6 3.8500 0.3950) // $llx=3.8500 $lly=0.3950 $urx=3.8500 $ury=0.3950 $lvl=2
+*|S (net144:8 3.8500 0.7750) // $llx=3.8500 $lly=0.7750 $urx=3.8500 $ury=0.7750 $lvl=2
+*|S (net144:9 3.8500 0.9550) // $llx=3.8500 $lly=0.9550 $urx=3.8500 $ury=0.9550 $lvl=2
+*|S (net144:10 3.8500 1.4300) // $llx=3.8500 $lly=1.4300 $urx=3.8500 $ury=1.4300 $lvl=2
+*|S (net144:11 4.7100 1.4300) // $llx=4.7100 $lly=1.4300 $urx=4.7100 $ury=1.4300 $lvl=2
+*|S (net144:13 4.7100 0.7750) // $llx=4.7100 $lly=0.7750 $urx=4.7100 $ury=0.7750 $lvl=2
+*|S (net144:14 4.7100 0.3950) // $llx=4.7100 $lly=0.3950 $urx=4.7100 $ury=0.3950 $lvl=2
+*|S (net144:15 3.8500 0.9550) // $llx=3.8500 $lly=0.9550 $urx=3.8500 $ury=0.9550 $lvl=1
+*|S (net144:16 3.7350 0.9550) // $llx=3.7350 $lly=0.9550 $urx=3.7350 $ury=0.9550 $lvl=1
+*|S (net144:17 3.0145 0.9550) // $llx=3.0145 $lly=0.9550 $urx=3.0145 $ury=0.9550 $lvl=1
+*|S (net144:18 2.9000 0.9550) // $llx=2.9000 $lly=0.9550 $urx=2.9000 $ury=0.9550 $lvl=1
+CJ1 Mmn4@1:s VSS! 1.55836e-18 $lvl=4
+CJ2 Mmn4:s VSS! 1.35861e-18 $lvl=4
+CJ3 Mmn3:d VSS! 1.48471e-18 $lvl=4
+CJ4 net144:17 VSS! 9.67776e-18 $lvl=1
+CJ5 net144:16 VSS! 1.32438e-17 $lvl=1
+CJ6 net144:6 VSS! 1.55771e-17 $lvl=2
+CJ7 net144:14 VSS! 9.30313e-18 $lvl=2
+CJ8 net144:11 VSS! 8.78966e-18 $lvl=2
+CJ9 net144:10 VSS! 7.7651e-18 $lvl=2
+CJ10 net144:5 VSS! 1.74802e-18 $lvl=2
+CJ11 net144:2 VSS! 1.48254e-18 $lvl=2
+CJ12 net144:9 VSS! 1.5252e-18 $lvl=2
+CJ13 net144 VSS! 1.07463e-17 $lvl=2
+CJ14 net144:17 VSS!:34 7.76886e-18 $lvl1=1 $lvl2=2
+CJ15 net144:16 VSS!:34 7.71532e-18 $lvl1=1 $lvl2=2
+CJ16 net144:5 VSS!:15 6.57953e-18 $lvl1=2 $lvl2=2
+CJ17 net144:5 VSS!:14 6.23484e-18 $lvl1=2 $lvl2=2
+CJ18 net144:5 VSS!:37 6.05898e-18 $lvl1=2 $lvl2=2
+CJ19 Mmn4@1:s VSS!:31 5.53413e-18 $lvl1=4 $lvl2=2
+CJ20 net144:5 VSS!:34 5.53296e-18 $lvl1=2 $lvl2=2
+CJ21 net144:16 VSS!:46 5.12006e-18 $lvl1=1 $lvl2=1
+CJ22 net144:17 VSS!:46 4.8196e-18 $lvl1=1 $lvl2=1
+CJ23 net144:6 Mmn3@1:s 4.67775e-18 $lvl1=2 $lvl2=4
+CJ24 net144 VSS!:15 4.63918e-18 $lvl1=2 $lvl2=2
+CJ25 net144:14 Mmn5:s 4.15955e-18 $lvl1=2 $lvl2=4
+CJ26 net144:11 VSS!:31 3.81869e-18 $lvl1=2 $lvl2=2
+CJ27 net144 VSS!:14 3.71352e-18 $lvl1=2 $lvl2=2
+CJ28 net144:14 VSS!:12 3.46998e-18 $lvl1=2 $lvl2=2
+CJ29 Mmn4:s VSS!:34 3.30858e-18 $lvl1=4 $lvl2=2
+CJ30 net144:6 VSS!:12 2.87991e-18 $lvl1=2 $lvl2=2
+CJ31 Mmn4@1:s VSS!:14 2.67123e-18 $lvl1=4 $lvl2=2
+CJ32 net144:10 VSS!:34 2.54318e-18 $lvl1=2 $lvl2=2
+CJ33 net144:5 VSS!:12 2.47129e-18 $lvl1=2 $lvl2=2
+CJ34 net144:14 VSS!:46 2.41173e-18 $lvl1=2 $lvl2=1
+CJ35 net144:6 VSS!:46 2.40245e-18 $lvl1=2 $lvl2=1
+CJ36 Mmn4:s VSS!:14 2.09821e-18 $lvl1=4 $lvl2=2
+CJ37 net144:17 VSS!:37 1.78076e-18 $lvl1=1 $lvl2=2
+CJ38 net144:6 VSS!:6 1.73906e-18 $lvl1=2 $lvl2=4
+CJ39 net144:5 VSS!:46 1.64299e-18 $lvl1=2 $lvl2=1
+CJ40 net144:14 VSS!:6 1.62935e-18 $lvl1=2 $lvl2=4
+CJ41 net144:9 VSS!:34 1.10447e-18 $lvl1=2 $lvl2=2
+CJ42 Mmn3:d VSS!:37 1.01262e-18 $lvl1=4 $lvl2=2
+CJ43 net144 VSS!:34 3.93767e-17 $lvl1=2 $lvl2=2
+CJ44 net144 VSS!:37 3.99281e-17 $lvl1=2 $lvl2=2
+CJ45 net144:14 VSS!:31 4.52262e-17 $lvl1=2 $lvl2=2
+CJ46 net144:6 VSS!:34 4.41914e-17 $lvl1=2 $lvl2=2
+CJ47 net144:2 VSS!:37 9.03367e-18 $lvl1=2 $lvl2=2
+CJ48 net144:2 VSS!:34 8.5758e-18 $lvl1=2 $lvl2=2
+CJ49 net144:14 VSS!:14 2.41781e-17 $lvl1=2 $lvl2=2
+CJ50 net144:6 VSS!:14 2.49749e-17 $lvl1=2 $lvl2=2
+ReJ454 net144:15 net144:16 0.048392 $metal1  $L=0.1145 $W=0.410000 $SI_W=0.41 $TYPE=10 $DIR=0 $LLX=3.735000 $LLY=0.750000 $URX=3.850000 $URY=1.160000 $lvl=1
+ReJ455 net144:16 net144:17 0.391457 $metal1  $L=0.72 $W=0.230000 $SI_W=0.23 $TYPE=10 $DIR=0 $LLX=3.015000 $LLY=0.930000 $URX=3.735000 $URY=1.160000 $lvl=1
+ReJ456 net144:17 net144:18 0.048392 $metal1  $L=0.1145 $W=0.410000 $SI_W=0.41 $TYPE=10 $DIR=0 $LLX=2.900000 $LLY=0.750000 $URX=3.014500 $URY=1.160000 $lvl=1
+RfJ457 net144 net144:2 15.058823 $li  $L=0.2 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.815000 $LLY=0.955000 $URX=2.985000 $URY=1.155000 $lvl=2
+RfJ458 net144:2 net144:4 13.552942 $li  $L=0.18 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.815000 $LLY=0.775000 $URX=2.985000 $URY=0.955000 $lvl=2
+RfJ459 net144:4 net144:5 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.815000 $LLY=0.395000 $URX=2.985000 $URY=0.775000 $lvl=2
+RfJ460 net144:6 net144:8 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.765000 $LLY=0.395000 $URX=3.935000 $URY=0.775000 $lvl=2
+RfJ461 net144:8 net144:9 13.552942 $li  $L=0.18 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.765000 $LLY=0.775000 $URX=3.935000 $URY=0.955000 $lvl=2
+RfJ462 net144:9 net144:10 35.783531 $li  $L=0.47525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.765000 $LLY=0.955000 $URX=3.935000 $URY=1.430000 $lvl=2
+RfJ463 net144:10 net144:11 64.752945 $li  $L=0.86 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=0 $LLX=3.850000 $LLY=1.345000 $URX=4.710000 $URY=1.515000 $lvl=2
+RfJ464 net144:11 net144:13 49.336472 $li  $L=0.65525 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.625000 $LLY=0.775000 $URX=4.795000 $URY=1.430000 $lvl=2
+RfJ465 net144:13 net144:14 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=4.625000 $LLY=0.395000 $URX=4.795000 $URY=0.775000 $lvl=2
+RhJ466 Mmn3:d net144:4 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhJ467 Mmn4:s net144:8 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhJ468 Mmn4@1:s net144:13 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RjJ469 net144:9 net144:15 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RjJ470 net144:2 net144:18 152.000000 $mcon  $L=0.17 $W=0.17 $A=0.0289 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0289 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=0.170000 $URY=0.170000 $lvl=6
+RmwJ471 Mmn3@1:d Mmn3:d 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*|NET VSS! 6.82058e-15
+*|P (VSS! X 0 5.0850 0.0050) // $llx=5.0850 $lly=0.0050 $urx=5.0850 $ury=0.0050 $lvl=1
+*|I (Mmn1@1:s Mmn1@1 s X 0 0.8895 0.7750) // $llx=0.8895 $lly=0.7750 $urx=0.8895 $ury=0.7750 $lvl=4
+*|I (Mmn1@1:b Mmn1@1 b X 0 0.9650 0.7750) // $llx=0.9650 $lly=0.7750 $urx=0.9650 $ury=0.7750 $lvl=8
+*|I (Mmn1:s Mmn1 s X 0 1.4705 0.7750) // $llx=1.4705 $lly=0.7750 $urx=1.4705 $ury=0.7750 $lvl=4
+*|I (Mmn1:b Mmn1 b X 0 1.3950 0.7750) // $llx=1.3950 $lly=0.7750 $urx=1.3950 $ury=0.7750 $lvl=8
+*|I (Mmn2@1:s Mmn2@1 s X 0 1.7495 0.7750) // $llx=1.7495 $lly=0.7750 $urx=1.7495 $ury=0.7750 $lvl=4
+*|I (Mmn2@1:b Mmn2@1 b X 0 1.8250 0.7750) // $llx=1.8250 $lly=0.7750 $urx=1.8250 $ury=0.7750 $lvl=8
+*|I (Mmn2:s Mmn2 s X 0 2.3305 0.7750) // $llx=2.3305 $lly=0.7750 $urx=2.3305 $ury=0.7750 $lvl=4
+*|I (Mmn2:b Mmn2 b X 0 2.2550 0.7750) // $llx=2.2550 $lly=0.7750 $urx=2.2550 $ury=0.7750 $lvl=8
+*|I (Mmn3:s Mmn3 s X 0 2.6095 0.7750) // $llx=2.6095 $lly=0.7750 $urx=2.6095 $ury=0.7750 $lvl=4
+*|I (Mmn3:b Mmn3 b X 0 2.6850 0.7750) // $llx=2.6850 $lly=0.7750 $urx=2.6850 $ury=0.7750 $lvl=8
+*|I (Mmn3@1:s Mmn3@1 s X 0 3.1905 0.7750) // $llx=3.1905 $lly=0.7750 $urx=3.1905 $ury=0.7750 $lvl=4
+*|I (Mmn3@1:b Mmn3@1 b X 0 3.1150 0.7750) // $llx=3.1150 $lly=0.7750 $urx=3.1150 $ury=0.7750 $lvl=8
+*|I (Mmn4:b Mmn4 b X 0 4.0650 0.7750) // $llx=4.0650 $lly=0.7750 $urx=4.0650 $ury=0.7750 $lvl=8
+*|I (Mmn4@1:b Mmn4@1 b X 0 4.4950 0.7750) // $llx=4.4950 $lly=0.7750 $urx=4.4950 $ury=0.7750 $lvl=8
+*|I (Mmn0:s Mmn0 s X 0 0.5505 0.6075) // $llx=0.5505 $lly=0.6075 $urx=0.5505 $ury=0.6075 $lvl=4
+*|I (Mmn0:b Mmn0 b X 0 0.4750 0.6075) // $llx=0.4750 $lly=0.6075 $urx=0.4750 $ury=0.6075 $lvl=8
+*|I (Mmn5:s Mmn5 s X 0 5.3695 0.7750) // $llx=5.3695 $lly=0.7750 $urx=5.3695 $ury=0.7750 $lvl=4
+*|I (Mmn5:b Mmn5 b X 0 5.4450 0.7750) // $llx=5.4450 $lly=0.7750 $urx=5.4450 $ury=0.7750 $lvl=8
+*|I (Mmn5@6:s Mmn5@6 s X 0 5.9505 0.7750) // $llx=5.9505 $lly=0.7750 $urx=5.9505 $ury=0.7750 $lvl=4
+*|I (Mmn5@6:b Mmn5@6 b X 0 5.8750 0.7750) // $llx=5.8750 $lly=0.7750 $urx=5.8750 $ury=0.7750 $lvl=8
+*|I (Mmn5@3:s Mmn5@3 s X 0 6.2295 0.7750) // $llx=6.2295 $lly=0.7750 $urx=6.2295 $ury=0.7750 $lvl=4
+*|I (Mmn5@3:b Mmn5@3 b X 0 6.3050 0.7750) // $llx=6.3050 $lly=0.7750 $urx=6.3050 $ury=0.7750 $lvl=8
+*|I (Mmn5@4:s Mmn5@4 s X 0 6.8105 0.7750) // $llx=6.8105 $lly=0.7750 $urx=6.8105 $ury=0.7750 $lvl=4
+*|I (Mmn5@4:b Mmn5@4 b X 0 6.7350 0.7750) // $llx=6.7350 $lly=0.7750 $urx=6.7350 $ury=0.7750 $lvl=8
+*|I (Mmn5@5:s Mmn5@5 s X 0 7.0895 0.7750) // $llx=7.0895 $lly=0.7750 $urx=7.0895 $ury=0.7750 $lvl=4
+*|I (Mmn5@5:b Mmn5@5 b X 0 7.1650 0.7750) // $llx=7.1650 $lly=0.7750 $urx=7.1650 $ury=0.7750 $lvl=8
+*|I (Mmn5@2:s Mmn5@2 s X 0 7.6705 0.7750) // $llx=7.6705 $lly=0.7750 $urx=7.6705 $ury=0.7750 $lvl=4
+*|I (Mmn5@2:b Mmn5@2 b X 0 7.5950 0.7750) // $llx=7.5950 $lly=0.7750 $urx=7.5950 $ury=0.7750 $lvl=8
+*|I (Mmn5@1:s Mmn5@1 s X 0 7.9495 0.7750) // $llx=7.9495 $lly=0.7750 $urx=7.9495 $ury=0.7750 $lvl=4
+*|I (Mmn5@1:b Mmn5@1 b X 0 8.0250 0.7750) // $llx=8.0250 $lly=0.7750 $urx=8.0250 $ury=0.7750 $lvl=8
+*|I (Mmn5@7:s Mmn5@7 s X 0 8.5305 0.7750) // $llx=8.5305 $lly=0.7750 $urx=8.5305 $ury=0.7750 $lvl=4
+*|I (Mmn5@7:b Mmn5@7 b X 0 8.4550 0.7750) // $llx=8.4550 $lly=0.7750 $urx=8.4550 $ury=0.7750 $lvl=8
+*|S (VSS!:1 8.6700 1.1550) // $llx=8.6700 $lly=1.1550 $urx=8.6700 $ury=1.1550 $lvl=2
+*|S (VSS!:3 8.6700 0.7750) // $llx=8.6700 $lly=0.7750 $urx=8.6700 $ury=0.7750 $lvl=2
+*|S (VSS!:4 8.6700 0.0000) // $llx=8.6700 $lly=0.0000 $urx=8.6700 $ury=0.0000 $lvl=2
+*|S (VSS!:5 8.0500 0.0000) // $llx=8.0500 $lly=0.0000 $urx=8.0500 $ury=0.0000 $lvl=2
+*|S (VSS!:6 8.0500 0.0000) // $llx=8.0500 $lly=0.0000 $urx=8.0500 $ury=0.0000 $lvl=4
+*|S (VSS!:8 7.8100 0.0000) // $llx=7.8100 $lly=0.0000 $urx=7.8100 $ury=0.0000 $lvl=2
+*|S (VSS!:9 6.9500 0.0000) // $llx=6.9500 $lly=0.0000 $urx=6.9500 $ury=0.0000 $lvl=2
+*|S (VSS!:10 6.0900 0.0000) // $llx=6.0900 $lly=0.0000 $urx=6.0900 $ury=0.0000 $lvl=2
+*|S (VSS!:11 5.2300 0.0000) // $llx=5.2300 $lly=0.0000 $urx=5.2300 $ury=0.0000 $lvl=2
+*|S (VSS!:12 3.6800 0.0000) // $llx=3.6800 $lly=0.0000 $urx=3.6800 $ury=0.0000 $lvl=2
+*|S (VSS!:14 3.3300 0.0000) // $llx=3.3300 $lly=0.0000 $urx=3.3300 $ury=0.0000 $lvl=2
+*|S (VSS!:15 2.4700 0.0000) // $llx=2.4700 $lly=0.0000 $urx=2.4700 $ury=0.0000 $lvl=2
+*|S (VSS!:16 1.6100 0.0000) // $llx=1.6100 $lly=0.0000 $urx=1.6100 $ury=0.0000 $lvl=2
+*|S (VSS!:17 0.7500 0.0000) // $llx=0.7500 $lly=0.0000 $urx=0.7500 $ury=0.0000 $lvl=2
+*|S (VSS!:18 0.0000 0.0000) // $llx=0.0000 $lly=0.0000 $urx=0.0000 $ury=0.0000 $lvl=2
+*|S (VSS!:19 9.1995 0.0000) // $llx=9.1995 $lly=0.0000 $urx=9.1995 $ury=0.0000 $lvl=2
+*|S (VSS!:21 7.8100 0.7750) // $llx=7.8100 $lly=0.7750 $urx=7.8100 $ury=0.7750 $lvl=2
+*|S (VSS!:22 7.8100 1.1550) // $llx=7.8100 $lly=1.1550 $urx=7.8100 $ury=1.1550 $lvl=2
+*|S (VSS!:24 6.9500 0.7750) // $llx=6.9500 $lly=0.7750 $urx=6.9500 $ury=0.7750 $lvl=2
+*|S (VSS!:25 6.9500 1.1550) // $llx=6.9500 $lly=1.1550 $urx=6.9500 $ury=1.1550 $lvl=2
+*|S (VSS!:27 6.0900 0.7750) // $llx=6.0900 $lly=0.7750 $urx=6.0900 $ury=0.7750 $lvl=2
+*|S (VSS!:28 6.0900 1.1550) // $llx=6.0900 $lly=1.1550 $urx=6.0900 $ury=1.1550 $lvl=2
+*|S (VSS!:30 5.2300 0.7750) // $llx=5.2300 $lly=0.7750 $urx=5.2300 $ury=0.7750 $lvl=2
+*|S (VSS!:31 5.2300 1.1550) // $llx=5.2300 $lly=1.1550 $urx=5.2300 $ury=1.1550 $lvl=2
+*|S (VSS!:33 3.3300 0.7750) // $llx=3.3300 $lly=0.7750 $urx=3.3300 $ury=0.7750 $lvl=2
+*|S (VSS!:34 3.3300 1.1550) // $llx=3.3300 $lly=1.1550 $urx=3.3300 $ury=1.1550 $lvl=2
+*|S (VSS!:36 2.4700 0.7750) // $llx=2.4700 $lly=0.7750 $urx=2.4700 $ury=0.7750 $lvl=2
+*|S (VSS!:37 2.4700 1.1550) // $llx=2.4700 $lly=1.1550 $urx=2.4700 $ury=1.1550 $lvl=2
+*|S (VSS!:39 1.6100 0.7750) // $llx=1.6100 $lly=0.7750 $urx=1.6100 $ury=0.7750 $lvl=2
+*|S (VSS!:40 1.6100 1.1550) // $llx=1.6100 $lly=1.1550 $urx=1.6100 $ury=1.1550 $lvl=2
+*|S (VSS!:42 0.7500 0.7750) // $llx=0.7500 $lly=0.7750 $urx=0.7500 $ury=0.7750 $lvl=2
+*|S (VSS!:43 0.7500 1.1550) // $llx=0.7500 $lly=1.1550 $urx=0.7500 $ury=1.1550 $lvl=2
+*|S (VSS!:44 9.2000 0.0000) // $llx=9.2000 $lly=0.0000 $urx=9.2000 $ury=0.0000 $lvl=1
+*|S (VSS!:45 8.0500 0.0000) // $llx=8.0500 $lly=0.0000 $urx=8.0500 $ury=0.0000 $lvl=1
+*|S (VSS!:46 3.6800 0.0000) // $llx=3.6800 $lly=0.0000 $urx=3.6800 $ury=0.0000 $lvl=1
+*|S (VSS!:47 0.0000 0.0000) // $llx=0.0000 $lly=0.0000 $urx=0.0000 $ury=0.0000 $lvl=1
+ReE208 VSS!:44 VSS!:45 0.359375 $metal1  $L=1.15 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=8.050000 $LLY=-0.199500 $URX=9.200000 $URY=0.200000 $lvl=1
+ReE209 VSS!:45 VSS! 0.926562 $metal1  $L=2.965 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=5.085000 $LLY=-0.199500 $URX=8.050000 $URY=0.200000 $lvl=1
+ReE210 VSS! VSS!:46 0.439063 $metal1  $L=1.405 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=3.680000 $LLY=-0.199500 $URX=5.085000 $URY=0.200000 $lvl=1
+ReE211 VSS!:46 VSS!:47 1.150000 $metal1  $L=3.68 $W=0.400000 $SI_W=0.4 $TYPE=10 $DIR=0 $LLX=0.000000 $LLY=-0.199500 $URX=3.680000 $URY=0.200000 $lvl=1
+RfE212 VSS!:1 VSS!:3 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.585000 $LLY=0.775000 $URX=8.755000 $URY=1.155000 $lvl=2
+RfE213 VSS!:3 VSS!:4 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=8.585000 $LLY=0.000000 $URX=8.755000 $URY=0.775000 $lvl=2
+RfE214 VSS!:4 VSS!:5 31.756802 $li  $L=0.62025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=8.050000 $LLY=-0.124500 $URX=8.670000 $URY=0.125000 $lvl=2
+RfE215 VSS!:5 VSS!:8 12.275200 $li  $L=0.23975 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=7.810000 $LLY=-0.124500 $URX=8.050000 $URY=0.125000 $lvl=2
+RfE216 VSS!:8 VSS!:9 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=6.950000 $LLY=-0.124500 $URX=7.810000 $URY=0.125000 $lvl=2
+RfE217 VSS!:9 VSS!:10 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=6.090000 $LLY=-0.124500 $URX=6.950000 $URY=0.125000 $lvl=2
+RfE218 VSS!:10 VSS!:11 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=5.230000 $LLY=-0.124500 $URX=6.090000 $URY=0.125000 $lvl=2
+RfE219 VSS!:11 VSS!:12 79.372803 $li  $L=1.55025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=3.680000 $LLY=-0.124500 $URX=5.230000 $URY=0.125000 $lvl=2
+RfE220 VSS!:12 VSS!:14 17.907200 $li  $L=0.34975 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=3.330000 $LLY=-0.124500 $URX=3.680000 $URY=0.125000 $lvl=2
+RfE221 VSS!:14 VSS!:15 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=2.470000 $LLY=-0.124500 $URX=3.330000 $URY=0.125000 $lvl=2
+RfE222 VSS!:15 VSS!:16 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=1.610000 $LLY=-0.124500 $URX=2.470000 $URY=0.125000 $lvl=2
+RfE223 VSS!:16 VSS!:17 44.031998 $li  $L=0.86 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=0.750000 $LLY=-0.124500 $URX=1.610000 $URY=0.125000 $lvl=2
+RfE224 VSS!:17 VSS!:18 38.412800 $li  $L=0.75025 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=0.000000 $LLY=-0.124500 $URX=0.750000 $URY=0.125000 $lvl=2
+RfE225 VSS!:4 VSS!:19 27.097599 $li  $L=0.52925 $W=0.250000 $SI_W=0.25 $TYPE=10 $DIR=0 $LLX=8.670000 $LLY=-0.124500 $URX=9.199000 $URY=0.125000 $lvl=2
+RfE226 VSS!:8 VSS!:21 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.725000 $LLY=0.000000 $URX=7.895000 $URY=0.775000 $lvl=2
+RfE227 VSS!:21 VSS!:22 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=7.725000 $LLY=0.775000 $URX=7.895000 $URY=1.155000 $lvl=2
+RfE228 VSS!:9 VSS!:24 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.865000 $LLY=0.000000 $URX=7.035000 $URY=0.775000 $lvl=2
+RfE229 VSS!:24 VSS!:25 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.865000 $LLY=0.775000 $URX=7.035000 $URY=1.155000 $lvl=2
+RfE230 VSS!:10 VSS!:27 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.005000 $LLY=0.000000 $URX=6.175000 $URY=0.775000 $lvl=2
+RfE231 VSS!:27 VSS!:28 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=6.005000 $LLY=0.775000 $URX=6.175000 $URY=1.155000 $lvl=2
+RfE232 VSS!:11 VSS!:30 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.145000 $LLY=0.000000 $URX=5.315000 $URY=0.775000 $lvl=2
+RfE233 VSS!:30 VSS!:31 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=5.145000 $LLY=0.775000 $URX=5.315000 $URY=1.155000 $lvl=2
+RfE234 VSS!:14 VSS!:33 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.245000 $LLY=0.000000 $URX=3.415000 $URY=0.775000 $lvl=2
+RfE235 VSS!:33 VSS!:34 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=3.245000 $LLY=0.775000 $URX=3.415000 $URY=1.155000 $lvl=2
+RfE236 VSS!:15 VSS!:36 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.385000 $LLY=0.000000 $URX=2.555000 $URY=0.775000 $lvl=2
+RfE237 VSS!:36 VSS!:37 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=2.385000 $LLY=0.775000 $URX=2.555000 $URY=1.155000 $lvl=2
+RfE238 VSS!:16 VSS!:39 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.525000 $LLY=0.000000 $URX=1.695000 $URY=0.775000 $lvl=2
+RfE239 VSS!:39 VSS!:40 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=1.525000 $LLY=0.775000 $URX=1.695000 $URY=1.155000 $lvl=2
+RfE240 VSS!:17 VSS!:42 55.328377 $li  $L=0.77475 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.665000 $LLY=0.000000 $URX=0.835000 $URY=0.775000 $lvl=2
+RfE241 VSS!:42 VSS!:43 28.611765 $li  $L=0.38 $W=0.170000 $SI_W=0.17 $TYPE=10 $DIR=1 $LLX=0.665000 $LLY=0.775000 $URX=0.835000 $URY=1.155000 $lvl=2
+RhE242 Mmn5@7:s VSS!:3 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE243 Mmn5@2:s VSS!:21 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE244 Mmn5@4:s VSS!:24 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE245 Mmn5@6:s VSS!:27 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE246 Mmn5:s VSS!:30 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE247 Mmn3@1:s VSS!:33 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE248 Mmn2:s VSS!:36 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE249 Mmn1:s VSS!:39 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+RhE250 Mmn1@1:s VSS!:42 7.500000 $licon_diff  $A=0.0578 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.0578 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.057800 $URY=-2.000000 $lvl=5
+Rh_3_E251 VSS!:6 VSS!:5 3.750000 $licon_diff  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=5
+Rh_3_E252 VSS!:6 VSS!:12 1.000000 $licon_diff  $A=0.4335 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.4335 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.433500 $URY=-15.000000 $lvl=5
+RjE253 VSS!:5 VSS!:45 38.000000 $mcon  $A=0.1156 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.1156 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.115600 $URY=-4.000000 $lvl=6
+RjE254 VSS!:12 VSS!:46 10.133333 $mcon  $A=0.4335 $VC=0 $SAVL=0 $SAVC=0 $SI_A=0.4335 $COVER_DIR=0 $LLX=0.000000 $LLY=0.000000 $URX=-0.433500 $URY=-15.000000 $lvl=6
+RmwE255 Mmn1@1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE256 Mmn1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE257 Mmn2@1:s Mmn1:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE258 Mmn2@1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE259 Mmn2:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE260 Mmn3:s Mmn2:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE261 Mmn3:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE262 Mmn3@1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE263 Mmn4:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE264 Mmn4@1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE265 Mmn0:s Mmn1@1:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE266 Mmn0:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE267 Mmn5:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE268 Mmn5@6:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE269 Mmn5@3:s Mmn5@6:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE270 Mmn5@3:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE271 Mmn5@4:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE272 Mmn5@5:s Mmn5@4:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE273 Mmn5@5:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE274 Mmn5@2:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE275 Mmn5@1:s Mmn5@2:s 0.001000 $diff $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE276 Mmn5@1:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+RmwE277 Mmn5@7:b VSS! 0.001000 $FOX $W=1000000 $SI_W=1000000 $TYPE=1 $DIR=0
+*
+*Instance Section
+*
+Mmp1@1	Mmp1@1:d	Mmp1@1:g	Mmp1@1:s	Mmp1@1:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=8900.0 LLY=22850.0 URX=10400.0 URY=37450.0	$X=0.965 $Y=3.015
+Mmp1	Mmp1:d	Mmp1:g	Mmp1:s	Mmp1:b	pfet_01v8	L=1.5e-07
++ W=1.46e-06
++ LLX=13200.0 LLY=22850.0 URX=14700.0 URY=37450.0	$X=1.395 $Y=3.015
+Mmp2@1	Mmp2@1:d	Mmp2@1:g	Mmp2@1:s	Mmp2@1:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=22700.0 LLY=22850.0 URX=24200.0 URY=37450.0	$X=2.345 $Y=3.015
+Mmp2	Mmp2:d	Mmp2:g	Mmp2:s	Mmp2:b	pfet_01v8	L=1.5e-07
++ W=1.46e-06
++ LLX=27000.0 LLY=22850.0 URX=28500.0 URY=37450.0	$X=2.775 $Y=3.015
+Mmp5@2	Mmp5@2:d	Mmp5@2:g	Mmp5@2:s	Mmp5@2:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=53700.0 LLY=22850.0 URX=55200.0 URY=37450.0	$X=5.445 $Y=3.015
+Mmp5@5	Mmp5@5:d	Mmp5@5:g	Mmp5@5:s	Mmp5@5:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=58000.0 LLY=22850.0 URX=59500.0 URY=37450.0	$X=5.875 $Y=3.015
+Mmp5@1	Mmp5@1:d	Mmp5@1:g	Mmp5@1:s	Mmp5@1:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=62300.0 LLY=22850.0 URX=63800.0 URY=37450.0	$X=6.305 $Y=3.015
+Mmp5@3	Mmp5@3:d	Mmp5@3:g	Mmp5@3:s	Mmp5@3:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=66600.0 LLY=22850.0 URX=68100.0 URY=37450.0	$X=6.735 $Y=3.015
+Mmp5@4	Mmp5@4:d	Mmp5@4:g	Mmp5@4:s	Mmp5@4:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=70900.0 LLY=22850.0 URX=72400.0 URY=37450.0	$X=7.165 $Y=3.015
+Mmp5@6	Mmp5@6:d	Mmp5@6:g	Mmp5@6:s	Mmp5@6:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=75200.0 LLY=22850.0 URX=76700.0 URY=37450.0	$X=7.595 $Y=3.015
+Mmp5	Mmp5:d	Mmp5:g	Mmp5:s	Mmp5:b	pfet_01v8	L=1.5e-07
++ W=1.46e-06
++ LLX=79500.0 LLY=22850.0 URX=81000.0 URY=37450.0	$X=8.025 $Y=3.015
+Mmp5@7	Mmp5@7:d	Mmp5@7:g	Mmp5@7:s	Mmp5@7:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=83800.0 LLY=22850.0 URX=85300.0 URY=37450.0	$X=8.455 $Y=3.015
+Mmp0	Mmp0:d	Mmp0:g	Mmp0:s	Mmp0:b	pfet_01v8	L=1.5e-07
++ W=7.8e-07
++ LLX=4000.0 LLY=29650.0 URX=5500.0 URY=37450.0	$X=0.475 $Y=3.355
+Mmp4@1	Mmp4@1:d	Mmp4@1:g	Mmp4@1:s	Mmp4@1:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=45100.0 LLY=22850.0 URX=46600.0 URY=37450.0	$X=4.585 $Y=3.015
+Mmp4	Mmp4:d	Mmp4:g	Mmp4:s	Mmp4:b	pfet_01v8	L=1.5e-07
++ W=1.46e-06
++ LLX=49400.0 LLY=22850.0 URX=50900.0 URY=37450.0	$X=5.015 $Y=3.015
+Mmp3@1	Mmp3@1:d	Mmp3@1:g	Mmp3@1:s	Mmp3@1:b
++ pfet_01v8	L=1.5e-07	W=1.46e-06
++ LLX=36500.0 LLY=22850.0 URX=38000.0 URY=37450.0	$X=3.725 $Y=3.015
+Mmp3	Mmp3:d	Mmp3:g	Mmp3:s	Mmp3:b	pfet_01v8	L=1.5e-07
++ W=1.46e-06
++ LLX=40800.0 LLY=22850.0 URX=42300.0 URY=37450.0	$X=4.155 $Y=3.015
+Mmn1@1	Mmn1@1:d	Mmn1@1:g	Mmn1@1:s	Mmn1@1:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=8900.0 LLY=3950.0 URX=10400.0 URY=11550.0	$X=0.965 $Y=0.775
+Mmn1	Mmn1:d	Mmn1:g	Mmn1:s	Mmn1:b	nfet_01v8_lvt	L=1.5e-07
++ W=7.6e-07
++ LLX=13200.0 LLY=3950.0 URX=14700.0 URY=11550.0	$X=1.395 $Y=0.775
+Mmn2@1	Mmn2@1:d	Mmn2@1:g	Mmn2@1:s	Mmn2@1:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=17500.0 LLY=3950.0 URX=19000.0 URY=11550.0	$X=1.825 $Y=0.775
+Mmn2	Mmn2:d	Mmn2:g	Mmn2:s	Mmn2:b	nfet_01v8_lvt	L=1.5e-07
++ W=7.6e-07
++ LLX=21800.0 LLY=3950.0 URX=23300.0 URY=11550.0	$X=2.255 $Y=0.775
+Mmn3	Mmn3:d	Mmn3:g	Mmn3:s	Mmn3:b	nfet_01v8_lvt	L=1.5e-07
++ W=7.6e-07
++ LLX=26100.0 LLY=3950.0 URX=27600.0 URY=11550.0	$X=2.685 $Y=0.775
+Mmn3@1	Mmn3@1:d	Mmn3@1:g	Mmn3@1:s	Mmn3@1:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=30400.0 LLY=3950.0 URX=31900.0 URY=11550.0	$X=3.115 $Y=0.775
+Mmn4	Mmn4:d	Mmn4:g	Mmn4:s	Mmn4:b	nfet_01v8_lvt	L=1.5e-07
++ W=7.6e-07
++ LLX=39900.0 LLY=3950.0 URX=41400.0 URY=11550.0	$X=4.065 $Y=0.775
+Mmn4@1	Mmn4@1:d	Mmn4@1:g	Mmn4@1:s	Mmn4@1:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=44200.0 LLY=3950.0 URX=45700.0 URY=11550.0	$X=4.495 $Y=0.775
+Mmn0	Mmn0:d	Mmn0:g	Mmn0:s	Mmn0:b	nfet_01v8_lvt	L=1.5e-07
++ W=4.25e-07
++ LLX=4000.0 LLY=3950.0 URX=5500.0 URY=8200.0	$X=0.475 $Y=0.6075
+Mmn5	Mmn5:d	Mmn5:g	Mmn5:s	Mmn5:b	nfet_01v8_lvt	L=1.5e-07
++ W=7.6e-07
++ LLX=53700.0 LLY=3950.0 URX=55200.0 URY=11550.0	$X=5.445 $Y=0.775
+Mmn5@6	Mmn5@6:d	Mmn5@6:g	Mmn5@6:s	Mmn5@6:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=58000.0 LLY=3950.0 URX=59500.0 URY=11550.0	$X=5.875 $Y=0.775
+Mmn5@3	Mmn5@3:d	Mmn5@3:g	Mmn5@3:s	Mmn5@3:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=62300.0 LLY=3950.0 URX=63800.0 URY=11550.0	$X=6.305 $Y=0.775
+Mmn5@4	Mmn5@4:d	Mmn5@4:g	Mmn5@4:s	Mmn5@4:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=66600.0 LLY=3950.0 URX=68100.0 URY=11550.0	$X=6.735 $Y=0.775
+Mmn5@5	Mmn5@5:d	Mmn5@5:g	Mmn5@5:s	Mmn5@5:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=70900.0 LLY=3950.0 URX=72400.0 URY=11550.0	$X=7.165 $Y=0.775
+Mmn5@2	Mmn5@2:d	Mmn5@2:g	Mmn5@2:s	Mmn5@2:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=75200.0 LLY=3950.0 URX=76700.0 URY=11550.0	$X=7.595 $Y=0.775
+Mmn5@1	Mmn5@1:d	Mmn5@1:g	Mmn5@1:s	Mmn5@1:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=79500.0 LLY=3950.0 URX=81000.0 URY=11550.0	$X=8.025 $Y=0.775
+Mmn5@7	Mmn5@7:d	Mmn5@7:g	Mmn5@7:s	Mmn5@7:b
++ nfet_01v8_lvt	L=1.5e-07	W=7.6e-07
++ LLX=83800.0 LLY=3950.0 URX=85300.0 URY=11550.0	$X=8.455 $Y=0.775
+.ENDS

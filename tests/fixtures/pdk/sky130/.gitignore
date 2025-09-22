@@ -1,0 +1,134 @@
+# Setup script
+setup.sh
+
+# python/IDE files
+*.pyc
+__pycache__
+venv
+
+# Pycharm files
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/tasks.xml
+
+# misc edit/log files
+*~
+*.log
+IPOPT.out
+lsyncd.status
+
+
+# misc configuration/history files
+.ipython
+.jupyter
+.ipynb_checkpoints
+.vscode
+
+# generated files/directories
+calibre_run
+icv_run*
+pvs_run*
+gen_libs
+pvs_run
+# cds.lib
+BAGTMP
+spectre_run
+cdl_netlist
+smartfill_run
+netlist
+
+# cadence files
+.abstract
+beol.drc.*
+PIPO.*
+.cadence
+*.cdslck*
+.calibreviewsetup
+.tmp_*
+libManager.log.*
+abstract*
+hdl.var
+lefout.list
+si.env
+xOasisOut_cellMap.txt
+*.oacache*
+../.cadence
+
+# calibre files
+.cgindrcdb
+.cginlvsdb
+.cginpexdb
+calibreview.setup
+ihnl
+map
+.stimulusFile.auCdl
+
+# icv files
+.icv.*
+vue.*
+*.LAYOUT_ERRORS
+*.RESULTS
+*.gdsOut
+signoff
+icv_runs
+_launch.tmpl
+
+# pvs files
+.QRC.run
+.preRcx.Last.State
+.qrc.Last.state
+
+# EMX files
+EMX_work
+
+.nfs*
+
+# Chisel things
+/project
+/target
+/lib
+
+logs_*/
+
+
+# Maestro simulation logs
+**/maestro/history/**
+**/maestro/results/maestro/**
+*.msg.db*
+*.rdb
+
+# VLSI temporary files
+vlsi/temp/*
+vlsi/stream_template
+vlsi/**/stream_template
+vlsi/xStrmOut_cellMap.txt
+xStrmOut_cellMap.txt
+
+# Misc
+XLComplianceLogs/
+custom_fill/
+
+# Large databases that are streamed in for inspection/DRC
+ScumVTop**/
+TMA2**/
+FINAL**/
+TEMP**/
+
+# Shell scripting scratch pad
+scratch.sh
+
+# Extracted Files
+**/*DONT_COMMIT/**
+
+# Put all your local, streamed-in libraries in this file!
+cds.lib.temp
+
+.DS_Store
+node_modules/
+
+# IDE related files
+.vscode/
+.vsconfig
+
+.pcdb/
+xcelium.d/

@@ -1,0 +1,3 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/res_generic_nd type="cell"
+sky130_fd_pr_main/res_generic_pd type="cell"

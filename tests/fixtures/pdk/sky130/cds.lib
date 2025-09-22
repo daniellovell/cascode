@@ -1,0 +1,16 @@
+INCLUDE $CDS_HOME/share/cdssetup/cds.lib
+
+##### Cadence-provided Sky130 PDK libraries
+## Analog libs for custom design
+DEFINE     sky130_fd_pr_main ./libs/sky130_fd_pr_main
+
+## Digital stdcells
+DEFINE     sky130_scl_9T ./libs/sky130_scl_9T/oa/sky130_scl_9T/
+DEFINE     sky130_scl_9T_LP ./libs/sky130_scl_9T_LP/oa/sky130_scl_9T_LP/
+DEFINE     sky130_scl_9T_HS ./libs/sky130_scl_9T_HS/oa/sky130_scl_9T_HS/
+
+##### User/custom designs
+
+DEFINE     tvip_example tvip_example
+DEFINE     Bandgap_reference    ./Bandgap_reference
+

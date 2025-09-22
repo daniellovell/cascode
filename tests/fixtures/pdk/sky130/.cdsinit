@@ -1,0 +1,102 @@
+printf("STARTING CDSINIT\n")
+
+; load configuration skill scripts.
+let( (configFileList file path saveSkillPath)
+    configFileList = '(
+                    )
+    ; paths of the configuration files.  
+    path = strcat(
+              ".  ~  "
+              prependInstallPath("local ")
+             )
+    saveSkillPath=getSkillPath()
+    setSkillPath(path)
+
+    foreach(file configFileList 
+       if(isFile(file) then
+          loadi(file)
+         )
+    )
+    setSkillPath(saveSkillPath)
+)
+
+; load key bindings scripts
+let( (bindKeyFileList file path saveSkillPath)
+    bindKeyFileList = '(
+                   "leBindKeys.il" 
+                   "schBindKeys.il"
+                    )
+    ; paths of key binding scripts
+    path = strcat(
+              ".  ~  "
+              prependInstallPath("local ")
+              prependInstallPath("samples/local")
+             )
+    saveSkillPath=getSkillPath()
+    setSkillPath(path)
+
+    foreach(file bindKeyFileList
+       if(isFile(file ) then
+          loadi(file)
+         )
+    )
+    setSkillPath(saveSkillPath)
+)
+
+sstatus(writeProtect nil)
+
+let((skillPath)
+   skillPath= strcat(
+    ". ~ "                                          ; Current & home directory
+    prependInstallPath("samples/techfile ")         ; sample source technology files
+   )
+   setSkillPath(skillPath)
+)
+
+printf("END OF STANDARD CONFIG SETTINGS\n")
+
+; set default editor
+editor = "/tools/projects/erichang/programs/core/bin/emacs"
+
+envLoadFile( "./.cdsenv" ) 
+
+if( isFile( ".cdsenv.personal" ) then
+    envLoadFile( ".cdsenv.personal" )
+)
+
+; load(strcat(getShellEnvVar("BDA_ROOT") "/3rdParty/cdsinit-bda"))
+
+spiceOutKeys = list(nil
+	'incFILE                   ""
+)
+
+cdlOutKeys = list(nil
+        'incFILE                   ""
+)
+
+; Lorentz Peakview installation
+; let((t_pvPath t_file)
+;         t_pvPath = getShellEnvVar("PEAKHOME")
+;         when(t_pvPath
+;                 t_file = strcat(t_pvPath "/cds/context/pkv.cxt")
+;                 when(isFile(t_file) loadContext(t_file))
+;                 t_file = strcat(t_pvPath "/cds/context/pkview.ini")
+;                 when(isFile(t_file) load(t_file))
+; 
+;         )
+; )
+
+; emx init
+; load(strcat(getShellEnvVar("PWD") "/EMX/emxinterface/.cdsinit"))
+
+if( isFile( ".cdsinit.personal" ) then
+    load(".cdsinit.personal")
+)
+
+; open library manager
+ddsOpenLibManager()
+
+load("emxconfig.il")
+envSetVal("spectre.envOpts" "modelFiles" `string ./stdcells.scs")
+
+printf("END OF CUSTOM CONFIG SETTINGS\n")

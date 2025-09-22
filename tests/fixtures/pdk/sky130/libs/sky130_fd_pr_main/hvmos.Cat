@@ -1,0 +1,7 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/nfet_20v0 type="cell"
+sky130_fd_pr_main/nfet_20v0_iso type="cell"
+sky130_fd_pr_main/nfet_20v0_nvt type="cell"
+sky130_fd_pr_main/nfet_20v0_nvt_iso type="cell"
+sky130_fd_pr_main/nfet_20v0_zvt type="cell"
+sky130_fd_pr_main/pfet_20v0 type="cell"

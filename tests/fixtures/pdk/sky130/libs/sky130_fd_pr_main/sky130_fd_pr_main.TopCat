@@ -1,0 +1,8 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/bip.Cat type="category"
+sky130_fd_pr_main/cap.Cat type="category"
+sky130_fd_pr_main/customVias.Cat type="category"
+sky130_fd_pr_main/diode.Cat type="category"
+sky130_fd_pr_main/hvmos.Cat type="category"
+sky130_fd_pr_main/mos.Cat type="category"
+sky130_fd_pr_main/res.Cat type="category"

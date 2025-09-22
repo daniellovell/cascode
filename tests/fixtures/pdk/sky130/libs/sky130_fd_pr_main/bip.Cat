@@ -1,0 +1,4 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/npn_05v5 type="cell"
+sky130_fd_pr_main/npn_11v0 type="cell"
+sky130_fd_pr_main/pnp_05v5 type="cell"

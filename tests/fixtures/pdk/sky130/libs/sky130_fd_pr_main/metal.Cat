@@ -1,0 +1,6 @@
+TDMCHECKPOINT="1.0"
+sky130_fd_pr_main/res_generic_m1 type="cell"
+sky130_fd_pr_main/res_generic_m2 type="cell"
+sky130_fd_pr_main/res_generic_m3 type="cell"
+sky130_fd_pr_main/res_generic_m4 type="cell"
+sky130_fd_pr_main/res_generic_m5 type="cell"
