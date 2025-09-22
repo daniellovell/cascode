@@ -5,3 +5,8 @@ dotnet-home/
 tools/**/bin/Debug/**
 
 AGENTS.md
+
+.dotnet/
+.local/
+.nuget/
+.cascode/
