@@ -1,0 +1,27 @@
+package lib.std.composites; import lib.std.*;
+
+motif PadDriver implements InverterLike {
+  ports  { IN: electrical; OUT: electrical; VDD: supply; GND: ground; }
+  params {
+    stages:int = 2;             // number of cascaded stages (pre + output)
+    bank:int   = 4;             // number of parallel output branches
+    strength_hint: enum{Auto, X1, X2, X4, X8} = Auto; // library hint
+  }
+
+  // Library implementation detail:
+  // A typical realization uses a modest pre-driver INV feeding a bank of
+  // higher-strength INVs in parallel to meet edge-time at heavy CL.
+  // The composite still presents InverterLike ports/behavior.
+
+  char {
+    // Characterization should cover edge time vs. load and power.
+    sweep { CL:[2pF..30pF]; VDD:[1.6V..1.95V]; }
+    validity { voh>=0.9*VDD; vol<=0.1*VDD; }
+    fit {
+      rise_time~PWL("fit/paddrv_tr_vs_cl.pwl");
+      fall_time~PWL("fit/paddrv_tf_vs_cl.pwl");
+      power~affine(I_total, VDD);
+    }
+  }
+}
+

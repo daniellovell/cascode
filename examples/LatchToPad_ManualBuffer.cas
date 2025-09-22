@@ -1,0 +1,35 @@
+// Example: LatchToPad_ManualBuffer
+// Purpose: Same scenario as LatchToPad_Auto—SALatch driving a heavy pad load—
+// but the buffer is structurally filled with the portable composite motif
+// `PadDriver` (implements InverterLike). Shows parameterization (stages/bank/
+// strength_hint), explicit rail binds, and timing/level specs verified with
+// `StepToggle`. Process‑portable (no PDK names in source).
+package examples.io; import lib.comp.*; import lib.std.composites.*;
+
+class LatchToPad_ManualBuffer {
+  supply VDD=1.8V; ground GND;
+  port in vip: electrical, vin: electrical;
+  port out PAD: electrical;
+
+  net COMP_OUT: electrical;
+
+  env { vdd=VDD; load C = 15pF; source Z = 50Ω; }
+
+  use {
+    sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
+    sa.in_p <- vip; sa.in_n <- vin; sa.out -> COMP_OUT;
+
+    // Process‑portable composite driver; internals are library‑supplied
+    fill Buf with PadDriver { stages=2; bank=4; strength_hint=X4; }
+      bind { in<-COMP_OUT; out->PAD; };
+    Buf.VDD <- VDD; Buf.GND <- GND;
+  }
+
+  spec {
+    rise_time(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
+    fall_time(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
+    voh(PAD) >= 0.9*VDD; vol(PAD) <= 0.1*VDD;
+  }
+
+  bench { StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; } }
+}
