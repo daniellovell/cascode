@@ -194,6 +194,23 @@ The harness holds bench-only elements derived from ADL env blocks: supply values
 }
 ```
 
+### 3.6.1 Bench Configuration (Extensions)
+
+CasIR lists selected benches in `benches` for reproducibility. When a bench is
+parameterized in ADL (e.g., `StepToggle { node=…, freq=…, duty=… }`), its
+configuration is serialized under `extensions.benches.<BenchName>`.
+
+```json
+"benches": ["StepToggle"],
+"extensions": {
+  "benches": {
+    "StepToggle": { "node": "COMP_OUT", "freq": {"value": 5.0e7, "unit": "Hz"}, "duty": 0.5, "slew": {"symbolic": "Auto"}, "cycles": 3 }
+  }
+}
+```
+
+Readers that do not understand a given bench must ignore its extension block.
+
 ---
 
 ## 3.7 Elaboration Levels
@@ -221,6 +238,63 @@ Parameter Representation
   "W": {"value": 2.0e-6, "unit": "m"},
   "L": {"value": 1.8e-7, "unit": "m"},
   "Cc": {"symbolic": "Auto"}
+}
+```
+
+### 3.11.1 Example: ML CasIR for Latch→Pad Buffer Slice (with stdcell INV)
+
+This ML example focuses on the output buffer slot filled by a PDK stdcell
+inverter after synthesis. Nets are electrical; the stdcell appears as a normal
+motif instance with explicit rails.
+
+```json
+{
+  "ir_version": 1,
+  "format": "casir-json-1",
+  "level": "ML",
+  "meta": {"tool": "cascode-0.2.0", "when": "2025-09-21T00:00:00Z"},
+
+  "nets": [
+    {"id": "VDD",  "domain": "supply",   "rail": "VDD"},
+    {"id": "GND",  "domain": "ground",   "rail": "GND"},
+    {"id": "COMP_OUT", "domain": "electrical"},
+    {"id": "PAD",  "domain": "electrical"}
+  ],
+
+  "motifs": [
+    {
+      "id": "Buf",
+      "type": "sky130_fd_sc_hd__inv_4",
+      "traits": ["InverterLike"],
+      "ports": {"IN": "COMP_OUT", "OUT": "PAD", "VDD": "VDD", "GND": "GND", "VPB": "VDD", "VNB": "GND"},
+      "impl": { "view": "spectre", "subckt": "sky130_fd_sc_hd__inv_4", "char_ref": "lib.std.sky130.hd/inv_4@1.0" }
+    }
+  ],
+
+  "constraints": {
+    "numeric": [
+      {"id": "c_rise", "kind": "ineq", "lhs": {"metric": "rise_time", "node": "PAD", "v_lo": {"symbolic":"0.1*VDD"}, "v_hi": {"symbolic":"0.9*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_fall", "kind": "ineq", "lhs": {"metric": "fall_time", "node": "PAD", "v_hi": {"symbolic":"0.9*VDD"}, "v_lo": {"symbolic":"0.1*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_voh",  "kind": "ineq", "lhs": {"metric": "voh", "node": "PAD"}, "op": ">=", "rhs": {"value": 0.9, "unit": "VDD"}},
+      {"id": "c_vol",  "kind": "ineq", "lhs": {"metric": "vol", "node": "PAD"}, "op": "<=", "rhs": {"value": 0.1, "unit": "VDD"}}
+    ],
+    "measure": [
+      {"id": "m_rise", "bench": "StepToggle", "metric": "rise_time", "node": "PAD"},
+      {"id": "m_fall", "bench": "StepToggle", "metric": "fall_time", "node": "PAD"}
+    ]
+  },
+
+  "harness": {
+    "supplies": [ {"net": "VDD", "value": 1.8, "unit": "V"} ],
+    "loads":    [ {"node": "PAD", "C": 1.5e-11, "unit": "F"} ]
+  },
+
+  "benches": ["StepToggle"],
+  "extensions": {
+    "benches": {
+      "StepToggle": { "node": "COMP_OUT", "freq": {"value": 5.0e7, "unit": "Hz"}, "duty": 0.5, "slew": {"symbolic": "Auto"}, "cycles": 3 }
+    }
+  }
 }
 ```
 
@@ -366,6 +440,10 @@ SPICE emission is a direct traversal over motifs. No connectivity inference is r
 
 Because ports hold all edges, node substitution is O(1) per pin. This keeps the SPICE writer small, predictable, and testable.
 
+Note (stdcells)
+
+* Stdcells wrapped as motifs emit as ordinary `.subckt` instances with their rail pins included. No special handling is required beyond using the mapped pin order and including the PDK stdcell deck(s) discovered by the PDK scan.
+
 ---
 
 ## 3.13 Canonical JSON Writer Rules
@@ -410,4 +488,3 @@ The transformation from ADL to SPICE follows a systematic progression through Ca
 Sizing augments parameter values without modifying connectivity, and once all parameters become numeric, the IR reaches EL status and becomes ready for emission. SPICE writing reads ports to determine node names and prints devices according to library templates, with harness elements and bench configurations derived from constraints.measure and harness specifications.
 
 This architectural separation maintains focus on structure and semantics in the front end, while the back end treats CasIR as a stable, mechanical contract.
-

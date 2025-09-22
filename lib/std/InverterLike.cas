@@ -1,0 +1,12 @@
+package lib.std;
+
+trait InverterLike {
+  port in  IN  : electrical;
+  port out OUT : electrical;
+  supply VDD; ground GND;
+
+  // Typical guarantees; library char{ } refines and verifies these bounds
+  ens voh(OUT) >= 0.9*VDD;
+  ens vol(OUT) <= 0.1*VDD;
+}
+

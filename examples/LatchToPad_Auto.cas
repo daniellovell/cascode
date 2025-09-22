@@ -1,0 +1,49 @@
+// Example: LatchToPad_Auto
+// Purpose: Demonstrates buffering a StrongArmLatch output into a heavy pad load
+// (15 pF) using a slot of trait `InverterLike`. Synthesis selects an
+// implementation from portable libraries (lib.std.*), such as a stdcell INV or
+// the composite PadDriver, to meet rise/fall and VOH/VOL specs under env load.
+// Notes: Process‑portable (no PDK names in source). Bench `StepToggle` exercises
+// the buffer by toggling the latch output node (COMP_OUT).
+package examples.io; import lib.comp.*; import lib.std.*; import lib.std.composites.*;
+
+class LatchToPad_Auto {
+  supply VDD=1.8V; ground GND;
+  port in vip: electrical, vin: electrical;
+  port out PAD: electrical;
+
+  net COMP_OUT: electrical;
+
+  env {
+    vdd = VDD;
+    load C = 15pF;
+    source Z = 50Ω;
+    temp = 27C;
+  }
+
+  use {
+    sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
+    sa.in_p <- vip; sa.in_n <- vin;
+    sa.out  -> COMP_OUT;
+  }
+
+  // Buffer chosen by synthesis from stdcell and composite libraries
+  slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+
+  spec {
+    rise_time(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
+    fall_time(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
+    voh(PAD) >= 0.9*VDD; vol(PAD) <= 0.1*VDD;
+    power <= 2mW;
+  }
+
+  bench {
+    StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; }
+  }
+
+  synth {
+    from lib.std.*;
+    fill Buf;                      // any implementer of InverterLike is allowed
+    objective minimize power;      // subject to timing/level constraints
+  }
+}

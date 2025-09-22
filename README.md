@@ -15,7 +15,50 @@
 It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
 
-## Why cascode?
+## 🚀 Install
+
+- npm (prebuilt binaries, zero .NET runtime required)
+
+  ```sh
+  npm install -g @cascode/cascode-cli
+  ```
+
+  Notes: The npm wrapper downloads a self-contained `cascode` binary for your
+  platform from GitHub Releases. If your network blocks GitHub, set
+  `CASCODE_DOWNLOAD_BASE` to a mirror and reinstall.
+
+- .NET global tool (requires .NET 8 SDK)
+
+  ```sh
+  dotnet tool install -g Cascode.Cli
+  ```
+
+- Standalone release (download and add to PATH)
+
+  Download the archive matching your OS/arch (e.g., `cascode-linux-x64.tar.gz`)
+  from the Releases page, extract, and place `cascode` on your PATH.
+
+After install, verify:
+
+```sh
+cascode --version
+cascode --help
+```
+
+### Latest vs pre-release
+
+- Stable (latest):
+  - npm: `npm install -g @cascode/cascode-cli`
+  - dotnet tool: `dotnet tool install -g Cascode.Cli`
+
+- Pre-release (release candidates, nightly tags):
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.2.0-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.2.0-rc.1`
+  - Direct download: grab the matching asset from the GitHub release marked “Pre-release”.
+
+---
+
+## 💡 Why cascode?
 
 * **Bridges behavior and structure.** Mix spec-only requests ("meet GBW/PM/gain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
 * **Motif-centric.** Build with well-named blocks: `DiffPairNMOS`, `PMOSCascodeLoad`, `MillerRz`, `StrongArmLatch`, etc.
@@ -26,7 +69,7 @@ It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friend
 
 ---
 
-## Language at a Glance
+## 📝 Language at a Glance
 
 ### Spec-only amplifier (you pick the topology)
 
@@ -194,7 +237,7 @@ class SenseChainAuto {
 
 ---
 
-## From `.cas` to `.cir` to SPICE -- The Synthesis/Verification Flow
+## ⚙️ From `.cas` to `.cir` to SPICE -- The Synthesis/Verification Flow
 
 1. **Parse & Normalize**
 
@@ -257,7 +300,7 @@ class SenseChainAuto {
 
 ---
 
-## Repository Layout
+## 📁 Repository Layout
 ```
 cascode/
 ├─ README.md
@@ -319,7 +362,7 @@ cascode/
 
 ---
 
-## CLI (preview)
+## 💻 CLI (preview)
 
 ```bash
 # Synthesize topology and emit CasIR
@@ -334,7 +377,7 @@ cascode run examples/AmpGuided.cas --pdk gpdk045 --out build/
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 * See `CONTRIBUTING.md` for coding standards, style, and the language conformance suite.
 * Library authors: include a `char { ... }` block with benches, PVT grid, sweeps, and fitted models.
@@ -342,6 +385,6 @@ cascode run examples/AmpGuided.cas --pdk gpdk045 --out build/
 
 ---
 
-## License
+## 📄 License
 
 BSD-3

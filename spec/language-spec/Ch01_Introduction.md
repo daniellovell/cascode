@@ -244,3 +244,55 @@ A *cascode* implementation is conformant if it:
 * and enforces contracts and structural typing rules in this specification.
 
 ---
+
+### 1.10 Digital Standard Cells as Motifs (Overview)
+
+Many analog and mixed‑signal designs leverage digital standard cells (stdcells)
+for buffering, phase detection, and simple logic around analog cores. cascode
+supports this by treating stdcells as ordinary motifs with electrical ports and
+explicit supply pins. Stdcells typically enter the system through `wrap spice`
+from PDK‑provided subcircuits and may participate in synthesis when annotated
+with `char {}` manifests.
+
+The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `rise_time`, `fall_time`, `voh`, and `vol`, with verification performed through standard benches.
+
+Example — Strong‑arm latch to pad with a selectable output inverter:
+
+```cas
+package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
+
+class LatchToPad {
+  supply VDD=1.8V; ground GND; port in vip, vin; port out PAD;
+  net COMP_OUT: electrical;
+
+  env { vdd=VDD; load C on PAD = 15pF; source Z = 50Ω; }
+
+  use {
+    sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
+    sa.in_p <- vip; sa.in_n <- vin; sa.out -> COMP_OUT;
+  }
+
+  // Let synthesis choose a stdcell inverter or a composite pad driver
+  slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+
+  spec {
+    rise_time(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
+    fall_time(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
+    voh(PAD) >= 0.9*VDD; vol(PAD) <= 0.1*VDD; power<=2mW;
+  }
+
+  bench { StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; } }
+
+  synth {
+    from lib.std.sky130.hd.*;                 // stdcell wrappers
+    allow Buf in { INV_*, PadDriver };        // single cell or composite
+    prefer minimize dynamic_power;
+  }
+}
+```
+
+In this flow, the heavy pad load (15 pF) appears via `env{}` and the synthesis
+engine chooses an implementation of `InverterLike` that meets `rise_time` /
+`fall_time` constraints at `PAD` while respecting power objectives. The choice
+may be a single strong INV or a composite `PadDriver` that implements the same
+trait.
