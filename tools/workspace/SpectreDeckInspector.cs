@@ -20,7 +20,7 @@ internal sealed class SpectreDeckInspector
         if (!File.Exists(deckPath))
         {
             warnings?.Add($"Model deck '{deckPath}' does not exist.");
-            return new ModelDeckRecord(deckPath, deckPath, sections, includes);
+            return new ModelDeckRecord(deckPath, deckPath, sections, includes, Array.Empty<SpectreModel>());
         }
 
         try
@@ -73,7 +73,7 @@ internal sealed class SpectreDeckInspector
             warnings?.Add($"Failed to inspect '{deckPath}': {ex.Message}");
         }
 
-        return new ModelDeckRecord(deckPath, deckPath, sections, includes);
+        return new ModelDeckRecord(deckPath, deckPath, sections, includes, Array.Empty<SpectreModel>());
     }
 
 }

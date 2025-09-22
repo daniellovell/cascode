@@ -5,6 +5,12 @@ using System.IO;
 
 namespace Cascode.Cli;
 
+internal enum ShellViewMode
+{
+    Home = 0,
+    ModelSummary
+}
+
 internal sealed class ShellState
 {
     private const int MaxMessages = 1000;
@@ -33,6 +39,14 @@ internal sealed class ShellState
 
     public bool IsLogPinned => LogScrollOffset == 0;
 
+    public ShellViewMode ViewMode { get; private set; } = ShellViewMode.Home;
+
+    public ModelSummaryViewState? ModelSummary { get; private set; }
+
+    public int ModelDetailOffset { get; private set; }
+
+    public int ModelDetailPageSize { get; private set; }
+
     private int _historyCursor;
 
     public void SetWorkspace(string root)
@@ -53,6 +67,7 @@ internal sealed class ShellState
         _history.Clear();
         ResetHistoryCursor();
         LogScrollOffset = 0;
+        ShowHome();
     }
 
     public void UpdatePdkRoot(string? root)
@@ -136,6 +151,54 @@ internal sealed class ShellState
     }
 
     public void PinLog() => LogScrollOffset = 0;
+
+    public void ShowHome()
+    {
+        ViewMode = ShellViewMode.Home;
+        ModelSummary = null;
+        ModelDetailOffset = 0;
+        ModelDetailPageSize = 0;
+    }
+
+    public bool TrySetModelDetailOffset(int offset)
+    {
+        if (ModelSummary is null || !ModelSummary.HasDetailRows)
+        {
+            return false;
+        }
+
+        var pageSize = ModelDetailPageSize > 0 ? ModelDetailPageSize : ModelSummary.DetailRows.Count;
+        var maxOffset = Math.Max(0, ModelSummary.DetailRows.Count - pageSize);
+        offset = Math.Clamp(offset, 0, maxOffset);
+        if (offset == ModelDetailOffset)
+        {
+            return false;
+        }
+
+        ModelDetailOffset = offset;
+        return true;
+    }
+
+    public void ShowModelSummary(ModelSummaryViewState summary)
+    {
+        ReplaceModelSummary(summary ?? throw new ArgumentNullException(nameof(summary)));
+        ViewMode = ShellViewMode.ModelSummary;
+    }
+
+    public void ReplaceModelSummary(ModelSummaryViewState summary)
+    {
+        ModelSummary = summary;
+        if (summary.HasDetailRows)
+        {
+            ModelDetailPageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
+            ModelDetailOffset = Math.Clamp(summary.DetailOffset, 0, Math.Max(0, summary.DetailRows.Count - ModelDetailPageSize));
+        }
+        else
+        {
+            ModelDetailPageSize = 0;
+            ModelDetailOffset = 0;
+        }
+    }
 
     public void ResetHistoryCursor()
     {

@@ -1,6 +1,7 @@
 using Cascode.Workspace;
 using Spectre.Console;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,7 @@ internal sealed class CascodeShell
     private readonly CliConfig _config;
     private readonly string _initialWorkspaceRoot;
     private readonly ShellState _state;
+    private bool _isInteractive;
 
     public CascodeShell(string workspaceRoot)
     {
@@ -52,11 +54,14 @@ internal sealed class CascodeShell
         _commands.Register("build", "Compile ADL (preview)", BuildCommand);
         _commands.Register("log", "Scroll the log history", HandleLog, hidden: true);
 
+        _commands.Register("home", "Return to dashboard layout", HomeCommand);
+
         _commands.Register("quit", "Exit the CLI", Quit, aliases: new[] { "exit" });
     }
 
     public int RunInteractive()
     {
+        _isInteractive = true;
         while (true)
         {
             Render();
@@ -93,6 +98,7 @@ internal sealed class CascodeShell
 
     public int RunOnce(string[] tokens)
     {
+        _isInteractive = false;
         if (tokens.Length == 0)
         {
             return 0;
@@ -139,6 +145,426 @@ internal sealed class CascodeShell
         }
 
         return CommandResult.Success;
+    }
+
+    private void ParseModelArguments(string[] args, HashSet<SpectreModelDeviceClass> filters, int totalCount, ref int limit)
+    {
+        if (args.Length == 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            var arg = args[i];
+            if (string.IsNullOrWhiteSpace(arg))
+            {
+                continue;
+            }
+
+            if (arg.Equals("--limit", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 < args.Length &&
+                    int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLimit))
+                {
+                    limit = Math.Clamp(parsedLimit, 1, Math.Max(1, totalCount));
+                    i++;
+                }
+                else
+                {
+                    _state.AddMessage("Expected integer value after --limit.");
+                }
+
+                continue;
+            }
+
+            foreach (var token in ExpandFilterToken(arg))
+            {
+                if (TryResolveDeviceClass(token, out var deviceClass))
+                {
+                    filters.Add(deviceClass);
+                }
+                else if (!string.IsNullOrWhiteSpace(token))
+                {
+                    _state.AddMessage($"Unknown device filter '{token}'.");
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> ExpandFilterToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            yield break;
+        }
+
+        var trimmed = token.Trim();
+        var segments = trimmed.Split(new[] { '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0)
+        {
+            yield return trimmed.Trim('/');
+            yield break;
+        }
+
+        foreach (var segment in segments)
+        {
+            var clean = segment.Trim().Trim('/');
+            if (clean.Length == 0)
+            {
+                continue;
+            }
+
+            yield return clean;
+        }
+    }
+
+    private static bool TryResolveDeviceClass(string token, out SpectreModelDeviceClass deviceClass)
+    {
+        deviceClass = SpectreModelDeviceClass.Unknown;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return false;
+        }
+
+        var normalized = token.Trim().Trim('/').ToLowerInvariant();
+        switch (normalized)
+        {
+            case "nmos" or "nfet" or "nch":
+                deviceClass = SpectreModelDeviceClass.Nmos;
+                return true;
+            case "pmos" or "pfet" or "pch":
+                deviceClass = SpectreModelDeviceClass.Pmos;
+                return true;
+            case "cap" or "caps" or "capacitor" or "capacitors":
+                deviceClass = SpectreModelDeviceClass.Capacitor;
+                return true;
+            case "res" or "resistor" or "resistors":
+                deviceClass = SpectreModelDeviceClass.Resistor;
+                return true;
+            case "diode" or "diodes":
+                deviceClass = SpectreModelDeviceClass.Diode;
+                return true;
+            case "bjt" or "bipolar":
+                deviceClass = SpectreModelDeviceClass.Bipolar;
+                return true;
+            case "moscap":
+                deviceClass = SpectreModelDeviceClass.Moscap;
+                return true;
+            case "ind" or "inductor" or "inductors":
+                deviceClass = SpectreModelDeviceClass.Inductor;
+                return true;
+            case "tline" or "tl" or "transmissionline":
+                deviceClass = SpectreModelDeviceClass.TransmissionLine;
+                return true;
+            case "other":
+                deviceClass = SpectreModelDeviceClass.Other;
+                return true;
+            case "unknown" or "uncat" or "uncategorized" or "unmatched":
+                deviceClass = SpectreModelDeviceClass.Unknown;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static string BuildModelSummaryTitle(IEnumerable<SpectreModelDeviceClass> filters)
+    {
+        var filterList = filters?.ToList() ?? new List<SpectreModelDeviceClass>();
+        if (filterList.Count == 0)
+        {
+            return "Model Catalog";
+        }
+
+        var labels = filterList
+            .Select(FormatDeviceClassName)
+            .OrderBy(label => label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return string.Join(" / ", labels) + " Models";
+    }
+
+    private static string BuildClassSummaryLine(
+        int displayedClassCount,
+        int scopedClassCount,
+        int displayedModelCount,
+        int scopedModelCount,
+        int totalModelCount,
+        IEnumerable<SpectreModelDeviceClass> filters,
+        bool limited,
+        bool includeUncategorized)
+    {
+        var filterList = filters?.ToList() ?? new List<SpectreModelDeviceClass>();
+        var filterLabel = filterList.Count == 0
+            ? "All device classes"
+            : "Filters → " + string.Join(", ", filterList.Select(FormatDeviceClassName));
+
+        var scopedModelsLabel = scopedModelCount > 0
+            ? $"covering {displayedModelCount} of {scopedModelCount} models in scope"
+            : $"covering {displayedModelCount} models";
+
+        var line = $"Showing {displayedClassCount} of {scopedClassCount} classes {scopedModelsLabel}. {filterLabel}.";
+
+        if (scopedModelCount != totalModelCount)
+        {
+            line += $" Catalog total: {totalModelCount} models.";
+        }
+
+        if (includeUncategorized)
+        {
+            line += " Uncategorized devices are highlighted.";
+        }
+
+        if (limited)
+        {
+            line += " Use --limit to include more classes.";
+        }
+
+        return line;
+    }
+
+    private static string BuildClassStatsLine(
+        IEnumerable<(SpectreModelDeviceClass Class, int Count)> categorizedCounts,
+        IReadOnlyList<SpectreModel>? uncategorized)
+    {
+        var parts = new List<string>();
+
+        var topCategories = categorizedCounts
+            .OrderByDescending(entry => entry.Count)
+            .ThenBy(entry => FormatDeviceClassName(entry.Class), StringComparer.OrdinalIgnoreCase)
+            .Take(3)
+            .Select(entry => $"{FormatDeviceClassName(entry.Class)}: {entry.Count}")
+            .ToArray();
+
+        if (topCategories.Length > 0)
+        {
+            parts.Add("Top classes → " + string.Join(", ", topCategories));
+        }
+
+        var uncategorizedCount = uncategorized?.Count ?? 0;
+
+        if (uncategorizedCount > 0)
+        {
+            var deckSource = uncategorized ?? Array.Empty<SpectreModel>();
+            var decks = FormatDecks(deckSource.SelectMany(model => model.Decks).ToList());
+            var segment = decks == "-"
+                ? $"Uncategorized: {uncategorizedCount}"
+                : $"Uncategorized: {uncategorizedCount} ({decks})";
+            parts.Add(segment);
+        }
+        else
+        {
+            parts.Add("Uncategorized: 0");
+        }
+
+        return parts.Count == 0 ? string.Empty : string.Join(" | ", parts) + ".";
+    }
+
+    private static string BuildDetailSummaryLine(
+        IReadOnlyList<string> filterLabels,
+        int offset,
+        int pageSize,
+        int totalCount)
+    {
+        if (totalCount == 0)
+        {
+            return "No models matched the selected filters.";
+        }
+
+        var start = offset + 1;
+        var end = Math.Min(totalCount, offset + pageSize);
+        var label = filterLabels.Count == 0 ? "All device classes" : string.Join(", ", filterLabels);
+        return $"Showing models {start}-{end} of {totalCount} ({label}). Use Shift+Up/Down to scroll.";
+    }
+
+    private static string BuildDetailStatsLine(IReadOnlyCollection<SpectreModel> models)
+    {
+        if (models.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var voltage = FormatDistinctSummary(models.Select(model => model.VoltageDomain));
+        var thresholds = FormatDistinctSummary(models.Select(model => model.ThresholdFlavor));
+        var corners = FormatDistinctSummary(models.SelectMany(model => model.Corners));
+        var decks = FormatDecks(models.SelectMany(model => model.Decks).ToList());
+
+        var parts = new List<string>();
+        if (voltage != "-")
+        {
+            parts.Add($"VDD → {voltage}");
+        }
+        if (thresholds != "-")
+        {
+            parts.Add($"VT → {thresholds}");
+        }
+        if (corners != "-")
+        {
+            parts.Add($"Corners → {corners}");
+        }
+        if (decks != "-")
+        {
+            parts.Add($"Decks → {decks}");
+        }
+
+        return parts.Count == 0 ? string.Empty : string.Join(" | ", parts);
+    }
+
+    private static string BuildModelSuggestionText()
+    {
+        return "Tip: Use Shift+Up/Down to scroll, 'pdk models nmos' to focus, 'pdk match' to classify, and 'home' to exit.";
+    }
+
+    private static ModelClassSummaryRow CreateClassSummaryRow(
+        SpectreModelDeviceClass deviceClass,
+        IReadOnlyList<SpectreModel> models,
+        bool isUncategorized)
+    {
+        var deviceLabel = isUncategorized
+            ? "Uncategorized"
+            : FormatDeviceClassName(deviceClass);
+
+        var modelCount = models.Count.ToString(CultureInfo.InvariantCulture);
+        var voltageDomains = FormatDistinctSummary(models.Select(model => model.VoltageDomain));
+        var thresholds = FormatDistinctSummary(models.Select(model => model.ThresholdFlavor));
+        var corners = FormatDistinctSummary(models.SelectMany(model => model.Corners));
+        var decks = FormatDecks(models.SelectMany(model => model.Decks).ToList());
+        var exampleModel = models
+            .Select(model => model.Name)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault() ?? "-";
+
+        return new ModelClassSummaryRow(
+            deviceLabel,
+            modelCount,
+            decks,
+            voltageDomains,
+            thresholds,
+            corners,
+            exampleModel,
+            isUncategorized);
+    }
+
+    private static ModelSummaryRow CreateModelSummaryRow(SpectreModel model, int index)
+    {
+        var threshold = string.IsNullOrWhiteSpace(model.ThresholdFlavor) ? "-" : model.ThresholdFlavor!;
+        var voltage = string.IsNullOrWhiteSpace(model.VoltageDomain) ? "-" : model.VoltageDomain!;
+        var corners = FormatDistinctSummary(model.Corners);
+        var decks = FormatDecks(model.Decks.ToList());
+
+        return new ModelSummaryRow(
+            index,
+            model.Name,
+            FormatDeviceClassName(model.DeviceClass),
+            threshold,
+            voltage,
+            corners,
+            decks);
+    }
+
+    private static string FormatDeviceClassName(SpectreModelDeviceClass deviceClass)
+    {
+        return deviceClass switch
+        {
+            SpectreModelDeviceClass.Unknown => "Unknown",
+            SpectreModelDeviceClass.Nmos => "NMOS",
+            SpectreModelDeviceClass.Pmos => "PMOS",
+            SpectreModelDeviceClass.Bipolar => "Bipolar",
+            SpectreModelDeviceClass.Diode => "Diode",
+            SpectreModelDeviceClass.Resistor => "Resistor",
+            SpectreModelDeviceClass.Capacitor => "Capacitor",
+            SpectreModelDeviceClass.Inductor => "Inductor",
+            SpectreModelDeviceClass.Moscap => "MOSCAP",
+            SpectreModelDeviceClass.TransmissionLine => "Transmission Line",
+            SpectreModelDeviceClass.Other => "Other",
+            _ => deviceClass.ToString()
+        };
+    }
+
+    private static string FormatDistinctSummary(IEnumerable<string?> values, int maxItems = 5)
+    {
+        if (values is null)
+        {
+            return "-";
+        }
+
+        var distinct = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (distinct.Count == 0)
+        {
+            return "-";
+        }
+
+        if (distinct.Count <= maxItems)
+        {
+            return string.Join(", ", distinct);
+        }
+
+        return string.Join(", ", distinct.Take(maxItems)) + $" … ({distinct.Count - maxItems} more)";
+    }
+
+    private static string FormatDecks(IReadOnlyList<string> decks)
+    {
+        if (decks is null || decks.Count == 0)
+        {
+            return "-";
+        }
+
+        var names = decks
+            .Select(deck => Path.GetFileName(deck) ?? deck)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (names.Count == 0)
+        {
+            return "-";
+        }
+
+        if (names.Count <= 3)
+        {
+            return string.Join(", ", names);
+        }
+
+        return string.Join(", ", names.Take(3)) + $" … ({names.Count - 3} more)";
+    }
+
+    private bool TryAdjustDetailOffset(int delta)
+    {
+        var view = _state.ModelSummary;
+        if (view is null || !view.HasDetailRows)
+        {
+            return false;
+        }
+
+        var pageSize = view.DetailPageSize > 0 ? view.DetailPageSize : view.DetailRows.Count;
+        var maxOffset = Math.Max(0, view.DetailRows.Count - pageSize);
+        var newOffset = Math.Clamp(view.DetailOffset + delta, 0, maxOffset);
+        if (newOffset == view.DetailOffset)
+        {
+            return false;
+        }
+
+        var summaryLine = BuildDetailSummaryLine(view.DetailFilters, newOffset, pageSize, view.DetailRows.Count);
+        var updatedView = view.WithDetail(newOffset, summaryLine);
+        _state.ReplaceModelSummary(updatedView);
+        return true;
+    }
+
+    private int GetDetailScrollStep()
+    {
+        var view = _state.ModelSummary;
+        if (view is null || !view.HasDetailRows)
+        {
+            return 1;
+        }
+
+        var pageSize = view.DetailPageSize > 0 ? view.DetailPageSize : view.DetailRows.Count;
+        return Math.Max(1, pageSize / 4);
     }
 
     private CommandResult ShowVersion(string[] args)
@@ -196,20 +622,262 @@ internal sealed class CascodeShell
             return CommandResult.Failure;
         }
 
-        if (scan.ModelDecks.Count == 0)
+        var models = scan.Models;
+        if (models.Count == 0)
         {
-            _state.AddMessage("No model decks discovered. Run pdk scan.");
+            var emptyLine = "No models discovered. Run pdk scan.";
+            _state.AddMessage(emptyLine);
+
+            if (_isInteractive)
+            {
+                var emptyView = new ModelSummaryViewState(
+                    "Model Catalog",
+                    emptyLine,
+                    string.Empty,
+                    BuildModelSuggestionText(),
+                    Array.Empty<ModelSummaryRow>(),
+                    Array.Empty<ModelClassSummaryRow>());
+                _state.ShowModelSummary(emptyView);
+            }
+
             return CommandResult.Success;
         }
 
-        var table = new Table().AddColumn("#").AddColumn("Deck").AddColumn("Sections");
-        table.Border(TableBorder.Rounded);
-        for (var i = 0; i < scan.ModelDecks.Count; i++)
+        var filters = new HashSet<SpectreModelDeviceClass>();
+        var limit = 0;
+        ParseModelArguments(args, filters, Math.Max(1, models.Count), ref limit);
+        var categorizedClassCount = models
+            .Where(model => model.DeviceClass != SpectreModelDeviceClass.Unknown)
+            .Select(model => model.DeviceClass)
+            .Distinct()
+            .Count();
+
+        if (filters.Count == 0)
         {
-            var deck = scan.ModelDecks[i];
-            table.AddRow((i + 1).ToString(), Path.GetFileName(deck.DeckPath), deck.Sections.Count.ToString());
+            return RenderClassSummary(models, categorizedClassCount, filters, limit);
         }
-        AnsiConsole.Write(table);
+
+        return RenderDetailSummary(models, filters, limit);
+    }
+
+    private CommandResult RenderClassSummary(
+        IReadOnlyList<SpectreModel> models,
+        int categorizedClassCount,
+        HashSet<SpectreModelDeviceClass> filters,
+        int parsedLimit)
+    {
+        var maxClassCount = Math.Max(1, categorizedClassCount);
+
+        var limit = parsedLimit;
+        if (limit <= 0)
+        {
+            limit = _isInteractive ? Math.Min(8, maxClassCount) : maxClassCount;
+        }
+        limit = Math.Clamp(limit, 1, maxClassCount);
+
+        var uncategorizedList = models
+            .Where(model => model.DeviceClass == SpectreModelDeviceClass.Unknown)
+            .ToList();
+        var includeUncategorized = uncategorizedList.Count > 0;
+
+        var categorizedGroups = models
+            .Where(model => model.DeviceClass != SpectreModelDeviceClass.Unknown)
+            .GroupBy(model => model.DeviceClass)
+            .Select(group => (Class: group.Key, Models: group.ToList()))
+            .OrderByDescending(entry => entry.Models.Count)
+            .ThenBy(entry => FormatDeviceClassName(entry.Class), StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var matchingClassCount = categorizedGroups.Count + (includeUncategorized ? 1 : 0);
+        var matchingModelCount = categorizedGroups.Sum(entry => entry.Models.Count) + uncategorizedList.Count;
+
+        var limitedGroups = categorizedGroups.Take(limit).ToList();
+        var displayedClassCount = limitedGroups.Count + (includeUncategorized ? 1 : 0);
+        var displayedModelCount = limitedGroups.Sum(entry => entry.Models.Count) + (includeUncategorized ? uncategorizedList.Count : 0);
+
+        var classRows = new List<ModelClassSummaryRow>(displayedClassCount);
+        foreach (var entry in limitedGroups)
+        {
+            classRows.Add(CreateClassSummaryRow(entry.Class, entry.Models, isUncategorized: false));
+        }
+
+        if (includeUncategorized)
+        {
+            classRows.Add(CreateClassSummaryRow(SpectreModelDeviceClass.Unknown, uncategorizedList, isUncategorized: true));
+        }
+
+        var title = BuildModelSummaryTitle(filters);
+        var limitedCategorized = categorizedGroups.Count > 0 && limitedGroups.Count < categorizedGroups.Count;
+        var summaryLine = BuildClassSummaryLine(
+            displayedClassCount,
+            matchingClassCount,
+            displayedModelCount,
+            matchingModelCount,
+            models.Count,
+            filters,
+            limitedCategorized,
+            includeUncategorized && uncategorizedList.Count > 0);
+
+        var statsLine = BuildClassStatsLine(
+            categorizedGroups.Select(entry => (entry.Class, entry.Models.Count)),
+            includeUncategorized ? uncategorizedList : null);
+
+        var suggestionLine = BuildModelSuggestionText();
+
+        var view = new ModelSummaryViewState(
+            title,
+            summaryLine,
+            statsLine,
+            suggestionLine,
+            Array.Empty<ModelSummaryRow>(),
+            classRows,
+            detailOffset: 0,
+            detailPageSize: 0,
+            detailFilters: Array.Empty<string>());
+
+        if (_isInteractive)
+        {
+            _state.ShowModelSummary(view);
+        }
+        else
+        {
+            var table = ShellRenderer.CreateModelClassSummaryTable(classRows);
+            AnsiConsole.Write(table);
+            if (!string.IsNullOrWhiteSpace(summaryLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(summaryLine));
+            }
+            if (!string.IsNullOrWhiteSpace(statsLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(statsLine));
+            }
+            if (!string.IsNullOrWhiteSpace(suggestionLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(suggestionLine));
+            }
+        }
+
+        _state.AddMessage(summaryLine);
+        if (!string.IsNullOrWhiteSpace(statsLine))
+        {
+            _state.AddMessage(statsLine);
+        }
+        if (!string.IsNullOrWhiteSpace(suggestionLine))
+        {
+            _state.AddMessage(suggestionLine);
+        }
+
+        if (categorizedGroups.Count == 0)
+        {
+            _state.AddMessage(includeUncategorized
+                ? "No categorized classes to display. Showing uncategorized models for review."
+                : "No categorized classes to display. Adjust filters or scan again.");
+        }
+        else if (limitedCategorized)
+        {
+            _state.AddMessage($"Showing top {limitedGroups.Count} of {categorizedGroups.Count} categorized classes. Use --limit for more.");
+        }
+        else
+        {
+            _state.AddMessage("Displayed all categorized classes in scope.");
+        }
+
+        if (includeUncategorized && uncategorizedList.Count > 0)
+        {
+            _state.AddMessage($"Uncategorized models: {uncategorizedList.Count}. Run 'pdk match' to classify them.");
+        }
+
+        return CommandResult.Success;
+    }
+
+    private CommandResult RenderDetailSummary(
+        IReadOnlyList<SpectreModel> models,
+        HashSet<SpectreModelDeviceClass> filters,
+        int parsedLimit)
+    {
+        var filteredModels = models
+            .Where(model => filters.Contains(model.DeviceClass))
+            .ToList();
+
+        if (filteredModels.Count == 0)
+        {
+            var title = BuildModelSummaryTitle(filters);
+            var message = "No models matched the selected device filters.";
+            _state.ShowModelSummary(new ModelSummaryViewState(
+                title,
+                message,
+                string.Empty,
+                BuildModelSuggestionText(),
+                Array.Empty<ModelSummaryRow>(),
+                Array.Empty<ModelClassSummaryRow>()));
+            _state.AddMessage(message);
+            return CommandResult.Success;
+        }
+
+        var filterLabels = filters
+            .Select(FormatDeviceClassName)
+            .OrderBy(label => label, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        var pageSize = parsedLimit > 0
+            ? Math.Clamp(parsedLimit, 1, filteredModels.Count)
+            : (_isInteractive ? Math.Min(20, filteredModels.Count) : filteredModels.Count);
+
+        var detailRows = new List<ModelSummaryRow>(filteredModels.Count);
+        for (var i = 0; i < filteredModels.Count; i++)
+        {
+            detailRows.Add(CreateModelSummaryRow(filteredModels[i], i + 1));
+        }
+
+        var offset = 0;
+        var summaryLine = BuildDetailSummaryLine(filterLabels, offset, pageSize, filteredModels.Count);
+        var statsLine = BuildDetailStatsLine(filteredModels);
+        var suggestionLine = BuildModelSuggestionText();
+        var viewTitle = BuildModelSummaryTitle(filters);
+
+        var view = new ModelSummaryViewState(
+            viewTitle,
+            summaryLine,
+            statsLine,
+            suggestionLine,
+            detailRows,
+            Array.Empty<ModelClassSummaryRow>(),
+            detailOffset: offset,
+            detailPageSize: pageSize,
+            detailFilters: filterLabels);
+
+        if (_isInteractive)
+        {
+            _state.ShowModelSummary(view);
+        }
+        else
+        {
+            var table = ShellRenderer.CreateModelDetailTable(view);
+            AnsiConsole.Write(table);
+            if (!string.IsNullOrWhiteSpace(summaryLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(summaryLine));
+            }
+            if (!string.IsNullOrWhiteSpace(statsLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(statsLine));
+            }
+            if (!string.IsNullOrWhiteSpace(suggestionLine))
+            {
+                AnsiConsole.MarkupLine(Markup.Escape(suggestionLine));
+            }
+        }
+
+        _state.AddMessage(summaryLine);
+        if (!string.IsNullOrWhiteSpace(statsLine))
+        {
+            _state.AddMessage(statsLine);
+        }
+        if (!string.IsNullOrWhiteSpace(suggestionLine))
+        {
+            _state.AddMessage(suggestionLine);
+        }
+
         return CommandResult.Success;
     }
 
@@ -221,64 +889,57 @@ internal sealed class CascodeShell
             return CommandResult.Failure;
         }
 
+        if (scan.Models.Count == 0)
+        {
+            _state.AddMessage("No models discovered. Run pdk scan.");
+            return CommandResult.Success;
+        }
+
         if (args.Length == 0)
         {
             _state.AddMessage("Usage: pdk model <index|name>");
             return CommandResult.Success;
         }
 
-        ModelDeckRecord? deck = null;
-        var index = -1;
-        if (int.TryParse(args[0], out var idx))
+        SpectreModel? model = null;
+        var models = scan.Models;
+
+        if (int.TryParse(args[0], out var parsedIndex))
         {
-            idx -= 1;
-            if (idx >= 0 && idx < scan.ModelDecks.Count)
+            parsedIndex -= 1;
+            if (parsedIndex >= 0 && parsedIndex < models.Count)
             {
-                deck = scan.ModelDecks[idx];
-                index = idx;
+                model = models[parsedIndex];
             }
         }
         else
         {
-            for (var i = 0; i < scan.ModelDecks.Count; i++)
-            {
-                var candidate = scan.ModelDecks[i];
-                if (candidate.DeckPath.Contains(args[0], StringComparison.OrdinalIgnoreCase))
-                {
-                    deck = candidate;
-                    index = i;
-                    break;
-                }
-            }
+            model = models.FirstOrDefault(m => m.Name.Contains(args[0], StringComparison.OrdinalIgnoreCase));
         }
 
-        if (deck is null || index < 0)
+        if (model is null)
         {
-            _state.AddMessage("Model deck not found.");
+            _state.AddMessage("Model not found.");
             return CommandResult.Failure;
         }
 
-        _state.SelectedDeckIndex = index;
+        var detail = new Table()
+            .AddColumn("Field")
+            .AddColumn("Value")
+            .Border(TableBorder.Rounded);
 
-        var table = new Table().AddColumn("Field").AddColumn("Value").Border(TableBorder.Rounded);
-        table.AddRow("Path", deck.DeckPath);
-        table.AddRow("Sections", deck.Sections.Count > 0 ? string.Join(", ", deck.Sections) : "(none)");
-        table.AddRow("Includes", deck.Includes.Count.ToString());
-        AnsiConsole.Write(table);
+        detail.AddRow("Name", model.Name);
+        detail.AddRow("Model Type", string.IsNullOrWhiteSpace(model.ModelType) ? "-" : model.ModelType);
+        detail.AddRow("Class", model.DeviceClass == SpectreModelDeviceClass.Unknown ? "Unknown" : model.DeviceClass.ToString());
+        detail.AddRow("Threshold", string.IsNullOrWhiteSpace(model.ThresholdFlavor) ? "-" : model.ThresholdFlavor!);
+        detail.AddRow("Voltage", string.IsNullOrWhiteSpace(model.VoltageDomain) ? "-" : model.VoltageDomain!);
+        detail.AddRow("Corners", FormatList(model.Corners));
+        detail.AddRow("Corner Details", FormatList(model.CornerDetails));
+        detail.AddRow("Sections", FormatList(model.Sections));
+        detail.AddRow("Decks", FormatList(model.Decks.Select(d => Path.GetFileName(d) ?? d)));
+        detail.AddRow("Sources", FormatList(model.SourceFiles));
 
-        if (deck.Includes.Count > 0)
-        {
-            var includes = new Table().AddColumn("Includes - first 10").Border(TableBorder.None);
-            foreach (var include in deck.Includes.Take(10))
-            {
-                includes.AddRow(include);
-            }
-            if (deck.Includes.Count > 10)
-            {
-                includes.AddRow($"... ({deck.Includes.Count - 10} more)");
-            }
-            AnsiConsole.Write(includes);
-        }
+        AnsiConsole.Write(detail);
 
         return CommandResult.Success;
     }
@@ -309,6 +970,19 @@ internal sealed class CascodeShell
         }
 
         return ApplyPdkDirectory(input);
+    }
+
+    private CommandResult HomeCommand(string[] args)
+    {
+        if (_state.ViewMode == ShellViewMode.Home)
+        {
+            _state.AddMessage("Already on dashboard layout.");
+            return CommandResult.Success;
+        }
+
+        _state.ShowHome();
+        _state.AddMessage("Returned to dashboard layout.");
+        return CommandResult.Success;
     }
 
     private CommandResult ApplyPdkDirectory(string path)
@@ -566,6 +1240,90 @@ internal sealed class CascodeShell
         return null;
     }
 
+    private static string FormatList(IEnumerable<string> values)
+    {
+        var distinct = values
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (distinct.Length == 0)
+        {
+            return "-";
+        }
+
+        if (distinct.Length <= 5)
+        {
+            return string.Join(", ", distinct);
+        }
+
+        return string.Join(", ", distinct.Take(5)) + $" … ({distinct.Length - 5} more)";
+    }
+
+    private void RenderModelsToLog(IReadOnlyList<SpectreModel> models)
+    {
+        if (models.Count == 0)
+        {
+            return;
+        }
+
+        const int nameWidth = 32;
+        const int classWidth = 10;
+        const int vtWidth = 5;
+        const int vddWidth = 6;
+        const int cornerWidth = 18;
+
+        var header = string.Format(
+            "{0,4} {1,-" + nameWidth + "} {2,-" + classWidth + "} {3,-" + vtWidth + "} {4,-" + vddWidth + "} {5,-" + cornerWidth + "}",
+            "#",
+            "Model",
+            "Class",
+            "VT",
+            "VDD",
+            "Corners");
+
+        _state.AddMessage(header);
+        _state.AddMessage(new string('-', Math.Min(header.Length, 80)));
+
+        for (var i = 0; i < models.Count; i++)
+        {
+            var model = models[i];
+            var classLabel = model.DeviceClass == SpectreModelDeviceClass.Unknown ? "Unknown" : model.DeviceClass.ToString();
+            var vtLabel = string.IsNullOrWhiteSpace(model.ThresholdFlavor) ? "-" : model.ThresholdFlavor!;
+            var vddLabel = string.IsNullOrWhiteSpace(model.VoltageDomain) ? "-" : model.VoltageDomain!;
+            var cornerLabel = model.Corners.Count == 0
+                ? "-"
+                : string.Join(",", model.Corners.Take(2)) + (model.Corners.Count > 2 ? "…" : string.Empty);
+
+            var line = string.Format(
+                "{0,4} {1,-" + nameWidth + "} {2,-" + classWidth + "} {3,-" + vtWidth + "} {4,-" + vddWidth + "} {5,-" + cornerWidth + "}",
+                i + 1,
+                TruncateWithEllipsis(model.Name, nameWidth),
+                TruncateWithEllipsis(classLabel, classWidth),
+                TruncateWithEllipsis(vtLabel, vtWidth),
+                TruncateWithEllipsis(vddLabel, vddWidth),
+                TruncateWithEllipsis(cornerLabel, cornerWidth));
+
+            _state.AddMessage(line);
+        }
+    }
+
+    private static string TruncateWithEllipsis(string value, int maxWidth)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length <= maxWidth)
+        {
+            return value ?? string.Empty;
+        }
+
+        if (maxWidth <= 1)
+        {
+            return value.Substring(0, Math.Max(0, maxWidth));
+        }
+
+        return value[..(maxWidth - 1)] + "…";
+    }
+
     private void Render()
     {
         AnsiConsole.Clear();
@@ -600,6 +1358,19 @@ internal sealed class CascodeShell
 
                 if ((key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key == ConsoleKey.UpArrow)
                 {
+                    var detailStep = GetDetailScrollStep();
+                    if (TryAdjustDetailOffset(-detailStep))
+                    {
+                        Render();
+                        WritePrompt(buffer.ToString());
+                        continue;
+                    }
+
+                    if (_state.ModelSummary?.HasDetailRows == true)
+                    {
+                        continue;
+                    }
+
                     var step = Math.Max(1, _state.LogViewport / 4);
                     _state.ScrollLogUp(step);
                     Render();
@@ -609,6 +1380,19 @@ internal sealed class CascodeShell
 
                 if ((key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key == ConsoleKey.DownArrow)
                 {
+                    var detailStep = GetDetailScrollStep();
+                    if (TryAdjustDetailOffset(detailStep))
+                    {
+                        Render();
+                        WritePrompt(buffer.ToString());
+                        continue;
+                    }
+
+                    if (_state.ModelSummary?.HasDetailRows == true)
+                    {
+                        continue;
+                    }
+
                     var step = Math.Max(1, _state.LogViewport / 4);
                     _state.ScrollLogDown(step);
                     Render();

@@ -2,6 +2,7 @@ using Cascode.Workspace;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 
@@ -10,6 +11,15 @@ namespace Cascode.Cli;
 internal static class ShellRenderer
 {
     public static Layout Build(ShellState state)
+    {
+        return state.ViewMode switch
+        {
+            ShellViewMode.ModelSummary => BuildModelSummaryLayout(state),
+            _ => BuildHomeLayout(state)
+        };
+    }
+
+    private static Layout BuildHomeLayout(ShellState state)
     {
         var layout = new Layout("Root")
             .SplitColumns(
@@ -30,6 +40,155 @@ internal static class ShellRenderer
         layout["Sidebar"]["Details"].Update(BuildDeckDetails(state));
 
         return layout;
+    }
+
+    private static Layout BuildModelSummaryLayout(ShellState state)
+    {
+        var layout = new Layout("Root")
+            .SplitRows(
+                new Layout("WorkspaceBar").Size(3),
+                new Layout("Content").Ratio(1));
+
+        layout["WorkspaceBar"].Update(BuildWorkspaceBar(state));
+
+        var summary = state.ModelSummary ?? ModelSummaryViewState.Empty;
+        var contentRows = new Rows(BuildSummaryPanel(summary), BuildSummaryTip(summary));
+        layout["Content"].Update(contentRows);
+
+        return layout;
+    }
+
+    private static IRenderable BuildSummaryPanel(ModelSummaryViewState summary)
+    {
+        var contentItems = new List<IRenderable>();
+
+        if (summary.HasClassRows)
+        {
+            contentItems.Add(CreateModelClassSummaryTable(summary.ClassRows));
+        }
+        else if (summary.HasDetailRows)
+        {
+            contentItems.Add(CreateModelDetailTable(summary));
+        }
+        else
+        {
+            contentItems.Add(new Markup("[grey]No models matched the current view. Run [bold]pdk scan[/] or adjust your filters.[/]"));
+        }
+
+        if (!string.IsNullOrWhiteSpace(summary.SummaryLine))
+        {
+            contentItems.Add(new Markup($"[grey53]{Markup.Escape(summary.SummaryLine)}[/]"));
+        }
+
+        if (summary.HasStats)
+        {
+            contentItems.Add(new Markup($"[grey42]{Markup.Escape(summary.StatsLine)}[/]"));
+        }
+
+        if (summary.HasSuggestion)
+        {
+            contentItems.Add(new Markup("[dim]" + Markup.Escape(summary.SuggestionLine) + "[/]"));
+        }
+
+        var panelBody = contentItems.Count switch
+        {
+            0 => new Markup(string.Empty),
+            1 => contentItems[0],
+            _ => new Rows(contentItems.ToArray())
+        };
+
+        return new Panel(panelBody)
+        {
+            Border = BoxBorder.Rounded,
+            Header = new PanelHeader(summary.Title),
+            Expand = true,
+            Padding = new Padding(1, 1, 1, 1)
+        };
+    }
+
+    private static IRenderable BuildSummaryTip(ModelSummaryViewState summary)
+    {
+        var tipText = summary.HasSuggestion
+            ? summary.SuggestionLine
+            : "Type 'home' to return to the dashboard.";
+
+        var tip = new Markup("[dim]" + Markup.Escape(tipText) + "[/]");
+        return new Panel(new Align(tip, HorizontalAlignment.Left, VerticalAlignment.Middle))
+        {
+            Border = BoxBorder.None,
+            Padding = new Padding(1, 0, 1, 0),
+            Expand = true
+        };
+    }
+
+    internal static Table CreateModelDetailTable(ModelSummaryViewState summary)
+    {
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .Expand();
+
+        table.AddColumn(new TableColumn("#").Centered());
+        table.AddColumn(new TableColumn("Model"));
+        table.AddColumn(new TableColumn("Class"));
+        table.AddColumn(new TableColumn("VT"));
+        table.AddColumn(new TableColumn("VDD"));
+        table.AddColumn(new TableColumn("Corners"));
+        table.AddColumn(new TableColumn("Decks"));
+
+        var pageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
+        var visibleRows = summary.DetailRows
+            .Skip(summary.DetailOffset)
+            .Take(pageSize)
+            .ToArray();
+
+        for (var i = 0; i < visibleRows.Length; i++)
+        {
+            var row = visibleRows[i];
+            var index = summary.DetailOffset + i + 1;
+            table.AddRow(
+                index.ToString(CultureInfo.InvariantCulture),
+                Markup.Escape(row.Name),
+                Markup.Escape(row.DeviceClass),
+                Markup.Escape(row.Threshold),
+                Markup.Escape(row.Voltage),
+                Markup.Escape(row.Corners),
+                Markup.Escape(row.Decks));
+        }
+
+        return table;
+    }
+
+    internal static Table CreateModelClassSummaryTable(IReadOnlyList<ModelClassSummaryRow> rows)
+    {
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .Expand();
+
+        table.AddColumn(new TableColumn("Class"));
+        table.AddColumn(new TableColumn("Models").Centered());
+        table.AddColumn(new TableColumn("Decks"));
+        table.AddColumn(new TableColumn("Voltage Domains"));
+        table.AddColumn(new TableColumn("Thresholds"));
+        table.AddColumn(new TableColumn("Corners"));
+        table.AddColumn(new TableColumn("Example"));
+
+        foreach (var row in rows)
+        {
+            var classCell = row.IsUncategorized
+                ? $"[bold red]{Markup.Escape(row.DeviceClass)}[/]"
+                : Markup.Escape(row.DeviceClass);
+
+            table.AddRow(
+                classCell,
+                Markup.Escape(row.ModelCount),
+                Markup.Escape(row.Decks),
+                Markup.Escape(row.VoltageDomains),
+                Markup.Escape(row.Thresholds),
+                Markup.Escape(row.Corners),
+                Markup.Escape(row.ExampleModel));
+        }
+
+        return table;
     }
 
     private static IRenderable BuildNavigator(ShellState state)

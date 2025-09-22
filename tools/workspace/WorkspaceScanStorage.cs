@@ -46,6 +46,7 @@ public sealed class WorkspaceScanStorage
         string WorkspaceRoot,
         List<WorkspaceLibrary> Libraries,
         List<ModelDeckRecord> ModelDecks,
+        List<SpectreModel>? Models,
         List<string> Warnings)
     {
         public static WorkspaceScanDto FromResult(WorkspaceScanResult result)
@@ -53,9 +54,10 @@ public sealed class WorkspaceScanStorage
                 result.WorkspaceRoot,
                 result.Libraries.ToList(),
                 result.ModelDecks.ToList(),
+                result.Models.ToList(),
                 result.Warnings.ToList());
 
         public WorkspaceScanResult ToResult()
-            => new(WorkspaceRoot, Libraries, ModelDecks, Warnings);
+            => new(WorkspaceRoot, Libraries, ModelDecks, Models ?? new List<SpectreModel>(), Warnings);
     }
 }

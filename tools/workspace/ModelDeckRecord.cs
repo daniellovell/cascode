@@ -7,5 +7,6 @@ public sealed record ModelDeckRecord(
     string DeckPath,
     string Source,
     IReadOnlyList<string> Sections,
-    IReadOnlyList<string> Includes
+    IReadOnlyList<string> Includes,
+    IReadOnlyList<SpectreModel> Models
 );

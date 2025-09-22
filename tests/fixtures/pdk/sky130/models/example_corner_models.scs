@@ -1,0 +1,16 @@
+* Example file to exercise section-based includes in tests.
+section tttt_nmos_tn
+.model sky130_fd_pr__nfet_example_tt nmos
+endsection
+
+section tttt_pmos_tp
+.model sky130_fd_pr__pfet_example_tt pmos
+endsection
+
+section ffff_nmos_tn
+.model sky130_fd_pr__nfet_example_ff nmos
+endsection
+
+section ffff_pmos_tp
+.model sky130_fd_pr__pfet_example_ff pmos
+endsection

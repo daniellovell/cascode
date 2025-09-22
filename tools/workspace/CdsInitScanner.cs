@@ -9,8 +9,8 @@ namespace Cascode.Workspace;
 internal sealed class CdsInitScanner
 {
     private static readonly Regex ModelFilesRegex = new(
-        "envSetVal\\(\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<path>\"[^\"]+\"|[^\\s)]+)",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+        "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
     public IReadOnlyList<string> FindModelDecks(string workspaceRoot, ICollection<string>? warnings = null)
     {
@@ -72,19 +72,23 @@ internal sealed class CdsInitScanner
 
         try
         {
-            foreach (var line in File.ReadLines(filePath))
+            var content = File.ReadAllText(filePath);
+            foreach (Match match in ModelFilesRegex.Matches(content))
             {
-                var match = ModelFilesRegex.Match(line);
-                if (!match.Success)
+                var rawPaths = match.Groups["paths"].Value;
+                foreach (var token in SplitModelPathTokens(rawPaths))
                 {
-                    continue;
-                }
+                    if (string.IsNullOrWhiteSpace(token))
+                    {
+                        continue;
+                    }
 
-                var raw = match.Groups["path"].Value;
-                var normalized = PathUtilities.NormalizeWorkspacePath(raw, workspaceRoot, root);
-                if (normalized is not null)
-                {
-                    result.Add(normalized);
+                    var pathSegment = ExtractPathSegment(token, out _);
+                    var normalized = PathUtilities.NormalizeWorkspacePath(pathSegment, workspaceRoot, root);
+                    if (normalized is not null)
+                    {
+                        result.Add(normalized);
+                    }
                 }
             }
         }
@@ -94,5 +98,51 @@ internal sealed class CdsInitScanner
         }
 
         return result;
+    }
+
+    private static IEnumerable<string> SplitModelPathTokens(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            yield break;
+        }
+
+        var trimmed = raw.Trim();
+
+        if (trimmed.Length >= 2 &&
+            ((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        var pieces = trimmed.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var piece in pieces)
+        {
+            var token = piece.Trim().Trim('\"', '\'');
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                yield return token;
+            }
+        }
+    }
+
+    private static string ExtractPathSegment(string token, out string? section)
+    {
+        section = null;
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return token;
+        }
+
+        var trimmed = token.Trim();
+        var separatorIndex = trimmed.IndexOf(';');
+        if (separatorIndex < 0)
+        {
+            return trimmed;
+        }
+
+        section = trimmed[(separatorIndex + 1)..].Trim();
+        return trimmed[..separatorIndex].Trim();
     }
 }

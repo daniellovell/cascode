@@ -97,6 +97,6 @@ if( isFile( ".cdsinit.personal" ) then
 ddsOpenLibManager()
 
 load("emxconfig.il")
-envSetVal("spectre.envOpts" "modelFiles" `string ./stdcells.scs")
+envSetVal("spectre.envOpts" "modelFiles" `string "./stdcells.scs ./models/sky130.lib.spice")
 
 printf("END OF CUSTOM CONFIG SETTINGS\n")

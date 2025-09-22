@@ -1,3 +1,5 @@
 include $WORK_DIR/libs/sky130_scl_9T/spectre/sky130_scl_9T.scs 
 include $WORK_DIR/libs/sky130_scl_9T_LP/spectre/sky130_scl_9T_LP.scs 
 include $WORK_DIR/libs/sky130_scl_9T_HS/spectre/sky130_scl_9T_HS.scs
+include $WORK_DIR/models/example_corner_models.scs section=tttt_nmos_tn
+include $WORK_DIR/models/example_corner_models.scs section=ffff_pmos_tp
