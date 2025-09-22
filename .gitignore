@@ -1,3 +1,7 @@
 .vs/
 dotnet-home/
 **/obj/**
+
+tools/**/bin/Debug/**
+
+AGENTS.md
