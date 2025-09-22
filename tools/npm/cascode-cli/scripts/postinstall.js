@@ -2,11 +2,12 @@
 
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 const https = require("https");
-const { pipeline } = require("stream");
+const { pipeline } = require("stream/promises");
 const zlib = require("zlib");
 const tar = require("tar");
-const unzipper = require("unzipper");
+const extractZip = require("extract-zip");
 
 function rid() {
   const p = process.platform;
@@ -62,11 +63,15 @@ async function main() {
 
   console.log(`cascode: downloading ${asset} ...`);
   try {
-    const res = await dl(url);
     if (isWin) {
-      await pipeline(res, unzipper.Extract({ path: destDir }), (e) => (e ? Promise.reject(e) : Promise.resolve()));
+      const tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "cascode-"));
+      const zipPath = path.join(tmpDir, asset);
+      const res = await dl(url);
+      await pipeline(res, fs.createWriteStream(zipPath));
+      await extractZip(zipPath, { dir: destDir });
     } else {
-      await pipeline(res, zlib.createGunzip(), tar.x({ cwd: destDir }), (e) => (e ? Promise.reject(e) : Promise.resolve()));
+      const res = await dl(url);
+      await pipeline(res, zlib.createGunzip(), tar.x({ cwd: destDir }));
     }
     // Normalize executable name to 'cascode[.exe]'
     const altExe = path.join(destDir, altName);
