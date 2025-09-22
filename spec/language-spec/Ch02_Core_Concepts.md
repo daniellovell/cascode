@@ -139,7 +139,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   };
   ```
 
-* `fb R(...)`, `fb C(...)` — feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.13 for passive kinds/scope.
+* `fb R(...)`, `fb C(...)` — feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.14 for passive kinds/scope.
 
 **Acyclicity**
 
@@ -196,6 +196,37 @@ The **`spec {}`** block enumerates **required metrics** including gain-bandwidth
 
 When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically injects `spec.icmr ⊇ env.icmr`. When both specifications exist, the constraint `spec.icmr ⊇ env.icmr` must hold.
 
+### 2.11.1 Edge and Level Metrics for Digital‑Style Use
+
+Mixed‑signal flows commonly require timing/level checks on electrical nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
+
+* `rise_time(node, v_lo, v_hi)` — time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
+* `fall_time(node, v_hi, v_lo)` — analogous definition for falling transitions.
+* `voh(node)` / `vol(node)` — steady‑state high/low levels measured at the node under the bench’s toggling pattern. Units: voltage. `voh` is the plateau following a rising transition; `vol` is analogous for falling.
+* `toggle_power(node, freq, duty)` — average dynamic power attributable to toggling a designated driver/input. Units: power. Computed from rail current integration over whole cycles.
+
+Normative
+
+* Threshold crossings use linear interpolation between simulator timesteps.
+* Overshoot/undershoot are ignored for `rise_time`/`fall_time`; use the first monotone crossing after the input toggle.
+* When `VDD` varies in time, percentage thresholds use the instantaneous rail value at the start of the measured edge.
+
+### 2.11.2 Bench: `StepToggle`
+
+`StepToggle` is a parameterized transient bench that toggles a designated node or bundle field using an ideal voltage source to exercise downstream drivers and measure edge/level metrics.
+
+Syntax (informal):
+
+```cas
+bench { StepToggle { node=IDENT; freq=FREQ; duty=PCT; slew=Auto|time; cycles=3; } }
+```
+
+Semantics (normative)
+
+* The bench injects a rail‑to‑rail pulse at `node` (or at the unique upstream driver input if resolvable) with `freq`/`duty` and optional finite `slew`. If `slew=Auto`, the source transitions are ideal.
+* `cycles` selects the number of toggles before measurement; default `3` with measurements on the last cycle.
+* Measurements permitted: `rise_time`, `fall_time`, `voh`, `vol`, `toggle_power`.
+
 ---
 
 ## 2.12 Synthesis: `slot` and `synth` (Mandatory Fill)
@@ -236,11 +267,81 @@ use {
 
 * Declaring a `slot` without a corresponding **synthesis fill** or **structural fill** is a compile error.
 * `allow/forbid` are hard constraints; `prefer` is a soft objective.
-* Only entities with **`char{}`** manifests (2.13) are eligible for synthesis.
+* Only entities with **`char{}`** manifests (2.15) are eligible for synthesis.
 
 ---
 
-## 2.13 Passive Devices: **Kinds** and **Scope**
+## 2.13 Digital‑Style Motifs (Stdcell Integration)
+
+PDK digital standard cells are modeled as ordinary motifs with electrical pins and explicit rails. No new logic net type is introduced; intent is conveyed via traits and contracts.
+
+### 2.13.1 Traits for Eligibility
+
+Traits express functional intent so slots can be filled by either single stdcells or composite drivers.
+
+```cas
+trait InverterLike {
+  port in  IN : electrical;
+  port out OUT: electrical;
+  supply VDD; ground GND;
+  ens voh(OUT) >= 0.9*VDD;  // typical electrical guarantees
+  ens vol(OUT) <= 0.1*VDD;
+}
+
+// Optional composite that still implements InverterLike
+motif PadDriver implements InverterLike {
+  ports { IN: electrical; OUT: electrical; VDD: supply; GND: ground; }
+  params { stages:int=2; bank:int=4; strength_hint: enum{Auto,X1,X2,X4,X8}=Auto; }
+}
+```
+
+Normative
+
+* Motifs implementing `InverterLike` **MUST** expose at least the listed ports and satisfy its contracts within their `char{}` validity region.
+* Composite drivers (e.g., `PadDriver`) are eligible for the same slots as single‑cell inverters when they implement the trait.
+
+### 2.13.2 PDK Wrappers and Rails
+
+When wrapping stdcells, map rails and well/bulk pins explicitly and avoid hidden ties.
+
+```cas
+motif INV_X4 implements InverterLike {
+  ports { IN: electrical; OUT: electrical; VDD: supply; GND: ground; VPB: supply; VNB: ground; }
+  wrap spice """
+    .subckt sky130_fd_sc_hd__inv_4 A Y VPWR VGND VPB VNB
+    .ends
+  """ map { IN=A; OUT=Y; VDD=VPWR; GND=VGND; VPB=VPB; VNB=VNB; }
+  char {
+    sweep { CL:[0.5pF..30pF]; VDD:[1.6V..1.95V]; }
+    validity{ voh>=0.9*VDD; vol<=0.1*VDD; }
+    fit { rise_time~PWL("fit/inv4_tr_vs_cl.pwl"); fall_time~PWL("fit/inv4_tf_vs_cl.pwl"); }
+  }
+}
+```
+
+Normative
+
+* If a PDK view exposes VPB/VNB (or equivalent bulk pins), wrappers **MUST** surface them as ports and map them bijectively in `map {}`.
+* Stdcells are authored with `electrical` ports; no new net kinds are required.
+
+### 2.13.3 Synthesis Guidance
+
+To meet edge‑time and level specs under `env{}` loads, the engine ranks `InverterLike` candidates using `char{}` fits (rise/fall vs. `CL`, and voh/vol validity). Objectives such as `minimize dynamic_power` may be applied subject to timing/level constraints.
+
+Example:
+
+```cas
+slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+synth {
+  from lib.std.sky130.hd.*;
+  allow Buf in { INV_*, PadDriver };
+  objective minimize dynamic_power;
+}
+```
+
+---
+
+## 2.14 Passive Devices: **Kinds** and **Scope**
 
 The cascode language recognizes that not all passive elements serve equivalent purposes, distinguishing between **physical** and **notional** passives based on their role in the design flow.
 
@@ -266,7 +367,7 @@ The preferred approach for expressing loads and sources utilizes **`env{}`** dec
 
 ---
 
-## 2.14 Characterization (`char`) for Synthesizable Libraries
+## 2.15 Characterization (`char`) for Synthesizable Libraries
 
 Library entities intended for synthesis **MUST** declare a **`char {}`** manifest:
 
@@ -289,7 +390,7 @@ char {
 
 ---
 
-## 2.15 SPICE Interoperability: `wrap spice`
+## 2.16 SPICE Interoperability: `wrap spice`
 
 `wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts.
 
@@ -314,7 +415,7 @@ motif WideSwingPMOSMirror implements CurrentMirrorLike {
 
 ---
 
-## 2.16 Clocks and Phases
+## 2.17 Clocks and Phases
 
 * `clk` ports carry timing semantics; `phase {}` specifies frequency, duty, edge slew.
 
@@ -328,7 +429,7 @@ clk phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 
 ---
 
-## 2.17 Diagnostics and Provenance
+## 2.18 Diagnostics and Provenance
 
 Tools should report which constraints are **binding**, identify blocks that dominate **power**, **noise**, or **headroom** budgets, and suggest targeted edits such as "increase `L` on load" or "enable `MillerRz`" compensation.
 
