@@ -26,4 +26,9 @@
     <PackageReference Include="Spectre.Console" Version="0.47.0" />
   </ItemGroup>
 
+  <!-- Ensure README.md is included in the NuGet package for PackageReadmeFile -->
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>
