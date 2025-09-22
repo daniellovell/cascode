@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -31,6 +33,9 @@ internal static class WorkspaceState
 
     public static string GetScanPath(string workspaceRoot)
         => Path.Combine(GetWorkspaceFolder(workspaceRoot), "workspace-scan.json");
+
+    public static string GetConfigPath()
+        => Path.Combine(GetRoot(), "config.json");
 
     private static string ComputeHash(string input)
     {

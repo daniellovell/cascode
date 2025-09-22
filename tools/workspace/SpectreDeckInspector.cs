@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
@@ -5,10 +8,10 @@ namespace Cascode.Workspace;
 internal sealed class SpectreDeckInspector
 {
     private static readonly Regex IncludeRegex = new(
-        "include\\s+\"(?<path>[^\"]+)\"(\\s+section=(?<section>[^\\s]+))?",
+        "include\\s+(?<path>\"[^\"]+\"|[^\\s)]+)(\\s+section=(?<section>[^\\s]+))?",
         RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
-    public ModelDeckRecord Inspect(string deckPath, ICollection<string>? warnings = null)
+    public ModelDeckRecord Inspect(string workspaceRoot, string deckPath, ICollection<string>? warnings = null)
     {
         var sections = new List<string>();
         var includes = new List<string>();
@@ -56,8 +59,11 @@ internal sealed class SpectreDeckInspector
                 if (match.Success)
                 {
                     var rawInclude = match.Groups["path"].Value;
-                    var normalized = NormalizePath(rawInclude, directory);
-                    includes.Add(normalized);
+                    var normalized = PathUtilities.NormalizeWorkspacePath(rawInclude, workspaceRoot, directory);
+                    if (normalized is not null)
+                    {
+                        includes.Add(normalized);
+                    }
                     continue;
                 }
             }
@@ -70,14 +76,4 @@ internal sealed class SpectreDeckInspector
         return new ModelDeckRecord(deckPath, deckPath, sections, includes);
     }
 
-    private static string NormalizePath(string rawPath, string baseDirectory)
-    {
-        var expanded = Environment.ExpandEnvironmentVariables(rawPath);
-        if (Path.IsPathRooted(expanded))
-        {
-            return Path.GetFullPath(expanded);
-        }
-
-        return Path.GetFullPath(Path.Combine(baseDirectory, expanded));
-    }
 }

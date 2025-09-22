@@ -23,7 +23,7 @@ public sealed class WorkspaceScanner
 
         foreach (var deckPath in deckPaths)
         {
-            var record = _deckInspector.Inspect(deckPath, warnings);
+            var record = _deckInspector.Inspect(root, deckPath, warnings);
             deckRecords.Add(record);
         }
 

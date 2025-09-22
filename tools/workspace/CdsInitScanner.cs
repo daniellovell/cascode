@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
@@ -5,7 +9,7 @@ namespace Cascode.Workspace;
 internal sealed class CdsInitScanner
 {
     private static readonly Regex ModelFilesRegex = new(
-        "envSetVal\\(\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+\"(?<path>[^\"]+)\"",
+        "envSetVal\\(\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<path>\"[^\"]+\"|[^\\s)]+)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
 
     public IReadOnlyList<string> FindModelDecks(string workspaceRoot, ICollection<string>? warnings = null)
@@ -15,7 +19,7 @@ internal sealed class CdsInitScanner
 
         foreach (var file in candidates)
         {
-            foreach (var path in ExtractModelPaths(file, warnings))
+            foreach (var path in ExtractModelPaths(workspaceRoot, file, warnings))
             {
                 if (File.Exists(path) && !decks.Contains(path, StringComparer.OrdinalIgnoreCase))
                 {
@@ -61,27 +65,10 @@ internal sealed class CdsInitScanner
         return candidates;
     }
 
-    private static IEnumerable<string> ExtractModelPaths(string filePath, ICollection<string>? warnings)
+    private static IEnumerable<string> ExtractModelPaths(string workspaceRoot, string filePath, ICollection<string>? warnings)
     {
         var result = new List<string>();
         var root = Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory();
-
-        string? Normalize(string raw)
-        {
-            var trimmed = raw.Trim();
-            if (trimmed.Length == 0)
-            {
-                return null;
-            }
-
-            var expanded = Environment.ExpandEnvironmentVariables(trimmed);
-            if (Path.IsPathRooted(expanded))
-            {
-                return Path.GetFullPath(expanded);
-            }
-
-            return Path.GetFullPath(Path.Combine(root, expanded));
-        }
 
         try
         {
@@ -94,7 +81,7 @@ internal sealed class CdsInitScanner
                 }
 
                 var raw = match.Groups["path"].Value;
-                var normalized = Normalize(raw);
+                var normalized = PathUtilities.NormalizeWorkspacePath(raw, workspaceRoot, root);
                 if (normalized is not null)
                 {
                     result.Add(normalized);
