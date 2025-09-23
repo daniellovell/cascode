@@ -1,8 +1,8 @@
 # cascode
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="spec/logos/cascode_logo_banner_dark.png">
-  <img alt="Cascode Logo" src="spec/logos/cascode_logo_banner.png">
+  <source media="(prefers-color-scheme: dark)" srcset="spec/logos/cascode_banner_dark.png">
+  <img alt="Cascode Logo" src="spec/logos/cascode_banner_light.png">
 </picture>
 
 *Computer-Aided Synthesis Code for analog & mixed-signal design.*
