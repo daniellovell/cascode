@@ -1,18 +1,22 @@
 # cascode
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="spec/logos/cascode_logo_banner_dark.png">
+  <img alt="Cascode Logo" src="spec/logos/cascode_logo_banner.png">
+</picture>
+
 *Computer-Aided Synthesis Code for analog & mixed-signal design.*
 
-* **Language files:** `*.cas`
-* **Intermediate representation (IR):** `*.cir` (CasIR)
+**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
+
+It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
+
 
 ## Language Specification
 - [Chapter 1 – Introduction](spec/language-spec/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language-spec/Ch02_Core_Concepts.md)
 - [Chapter 3 – CasIR: The Intermediate Representation](spec/language-spec/Ch03_CasIR.md)
 
-**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
-
-It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
 
 ## 🚀 Install
