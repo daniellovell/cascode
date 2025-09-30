@@ -1,0 +1,265 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Cascode",
+  "scopeName": "source.cascode",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#storage-types" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#units" },
+    { "include": "#operators" },
+    { "include": "#functions" },
+    { "include": "#types" },
+    { "include": "#constants" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.cascode",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.cascode",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.cascode",
+          "match": "\\b(if|else|for|while|return|break|continue|switch|case|default)\\b"
+        },
+        {
+          "name": "keyword.other.package.cascode",
+          "match": "\\b(package|import)\\b"
+        },
+        {
+          "name": "keyword.other.class.cascode",
+          "match": "\\b(class|motif|trait|interface|implements|extends)\\b"
+        },
+        {
+          "name": "keyword.other.declaration.cascode",
+          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|cascade|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
+        },
+        {
+          "name": "keyword.other.directive.cascode",
+          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|mirror|fb|pair|new|in|out|diff|clk|bias)\\b"
+        },
+        {
+          "name": "keyword.other.type.cascode",
+          "match": "\\b(electrical|digital|analog|thermal|signal|rf)\\b"
+        },
+        {
+          "name": "storage.modifier.cascode",
+          "match": "\\b(public|private|protected|static|final|const)\\b"
+        }
+      ]
+    },
+    "storage-types": {
+      "patterns": [
+        {
+          "name": "storage.type.primitive.cascode",
+          "match": "\\b(int|float|double|real|bool|string|void|enum|capacitance|resistance|inductance)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.cascode",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.cascode",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.cascode",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.cascode",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.triple.cascode",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.cascode",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.cascode",
+          "match": "\\b([0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b"
+        },
+        {
+          "name": "constant.numeric.hex.cascode",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        }
+      ]
+    },
+    "units": {
+      "patterns": [
+        {
+          "name": "constant.numeric.unit.voltage.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?V\\b"
+        },
+        {
+          "name": "constant.numeric.unit.current.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?A\\b"
+        },
+        {
+          "name": "constant.numeric.unit.frequency.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Hz\\b"
+        },
+        {
+          "name": "constant.numeric.unit.capacitance.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?F\\b"
+        },
+        {
+          "name": "constant.numeric.unit.resistance.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Ω\\b"
+        },
+        {
+          "name": "constant.numeric.unit.resistance.ascii.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Ohm\\b"
+        },
+        {
+          "name": "constant.numeric.unit.inductance.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?H\\b"
+        },
+        {
+          "name": "constant.numeric.unit.noise.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?V/√Hz\\b"
+        },
+        {
+          "name": "constant.numeric.unit.time.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?s\\b"
+        },
+        {
+          "name": "constant.numeric.unit.temperature.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[KC]\\b"
+        },
+        {
+          "name": "constant.numeric.unit.power.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?W\\b"
+        },
+        {
+          "name": "constant.numeric.unit.angle.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?deg\\b"
+        },
+        {
+          "name": "constant.numeric.unit.db.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?dB\\b"
+        },
+        {
+          "name": "constant.numeric.unit.percentage.cascode",
+          "match": "\\b[0-9]+\\.?[0-9]*%\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.comparison.cascode",
+          "match": "(==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.cascode",
+          "match": "(=|\\+=|-=|\\*=|/=)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.cascode",
+          "match": "(\\+|-|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.logical.cascode",
+          "match": "(&&|\\|\\||!)"
+        },
+        {
+          "name": "keyword.operator.connection.cascode",
+          "match": "(->|<-|<->)"
+        },
+        {
+          "name": "keyword.operator.range.cascode",
+          "match": "\\.\\."
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.spec.cascode",
+          "match": "\\b(rise_time|fall_time|voh|vol|power|area|gbw|pm|gain|swing|icmr|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
+        },
+        {
+          "name": "entity.name.function.bench.cascode",
+          "match": "\\b(AC_OpenLoop|UnityUGF|Step|NoiseIn|LatchDecision|OffsetMC|Kickback|StepToggle|ChainAC|ChainNoise)\\b"
+        },
+        {
+          "name": "entity.name.function.component.cascode",
+          "match": "\\b[CRL]\\s*\\("
+        },
+        {
+          "name": "support.function.builtin.cascode",
+          "match": "\\b(step|posedge|negedge|GP|PWL|affine)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.trait.cascode",
+          "match": "\\b(Amplifier|AmplifierStage|Compensator|CurrentMirror|CurrentMirrorLike|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+        },
+        {
+          "name": "support.type.motif.cascode",
+          "match": "\\b(DiffPairNMOS|DiffPairPMOS|TailNMOS|TailPMOS|PMOSCascodeLoad|FiveTLoadPMOS|NMOSCascode|MillerRC|MillerRz|Ahuja|StrongArmLatch|TeleCascodeNMOS|FoldedCascodePMOS|CSStageNMOS|GainBoosting|InverterGm|PadDriver|WideSwingPMOSMirror|WideSwingNMOSMirror|Cap|Res|Ind)\\b"
+        },
+        {
+          "name": "entity.name.type.class.cascode",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.cascode",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.cascode",
+          "match": "\\b(null|nil|None)\\b"
+        },
+        {
+          "name": "variable.language.special.cascode",
+          "match": "\\b(VDD|GND|NMOS|PMOS|Auto|X[0-9]+|TT|SS|FF|MIM|MOM|MFC|TFR|Poly|Metal|Pseudo|Spiral|MIMStack|pch|nch)\\b"
+        },
+        {
+          "name": "variable.language.compensation.cascode",
+          "match": "\\b(MillerRC|MillerRz|Ahuja)\\b"
+        }
+      ]
+    }
+  }
+}

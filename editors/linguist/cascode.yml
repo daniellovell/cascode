@@ -1,0 +1,12 @@
+# GitHub Linguist configuration for Cascode language
+# Place this in a fork of github/linguist repository to add official support
+
+type: programming
+color: "#6A5ACD"
+extensions:
+  - ".cas"
+tm_scope: source.cascode
+ace_mode: text
+language_id: 987654321
+
+

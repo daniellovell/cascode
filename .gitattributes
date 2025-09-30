@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Mark .cas files as Cascode language for GitHub Linguist
+*.cas linguist-language=Cascode

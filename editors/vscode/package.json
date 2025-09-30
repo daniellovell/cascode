@@ -1,0 +1,40 @@
+{
+  "name": "cascode-lang",
+  "displayName": "Cascode Language Support",
+  "description": "Syntax highlighting and language support for Cascode (.cas) files",
+  "version": "0.1.0",
+  "publisher": "cascode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cascode/cascode"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "cascode",
+        "aliases": ["Cascode", "cascode", "cas"],
+        "extensions": [".cas"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/cascode-icon.png",
+          "dark": "./icons/cascode-icon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "cascode",
+        "scopeName": "source.cascode",
+        "path": "./syntaxes/cascode.tmLanguage.json"
+      }
+    ]
+  }
+}
+
+

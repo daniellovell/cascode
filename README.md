@@ -77,7 +77,8 @@ cascode --help
 
 ### Spec-only amplifier (you pick the topology)
 
-```cas
+````markdown
+```cascode
 package analog.amp; import lib.ota.*;
 
 class AmpAuto implements Amplifier {
@@ -101,10 +102,12 @@ class AmpAuto implements Amplifier {
   bench { AC_OpenLoop; UnityUGF; Step; NoiseIn; }
 }
 ```
+````
 
 ### Guided selection (whitelist topologies)
 
-```cas
+````markdown
+```cascode
 class AmpGuided implements Amplifier {
   supply VDD=1.2V; ground GND;
   port in_p vip, in_n vin; port out vout; param CL=3pF;
@@ -123,6 +126,7 @@ class AmpGuided implements Amplifier {
   }
 }
 ```
+````
 
 ### Structural 5T OTA (concise)
 
@@ -378,6 +382,22 @@ cascode verify build/AmpAuto.cir --spice spectre --pdk gpdk045
 # End-to-end (synth + size + verify + report)
 cascode run examples/AmpGuided.cas --pdk gpdk045 --out build/
 ```
+
+---
+
+## 🎨 Editor Support
+
+Syntax highlighting for `.cas` files is available for VS Code, Cursor, and other editors:
+
+```bash
+# Install for VS Code / Cursor / VSCodium (macOS/Linux)
+cd editors/vscode && ./install.sh
+
+# Windows (PowerShell)
+cd editors\vscode; .\install.ps1
+```
+
+Highlights keywords (`class`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<-`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
 ---
 
