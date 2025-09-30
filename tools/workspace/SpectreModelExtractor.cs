@@ -216,6 +216,16 @@ internal sealed class SpectreModelExtractor
     private static readonly Regex SectionDirectiveRegex = new(@"^section\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex EndSectionDirectiveRegex = new(@"^endsection\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex ModelDirectiveRegex = new(@"^\.?model\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex SubcktDirectiveRegex = new(@"^\.?subckt\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    // Matches common bin-model naming variants at end of model name:
+    //  - *_model(.N)
+    //  - *__model(.N)
+    //  - *_model_base(.N)
+    //  - *__model_base(.N)
+    //  - *__base(.N)
+    private static readonly Regex BinModelNameRegex = new(
+        @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     public IReadOnlyList<SpectreModel> Extract(string workspaceRoot, string deckPath, ICollection<string>? warnings = null)
     {
@@ -244,10 +254,16 @@ internal sealed class SpectreModelExtractor
             visited,
             warnings);
 
-        return builders.Values
+        var built = builders.Values
             .Select(b => b.Build())
             .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+
+        // Filter out bin .model entries (e.g., *_model.0, *_model.1 …). Keep subckts and non-bin models.
+        var filtered = built.Where(m => string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase)
+            || !IsBinModelName(m.Name)).ToArray();
+
+        return filtered;
     }
 
     private void VisitFile(
@@ -343,6 +359,22 @@ internal sealed class SpectreModelExtractor
                     builders,
                     visited,
                     warnings);
+                continue;
+            }
+
+            if (SubcktDirectiveRegex.IsMatch(line))
+            {
+                var builder = ProcessSubcktDirective(line, normalizedPath, deckPath, builders, frames);
+                if (builder is not null)
+                {
+                    foreach (var context in sectionStack)
+                    {
+                        if (!string.IsNullOrWhiteSpace(context.NormalizedName))
+                        {
+                            builder.AddSectionName(context.NormalizedName);
+                        }
+                    }
+                }
                 continue;
             }
 
@@ -532,6 +564,52 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
+    private static SpectreModelBuilder? ProcessSubcktDirective(
+        string line,
+        string sourcePath,
+        string deckPath,
+        Dictionary<string, SpectreModelBuilder> builders,
+        IEnumerable<CornerFrame> frames)
+    {
+        var idx = line.IndexOf("subckt", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            return null;
+        }
+
+        var args = SplitArguments(line[(idx + 6)..]);
+        if (args.Count == 0)
+        {
+            return null;
+        }
+
+        var name = args[0].Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        if (!builders.TryGetValue(name, out var builder))
+        {
+            builder = new SpectreModelBuilder(name);
+            builders[name] = builder;
+        }
+
+        builder.SetModelType("subckt");
+        builder.SetDeviceClass(ClassifyByName(name));
+        builder.SetVoltageDomain(InferVoltageDomain(name));
+        builder.SetThresholdFlavor(InferThresholdFlavor(name));
+        builder.AddSource(sourcePath);
+        builder.AddDeck(deckPath);
+
+        foreach (var frame in frames.Reverse())
+        {
+            builder.AddContext(frame.Info);
+        }
+
+        return builder;
+    }
+
     private static SpectreModelDeviceClass ClassifyModelType(string typeToken)
     {
         if (string.IsNullOrWhiteSpace(typeToken))
@@ -588,6 +666,42 @@ internal sealed class SpectreModelExtractor
 
         return SpectreModelDeviceClass.Other;
     }
+
+    private static SpectreModelDeviceClass ClassifyByName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return SpectreModelDeviceClass.Unknown;
+        }
+
+        var lower = name.ToLowerInvariant();
+
+        if (lower.Contains("nmos") || lower.Contains("nfet") || lower.Contains("_nch") || lower.Contains("_n_"))
+            return SpectreModelDeviceClass.Nmos;
+        if (lower.Contains("pmos") || lower.Contains("pfet") || lower.Contains("_pch") || lower.Contains("_p_"))
+            return SpectreModelDeviceClass.Pmos;
+        if (lower.Contains("npn"))
+            return SpectreModelDeviceClass.Bipolar;
+        if (lower.Contains("pnp"))
+            return SpectreModelDeviceClass.Bipolar;
+        if (lower.Contains("diode") || lower.StartsWith("d"))
+            return SpectreModelDeviceClass.Diode;
+        if (lower.Contains("res") || lower.StartsWith("r"))
+            return SpectreModelDeviceClass.Resistor;
+        if (lower.Contains("cap") || lower.StartsWith("c"))
+            return SpectreModelDeviceClass.Capacitor;
+        if (lower.Contains("ind") || lower.StartsWith("l"))
+            return SpectreModelDeviceClass.Inductor;
+        if (lower.Contains("tline"))
+            return SpectreModelDeviceClass.TransmissionLine;
+        if (lower.Contains("moscap"))
+            return SpectreModelDeviceClass.Moscap;
+
+        return SpectreModelDeviceClass.Other;
+    }
+
+    private static bool IsBinModelName(string name)
+        => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
 
     private static string? InferVoltageDomain(string name)
     {

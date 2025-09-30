@@ -15,6 +15,7 @@ public sealed class TestbenchSpec
     [JsonPropertyName("l_m")] public double L_M { get; init; } = 0.18e-6;
     [JsonPropertyName("mult")] public int Mult { get; init; } = 1;
     [JsonPropertyName("nf")] public int Nfingers { get; init; } = 1;
+    [JsonPropertyName("is_subckt")] public bool IsSubckt { get; init; } = false;
 
     [JsonPropertyName("vgs_sweep")] public SweepSpec Vgs { get; init; } = new(0.0, 1.2, 0.01);
     [JsonPropertyName("vds_fixed")] public double Vds { get; init; } = 0.9;
@@ -48,4 +49,3 @@ public sealed class TestbenchFiles
     public string SpecPath { get; init; } = string.Empty;
     public string ResultsCsv { get; init; } = string.Empty;
 }
-

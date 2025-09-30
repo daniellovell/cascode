@@ -43,9 +43,16 @@ public sealed class NgspiceBackend : ISpiceBackend
         }
 
         sb.AppendLine("* device under test");
-        // Support nmos/pmos models by name; parameters kept minimal for portability
-        // Users can extend via harness args later.
-        sb.AppendLine($"M1 d g s b {s.ModelName} W={s.W_M} L={s.L_M} m={Math.Max(1,s.Mult)}");
+        if (s.IsSubckt)
+        {
+            sb.AppendLine($"X1 d g s b {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1,s.Mult)} nf={Math.Max(1,s.Nfingers)}");
+        }
+        else
+        {
+            // Support nmos/pmos models by name; parameters kept minimal for portability
+            // Users can extend via harness args later.
+            sb.AppendLine($"M1 d g s b {s.ModelName} W={s.W_M} L={s.L_M} m={Math.Max(1,s.Mult)}");
+        }
 
         sb.AppendLine(".control");
         sb.AppendLine("set filetype=ascii");
@@ -58,4 +65,3 @@ public sealed class NgspiceBackend : ISpiceBackend
         return sb.ToString();
     }
 }
-

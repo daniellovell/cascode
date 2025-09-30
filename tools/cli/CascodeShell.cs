@@ -1306,7 +1306,6 @@ internal sealed class CascodeShell
                 {
                     _state.UpdateCharProgress(model.Name);
                     ProcessOneModel(model);
-                    _state.UpdateCharProgress(model.Name, generatedDelta: 1, ranDelta: 0, exportedDelta: 0, skippedDelta: 0);
                 }
 
                 _state.CompleteCharJob();
@@ -1326,7 +1325,6 @@ internal sealed class CascodeShell
                 foreach (var model in candidates)
                 {
                     ProcessOneModel(model);
-                    generated++;
                     ctx.UpdateTarget(BuildProgressChart(total, generated, executed, exported, skipped, model.Name));
                 }
             });
@@ -1823,20 +1821,7 @@ internal sealed class CascodeShell
 
         try
         {
-            var csv = Path.Combine(jobDir, "results.csv");
-            if (!File.Exists(csv))
-            {
-                _state.AddMessage($"Results file not found: {csv}");
-                return CommandResult.Failure;
-            }
-
-            var lines = File.ReadAllLines(csv);
-            if (lines.Length == 0)
-            {
-                _state.AddMessage("Empty results file.");
-                return CommandResult.Failure;
-            }
-
+            // Load spec first (used both for PMOS normalization and as hint)
             double w_m = 0, l_m = 0;
             bool isPmosHarness = false;
             string controlLabel = "vgs";
@@ -1855,11 +1840,37 @@ internal sealed class CascodeShell
                         controlLabel = isPmosHarness ? "vsg" : "vgs";
                     }
                 }
-                catch
+                catch { /* ignore malformed spec */ }
+            }
+
+            // 1) Prefer oppoint-per-step ASCII files from braced sweep
+            if (TryExportFromOppointFiles(jobDir, out var createdCsv, out var msgOpp))
+            {
+                _state.AddMessage(msgOpp);
+            }
+
+            var csv = Path.Combine(jobDir, "results.csv");
+            if (!File.Exists(csv))
+            {
+                // Attempt to recover by parsing Spectre nutascii output (-raw raw)
+                if (TryBuildResultsCsvFromNutascii(jobDir, isPmosHarness, out var buildMsg))
                 {
-                    // ignore malformed spec
+                    _state.AddMessage(buildMsg);
                 }
             }
+            if (!File.Exists(csv))
+            {
+                _state.AddMessage($"Results file not found: {csv}");
+                return CommandResult.Failure;
+            }
+
+            var lines = File.ReadAllLines(csv);
+            if (lines.Length == 0)
+            {
+                _state.AddMessage("Empty results file.");
+                return CommandResult.Failure;
+            }
+
 
             var rows = new List<(double Control, double Vd, double Id, double? Gm, double? Gds, double? Cgs, double? Cgd, double? Vth)>();
             foreach (var line in lines)
@@ -1989,6 +2000,323 @@ internal sealed class CascodeShell
         }
     }
 
+    // Parse per-step oppoint + element files emitted by: sweep { dc; info what=oppoint where=file file="oppoint.%A"; element info what=inst where=file file="elem.%A" }
+    private bool TryExportFromOppointFiles(string jobDir, out string csvPath, out string message)
+    {
+        csvPath = Path.Combine(jobDir, "results.csv");
+        message = string.Empty;
+        try
+        {
+            var oppFiles = Directory.EnumerateFiles(jobDir, "oppoint.*", SearchOption.TopDirectoryOnly)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (oppFiles.Length == 0)
+            {
+                return false;
+            }
+
+            // Try to find matching element info files for W/L per step
+            var elemFiles = Directory.EnumerateFiles(jobDir, "elem.*", SearchOption.TopDirectoryOnly)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            // Parse ASCII oppoint files emitted per step
+
+            var rows = new List<string>();
+            // header: assume NMOS; exporter higher up will rename control label to vsg if PMOS later
+            var header = string.Join(',', new[] { "vgs", "vd", "id", "gm", "gm_over_id", "ro", "gm_ro", "vstar", "cgs", "cgd", "cgg", "gm_per_w", "id_per_w", "ft", "vth" });
+            rows.Add(header);
+
+            for (int n = 0; n < oppFiles.Length; n++)
+            {
+                var opp = oppFiles[n];
+                if (!TryParseOppointAscii(opp, "NM0", out var op))
+                {
+                    continue;
+                }
+
+                double Id = GetOrNaN(op, "ids", "id");
+                double Vgs = GetOrNaN(op, "vgs");
+                double Vds = GetOrNaN(op, "vds");
+                double Gm = GetOrNaN(op, "gm");
+                double Gds = GetOrNaN(op, "gds");
+                double Vth = GetOrNaN(op, "vth");
+                double Cgs = GetOrNaN(op, "cgs");
+                double Cgd = GetOrNaN(op, "cgd");
+                double Cgg = GetOrNaN(op, "cgg");
+
+                // Width from elem file if available
+                double Weff = double.NaN;
+                if (elemFiles.Length == oppFiles.Length && n < elemFiles.Length)
+                {
+                    Weff = TryGetWidthFromElemAscii(elemFiles[n], "NM0");
+                }
+
+                var ro = (Math.Abs(Gds) > 1e-30) ? 1.0 / Gds : double.NaN;
+                var gmOverId = Math.Abs(Id) > 0 ? Gm / Id : double.NaN;
+                var vstar = Math.Abs(Gm) > 0 ? (2.0 * Id) / Gm : double.NaN;
+                var gmro = double.IsNaN(ro) ? double.NaN : Gm * ro;
+                var gmPerW = (Weff > 0) ? Gm / Weff : double.NaN;
+                var idPerW = (Weff > 0) ? Id / Weff : double.NaN;
+                var ft = (Cgs + Cgd) > 0 ? Math.Abs(Gm) / (2.0 * Math.PI * (Cgs + Cgd)) : double.NaN;
+
+                // vd column: use Vds (NMOS source at 0) as proxy
+                var vd = Vds;
+
+                string F(double v) => double.IsNaN(v) ? "" : v.ToString("G", CultureInfo.InvariantCulture);
+                rows.Add(string.Join(',',
+                    F(Vgs), F(vd), F(Id), F(Gm), F(gmOverId), F(ro), F(gmro), F(vstar), F(Cgs), F(Cgd), F(Cgg), F(gmPerW), F(idPerW), F(ft), F(Vth)));
+            }
+
+            if (rows.Count <= 1)
+            {
+                message = "oppoint files parsed but no numeric rows assembled.";
+                return false;
+            }
+
+            File.WriteAllLines(csvPath, rows);
+            message = $"Built results.csv from per-step oppoint files ({rows.Count - 1} samples).";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = $"Failed to build results from oppoint files: {ex.Message}";
+            return false;
+        }
+
+        static double GetOrNaN(Dictionary<string,double> dict, params string[] keys)
+        {
+            foreach (var k in keys)
+            {
+                if (dict.TryGetValue(k, out var v)) return v;
+            }
+            return double.NaN;
+        }
+    }
+
+    private static (List<string> Fields, bool Ok) LoadPsfInfoTypeFields(string path, string structName)
+    {
+        var fields = new List<string>();
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (line.StartsWith("TYPE", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Scan forward for the structName definition
+                    for (int j = i + 1; j < lines.Length; j++)
+                    {
+                        var t = lines[j].Trim();
+                        if (t.StartsWith('"') && t.Contains('"'))
+                        {
+                            var firstQuote = t.IndexOf('"');
+                            var secondQuote = t.IndexOf('"', firstQuote + 1);
+                            if (secondQuote > firstQuote)
+                            {
+                                var name = t.Substring(firstQuote + 1, secondQuote - firstQuote - 1);
+                                if (string.Equals(name, structName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Expect: "bsim4" STRUCT(
+                                    // Next lines contain "field" TYPE ... until a closing )
+                                    // Collect field names in order of appearance
+                                    for (int k = j + 1; k < lines.Length; k++)
+                                    {
+                                        var u = lines[k].Trim();
+                                        if (u.StartsWith(")"))
+                                        {
+                                            return (fields, fields.Count > 0);
+                                        }
+                                        if (u.StartsWith('"'))
+                                        {
+                                            var q1 = u.IndexOf('"');
+                                            var q2 = u.IndexOf('"', q1 + 1);
+                                            if (q2 > q1)
+                                            {
+                                                var field = u.Substring(q1 + 1, q2 - q1 - 1);
+                                                fields.Add(field);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+        return (fields, false);
+    }
+
+    private static List<double>? LoadFirstRecordValues(string path, string structName)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            bool inData = false;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (!inData)
+                {
+                    if (line.Equals("END", StringComparison.OrdinalIgnoreCase))
+                    {
+                        break;
+                    }
+                    // Look for a record like: "NM0...." "bsim4" (
+                    if (line.StartsWith('"') && line.Contains(structName, StringComparison.OrdinalIgnoreCase) && line.Contains("\" " + structName + "\"", StringComparison.Ordinal))
+                    {
+                        // Advance to line containing '(' then parse until ')'
+                        // The current line typically ends with (
+                        var values = new List<double>();
+                        // Move to next line which should start numeric values
+                        for (int k = i + 1; k < lines.Length; k++)
+                        {
+                            var v = lines[k].Trim();
+                            if (v.StartsWith(")"))
+                            {
+                                return values;
+                            }
+                            foreach (var tok in v.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                if (double.TryParse(tok, NumberStyles.Float, CultureInfo.InvariantCulture, out var num))
+                                {
+                                    values.Add(num);
+                                }
+                            }
+                        }
+                        return values;
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    private static double TryGetWidthFromElem(string elemPath)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(elemPath);
+            // Find first numeric group following a "bsim4~instparams" record
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var t = lines[i].Trim();
+                if (t.Contains("\"bsim4~instparams\"", StringComparison.Ordinal))
+                {
+                    // TYPE section above already lists field order; but for width we can search after '(' for the first occurrence of a numeric line after a field named "w"
+                    // For simplicity, scan forward for a line with a single number that is plausibly a width (<= 0.1)
+                    for (int k = i + 1; k < lines.Length; k++)
+                    {
+                        var v = lines[k].Trim();
+                        if (v.StartsWith(")")) break;
+                        if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var num))
+                        {
+                            if (num > 0 && num < 0.1) return num;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+        return double.NaN;
+    }
+
+    // New helpers for ASCII oppoint/element parsing
+    private static double TryGetWidthFromElemAscii(string elemPath, string instName)
+    {
+        try
+        {
+            var lines = File.ReadAllLines(elemPath);
+            bool inInst = false;
+            foreach (var raw in lines)
+            {
+                var line = raw.Trim();
+                if (line.StartsWith("Instance:", StringComparison.OrdinalIgnoreCase))
+                {
+                    inInst = line.IndexOf(instName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    continue;
+                }
+                if (!inInst) continue;
+                if (line.StartsWith("w =", StringComparison.OrdinalIgnoreCase) || line.StartsWith("W =", StringComparison.OrdinalIgnoreCase))
+                {
+                    var val = line[(line.IndexOf('=') + 1)..].Trim();
+                    if (TryParseWithUnits(val, out var meters)) return meters;
+                }
+            }
+        }
+        catch { }
+        return double.NaN;
+    }
+
+    private static bool TryParseOppointAscii(string path, string instName, out Dictionary<string,double> values)
+    {
+        values = new Dictionary<string,double>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            bool inInst = false;
+            foreach (var raw in lines)
+            {
+                var line = raw.Trim();
+                if (line.StartsWith("Instance:", StringComparison.OrdinalIgnoreCase))
+                {
+                    inInst = line.IndexOf(instName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    continue;
+                }
+                if (!inInst) continue;
+                var eq = line.IndexOf('=');
+                if (eq < 1) continue;
+                var name = line[..eq].Trim().TrimEnd(':').ToLowerInvariant();
+                var rhs = line[(eq + 1)..].Trim();
+                if (TryParseWithUnits(rhs, out var num)) values[name] = num;
+            }
+            return values.Count > 0;
+        }
+        catch { }
+        return false;
+    }
+
+    private static bool TryParseWithUnits(string text, out double value)
+    {
+        value = double.NaN;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        text = text.Replace("Ohm", "", StringComparison.OrdinalIgnoreCase).Trim();
+        var parts = text.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0) return false;
+        if (parts[0].Equals("inf", StringComparison.OrdinalIgnoreCase) || parts[0].Equals("infinity", StringComparison.OrdinalIgnoreCase))
+        { value = double.PositiveInfinity; return true; }
+        if (parts[0].Equals("nan", StringComparison.OrdinalIgnoreCase)) { value = double.NaN; return true; }
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var num)) return false;
+        double scale = 1.0;
+        if (parts.Length >= 2) scale = SiScale(parts[1]);
+        value = num * scale;
+        return true;
+    }
+
+    private static double SiScale(string unit)
+    {
+        if (string.IsNullOrWhiteSpace(unit)) return 1.0;
+        unit = unit.Trim();
+        char p = unit[0];
+        return p switch
+        {
+            'T' => 1e12,
+            'G' => 1e9,
+            'M' => 1e6,
+            'k' => 1e3,
+            'm' => 1e-3,
+            'u' or 'µ' => 1e-6,
+            'n' => 1e-9,
+            'p' => 1e-12,
+            'f' => 1e-15,
+            'a' => 1e-18,
+            _ => 1.0
+        };
+    }
     private CommandResult CharacterizationGenerate(string[] args)
     {
         // Parse args
@@ -2064,11 +2392,101 @@ internal sealed class CascodeShell
         var multVal = TryParseInt("mult", 1);
         var nfVal = TryParseInt("nf", 1);
 
+        static string? TryNormalizeInclude(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            try
+            {
+                return NormalizePath(path);
+            }
+            catch
+            {
+                return File.Exists(path) ? Path.GetFullPath(path) : null;
+            }
+        }
+
+        var rawDecks = model.Decks ?? Array.Empty<string>();
+        var decksWithSection = rawDecks
+            .Select(TryNormalizeInclude)
+            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
+            .Select(p => p!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        List<string> extraIncludes = new();
+        var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>())
+            .Select(TryNormalizeInclude)
+            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
+            .Select(p => p!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // If a corner is selected, prefer only files that match the corner tag (e.g., __tt, _tt.)
+        List<string> sourceIncludes = sourceIncludesAll;
+        if (!string.IsNullOrWhiteSpace(corner))
+        {
+            var key = corner!.Trim();
+            sourceIncludes = sourceIncludesAll
+                .Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0)
+                .ToList();
+        }
+
+        if (decksWithSection.Count == 0)
+        {
+            // Fallback for raw models when the deck (with section) could not be resolved
+            extraIncludes = sourceIncludes;
+        }
+        else
+        {
+            // When a main deck (with section) is present, rely on it exclusively to avoid double-definitions
+            extraIncludes.Clear();
+        }
+
+        var resolvedIncludes = new List<string>(decksWithSection.Count + extraIncludes.Count);
+        resolvedIncludes.AddRange(decksWithSection);
+        resolvedIncludes.AddRange(extraIncludes);
+
+        static string ResolveModelNameForNetlist(SpectreModel m)
+        {
+            var name = m.Name;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return name;
+            }
+
+            var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
+            if (modelMarker < 0)
+            {
+                return name;
+            }
+
+            var basePart = name.Substring(0, modelMarker);
+            var lastSeparator = basePart.LastIndexOf("__", StringComparison.Ordinal);
+            if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length)
+            {
+                basePart = basePart[(lastSeparator + 2)..];
+            }
+
+            return basePart.Replace('.', '_');
+        }
+
+        var netlistModelName = ResolveModelNameForNetlist(model);
+
+        if (resolvedIncludes.Count == 0)
+        {
+            _state.AddMessage($"[warn] No include decks located for model '{model.Name}'. Spectre run may fail.");
+        }
+
         var spec = new Cascode.Bench.TestbenchSpec
         {
             Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase) ? Cascode.Bench.BenchBackendType.Spectre : Cascode.Bench.BenchBackendType.Ngspice,
             Name = harness,
-            ModelName = model.Name,
+            ModelName = netlistModelName,
+            IsSubckt = string.Equals(model.ModelType, "subckt", StringComparison.OrdinalIgnoreCase),
             Corner = corner,
             TemperatureC = 27,
             SupplyV = 0,
@@ -2079,7 +2497,7 @@ internal sealed class CascodeShell
             Vgs = new Cascode.Bench.SweepSpec(start, stop, step),
             Vds = vdsVal,
             Vsb = vsbVal,
-            Includes = model.Decks,
+            Includes = resolvedIncludes,
             Section = corner,
             JobDir = jobRoot,
             ResultsCsv = "results.csv"
@@ -2090,7 +2508,9 @@ internal sealed class CascodeShell
             Spec = spec,
             WorkspaceRoot = _state.WorkspaceRoot,
             PdkRoot = _state.PdkRoot ?? _state.WorkspaceRoot,
-            DeckPaths = model.Decks,
+            DeckPaths = resolvedIncludes,
+            IncludePathsWithSection = decksWithSection,
+            IncludePathsWithoutSection = extraIncludes,
             Section = corner,
             Args = userParams.ToDictionary(kv => kv.Key, kv => (object?)kv.Value, StringComparer.OrdinalIgnoreCase),
         };
@@ -2187,16 +2607,27 @@ internal sealed class CascodeShell
             return false;
         }
 
-        var spectreBin = Environment.GetEnvironmentVariable("SPECTRE_BIN");
-        if (string.IsNullOrWhiteSpace(spectreBin))
+        var spectreEnv = Environment.GetEnvironmentVariable("SPECTRE_BIN");
+        var spectreBin = ResolveSpectreExecutable(spectreEnv);
+        if (spectreBin is null)
         {
-            spectreBin = TryDetectSpectreBin();
-            if (string.IsNullOrWhiteSpace(spectreBin))
+            if (!string.IsNullOrWhiteSpace(spectreEnv))
             {
-                _state.AddMessage("SPECTRE_BIN not set and could not auto-detect from SPECTRE_HOME; skipping Spectre execution.");
+                _state.AddMessage($"SPECTRE_BIN points to '{spectreEnv}', but no spectre binary was found there.");
+            }
+
+            var detected = TryDetectSpectreBin();
+            spectreBin = ResolveSpectreExecutable(detected);
+            if (spectreBin is null)
+            {
+                _state.AddMessage("SPECTRE_BIN not set and could not auto-detect spectre executable from SPECTRE_HOME; skipping Spectre execution.");
                 return false;
             }
-            _state.AddMessage($"Auto-detected Spectre at {spectreBin}");
+
+            if (!string.IsNullOrWhiteSpace(detected))
+            {
+                _state.AddMessage($"Auto-detected Spectre at {spectreBin}");
+            }
         }
 
         var netlist = Directory.EnumerateFiles(jobDir, "*.scs").FirstOrDefault();
@@ -2212,7 +2643,7 @@ internal sealed class CascodeShell
             var psi = new ProcessStartInfo
             {
                 FileName = spectreBin,
-                Arguments = $"-format nutascii \"{netlist}\"",
+                Arguments = $"-format nutascii -raw raw \"{netlist}\"",
                 WorkingDirectory = jobDir,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -2247,6 +2678,219 @@ internal sealed class CascodeShell
         catch (Exception ex)
         {
             _state.AddMessage($"Spectre run failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    // Attempt to build results.csv by parsing Spectre nutascii raw output (written to ./raw by TryRunSpectre)
+    private static bool TryBuildResultsCsvFromNutascii(string jobDir, bool isPmos, out string message)
+    {
+        message = string.Empty;
+        try
+        {
+            var rawRoot = Path.Combine(jobDir, "raw");
+            var candidates = new List<string>();
+            if (Directory.Exists(rawRoot))
+            {
+                candidates.AddRange(Directory.EnumerateFiles(rawRoot, "*", SearchOption.AllDirectories));
+            }
+            else if (File.Exists(rawRoot))
+            {
+                candidates.Add(rawRoot);
+            }
+            // Fallback: look in jobDir directly
+            candidates.AddRange(Directory.EnumerateFiles(jobDir, "*.raw", SearchOption.TopDirectoryOnly));
+            var plainRaw = Path.Combine(jobDir, "raw");
+            if (File.Exists(plainRaw) && !candidates.Contains(plainRaw, StringComparer.OrdinalIgnoreCase))
+            {
+                candidates.Add(plainRaw);
+            }
+
+            // Quick probe for nutascii signature
+            bool LooksLikeNutAscii(string path)
+            {
+                try
+                {
+                    using var sr = new StreamReader(path);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        var line = sr.ReadLine();
+                        if (line is null) break;
+                        if (line.StartsWith("Title:", StringComparison.OrdinalIgnoreCase)) return true;
+                    }
+                }
+                catch { }
+                return false;
+            }
+
+            var rawFiles = candidates
+                .Where(path => LooksLikeNutAscii(path))
+                .ToList();
+
+            if (rawFiles.Count == 0)
+            {
+                message = "No Spectre nutascii raw output found to recover results.";
+                return false;
+            }
+
+            // Prefer a file whose header mentions dc
+            string? chosen = null;
+            foreach (var f in rawFiles)
+            {
+                try
+                {
+                    var header = File.ReadLines(f).Take(6).ToArray();
+                    if (header.Any(l => l.Contains("Plotname:", StringComparison.OrdinalIgnoreCase) && l.Contains("dc", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        chosen = f; break;
+                    }
+                }
+                catch { }
+            }
+            chosen ??= rawFiles[0];
+
+            // Parse nutascii
+            var allLines = File.ReadAllLines(chosen);
+            int varCount = 0;
+            int valuesStart = -1;
+            var names = new List<string>();
+            for (int i = 0; i < allLines.Length; i++)
+            {
+                var line = allLines[i].Trim();
+                if (line.StartsWith("No. Variables:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var parts = line.Split(':', StringSplitOptions.TrimEntries);
+                    if (parts.Length == 2 && int.TryParse(parts[1], out var n)) varCount = n;
+                }
+                else if (line.StartsWith("Variables:", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Next varCount lines hold index, name, type
+                    for (int j = 0; j < varCount && i + 1 + j < allLines.Length; j++)
+                    {
+                        var vline = allLines[i + 1 + j].Trim();
+                        var toks = vline.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (toks.Length >= 3) names.Add(toks[1].Trim());
+                    }
+                }
+                else if (line.StartsWith("Values:", StringComparison.OrdinalIgnoreCase))
+                {
+                    valuesStart = i + 1; break;
+                }
+            }
+
+            if (varCount <= 0 || names.Count != varCount || valuesStart < 0)
+            {
+                message = $"Unexpected nutascii format in {Path.GetFileName(chosen)}.";
+                return false;
+            }
+
+            // Tokenize all numeric values after Values:
+            var nums = new List<double>();
+            for (int i = valuesStart; i < allLines.Length; i++)
+            {
+                var line = allLines[i];
+                var toks = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var t in toks)
+                {
+                    if (double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v))
+                    {
+                        nums.Add(v);
+                    }
+                }
+            }
+
+            var rowWidth = varCount + 1; // index + N variables per point
+            if (nums.Count < rowWidth)
+            {
+                message = $"Not enough samples found in {Path.GetFileName(chosen)}.";
+                return false;
+            }
+
+            int idxVar(string key) => names.FindIndex(n => string.Equals(n, key, StringComparison.OrdinalIgnoreCase));
+            int idxContains(params string[] parts)
+                => names.FindIndex(n => parts.All(p => n.Contains(p, StringComparison.OrdinalIgnoreCase)));
+
+            // Node voltages: accept either v(g)/v(s)/v(d) or plain g/s/d
+            int findNode(string vname, string plain)
+            {
+                var idx = idxVar(vname);
+                if (idx >= 0) return idx;
+                return idxVar(plain);
+            }
+
+            var ig = findNode("v(g)", "g");
+            var isrc = findNode("v(s)", "s");
+            var idn = findNode("v(d)", "d");
+            // Drain/source branch currents
+            var iVdr = Math.Max(idxVar("i(vdr)"), idxContains("vdr", "branch"));
+            var iVsd = Math.Max(idxVar("i(vsd)"), idxContains("vsd", "branch"));
+            // Device drain current (prefer <inst>:d if present; else first MOS current)
+            int iIMos = -1;
+            int iIdTerm = -1;
+            for (int k = 0; k < names.Count; k++)
+            {
+                var nm = names[k];
+                if (nm.EndsWith(":d", StringComparison.OrdinalIgnoreCase))
+                {
+                    iIdTerm = k;
+                }
+                if (iIMos < 0 && nm.StartsWith("i(m", StringComparison.OrdinalIgnoreCase))
+                {
+                    iIMos = k;
+                }
+            }
+
+            if (ig < 0 || isrc < 0 || idn < 0)
+            {
+                message = "Required variables v(g), v(s), v(d) not found in raw output.";
+                return false;
+            }
+
+            int points = nums.Count / rowWidth;
+            var sb = new List<string>();
+            sb.Add(isPmos ? "vsg,vd,id" : "vgs,vd,id");
+            for (int p = 0; p < points; p++)
+            {
+                int baseIdx = p * rowWidth + 1; // skip row index
+                double vg = nums[baseIdx + ig];
+                double vs = nums[baseIdx + isrc];
+                double vd = nums[baseIdx + idn];
+                double id;
+                if (isPmos)
+                {
+                    // Use VSD supply current if available; else fallback to sign from VDR if present
+                    double cur = double.NaN;
+                    if (iVsd >= 0) cur = nums[baseIdx + iVsd];
+                    else if (iVdr >= 0) cur = nums[baseIdx + iVdr];
+                    else if (iIdTerm >= 0) cur = nums[baseIdx + iIdTerm];
+                    else if (iIMos >= 0) cur = nums[baseIdx + iIMos];
+                    id = double.IsNaN(cur) ? double.NaN : -cur; // -I(VSD) per convention
+                    var vsg = vs - vg;
+                    sb.Add(string.Join(',', vsg.ToString(CultureInfo.InvariantCulture), vd.ToString(CultureInfo.InvariantCulture), id.ToString(CultureInfo.InvariantCulture)));
+                }
+                else
+                {
+                    double cur = double.NaN;
+                    if (iVdr >= 0) cur = nums[baseIdx + iVdr];
+                    else if (iVsd >= 0) cur = nums[baseIdx + iVsd];
+                    else if (iIdTerm >= 0) cur = nums[baseIdx + iIdTerm];
+                    else if (iIMos >= 0) cur = nums[baseIdx + iIMos];
+                    // Keep -I(VDR) convention when VDR exists; if using device current, treat positive as drain current flowing into device
+                    var useDeviceCurrent = iIMos >= 0 && iVdr < 0 && iVsd < 0;
+                    id = double.IsNaN(cur) ? double.NaN : (useDeviceCurrent ? cur : -cur);
+                    var vgs = vg - vs;
+                    sb.Add(string.Join(',', vgs.ToString(CultureInfo.InvariantCulture), vd.ToString(CultureInfo.InvariantCulture), id.ToString(CultureInfo.InvariantCulture)));
+                }
+            }
+
+            var outCsv = Path.Combine(jobDir, "results.csv");
+            File.WriteAllLines(outCsv, sb);
+            message = $"Recovered results.csv from Spectre raw: {Path.GetFileName(chosen)}";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            message = $"Failed to recover results from Spectre raw: {ex.Message}";
             return false;
         }
     }
@@ -2563,6 +3207,61 @@ internal sealed class CascodeShell
 
         _state.AddMessage("No workspace scan available. Run pdk scan.");
         return null;
+    }
+
+    private static string? ResolveSpectreExecutable(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var candidate = Environment.ExpandEnvironmentVariables(input.Trim());
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+
+        if (Directory.Exists(candidate))
+        {
+            foreach (var guess in EnumerateSpectreGuesses(candidate))
+            {
+                if (File.Exists(guess))
+                {
+                    return guess;
+                }
+            }
+        }
+        else if (!candidate.Contains(Path.DirectorySeparatorChar) && !candidate.Contains(Path.AltDirectorySeparatorChar))
+        {
+            var pathEnv = Environment.GetEnvironmentVariable("PATH");
+            if (!string.IsNullOrWhiteSpace(pathEnv))
+            {
+                foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    var full = Path.Combine(dir, candidate);
+                    if (File.Exists(full))
+                    {
+                        return full;
+                    }
+                }
+            }
+        }
+
+        return null;
+
+        static IEnumerable<string> EnumerateSpectreGuesses(string root)
+        {
+            yield return Path.Combine(root, "spectre");
+            yield return Path.Combine(root, "bin", "spectre");
+            yield return Path.Combine(root, "tools", "bin", "spectre");
+            yield return Path.Combine(root, "tools.lnx86", "bin", "spectre");
+        }
     }
 
     private static string FormatList(IEnumerable<string> values)

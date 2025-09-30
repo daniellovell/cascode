@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace Cascode.Bench;
 
 public sealed class TestbenchContext
@@ -6,6 +9,8 @@ public sealed class TestbenchContext
     public required string WorkspaceRoot { get; init; }
     public required string PdkRoot { get; init; }
     public required IReadOnlyList<string> DeckPaths { get; init; }
+    public IReadOnlyList<string> IncludePathsWithSection { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> IncludePathsWithoutSection { get; init; } = Array.Empty<string>();
     public string? Section { get; init; }
     public IDictionary<string, object?> Args { get; init; } = new Dictionary<string, object?>();
 }

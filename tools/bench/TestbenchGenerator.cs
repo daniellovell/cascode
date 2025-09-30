@@ -77,6 +77,8 @@ public sealed class TestbenchGenerator
                 results_csv = ctx.Spec.ResultsCsv
             },
             includes = ctx.DeckPaths,
+            includes_with_section = ctx.IncludePathsWithSection,
+            includes_without_section = ctx.IncludePathsWithoutSection,
             section = ctx.Section,
             @params = plan.Data.TryGetValue("params", out var p) ? p : new Dictionary<string, object?>()
         };

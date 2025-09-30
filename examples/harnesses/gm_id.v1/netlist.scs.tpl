@@ -2,14 +2,20 @@
 simulator lang=spectre
 global 0
 parameters L={{ params.l_m }} VGS={{ params.start }}
-temp = {{ spec.temperature_c }}
 
 // includes
-{% for inc in includes %}
+{% for inc in includes_with_section %}
 {% if section %}include "{{ inc }}" section={{ section }}{% else %}include "{{ inc }}"{% endif %}
+{% endfor %}
+{% for inc in includes_without_section %}
+include "{{ inc }}"
 {% endfor %}
 
 // sources
+// Tie source and bulk to a defined reference (VSS=0)
+VSS (s 0) vsource dc=0
+// Body bias relative to source (V(b)-V(s)=VSB)
+VBS (b s) vsource dc={{ params.vsb }}
 // Gate sweep source uses parameter VGS
 VGS (g 0) vsource dc=VGS
 // Drain bias: either fixed VDS or scaled alpha*VGS
@@ -18,8 +24,6 @@ VDR (d 0) vsource dc={{ params.drain_alpha }}*VGS
 {% else %}
 VDR (d 0) vsource dc={{ params.vds }}
 {% endif %}
-// Body bias
-VBS (b s) vsource dc={{ params.vsb }}
 
 // DUT
 {{ params.inst_name }} (d g s b) {{ spec.model_name }} w={{ params.w_m }} l=L m={{ params.mult }} nf={{ params.nf }} \
@@ -40,12 +44,16 @@ designParamVals info what=parameters where=rawfile
 primitives info what=primitives where=rawfile
 subckts info what=subckts where=rawfile
 
-// Sweep VGS
-dc sweep param=VGS start={{ params.start }} stop={{ params.stop }} step={{ params.step }}
+// Sweep VGS with per-step operating point export
+vgsSweep sweep param=VGS start={{ params.start }} stop={{ params.stop }} step={{ params.step }} {
+dc1 dc
+opinfo info what=oppoint where=file file="oppoint.%A"
+elinfo info what=inst where=file file="elem.%A"
+}
 
 saveOptions options save=allpub
-// Save minimal cross-backend set and Spectre extras
-save v(g) v(d) I(VDR) gm({{ params.inst_name }}) gds({{ params.inst_name }}) cgs({{ params.inst_name }}) cgd({{ params.inst_name }}) vth({{ params.inst_name }})
-
-// Write CSV: vgs, vd, id, gm, gds, cgs, cgd, vth
-printfile("{{ spec.results_csv }}", v(g) v(d) I(VDR) gm({{ params.inst_name }}) gds({{ params.inst_name }}) cgs({{ params.inst_name }}) cgd({{ params.inst_name }}) vth({{ params.inst_name }}) )
+save g
+save s
+save d
+save {{ params.inst_name }}:d
+save {{ params.inst_name }}:oppoint
