@@ -34,8 +34,14 @@ internal static class WorkspaceState
     public static string GetScanPath(string workspaceRoot)
         => Path.Combine(GetWorkspaceFolder(workspaceRoot), "workspace-scan.json");
 
+    public static string GetCharacterizationFolder(string workspaceRoot)
+        => Path.Combine(GetWorkspaceFolder(workspaceRoot), "char");
+
     public static string GetConfigPath()
         => Path.Combine(GetRoot(), "config.json");
+
+    public static string GetCharConfigPath(string workspaceRoot)
+        => Path.Combine(GetWorkspaceFolder(workspaceRoot), "pdk-char-config.json");
 
     private static string ComputeHash(string input)
     {

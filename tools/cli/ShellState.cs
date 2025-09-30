@@ -47,6 +47,17 @@ internal sealed class ShellState
 
     public int ModelDetailPageSize { get; private set; }
 
+    // Characterization progress (for PDK batch runs)
+    public bool CharJobActive { get; private set; }
+    public int CharTotal { get; private set; }
+    public int CharGenerated { get; private set; }
+    public int CharRan { get; private set; }
+    public int CharExported { get; private set; }
+    public int CharSkipped { get; private set; }
+    public string CharCurrent { get; private set; } = string.Empty;
+    public string? CharCorner { get; private set; }
+    public string? CharBackend { get; private set; }
+
     private int _historyCursor;
 
     public void SetWorkspace(string root)
@@ -158,6 +169,34 @@ internal sealed class ShellState
         ModelSummary = null;
         ModelDetailOffset = 0;
         ModelDetailPageSize = 0;
+    }
+
+    public void StartCharJob(int total, string backend, string? corner)
+    {
+        CharJobActive = true;
+        CharTotal = Math.Max(0, total);
+        CharGenerated = 0;
+        CharRan = 0;
+        CharExported = 0;
+        CharSkipped = 0;
+        CharCurrent = string.Empty;
+        CharCorner = corner;
+        CharBackend = backend;
+    }
+
+    public void UpdateCharProgress(string current, int? generatedDelta = null, int? ranDelta = null, int? exportedDelta = null, int? skippedDelta = null)
+    {
+        if (!CharJobActive) return;
+        CharCurrent = current ?? string.Empty;
+        if (generatedDelta.HasValue) CharGenerated += Math.Max(0, generatedDelta.Value);
+        if (ranDelta.HasValue) CharRan += Math.Max(0, ranDelta.Value);
+        if (exportedDelta.HasValue) CharExported += Math.Max(0, exportedDelta.Value);
+        if (skippedDelta.HasValue) CharSkipped += Math.Max(0, skippedDelta.Value);
+    }
+
+    public void CompleteCharJob()
+    {
+        CharJobActive = false;
     }
 
     public bool TrySetModelDetailOffset(int offset)

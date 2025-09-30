@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\workspace\Cascode.Workspace.csproj" />
+    <ProjectReference Include="..\bench\Cascode.Bench.csproj" />
   </ItemGroup>
 
   <ItemGroup>

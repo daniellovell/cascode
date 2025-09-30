@@ -11,4 +11,7 @@ AGENTS.md
 .nuget/
 .cascode/
 
-tests/.cache/
+**/.cache/*
+build/
+CASCODE_DESIGN_DOC.md
+MY_NOTES.md

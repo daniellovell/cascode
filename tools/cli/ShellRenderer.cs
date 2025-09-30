@@ -21,39 +21,90 @@ internal static class ShellRenderer
 
     private static Layout BuildHomeLayout(ShellState state)
     {
+        // Reserve a dedicated bottom line for the interactive prompt so it doesn't
+        // overwrite the Log panel's bottom border. All content lives in "Content".
         var layout = new Layout("Root")
-            .SplitColumns(
-                new Layout("Main").Ratio(3),
-                new Layout("Sidebar").Ratio(2));
+            .SplitRows(
+                new Layout("Content").Ratio(1),
+                new Layout("PromptSpacer").Size(1));
 
-        layout["Main"].SplitRows(
+        layout["Content"].SplitColumns(
+            new Layout("Main").Ratio(3),
+            new Layout("Sidebar").Ratio(2));
+
+        layout["Content"]["Main"].SplitRows(
             new Layout("WorkspaceBar").Size(3),
             new Layout("Log").Ratio(1));
 
-        layout["Sidebar"].SplitRows(
-            new Layout("Navigator").Ratio(2),
-            new Layout("Details").Ratio(1));
+        if (state.CharJobActive)
+        {
+            layout["Content"]["Sidebar"].SplitRows(
+                new Layout("Progress").Size(10),
+                new Layout("Navigator").Ratio(2),
+                new Layout("Details").Ratio(1));
+        }
+        else
+        {
+            layout["Content"]["Sidebar"].SplitRows(
+                new Layout("Navigator").Ratio(2),
+                new Layout("Details").Ratio(1));
+        }
 
-        layout["Main"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
-        layout["Main"]["Log"].Update(BuildLog(state));
-        layout["Sidebar"]["Navigator"].Update(BuildNavigator(state));
-        layout["Sidebar"]["Details"].Update(BuildDeckDetails(state));
+        layout["Content"]["Main"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
+        layout["Content"]["Main"]["Log"].Update(BuildLog(state));
+        if (state.CharJobActive) layout["Content"]["Sidebar"]["Progress"].Update(BuildCharProgress(state));
+        layout["Content"]["Sidebar"]["Navigator"].Update(BuildNavigator(state));
+        layout["Content"]["Sidebar"]["Details"].Update(BuildDeckDetails(state));
+
+        // Keep the spacer visually empty; the prompt will be rendered on this line.
+        layout["PromptSpacer"].Update(new Markup(string.Empty));
 
         return layout;
     }
 
+    private static IRenderable BuildCharProgress(ShellState state)
+    {
+        var remaining = Math.Max(0, state.CharTotal - Math.Max(Math.Max(state.CharGenerated, state.CharRan), Math.Max(state.CharExported, state.CharSkipped)));
+        var label = $"[green bold underline]PDK Characterization Progress[/]  [grey]current:[/] {Markup.Escape(state.CharCurrent ?? string.Empty)}";
+        var width = Math.Clamp(EstimateConsoleHeight() + 30, 40, 100);
+        var chart = new BarChart()
+            .Width(width)
+            .Label(label)
+            .CenterLabel()
+            .AddItem("Generated", state.CharGenerated, Color.Yellow)
+            .AddItem("Ran", state.CharRan, Color.Blue)
+            .AddItem("Exported", state.CharExported, Color.Green)
+            .AddItem("Skipped", state.CharSkipped, Color.Grey)
+            .AddItem("Remaining", remaining, Color.Red);
+
+        return new Panel(chart)
+        {
+            Border = BoxBorder.Rounded,
+            Header = new PanelHeader($"Characterization ({Markup.Escape(state.CharBackend ?? "?")}/{Markup.Escape(state.CharCorner ?? "?")})"),
+            Expand = true,
+            Padding = new Padding(1, 0, 1, 0)
+        };
+    }
+
     private static Layout BuildModelSummaryLayout(ShellState state)
     {
+        // Reserve a bottom line for the prompt across views to avoid border clipping
         var layout = new Layout("Root")
             .SplitRows(
-                new Layout("WorkspaceBar").Size(3),
-                new Layout("Content").Ratio(1));
+                new Layout("MainRows").Ratio(1),
+                new Layout("PromptSpacer").Size(1));
 
-        layout["WorkspaceBar"].Update(BuildWorkspaceBar(state));
+        layout["MainRows"].SplitRows(
+            new Layout("WorkspaceBar").Size(3),
+            new Layout("Content").Ratio(1));
+
+        layout["MainRows"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
 
         var summary = state.ModelSummary ?? ModelSummaryViewState.Empty;
         var contentRows = new Rows(BuildSummaryPanel(summary), BuildSummaryTip(summary));
-        layout["Content"].Update(contentRows);
+        layout["MainRows"]["Content"].Update(contentRows);
+
+        layout["PromptSpacer"].Update(new Markup(string.Empty));
 
         return layout;
     }
@@ -277,39 +328,88 @@ internal static class ShellRenderer
     private static IRenderable BuildLog(ShellState state)
     {
         var visibleLines = GetLogVisibleLines();
-        state.UpdateLogViewport(visibleLines);
+        // Reserve one line at the bottom of the panel for a dimmed tooltip
+        var messageLines = Math.Max(1, visibleLines - 1);
+        state.UpdateLogViewport(messageLines);
 
         if (state.Messages.Count == 0)
         {
-            return new Panel(new Markup("[grey]Log is empty. Commands typed will appear here.[/]"))
+            var empty = new Markup("[grey]Log is empty. Commands typed will appear here.[/]");
+            var tip = new Align(new Markup("[dim]Shift+↑ and Shift+↓ scroll the log[/]"), HorizontalAlignment.Left);
+            var rows = new Rows(empty, tip);
+            return new Panel(rows)
             {
                 Border = BoxBorder.Rounded,
-                Header = new PanelHeader("Log")
+                Header = new PanelHeader("Log"),
+                Expand = true
             };
         }
 
-        var maxOffset = Math.Max(0, state.Messages.Count - visibleLines);
+        var maxOffset = Math.Max(0, state.Messages.Count - messageLines);
         var offset = Math.Clamp(state.LogScrollOffset, 0, maxOffset);
-        var start = Math.Max(0, state.Messages.Count - visibleLines - offset);
-        var slice = state.Messages.Skip(start).Take(visibleLines).Select(Escape);
-        var renderable = new Markup(string.Join('\n', slice));
+        var start = Math.Max(0, state.Messages.Count - messageLines - offset);
+        
+        // Calculate available width for the log panel (3/5 of console width, minus borders and padding)
+        var consoleWidth = EstimateConsoleWidth();
+        var logPanelWidth = (int)(consoleWidth * 0.6) - 6; // 3/5 ratio minus borders/padding
+        logPanelWidth = Math.Max(40, logPanelWidth); // Minimum width
+        
+        // Truncate long lines to fit available width (defensively handles very small widths)
+        var truncatedMessages = state.Messages
+            .Skip(start)
+            .Take(messageLines)
+            .Select(msg => TruncateToWidth(msg, logPanelWidth));
+        
+        var renderable = new Markup(string.Join('\n', truncatedMessages));
         var headerLabel = offset == 0 ? "Log" : $"Log (scroll {offset})";
 
-        return new Panel(renderable)
+        var tipLine = new Align(new Markup("[dim]Shift+↑ and Shift+↓ scroll the log[/]"), HorizontalAlignment.Left);
+        var content = new Rows(renderable, tipLine);
+
+        return new Panel(content)
         {
             Border = BoxBorder.Rounded,
             Header = new PanelHeader(headerLabel),
-            Expand = true
+            Expand = true,
+            Padding = new Padding(1, 0, 1, 0)
         };
     }
 
     private static string Escape(string input) => Markup.Escape(input);
 
+    private static string TruncateToWidth(string text, int width)
+    {
+        if (width <= 0)
+        {
+            return string.Empty;
+        }
+
+        if (string.IsNullOrEmpty(text) || text.Length <= width)
+        {
+            return Escape(text ?? string.Empty);
+        }
+
+        if (width == 1)
+        {
+            return Escape(text.Substring(0, 1));
+        }
+
+        var safeCut = Math.Max(1, width - 1);
+        safeCut = Math.Min(safeCut, text.Length);
+        return Escape(text.Substring(0, safeCut) + "…");
+    }
+
     private static int GetLogVisibleLines()
     {
         var height = EstimateConsoleHeight();
-        var desired = Math.Max(8, (int)Math.Round(height * 0.5));
-        return desired;
+        // Height breakdown with a reserved prompt spacer line:
+        // - WorkspaceBar row (fixed): 3 lines
+        // - Log panel borders: 2 lines (header overlays top border)
+        // - Prompt spacer: 1 line
+        // Total overhead: 3 + 2 + 1 = 6 lines
+        var overhead = 6;
+        var availableHeight = Math.Max(8, height - overhead);
+        return availableHeight;
     }
 
     private static int EstimateConsoleHeight()
@@ -328,5 +428,23 @@ internal static class ShellRenderer
 
         var profileHeight = AnsiConsole.Profile.Height;
         return profileHeight > 0 ? profileHeight : 24;
+    }
+
+    private static int EstimateConsoleWidth()
+    {
+        try
+        {
+            if (Console.WindowWidth > 0)
+            {
+                return Console.WindowWidth;
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+
+        var profileWidth = AnsiConsole.Profile.Width;
+        return profileWidth > 0 ? profileWidth : 80;
     }
 }
