@@ -1836,7 +1836,21 @@ internal sealed class CascodeShell
                     {
                         w_m = spec.W_M;
                         l_m = spec.L_M;
-                        isPmosHarness = spec.Name?.Contains("pmos", StringComparison.OrdinalIgnoreCase) == true;
+                        if (spec.Name?.Contains("pmos", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            isPmosHarness = true;
+                        }
+
+                        if (!isPmosHarness && spec.ModelName?.Contains("pfet", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            isPmosHarness = true;
+                        }
+
+                        if (!isPmosHarness && spec.ModelName?.Contains("pmos", StringComparison.OrdinalIgnoreCase) == true)
+                        {
+                            isPmosHarness = true;
+                        }
+
                         controlLabel = isPmosHarness ? "vsg" : "vgs";
                     }
                 }
@@ -1844,7 +1858,7 @@ internal sealed class CascodeShell
             }
 
             // 1) Prefer oppoint-per-step ASCII files from braced sweep
-            if (TryExportFromOppointFiles(jobDir, out var createdCsv, out var msgOpp))
+            if (TryExportFromOppointFiles(jobDir, isPmosHarness, w_m, controlLabel, out var createdCsv, out var msgOpp))
             {
                 _state.AddMessage(msgOpp);
             }
@@ -1872,121 +1886,316 @@ internal sealed class CascodeShell
             }
 
 
-            var rows = new List<(double Control, double Vd, double Id, double? Gm, double? Gds, double? Cgs, double? Cgd, double? Vth)>();
-            foreach (var line in lines)
+            static bool TryParseInvariant(string? text, out double value)
             {
-                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("*") || char.IsLetter(line[0]))
+                value = double.NaN;
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return false;
+                }
+
+                return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            }
+
+            static string Format(double value)
+            {
+                if (double.IsNaN(value))
+                {
+                    return string.Empty;
+                }
+
+                return value.ToString("G", CultureInfo.InvariantCulture);
+            }
+
+            static string? FindFirstColumn(IReadOnlyDictionary<string, int> map, params string[] names)
+            {
+                foreach (var name in names)
+                {
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+
+                    if (map.ContainsKey(name))
+                    {
+                        return name;
+                    }
+                }
+
+                return null;
+            }
+
+            var headerCells = lines[0].Split(',', StringSplitOptions.None)
+                .Select(h => h.Trim())
+                .ToArray();
+            if (headerCells.Length == 0)
+            {
+                _state.AddMessage("Results CSV is missing a header row.");
+                return CommandResult.Failure;
+            }
+
+            var columnIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < headerCells.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(headerCells[i]))
+                {
+                    columnIndex[headerCells[i]] = i;
+                }
+            }
+
+            string? controlColumn = FindFirstColumn(columnIndex, controlLabel, "vgs", "vsg", "control");
+            if (controlColumn is null)
+            {
+                controlColumn = headerCells[0];
+            }
+
+            var exportRows = new List<ExportRow>();
+
+            foreach (var line in lines.Skip(1))
+            {
+                if (string.IsNullOrWhiteSpace(line))
                 {
                     continue;
                 }
 
-                var parts = line.Split(new[] { ' ', '	', ',' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length < 3)
+                var cells = line.Split(',', StringSplitOptions.None);
+                if (cells.All(string.IsNullOrWhiteSpace))
                 {
                     continue;
                 }
 
-                if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var control))
+                var normalized = new string[headerCells.Length];
+                for (int i = 0; i < headerCells.Length; i++)
                 {
-                    continue;
+                    normalized[i] = i < cells.Length ? cells[i].Trim() : string.Empty;
                 }
 
-                if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var vd))
+                double Value(params string[] names)
                 {
-                    continue;
+                    foreach (var name in names)
+                    {
+                        if (string.IsNullOrWhiteSpace(name))
+                        {
+                            continue;
+                        }
+
+                        if (columnIndex.TryGetValue(name, out var idx) && idx < normalized.Length)
+                        {
+                            if (TryParseInvariant(normalized[idx], out var val))
+                            {
+                                return val;
+                            }
+                        }
+                    }
+
+                    return double.NaN;
                 }
 
-                if (!double.TryParse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var id))
+                var row = new ExportRow
                 {
-                    continue;
-                }
-
-                double? gm = parts.Length > 3 && double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var gmVal) ? gmVal : null;
-                double? gds = parts.Length > 4 && double.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out var gdsVal) ? gdsVal : null;
-                double? cgs = parts.Length > 5 && double.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out var cgsVal) ? cgsVal : null;
-                double? cgd = parts.Length > 6 && double.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out var cgdVal) ? cgdVal : null;
-                double? vth = parts.Length > 7 && double.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out var vthVal) ? vthVal : null;
+                    Control = Value(controlColumn ?? controlLabel, controlLabel, "vgs", "vsg", "control"),
+                    Vds = Value("vds", "vd"),
+                    Id = Value("id", "ids"),
+                    Gm = Value("gm"),
+                    Gmbs = Value("gmbs"),
+                    Gds = Value("gds"),
+                    Vth = Value("vth"),
+                    Vdsat = Value("vdsat"),
+                    Cgs = Value("cgs"),
+                    Cgd = Value("cgd"),
+                    Cgg = Value("cgg"),
+                    GmOverIdRaw = Value("gmoverid", "gm_over_id", "gm/id"),
+                    Ueff = Value("ueff"),
+                    Ron = Value("ron"),
+                    RsEff = Value("rseff"),
+                    RdEff = Value("rdeff"),
+                    Weff = Value("w_eff", "weff", "w")
+                };
 
                 if (isPmosHarness)
                 {
-                    control = Math.Abs(control);
-                    id = Math.Abs(id);
-                    if (gm.HasValue) gm = Math.Abs(gm.Value);
-                    if (gds.HasValue) gds = Math.Abs(gds.Value);
-                    if (cgs.HasValue) cgs = Math.Abs(cgs.Value);
-                    if (cgd.HasValue) cgd = Math.Abs(cgd.Value);
-                    if (vth.HasValue) vth = Math.Abs(vth.Value);
+                    row.Control = Math.Abs(row.Control);
+                    row.Id = Math.Abs(row.Id);
+                    row.Gm = Math.Abs(row.Gm);
+                    row.Gmbs = Math.Abs(row.Gmbs);
+                    row.Gds = Math.Abs(row.Gds);
+                    row.Vth = Math.Abs(row.Vth);
+                    row.Vdsat = Math.Abs(row.Vdsat);
+                    row.Cgs = Math.Abs(row.Cgs);
+                    row.Cgd = Math.Abs(row.Cgd);
+                    row.Cgg = Math.Abs(row.Cgg);
+                    row.GmOverIdRaw = Math.Abs(row.GmOverIdRaw);
+                    row.Ueff = Math.Abs(row.Ueff);
+                    row.Ron = Math.Abs(row.Ron);
+                    row.RsEff = Math.Abs(row.RsEff);
+                    row.RdEff = Math.Abs(row.RdEff);
                 }
 
-                rows.Add((control, vd, id, gm, gds, cgs, cgd, vth));
+                if ((double.IsNaN(row.Weff) || row.Weff <= 0) && w_m > 0)
+                {
+                    row.Weff = w_m;
+                }
+
+                if (double.IsNaN(row.Control) && double.IsNaN(row.Id) && double.IsNaN(row.Gm))
+                {
+                    continue;
+                }
+
+                exportRows.Add(row);
             }
 
-            if (rows.Count == 0)
+            if (exportRows.Count == 0)
             {
                 _state.AddMessage("No numeric samples parsed from results.");
                 return CommandResult.Failure;
             }
 
-            bool Wants(string metric) => metricFilter.Count == 0 || metricFilter.Contains(metric);
-            var header = new List<string> { controlLabel, "vd", "id" };
-            if (Wants("gm")) header.Add("gm");
-            if (Wants("gm_over_id")) header.Add("gm_over_id");
-            if (Wants("ro")) header.Add("ro");
-            if (Wants("gm_ro")) header.Add("gm_ro");
-            if (Wants("vstar")) header.Add("vstar");
-            if (Wants("cgs")) header.Add("cgs");
-            if (Wants("cgd")) header.Add("cgd");
-            if (Wants("gm_per_w")) header.Add("gm_per_w");
-            if (Wants("id_per_w")) header.Add("id_per_w");
-            if (Wants("ft")) header.Add("ft");
-            if (Wants("vth")) header.Add("vth");
-
-            var outLines = new List<string> { string.Join(',', header) };
-            for (var i = 0; i < rows.Count; i++)
+            ExportRow? FindNeighbor(int index, int step)
             {
-                var (control, vd, id, gmOpt, gdsOpt, cgsOpt, cgdOpt, vthOpt) = rows[i];
-                double gm = gmOpt ?? 0;
-                if (gmOpt is null && rows.Count > 2)
+                for (int j = index + step; j >= 0 && j < exportRows.Count; j += step)
                 {
-                    if (i > 0 && i + 1 < rows.Count)
+                    var candidate = exportRows[j];
+                    if (!double.IsNaN(candidate.Control) && !double.IsNaN(candidate.Id))
                     {
-                        var (v0, _, i0, _, _, _, _, _) = rows[i - 1];
-                        var (v1, _, i1, _, _, _, _, _) = rows[i + 1];
-                        var dv = v1 - v0;
-                        if (Math.Abs(dv) > 1e-15)
+                        return candidate;
+                    }
+                }
+
+                return null;
+            }
+
+            for (int i = 0; i < exportRows.Count; i++)
+            {
+                var row = exportRows[i];
+                if (double.IsNaN(row.Gm))
+                {
+                    if (!double.IsNaN(row.GmOverIdRaw) && !double.IsNaN(row.Id))
+                    {
+                        row.Gm = row.GmOverIdRaw * row.Id;
+                    }
+                    else
+                    {
+                        var prev = FindNeighbor(i, -1);
+                        var next = FindNeighbor(i, +1);
+                        if (prev is not null && next is not null)
                         {
-                            gm = (i1 - i0) / dv;
+                            var dv = next.Control - prev.Control;
+                            if (Math.Abs(dv) > 1e-30)
+                            {
+                                row.Gm = (next.Id - prev.Id) / dv;
+                            }
                         }
                     }
                 }
 
-                var gds = gdsOpt ?? double.NaN;
-                var ro = double.IsNaN(gds) || Math.Abs(gds) < 1e-30 ? double.NaN : 1.0 / gds;
-                var gmOverId = Math.Abs(id) > 0 ? gm / id : double.NaN;
-                var vstar = Math.Abs(gm) > 0 ? (2.0 * id) / gm : double.NaN;
-                var gmro = double.IsNaN(ro) ? double.NaN : gm * ro;
-                var gmPerW = (w_m > 0) ? gm / w_m : double.NaN;
-                var idPerW = (w_m > 0) ? id / w_m : double.NaN;
-                var cgs = cgsOpt ?? double.NaN;
-                var cgd = cgdOpt ?? double.NaN;
-                var ft = (!double.IsNaN(cgs) && !double.IsNaN(cgd) && (cgs + cgd) > 0)
-                    ? (gm / (2.0 * Math.PI * (cgs + cgd)))
+                if (double.IsNaN(row.GmOverIdRaw) && !double.IsNaN(row.Gm) && Math.Abs(row.Id) > 0)
+                {
+                    row.GmOverIdRaw = row.Gm / row.Id;
+                }
+            }
+
+            bool Wants(string metric) => metricFilter.Count == 0 || metricFilter.Contains(metric);
+
+            var optionalMetricOrder = new[]
+            {
+                "gm",
+                "gmbs",
+                "gds",
+                "ro",
+                "gm_over_id",
+                "gm_ro",
+                "vstar",
+                "cgs",
+                "cgd",
+                "cgg",
+                "gm_per_w",
+                "id_per_w",
+                "ft",
+                "vth",
+                "vdsat",
+                "gmoverid",
+                "ueff",
+                "ron",
+                "rseff",
+                "rdeff",
+                "w_eff"
+            };
+
+            var header = new List<string> { controlLabel, "vds", "id" };
+            foreach (var metric in optionalMetricOrder)
+            {
+                if (Wants(metric))
+                {
+                    header.Add(metric);
+                }
+            }
+
+            var outLines = new List<string> { string.Join(',', header) };
+
+            foreach (var row in exportRows)
+            {
+                var gm = row.Gm;
+                var gds = row.Gds;
+                var gmOverId = !double.IsNaN(row.GmOverIdRaw) ? row.GmOverIdRaw :
+                    (!double.IsNaN(row.Id) && Math.Abs(row.Id) > 0 ? row.Gm / row.Id : double.NaN);
+                var ro = (!double.IsNaN(gds) && Math.Abs(gds) > 1e-30) ? 1.0 / gds : (!double.IsNaN(row.Ron) ? row.Ron : double.NaN);
+                var gmRo = (!double.IsNaN(gm) && !double.IsNaN(ro)) ? gm * ro : double.NaN;
+                var vstar = (!double.IsNaN(gm) && Math.Abs(gm) > 1e-30) ? (2.0 * row.Id) / gm : double.NaN;
+
+                double totalCap = 0.0;
+                if (!double.IsNaN(row.Cgs)) totalCap += Math.Abs(row.Cgs);
+                if (!double.IsNaN(row.Cgd)) totalCap += Math.Abs(row.Cgd);
+                var ft = (totalCap > 0 && !double.IsNaN(gm))
+                    ? Math.Abs(gm) / (2.0 * Math.PI * totalCap)
                     : double.NaN;
 
-                var inv = CultureInfo.InvariantCulture;
-                var row = new List<string> { control.ToString(inv), vd.ToString(inv), id.ToString(inv) };
-                if (Wants("gm")) row.Add(gm.ToString(inv));
-                if (Wants("gm_over_id")) row.Add(double.IsNaN(gmOverId) ? string.Empty : gmOverId.ToString(inv));
-                if (Wants("ro")) row.Add(double.IsNaN(ro) ? string.Empty : ro.ToString(inv));
-                if (Wants("gm_ro")) row.Add(double.IsNaN(gmro) ? string.Empty : gmro.ToString(inv));
-                if (Wants("vstar")) row.Add(double.IsNaN(vstar) ? string.Empty : vstar.ToString(inv));
-                if (Wants("cgs")) row.Add(double.IsNaN(cgs) ? string.Empty : cgs.ToString(inv));
-                if (Wants("cgd")) row.Add(double.IsNaN(cgd) ? string.Empty : cgd.ToString(inv));
-                if (Wants("gm_per_w")) row.Add(double.IsNaN(gmPerW) ? string.Empty : gmPerW.ToString(inv));
-                if (Wants("id_per_w")) row.Add(double.IsNaN(idPerW) ? string.Empty : idPerW.ToString(inv));
-                if (Wants("ft")) row.Add(double.IsNaN(ft) ? string.Empty : ft.ToString(inv));
-                if (Wants("vth")) row.Add(vthOpt.HasValue ? vthOpt.Value.ToString(inv) : string.Empty);
-                outLines.Add(string.Join(',', row));
+                var gmPerW = (!double.IsNaN(gm) && row.Weff > 0) ? gm / row.Weff : double.NaN;
+                var idPerW = (!double.IsNaN(row.Id) && row.Weff > 0) ? row.Id / row.Weff : double.NaN;
+
+                var metrics = new Dictionary<string, double>
+                {
+                    ["gm"] = gm,
+                    ["gmbs"] = row.Gmbs,
+                    ["gds"] = gds,
+                    ["ro"] = ro,
+                    ["gm_over_id"] = gmOverId,
+                    ["gm_ro"] = gmRo,
+                    ["vstar"] = vstar,
+                    ["cgs"] = row.Cgs,
+                    ["cgd"] = row.Cgd,
+                    ["cgg"] = row.Cgg,
+                    ["gm_per_w"] = gmPerW,
+                    ["id_per_w"] = idPerW,
+                    ["ft"] = ft,
+                    ["vth"] = row.Vth,
+                    ["vdsat"] = row.Vdsat,
+                    ["gmoverid"] = row.GmOverIdRaw,
+                    ["ueff"] = row.Ueff,
+                    ["ron"] = row.Ron,
+                    ["rseff"] = row.RsEff,
+                    ["rdeff"] = row.RdEff,
+                    ["w_eff"] = row.Weff
+                };
+
+                var rowValues = new List<string>
+                {
+                    Format(row.Control),
+                    Format(row.Vds),
+                    Format(row.Id)
+                };
+
+                foreach (var metric in optionalMetricOrder)
+                {
+                    if (!Wants(metric))
+                    {
+                        continue;
+                    }
+
+                    metrics.TryGetValue(metric, out var val);
+                    rowValues.Add(Format(val));
+                }
+
+                outLines.Add(string.Join(',', rowValues));
             }
 
             File.WriteAllLines(outFile, outLines);
@@ -2001,7 +2210,7 @@ internal sealed class CascodeShell
     }
 
     // Parse per-step oppoint + element files emitted by: sweep { dc; info what=oppoint where=file file="oppoint.%A"; element info what=inst where=file file="elem.%A" }
-    private bool TryExportFromOppointFiles(string jobDir, out string csvPath, out string message)
+    private bool TryExportFromOppointFiles(string jobDir, bool isPmos, double specWidth, string controlLabel, out string csvPath, out string message)
     {
         csvPath = Path.Combine(jobDir, "results.csv");
         message = string.Empty;
@@ -2015,57 +2224,130 @@ internal sealed class CascodeShell
                 return false;
             }
 
-            // Try to find matching element info files for W/L per step
             var elemFiles = Directory.EnumerateFiles(jobDir, "elem.*", SearchOption.TopDirectoryOnly)
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            // Parse ASCII oppoint files emitted per step
-
             var rows = new List<string>();
-            // header: assume NMOS; exporter higher up will rename control label to vsg if PMOS later
-            var header = string.Join(',', new[] { "vgs", "vd", "id", "gm", "gm_over_id", "ro", "gm_ro", "vstar", "cgs", "cgd", "cgg", "gm_per_w", "id_per_w", "ft", "vth" });
-            rows.Add(header);
+            rows.Add(string.Join(',', new[]
+            {
+                controlLabel,
+                "vds",
+                "id",
+                "gm",
+                "gmbs",
+                "gds",
+                "vth",
+                "vdsat",
+                "cgs",
+                "cgd",
+                "cgg",
+                "gmoverid",
+                "ueff",
+                "ron",
+                "rseff",
+                "rdeff",
+                "w_eff"
+            }));
+
+            string? detectedInst = null;
 
             for (int n = 0; n < oppFiles.Length; n++)
             {
-                var opp = oppFiles[n];
-                if (!TryParseOppointAscii(opp, "NM0", out var op))
+                if (!TryParseOppointAscii(oppFiles[n], detectedInst, out var op, out var matchedInst))
                 {
                     continue;
                 }
 
-                double Id = GetOrNaN(op, "ids", "id");
-                double Vgs = GetOrNaN(op, "vgs");
-                double Vds = GetOrNaN(op, "vds");
-                double Gm = GetOrNaN(op, "gm");
-                double Gds = GetOrNaN(op, "gds");
-                double Vth = GetOrNaN(op, "vth");
-                double Cgs = GetOrNaN(op, "cgs");
-                double Cgd = GetOrNaN(op, "cgd");
-                double Cgg = GetOrNaN(op, "cgg");
-
-                // Width from elem file if available
-                double Weff = double.NaN;
-                if (elemFiles.Length == oppFiles.Length && n < elemFiles.Length)
+                if (!string.IsNullOrWhiteSpace(matchedInst))
                 {
-                    Weff = TryGetWidthFromElemAscii(elemFiles[n], "NM0");
+                    detectedInst = matchedInst;
                 }
 
-                var ro = (Math.Abs(Gds) > 1e-30) ? 1.0 / Gds : double.NaN;
-                var gmOverId = Math.Abs(Id) > 0 ? Gm / Id : double.NaN;
-                var vstar = Math.Abs(Gm) > 0 ? (2.0 * Id) / Gm : double.NaN;
-                var gmro = double.IsNaN(ro) ? double.NaN : Gm * ro;
-                var gmPerW = (Weff > 0) ? Gm / Weff : double.NaN;
-                var idPerW = (Weff > 0) ? Id / Weff : double.NaN;
-                var ft = (Cgs + Cgd) > 0 ? Math.Abs(Gm) / (2.0 * Math.PI * (Cgs + Cgd)) : double.NaN;
+                double control = GetOrNaN(op, controlLabel, "vgs", "vsg");
+                double vds = GetOrNaN(op, "vds", "vd");
+                double id = GetOrNaN(op, "ids", "id");
+                double gm = GetOrNaN(op, "gm");
+                double gmbs = GetOrNaN(op, "gmbs");
+                double gds = GetOrNaN(op, "gds");
+                double vth = GetOrNaN(op, "vth");
+                double vdsat = GetOrNaN(op, "vdsat");
+                double cgs = GetOrNaN(op, "cgs");
+                double cgd = GetOrNaN(op, "cgd");
+                double cgg = GetOrNaN(op, "cgg");
+                double gmOverId = GetOrNaN(op, "gmoverid", "gm_over_id", "gm/id");
+                double ueff = GetOrNaN(op, "ueff");
+                double ron = GetOrNaN(op, "ron");
+                double rseff = GetOrNaN(op, "rseff");
+                double rdeff = GetOrNaN(op, "rdeff");
 
-                // vd column: use Vds (NMOS source at 0) as proxy
-                var vd = Vds;
+                if (double.IsNaN(control))
+                {
+                    control = GetOrNaN(op, "vgs", "vsg");
+                }
 
-                string F(double v) => double.IsNaN(v) ? "" : v.ToString("G", CultureInfo.InvariantCulture);
-                rows.Add(string.Join(',',
-                    F(Vgs), F(vd), F(Id), F(Gm), F(gmOverId), F(ro), F(gmro), F(vstar), F(Cgs), F(Cgd), F(Cgg), F(gmPerW), F(idPerW), F(ft), F(Vth)));
+                if (double.IsNaN(vds))
+                {
+                    vds = GetOrNaN(op, "vd");
+                }
+
+                if (double.IsNaN(id))
+                {
+                    id = GetOrNaN(op, "id");
+                }
+
+                double weff = double.NaN;
+                if (elemFiles.Length == oppFiles.Length && n < elemFiles.Length)
+                {
+                    weff = TryGetWidthFromElemAscii(elemFiles[n], detectedInst);
+                }
+                if (double.IsNaN(weff) || weff <= 0) weff = Math.Abs(specWidth);
+
+                if (isPmos)
+                {
+                    control = Math.Abs(control);
+                    id = Math.Abs(id);
+                    gm = Math.Abs(gm);
+                    gmbs = Math.Abs(gmbs);
+                    gds = Math.Abs(gds);
+                    vth = Math.Abs(vth);
+                    vdsat = Math.Abs(vdsat);
+                    cgs = Math.Abs(cgs);
+                    cgd = Math.Abs(cgd);
+                    cgg = Math.Abs(cgg);
+                    gmOverId = Math.Abs(gmOverId);
+                    ueff = Math.Abs(ueff);
+                    ron = Math.Abs(ron);
+                    rseff = Math.Abs(rseff);
+                    rdeff = Math.Abs(rdeff);
+                }
+
+                if (double.IsNaN(control) && double.IsNaN(id))
+                {
+                    continue;
+                }
+
+                var record = new[]
+                {
+                    Format(control),
+                    Format(vds),
+                    Format(id),
+                    Format(gm),
+                    Format(gmbs),
+                    Format(gds),
+                    Format(vth),
+                    Format(vdsat),
+                    Format(cgs),
+                    Format(cgd),
+                    Format(cgg),
+                    Format(gmOverId),
+                    Format(ueff),
+                    Format(ron),
+                    Format(rseff),
+                    Format(rdeff),
+                    Format(weff)
+                };
+                rows.Add(string.Join(',', record));
             }
 
             if (rows.Count <= 1)
@@ -2092,7 +2374,11 @@ internal sealed class CascodeShell
             }
             return double.NaN;
         }
+
+        static string Format(double value) =>
+            double.IsNaN(value) ? string.Empty : value.ToString("G", CultureInfo.InvariantCulture);
     }
+
 
     private static (List<string> Fields, bool Ok) LoadPsfInfoTypeFields(string path, string structName)
     {
@@ -2226,22 +2512,60 @@ internal sealed class CascodeShell
     }
 
     // New helpers for ASCII oppoint/element parsing
-    private static double TryGetWidthFromElemAscii(string elemPath, string instName)
+    private static double TryGetWidthFromElemAscii(string elemPath, string? preferredInst)
     {
         try
         {
             var lines = File.ReadAllLines(elemPath);
-            bool inInst = false;
+            string? matchedInst = null;
+            bool capturing = string.IsNullOrWhiteSpace(preferredInst);
+
             foreach (var raw in lines)
             {
                 var line = raw.Trim();
                 if (line.StartsWith("Instance:", StringComparison.OrdinalIgnoreCase))
                 {
-                    inInst = line.IndexOf(instName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    var current = ParseInstanceName(line);
+                    if (matchedInst is null)
+                    {
+                        if (string.IsNullOrWhiteSpace(preferredInst) ||
+                            (!string.IsNullOrWhiteSpace(preferredInst) &&
+                             (line.IndexOf(preferredInst, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                              (current is not null && current.Equals(preferredInst, StringComparison.OrdinalIgnoreCase)))))
+                        {
+                            matchedInst = current ?? preferredInst;
+                            capturing = true;
+                        }
+                        else
+                        {
+                            capturing = false;
+                        }
+                    }
+                    else
+                    {
+                        if (current is not null && matchedInst.Equals(current, StringComparison.OrdinalIgnoreCase))
+                        {
+                            capturing = true;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
                     continue;
                 }
-                if (!inInst) continue;
+
+                if (!capturing)
+                {
+                    continue;
+                }
+
                 if (line.StartsWith("w =", StringComparison.OrdinalIgnoreCase) || line.StartsWith("W =", StringComparison.OrdinalIgnoreCase))
+                {
+                    var val = line[(line.IndexOf('=') + 1)..].Trim();
+                    if (TryParseWithUnits(val, out var meters)) return meters;
+                }
+                else if (line.StartsWith("weff", StringComparison.OrdinalIgnoreCase))
                 {
                     var val = line[(line.IndexOf('=') + 1)..].Trim();
                     if (TryParseWithUnits(val, out var meters)) return meters;
@@ -2252,28 +2576,102 @@ internal sealed class CascodeShell
         return double.NaN;
     }
 
-    private static bool TryParseOppointAscii(string path, string instName, out Dictionary<string,double> values)
+    private static string? ParseInstanceName(string line)
+    {
+        var colon = line.IndexOf(':');
+        if (colon < 0 || colon + 1 >= line.Length)
+        {
+            return null;
+        }
+
+        var remainder = line[(colon + 1)..].Trim();
+        if (string.IsNullOrEmpty(remainder))
+        {
+            return null;
+        }
+
+        var end = remainder.IndexOfAny(new[] { ' ', '\t', '(' });
+        return end >= 0 ? remainder[..end] : remainder;
+    }
+
+    private sealed class ExportRow
+    {
+        public double Control;
+        public double Vds;
+        public double Id;
+        public double Gm;
+        public double Gmbs;
+        public double Gds;
+        public double Vth;
+        public double Vdsat;
+        public double Cgs;
+        public double Cgd;
+        public double Cgg;
+        public double GmOverIdRaw;
+        public double Ueff;
+        public double Ron;
+        public double RsEff;
+        public double RdEff;
+        public double Weff;
+    }
+
+    private static bool TryParseOppointAscii(string path, string? preferredInst, out Dictionary<string,double> values, out string? matchedInst)
     {
         values = new Dictionary<string,double>(StringComparer.OrdinalIgnoreCase);
+        matchedInst = null;
         try
         {
             var lines = File.ReadAllLines(path);
-            bool inInst = false;
+            string? currentInst = null;
+            bool capturing = string.IsNullOrWhiteSpace(preferredInst);
+
             foreach (var raw in lines)
             {
                 var line = raw.Trim();
                 if (line.StartsWith("Instance:", StringComparison.OrdinalIgnoreCase))
                 {
-                    inInst = line.IndexOf(instName, StringComparison.OrdinalIgnoreCase) >= 0;
+                    currentInst = ParseInstanceName(line);
+                    if (matchedInst is null)
+                    {
+                        if (string.IsNullOrWhiteSpace(preferredInst) ||
+                            (!string.IsNullOrWhiteSpace(preferredInst) &&
+                             (line.IndexOf(preferredInst, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                              (currentInst is not null && currentInst.Equals(preferredInst, StringComparison.OrdinalIgnoreCase)))))
+                        {
+                            capturing = true;
+                            matchedInst = currentInst ?? preferredInst;
+                        }
+                        else
+                        {
+                            capturing = false;
+                        }
+                    }
+                    else
+                    {
+                        if (currentInst is not null && matchedInst.Equals(currentInst, StringComparison.OrdinalIgnoreCase))
+                        {
+                            capturing = true;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
                     continue;
                 }
-                if (!inInst) continue;
+
+                if (!capturing || string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
                 var eq = line.IndexOf('=');
                 if (eq < 1) continue;
                 var name = line[..eq].Trim().TrimEnd(':').ToLowerInvariant();
                 var rhs = line[(eq + 1)..].Trim();
                 if (TryParseWithUnits(rhs, out var num)) values[name] = num;
             }
+
             return values.Count > 0;
         }
         catch { }
