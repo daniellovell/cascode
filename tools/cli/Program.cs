@@ -13,7 +13,7 @@ internal static class Program
         try
         {
             var (workspace, remaining) = ParseWorkspaceOption(args);
-            var shell = new CascodeShell(workspace);
+            var shell = new CliHost(workspace);
 
             if (remaining.Length > 0)
             {

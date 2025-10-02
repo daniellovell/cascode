@@ -89,6 +89,14 @@ internal sealed class CommandRegistry
         return descriptor;
     }
 
+    // Transitional API: allow registering cohesive command objects without
+    // changing the underlying registry or handler signatures yet.
+    public CommandDescriptor Register(Commands.ICliCommand command)
+    {
+        if (command is null) throw new ArgumentNullException(nameof(command));
+        return Register(command.Path, command.Description, command.Handler, command.Hidden, command.Aliases is null ? Array.Empty<string>() : command.Aliases.ToArray());
+    }
+
     public bool TryResolve(IReadOnlyList<string> tokens, out CommandDescriptor? descriptor, out string[] args, out int matchedLength)
     {
         descriptor = null;

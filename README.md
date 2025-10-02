@@ -335,6 +335,7 @@ cascode/
 │  ├─ backends/
 │  │  └─ spice/             # SPICE netlist writer + bench emitters
 │  └─ casir/                # IR types, canonical JSON writer, schema validation
+│  📄 tools/README.md       # Architecture guide for CLI, services, and utilities
 ├─ examples/
 │  ├─ AmpAuto.cas
 │  ├─ AmpGuided.cas
@@ -371,6 +372,8 @@ cascode/
 ---
 
 ## 💻 CLI (preview)
+
+> Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
 
 ```bash
 # Synthesize topology and emit CasIR
