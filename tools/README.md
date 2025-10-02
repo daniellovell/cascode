@@ -15,7 +15,6 @@
   - `CharExportService` – derives metrics (gm/Id, ro, etc.) from raw characterization results
   - `ShellPrompt` – reusable interactive prompt handler invoked by `CliHost`
 - `CommandRegistry` remains the central lookup/dispatch, but now accepts `ICliCommand` registrations to keep modules cohesive.
-- Golden text snapshots for key CLI commands live in `tests/golden/cli_baseline/`; `tools/verify_cli_baseline.sh` replays commands and diffs against those baselines.
 
 ## Workspace & Bench Libraries
 - `tools/workspace` encapsulates Cadence workspace scanning (`WorkspaceScanner`, `WorkspaceScanResult`). CLI modules call into this assembly directly or through thin adapters.
@@ -24,4 +23,3 @@
 ## Development Notes
 - Build the CLI: `dotnet build tools/cli/Cascode.Cli.csproj`
 - Run interactively: `HOME=$(pwd) dotnet run --project tools/cli/Cascode.Cli.csproj`
-- Run snapshot verification: `./tools/verify_cli_baseline.sh`
