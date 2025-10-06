@@ -177,7 +177,7 @@ Or use HTML with manual styling (not recommended, hard to maintain).
 - [TextMate Language Grammar](https://macromates.com/manual/en/language_grammars)
 - [VS Code Syntax Highlighting Guide](https://code.visualstudio.com/api/language-extensions/syntax-highlight-guide)
 - [GitHub Linguist Documentation](https://github.com/github/linguist/blob/master/CONTRIBUTING.md)
-- [Cascode Language Specification](../../spec/language-spec/)
+- [Cascode Language Specification](../../spec/language/)
 
 ## 🤝 Contributing
 

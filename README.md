@@ -13,9 +13,9 @@ It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friend
 
 
 ## Language Specification
-- [Chapter 1 – Introduction](spec/language-spec/Ch01_Introduction.md)
-- [Chapter 2 – Core Concepts](spec/language-spec/Ch02_Core_Concepts.md)
-- [Chapter 3 – CasIR: The Intermediate Representation](spec/language-spec/Ch03_CasIR.md)
+- [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
+- [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
+- [Chapter 3 – CasIR: The Intermediate Representation](spec/language/Ch03_CasIR.md)
 
 
 
@@ -314,7 +314,7 @@ cascode/
 ├─ README.md
 ├─ LICENSE
 ├─ spec/
-│  └─ language-spec/
+│  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
 │     ├─ Ch03_CasIR.md                 
@@ -367,7 +367,7 @@ cascode/
 ### Notes
 - Build artifacts go in `build/` (not committed). Generated ANTLR sources are excluded from VCS.
 - CasIR on disk is JSON only; YAML is not used. Canonical writer ensures stable diffs.
-- JSON Schema lives under `spec/language-spec/schema/` and is the contract for `.cir.json` files.
+- JSON Schema lives under `spec/language/schema/` and is the contract for `.cir.json` files.
 
 ---
 
