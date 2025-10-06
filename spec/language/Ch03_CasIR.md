@@ -228,7 +228,7 @@ Graph constraints operate on the derived incidence graph, leveraging the fact th
 
 ## 3.6 Harness: Environment for Benches
 
-The harness holds bench-only elements derived from ADL env blocks: supply values, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS.
+The harness holds bench-only elements derived from ADL env blocks: supply values, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS. See [Chapter 2 §2.11](Ch02_Core_Concepts.md#211-behavioral-description-spec-env-bench-and-the-harness).
 
 ```json
 "harness": {
@@ -291,7 +291,8 @@ Parameter Representation
 
 This ML example focuses on the output buffer slot filled by a PDK stdcell
 inverter after synthesis. Nets are electrical; the stdcell appears as a normal
-motif instance with explicit rails.
+motif instance with explicit rails. For the master `.cas` source example, see
+[Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
 
 ```json
 {
@@ -478,7 +479,7 @@ High-level patterns and syntactic sugar in ADL—including attach, pair, mirror,
 
 ## 3.11.2 Example: EL CasIR for CS Amplifier with Primitive Transistor
 
-This example demonstrates a single-ended common-source amplifier using a primitive `NMOS` input transistor and an `ActiveLoad` motif for the PMOS load.
+This example demonstrates a single-ended common-source amplifier using a primitive `NMOS` input transistor and an `ActiveLoad` motif for the PMOS load. For the master `.cas` source, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples).
 
 ```json
 {
@@ -542,11 +543,10 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 
 **Primitive and Structured Motif Representation**
 
-The CasIR representation treats primitive transistors and structured motifs uniformly within the instance list. Primitive `NMOS` and `PMOS` devices appear as first-class motif instances with `type` set to `"NMOS"` or `"PMOS"` and `impl.primitive` set to `true`. At the Electrical Level (EL), dimensional parameters (W, L, m) are fully resolved by the synthesis engine and recorded explicitly in the `params` field.
-
-Structured motifs such as `ActiveLoad` wrap primitive transistors internally while exposing semantic interfaces through typed ports and parameters. The CasIR representation preserves this abstraction boundary: the `ActiveLoad` instance references its characterization manifest via `impl.char_ref`, while the underlying primitive transistor remains encapsulated within the motif's implementation.
-
-At EL, the selected process-specific device is recorded as `impl.pdk_device` (e.g., `nfet_01v8`, `pfet_01v8`). Prior to EL, device selection may be symbolic or omitted.
+For language-level semantics of primitives and structured motifs, see
+[Chapter 2 §2.14.5](Ch02_Core_Concepts.md#2145-active-device-primitives-nmos-and-pmos) and
+[§2.16](Ch02_Core_Concepts.md#216-motif-composition-activeload-example).
+At EL, CasIR records the selected device as `impl.pdk_device` (e.g., `nfet_01v8`, `pfet_01v8`).
 
 ---
 

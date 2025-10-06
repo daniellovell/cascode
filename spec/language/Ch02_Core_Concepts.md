@@ -287,7 +287,7 @@ PDK digital standard cells are modeled as ordinary motifs with electrical pins a
 
 ### 2.13.1 Traits for Eligibility
 
-Traits express functional intent so slots can be filled by either single stdcells or composite drivers.
+Traits express functional intent so slots can be filled by either single stdcells or composite drivers. For a complete usage example, see [Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
 
 ```cas
 trait InverterLike {
@@ -456,7 +456,7 @@ char {
 
 ## 2.16 Motif Composition: ActiveLoad Example
 
-Motifs often wrap primitive transistors with semantic interfaces. The `ActiveLoad` motif provides a clean example:
+Motifs often wrap primitive transistors with semantic interfaces. The `ActiveLoad` motif provides a clean example. For usage in a complete design, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples) (CommonSourceAmp).
 
 ```cas
 motif ActiveLoad {
@@ -503,7 +503,7 @@ This pattern demonstrates **abstraction without loss of transparency**: the prim
 
 ## 2.17 SPICE Interoperability: `wrap spice`
 
-`wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts.
+`wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts. For an NMOS variant of this pattern, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples).
 
 ```cas
 motif WideSwingPMOSMirror implements CurrentMirrorLike {
