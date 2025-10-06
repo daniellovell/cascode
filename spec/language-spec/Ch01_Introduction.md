@@ -123,6 +123,35 @@ class OTA5T implements Amplifier {
 
 ```
 
+**Structural single-ended CS amplifier with primitive transistor**
+
+```java
+package analog.ota; import lib.motifs.*;
+
+class CommonSourceAmp implements Amplifier {
+  supply VDD=1.8V; ground GND;
+  port in vin; port out vout;
+  bias vb1;
+
+  env  {
+    vdd = VDD;
+    load C = 1pF;
+    source Z = 50Ω;
+  }
+
+  spec { gbw>=50MHz; gain>=40dB; pm>=60deg; power<=5mW; }
+
+  use {
+    // Primitive NMOS input transistor (synthesis sizes W/L from specs)
+    M_in = new NMOS() { gate<-vin; drain<-vout; source<-GND; bulk<-GND; };
+
+    // Generic active load motif with polarity
+    load = new ActiveLoad(polarity=PMOS) { node<-vout; bias<-vb1; vref<-VDD; };
+  }
+}
+
+```
+
 **Two stages in cascade with slots**
 
 Option 1: Synthesis fills both slots
@@ -209,12 +238,12 @@ motif WideSwingNMOSMirror implements CurrentMirror {
 
 The **compiler** transforms `.cas` source files into **CasIR** (`.cir`) intermediate representation, then orchestrates a comprehensive **synthesis and verification** pipeline. The compilation process encompasses seven distinct phases:
 
-1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`.
-2. **CasIR Emission** generates a typed graph containing nets, ports, motif instances, role tags, numeric and graph constraints, and benchmark intents.
+1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`. Primitive transistors (`NMOS`, `PMOS`) are recognized and emit as topology-only motif instances.
+2. **CasIR Emission** generates a typed graph containing nets, ports, motif instances (including primitives), role tags, numeric and graph constraints, and benchmark intents. All representation remains process-agnostic.
 3. **Feasibility Guards** validate headroom stacks, input common-mode range (ICMR), gain-bandwidth versus power tradeoffs, and phase margin heuristics.
 4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of **Synthesizable** motifs and modules, guided by their **char** manifests.
-5. **Sizing Initialization** leverages gm/Id lookup tables and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters.
-6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics.
+5. **Sizing Initialization** leverages gm/Id lookup tables from the active PDK and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters. Primitive transistors are sized using the same methodology as structured motifs.
+6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics. By EL, primitives in CasIR carry the selected `impl.pdk_device`, which the SPICE emitter uses directly.
 7. **Optimization & Minimal Edits** performs sizing refinements and bounded structural modifications within the selected topology family.
 
 The pipeline produces three primary outputs: **CasIR** intermediate representation, **SPICE** netlists for simulation, and a **diagnostics report** that traces specification margins to responsible circuit blocks.

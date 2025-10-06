@@ -108,6 +108,52 @@ Every design entity is a motif instance with type, ports, and params. Ports hold
 }
 ```
 
+**Primitive transistors in CasIR:**
+
+Primitive `NMOS` and `PMOS` instances appear as ordinary motifs with type reflecting the primitive name. At HL and ML elaboration, dimensional parameters remain symbolic; at EL they are fully sized.
+
+```json
+{
+  "id": "M_in",
+  "type": "NMOS",
+  "ports": {
+    "gate": "vin",
+    "drain": "vout",
+    "source": "GND",
+    "bulk": "GND"
+  },
+  "params": {
+    "W": {"symbolic": "Auto"},
+    "L": {"symbolic": "Auto"},
+    "m": {"value": 1}
+  },
+  "impl": { "primitive": true, "pdk": "sky130" }
+}
+```
+
+At EL (after synthesis):
+
+```json
+{
+  "id": "M_in",
+  "type": "NMOS",
+  "ports": {
+    "gate": "vin",
+    "drain": "vout",
+    "source": "GND",
+    "bulk": "GND"
+  },
+  "params": {
+    "W": {"value": 1.2e-5, "unit": "m"},
+    "L": {"value": 1.8e-7, "unit": "m"},
+    "m": {"value": 4}
+  },
+  "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
+}
+```
+
+At EL, the selected PDK device is recorded under `impl.pdk_device` (e.g., `nfet_01v8`). At HL and ML, device selection may be omitted or symbolic.
+
 Pin Path Grammar
 
 - pinPath = ident ( "." ident )*
@@ -322,6 +368,7 @@ CasIR validation executes after build completion and before consumption by downs
 - **Pin coverage**: every required pin path for every instance appears exactly once in ports at ML and EL.
 - **Bundle completeness**: any referenced bundle field resolves to a concrete net id at ML and EL.
 - **Domain compatibility**: pin kind and net domain are compatible according to the library schema.
+- **Primitive device selection at EL**: primitive `NMOS`/`PMOS` instances MUST carry `impl.pdk_device`.
 - **Rail uniqueness**: each named rail such as VDD or GND maps to one net id across the document.
 - **No dangling nets**: any net with zero incident pins is pruned unless referenced by harness.
 - **Indices consistency**: when indices are present, connectivity_hash matches a recomputed hash from motifs[].ports.
@@ -429,16 +476,97 @@ High-level patterns and syntactic sugar in ADL—including attach, pair, mirror,
 
 ---
 
+## 3.11.2 Example: EL CasIR for CS Amplifier with Primitive Transistor
+
+This example demonstrates a single-ended common-source amplifier using a primitive `NMOS` input transistor and an `ActiveLoad` motif for the PMOS load.
+
+```json
+{
+  "ir_version": 1,
+  "format": "casir-json-1",
+  "level": "EL",
+  "meta": {"tool": "cascode-0.2.0", "when": "2025-10-06T00:00:00Z"},
+
+  "nets": [
+    {"id": "VDD",  "domain": "supply",    "rail": "VDD"},
+    {"id": "GND",  "domain": "ground",    "rail": "GND"},
+    {"id": "vin",  "domain": "electrical"},
+    {"id": "vout", "domain": "electrical"},
+    {"id": "vb1",  "domain": "bias"}
+  ],
+
+  "motifs": [
+    {
+      "id": "M_in",
+      "type": "NMOS",
+      "ports": {"gate": "vin", "drain": "vout", "source": "GND", "bulk": "GND"},
+      "params": {
+        "W": {"value": 1.2e-5, "unit": "m"},
+        "L": {"value": 1.8e-7, "unit": "m"},
+        "m": {"value": 4}
+      },
+      "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
+    },
+    {
+      "id": "load",
+      "type": "ActiveLoad",
+      "traits": ["LoadDevice"],
+      "ports": {"node": "vout", "bias": "vb1", "vref": "VDD"},
+      "params": {"polarity": "PMOS"},
+      "impl": { "char_ref": "lib.motifs/active_load@1.0" }
+    }
+  ],
+
+  "constraints": {
+    "numeric": [
+      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "gbw"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
+      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
+      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
+      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
+    ],
+    "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
+    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "vout"} ]
+  },
+
+  "harness": {
+    "supplies": [ {"net": "VDD", "value": 1.8, "unit": "V"} ],
+    "loads":    [ {"node": "vout", "C": 1.0e-12, "unit": "F"} ],
+    "sources":  [ {"node": "vin", "Z": 50.0, "unit": "Ohm"} ],
+    "pvt":      {"corners": ["TT@27C"]}
+  },
+
+  "benches": ["AC_OpenLoop", "Step"],
+  "provenance": {"sources": [ {"file": "examples/CSAmplifier.cas", "span": {"from": 1, "to": 25}} ]}
+}
+```
+
+**Primitive and Structured Motif Representation**
+
+The CasIR representation treats primitive transistors and structured motifs uniformly within the instance list. Primitive `NMOS` and `PMOS` devices appear as first-class motif instances with `type` set to `"NMOS"` or `"PMOS"` and `impl.primitive` set to `true`. At the Electrical Level (EL), dimensional parameters (W, L, m) are fully resolved by the synthesis engine and recorded explicitly in the `params` field.
+
+Structured motifs such as `ActiveLoad` wrap primitive transistors internally while exposing semantic interfaces through typed ports and parameters. The CasIR representation preserves this abstraction boundary: the `ActiveLoad` instance references its characterization manifest via `impl.char_ref`, while the underlying primitive transistor remains encapsulated within the motif's implementation.
+
+At EL, the selected process-specific device is recorded as `impl.pdk_device` (e.g., `nfet_01v8`, `pfet_01v8`). Prior to EL, device selection may be symbolic or omitted.
+
+---
+
 ## 3.12 SPICE Emission
 
 SPICE emission is a direct traversal over motifs. No connectivity inference is required.
 
 1) For each motif instance, look up its SPICE template from the library or from wrap spice metadata.
 2) Determine the ordered list of pins required by the template. For each pin name, find the net id from ports and print the node.
-3) Print parameter values. Where supported by the simulator, emit named parameters; otherwise, inject them as model or width/length tokens.
+3) Print parameter values. Where supported by the simulator, emit named parameters; otherwise, inject them as device or width/length tokens.
 4) Append harness devices and analysis statements generated from benches and measure intents.
 
 Because ports hold all edges, node substitution is O(1) per pin. This keeps the SPICE writer small, predictable, and testable.
+
+Note (primitives)
+
+* Primitive `NMOS` and `PMOS` instances emit as SPICE device lines (M-devices) rather than subcircuits.
+* The SPICE emitter uses the selected `impl.pdk_device` recorded at EL. If `impl.pdk_device` is missing for a primitive at EL, emission fails validation.
+* Port order follows SPICE convention: `Mxx drain gate source bulk pdk_device W=... L=... m=...`
+* CasIR becomes PDK-specific at EL via `pdk_device`; earlier levels remain PDK-agnostic.
 
 Note (stdcells)
 
@@ -471,6 +599,7 @@ A conformant CasIR producer must satisfy the following requirements:
 - Emits motifs with ports that cover all required pins at the declared level.
 - Emits nets and, if used, bundles consistent with pin paths.
 - Emits constraints with explicit units and resolvable node references.
+- At EL, emits primitive `NMOS`/`PMOS` instances with `impl.pdk_device` selected.
 - Ensures indices, if present, match ports according to connectivity_hash.
 
 The testing strategy encompasses three complementary approaches:

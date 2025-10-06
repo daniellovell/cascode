@@ -5,6 +5,7 @@ dotnet-home/
 tools/**/bin/Debug/**
 
 AGENTS.md
+CURSOR.md
 
 .dotnet/
 .local/
