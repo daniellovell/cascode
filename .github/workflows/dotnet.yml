@@ -1,0 +1,52 @@
+name: dotnet-ci
+
+on:
+  push:
+    branches: [ master ]
+    paths-ignore:
+      - 'build/**'
+  pull_request:
+    paths-ignore:
+      - 'build/**'
+
+jobs:
+  build_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Cascode.sln
+
+      - name: Install dotnet-format
+        run: |
+          dotnet tool install -g dotnet-format
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Build (Release)
+        run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
+
+      - name: Format Check
+        run: dotnet format --verify-no-changes
+
+      - name: Test with Coverage
+        run: |
+          dotnet test Cascode.sln --configuration Release --no-build \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/**/coverage.cobertura.xml
+
