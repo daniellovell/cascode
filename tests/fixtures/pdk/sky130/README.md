@@ -63,7 +63,7 @@ sky130/
     additional include trees referenced by the corner decks.
   - Specialized SONOS subdirectories (`sonos`, `sonos_e`, etc.) demonstrate how
     reliability/aging variants are organized.
-- These paths are what `/pdk models` should surface once scanning discovers all
+- These paths are what `/pdk devices` should surface once scanning discovers all
   nested `include` statements.
 
 ## Using the Fixture
@@ -76,7 +76,7 @@ sky130/
 2. Execute `pdk scan` to populate the local model database. The scan should
    follow `.cdsinit → stdcells.scs → libs/.../spectre/*.scs` and enumerate the
    SPICE decks under `models/corners/*`.
-3. Subsequent commands like `pdk models` and the planned `/char gen` preview can
+3. Subsequent commands like `pdk devices` and the planned `/char gen` preview can
    leverage the discovered paths to launch Spectre with realistic includes.
 
 ## Notes
@@ -85,4 +85,3 @@ sky130/
 - No changes were made to the supplied files; additions (like Cascode
   characterization outputs) should live alongside this tree under
   `tests/fixtures/pdk/sky130` to keep the fixture hermetic.
-
