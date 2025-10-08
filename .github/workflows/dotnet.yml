@@ -2,7 +2,7 @@ name: dotnet-ci
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master ]
     paths-ignore:
       - 'build/**'
   pull_request:
@@ -39,10 +39,7 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test with Coverage
-        run: |
-          dotnet test Cascode.sln --configuration Release --no-build \
-            --logger "trx;LogFileName=test-results.trx" \
-            --collect:"XPlat Code Coverage"
+        run: dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
 
       - name: Upload Test Results
         if: always()
