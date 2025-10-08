@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#keywords" },
+    { "include": "#blocks" },
     { "include": "#storage-types" },
     { "include": "#strings" },
     { "include": "#numbers" },
@@ -12,6 +13,7 @@
     { "include": "#operators" },
     { "include": "#functions" },
     { "include": "#types" },
+    { "include": "#identifiers" },
     { "include": "#constants" }
   ],
   "repository": {
@@ -205,18 +207,66 @@
         }
       ]
     },
+    "blocks": {
+      "patterns": [
+        {
+          "name": "meta.block.env.cascode",
+          "begin": "\\b(env)\\b(\\s*\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.declaration.cascode" },
+            "2": { "name": "punctuation.section.block.begin.cascode" }
+          },
+          "end": "(\\})",
+          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
+          "patterns": []
+        },
+        {
+          "name": "meta.block.use.cascode",
+          "begin": "\\b(use)\\b(\\s*\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.declaration.cascode" },
+            "2": { "name": "punctuation.section.block.begin.cascode" }
+          },
+          "end": "(\\})",
+          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
+          "patterns": []
+        },
+        {
+          "name": "meta.block.spec.cascode",
+          "begin": "\\b(spec)\\b(\\s*\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.declaration.cascode" },
+            "2": { "name": "punctuation.section.block.begin.cascode" }
+          },
+          "end": "(\\})",
+          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
+          "patterns": []
+        },
+        {
+          "name": "meta.block.bench.cascode",
+          "begin": "\\b(bench)\\b(\\s*\\{)",
+          "beginCaptures": {
+            "1": { "name": "keyword.other.declaration.cascode" },
+            "2": { "name": "punctuation.section.block.begin.cascode" }
+          },
+          "end": "(\\})",
+          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
+          "patterns": []
+        }
+      ]
+    },
     "functions": {
       "patterns": [
         {
-          "name": "entity.name.function.spec.cascode",
+          "name": "support.function.spec.cascode",
           "match": "\\b(rise_time|fall_time|voh|vol|power|area|gbw|pm|gain|swing|icmr|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
         },
         {
-          "name": "entity.name.function.bench.cascode",
+          "name": "support.function.bench.cascode",
           "match": "\\b(AC_OpenLoop|UnityUGF|Step|NoiseIn|LatchDecision|OffsetMC|Kickback|StepToggle|ChainAC|ChainNoise)\\b"
         },
         {
-          "name": "entity.name.function.component.cascode",
+          "name": "support.function.component.cascode",
           "match": "\\b[CRL]\\s*\\("
         },
         {
@@ -236,8 +286,52 @@
           "match": "\\b(DiffPairNMOS|DiffPairPMOS|TailNMOS|TailPMOS|PMOSCascodeLoad|FiveTLoadPMOS|NMOSCascode|MillerRC|MillerRz|Ahuja|StrongArmLatch|TeleCascodeNMOS|FoldedCascodePMOS|CSStageNMOS|GainBoosting|InverterGm|PadDriver|WideSwingPMOSMirror|WideSwingNMOSMirror|Cap|Res|Ind)\\b"
         },
         {
-          "name": "entity.name.type.class.cascode",
-          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+          "match": "\\b(class|motif|trait|interface)\\s+([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.class.cascode" },
+            "2": { "name": "entity.name.type.class.cascode" }
+          }
+        },
+        {
+          "match": "(:)\\s*([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "punctuation.separator.type.cascode" },
+            "2": { "name": "support.type.cascode" }
+          }
+        },
+        {
+          "match": "\\b(with|new)\\b\\s+([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.cascode" },
+            "2": { "name": "support.class.motif.cascode" }
+          }
+        },
+        {
+          "match": "\\bfill\\s+([A-Za-z_][\\w]*)\\s+with\\s+([A-Z][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "variable.other.instance.cascode" },
+            "2": { "name": "support.class.motif.cascode" }
+          }
+        }
+      ]
+    },
+    "identifiers": {
+      "patterns": [
+        {
+          "match": "\\b(port|ports)\\b\\s*(in|out)?\\s*([A-Za-z_][\\w]*)",
+          "captures": {
+            "1": { "name": "keyword.other.declaration.cascode" },
+            "2": { "name": "storage.modifier.direction.cascode" },
+            "3": { "name": "entity.name.variable.port.cascode" }
+          }
+        },
+        {
+          "match": "\\bnet\\b\\s+([A-Za-z_][\\w]*)",
+          "captures": { "1": { "name": "entity.name.variable.net.cascode" } }
+        },
+        {
+          "match": "\\b([A-Za-z_][\\w]*)\\b\\s*=\\s*new\\b",
+          "captures": { "1": { "name": "variable.other.instance.cascode" } }
         }
       ]
     },
@@ -252,8 +346,24 @@
           "match": "\\b(null|nil|None)\\b"
         },
         {
-          "name": "variable.language.special.cascode",
-          "match": "\\b(VDD|GND|NMOS|PMOS|Auto|X[0-9]+|TT|SS|FF|MIM|MOM|MFC|TFR|Poly|Metal|Pseudo|Spiral|MIMStack|pch|nch)\\b"
+          "name": "support.constant.rail.cascode",
+          "match": "\\b(VDD|GND)\\b"
+        },
+        {
+          "name": "support.constant.process.cascode",
+          "match": "\\b(TT|SS|FF)\\b"
+        },
+        {
+          "name": "support.constant.device.cascode",
+          "match": "\\b(NMOS|PMOS|pch|nch)\\b"
+        },
+        {
+          "name": "support.constant.passive_kind.cascode",
+          "match": "\\b(MIM|MOM|MFC|TFR|Poly|Metal|Pseudo|Spiral|MIMStack)\\b"
+        },
+        {
+          "name": "constant.other.hint.cascode",
+          "match": "\\b(Auto|X[0-9]+)\\b"
         },
         {
           "name": "variable.language.compensation.cascode",
