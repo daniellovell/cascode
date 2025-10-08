@@ -1,4 +1,9 @@
 <Project>
+  <!-- Enable NuGet lock files repo-wide so CI can cache deterministically -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
   <!-- Apply stricter settings only to projects under tools/* -->
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').Contains('tools'))">
     <Nullable>enable</Nullable>
@@ -7,4 +12,3 @@
     <AnalysisLevel>latest</AnalysisLevel>
   </PropertyGroup>
 </Project>
-

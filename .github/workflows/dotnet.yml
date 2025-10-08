@@ -2,7 +2,7 @@ name: dotnet-ci
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, main ]
     paths-ignore:
       - 'build/**'
   pull_request:
@@ -11,7 +11,12 @@ on:
 
 jobs:
   build_test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        dotnet: ['8.0.x']
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -19,21 +24,22 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ matrix.dotnet }}
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
 
-      - name: Restore
-        run: dotnet restore Cascode.sln
-
-      - name: Install dotnet-format
-        run: |
-          dotnet tool install -g dotnet-format
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+      - name: Restore (locked)
+        run: dotnet restore Cascode.sln --locked-mode
 
       - name: Build (Release)
         run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
 
+      - name: Install dotnet-format (local)
+        run: dotnet tool install dotnet-format --tool-path ./.dotnet-tools
+
       - name: Format Check
-        run: dotnet format --verify-no-changes
+        run: ./.dotnet-tools/dotnet-format --verify-no-changes
 
       - name: Test with Coverage
         run: |
@@ -45,8 +51,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-${{ runner.os }}
           path: |
-            **/TestResults/*.trx
+            **/TestResults/**/*.trx
             **/TestResults/**/coverage.cobertura.xml
-
