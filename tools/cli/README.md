@@ -18,12 +18,12 @@ Architecture
 - `CommandRegistry` now supports `Register(ICliCommand)` and remains the lookup/dispatch engine.
 - Extracted modules:
   - `SystemCommandModule` — help, version, home, log, quit
-  - `PdkCommandModule` — `pdk *`, `pdk char *`, model catalog views
+- `PdkCommandModule` — `pdk *`, `pdk char *`, device views
   - `BenchCommandModule` — `bench harness *`
   - `BuildCommandModule` — `build`
   - `CharacterizationCommandModule` — `char gen|read|export`
 - Shared services in `tools/cli/Services/`:
-  - `ModelSummaryHelpers` — class/detail summaries for model catalog
+  - `DeviceSummaryHelpers` — helpers for device catalog detail/summary rendering
   - `PathUtils` — path normalization and `~` expansion
   - `CharIoHelpers` — CSV loading and sparkline helpers
   - `CharExportService` — derive metrics and write `derived.csv`

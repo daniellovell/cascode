@@ -14,7 +14,7 @@ internal static class ShellRenderer
     {
         return state.ViewMode switch
         {
-            ShellViewMode.ModelSummary => BuildModelSummaryLayout(state),
+            ShellViewMode.DeviceSummary => BuildDeviceSummaryLayout(state),
             _ => BuildHomeLayout(state)
         };
     }
@@ -86,7 +86,7 @@ internal static class ShellRenderer
         };
     }
 
-    private static Layout BuildModelSummaryLayout(ShellState state)
+    private static Layout BuildDeviceSummaryLayout(ShellState state)
     {
         // Reserve a bottom line for the prompt across views to avoid border clipping
         var layout = new Layout("Root")
@@ -100,7 +100,7 @@ internal static class ShellRenderer
 
         layout["MainRows"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
 
-        var summary = state.ModelSummary ?? ModelSummaryViewState.Empty;
+        var summary = state.DeviceSummary ?? DeviceSummaryViewState.Empty;
         var contentRows = new Rows(BuildSummaryPanel(summary), BuildSummaryTip(summary));
         layout["MainRows"]["Content"].Update(contentRows);
 
@@ -109,21 +109,21 @@ internal static class ShellRenderer
         return layout;
     }
 
-    private static IRenderable BuildSummaryPanel(ModelSummaryViewState summary)
+    private static IRenderable BuildSummaryPanel(DeviceSummaryViewState summary)
     {
         var contentItems = new List<IRenderable>();
 
         if (summary.HasClassRows)
         {
-            contentItems.Add(CreateModelClassSummaryTable(summary.ClassRows));
+            contentItems.Add(CreateDeviceClassSummaryTable(summary.ClassRows));
         }
         else if (summary.HasDetailRows)
         {
-            contentItems.Add(CreateModelDetailTable(summary));
+            contentItems.Add(CreateDeviceDetailTable(summary));
         }
         else
         {
-            contentItems.Add(new Markup("[grey]No models matched the current view. Run [bold]pdk scan[/] or adjust your filters.[/]"));
+            contentItems.Add(new Markup("[grey]No devices matched the current view. Run [bold]pdk scan[/] or adjust your filters.[/]"));
         }
 
         if (!string.IsNullOrWhiteSpace(summary.SummaryLine))
@@ -157,7 +157,7 @@ internal static class ShellRenderer
         };
     }
 
-    private static IRenderable BuildSummaryTip(ModelSummaryViewState summary)
+    private static IRenderable BuildSummaryTip(DeviceSummaryViewState summary)
     {
         var tipText = summary.HasSuggestion
             ? summary.SuggestionLine
@@ -172,19 +172,19 @@ internal static class ShellRenderer
         };
     }
 
-    internal static Table CreateModelDetailTable(ModelSummaryViewState summary)
+    internal static Table CreateDeviceDetailTable(DeviceSummaryViewState summary)
     {
         var table = new Table()
             .Border(TableBorder.Rounded)
             .Expand();
 
         table.AddColumn(new TableColumn("#").Centered());
-        table.AddColumn(new TableColumn("Model"));
+        table.AddColumn(new TableColumn("Device"));
         table.AddColumn(new TableColumn("Class"));
         table.AddColumn(new TableColumn("VT"));
         table.AddColumn(new TableColumn("VDD"));
-        table.AddColumn(new TableColumn("Corners"));
-        table.AddColumn(new TableColumn("Decks"));
+        table.AddColumn(new TableColumn("Views"));
+        table.AddColumn(new TableColumn("Notes"));
 
         var pageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
         var visibleRows = summary.DetailRows
@@ -202,21 +202,21 @@ internal static class ShellRenderer
                 Markup.Escape(row.DeviceClass),
                 Markup.Escape(row.Threshold),
                 Markup.Escape(row.Voltage),
-                Markup.Escape(row.Corners),
-                Markup.Escape(row.Decks));
+                Markup.Escape(row.Views),
+                Markup.Escape(row.Notes));
         }
 
         return table;
     }
 
-    internal static Table CreateModelClassSummaryTable(IReadOnlyList<ModelClassSummaryRow> rows)
+    internal static Table CreateDeviceClassSummaryTable(IReadOnlyList<DeviceClassSummaryRow> rows)
     {
         var table = new Table()
             .Border(TableBorder.Rounded)
             .Expand();
 
         table.AddColumn(new TableColumn("Class"));
-        table.AddColumn(new TableColumn("Models").Centered());
+        table.AddColumn(new TableColumn("Devices").Centered());
         table.AddColumn(new TableColumn("Decks"));
         table.AddColumn(new TableColumn("Voltage Domains"));
         table.AddColumn(new TableColumn("Thresholds"));
@@ -231,12 +231,12 @@ internal static class ShellRenderer
 
             table.AddRow(
                 classCell,
-                Markup.Escape(row.ModelCount),
+                Markup.Escape(row.DeviceCount),
                 Markup.Escape(row.Decks),
                 Markup.Escape(row.VoltageDomains),
                 Markup.Escape(row.Thresholds),
                 Markup.Escape(row.Corners),
-                Markup.Escape(row.ExampleModel));
+                Markup.Escape(row.ExampleDevice));
         }
 
         return table;
@@ -335,7 +335,7 @@ internal static class ShellRenderer
         if (state.Messages.Count == 0)
         {
             var empty = new Markup("[grey]Log is empty. Commands typed will appear here.[/]");
-            var tip = new Align(new Markup("[dim]Shift+↑ and Shift+↓ scroll the log[/]"), HorizontalAlignment.Left);
+            var tip = new Align(new Markup("[dim]Shift+↑/↓ scroll the log[/]"), HorizontalAlignment.Left);
             var rows = new Rows(empty, tip);
             return new Panel(rows)
             {
@@ -363,7 +363,7 @@ internal static class ShellRenderer
         var renderable = new Markup(string.Join('\n', truncatedMessages));
         var headerLabel = offset == 0 ? "Log" : $"Log (scroll {offset})";
 
-        var tipLine = new Align(new Markup("[dim]Shift+↑ and Shift+↓ scroll the log[/]"), HorizontalAlignment.Left);
+        var tipLine = new Align(new Markup("[dim]Shift+↑/↓ scroll the log[/]"), HorizontalAlignment.Left);
         var content = new Rows(renderable, tipLine);
 
         return new Panel(content)

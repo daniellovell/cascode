@@ -45,7 +45,7 @@ internal static class ShellPrompt
                         continue;
                     }
 
-                    if (state.ModelSummary?.HasDetailRows == true)
+                    if (state.DeviceSummary?.HasDetailRows == true)
                     {
                         continue;
                     }
@@ -67,7 +67,7 @@ internal static class ShellPrompt
                         continue;
                     }
 
-                    if (state.ModelSummary?.HasDetailRows == true)
+                    if (state.DeviceSummary?.HasDetailRows == true)
                     {
                         continue;
                     }
@@ -101,19 +101,26 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.PageUp)
+                // Alternate bindings for terminals that do not send Shift+Arrow modifiers
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.UpArrow)
                 {
-                    state.ScrollLogUp(state.LogViewport);
-                    render();
-                    WritePrompt(buffer.ToString());
+                    var step = getDetailScrollStep();
+                    if (tryAdjustDetailOffset(-step))
+                    {
+                        render();
+                        WritePrompt(buffer.ToString());
+                    }
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.PageDown)
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.DownArrow)
                 {
-                    state.ScrollLogDown(state.LogViewport);
-                    render();
-                    WritePrompt(buffer.ToString());
+                    var step = getDetailScrollStep();
+                    if (tryAdjustDetailOffset(step))
+                    {
+                        render();
+                        WritePrompt(buffer.ToString());
+                    }
                     continue;
                 }
 

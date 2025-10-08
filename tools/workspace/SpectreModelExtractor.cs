@@ -596,7 +596,7 @@ internal sealed class SpectreModelExtractor
         }
 
         builder.SetModelType("subckt");
-        builder.SetDeviceClass(ClassifyByName(name));
+        builder.SetDeviceClass(NameNormalization.ClassifyByName(name));
         builder.SetVoltageDomain(InferVoltageDomain(name));
         builder.SetThresholdFlavor(InferThresholdFlavor(name));
         builder.AddSource(sourcePath);
@@ -663,39 +663,6 @@ internal sealed class SpectreModelExtractor
         {
             return SpectreModelDeviceClass.TransmissionLine;
         }
-
-        return SpectreModelDeviceClass.Other;
-    }
-
-    private static SpectreModelDeviceClass ClassifyByName(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return SpectreModelDeviceClass.Unknown;
-        }
-
-        var lower = name.ToLowerInvariant();
-
-        if (lower.Contains("nmos") || lower.Contains("nfet") || lower.Contains("_nch") || lower.Contains("_n_"))
-            return SpectreModelDeviceClass.Nmos;
-        if (lower.Contains("pmos") || lower.Contains("pfet") || lower.Contains("_pch") || lower.Contains("_p_"))
-            return SpectreModelDeviceClass.Pmos;
-        if (lower.Contains("npn"))
-            return SpectreModelDeviceClass.Bipolar;
-        if (lower.Contains("pnp"))
-            return SpectreModelDeviceClass.Bipolar;
-        if (lower.Contains("diode") || lower.StartsWith("d"))
-            return SpectreModelDeviceClass.Diode;
-        if (lower.Contains("res") || lower.StartsWith("r"))
-            return SpectreModelDeviceClass.Resistor;
-        if (lower.Contains("cap") || lower.StartsWith("c"))
-            return SpectreModelDeviceClass.Capacitor;
-        if (lower.Contains("ind") || lower.StartsWith("l"))
-            return SpectreModelDeviceClass.Inductor;
-        if (lower.Contains("tline"))
-            return SpectreModelDeviceClass.TransmissionLine;
-        if (lower.Contains("moscap"))
-            return SpectreModelDeviceClass.Moscap;
 
         return SpectreModelDeviceClass.Other;
     }

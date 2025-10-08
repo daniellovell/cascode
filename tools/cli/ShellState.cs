@@ -8,7 +8,7 @@ namespace Cascode.Cli;
 internal enum ShellViewMode
 {
     Home = 0,
-    ModelSummary
+    DeviceSummary
 }
 
 internal sealed class ShellState
@@ -41,11 +41,11 @@ internal sealed class ShellState
 
     public ShellViewMode ViewMode { get; private set; } = ShellViewMode.Home;
 
-    public ModelSummaryViewState? ModelSummary { get; private set; }
+    public DeviceSummaryViewState? DeviceSummary { get; private set; }
 
-    public int ModelDetailOffset { get; private set; }
+    public int DeviceDetailOffset { get; private set; }
 
-    public int ModelDetailPageSize { get; private set; }
+    public int DeviceDetailPageSize { get; private set; }
 
     // Characterization progress (for PDK batch runs)
     public bool CharJobActive { get; private set; }
@@ -166,9 +166,9 @@ internal sealed class ShellState
     public void ShowHome()
     {
         ViewMode = ShellViewMode.Home;
-        ModelSummary = null;
-        ModelDetailOffset = 0;
-        ModelDetailPageSize = 0;
+        DeviceSummary = null;
+        DeviceDetailOffset = 0;
+        DeviceDetailPageSize = 0;
     }
 
     public void StartCharJob(int total, string backend, string? corner)
@@ -199,43 +199,43 @@ internal sealed class ShellState
         CharJobActive = false;
     }
 
-    public bool TrySetModelDetailOffset(int offset)
+    public bool TrySetDeviceDetailOffset(int offset)
     {
-        if (ModelSummary is null || !ModelSummary.HasDetailRows)
+        if (DeviceSummary is null || !DeviceSummary.HasDetailRows)
         {
             return false;
         }
 
-        var pageSize = ModelDetailPageSize > 0 ? ModelDetailPageSize : ModelSummary.DetailRows.Count;
-        var maxOffset = Math.Max(0, ModelSummary.DetailRows.Count - pageSize);
+        var pageSize = DeviceDetailPageSize > 0 ? DeviceDetailPageSize : DeviceSummary.DetailRows.Count;
+        var maxOffset = Math.Max(0, DeviceSummary.DetailRows.Count - pageSize);
         offset = Math.Clamp(offset, 0, maxOffset);
-        if (offset == ModelDetailOffset)
+        if (offset == DeviceDetailOffset)
         {
             return false;
         }
 
-        ModelDetailOffset = offset;
+        DeviceDetailOffset = offset;
         return true;
     }
 
-    public void ShowModelSummary(ModelSummaryViewState summary)
+    public void ShowDeviceSummary(DeviceSummaryViewState summary)
     {
-        ReplaceModelSummary(summary ?? throw new ArgumentNullException(nameof(summary)));
-        ViewMode = ShellViewMode.ModelSummary;
+        ReplaceDeviceSummary(summary ?? throw new ArgumentNullException(nameof(summary)));
+        ViewMode = ShellViewMode.DeviceSummary;
     }
 
-    public void ReplaceModelSummary(ModelSummaryViewState summary)
+    public void ReplaceDeviceSummary(DeviceSummaryViewState summary)
     {
-        ModelSummary = summary;
+        DeviceSummary = summary;
         if (summary.HasDetailRows)
         {
-            ModelDetailPageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
-            ModelDetailOffset = Math.Clamp(summary.DetailOffset, 0, Math.Max(0, summary.DetailRows.Count - ModelDetailPageSize));
+            DeviceDetailPageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
+            DeviceDetailOffset = Math.Clamp(summary.DetailOffset, 0, Math.Max(0, summary.DetailRows.Count - DeviceDetailPageSize));
         }
         else
         {
-            ModelDetailPageSize = 0;
-            ModelDetailOffset = 0;
+            DeviceDetailPageSize = 0;
+            DeviceDetailOffset = 0;
         }
     }
 

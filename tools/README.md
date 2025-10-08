@@ -9,7 +9,7 @@
   - `BenchCommandModule` – bench harness discovery and display
   - `BuildCommandModule` – placeholder for future build tooling
 - Shared adapters reside in `tools/cli/Services/`:
-  - `ModelSummaryHelpers` – summary/detail view models for Spectre model catalogs
+  - `DeviceSummaryHelpers` – summary/detail view state utilities for the device catalog
   - `PathUtils` – repository-aware path normalization (`~`, relative paths)
   - `CharIoHelpers` – CSV parsing, column lookup, sparkline rendering for characterization data
   - `CharExportService` – derives metrics (gm/Id, ro, etc.) from raw characterization results

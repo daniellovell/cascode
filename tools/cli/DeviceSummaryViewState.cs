@@ -3,26 +3,26 @@ using System.Collections.Generic;
 
 namespace Cascode.Cli;
 
-internal sealed class ModelSummaryViewState
+internal sealed class DeviceSummaryViewState
 {
-    public static readonly ModelSummaryViewState Empty = new(
-        "Model Catalog",
-        "No models available. Run pdk scan to populate the catalog.",
+    public static readonly DeviceSummaryViewState Empty = new(
+        "Device Catalog",
+        "No devices available. Run pdk scan to populate the catalog.",
         string.Empty,
         string.Empty,
-        Array.Empty<ModelSummaryRow>(),
-        Array.Empty<ModelClassSummaryRow>(),
+        Array.Empty<DeviceSummaryRow>(),
+        Array.Empty<DeviceClassSummaryRow>(),
         detailOffset: 0,
         detailPageSize: 0,
         detailFilters: Array.Empty<string>());
 
-    public ModelSummaryViewState(
+    public DeviceSummaryViewState(
         string title,
         string summaryLine,
         string statsLine,
         string suggestionLine,
-        IReadOnlyList<ModelSummaryRow> detailRows,
-        IReadOnlyList<ModelClassSummaryRow>? classRows = null,
+        IReadOnlyList<DeviceSummaryRow> detailRows,
+        IReadOnlyList<DeviceClassSummaryRow>? classRows = null,
         int detailOffset = 0,
         int detailPageSize = 0,
         IReadOnlyList<string>? detailFilters = null)
@@ -31,8 +31,8 @@ internal sealed class ModelSummaryViewState
         SummaryLine = summaryLine ?? string.Empty;
         StatsLine = statsLine ?? string.Empty;
         SuggestionLine = suggestionLine ?? string.Empty;
-        DetailRows = detailRows ?? Array.Empty<ModelSummaryRow>();
-        ClassRows = classRows ?? Array.Empty<ModelClassSummaryRow>();
+        DetailRows = detailRows ?? Array.Empty<DeviceSummaryRow>();
+        ClassRows = classRows ?? Array.Empty<DeviceClassSummaryRow>();
         DetailOffset = Math.Max(0, detailOffset);
         DetailPageSize = detailPageSize;
         DetailFilters = detailFilters ?? Array.Empty<string>();
@@ -46,9 +46,9 @@ internal sealed class ModelSummaryViewState
 
     public string SuggestionLine { get; }
 
-    public IReadOnlyList<ModelSummaryRow> DetailRows { get; }
+    public IReadOnlyList<DeviceSummaryRow> DetailRows { get; }
 
-    public IReadOnlyList<ModelClassSummaryRow> ClassRows { get; }
+    public IReadOnlyList<DeviceClassSummaryRow> ClassRows { get; }
 
     public IReadOnlyList<string> DetailFilters { get; }
 
@@ -75,9 +75,9 @@ internal sealed class ModelSummaryViewState
 
     public bool HasSuggestion => !string.IsNullOrWhiteSpace(SuggestionLine);
 
-    public ModelSummaryViewState WithDetail(int detailOffset, string summaryLine)
+    public DeviceSummaryViewState WithDetail(int detailOffset, string summaryLine)
     {
-        return new ModelSummaryViewState(
+        return new DeviceSummaryViewState(
             Title,
             summaryLine,
             StatsLine,
@@ -90,21 +90,21 @@ internal sealed class ModelSummaryViewState
     }
 }
 
-internal sealed record ModelSummaryRow(
+internal sealed record DeviceSummaryRow(
     int Index,
     string Name,
     string DeviceClass,
     string Threshold,
     string Voltage,
-    string Corners,
-    string Decks);
+    string Views,
+    string Notes);
 
-internal sealed record ModelClassSummaryRow(
+internal sealed record DeviceClassSummaryRow(
     string DeviceClass,
-    string ModelCount,
+    string DeviceCount,
     string Decks,
     string VoltageDomains,
     string Thresholds,
     string Corners,
-    string ExampleModel,
+    string ExampleDevice,
     bool IsUncategorized);

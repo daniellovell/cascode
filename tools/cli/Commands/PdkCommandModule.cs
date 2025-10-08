@@ -15,7 +15,6 @@ internal sealed class PdkCommandModule : ICommandModule
 {
     private readonly ShellState _state;
     private readonly WorkspaceScanner _scanner;
-    private readonly WorkspaceScanStorage _storage;
     private readonly CliConfig _config;
     private readonly CliConfigStorage _configStorage;
     private readonly string _initialWorkspaceRoot;
@@ -25,7 +24,6 @@ internal sealed class PdkCommandModule : ICommandModule
     public PdkCommandModule(
         ShellState state,
         WorkspaceScanner scanner,
-        WorkspaceScanStorage storage,
         CliConfig config,
         CliConfigStorage configStorage,
         string initialWorkspaceRoot,
@@ -33,7 +31,6 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         _state = state;
         _scanner = scanner;
-        _storage = storage;
         _config = config;
         _configStorage = configStorage;
         _initialWorkspaceRoot = initialWorkspaceRoot;
@@ -46,9 +43,10 @@ internal sealed class PdkCommandModule : ICommandModule
 
         registry.Register(new DelegateCliCommand("pdk", "Manage PDK workspace", ShowPdkUsage));
         registry.Register(new DelegateCliCommand("pdk scan", "Scan workspace for decks", PdkScan));
-        registry.Register(new DelegateCliCommand("pdk models", "List discovered decks", PdkModels));
-        registry.Register(new DelegateCliCommand("pdk model", "Inspect a specific deck", PdkModel));
+        registry.Register(new DelegateCliCommand("pdk devices", "List discovered devices", PdkDevices));
+        registry.Register(new DelegateCliCommand("pdk device", "Inspect a specific device", PdkDevice));
         registry.Register(new DelegateCliCommand("pdk set-dir", "Set or clear the default PDK workspace", PdkSetDir));
+        registry.Register(new DelegateCliCommand("pdk match", "Device↔Model coverage and ambiguity summary", PdkMatch));
 
         // PDK characterization
         registry.Register(new DelegateCliCommand("pdk char", "PDK characterization commands", ShowPdkCharUsage));
@@ -70,6 +68,166 @@ internal sealed class PdkCommandModule : ICommandModule
             _state.AddMessage($"  {padded}{description}");
         }
         return CommandResult.Success;
+    }
+
+    private CommandResult PdkDevices(string[] args)
+    {
+        try
+        {
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+
+            // Parse filters early to decide fast path
+            var (classFilter, vtFilter, vddFilter, infraFilter, matchedFilter, limit) = ParseDeviceFilters(args);
+            var forceList = args.Any(a => a.Equals("--list", StringComparison.OrdinalIgnoreCase) || a.Equals("--detail", StringComparison.OrdinalIgnoreCase));
+            var hasFilters = classFilter.Count > 0 || vtFilter.Count > 0 || vddFilter.Count > 0 || infraFilter.HasValue || matchedFilter.HasValue;
+            var filterLabels = new List<string>();
+            if (classFilter.Count > 0) filterLabels.Add("class=" + string.Join(',', classFilter));
+            if (vtFilter.Count > 0) filterLabels.Add("vt=" + string.Join(',', vtFilter));
+            if (vddFilter.Count > 0) filterLabels.Add("vdd=" + string.Join(',', vddFilter));
+            if (infraFilter.HasValue) filterLabels.Add(infraFilter.Value ? "infra" : "no-infra");
+            if (matchedFilter.HasValue) filterLabels.Add(matchedFilter.Value ? "matched" : "unmatched");
+
+            if (_isInteractive() && !forceList && !hasFilters)
+            {
+                // Fast path: use precomputed per-class summary written at 'pdk scan' time
+                var summary = Cascode.Workspace.PdkDatabaseReader.LoadDeviceClassSummary(dbPath);
+                if (summary.Count == 0) { _state.AddMessage("No devices discovered. Run 'pdk scan'."); return CommandResult.Success; }
+                var classRows = new List<DeviceClassSummaryRow>(summary.Count);
+                foreach (var s in summary)
+                {
+                    var clsEnum = (SpectreModelDeviceClass)s.DeviceClass;
+                    classRows.Add(new DeviceClassSummaryRow(
+                        DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
+                        DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
+                        Decks: s.Decks.ToString(CultureInfo.InvariantCulture),
+                        VoltageDomains: string.IsNullOrWhiteSpace(s.VoltageDomainsCsv) ? "-" : s.VoltageDomainsCsv,
+                        Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
+                        Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
+                        ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
+                        IsUncategorized: s.DeviceClass == (int)SpectreModelDeviceClass.Unknown));
+                }
+
+                var title = "Devices by Class";
+                var scope = filterLabels.Count == 0 ? "(all)" : "(" + string.Join(' ', filterLabels) + ")";
+                var total = summary.Sum(s => s.DeviceCount);
+                var matched = summary.Sum(s => s.Matched);
+                var summaryLine = $"Device classes: {classRows.Count} {scope}. Devices: {total}. Matched: {matched}. Use 'pdk devices --list' to list.";
+                var view = new DeviceSummaryViewState(title, summaryLine, statsLine: string.Empty, suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(), detailRows: Array.Empty<DeviceSummaryRow>(), classRows: classRows, detailOffset: 0, detailPageSize: 0, detailFilters: Array.Empty<string>());
+                _state.ShowDeviceSummary(view);
+                _state.AddMessage(summaryLine);
+                return CommandResult.Success;
+            }
+            else
+            {
+                // Load devices only when we need to render a list or apply filters
+                var devicesAll = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
+                if (devicesAll.Count == 0) { _state.AddMessage("No devices discovered. Run 'pdk scan'."); return CommandResult.Success; }
+
+                HashSet<string>? matchedKeys = null;
+                if (matchedFilter.HasValue) matchedKeys = Cascode.Workspace.PdkDatabaseReader.LoadMatchedDeviceKeys(dbPath);
+                var devices = devicesAll.Where(d => DeviceMatchesFilters(d, classFilter, vtFilter, vddFilter, infraFilter, matchedKeys, matchedFilter)).ToList();
+
+                var total = devices.Count;
+                var matched = matchedKeys is null ? Cascode.Workspace.PdkDatabaseReader.CountMatchedDevices(dbPath)
+                                                  : devices.Count(d => matchedKeys.Contains(d.CanonicalName));
+
+                if (_isInteractive())
+                {
+                    if (devices.Count == 0)
+                    {
+                        _state.AddMessage("No devices matched the selected filters.");
+                        _state.ShowDeviceSummary(new DeviceSummaryViewState("Devices", "No devices matched the selected filters.", string.Empty, DeviceSummaryHelpers.BuildSuggestionText(), Array.Empty<DeviceSummaryRow>(), Array.Empty<DeviceClassSummaryRow>(), 0, 0, filterLabels));
+                        return CommandResult.Success;
+                    }
+
+                    var pageSize = Math.Clamp(limit, 1, Math.Max(1, devices.Count));
+                    var rows = new List<DeviceSummaryRow>(devices.Count);
+                    for (var i = 0; i < devices.Count; i++)
+                    {
+                        var d = devices[i];
+                        var vt = d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags);
+                        var vdd = d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags);
+                        var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
+                        rows.Add(new DeviceSummaryRow(i + 1, d.CellName, d.Class.ToString(), vt, vdd, views, string.Empty));
+                    }
+                    var title = "Devices";
+                    var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(filterLabels, 0, pageSize, rows.Count);
+                    var statsLine = $"Matched: {matched} of {total}.";
+                    var view = new DeviceSummaryViewState(title, summaryLine, statsLine: statsLine, suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(), detailRows: rows, classRows: Array.Empty<DeviceClassSummaryRow>(), detailOffset: 0, detailPageSize: pageSize, detailFilters: filterLabels);
+                    _state.ShowDeviceSummary(view);
+                    var visible = Math.Min(pageSize, rows.Count);
+                    _state.AddMessage($"Devices: showing {visible} of {rows.Count} (page size {pageSize}, total {total}). Matched: {matched}. Use 'pdk device <name>' for details.");
+                }
+                else
+                {
+                    var table = new Table().Border(TableBorder.Rounded).AddColumn("Library").AddColumn("Cell").AddColumn("Class").AddColumn("VT").AddColumn("VDD").AddColumn("Views");
+                    foreach (var d in devices.Take(limit))
+                    {
+                        var vt = d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags);
+                        var vdd = d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags);
+                        var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
+                        table.AddRow(d.LibraryName, d.CellName, d.Class.ToString(), vt, vdd, views);
+                    }
+                    AnsiConsole.Write(table);
+                    _state.AddMessage($"Devices: {total}. Showing first {Math.Min(limit, total)}. Matched: {matched}. Use 'pdk device <name>' for details.");
+                }
+            }
+            return CommandResult.Success;
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to load devices: {ex.Message}");
+            return CommandResult.Failure;
+        }
+    }
+
+    private CommandResult PdkDevice(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            _state.AddMessage("Usage: pdk device <name>");
+            return CommandResult.Success;
+        }
+
+        try
+        {
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+            var devices = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
+            var needle = args[0];
+            var d = devices.FirstOrDefault(x => x.CellName.Contains(needle, StringComparison.OrdinalIgnoreCase) || x.CanonicalName.Contains(needle, StringComparison.OrdinalIgnoreCase));
+            if (d is null) { _state.AddMessage("Device not found."); return CommandResult.Failure; }
+
+            var detail = new Table().Border(TableBorder.Rounded).AddColumn("Field").AddColumn("Value");
+            detail.AddRow("Library", d.LibraryName);
+            detail.AddRow("Cell", d.CellName);
+            detail.AddRow("Class", d.Class.ToString());
+            detail.AddRow("VT", d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags));
+            detail.AddRow("VDD", d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags));
+            detail.AddRow("Views", d.Views.Count == 0 ? "-" : string.Join(',', d.Views));
+            detail.AddRow("Cell Path", d.CellPath);
+            var matches = Cascode.Workspace.PdkDatabaseReader.LoadMatchesForDevice(dbPath, d.CanonicalName);
+            if (matches.Count > 0)
+            {
+                var best = matches.OrderBy(m => m.Rank).First();
+                detail.AddRow("Match", $"{best.ModelName} ({best.Quality})");
+                var geom = Cascode.Workspace.PdkDatabaseReader.LoadGeometryForModel(dbPath, best.ModelName);
+                if (geom is not null)
+                {
+                    string fmt(double? v) => v.HasValue ? v.Value.ToString("g4", System.Globalization.CultureInfo.InvariantCulture) : "-";
+                    var gstr = $"W:[{fmt(geom.WMin)}..{fmt(geom.WMax)}], L:[{fmt(geom.LMin)}..{fmt(geom.LMax)}]; Wdef={fmt(geom.WDefault)}, Ldef={fmt(geom.LDefault)}";
+                    detail.AddRow("Geometry", Markup.Escape(gstr));
+                }
+            }
+            AnsiConsole.Write(detail);
+            return CommandResult.Success;
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to load device: {ex.Message}");
+            return CommandResult.Failure;
+        }
     }
 
     private CommandResult ShowPdkCharUsage(string[] args)
@@ -198,228 +356,43 @@ internal sealed class PdkCommandModule : ICommandModule
         _state.AddMessage($"Scanning workspace {targetRoot}");
 
         var result = _scanner.Scan(targetRoot);
+        var previousSelection = _state.SelectedDeckIndex;
         _state.Scan = result;
-        _state.SelectedDeckIndex = result.ModelDecks.Count > 0 ? 0 : null;
+        if (result.ModelDecks.Count == 0)
+        {
+            _state.SelectedDeckIndex = null;
+        }
+        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count)
+        {
+            _state.SelectedDeckIndex = previousSelection;
+        }
+        else
+        {
+            _state.SelectedDeckIndex = 0;
+        }
 
-        var scanPath = WorkspaceState.GetScanPath(targetRoot);
-        _storage.Save(result, scanPath);
+        var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
+
+        // Write to the PDK SQLite database
+        try
+        {
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
+            Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
+            // Device↔Model matches
+            var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
+            Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
+            // Model geometry (best-effort)
+            var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
+            Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
+            _state.AddMessage($"PDK database updated → {dbPath}");
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to update PDK database: {ex.Message}");
+        }
 
         _state.AddMessage($"Found {result.Libraries.Count} libraries, {result.ModelDecks.Count} model decks.");
         foreach (var warning in result.Warnings) _state.AddMessage($"Warning: {warning}");
-        return CommandResult.Success;
-    }
-
-    private CommandResult PdkModels(string[] args)
-    {
-        var scan = EnsureScan();
-        if (scan is null) return CommandResult.Failure;
-
-        var models = scan.Models;
-        if (models.Count == 0)
-        {
-            var emptyLine = "No models discovered. Run pdk scan.";
-            _state.AddMessage(emptyLine);
-
-            if (_isInteractive())
-            {
-                var emptyView = new ModelSummaryViewState(
-                    "Model Catalog",
-                    emptyLine,
-                    string.Empty,
-                    ModelSummaryHelpers.BuildModelSuggestionText(),
-                    Array.Empty<ModelSummaryRow>(),
-                    Array.Empty<ModelClassSummaryRow>());
-                _state.ShowModelSummary(emptyView);
-            }
-            return CommandResult.Success;
-        }
-
-        var filters = new HashSet<SpectreModelDeviceClass>();
-        var limit = 0;
-        ParseModelArguments(args, filters, Math.Max(1, models.Count), ref limit);
-
-        var categorizedClassCount = models
-            .Where(model => model.DeviceClass != SpectreModelDeviceClass.Unknown)
-            .Select(model => model.DeviceClass)
-            .Distinct()
-            .Count();
-
-        if (filters.Count == 0) return RenderClassSummary(models, categorizedClassCount, filters, limit);
-        return RenderDetailSummary(models, filters, limit);
-    }
-
-    private CommandResult RenderClassSummary(
-        IReadOnlyList<SpectreModel> models,
-        int categorizedClassCount,
-        HashSet<SpectreModelDeviceClass> filters,
-        int parsedLimit)
-    {
-        var maxClassCount = Math.Max(1, categorizedClassCount);
-
-        var limit = parsedLimit;
-        if (limit <= 0) limit = _isInteractive() ? Math.Min(8, maxClassCount) : maxClassCount;
-        limit = Math.Clamp(limit, 1, maxClassCount);
-
-        var uncategorizedList = models.Where(m => m.DeviceClass == SpectreModelDeviceClass.Unknown).ToList();
-        var includeUncategorized = uncategorizedList.Count > 0;
-
-        var categorizedGroups = models
-            .Where(m => m.DeviceClass != SpectreModelDeviceClass.Unknown)
-            .GroupBy(m => m.DeviceClass)
-            .Select(g => (Class: g.Key, Models: g.ToList()))
-            .OrderByDescending(e => e.Models.Count)
-            .ThenBy(e => ModelSummaryHelpers.FormatDeviceClassName(e.Class), StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var matchingClassCount = categorizedGroups.Count + (includeUncategorized ? 1 : 0);
-        var matchingModelCount = categorizedGroups.Sum(e => e.Models.Count) + uncategorizedList.Count;
-
-        var limitedGroups = categorizedGroups.Take(limit).ToList();
-        var displayedClassCount = limitedGroups.Count + (includeUncategorized ? 1 : 0);
-        var displayedModelCount = limitedGroups.Sum(e => e.Models.Count) + (includeUncategorized ? uncategorizedList.Count : 0);
-
-        var classRows = new List<ModelClassSummaryRow>(displayedClassCount);
-        foreach (var entry in limitedGroups)
-        {
-            classRows.Add(ModelSummaryHelpers.CreateClassSummaryRow(entry.Class, entry.Models, isUncategorized: false));
-        }
-        if (includeUncategorized) classRows.Add(ModelSummaryHelpers.CreateClassSummaryRow(SpectreModelDeviceClass.Unknown, uncategorizedList, isUncategorized: true));
-
-        var title = ModelSummaryHelpers.BuildModelSummaryTitle(filters);
-        var summaryLine = ModelSummaryHelpers.BuildClassSummaryLine(
-            displayedClassCount,
-            scopedClassCount: matchingClassCount,
-            displayedModelCount,
-            scopedModelCount: matchingModelCount,
-            totalModelCount: models.Count,
-            filters,
-            limited: limitedGroups.Count < categorizedGroups.Count,
-            includeUncategorized: includeUncategorized);
-        var statsLine = ModelSummaryHelpers.BuildClassStatsLine(categorizedGroups.Select(e => (e.Class, e.Models.Count)), uncategorizedList);
-        var suggestionLine = ModelSummaryHelpers.BuildModelSuggestionText();
-
-        var view = new ModelSummaryViewState(title, summaryLine, statsLine, suggestionLine, Array.Empty<ModelSummaryRow>(), classRows, detailOffset: 0, detailPageSize: 0, detailFilters: Array.Empty<string>());
-
-        if (_isInteractive())
-        {
-            _state.ShowModelSummary(view);
-        }
-        else
-        {
-            var table = ShellRenderer.CreateModelClassSummaryTable(classRows);
-            AnsiConsole.Write(table);
-            if (!string.IsNullOrWhiteSpace(summaryLine)) AnsiConsole.MarkupLine(Markup.Escape(summaryLine));
-            if (!string.IsNullOrWhiteSpace(statsLine)) AnsiConsole.MarkupLine(Markup.Escape(statsLine));
-            if (!string.IsNullOrWhiteSpace(suggestionLine)) AnsiConsole.MarkupLine(Markup.Escape(suggestionLine));
-        }
-
-        _state.AddMessage(summaryLine);
-        if (!string.IsNullOrWhiteSpace(statsLine)) _state.AddMessage(statsLine);
-        if (!string.IsNullOrWhiteSpace(suggestionLine)) _state.AddMessage(suggestionLine);
-
-        if (categorizedGroups.Count == 0)
-        {
-            _state.AddMessage(includeUncategorized ? "No categorized classes to display. Showing uncategorized models for review." : "No categorized classes to display. Adjust filters or scan again.");
-        }
-        else if (limitedGroups.Count < categorizedGroups.Count)
-        {
-            _state.AddMessage($"Showing top {limitedGroups.Count} of {categorizedGroups.Count} categorized classes. Use --limit for more.");
-        }
-        else
-        {
-            _state.AddMessage("Displayed all categorized classes in scope.");
-        }
-        if (includeUncategorized && uncategorizedList.Count > 0) _state.AddMessage($"Uncategorized models: {uncategorizedList.Count}. Run 'pdk match' to classify them.");
-        return CommandResult.Success;
-    }
-
-    private CommandResult RenderDetailSummary(IReadOnlyList<SpectreModel> models, HashSet<SpectreModelDeviceClass> filters, int parsedLimit)
-    {
-        var filtered = models.Where(m => filters.Contains(m.DeviceClass)).ToList();
-        if (filtered.Count == 0)
-        {
-            var title = ModelSummaryHelpers.BuildModelSummaryTitle(filters);
-            var message = "No models matched the selected device filters.";
-            _state.ShowModelSummary(new ModelSummaryViewState(title, message, string.Empty, ModelSummaryHelpers.BuildModelSuggestionText(), Array.Empty<ModelSummaryRow>(), Array.Empty<ModelClassSummaryRow>()));
-            _state.AddMessage(message);
-            return CommandResult.Success;
-        }
-
-        var filterLabels = filters.Select(ModelSummaryHelpers.FormatDeviceClassName).OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToArray();
-        var pageSize = parsedLimit > 0 ? Math.Clamp(parsedLimit, 1, filtered.Count) : (_isInteractive() ? Math.Min(20, filtered.Count) : filtered.Count);
-        var rows = new List<ModelSummaryRow>(filtered.Count);
-        for (var i = 0; i < filtered.Count; i++) rows.Add(ModelSummaryHelpers.CreateModelSummaryRow(filtered[i], i + 1));
-
-        var offset = 0;
-        var summaryLine = ModelSummaryHelpers.BuildDetailSummaryLine(filterLabels, offset, pageSize, filtered.Count);
-        var statsLine = ModelSummaryHelpers.BuildDetailStatsLine(filtered);
-        var suggestionLine = ModelSummaryHelpers.BuildModelSuggestionText();
-        var viewTitle = ModelSummaryHelpers.BuildModelSummaryTitle(filters);
-        var view = new ModelSummaryViewState(viewTitle, summaryLine, statsLine, suggestionLine, rows, Array.Empty<ModelClassSummaryRow>(), detailOffset: offset, detailPageSize: pageSize, detailFilters: filterLabels);
-
-        if (_isInteractive())
-        {
-            _state.ShowModelSummary(view);
-        }
-        else
-        {
-            var table = ShellRenderer.CreateModelDetailTable(view);
-            AnsiConsole.Write(table);
-            if (!string.IsNullOrWhiteSpace(summaryLine)) AnsiConsole.MarkupLine(Markup.Escape(summaryLine));
-            if (!string.IsNullOrWhiteSpace(statsLine)) AnsiConsole.MarkupLine(Markup.Escape(statsLine));
-            if (!string.IsNullOrWhiteSpace(suggestionLine)) AnsiConsole.MarkupLine(Markup.Escape(suggestionLine));
-        }
-
-        _state.AddMessage(summaryLine);
-        if (!string.IsNullOrWhiteSpace(statsLine)) _state.AddMessage(statsLine);
-        if (!string.IsNullOrWhiteSpace(suggestionLine)) _state.AddMessage(suggestionLine);
-        return CommandResult.Success;
-    }
-
-    private CommandResult PdkModel(string[] args)
-    {
-        var scan = EnsureScan();
-        if (scan is null) return CommandResult.Failure;
-        if (scan.Models.Count == 0)
-        {
-            _state.AddMessage("No models discovered. Run pdk scan.");
-            return CommandResult.Success;
-        }
-        if (args.Length == 0)
-        {
-            _state.AddMessage("Usage: pdk model <index|name>");
-            return CommandResult.Success;
-        }
-
-        SpectreModel? model = null;
-        var models = scan.Models;
-        if (int.TryParse(args[0], out var parsedIndex))
-        {
-            parsedIndex -= 1;
-            if (parsedIndex >= 0 && parsedIndex < models.Count) model = models[parsedIndex];
-        }
-        else
-        {
-            model = models.FirstOrDefault(m => m.Name.Contains(args[0], StringComparison.OrdinalIgnoreCase));
-        }
-        if (model is null)
-        {
-            _state.AddMessage("Model not found.");
-            return CommandResult.Failure;
-        }
-
-        var detail = new Table().AddColumn("Field").AddColumn("Value").Border(TableBorder.Rounded);
-        detail.AddRow("Name", model.Name);
-        detail.AddRow("Model Type", string.IsNullOrWhiteSpace(model.ModelType) ? "-" : model.ModelType);
-        detail.AddRow("Class", model.DeviceClass == SpectreModelDeviceClass.Unknown ? "Unknown" : model.DeviceClass.ToString());
-        detail.AddRow("Threshold", string.IsNullOrWhiteSpace(model.ThresholdFlavor) ? "-" : model.ThresholdFlavor!);
-        detail.AddRow("Voltage", string.IsNullOrWhiteSpace(model.VoltageDomain) ? "-" : model.VoltageDomain!);
-        detail.AddRow("Corners", FormatList(model.Corners));
-        detail.AddRow("Corner Details", FormatList(model.CornerDetails));
-        detail.AddRow("Sections", FormatList(model.Sections));
-        detail.AddRow("Decks", FormatList(model.Decks.Select(d => Path.GetFileName(d) ?? d)));
-        detail.AddRow("Sources", FormatList(model.SourceFiles));
-        AnsiConsole.Write(detail);
         return CommandResult.Success;
     }
 
@@ -465,7 +438,6 @@ internal sealed class PdkCommandModule : ICommandModule
             _configStorage.Save(_config);
             _state.UpdatePdkRoot(resolved);
             _state.SetWorkspace(resolved);
-            TryLoadCachedScan(resolved, logFailure: true);
             _state.AddMessage($"PDK workspace set to {resolved}");
             return CommandResult.Success;
         }
@@ -501,9 +473,11 @@ internal sealed class PdkCommandModule : ICommandModule
             else if (arg.Equals("--out-root", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) outRoot = args[++i];
         }
 
-        var scan = EnsureScan();
-        if (scan is null) return CommandResult.Failure;
-        var models = scan.Models;
+        var models = EnsureModels();
+        if (models is null)
+        {
+            return CommandResult.Failure;
+        }
         if (models.Count == 0)
         {
             _state.AddMessage("No models discovered. Run pdk scan.");
@@ -713,25 +687,23 @@ internal sealed class PdkCommandModule : ICommandModule
         return CommandResult.Success;
     }
 
-    private WorkspaceScanResult? EnsureScan()
+    private IReadOnlyList<SpectreModel>? EnsureModels()
     {
-        if (_state.Scan is not null) return _state.Scan;
-        var scanPath = WorkspaceState.GetScanPath(_state.WorkspaceRoot);
-        if (File.Exists(scanPath))
+        try
         {
-            try
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (!File.Exists(dbPath))
             {
-                _state.Scan = _storage.Load(scanPath);
-                _state.SelectedDeckIndex = _state.Scan.ModelDecks.Count > 0 ? 0 : null;
-                return _state.Scan;
+                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                return null;
             }
-            catch (Exception ex)
-            {
-                _state.AddMessage($"Failed to load cached scan: {ex.Message}");
-            }
+            return Cascode.Workspace.PdkDatabaseReader.LoadModels(dbPath);
         }
-        _state.AddMessage("No workspace scan available. Run pdk scan.");
-        return null;
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to load models from PDK database: {ex.Message}");
+            return null;
+        }
     }
 
     private static string Sanitize(string name)
@@ -755,6 +727,12 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         try
         {
+            // Defaults before geometry override
+            double width = 1e-6;
+            double length = 0.18e-6;
+            int nfVal = 1;
+            double vdsVal = 0.9;
+            double start = 0.0, stop = 1.2;
             static string? TryNormalizeInclude(string path)
             {
                 if (string.IsNullOrWhiteSpace(path)) return null;
@@ -792,6 +770,49 @@ internal sealed class PdkCommandModule : ICommandModule
             var netlistModelName = ResolveModelNameForNetlist(model);
             if (resolvedIncludes.Count == 0) _state.AddMessage($"[warn] No include decks located for model '{model.Name}'. Spectre run may fail.");
 
+            // Apply geometry constraints from PDK database
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (File.Exists(dbPath))
+            {
+                var geom = Cascode.Workspace.PdkDatabaseReader.LoadGeometryForModel(dbPath, model.Name);
+                if (geom is not null)
+                {
+                    static double Clamp(double val, double? min, double? max)
+                    {
+                        if (min.HasValue && val < min.Value) val = min.Value;
+                        if (max.HasValue && val > max.Value) val = max.Value;
+                        return val;
+                    }
+
+                    // Use defaults if present; otherwise clamp current
+                    if (geom.WDefault.HasValue) width = geom.WDefault.Value;
+                    if (geom.LDefault.HasValue) length = geom.LDefault.Value;
+                    if (geom.NfDefault.HasValue && geom.NfDefault.Value > 0) nfVal = geom.NfDefault.Value;
+                    width = Clamp(width, geom.WMin, geom.WMax);
+                    length = Clamp(length, geom.LMin, geom.LMax);
+                    if (nfVal <= 0) nfVal = 1;
+                    _state.AddMessage($"Geometry for {model.Name}: W={width:g4} m, L={length:g4} m, NF={nfVal}");
+                }
+            }
+
+            // Adjust Vds/Vgs sweep using model voltage domain when known
+            if (!string.IsNullOrWhiteSpace(model.VoltageDomain))
+            {
+                var vd = model.VoltageDomain.Trim().ToLowerInvariant();
+                var m = System.Text.RegularExpressions.Regex.Match(vd, @"(?<n>\d+)(?:\.(?<f>\d+))?v");
+                if (m.Success)
+                {
+                    var nn = int.Parse(m.Groups["n"].Value);
+                    var ff = m.Groups["f"].Success ? int.Parse(m.Groups["f"].Value) : 0;
+                    var volts = nn + (ff > 0 ? ff / Math.Pow(10, m.Groups["f"].Value.Length) : 0.0);
+                    if (volts > 0)
+                    {
+                        vdsVal = Math.Max(0.1, Math.Min(volts, volts * 0.6));
+                        stop = Math.Max(stop, volts);
+                    }
+                }
+            }
+
             var spec = new Cascode.Bench.TestbenchSpec
             {
                 Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase) ? Cascode.Bench.BenchBackendType.Spectre : Cascode.Bench.BenchBackendType.Ngspice,
@@ -801,12 +822,12 @@ internal sealed class PdkCommandModule : ICommandModule
                 Corner = corner,
                 TemperatureC = 27,
                 SupplyV = 0,
-                W_M = 1e-6,
-                L_M = 0.18e-6,
+                W_M = width,
+                L_M = length,
                 Mult = 1,
-                Nfingers = 1,
-                Vgs = new Cascode.Bench.SweepSpec(0, 1.2, 0.01),
-                Vds = 0.9,
+                Nfingers = nfVal,
+                Vgs = new Cascode.Bench.SweepSpec(start, stop, 0.01),
+                Vds = vdsVal,
                 Vsb = 0.0,
                 Includes = resolvedIncludes,
                 Section = corner,
@@ -867,7 +888,17 @@ internal sealed class PdkCommandModule : ICommandModule
             _state.AddMessage("SPECTRE_BIN not set or executable not found; skipping runs.");
             return false;
         }
-        var cmd = $"\"{exe}\" -format nutascii results.sp\n";
+        // Find a netlist to run (prefer .scs)
+        var netlist = Directory.EnumerateFiles(jobDir, "*.scs", SearchOption.TopDirectoryOnly)
+            .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
+            .FirstOrDefault();
+        if (netlist is null)
+        {
+            _state.AddMessage("No Spectre netlist (.scs) found; skipping runs.");
+            return false;
+        }
+
+        var cmd = $"\"{exe}\" -format nutascii \"{Path.GetFileName(netlist)}\"";
         var sh = OperatingSystem.IsWindows() ? new[] { "cmd", "/c", cmd } : new[] { "/bin/bash", "-lc", cmd };
         try
         {
@@ -929,23 +960,9 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     }
 
-    private void TryLoadCachedScan(string workspaceRoot, bool logFailure)
-    {
-        var scanPath = WorkspaceState.GetScanPath(workspaceRoot);
-        if (!File.Exists(scanPath)) return;
-        try
-        {
-            var scan = _storage.Load(scanPath);
-            _state.Scan = scan;
-            _state.SelectedDeckIndex = scan.ModelDecks.Count > 0 ? 0 : null;
-        }
-        catch (Exception ex)
-        {
-            if (logFailure) _state.AddMessage($"Failed to load cached scan: {ex.Message}");
-        }
-    }
+    // Removed JSON cache loader; the CLI uses the PDK database exclusively.
 
-    private static void ParseModelArguments(string[] args, HashSet<SpectreModelDeviceClass> filters, int totalCount, ref int limit)
+    /* private static void ParseModelArguments(string[] args, HashSet<SpectreModelDeviceClass> filters, int totalCount, ref int limit)
     {
         if (args.Length == 0) return;
         for (var i = 0; i < args.Length; i++)
@@ -963,9 +980,9 @@ internal sealed class PdkCommandModule : ICommandModule
             }
             foreach (var token in ExpandFilterToken(arg)) if (TryResolveDeviceClass(token, out var dc)) filters.Add(dc);
         }
-    }
+    } */
 
-    private static IEnumerable<string> ExpandFilterToken(string token)
+    /* private static IEnumerable<string> ExpandFilterToken(string token)
     {
         if (string.IsNullOrWhiteSpace(token)) yield break;
         var trimmed = token.Trim();
@@ -981,9 +998,9 @@ internal sealed class PdkCommandModule : ICommandModule
             if (clean.Length == 0) continue;
             yield return clean;
         }
-    }
+    } */
 
-    private static bool TryResolveDeviceClass(string token, out SpectreModelDeviceClass deviceClass)
+    /* private static bool TryResolveDeviceClass(string token, out SpectreModelDeviceClass deviceClass)
     {
         deviceClass = SpectreModelDeviceClass.Unknown;
         if (string.IsNullOrWhiteSpace(token)) return false;
@@ -1003,5 +1020,87 @@ internal sealed class PdkCommandModule : ICommandModule
             case "unknown" or "uncat" or "uncategorized" or "unmatched": deviceClass = SpectreModelDeviceClass.Unknown; return true;
             default: return false;
         }
+    } */
+
+    private static (HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, bool? matched, int limit) ParseDeviceFilters(string[] args)
+    {
+        var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var vts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var vdds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        bool? infra = null; // true = only infra, false = exclude infra, null = all
+        bool? matched = null; // true = matched only, false = unmatched only, null = all
+        int limit = 20;
+        for (var i = 0; i < args.Length; i++)
+        {
+            var a = args[i];
+            if (a.Equals("--class", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                foreach (var tok in SplitCsv(args[++i])) classes.Add(tok);
+            }
+            else if (a.Equals("--vt", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                foreach (var tok in SplitCsv(args[++i])) vts.Add(tok.ToUpperInvariant());
+            }
+            else if (a.Equals("--vdd", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                foreach (var tok in SplitCsv(args[++i])) vdds.Add(tok.ToLowerInvariant());
+            }
+            else if (a.Equals("--infra", StringComparison.OrdinalIgnoreCase)) infra = true;
+            else if (a.Equals("--no-infra", StringComparison.OrdinalIgnoreCase)) infra = false;
+            else if (a.Equals("--matched", StringComparison.OrdinalIgnoreCase)) matched = true;
+            else if (a.Equals("--unmatched", StringComparison.OrdinalIgnoreCase)) matched = false;
+            else if (a.Equals("--limit", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                if (int.TryParse(args[++i], out var lim)) limit = Math.Max(1, lim);
+            }
+        }
+        return (classes, vts, vdds, infra, matched, limit);
     }
+
+    private static bool DeviceMatchesFilters(Cascode.Workspace.Device d, HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, HashSet<string>? matchedKeys, bool? matched)
+    {
+        if (classes.Count > 0 && !classes.Contains(d.Class.ToString(), StringComparer.OrdinalIgnoreCase)) return false;
+        if (vts.Count > 0 && !d.VtTags.Any(t => vts.Contains(t, StringComparer.OrdinalIgnoreCase))) return false;
+        if (vdds.Count > 0 && !d.VddTags.Any(t => vdds.Contains(t, StringComparer.OrdinalIgnoreCase))) return false;
+        if (infra.HasValue)
+        {
+            var isInfra = d.Tags.Any(t => t.Equals("infra", StringComparison.OrdinalIgnoreCase));
+            if (infra.Value != isInfra) return false;
+        }
+        if (matched.HasValue && matchedKeys is not null)
+        {
+            var isMatched = matchedKeys.Contains(d.CanonicalName);
+            if (matched.Value != isMatched) return false;
+        }
+        return true;
+    }
+
+    private CommandResult PdkMatch(string[] args)
+    {
+        try
+        {
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+
+            var cov = Cascode.Workspace.PdkDatabaseReader.GetMatchCoverage(dbPath);
+            var byClass = Cascode.Workspace.PdkDatabaseReader.GetMatchCoverageByClass(dbPath);
+
+            var table = new Table().Border(TableBorder.Rounded).AddColumn("Class").AddColumn("Total").AddColumn("Matched").AddColumn("Ambiguous").AddColumn("Unmatched");
+            foreach (var row in byClass)
+            {
+                table.AddRow(row.Class, row.Total.ToString(CultureInfo.InvariantCulture), row.Matched.ToString(CultureInfo.InvariantCulture), row.Ambiguous.ToString(CultureInfo.InvariantCulture), row.Unmatched.ToString(CultureInfo.InvariantCulture));
+            }
+            AnsiConsole.Write(table);
+            _state.AddMessage($"Coverage: total={cov.Total}, matched={cov.Matched}, ambiguous={cov.Ambiguous}, unmatched={cov.Unmatched}.");
+            if (cov.SampleAmbiguous.Count > 0) _state.AddMessage("Ambiguous examples: " + string.Join(", ", cov.SampleAmbiguous));
+            if (cov.SampleUnmatched.Count > 0) _state.AddMessage("Unmatched examples: " + string.Join(", ", cov.SampleUnmatched));
+            return CommandResult.Success;
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to compute match coverage: {ex.Message}");
+            return CommandResult.Failure;
+        }
+    }
+
 }

@@ -11,7 +11,6 @@ namespace Cascode.Cli;
 internal sealed class CliHost
 {
     private readonly WorkspaceScanner _scanner = new();
-    private readonly WorkspaceScanStorage _storage = new();
     private readonly CliConfigStorage _configStorage = new();
     private readonly CommandRegistry _commands = new();
     private readonly CliConfig _config;
@@ -32,14 +31,14 @@ internal sealed class CliHost
         }
 
         RegisterCommands();
-        TryLoadCachedScan(_state.WorkspaceRoot, logFailure: false);
+        // JSON scan cache has been removed; state is loaded from the PDK database by commands as needed.
     }
 
     private void RegisterCommands()
     {
         new Commands.SystemCommandModule(_state).Register(_commands);
-        new Commands.PdkCommandModule(_state, _scanner, _storage, _config, _configStorage, _initialWorkspaceRoot, () => _isInteractive).Register(_commands);
-        new Commands.CharacterizationCommandModule(_state, _storage).Register(_commands);
+        new Commands.PdkCommandModule(_state, _scanner, _config, _configStorage, _initialWorkspaceRoot, () => _isInteractive).Register(_commands);
+        new Commands.CharacterizationCommandModule(_state).Register(_commands);
         new Commands.BenchCommandModule(_state).Register(_commands);
         new Commands.BuildCommandModule(_state).Register(_commands);
     }
@@ -117,7 +116,7 @@ internal sealed class CliHost
 
     private bool TryAdjustDetailOffset(int delta)
     {
-        var view = _state.ModelSummary;
+        var view = _state.DeviceSummary;
         if (view is null || !view.HasDetailRows)
         {
             return false;
@@ -131,15 +130,15 @@ internal sealed class CliHost
             return false;
         }
 
-        var summaryLine = ModelSummaryHelpers.BuildDetailSummaryLine(view.DetailFilters, newOffset, pageSize, view.DetailRows.Count);
+        var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(view.DetailFilters, newOffset, pageSize, view.DetailRows.Count);
         var updatedView = view.WithDetail(newOffset, summaryLine);
-        _state.ReplaceModelSummary(updatedView);
+        _state.ReplaceDeviceSummary(updatedView);
         return true;
     }
 
     private int GetDetailScrollStep()
     {
-        var view = _state.ModelSummary;
+        var view = _state.DeviceSummary;
         if (view is null || !view.HasDetailRows)
         {
             return 1;
@@ -149,28 +148,7 @@ internal sealed class CliHost
         return Math.Max(1, pageSize / 4);
     }
 
-    private void TryLoadCachedScan(string workspaceRoot, bool logFailure)
-    {
-        var scanPath = WorkspaceState.GetScanPath(workspaceRoot);
-        if (!File.Exists(scanPath))
-        {
-            return;
-        }
-
-        try
-        {
-            var scan = _storage.Load(scanPath);
-            _state.Scan = scan;
-            _state.SelectedDeckIndex = scan.ModelDecks.Count > 0 ? 0 : null;
-        }
-        catch (Exception ex)
-        {
-            if (logFailure)
-            {
-                _state.AddMessage($"Failed to load cached scan: {ex.Message}");
-            }
-        }
-    }
+    // Removed: JSON scan cache loader. The CLI uses the PDK database.
 
     private void FlushLogToConsole()
     {

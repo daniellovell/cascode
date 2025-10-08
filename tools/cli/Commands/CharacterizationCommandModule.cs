@@ -12,12 +12,10 @@ namespace Cascode.Cli.Commands;
 internal sealed class CharacterizationCommandModule : ICommandModule
 {
     private readonly ShellState _state;
-    private readonly WorkspaceScanStorage _storage;
 
-    public CharacterizationCommandModule(ShellState state, WorkspaceScanStorage storage)
+    public CharacterizationCommandModule(ShellState state)
     {
         _state = state;
-        _storage = storage;
     }
 
     public void Register(CommandRegistry registry)
@@ -128,9 +126,9 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             }
         }
 
-        var scan = EnsureScan();
-        if (scan is null) return CommandResult.Failure;
-        var model = scan.Models.FirstOrDefault(m => string.Equals(m.Name, modelName, StringComparison.OrdinalIgnoreCase)) ?? scan.Models.FirstOrDefault(m => m.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase));
+        var models = EnsureModels();
+        if (models is null || models.Count == 0) return CommandResult.Failure;
+        var model = models.FirstOrDefault(m => string.Equals(m.Name, modelName, StringComparison.OrdinalIgnoreCase)) ?? models.FirstOrDefault(m => m.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase));
         if (model is null) { _state.AddMessage("Model not found."); return CommandResult.Failure; }
 
         var jobRoot = outDir ?? Path.Combine(_state.WorkspaceRoot, "build", "char", Sanitize(model.Name), DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
@@ -236,25 +234,23 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         }
     }
 
-    private WorkspaceScanResult? EnsureScan()
+    private IReadOnlyList<SpectreModel>? EnsureModels()
     {
-        if (_state.Scan is not null) return _state.Scan;
-        var scanPath = WorkspaceState.GetScanPath(_state.WorkspaceRoot);
-        if (File.Exists(scanPath))
+        try
         {
-            try
+            var dbPath = System.IO.Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            if (!System.IO.File.Exists(dbPath))
             {
-                _state.Scan = _storage.Load(scanPath);
-                _state.SelectedDeckIndex = _state.Scan.ModelDecks.Count > 0 ? 0 : null;
-                return _state.Scan;
+                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                return null;
             }
-            catch (Exception ex)
-            {
-                _state.AddMessage($"Failed to load cached scan: {ex.Message}");
-            }
+            return PdkDatabaseReader.LoadModels(dbPath);
         }
-        _state.AddMessage("No workspace scan available. Run pdk scan.");
-        return null;
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to load models from PDK database: {ex.Message}");
+            return null;
+        }
     }
 
     private static string Sanitize(string name)
@@ -263,4 +259,3 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         return name;
     }
 }
-

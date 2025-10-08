@@ -31,8 +31,7 @@ internal static class WorkspaceState
         return Path.Combine(GetRoot(), "workspaces", hash);
     }
 
-    public static string GetScanPath(string workspaceRoot)
-        => Path.Combine(GetWorkspaceFolder(workspaceRoot), "workspace-scan.json");
+    // JSON scan cache removed; database is authoritative.
 
     public static string GetCharacterizationFolder(string workspaceRoot)
         => Path.Combine(GetWorkspaceFolder(workspaceRoot), "char");
