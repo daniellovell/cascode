@@ -1,7 +1,7 @@
 CasIR JSON Schema
 =================
 
-This folder contains JSON Schemas for CasIR v1, corresponding to the spec in `spec/language-spec/Ch03_CasIR.md`.
+This folder contains JSON Schemas for CasIR v1, corresponding to the spec in `spec/language/Ch03_CasIR.md`.
 
 Files
 - `casir-json-1.schema.json` - Root schema for HL/ML/EL CasIR documents (Draft 2020-12).

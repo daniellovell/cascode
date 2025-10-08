@@ -139,6 +139,16 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   };
   ```
 
+* `ActiveLoad` — **general** active load motif with polarity parameter (wraps primitive transistor with semantic interface).
+
+  ```cas
+  load = new ActiveLoad(polarity=PMOS) {
+    node <- vout;             // node being loaded
+    bias <- vb1;              // gate bias voltage
+    vref <- VDD;              // reference rail (VDD for PMOS, GND for NMOS)
+  };
+  ```
+
 * `fb R(...)`, `fb C(...)` — feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.14 for passive kinds/scope.
 
 **Acyclicity**
@@ -277,7 +287,7 @@ PDK digital standard cells are modeled as ordinary motifs with electrical pins a
 
 ### 2.13.1 Traits for Eligibility
 
-Traits express functional intent so slots can be filled by either single stdcells or composite drivers.
+Traits express functional intent so slots can be filled by either single stdcells or composite drivers. For a complete usage example, see [Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
 
 ```cas
 trait InverterLike {
@@ -367,6 +377,60 @@ The preferred approach for expressing loads and sources utilizes **`env{}`** dec
 
 ---
 
+## 2.14.5 Active Device Primitives: **NMOS** and **PMOS**
+
+For schematic-style structural design, cascode provides **primitive transistor types** as first-class constructs alongside passive devices. These primitives enable direct topological specification while maintaining **process-agnostic** representation.
+
+**Primitive transistor syntax:**
+
+```cas
+M1 = new NMOS() { 
+  gate<-vin; drain<-vout; source<-GND; bulk<-GND;
+};
+
+M2 = new PMOS() { 
+  gate<-vb1; drain<-vout; source<-VDD; bulk<-VDD;
+};
+```
+
+**Port structure:**
+
+* `NMOS`: `{ gate, drain, source, bulk: electrical }`
+* `PMOS`: `{ gate, drain, source, bulk: electrical }`
+
+**Parameters:**
+
+* `W` (width): **derived by synthesis from specifications** — never hardcoded in ADL
+* `L` (length): **derived by synthesis from specifications** — never hardcoded in ADL
+* `m` (multiplier): optional, default=1
+
+**Process-agnostic semantics (normative):**
+
+Primitive transistors are **topology-only constructs** in cascode source. They emit to CasIR as motif instances with type `"NMOS"` or `"PMOS"`, carrying port connectivity but **no dimensional parameters until synthesis**.
+
+The synthesis engine:
+1. Consults the active **PDK database** to access gm/Id tables and technology rules
+2. Derives W, L, and m from `spec{}` constraints (gain, bandwidth, power, etc.)
+3. Applies PDK-specific constraints (Lmin, discrete widths, finger limits)
+4. Emits sized parameters to CasIR at EL (Electrical Level)
+
+At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in CasIR as `impl.pdk_device` (e.g., `nfet_01v8`). SPICE emission uses this selected device directly.
+
+**Normative:**
+
+* Primitive transistors **MUST** have all four ports explicitly connected.
+* Dimensional parameters (W, L) **MUST NOT** be specified in ADL; they are synthesis outputs.
+* At EL, primitive transistors **MUST** carry `impl.pdk_device` in CasIR; earlier phases remain PDK‑agnostic.
+* Primitives appearing in entities marked `Synthesizable` may be characterized with `char{}` manifests that are **process-qualified** (e.g., `char@sky130`).
+
+**Use cases:**
+
+* **Hand-crafted topologies**: CS stages, differential pairs, mirrors where explicit transistor-level control is desired
+* **Motif internals**: Building blocks like `ActiveLoad`, `CurrentMirror`, `TailNMOS` wrap primitives with semantic interfaces
+* **Non-synthesizable designs**: Test structures, bias generators, reference circuits
+
+---
+
 ## 2.15 Characterization (`char`) for Synthesizable Libraries
 
 Library entities intended for synthesis **MUST** declare a **`char {}`** manifest:
@@ -390,9 +454,56 @@ char {
 
 ---
 
-## 2.16 SPICE Interoperability: `wrap spice`
+## 2.16 Motif Composition: ActiveLoad Example
 
-`wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts.
+Motifs often wrap primitive transistors with semantic interfaces. The `ActiveLoad` motif provides a clean example. For usage in a complete design, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples) (CommonSourceAmp).
+
+```cas
+motif ActiveLoad {
+  ports {
+    node: electrical;    // the node being loaded
+    bias: bias;          // gate bias voltage
+    vref: supply;        // reference rail (VDD for PMOS, GND for NMOS)
+  }
+  
+  params {
+    polarity: enum{PMOS, NMOS};
+    diode_connected: bool = false;
+  }
+  
+  use {
+    if (polarity == PMOS) {
+      M = new PMOS() { 
+        drain<-node; 
+        source<-vref; 
+        bulk<-vref;
+        gate<-(diode_connected ? node : bias);
+      };
+    } else {
+      M = new NMOS() { 
+        drain<-node; 
+        source<-vref; 
+        bulk<-vref;
+        gate<-(diode_connected ? node : bias);
+      };
+    }
+  }
+  
+  char {
+    sweep { VDD:[1.0V..1.95V]; I_drain:[10uA..1mA]; polarity:{PMOS,NMOS}; }
+    fit { r_out~GP("fit/active_load_rout.gp"); }
+    validity { headroom >= 0.2V; }
+  }
+}
+```
+
+This pattern demonstrates **abstraction without loss of transparency**: the primitive transistor is directly accessible for sizing, while the motif provides semantic clarity and reusable characterization.
+
+---
+
+## 2.17 SPICE Interoperability: `wrap spice`
+
+`wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts. For an NMOS variant of this pattern, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples).
 
 ```cas
 motif WideSwingPMOSMirror implements CurrentMirrorLike {
@@ -415,7 +526,7 @@ motif WideSwingPMOSMirror implements CurrentMirrorLike {
 
 ---
 
-## 2.17 Clocks and Phases
+## 2.18 Clocks and Phases
 
 * `clk` ports carry timing semantics; `phase {}` specifies frequency, duty, edge slew.
 
@@ -429,21 +540,8 @@ clk phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 
 ---
 
-## 2.18 Diagnostics and Provenance
+## 2.19 Diagnostics and Provenance
 
 Tools should report which constraints are **binding**, identify blocks that dominate **power**, **noise**, or **headroom** budgets, and suggest targeted edits such as "increase `L` on load" or "enable `MillerRz`" compensation.
 
 CasIR must record complete **provenance** information including the library entity chosen, parameter values, compensation style realized, and source `.cas` line ranges.
-
----
-
-## 2.19 Summary
-
-* **Bindings are mandatory**. No auto-binding. Use **Bundles** and **bind** blocks, `connect`, or `cascade`.
-* **Compensation is a stage property** (`comp { … }`), not a separate object.
-* **Diff pair tails are separate motifs**; connect `Tail*` to the diff-pair source.
-* Prefer **general `CurrentMirror`** over specialized loads.
-* **`env{}` defines the bench harness** (load/source/supply/ICMR/corners).
-* **Passive kinds** are explicit; sugar is confined to harness/probes.
-* **Slots must be filled** by **synth** or an explicit **structural fill**.
-* CasIR preserves structure, roles, compensation, harness intents, and provenance for search, sizing, and verification.
