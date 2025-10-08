@@ -1,4 +1,4 @@
-## PDK Scan Architecture
+## Workspace library architecture
 
 Status: current as of 2025-10-08. Scope: `tools/workspace` scan stack and its CLI contract.
 
@@ -7,7 +7,7 @@ Goal
 
 Responsibilities
 - Parse `cds.lib` to identify logical libraries and paths.
-- Discover “Device” cells that have both layout and symbol views.
+- Discover "Device" cells that have both layout and symbol views.
 - Extract Spectre models from model decks (subckt-first; bin suppression).
 - Derive geometry constraints (w/l/area/nf ranges) when available.
 - Match devices to models using normalized naming and tags.
