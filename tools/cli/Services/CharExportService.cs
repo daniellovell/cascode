@@ -208,7 +208,7 @@ internal static class CharExportService
         }
     }
 
-    private static string? FindFirstColumn(IReadOnlyDictionary<string,int> map, params string[] names)
+    private static string? FindFirstColumn(IReadOnlyDictionary<string, int> map, params string[] names)
     {
         foreach (var name in names)
         {
@@ -273,7 +273,7 @@ internal static class CharExportService
             return false;
         }
 
-        static double GetOrNaN(Dictionary<string,double> dict, params string[] keys)
+        static double GetOrNaN(Dictionary<string, double> dict, params string[] keys)
         {
             foreach (var k in keys) if (dict.TryGetValue(k, out var v)) return v; return double.NaN;
         }
@@ -411,9 +411,9 @@ internal static class CharExportService
         }
     }
 
-    private static bool TryParseOppointAscii(string path, string? expectedInst, out Dictionary<string,double> values, out string matchedInst)
+    private static bool TryParseOppointAscii(string path, string? expectedInst, out Dictionary<string, double> values, out string matchedInst)
     {
-        values = new Dictionary<string,double>(StringComparer.OrdinalIgnoreCase);
+        values = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         matchedInst = string.Empty;
         try
         {
@@ -452,7 +452,7 @@ internal static class CharExportService
         }
     }
 
-    private static void ReadOppointValues(string[] lines, ref int i, Dictionary<string,double> values)
+    private static void ReadOppointValues(string[] lines, ref int i, Dictionary<string, double> values)
     {
         for (; i < lines.Length; i++)
         {

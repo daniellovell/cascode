@@ -50,12 +50,12 @@ public sealed class SpectreBackend : ISpiceBackend
         if (s.IsSubckt)
         {
             // Instantiate a subckt wrapper
-            sb.AppendLine($"X1 (d g s b) {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1,s.Mult)} nf={Math.Max(1,s.Nfingers)}");
+            sb.AppendLine($"X1 (d g s b) {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1, s.Mult)} nf={Math.Max(1, s.Nfingers)}");
         }
         else
         {
             // Instantiate a raw device model
-            sb.AppendLine($"M1 (d g s b) {s.ModelName} w={s.W_M} l={s.L_M} m={Math.Max(1,s.Mult)}");
+            sb.AppendLine($"M1 (d g s b) {s.ModelName} w={s.W_M} l={s.L_M} m={Math.Max(1, s.Mult)}");
         }
 
         sb.AppendLine($"dcOp dc write=\"spectre.ic\" maxiters=150 maxsteps=5");

@@ -348,18 +348,18 @@ internal static class ShellRenderer
         var maxOffset = Math.Max(0, state.Messages.Count - messageLines);
         var offset = Math.Clamp(state.LogScrollOffset, 0, maxOffset);
         var start = Math.Max(0, state.Messages.Count - messageLines - offset);
-        
+
         // Calculate available width for the log panel (3/5 of console width, minus borders and padding)
         var consoleWidth = EstimateConsoleWidth();
         var logPanelWidth = (int)(consoleWidth * 0.6) - 6; // 3/5 ratio minus borders/padding
         logPanelWidth = Math.Max(40, logPanelWidth); // Minimum width
-        
+
         // Truncate long lines to fit available width (defensively handles very small widths)
         var truncatedMessages = state.Messages
             .Skip(start)
             .Take(messageLines)
             .Select(msg => TruncateToWidth(msg, logPanelWidth));
-        
+
         var renderable = new Markup(string.Join('\n', truncatedMessages));
         var headerLabel = offset == 0 ? "Log" : $"Log (scroll {offset})";
 

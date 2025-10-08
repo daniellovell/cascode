@@ -7,7 +7,8 @@ public sealed class TestbenchSpec
     [JsonPropertyName("backend")] public BenchBackendType Backend { get; init; } = BenchBackendType.Ngspice;
     [JsonPropertyName("name")] public string Name { get; init; } = "gm_id";
     [JsonPropertyName("model_name")] public string ModelName { get; init; } = string.Empty;
-    [JsonPropertyName("corner")] public string? Corner { get; init; }
+    [JsonPropertyName("corner")]
+    public string? Corner { get; init; }
         = null;
     [JsonPropertyName("temperature_c")] public double TemperatureC { get; init; } = 27.0;
     [JsonPropertyName("supply_v")] public double SupplyV { get; init; } = 1.8;
