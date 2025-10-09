@@ -19,9 +19,7 @@ public sealed class PdkDevicesCommandTests
             "pdk",
             "scan",
             "tests/fixtures/pdk/sky130");
-        Assert.True(
-            scanResult.ExitCode == 0,
-            $"Command '{scanResult.CommandLine}' exited with {scanResult.ExitCode}. Stdout: {scanResult.Stdout}{Environment.NewLine}Stderr: {scanResult.Stderr}");
+        AssertSuccess(scanResult);
 
         var devicesResult = await RunCliAsync(
             TimeSpan.FromMinutes(2),
@@ -31,12 +29,17 @@ public sealed class PdkDevicesCommandTests
             "tests/fixtures/pdk/sky130",
             "--class",
             "nmos");
+        AssertSuccess(devicesResult);
         Assert.True(
-            devicesResult.ExitCode == 0,
-            $"Command '{devicesResult.CommandLine}' exited with {devicesResult.ExitCode}. Stdout: {devicesResult.Stdout}{Environment.NewLine}Stderr: {devicesResult.Stderr}");
+            devicesResult.Stdout.Contains("nfet_01v8", StringComparison.Ordinal),
+            $"Expected device summary to include 'nfet_01v8'. Stdout: {devicesResult.Stdout}{Environment.NewLine}Stderr: {devicesResult.Stderr}");
+    }
+
+    private static void AssertSuccess(ProcessResult result)
+    {
         Assert.True(
-            devicesResult.Stdout.Contains("sky130_fd_pr__nfet_01v8", StringComparison.Ordinal),
-            $"Expected device summary to include 'sky130_fd_pr__nfet_01v8'. Stdout: {devicesResult.Stdout}{Environment.NewLine}Stderr: {devicesResult.Stderr}");
+            result.ExitCode == 0,
+            $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}");
     }
 
     private static string GetRepositoryRoot()
