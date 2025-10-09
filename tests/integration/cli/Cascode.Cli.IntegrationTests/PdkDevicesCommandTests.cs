@@ -139,7 +139,12 @@ public sealed class PdkDevicesCommandTests
         var executablePath = TryGetCliExecutablePath(repoRoot);
         if (executablePath is not null)
         {
-            startInfo.FileName = executablePath;
+            // Use 'dotnet exec' to run the DLL instead of the executable directly
+            // This ensures the .NET runtime is properly resolved on all platforms
+            var dllPath = Path.ChangeExtension(executablePath, ".dll");
+            startInfo.FileName = "dotnet";
+            startInfo.ArgumentList.Add("exec");
+            startInfo.ArgumentList.Add(dllPath);
             foreach (var arg in args)
             {
                 startInfo.ArgumentList.Add(arg);
