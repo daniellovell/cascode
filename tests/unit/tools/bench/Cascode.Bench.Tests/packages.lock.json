@@ -246,6 +246,11 @@
         "resolved": "4.3.0",
         "contentHash": "VB5cn/7OzUfzdnC8tqAIMQciVLiq2epm2NrAm1E9OjNRyG4lVhfR61SMcLizejzQP8R8Uf/0l5qOIbUEi+RdEg=="
       },
+      "Scriban": {
+        "type": "Transitive",
+        "resolved": "5.10.0",
+        "contentHash": "qk2W8wQpm7mykWrEi9fhjC7uVapT2bkweMuMqebrF7gaVMt0WjmZzyVVTpom5cUsc3ddMDpo95SkNcTWGo+L6Q=="
+      },
       "System.AppContext": {
         "type": "Transitive",
         "resolved": "4.3.0",
@@ -1014,6 +1019,18 @@
         "dependencies": {
           "NETStandard.Library": "1.6.1",
           "xunit.extensibility.core": "[2.5.3]"
+        }
+      },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "13.7.1",
+        "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
+      },
+      "cascode.bench": {
+        "type": "Project",
+        "dependencies": {
+          "Scriban": "[5.10.0, )",
+          "YamlDotNet": "[13.7.1, )"
         }
       }
     }

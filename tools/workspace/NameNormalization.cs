@@ -35,6 +35,7 @@ internal static class NameNormalization
         {
             if (lower.Contains("_" + vt) || lower.EndsWith(vt, StringComparison.Ordinal)) tags.Add(vt.ToUpperInvariant());
         }
+        if (tags.Count == 0) tags.Add("SVT");
         return tags;
     }
 

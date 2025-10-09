@@ -13,8 +13,11 @@ CURSOR.md
 .cascode/
 
 **/.cache/*
+**/bin/*
 build/
 CASCODE_DESIGN_DOC.md
 MY_NOTES.md
+
+error.log
 
 .bashrc
