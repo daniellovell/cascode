@@ -27,20 +27,21 @@ internal static class DeviceSummaryHelpers
     internal static string BuildSuggestionText()
         => "Tip: Use Shift+Up/Down to page; Ctrl+Up/Down to step; 'pdk devices' to browse; 'home' to exit.";
 
-    internal static string FormatDeviceClassName(SpectreModelDeviceClass deviceClass)
+    internal static string FormatDeviceClassName(DeviceClass deviceClass)
         => deviceClass switch
         {
-            SpectreModelDeviceClass.Unknown => "Unknown",
-            SpectreModelDeviceClass.Nmos => "NMOS",
-            SpectreModelDeviceClass.Pmos => "PMOS",
-            SpectreModelDeviceClass.Bipolar => "Bipolar",
-            SpectreModelDeviceClass.Diode => "Diode",
-            SpectreModelDeviceClass.Resistor => "Resistor",
-            SpectreModelDeviceClass.Capacitor => "Capacitor",
-            SpectreModelDeviceClass.Inductor => "Inductor",
-            SpectreModelDeviceClass.Moscap => "MOSCAP",
-            SpectreModelDeviceClass.TransmissionLine => "Transmission Line",
-            SpectreModelDeviceClass.Other => "Other",
+            DeviceClass.Unknown => "Unknown",
+            DeviceClass.Nmos => "NMOS",
+            DeviceClass.Pmos => "PMOS",
+            DeviceClass.Bipolar => "Bipolar",
+            DeviceClass.Diode => "Diode",
+            DeviceClass.Resistor => "Resistor",
+            DeviceClass.Capacitor => "Capacitor",
+            DeviceClass.Inductor => "Inductor",
+            DeviceClass.Moscap => "MOSCAP",
+            DeviceClass.TransmissionLine => "Transmission Line",
+            DeviceClass.Stdcell => "StdCell",
+            DeviceClass.Other => "Other",
             _ => deviceClass.ToString()
         };
 }

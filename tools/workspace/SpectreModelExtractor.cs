@@ -84,7 +84,7 @@ internal sealed class SpectreModelExtractor
 
         public string Name { get; }
         public string? ModelType { get; private set; }
-        public SpectreModelDeviceClass DeviceClass { get; private set; } = SpectreModelDeviceClass.Unknown;
+        public DeviceClass DeviceClass { get; private set; } = DeviceClass.Unknown;
         public string? VoltageDomain { get; private set; }
         public string? ThresholdFlavor { get; private set; }
 
@@ -101,14 +101,14 @@ internal sealed class SpectreModelExtractor
             }
         }
 
-        public void SetDeviceClass(SpectreModelDeviceClass deviceClass)
+        public void SetDeviceClass(DeviceClass deviceClass)
         {
-            if (deviceClass == SpectreModelDeviceClass.Unknown)
+            if (deviceClass == DeviceClass.Unknown)
             {
                 return;
             }
 
-            if (DeviceClass == SpectreModelDeviceClass.Unknown)
+            if (DeviceClass == DeviceClass.Unknown)
             {
                 DeviceClass = deviceClass;
             }
@@ -610,61 +610,61 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
-    private static SpectreModelDeviceClass ClassifyModelType(string typeToken)
+    private static DeviceClass ClassifyModelType(string typeToken)
     {
         if (string.IsNullOrWhiteSpace(typeToken))
         {
-            return SpectreModelDeviceClass.Unknown;
+            return DeviceClass.Unknown;
         }
 
         var token = typeToken.Trim().ToLowerInvariant();
 
         if (token.Contains("nmos") || token.Contains("nfet"))
         {
-            return SpectreModelDeviceClass.Nmos;
+            return DeviceClass.Nmos;
         }
 
         if (token.Contains("pmos") || token.Contains("pfet"))
         {
-            return SpectreModelDeviceClass.Pmos;
+            return DeviceClass.Pmos;
         }
 
         if (token.Contains("npn") || token.Contains("pnp") || token.Contains("bjt"))
         {
-            return SpectreModelDeviceClass.Bipolar;
+            return DeviceClass.Bipolar;
         }
 
         if (token.Equals("d", StringComparison.OrdinalIgnoreCase) || token.Contains("diode"))
         {
-            return SpectreModelDeviceClass.Diode;
+            return DeviceClass.Diode;
         }
 
         if (token.Equals("r", StringComparison.OrdinalIgnoreCase) || token.Contains("res"))
         {
-            return SpectreModelDeviceClass.Resistor;
+            return DeviceClass.Resistor;
         }
 
         if (token.Equals("c", StringComparison.OrdinalIgnoreCase) || token.Contains("cap"))
         {
-            return SpectreModelDeviceClass.Capacitor;
+            return DeviceClass.Capacitor;
         }
 
         if (token.Contains("ind"))
         {
-            return SpectreModelDeviceClass.Inductor;
+            return DeviceClass.Inductor;
         }
 
         if (token.Contains("moscap"))
         {
-            return SpectreModelDeviceClass.Moscap;
+            return DeviceClass.Moscap;
         }
 
         if (token.Contains("tline") || token.Contains("transmission"))
         {
-            return SpectreModelDeviceClass.TransmissionLine;
+            return DeviceClass.TransmissionLine;
         }
 
-        return SpectreModelDeviceClass.Other;
+        return DeviceClass.Other;
     }
 
     private static bool IsBinModelName(string name)

@@ -10,21 +10,82 @@ internal static class NameNormalization
     private static readonly string[] VtTokens = { "ulvt", "llvt", "slvt", "lvt", "rvt", "svt", "nvt", "hvt", "mvt" };
     private static readonly string[] InfraTokens = { "tap", "subtap", "nwelltap", "diffconn", "polyconn", "via", "vias", "customvias" };
 
-    public static SpectreModelDeviceClass ClassifyByName(string name)
+    public static DeviceClass ClassifyByName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return SpectreModelDeviceClass.Unknown;
+        if (string.IsNullOrWhiteSpace(name)) return DeviceClass.Unknown;
 
         var lower = name.ToLowerInvariant();
-        if (lower.Contains("nmos") || lower.Contains("nfet") || lower.Contains("_nch") || lower.Contains("_n_")) return SpectreModelDeviceClass.Nmos;
-        if (lower.Contains("pmos") || lower.Contains("pfet") || lower.Contains("_pch") || lower.Contains("_p_")) return SpectreModelDeviceClass.Pmos;
-        if (lower.Contains("npn") || lower.Contains("pnp")) return SpectreModelDeviceClass.Bipolar;
-        if (lower.Contains("diode") || lower.StartsWith("d")) return SpectreModelDeviceClass.Diode;
-        if (lower.Contains("res") || lower.StartsWith("r")) return SpectreModelDeviceClass.Resistor;
-        if (lower.Contains("cap") || lower.StartsWith("c")) return SpectreModelDeviceClass.Capacitor;
-        if (lower.Contains("ind") || lower.StartsWith("l")) return SpectreModelDeviceClass.Inductor;
-        if (lower.Contains("tline")) return SpectreModelDeviceClass.TransmissionLine;
-        if (lower.Contains("moscap")) return SpectreModelDeviceClass.Moscap;
-        return SpectreModelDeviceClass.Other;
+
+        // Check for standard cells first (more specific patterns)
+        if (LooksLikeStdcell(lower)) return DeviceClass.Stdcell;
+
+        // Then check for primitive devices
+        if (lower.Contains("nmos") || lower.Contains("nfet") || lower.Contains("_nch") || lower.Contains("_n_")) return DeviceClass.Nmos;
+        if (lower.Contains("pmos") || lower.Contains("pfet") || lower.Contains("_pch") || lower.Contains("_p_")) return DeviceClass.Pmos;
+        if (lower.Contains("npn") || lower.Contains("pnp")) return DeviceClass.Bipolar;
+        if (lower.Contains("diode") || lower.StartsWith("d")) return DeviceClass.Diode;
+        if (lower.Contains("res") || lower.StartsWith("r")) return DeviceClass.Resistor;
+        if (lower.Contains("cap") || lower.StartsWith("c")) return DeviceClass.Capacitor;
+        if (lower.Contains("ind") || lower.StartsWith("l")) return DeviceClass.Inductor;
+        if (lower.Contains("tline")) return DeviceClass.TransmissionLine;
+        if (lower.Contains("moscap")) return DeviceClass.Moscap;
+        return DeviceClass.Other;
+    }
+
+    private static bool LooksLikeStdcell(string lower)
+    {
+        // Common standard cell prefixes
+        return lower.StartsWith("inv") ||
+               lower.StartsWith("buf") ||
+               lower.StartsWith("nand") ||
+               lower.StartsWith("nor") ||
+               lower.StartsWith("and") ||
+               lower.StartsWith("or") ||
+               lower.StartsWith("xor") ||
+               lower.StartsWith("xnor") ||
+               lower.StartsWith("mux") ||
+               lower.StartsWith("demux") ||
+               lower.StartsWith("dff") ||
+               lower.StartsWith("ff") ||
+               lower.StartsWith("latch") ||
+               lower.StartsWith("add") ||
+               lower.StartsWith("nd") || // NAND abbreviation
+               lower.StartsWith("nr");   // NOR abbreviation
+    }
+
+    public static DeviceSubclass ClassifySubclass(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return DeviceSubclass.Unknown;
+
+        var lower = name.ToLowerInvariant();
+
+        // Stdcell subclasses
+        if (lower.StartsWith("inv")) return DeviceSubclass.Inverter;
+        if (lower.StartsWith("buf")) return DeviceSubclass.Buffer;
+        if (lower.StartsWith("nand") || lower.StartsWith("nd")) return DeviceSubclass.Nand;
+        if (lower.StartsWith("nor") || lower.StartsWith("nr")) return DeviceSubclass.Nor;
+        if (lower.StartsWith("and")) return DeviceSubclass.And;
+        if (lower.StartsWith("or")) return DeviceSubclass.Or;
+        if (lower.StartsWith("xor")) return DeviceSubclass.Xor;
+        if (lower.StartsWith("xnor")) return DeviceSubclass.Xnor;
+        if (lower.StartsWith("mux")) return DeviceSubclass.Multiplexer;
+        if (lower.StartsWith("demux")) return DeviceSubclass.Demultiplexer;
+        if (lower.StartsWith("dff") || lower.StartsWith("ff")) return DeviceSubclass.Flipflop;
+        if (lower.StartsWith("latch")) return DeviceSubclass.Latch;
+        if (lower.StartsWith("add")) return DeviceSubclass.Adder;
+
+        // Capacitor subclasses
+        if (lower.Contains("mimcap")) return DeviceSubclass.MIMCAP;
+        if (lower.Contains("momcap")) return DeviceSubclass.MOMCAP;
+        if (lower.Contains("varcap")) return DeviceSubclass.VarCap;
+
+        // Resistor subclasses
+        if (lower.Contains("tfr")) return DeviceSubclass.TFR;
+        if (lower.Contains("rmetal")) return DeviceSubclass.RMetal;
+        if (lower.Contains("rpoly")) return DeviceSubclass.RPoly;
+        if (lower.Contains("rwell")) return DeviceSubclass.RWell;
+
+        return DeviceSubclass.Unknown;
     }
 
     public static IReadOnlyList<string> ExtractVtTags(string name)

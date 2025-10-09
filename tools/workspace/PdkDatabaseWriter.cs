@@ -473,8 +473,8 @@ public static class PdkDatabaseWriter
         using var insertDevice = conn.CreateCommand();
         insertDevice.Transaction = tx;
         insertDevice.CommandText = @"
-            INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, has_layout, has_symbol, vt_tags, vdd_tags, tags)
-            VALUES ($key, $display, $lib, $libpath, $cell, $cellpath, $class, $layout, $symbol, $vt, $vdd, $tags)
+            INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol, vt_tags, vdd_tags, tags)
+            VALUES ($key, $display, $lib, $libpath, $cell, $cellpath, $class, $subclass, $layout, $symbol, $vt, $vdd, $tags)
             ON CONFLICT(canonical_name) DO UPDATE SET
                 display_name=excluded.display_name,
                 lib_name=excluded.lib_name,
@@ -482,6 +482,7 @@ public static class PdkDatabaseWriter
                 cell_name=excluded.cell_name,
                 cell_path=excluded.cell_path,
                 device_class=excluded.device_class,
+                device_subclass=excluded.device_subclass,
                 has_layout=excluded.has_layout,
                 has_symbol=excluded.has_symbol,
                 vt_tags=excluded.vt_tags,
@@ -494,6 +495,7 @@ public static class PdkDatabaseWriter
         var pCell = insertDevice.CreateParameter(); pCell.ParameterName = "$cell"; insertDevice.Parameters.Add(pCell);
         var pCellPath = insertDevice.CreateParameter(); pCellPath.ParameterName = "$cellpath"; insertDevice.Parameters.Add(pCellPath);
         var pClass = insertDevice.CreateParameter(); pClass.ParameterName = "$class"; insertDevice.Parameters.Add(pClass);
+        var pSubclass = insertDevice.CreateParameter(); pSubclass.ParameterName = "$subclass"; insertDevice.Parameters.Add(pSubclass);
         var pLayout = insertDevice.CreateParameter(); pLayout.ParameterName = "$layout"; insertDevice.Parameters.Add(pLayout);
         var pSymbol = insertDevice.CreateParameter(); pSymbol.ParameterName = "$symbol"; insertDevice.Parameters.Add(pSymbol);
         var pVt = insertDevice.CreateParameter(); pVt.ParameterName = "$vt"; insertDevice.Parameters.Add(pVt);
@@ -523,6 +525,7 @@ public static class PdkDatabaseWriter
             pCell.Value = d.CellName;
             pCellPath.Value = d.CellPath;
             pClass.Value = (int)d.Class;
+            pSubclass.Value = (int)d.Subclass;
             pLayout.Value = d.HasLayout ? 1 : 0;
             pSymbol.Value = d.HasSymbol ? 1 : 0;
             pVt.Value = string.Join(',', d.VtTags ?? Array.Empty<string>());

@@ -141,10 +141,10 @@ public static class DeviceModelMatcher
     {
         public Dictionary<string, List<ModelRef>> NameIndex { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<ModelRef>> BaseIndex { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<SpectreModelDeviceClass, List<ModelRef>> ClassIndex { get; } = new();
+        public Dictionary<DeviceClass, List<ModelRef>> ClassIndex { get; } = new();
     }
 
-    private sealed record ModelRef(string Name, string NormalizedName, string BaseName, SpectreModelDeviceClass Class, string? Vt, string? Vdd, bool IsSubckt)
+    private sealed record ModelRef(string Name, string NormalizedName, string BaseName, DeviceClass Class, string? Vt, string? Vdd, bool IsSubckt)
     {
         public string VddToken => ExtractVddToken(Vdd);
 

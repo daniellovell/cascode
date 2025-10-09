@@ -110,6 +110,7 @@ public sealed class PdkDatabase : IDisposable
               cell_name TEXT NOT NULL,
               cell_path TEXT NOT NULL,
               device_class INTEGER NOT NULL,
+              device_subclass INTEGER NOT NULL DEFAULT 0,
               has_layout INTEGER NOT NULL,
               has_symbol INTEGER NOT NULL,
               vt_tags TEXT NULL,

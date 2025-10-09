@@ -18,7 +18,7 @@ public static class PdkDatabaseReader
         {
             cmd.CommandText = @"
                 SELECT d.canonical_name, d.display_name, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
-                       d.device_class, d.has_layout, d.has_symbol, d.vt_tags, d.vdd_tags, d.tags,
+                       d.device_class, d.device_subclass, d.has_layout, d.has_symbol, d.vt_tags, d.vdd_tags, d.tags,
                        GROUP_CONCAT(v.view)
                 FROM devices d LEFT JOIN device_views v ON d.id=v.device_id
                 GROUP BY d.id
@@ -26,19 +26,20 @@ public static class PdkDatabaseReader
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var viewsCsv = reader.IsDBNull(12) ? string.Empty : reader.GetString(12);
+                var viewsCsv = reader.IsDBNull(13) ? string.Empty : reader.GetString(13);
                 devices.Add(new Device
                 {
                     LibraryName = reader.GetString(2),
                     LibraryPath = reader.GetString(3),
                     CellName = reader.GetString(4),
                     CellPath = reader.GetString(5),
-                    Class = (SpectreModelDeviceClass)reader.GetInt32(6),
-                    HasLayout = reader.GetInt32(7) != 0,
-                    HasSymbol = reader.GetInt32(8) != 0,
-                    VtTags = SplitCsv(reader.IsDBNull(9) ? null : reader.GetString(9)),
-                    VddTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
-                    Tags = SplitCsv(reader.IsDBNull(11) ? null : reader.GetString(11)),
+                    Class = (DeviceClass)reader.GetInt32(6),
+                    Subclass = (DeviceSubclass)reader.GetInt32(7),
+                    HasLayout = reader.GetInt32(8) != 0,
+                    HasSymbol = reader.GetInt32(9) != 0,
+                    VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
+                    VddTags = SplitCsv(reader.IsDBNull(11) ? null : reader.GetString(11)),
+                    Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
                     Views = SplitCsv(viewsCsv)
                 });
             }
@@ -59,7 +60,7 @@ public static class PdkDatabaseReader
                 var id = reader.GetInt64(0);
                 var name = reader.GetString(1);
                 var type = reader.GetString(2);
-                var cls = (SpectreModelDeviceClass)reader.GetInt32(3);
+                var cls = (DeviceClass)reader.GetInt32(3);
                 var vdd = reader.IsDBNull(4) ? null : reader.GetString(4);
                 var vt = reader.IsDBNull(5) ? null : reader.GetString(5);
                 var model = new SpectreModel(name, type, cls, vdd, vt, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList);
@@ -233,7 +234,7 @@ public static class PdkDatabaseReader
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
-            var cls = (SpectreModelDeviceClass)r.GetInt32(0);
+            var cls = (DeviceClass)r.GetInt32(0);
             list.Add(new MatchCoverageByClass(cls.ToString(), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4)));
         }
         return list;

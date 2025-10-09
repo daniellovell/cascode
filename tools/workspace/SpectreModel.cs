@@ -4,21 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace Cascode.Workspace;
 
-public enum SpectreModelDeviceClass
-{
-    Unknown = 0,
-    Nmos,
-    Pmos,
-    Bipolar,
-    Diode,
-    Resistor,
-    Capacitor,
-    Inductor,
-    Moscap,
-    TransmissionLine,
-    Other
-}
-
 public sealed class SpectreModel
 {
     public static readonly IReadOnlyList<string> EmptyStringList = Array.Empty<string>();
@@ -35,7 +20,7 @@ public sealed class SpectreModel
     public SpectreModel(
         string name,
         string modelType,
-        SpectreModelDeviceClass deviceClass,
+        DeviceClass deviceClass,
         string? voltageDomain,
         string? thresholdFlavor,
         IReadOnlyList<string> corners,
@@ -64,7 +49,7 @@ public sealed class SpectreModel
     public string ModelType { get; set; } = string.Empty;
 
     [JsonPropertyName("deviceClass")]
-    public SpectreModelDeviceClass DeviceClass { get; set; } = SpectreModelDeviceClass.Unknown;
+    public DeviceClass DeviceClass { get; set; } = DeviceClass.Unknown;
 
     [JsonPropertyName("voltageDomain")]
     public string? VoltageDomain { get; set; }

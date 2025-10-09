@@ -33,6 +33,7 @@ public sealed class PhysicalLibraryScanner
                     if (!hasLayout || !hasSymbol) continue;
 
                     var cls = NameNormalization.ClassifyByName(cellName);
+                    var subclass = NameNormalization.ClassifySubclass(cellName);
                     var vt = NameNormalization.ExtractVtTags(cellName);
                     var vdd = NameNormalization.ExtractVddTags(cellName);
                     var tags = new List<string>();
@@ -45,6 +46,7 @@ public sealed class PhysicalLibraryScanner
                         CellName = cellName,
                         CellPath = cellDir,
                         Class = cls,
+                        Subclass = subclass,
                         HasLayout = hasLayout,
                         HasSymbol = hasSymbol,
                         Views = views,

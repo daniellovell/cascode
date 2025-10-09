@@ -70,7 +70,7 @@ public sealed class WorkspaceScanner
     private sealed class SpectreModelAggregator
     {
         private readonly HashSet<string> _modelTypes = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<SpectreModelDeviceClass> _classes = new();
+        private readonly HashSet<DeviceClass> _classes = new();
         private readonly HashSet<string> _voltageDomains = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _thresholdFlavors = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _corners = new(StringComparer.OrdinalIgnoreCase);
@@ -93,7 +93,7 @@ public sealed class WorkspaceScanner
                 _modelTypes.Add(model.ModelType);
             }
 
-            if (model.DeviceClass != SpectreModelDeviceClass.Unknown)
+            if (model.DeviceClass != DeviceClass.Unknown)
             {
                 _classes.Add(model.DeviceClass);
             }
