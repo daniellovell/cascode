@@ -6,7 +6,7 @@
 
 **cascode** is a concise, object-oriented analog description language designed for **mixed structural-behavioral** circuit design. The language empowers designers to express both **intent** (specifications and operating environment) and **structure** (motifs and interconnect) within a unified source file (`.cas`), enabling seamless synthesis and verification through a canonical intermediate representation (**CasIR**, `.cir`) and standard **SPICE** netlists.
 
-The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit from the flexibility to work behaviorally with specification-driven design, structurally with schematic-style composition, or through hybrid approaches that combine both paradigms. Library authors can contribute **reusable, characterized motifs**—whether authored natively or wrapped from existing SPICE subcircuits—that integrate directly with the synthesis engine. Finally, automated tooling leverages cascode's structured representation to perform **topology selection**, **gm/Id sizing**, and comprehensive **SPICE verification**.
+The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit from the flexibility to work behaviorally with specification-driven design, structurally with schematic-style composition, or through hybrid approaches that combine both paradigms. Library authors can contribute **reusable, characterized motifs** - whether authored natively or wrapped from existing SPICE subcircuits - that integrate directly with the synthesis engine. Finally, automated tooling leverages cascode's structured representation to perform **topology selection**, **gm/Id sizing**, and comprehensive **SPICE verification**.
 
 This specification defines the language surface, core semantics, and the artifacts required by the toolchain. Detailed algorithms for topology search and sizing are out of scope; their **contracts and interfaces** are in scope.
 
@@ -14,7 +14,7 @@ This specification defines the language surface, core semantics, and the artifac
 
 ### 1.2 Motivation
 
-Analog and mixed-signal (A/MS) IP forms the foundation of high-performance systems, enabling critical functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance, analog design automation significantly lags behind RTL flows due to a fundamental issue: design **intent** is captured at inappropriate abstraction levels—through GUI schematics and raw SPICE netlists—that obscure essential **structure**, **roles**, and **constraints**. This **representation gap** systematically undermines **scalable synthesis** and optimization, prevents effective **reuse** of proven building blocks across different technologies, and inhibits **LLM-assisted** planning and diagnostics.
+Analog and mixed-signal (A/MS) IP forms the foundation of high-performance systems, enabling critical functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance, analog design automation significantly lags behind RTL flows due to a fundamental issue: design **intent** is captured at inappropriate abstraction levels - through GUI schematics and raw SPICE netlists - that obscure essential **structure**, **roles**, and **constraints**. This **representation gap** systematically undermines **scalable synthesis** and optimization, prevents effective **reuse** of proven building blocks across different technologies, and inhibits **LLM-assisted** planning and diagnostics.
 
 **cascode** directly addresses these limitations through three architectural principles. First, the language elevates **intent to first-class status** by requiring explicit specifications, operating environments, and benchmark definitions. Second, it establishes **canonical structural representation** through named motifs, typed ports, well-defined roles, and recognizable patterns. Finally, it provides **CasIR**, a normalized graph representation designed for both automated tooling and machine learning applications.
 
@@ -252,13 +252,13 @@ The pipeline produces three primary outputs: **CasIR** intermediate representati
 
 ### 1.7 Intended Audience
 
-This specification serves three primary audiences. **Designers**—including analog, RF, and mixed-signal IC engineers—represent the primary users who will author `.cas` source files and interpret synthesis results. **Library builders** encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. **Tool developers** focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
+This specification serves three primary audiences. **Designers** - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. **Library builders** encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. **Tool developers** focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
 
 ---
 
 ### 1.8 Normative Keywords
 
-The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as in RFC 2119.
+The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
 ---
 
@@ -285,7 +285,7 @@ with `char {}` manifests.
 
 The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `rise_time`, `fall_time`, `voh`, and `vol`, with verification performed through standard benches.
 
-Example — Strong‑arm latch to pad with a selectable output inverter:
+Example: Strong‑arm latch to pad with a selectable output inverter:
 
 ```cas
 package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
