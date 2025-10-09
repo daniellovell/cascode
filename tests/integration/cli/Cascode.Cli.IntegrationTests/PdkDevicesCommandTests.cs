@@ -196,6 +196,7 @@ public sealed class PdkDevicesCommandTests
         {
             configurationPath = Directory
                 .GetDirectories(cliBinRoot)
+                .OrderByDescending(d => d.EndsWith("Release", StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
             if (configurationPath is null)
             {
