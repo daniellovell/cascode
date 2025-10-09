@@ -10,6 +10,12 @@ public sealed class PhysicalLibraryScanner
     private static readonly string[] LayoutViews = { "layout", "layoutxl", "layoutxl1" };
     private static readonly string[] SymbolViews = { "symbol", "symbolic" };
 
+    /// <summary>
+    /// Scan the provided workspace libraries and discover cells that contain both layout and symbol views, returning metadata for each discovered device.
+    /// </summary>
+    /// <param name="libraries">The libraries to scan; each WorkspaceLibrary's Path is enumerated for cell directories.</param>
+    /// <param name="warnings">Optional collection to receive non-fatal warnings (e.g., missing library path or per-library scan failures).</param>
+    /// <returns>A list of Device objects representing cells that have both layout and symbol views, populated with classification, tags, view names, and source library information.</returns>
     public List<Device> Scan(IReadOnlyList<WorkspaceLibrary> libraries, ICollection<string>? warnings = null)
     {
         var devices = new List<Device>();
@@ -70,4 +76,3 @@ public sealed class PhysicalLibraryScanner
         catch { return Array.Empty<string>(); }
     }
 }
-
