@@ -88,6 +88,7 @@ internal sealed class CliHost
             return 0;
         }
 
+        _state.ResetStreamedOutput();
         _state.RecordCommand(string.Join(' ', tokens));
         var result = Execute(tokens);
         if (!tokens[0].Equals("log", StringComparison.OrdinalIgnoreCase))
@@ -152,6 +153,11 @@ internal sealed class CliHost
 
     private void FlushLogToConsole()
     {
+        if (_state.HasStreamedOutput)
+        {
+            return;
+        }
+
         foreach (var message in _state.Messages)
         {
             Console.WriteLine(message);

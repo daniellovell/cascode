@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using Microsoft.Extensions.Logging;
+using Cascode.Cli.Logging;
 using Cascode.Workspace;
 using Cascode.Cli.Services;
 
@@ -96,7 +98,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
                 foreach (var s in summary)
                 {
-                    var clsEnum = (SpectreModelDeviceClass)s.DeviceClass;
+                    var clsEnum = (DeviceClass)s.DeviceClass;
                     classRows.Add(new DeviceClassSummaryRow(
                         DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
                         DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
@@ -105,7 +107,7 @@ internal sealed class PdkCommandModule : ICommandModule
                         Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
                         Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
                         ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
-                        IsUncategorized: s.DeviceClass == (int)SpectreModelDeviceClass.Unknown));
+                        IsUncategorized: s.DeviceClass == (int)DeviceClass.Unknown));
                 }
 
                 var title = "Devices by Class";
@@ -353,9 +355,27 @@ internal sealed class PdkCommandModule : ICommandModule
         var targetRoot = args.Length > 0 ? args[0] : _state.WorkspaceRoot;
         targetRoot = Path.GetFullPath(targetRoot);
         _state.SetWorkspace(targetRoot);
-        _state.AddMessage($"Scanning workspace {targetRoot}");
 
-        var result = _scanner.Scan(targetRoot);
+        // Create logger for this run
+        var level = ParseLogLevelFromEnv();
+        using var loggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(level);
+            if (_isInteractive())
+            {
+                builder.AddProvider(new Cascode.Cli.Logging.ShellLoggerProvider(_state, level));
+            }
+            else
+            {
+                builder.AddSimpleConsole(o => { o.SingleLine = true; o.TimestampFormat = "HH:mm:ss "; });
+                _state.MarkStreamedOutput();
+            }
+        });
+        var logger = loggerFactory.CreateLogger("pdk");
+
+        logger.LogInformation("Scanning workspace {Root}", targetRoot);
+
+        var result = _scanner.Scan(targetRoot, logger);
         var previousSelection = _state.SelectedDeckIndex;
         _state.Scan = result;
         if (result.ModelDecks.Count == 0)
@@ -377,6 +397,11 @@ internal sealed class PdkCommandModule : ICommandModule
         try
         {
             var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
+            // Delete existing database to ensure clean schema (incremental updates deferred to future work)
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
             Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
             // Device↔Model matches
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
@@ -384,16 +409,30 @@ internal sealed class PdkCommandModule : ICommandModule
             // Model geometry (best-effort)
             var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
             Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-            _state.AddMessage($"PDK database updated → {dbPath}");
+            logger.LogInformation("PDK database updated → {Path}", dbPath);
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to update PDK database: {ex.Message}");
+            logger.LogError(ex, "Failed to update PDK database");
         }
 
-        _state.AddMessage($"Found {result.Libraries.Count} libraries, {result.ModelDecks.Count} model decks.");
-        foreach (var warning in result.Warnings) _state.AddMessage($"Warning: {warning}");
+        logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
+        foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
         return CommandResult.Success;
+    }
+
+    private static Microsoft.Extensions.Logging.LogLevel ParseLogLevelFromEnv()
+    {
+        var v = Environment.GetEnvironmentVariable("CASCODE_LOG_LEVEL");
+        return v?.ToLowerInvariant() switch
+        {
+            "trace" => Microsoft.Extensions.Logging.LogLevel.Trace,
+            "debug" => Microsoft.Extensions.Logging.LogLevel.Debug,
+            "warn" or "warning" => Microsoft.Extensions.Logging.LogLevel.Warning,
+            "error" => Microsoft.Extensions.Logging.LogLevel.Error,
+            "critical" => Microsoft.Extensions.Logging.LogLevel.Critical,
+            _ => Microsoft.Extensions.Logging.LogLevel.Information
+        };
     }
 
     private CommandResult PdkSetDir(string[] args)
@@ -492,8 +531,8 @@ internal sealed class PdkCommandModule : ICommandModule
                 var set = new HashSet<string>(cfg.Classes.Select(c => c.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
                 filtered = filtered.Where(m => m.DeviceClass switch
                 {
-                    SpectreModelDeviceClass.Nmos => set.Contains("nmos") || set.Contains("nfet") || set.Contains("nch"),
-                    SpectreModelDeviceClass.Pmos => set.Contains("pmos") || set.Contains("pfet") || set.Contains("pch"),
+                    DeviceClass.Nmos => set.Contains("nmos") || set.Contains("nfet") || set.Contains("nch"),
+                    DeviceClass.Pmos => set.Contains("pmos") || set.Contains("pfet") || set.Contains("pch"),
                     _ => true
                 });
             }
@@ -865,8 +904,8 @@ internal sealed class PdkCommandModule : ICommandModule
     private static string? ResolveHarnessForModel(SpectreModel model)
         => model.DeviceClass switch
         {
-            SpectreModelDeviceClass.Nmos => "gm_id.v1",
-            SpectreModelDeviceClass.Pmos => "gm_id_pmos.v1",
+            DeviceClass.Nmos => "gm_id.v1",
+            DeviceClass.Pmos => "gm_id_pmos.v1",
             _ => null
         };
 
@@ -962,7 +1001,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
     // Removed JSON cache loader; the CLI uses the PDK database exclusively.
 
-    /* private static void ParseModelArguments(string[] args, HashSet<SpectreModelDeviceClass> filters, int totalCount, ref int limit)
+    /* private static void ParseModelArguments(string[] args, HashSet<DeviceClass> filters, int totalCount, ref int limit)
     {
         if (args.Length == 0) return;
         for (var i = 0; i < args.Length; i++)
@@ -1000,24 +1039,24 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     } */
 
-    /* private static bool TryResolveDeviceClass(string token, out SpectreModelDeviceClass deviceClass)
+    /* private static bool TryResolveDeviceClass(string token, out DeviceClass deviceClass)
     {
-        deviceClass = SpectreModelDeviceClass.Unknown;
+        deviceClass = DeviceClass.Unknown;
         if (string.IsNullOrWhiteSpace(token)) return false;
         var normalized = token.Trim().Trim('/').ToLowerInvariant();
         switch (normalized)
         {
-            case "nmos" or "nfet" or "nch": deviceClass = SpectreModelDeviceClass.Nmos; return true;
-            case "pmos" or "pfet" or "pch": deviceClass = SpectreModelDeviceClass.Pmos; return true;
-            case "cap" or "caps" or "capacitor" or "capacitors": deviceClass = SpectreModelDeviceClass.Capacitor; return true;
-            case "res" or "resistor" or "resistors": deviceClass = SpectreModelDeviceClass.Resistor; return true;
-            case "diode" or "diodes": deviceClass = SpectreModelDeviceClass.Diode; return true;
-            case "bjt" or "bipolar": deviceClass = SpectreModelDeviceClass.Bipolar; return true;
-            case "moscap": deviceClass = SpectreModelDeviceClass.Moscap; return true;
-            case "ind" or "inductor" or "inductors": deviceClass = SpectreModelDeviceClass.Inductor; return true;
-            case "tline" or "tl" or "transmissionline": deviceClass = SpectreModelDeviceClass.TransmissionLine; return true;
-            case "other": deviceClass = SpectreModelDeviceClass.Other; return true;
-            case "unknown" or "uncat" or "uncategorized" or "unmatched": deviceClass = SpectreModelDeviceClass.Unknown; return true;
+            case "nmos" or "nfet" or "nch": deviceClass = DeviceClass.Nmos; return true;
+            case "pmos" or "pfet" or "pch": deviceClass = DeviceClass.Pmos; return true;
+            case "cap" or "caps" or "capacitor" or "capacitors": deviceClass = DeviceClass.Capacitor; return true;
+            case "res" or "resistor" or "resistors": deviceClass = DeviceClass.Resistor; return true;
+            case "diode" or "diodes": deviceClass = DeviceClass.Diode; return true;
+            case "bjt" or "bipolar": deviceClass = DeviceClass.Bipolar; return true;
+            case "moscap": deviceClass = DeviceClass.Moscap; return true;
+            case "ind" or "inductor" or "inductors": deviceClass = DeviceClass.Inductor; return true;
+            case "tline" or "tl" or "transmissionline": deviceClass = DeviceClass.TransmissionLine; return true;
+            case "other": deviceClass = DeviceClass.Other; return true;
+            case "unknown" or "uncat" or "uncategorized" or "unmatched": deviceClass = DeviceClass.Unknown; return true;
             default: return false;
         }
     } */

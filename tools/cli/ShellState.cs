@@ -59,6 +59,7 @@ internal sealed class ShellState
     public string? CharBackend { get; private set; }
 
     private int _historyCursor;
+    private bool _hasStreamedOutput;
 
     public void SetWorkspace(string root)
     {
@@ -79,6 +80,7 @@ internal sealed class ShellState
         ResetHistoryCursor();
         LogScrollOffset = 0;
         ShowHome();
+        _hasStreamedOutput = false;
     }
 
     public void UpdatePdkRoot(string? root)
@@ -114,6 +116,18 @@ internal sealed class ShellState
 
         AddMessage($"> {trimmed}");
         AddHistory(trimmed);
+    }
+
+    public bool HasStreamedOutput => _hasStreamedOutput;
+
+    public void MarkStreamedOutput()
+    {
+        _hasStreamedOutput = true;
+    }
+
+    public void ResetStreamedOutput()
+    {
+        _hasStreamedOutput = false;
     }
 
     public void UpdateLogViewport(int viewport)
