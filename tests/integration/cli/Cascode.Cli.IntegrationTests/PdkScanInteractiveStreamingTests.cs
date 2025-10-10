@@ -15,7 +15,7 @@ public sealed class PdkScanInteractiveStreamingTests
         _fixture = fixture;
     }
 
-    [Fact]
+    [Infrastructure.LinuxOnlyFact]
     public async Task PdkScan_InteractiveMode_StreamsProgressDuringScan()
     {
         await using var session = InteractiveCliSession.Start(_fixture.RepoRoot);

@@ -8,7 +8,7 @@ namespace Cascode.Cli.IntegrationTests;
 
 public sealed class PdkScanStreamingTests
 {
-    [Fact]
+    [Infrastructure.LinuxOnlyFact]
     public async Task PdkScan_RunOnce_StreamsLogsImmediately()
     {
         // Arrange: start CLI in run-once mode so logging goes to console immediately
