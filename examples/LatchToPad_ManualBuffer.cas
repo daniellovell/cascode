@@ -13,7 +13,7 @@ class LatchToPad_ManualBuffer {
 
   net COMP_OUT: electrical;
 
-  env { vdd=VDD; load C = 15pF; source Z = 50Ω; }
+  env { vdd=VDD; load C = 15pF; source Z = 50; }
 
   use {
     sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };

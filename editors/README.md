@@ -66,7 +66,6 @@ The TextMate grammar recognizes:
 - **Voltage**: `1.8V`, `0.9*VDD`, `mV`, `µV`
 - **Current**: `1mA`, `500µA`, `nA`
 - **Capacitance**: `15pF`, `2pF`, `nF`
-- **Resistance**: `50Ω`, `20MOhm`, `kΩ`
 - **Time**: `1.2ns`, `300ps`, `1us`
 - **Frequency**: `50MHz`, `100MHz`, `GHz`
 - **Temperature**: `27C`, `125C`, `K`

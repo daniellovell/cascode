@@ -64,7 +64,7 @@ class AmpAuto implements Amplifier {
     vdd = VDD;
     icmr in [0.55V..0.75V];
     load C = CL;           // mandatory bench load
-    source Z = 50Ω;        // mandatory bench source impedance
+    source Z = 50;        // mandatory bench source impedance
   }
 
   spec {
@@ -103,7 +103,7 @@ class OTA5T implements Amplifier {
   env  {
     vdd = VDD;
     load C = 1pF;          // bench load is mandatory via env
-    source Z = 50Ω;
+    source Z = 50;
   }
 
   use {
@@ -136,7 +136,7 @@ class CommonSourceAmp implements Amplifier {
   env  {
     vdd = VDD;
     load C = 1pF;
-    source Z = 50Ω;
+    source Z = 50;
   }
 
   spec { gbw>=50MHz; gain>=40dB; pm>=60deg; power<=5mW; }
@@ -294,7 +294,7 @@ class LatchToPad {
   supply VDD=1.8V; ground GND; port in vip, vin; port out PAD;
   net COMP_OUT: electrical;
 
-  env { vdd=VDD; load C on PAD = 15pF; source Z = 50Ω; }
+  env { vdd=VDD; load C on PAD = 15pF; source Z = 50; }
 
   use {
     sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };

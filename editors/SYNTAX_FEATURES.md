@@ -342,7 +342,7 @@ wrap spice """
 env {
   vdd = VDD;
   load C on PAD = 15pF;      // becomes bench harness
-  source Z = 50Ω;
+  source Z = 50;
   icmr in [0.55V..0.75V];
 }
 ```
