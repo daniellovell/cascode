@@ -26,13 +26,18 @@ public sealed class PdkScanInteractiveStreamingTests
 
         await session.SendLineAsync("pdk scan tests/fixtures/pdk/sky130");
 
-        // Verify that progress messages stream during the scan (allow extra time for slower CI environments)
+        // Verify that progress messages stream during the scan
+        // Use longer timeout in CI (30s) to account for slower/variable performance, shorter in dev (5s) for faster feedback
+        var progressTimeout = Infrastructure.CliIntegrationTestHelper.IsRunningInCi()
+            ? TimeSpan.FromSeconds(30)
+            : TimeSpan.FromSeconds(5);
+
         await session.WaitForOutputAsync(
             output => output.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Inspecting cdsinit", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase),
-            TimeSpan.FromSeconds(15));
+            progressTimeout);
 
         await session.SendControlCAsync();
         await session.WaitForOutputAsync(

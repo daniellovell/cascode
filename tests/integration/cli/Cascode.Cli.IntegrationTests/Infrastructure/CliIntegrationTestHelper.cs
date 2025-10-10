@@ -84,6 +84,17 @@ internal static class CliIntegrationTestHelper
         try { process.Kill(entireProcessTree: true); } catch { }
     }
 
+    internal static bool IsRunningInCi()
+    {
+        // Check common CI environment variables
+        return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")) ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")) ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("JENKINS_HOME")) ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CIRCLECI")) ||
+               !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TRAVIS"));
+    }
+
     private static string? TryGetCliExecutablePath(string repoRoot)
     {
         var configuration = GetBuildConfiguration();
