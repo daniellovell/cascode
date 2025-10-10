@@ -390,32 +390,7 @@ internal sealed class PdkCommandModule : ICommandModule
             {
                 try
                 {
-                    var localResult = _scanner.Scan(targetRoot, logger);
-                    var previousSelection = _state.SelectedDeckIndex;
-                    _state.Scan = localResult;
-                    if (localResult.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
-                    else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < localResult.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
-                    else _state.SelectedDeckIndex = 0;
-
-                    var phys = new PhysicalLibraryScanner().Scan(localResult.Libraries, warnings: null);
-
-                    try
-                    {
-                        var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
-                        if (File.Exists(dbPath)) File.Delete(dbPath);
-                        Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, localResult, phys);
-                        var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, localResult.Models);
-                        Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
-                        var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(localResult.Models);
-                        Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-                        logger.LogInformation("PDK database updated → {Path}", dbPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Failed to update PDK database");
-                    }
-
-                    result = localResult;
+                    result = PerformScanAndUpdateDatabase(targetRoot, logger);
                 }
                 catch (Exception ex)
                 {
@@ -491,35 +466,41 @@ internal sealed class PdkCommandModule : ICommandModule
         }
         else
         {
-            var result = _scanner.Scan(targetRoot, logger);
-            var previousSelection = _state.SelectedDeckIndex;
-            _state.Scan = result;
-            if (result.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
-            else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
-            else _state.SelectedDeckIndex = 0;
-
-            var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
-
-            try
-            {
-                var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
-                if (File.Exists(dbPath)) File.Delete(dbPath);
-                Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
-                var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
-                Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
-                var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
-                Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-                logger.LogInformation("PDK database updated → {Path}", dbPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to update PDK database");
-            }
-
+            var result = PerformScanAndUpdateDatabase(targetRoot, logger);
             logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
             foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
             return CommandResult.Success;
         }
+    }
+
+    private WorkspaceScanResult PerformScanAndUpdateDatabase(string targetRoot, ILogger logger)
+    {
+        var result = _scanner.Scan(targetRoot, logger);
+        var previousSelection = _state.SelectedDeckIndex;
+        _state.Scan = result;
+        if (result.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
+        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
+        else _state.SelectedDeckIndex = 0;
+
+        var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
+
+        try
+        {
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
+            if (File.Exists(dbPath)) File.Delete(dbPath);
+            Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
+            var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
+            Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
+            var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
+            Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
+            logger.LogInformation("PDK database updated → {Path}", dbPath);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to update PDK database");
+        }
+
+        return result;
     }
 
     // No custom renderable needed; we update the Layout panels in-place.
