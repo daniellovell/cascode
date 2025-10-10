@@ -139,10 +139,30 @@ public sealed class PdkDevicesCommandTests
         var executablePath = TryGetCliExecutablePath(repoRoot);
         if (executablePath is not null)
         {
-            startInfo.FileName = executablePath;
-            foreach (var arg in args)
+            // Prefer running the built DLL via 'dotnet <dll>' for cross-platform reliability
+            var tfmDirectory = Path.GetDirectoryName(executablePath)!;
+            var dllPath = Path.Combine(tfmDirectory, "Cascode.Cli.dll");
+            if (File.Exists(dllPath))
             {
-                startInfo.ArgumentList.Add(arg);
+                startInfo.FileName = "dotnet";
+                startInfo.ArgumentList.Add(dllPath);
+                foreach (var arg in args)
+                {
+                    startInfo.ArgumentList.Add(arg);
+                }
+            }
+            else
+            {
+                // Fallback to 'dotnet run' if we cannot locate the DLL alongside the build output
+                startInfo.FileName = "dotnet";
+                startInfo.ArgumentList.Add("run");
+                startInfo.ArgumentList.Add("--project");
+                startInfo.ArgumentList.Add("tools/cli/Cascode.Cli.csproj");
+                startInfo.ArgumentList.Add("--");
+                foreach (var arg in args)
+                {
+                    startInfo.ArgumentList.Add(arg);
+                }
             }
         }
         else
@@ -176,6 +196,7 @@ public sealed class PdkDevicesCommandTests
         {
             configurationPath = Directory
                 .GetDirectories(cliBinRoot)
+                .OrderByDescending(d => d.EndsWith("Release", StringComparison.OrdinalIgnoreCase))
                 .FirstOrDefault();
             if (configurationPath is null)
             {
