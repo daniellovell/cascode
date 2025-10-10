@@ -32,8 +32,6 @@ internal sealed class ShellState
 
     public int? SelectedDeckIndex { get; set; }
 
-    public IReadOnlyList<string> Messages => _messages;
-
     public string[] GetMessagesSnapshot()
     {
         lock (_messagesLock)
@@ -96,7 +94,10 @@ internal sealed class ShellState
 
         Scan = null;
         SelectedDeckIndex = null;
-        _messages.Clear();
+        lock (_messagesLock)
+        {
+            _messages.Clear();
+        }
         _history.Clear();
         ResetHistoryCursor();
         LogScrollOffset = 0;
@@ -173,7 +174,7 @@ internal sealed class ShellState
 
     public void ScrollLogUp(int lines)
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var maxOffset = Math.Max(0, GetMessageCount() - LogViewport);
         if (maxOffset == 0)
         {
             LogScrollOffset = 0;
@@ -185,18 +186,19 @@ internal sealed class ShellState
 
     public void ScrollLogDown(int lines)
     {
-        if (_messages.Count <= LogViewport)
+        var messageCount = GetMessageCount();
+        if (messageCount <= LogViewport)
         {
             LogScrollOffset = 0;
             return;
         }
 
-        LogScrollOffset = Math.Clamp(LogScrollOffset - lines, 0, Math.Max(0, _messages.Count - LogViewport));
+        LogScrollOffset = Math.Clamp(LogScrollOffset - lines, 0, Math.Max(0, messageCount - LogViewport));
     }
 
     public void ScrollLogHome()
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var maxOffset = Math.Max(0, GetMessageCount() - LogViewport);
         LogScrollOffset = maxOffset;
     }
 
@@ -358,11 +360,18 @@ internal sealed class ShellState
 
     private void ClampScrollOffset()
     {
-        var count = 0;
-        lock (_messagesLock) { count = _messages.Count; }
+        var count = GetMessageCount();
         var maxOffset = Math.Max(0, count - LogViewport);
         LogScrollOffset = Math.Clamp(LogScrollOffset, 0, maxOffset);
     }
 
     public void RequestRender() => OnChanged();
+
+    private int GetMessageCount()
+    {
+        lock (_messagesLock)
+        {
+            return _messages.Count;
+        }
+    }
 }

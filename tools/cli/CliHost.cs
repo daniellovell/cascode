@@ -158,7 +158,7 @@ internal sealed class CliHost
             return;
         }
 
-        foreach (var message in _state.Messages)
+        foreach (var message in _state.GetMessagesSnapshot())
         {
             Console.WriteLine(message);
         }
