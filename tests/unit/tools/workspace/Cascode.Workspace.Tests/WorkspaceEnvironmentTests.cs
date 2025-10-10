@@ -53,4 +53,45 @@ public sealed class WorkspaceEnvironmentTests
             Environment.SetEnvironmentVariable(envVarName, null);
         }
     }
+
+    [Fact]
+    public void ParserHandlesEscapedQuotesAndHashInBashrcValues()
+    {
+        var envVarName = $"CASCODE_TEST_{Guid.NewGuid():N}".ToUpperInvariant();
+
+        using var workspace = TemporaryWorkspace.Create();
+
+        Environment.SetEnvironmentVariable(envVarName, null);
+        Assert.Null(Environment.GetEnvironmentVariable(envVarName));
+
+        try
+        {
+            // Create a directory that will be referenced by the environment variable
+            var testDir = workspace.CreateDirectory("test_dir");
+
+            // Test that escaped quotes don't break comment detection
+            // The value contains an escaped quote and a # character, which should NOT be treated as a comment
+            // The actual comment after the closing quote SHOULD be removed
+            var bashrcContent = $"export {envVarName}=\"{testDir}/with/\\\"escaped\\\" and #hash\" # this is a comment{Environment.NewLine}";
+            workspace.WriteFile(".bashrc", bashrcContent);
+
+            // Reference the variable in cds.lib so the parser will load it
+            var includeExpression = $"${{{envVarName}}}/cds.lib";
+            workspace.WriteFile("cds.lib", $"INCLUDE {includeExpression}{Environment.NewLine}");
+
+            var parser = new CdsLibParser();
+            var warnings = new List<string>();
+
+            parser.Parse(workspace.RootPath, warnings);
+
+            var actualValue = Environment.GetEnvironmentVariable(envVarName);
+            Assert.NotNull(actualValue);
+            // After unwrapping quotes and processing escapes, we should get: {testDir}/with/"escaped" and #hash
+            Assert.Equal($"{testDir}/with/\"escaped\" and #hash", actualValue);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVarName, null);
+        }
+    }
 }

@@ -106,28 +106,37 @@ internal sealed class WorkspaceBashEnvironment
         return true;
     }
 
-    private static string RemoveInlineComment(string line)
+    internal static string RemoveInlineComment(string line)
     {
         var builder = new StringBuilder(line.Length);
         var inSingle = false;
         var inDouble = false;
+        var sawBackslash = false;
 
         foreach (var c in line)
         {
-            if (c == '\'' && !inDouble)
+            if (c == '\\' && !sawBackslash)
+            {
+                sawBackslash = true;
+                builder.Append(c);
+                continue;
+            }
+
+            if (c == '\'' && !inDouble && !sawBackslash)
             {
                 inSingle = !inSingle;
             }
-            else if (c == '"' && !inSingle)
+            else if (c == '"' && !inSingle && !sawBackslash)
             {
                 inDouble = !inDouble;
             }
-            else if (c == '#' && !inSingle && !inDouble)
+            else if (c == '#' && !inSingle && !inDouble && !sawBackslash)
             {
                 break;
             }
 
             builder.Append(c);
+            sawBackslash = false;
         }
 
         return builder.ToString();
