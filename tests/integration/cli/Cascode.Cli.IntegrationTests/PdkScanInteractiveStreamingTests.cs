@@ -16,7 +16,7 @@ public sealed class PdkScanInteractiveStreamingTests
     }
 
     [Fact]
-    public async Task PdkScan_InteractiveMode_CurrentlyLacksStreamingProgress()
+    public async Task PdkScan_InteractiveMode_StreamsProgressDuringScan()
     {
         await using var session = InteractiveCliSession.Start(_fixture.RepoRoot);
 
@@ -26,7 +26,7 @@ public sealed class PdkScanInteractiveStreamingTests
 
         await session.SendLineAsync("pdk scan tests/fixtures/pdk/sky130");
 
-        // Expect progress to stream during the scan (after fix, this should pass quickly)
+        // Verify that progress messages stream during the scan
         await session.WaitForOutputAsync(
             output => output.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase) ||
