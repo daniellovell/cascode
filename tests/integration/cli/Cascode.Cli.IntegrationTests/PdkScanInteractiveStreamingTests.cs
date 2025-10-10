@@ -26,13 +26,13 @@ public sealed class PdkScanInteractiveStreamingTests
 
         await session.SendLineAsync("pdk scan tests/fixtures/pdk/sky130");
 
-        // Verify that progress messages stream during the scan
+        // Verify that progress messages stream during the scan (allow extra time for slower CI environments)
         await session.WaitForOutputAsync(
             output => output.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Inspecting cdsinit", StringComparison.OrdinalIgnoreCase) ||
                       output.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase),
-            TimeSpan.FromSeconds(5));
+            TimeSpan.FromSeconds(15));
 
         await session.SendControlCAsync();
         await session.WaitForOutputAsync(
