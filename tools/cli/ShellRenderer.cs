@@ -242,7 +242,7 @@ internal static class ShellRenderer
         return table;
     }
 
-    private static IRenderable BuildNavigator(ShellState state)
+    internal static IRenderable BuildNavigator(ShellState state)
     {
         var tree = new Tree("[yellow]Model Decks[/]");
         var decks = state.Scan?.ModelDecks ?? Array.Empty<ModelDeckRecord>();
@@ -265,7 +265,7 @@ internal static class ShellRenderer
         };
     }
 
-    private static IRenderable BuildDeckDetails(ShellState state)
+    internal static IRenderable BuildDeckDetails(ShellState state)
     {
         var decks = state.Scan?.ModelDecks ?? Array.Empty<ModelDeckRecord>();
         if (decks.Count == 0)
@@ -325,14 +325,15 @@ internal static class ShellRenderer
         };
     }
 
-    private static IRenderable BuildLog(ShellState state)
+    internal static IRenderable BuildLog(ShellState state)
     {
         var visibleLines = GetLogVisibleLines();
         // Reserve one line at the bottom of the panel for a dimmed tooltip
         var messageLines = Math.Max(1, visibleLines - 1);
         state.UpdateLogViewport(messageLines);
 
-        if (state.Messages.Count == 0)
+        var messagesSnapshot = state.GetMessagesSnapshot();
+        if (messagesSnapshot.Length == 0)
         {
             var empty = new Markup("[grey]Log is empty. Commands typed will appear here.[/]");
             var tip = new Align(new Markup("[dim]Shift+↑/↓ scroll the log[/]"), HorizontalAlignment.Left);
@@ -345,9 +346,9 @@ internal static class ShellRenderer
             };
         }
 
-        var maxOffset = Math.Max(0, state.Messages.Count - messageLines);
+        var maxOffset = Math.Max(0, messagesSnapshot.Length - messageLines);
         var offset = Math.Clamp(state.LogScrollOffset, 0, maxOffset);
-        var start = Math.Max(0, state.Messages.Count - messageLines - offset);
+        var start = Math.Max(0, messagesSnapshot.Length - messageLines - offset);
 
         // Calculate available width for the log panel (3/5 of console width, minus borders and padding)
         var consoleWidth = EstimateConsoleWidth();
@@ -355,7 +356,7 @@ internal static class ShellRenderer
         logPanelWidth = Math.Max(40, logPanelWidth); // Minimum width
 
         // Truncate long lines to fit available width (defensively handles very small widths)
-        var truncatedMessages = state.Messages
+        var truncatedMessages = messagesSnapshot
             .Skip(start)
             .Take(messageLines)
             .Select(msg => TruncateToWidth(msg, logPanelWidth));

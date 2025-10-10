@@ -12,9 +12,9 @@ public sealed class PdkScanStreamingTests
     public async Task PdkScan_RunOnce_StreamsLogsImmediately()
     {
         // Arrange: start CLI in run-once mode so logging goes to console immediately
-        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
-        CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
+        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
+        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
 
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
@@ -62,23 +62,23 @@ public sealed class PdkScanStreamingTests
         var completed = await Task.WhenAny(firstProgressTcs.Task, Task.Delay(Timeout.Infinite, streamingTimeout.Token));
         if (completed != firstProgressTcs.Task)
         {
-            CliIntegrationTestHelper.TryKillProcess(process);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
+            await process.WaitForExitAsync();
 
             var combined = string.Join(Environment.NewLine, allStdout);
             throw new TimeoutException($"No streaming progress detected within timeout. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}");
         }
 
         // Clean up: allow the scan to finish, but bound total time to prevent hanging CI
-        using var overallTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        using var overallTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(0.5));
         try
         {
-            await process.WaitForExitAsync(overallTimeout.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(overallTimeout.Token);
         }
         catch (OperationCanceledException)
         {
-            CliIntegrationTestHelper.TryKillProcess(process);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
+            await process.WaitForExitAsync();
             var combined = string.Join(Environment.NewLine, allStdout);
             throw new TimeoutException($"Scan did not complete in time. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}");
         }

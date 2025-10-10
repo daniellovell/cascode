@@ -15,6 +15,7 @@ internal sealed class ShellState
 {
     private const int MaxMessages = 1000;
     private readonly List<string> _messages = new();
+    private readonly object _messagesLock = new();
     private readonly List<string> _history = new();
 
     public ShellState(string workspaceRoot)
@@ -32,6 +33,20 @@ internal sealed class ShellState
     public int? SelectedDeckIndex { get; set; }
 
     public IReadOnlyList<string> Messages => _messages;
+
+    public string[] GetMessagesSnapshot()
+    {
+        lock (_messagesLock)
+        {
+            return _messages.ToArray();
+        }
+    }
+
+    public event Action? Changed;
+    private void OnChanged()
+    {
+        try { Changed?.Invoke(); } catch { /* best-effort */ }
+    }
 
     public int LogViewport { get; private set; } = 10;
 
@@ -90,20 +105,24 @@ internal sealed class ShellState
 
     public void AddMessage(string message)
     {
-        if (_messages.Count >= MaxMessages)
+        lock (_messagesLock)
         {
-            _messages.RemoveAt(0);
+            if (_messages.Count >= MaxMessages)
+            {
+                _messages.RemoveAt(0);
+            }
+
+            _messages.Add(message);
+
+            if (!IsLogPinned)
+            {
+                var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+                LogScrollOffset = Math.Min(LogScrollOffset + 1, maxOffset);
+            }
+
+            ClampScrollOffset();
         }
-
-        _messages.Add(message);
-
-        if (!IsLogPinned)
-        {
-            var maxOffset = Math.Max(0, _messages.Count - LogViewport);
-            LogScrollOffset = Math.Min(LogScrollOffset + 1, maxOffset);
-        }
-
-        ClampScrollOffset();
+        OnChanged();
     }
 
     public void RecordCommand(string command)
@@ -307,7 +326,11 @@ internal sealed class ShellState
 
     private void ClampScrollOffset()
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var count = 0;
+        lock (_messagesLock) { count = _messages.Count; }
+        var maxOffset = Math.Max(0, count - LogViewport);
         LogScrollOffset = Math.Clamp(LogScrollOffset, 0, maxOffset);
     }
+
+    public void RequestRender() => OnChanged();
 }

@@ -375,51 +375,149 @@ internal sealed class PdkCommandModule : ICommandModule
 
         logger.LogInformation("Scanning workspace {Root}", targetRoot);
 
-        var result = _scanner.Scan(targetRoot, logger);
-        var previousSelection = _state.SelectedDeckIndex;
-        _state.Scan = result;
-        if (result.ModelDecks.Count == 0)
+        if (_isInteractive())
         {
-            _state.SelectedDeckIndex = null;
-        }
-        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count)
-        {
-            _state.SelectedDeckIndex = previousSelection;
+            using var renderSignal = new System.Threading.AutoResetEvent(false);
+            void Handler() { try { renderSignal.Set(); } catch { } }
+            _state.Changed += Handler;
+
+            WorkspaceScanResult? result = null;
+            Exception? scanError = null;
+
+            var scanTask = Task.Run(() =>
+            {
+                try
+                {
+                    var localResult = _scanner.Scan(targetRoot, logger);
+                    var previousSelection = _state.SelectedDeckIndex;
+                    _state.Scan = localResult;
+                    if (localResult.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
+                    else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < localResult.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
+                    else _state.SelectedDeckIndex = 0;
+
+                    var phys = new PhysicalLibraryScanner().Scan(localResult.Libraries, warnings: null);
+
+                    try
+                    {
+                        var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
+                        if (File.Exists(dbPath)) File.Delete(dbPath);
+                        Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, localResult, phys);
+                        var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, localResult.Models);
+                        Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
+                        var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(localResult.Models);
+                        Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
+                        logger.LogInformation("PDK database updated → {Path}", dbPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Failed to update PDK database");
+                    }
+
+                    result = localResult;
+                }
+                catch (Exception ex)
+                {
+                    scanError = ex;
+                }
+                finally
+                {
+                    _state.RequestRender();
+                }
+            });
+
+            // Event-driven live rendering
+            try
+            {
+                var layout = ShellRenderer.Build(_state);
+                AnsiConsole.Live(layout)
+                    .AutoClear(false)
+                    .Start(ctx =>
+                {
+                    // Initial content already present in layout
+                    ctx.Refresh();
+                    while (!scanTask.IsCompleted)
+                    {
+                        renderSignal.WaitOne(System.TimeSpan.FromSeconds(2));
+                        // Update panels based on current state
+                        try
+                        {
+                            layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
+                            if (_state.Scan is not null)
+                            {
+                                layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
+                                layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                            }
+                        }
+                        catch { }
+                        ctx.Refresh();
+                    }
+                    // Final update
+                    try
+                    {
+                        layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
+                        if (_state.Scan is not null)
+                        {
+                            layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
+                            layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                        }
+                    }
+                    catch { }
+                    ctx.Refresh();
+                });
+            }
+            finally
+            {
+                _state.Changed -= Handler;
+            }
+
+            if (scanError is not null)
+            {
+                _state.AddMessage($"Scan failed: {scanError.Message}");
+                return CommandResult.Failure;
+            }
+
+            if (result is not null)
+            {
+                logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
+                foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+            }
+
+            return CommandResult.Success;
         }
         else
         {
-            _state.SelectedDeckIndex = 0;
-        }
+            var result = _scanner.Scan(targetRoot, logger);
+            var previousSelection = _state.SelectedDeckIndex;
+            _state.Scan = result;
+            if (result.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
+            else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
+            else _state.SelectedDeckIndex = 0;
 
-        var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
+            var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
 
-        // Write to the PDK SQLite database
-        try
-        {
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
-            // Delete existing database to ensure clean schema (incremental updates deferred to future work)
-            if (File.Exists(dbPath))
+            try
             {
-                File.Delete(dbPath);
+                var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
+                if (File.Exists(dbPath)) File.Delete(dbPath);
+                Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
+                var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
+                Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
+                var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
+                Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
+                logger.LogInformation("PDK database updated → {Path}", dbPath);
             }
-            Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
-            // Device↔Model matches
-            var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
-            Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
-            // Model geometry (best-effort)
-            var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
-            Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-            logger.LogInformation("PDK database updated → {Path}", dbPath);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to update PDK database");
-        }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to update PDK database");
+            }
 
-        logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
-        foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
-        return CommandResult.Success;
+            logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
+            foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+            return CommandResult.Success;
+        }
     }
+
+    // No custom renderable needed; we update the Layout panels in-place.
 
     private static Microsoft.Extensions.Logging.LogLevel ParseLogLevelFromEnv()
     {

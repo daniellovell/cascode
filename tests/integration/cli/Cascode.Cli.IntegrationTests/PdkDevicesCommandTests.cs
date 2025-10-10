@@ -40,9 +40,9 @@ public sealed class PdkDevicesCommandTests
 
     private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, params string[] args)
     {
-        var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
-        CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
+        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
+        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
 
         using var process = new Process { StartInfo = startInfo };
 
@@ -57,27 +57,27 @@ public sealed class PdkDevicesCommandTests
         using var cts = new CancellationTokenSource(timeout);
         try
         {
-            await process.WaitForExitAsync(cts.Token).ConfigureAwait(false);
+            await process.WaitForExitAsync(cts.Token);
         }
         catch (OperationCanceledException)
         {
-            CliIntegrationTestHelper.TryKillProcess(process);
-            await process.WaitForExitAsync().ConfigureAwait(false);
+            Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
+            await process.WaitForExitAsync();
 
-            var timedOutStdout = await stdoutTask.ConfigureAwait(false);
-            var timedOutStderr = await stderrTask.ConfigureAwait(false);
+            var timedOutStdout = await stdoutTask;
+            var timedOutStderr = await stderrTask;
             throw new TimeoutException(
                 $"Command '{commandLine}' timed out after {timeout}. Stdout: {timedOutStdout}{Environment.NewLine}Stderr: {timedOutStderr}");
         }
 
-        var stdout = await stdoutTask.ConfigureAwait(false);
-        var stderr = await stderrTask.ConfigureAwait(false);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
 
         return new ProcessResult(process.ExitCode, stdout, stderr, commandLine);
     }
 
     private static void TryKillProcess(Process process)
-        => CliIntegrationTestHelper.TryKillProcess(process);
+        => Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }

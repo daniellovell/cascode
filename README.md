@@ -187,7 +187,7 @@ class InverterOTA implements Amplifier {
   use {
     inv = new InverterGm(vdd=VDD, gnd=GND);
     inv.in <- vin; inv.out -> vout;
-    fb R(vout -> vin, 20MOhm) { type=Auto; }  // MOS pseudo-res if needed
+    fb R(vout -> vin, 20M) { type=Auto; }  // MOS pseudo-res if needed
     C(vout, GND, 0.5pF);
   }
 
@@ -216,7 +216,7 @@ class SenseChainAuto {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   env {
-    source { Z=10Ohm; range=[0V..1V]; }
+    source { Z=10; range=[0V..1V]; }
     load   { C=5pF; }
   }
 
