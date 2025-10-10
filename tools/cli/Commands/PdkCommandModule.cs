@@ -384,6 +384,8 @@ internal sealed class PdkCommandModule : ICommandModule
             WorkspaceScanResult? result = null;
             Exception? scanError = null;
 
+            _state.StartBusy("Scanning workspace…");
+
             var scanTask = Task.Run(() =>
             {
                 try
@@ -447,6 +449,7 @@ internal sealed class PdkCommandModule : ICommandModule
                                 layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
                                 layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
                             }
+                            layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
                         }
                         catch { }
                         ctx.Refresh();
@@ -460,6 +463,7 @@ internal sealed class PdkCommandModule : ICommandModule
                             layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
                             layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
                         }
+                        layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
                     }
                     catch { }
                     ctx.Refresh();
@@ -468,6 +472,7 @@ internal sealed class PdkCommandModule : ICommandModule
             finally
             {
                 _state.Changed -= Handler;
+                _state.StopBusy();
             }
 
             if (scanError is not null)

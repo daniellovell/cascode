@@ -73,6 +73,12 @@ internal sealed class ShellState
     public string? CharCorner { get; private set; }
     public string? CharBackend { get; private set; }
 
+    // Busy/prompt spinner state
+    public bool IsBusy { get; private set; }
+    public string BusyText { get; private set; } = string.Empty;
+    private static readonly string[] SpinnerFrames = new[] { "⠋", "⠙", "⠸", "⠴", "⠦", "⠇" };
+    private int _spinnerIndex;
+
     private int _historyCursor;
     private bool _hasStreamedOutput;
 
@@ -113,6 +119,11 @@ internal sealed class ShellState
             }
 
             _messages.Add(message);
+
+            if (IsBusy)
+            {
+                _spinnerIndex = (_spinnerIndex + 1) % SpinnerFrames.Length;
+            }
 
             if (!IsLogPinned)
             {
@@ -195,6 +206,27 @@ internal sealed class ShellState
     }
 
     public void PinLog() => LogScrollOffset = 0;
+
+    public void StartBusy(string text)
+    {
+        IsBusy = true;
+        BusyText = text ?? string.Empty;
+        _spinnerIndex = 0;
+        OnChanged();
+    }
+
+    public void StopBusy()
+    {
+        IsBusy = false;
+        BusyText = string.Empty;
+        _spinnerIndex = 0;
+        OnChanged();
+    }
+
+    public string GetSpinnerFrame()
+    {
+        return SpinnerFrames[_spinnerIndex % SpinnerFrames.Length];
+    }
 
     public void ShowHome()
     {

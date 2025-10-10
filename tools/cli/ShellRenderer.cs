@@ -56,8 +56,8 @@ internal static class ShellRenderer
         layout["Content"]["Sidebar"]["Navigator"].Update(BuildNavigator(state));
         layout["Content"]["Sidebar"]["Details"].Update(BuildDeckDetails(state));
 
-        // Keep the spacer visually empty; the prompt will be rendered on this line.
-        layout["PromptSpacer"].Update(new Markup(string.Empty));
+        // Render the prompt (normal or busy)
+        layout["PromptSpacer"].Update(BuildPrompt(state));
 
         return layout;
     }
@@ -104,7 +104,7 @@ internal static class ShellRenderer
         var contentRows = new Rows(BuildSummaryPanel(summary), BuildSummaryTip(summary));
         layout["MainRows"]["Content"].Update(contentRows);
 
-        layout["PromptSpacer"].Update(new Markup(string.Empty));
+        layout["PromptSpacer"].Update(BuildPrompt(state));
 
         return layout;
     }
@@ -447,5 +447,19 @@ internal static class ShellRenderer
 
         var profileWidth = AnsiConsole.Profile.Width;
         return profileWidth > 0 ? profileWidth : 80;
+    }
+
+    internal static IRenderable BuildPrompt(ShellState state)
+    {
+        if (state.IsBusy)
+        {
+            var spinner = Markup.Escape(state.GetSpinnerFrame());
+            var text = $"[grey]cascode[/]> [dim]{Escape(state.BusyText)}[/] {spinner}";
+            return new Markup(text);
+        }
+        else
+        {
+            return new Markup("[green]cascode[/]> ");
+        }
     }
 }
