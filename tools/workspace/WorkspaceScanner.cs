@@ -41,10 +41,6 @@ public sealed class WorkspaceScanner
                 if (deckSet.Add(path))
                 {
                     deckPaths.Add(path);
-                }
-                if (deckSet.Add(path))
-                {
-                    deckPaths.Add(path);
                     logger?.LogInformation("Discovered model deck: {Path}", path);
                 }
             }
