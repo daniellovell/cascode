@@ -26,10 +26,23 @@ internal static class CliIntegrationTestHelper
     internal static CliCommandSpec BuildCliCommand(string repoRoot, IReadOnlyList<string> args)
     {
         var executablePath = TryGetCliExecutablePath(repoRoot);
-        if (executablePath is not null) return new CliCommandSpec(executablePath, args);
-        var combined = new List<string> { "run", "--project", "tools/cli/Cascode.Cli.csproj", "--" };
-        combined.AddRange(args);
-        return new CliCommandSpec("dotnet", combined);
+        if (executablePath is not null)
+        {
+            // Prefer running the built DLL via 'dotnet <dll>' for cross-platform reliability
+            var tfmDirectory = Path.GetDirectoryName(executablePath)!;
+            var dllPath = Path.Combine(tfmDirectory, "Cascode.Cli.dll");
+            if (File.Exists(dllPath))
+            {
+                var combined = new List<string> { dllPath };
+                combined.AddRange(args);
+                return new CliCommandSpec("dotnet", combined);
+            }
+        }
+
+        // Fallback to 'dotnet run' if we cannot locate the DLL alongside the build output
+        var fallbackArgs = new List<string> { "run", "--project", "tools/cli/Cascode.Cli.csproj", "--" };
+        fallbackArgs.AddRange(args);
+        return new CliCommandSpec("dotnet", fallbackArgs);
     }
 
     internal static ProcessStartInfo CreateCliStartInfo(string repoRoot, IReadOnlyList<string> args, out string commandLine)
