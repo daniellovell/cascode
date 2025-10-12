@@ -426,7 +426,10 @@ internal sealed class PdkCommandModule : ICommandModule
                             }
                             layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
+                        }
                         ctx.Refresh();
                     }
                     // Final update
@@ -440,7 +443,10 @@ internal sealed class PdkCommandModule : ICommandModule
                         }
                         layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
+                    }
                     ctx.Refresh();
                 });
             }
