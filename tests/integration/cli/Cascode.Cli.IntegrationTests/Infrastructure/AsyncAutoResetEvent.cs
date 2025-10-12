@@ -14,6 +14,11 @@ internal sealed class AsyncAutoResetEvent
     {
         lock (_waiters)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromCanceled(cancellationToken);
+            }
+
             if (_signaled)
             {
                 _signaled = false;
@@ -39,18 +44,29 @@ internal sealed class AsyncAutoResetEvent
     {
         TaskCompletionSource? toRelease = null;
 
-        lock (_waiters)
+        while (true)
         {
-            if (_waiters.Count > 0)
+            lock (_waiters)
             {
+                if (_waiters.Count == 0)
+                {
+                    if (!_signaled)
+                    {
+                        _signaled = true;
+                    }
+                    return;
+                }
+
                 toRelease = _waiters.Dequeue();
             }
-            else if (!_signaled)
-            {
-                _signaled = true;
-            }
-        }
 
-        toRelease?.TrySetResult();
+            if (toRelease.TrySetResult())
+            {
+                return;
+            }
+
+            // canceled or already-completed waiter; loop to release the next queued waiter
+            toRelease = null;
+        }
     }
 }
