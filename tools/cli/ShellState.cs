@@ -134,11 +134,6 @@ internal sealed class ShellState
 
             _messages.Add(message);
 
-            if (IsBusy)
-            {
-                _spinnerIndex = (_spinnerIndex + 1) % SpinnerFrames.Length;
-            }
-
             if (!IsLogPinned)
             {
                 var maxOffset = Math.Max(0, _messages.Count - LogViewport);
@@ -241,6 +236,14 @@ internal sealed class ShellState
     public string GetSpinnerFrame()
     {
         return SpinnerFrames[_spinnerIndex % SpinnerFrames.Length];
+    }
+
+    // Advance the spinner independently of log writes while busy.
+    public void TickSpinner()
+    {
+        if (!IsBusy) return;
+        _spinnerIndex = (_spinnerIndex + 1) % SpinnerFrames.Length;
+        // No OnChanged() here: the interactive loop refreshes on a timer.
     }
 
     public void ShowHome()

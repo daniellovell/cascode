@@ -414,7 +414,9 @@ internal sealed class PdkCommandModule : ICommandModule
                     ctx.Refresh();
                     while (!scanTask.IsCompleted)
                     {
-                        renderSignal.WaitOne(System.TimeSpan.FromSeconds(2));
+                        // Refresh on either an event (new logs/state) or timeout tick for spinner
+                        renderSignal.WaitOne(System.TimeSpan.FromMilliseconds(100));
+                        _state.TickSpinner();
                         // Update panels based on current state
                         try
                         {
@@ -481,6 +483,9 @@ internal sealed class PdkCommandModule : ICommandModule
 
     private WorkspaceScanResult PerformScanAndUpdateDatabase(string targetRoot, ILogger logger)
     {
+        var overall = System.Diagnostics.Stopwatch.StartNew();
+
+        // Workspace scan (already logs internally)
         var result = _scanner.Scan(targetRoot, logger);
         var previousSelection = _state.SelectedDeckIndex;
         _state.Scan = result;
@@ -488,18 +493,43 @@ internal sealed class PdkCommandModule : ICommandModule
         else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
         else _state.SelectedDeckIndex = 0;
 
+        // Stage 1: Physical libraries → devices
+        logger.LogInformation("Scanning physical libraries for devices (libraries={Libraries})…", result.Libraries.Count);
+        var swPhys = System.Diagnostics.Stopwatch.StartNew();
         var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
+        swPhys.Stop();
+        logger.LogInformation("Physical scan complete: {Devices} devices across {Libraries} libraries in {ElapsedMs} ms.", phys.Count, result.Libraries.Count, swPhys.ElapsedMilliseconds);
 
         try
         {
             var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
             if (File.Exists(dbPath)) File.Delete(dbPath);
+
+            // Stage 2: Initial DB write
+            logger.LogInformation("Writing PDK database (libraries/models/devices) → {Path}…", dbPath);
+            var swDb = System.Diagnostics.Stopwatch.StartNew();
             Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
+            swDb.Stop();
+            logger.LogInformation("Initial DB write complete in {ElapsedMs} ms.", swDb.ElapsedMilliseconds);
+
+            // Stage 3: Device↔Model matching
+            logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
+            var swMatch = System.Diagnostics.Stopwatch.StartNew();
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
             Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
+            swMatch.Stop();
+            logger.LogInformation("Matching complete: {Matches} associations in {ElapsedMs} ms.", matches.Count, swMatch.ElapsedMilliseconds);
+
+            // Stage 4: Geometry extraction
+            logger.LogInformation("Extracting model geometry from sources ({Models})…", result.Models.Count);
+            var swGeom = System.Diagnostics.Stopwatch.StartNew();
             var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
             Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-            logger.LogInformation("PDK database updated → {Path}", dbPath);
+            swGeom.Stop();
+            logger.LogInformation("Geometry extraction complete for {Count} models in {ElapsedMs} ms.", geom.Count, swGeom.ElapsedMilliseconds);
+
+            overall.Stop();
+            logger.LogInformation("PDK database updated → {Path} (total {ElapsedMs} ms).", dbPath, overall.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
