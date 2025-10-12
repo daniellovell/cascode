@@ -375,38 +375,128 @@ internal sealed class PdkCommandModule : ICommandModule
 
         logger.LogInformation("Scanning workspace {Root}", targetRoot);
 
-        var result = _scanner.Scan(targetRoot, logger);
-        var previousSelection = _state.SelectedDeckIndex;
-        _state.Scan = result;
-        if (result.ModelDecks.Count == 0)
+        if (_isInteractive())
         {
-            _state.SelectedDeckIndex = null;
-        }
-        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count)
-        {
-            _state.SelectedDeckIndex = previousSelection;
+            using var renderSignal = new System.Threading.AutoResetEvent(false);
+            void Handler() { try { renderSignal.Set(); } catch { } }
+            _state.Changed += Handler;
+
+            WorkspaceScanResult? result = null;
+            Exception? scanError = null;
+
+            _state.StartBusy("Scanning workspace…");
+
+            var scanTask = Task.Run(() =>
+            {
+                try
+                {
+                    result = PerformScanAndUpdateDatabase(targetRoot, logger);
+                }
+                catch (Exception ex)
+                {
+                    scanError = ex;
+                }
+                finally
+                {
+                    _state.RequestRender();
+                }
+            });
+
+            // Event-driven live rendering
+            try
+            {
+                var layout = ShellRenderer.Build(_state);
+                AnsiConsole.Live(layout)
+                    .AutoClear(false)
+                    .Start(ctx =>
+                {
+                    // Initial content already present in layout
+                    ctx.Refresh();
+                    while (!scanTask.IsCompleted)
+                    {
+                        renderSignal.WaitOne(System.TimeSpan.FromSeconds(2));
+                        // Update panels based on current state
+                        try
+                        {
+                            layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
+                            if (_state.Scan is not null)
+                            {
+                                layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
+                                layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                            }
+                            layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
+                        }
+                        catch (Exception ex)
+                        {
+                            logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
+                        }
+                        ctx.Refresh();
+                    }
+                    // Final update
+                    try
+                    {
+                        layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
+                        if (_state.Scan is not null)
+                        {
+                            layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
+                            layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                        }
+                        layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
+                    }
+                    ctx.Refresh();
+                });
+            }
+            finally
+            {
+                _state.Changed -= Handler;
+                _state.StopBusy();
+            }
+
+            if (scanError is not null)
+            {
+                _state.AddMessage($"Scan failed: {scanError.Message}");
+                return CommandResult.Failure;
+            }
+
+            if (result is not null)
+            {
+                logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
+                foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+            }
+
+            return CommandResult.Success;
         }
         else
         {
-            _state.SelectedDeckIndex = 0;
+            var result = PerformScanAndUpdateDatabase(targetRoot, logger);
+            logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
+            foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+            return CommandResult.Success;
         }
+    }
+
+    private WorkspaceScanResult PerformScanAndUpdateDatabase(string targetRoot, ILogger logger)
+    {
+        var result = _scanner.Scan(targetRoot, logger);
+        var previousSelection = _state.SelectedDeckIndex;
+        _state.Scan = result;
+        if (result.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
+        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
+        else _state.SelectedDeckIndex = 0;
 
         var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null);
 
-        // Write to the PDK SQLite database
         try
         {
             var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
-            // Delete existing database to ensure clean schema (incremental updates deferred to future work)
-            if (File.Exists(dbPath))
-            {
-                File.Delete(dbPath);
-            }
+            if (File.Exists(dbPath)) File.Delete(dbPath);
             Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys);
-            // Device↔Model matches
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
             Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches);
-            // Model geometry (best-effort)
             var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
             Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
             logger.LogInformation("PDK database updated → {Path}", dbPath);
@@ -416,10 +506,10 @@ internal sealed class PdkCommandModule : ICommandModule
             logger.LogError(ex, "Failed to update PDK database");
         }
 
-        logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
-        foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
-        return CommandResult.Success;
+        return result;
     }
+
+    // No custom renderable needed; we update the Layout panels in-place.
 
     private static Microsoft.Extensions.Logging.LogLevel ParseLogLevelFromEnv()
     {
