@@ -26,23 +26,50 @@ public sealed class PdkScanInteractiveStreamingTests
 
         await session.SendLineAsync("pdk scan tests/fixtures/pdk/sky130");
 
-        // Verify that progress messages stream during the scan
-        // Use longer timeout in CI (30s) to account for slower/variable performance, shorter in dev (5s) for faster feedback
-        var progressTimeout = Infrastructure.CliIntegrationTestHelper.IsRunningInCi()
-            ? TimeSpan.FromSeconds(30)
-            : TimeSpan.FromSeconds(5);
+        // Verify that progress messages stream incrementally by polling
+        // Count lines appearing over time to prove output isn't buffered until completion
+        var lineCountSnapshots = new System.Collections.Generic.List<int>();
+        var pollInterval = TimeSpan.FromMilliseconds(200);
+        var maxPolls = 50; // 50 * 200ms = 10 seconds max
 
-        await session.WaitForOutputAsync(
-            output => output.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase) ||
-                      output.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase) ||
-                      output.Contains("Inspecting cdsinit", StringComparison.OrdinalIgnoreCase) ||
-                      output.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase),
-            progressTimeout);
+        for (int i = 0; i < maxPolls; i++)
+        {
+            await Task.Delay(pollInterval);
+            var output = session.CapturedOutput;
+            var lineCount = output.Split('\n').Length;
+            lineCountSnapshots.Add(lineCount);
 
-        await session.SendControlCAsync();
+            // If we see completion message, we're done polling
+            if (output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase) ||
+                output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+        }
+
+        // Verify that line count increased over multiple polls (proving incremental streaming)
+        var increasingPolls = 0;
+        for (int i = 1; i < lineCountSnapshots.Count; i++)
+        {
+            if (lineCountSnapshots[i] > lineCountSnapshots[i - 1])
+            {
+                increasingPolls++;
+            }
+        }
+
+        Assert.True(increasingPolls >= 2,
+            $"Expected line count to increase in at least 2 polls (incremental streaming), but only increased {increasingPolls} times. " +
+            $"Line counts: [{string.Join(", ", lineCountSnapshots)}]");
+
+        // Wait for scan to complete with generous timeout for CI
         await session.WaitForOutputAsync(
-            output => output.Contains("cascode", StringComparison.OrdinalIgnoreCase) && (output.Contains("/>") || output.Contains("> ")),
-            TimeSpan.FromSeconds(10));
+            output => output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase) ||
+                      output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase),
+            TimeSpan.FromMinutes(2));
+
+        // Verify expected progress messages appeared
+        var finalOutput = session.CapturedOutput;
+        Assert.Contains("Scanning workspace", finalOutput, StringComparison.OrdinalIgnoreCase);
 
         await session.SendLineAsync("exit");
         await session.WaitForExitAsync(TimeSpan.FromSeconds(10));
