@@ -43,7 +43,20 @@ internal sealed class ShellState
     public event Action? Changed;
     private void OnChanged()
     {
-        try { Changed?.Invoke(); } catch { /* best-effort */ }
+        // Notify subscribers best-effort. Today we expect at most one subscriber
+        // (the interactive renderer). Guard in debug and isolate each handler.
+        var handlers = Changed;
+        if (handlers is null) return;
+
+        System.Diagnostics.Debug.Assert(
+            handlers.GetInvocationList().Length <= 1,
+            "ShellState.Changed should have at most one subscriber.");
+
+        foreach (Action h in handlers.GetInvocationList())
+        {
+            try { h(); }
+            catch { /* best-effort: keep notifying others */ }
+        }
     }
 
     public int LogViewport { get; private set; } = 10;
