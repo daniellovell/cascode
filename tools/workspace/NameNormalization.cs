@@ -15,18 +15,9 @@ internal static class NameNormalization
     /// </summary>
     /// <param name="name">The device or cell name to classify. If null or whitespace, classification is <see cref="DeviceClass.Unknown"/>.</param>
     /// <returns>
-    /// <see cref="DeviceClass.Stdcell"/> if the name matches standard-cell patterns; 
-    /// <see cref="DeviceClass.Nmos"/> if it indicates an NMOS/NFET; 
-    /// <see cref="DeviceClass.Pmos"/> if it indicates a PMOS/PFET; 
-    /// <see cref="DeviceClass.Bipolar"/> for bipolar transistors (e.g., NPN/PNP); 
-    /// <see cref="DeviceClass.Diode"/> for diodes; 
-    /// <see cref="DeviceClass.Resistor"/> for resistors; 
-    /// <see cref="DeviceClass.Capacitor"/> for capacitors; 
-    /// <see cref="DeviceClass.Inductor"/> for inductors; 
-    /// <see cref="DeviceClass.TransmissionLine"/> for transmission lines; 
-    /// <see cref="DeviceClass.Moscap"/> for MOS capacitors; 
-    /// <see cref="DeviceClass.Other"/> if no specific category matches; 
-    /// <see cref="DeviceClass.Unknown"/> when the input is null or whitespace.
+    /// The inferred <see cref="DeviceClass"/> based on common naming patterns for
+    /// standard cells and primitive devices. Returns <see cref="DeviceClass.Unknown"/>
+    /// when the input is null or whitespace.
     /// </returns>
     public static DeviceClass ClassifyByName(string name)
     {
@@ -54,7 +45,10 @@ internal static class NameNormalization
     /// Determines whether the provided lowercase device name appears to be a standard cell based on common name prefixes.
     /// </summary>
     /// <param name="lower">The device name already converted to lowercase.</param>
-    /// <returns>`true` if the name starts with a common standard-cell prefix (for example: "inv", "buf", "nand", "nor", "and", "or", "xor", "xnor", "mux", "demux", "dff", "ff", "latch", "add", "nd", or "nr"); `false` otherwise.</returns>
+    /// <returns>
+    /// `true` if the name starts with a recognizable standard-cell prefix (for
+    /// example, logic gates or flip-flops); `false` otherwise.
+    /// </returns>
     private static bool LooksLikeStdcell(string lower)
     {
         // Common standard cell prefixes
