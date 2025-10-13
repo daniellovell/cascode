@@ -4,10 +4,7 @@ namespace Cascode.Workspace;
 
 /// <summary>
 /// Single, centralized location for the default PDK device↔model matching patterns.
-///
-/// The content is JSON that is also valid YAML (YAML 1.2 is a superset of JSON).
-/// Keeping it in JSON lets us parse it with System.Text.Json without adding
-/// external YAML dependencies to the workspace layer.
+/// These defaults are materialized into `pdk-matching-patterns.yml` when the workspace is initialized.
 /// </summary>
 internal static class DefaultPdkMatchingPatterns
 {

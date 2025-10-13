@@ -95,9 +95,9 @@ public sealed class PdkInteractivePersistenceTests
             // Workspace bar should show persisted path now (best-effort; TTY capture can be flaky)
             try
             {
-            await session2.WaitForOutputAsync(
-                output => output.Contains("Workspace", StringComparison.OrdinalIgnoreCase) && output.Contains(Path.GetFileName(workspaceAbs), StringComparison.OrdinalIgnoreCase),
-                TimeSpan.FromSeconds(10));
+                await session2.WaitForOutputAsync(
+                    output => output.Contains("Workspace", StringComparison.OrdinalIgnoreCase) && output.Contains(Path.GetFileName(workspaceAbs), StringComparison.OrdinalIgnoreCase),
+                    TimeSpan.FromSeconds(10));
             }
             catch (TimeoutException)
             {
