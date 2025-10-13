@@ -71,4 +71,52 @@ public sealed class PdkMatchingConfigTests
         Assert.NotEmpty(matches);
         Assert.Contains(matches, m => m.DeviceCanonicalName == devices[0].CanonicalName && m.ModelName == models[0].Name);
     }
+
+    [Fact]
+    public void DeviceModelMatcher_MatchesUsingUnpaddedVddTokens()
+    {
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-matchingcfg-vddtokens");
+        Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
+        var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
+        var defaults = Cascode.Workspace.DefaultPdkMatchingPatterns.RenderYaml(Cascode.Workspace.DefaultPdkMatchingPatterns.Build());
+        File.WriteAllText(cfgPath, defaults);
+        Cascode.Workspace.PdkMatchingConfigManager.InvalidateCache();
+
+        var devices = new[]
+        {
+            new Cascode.Workspace.Device
+            {
+                LibraryName = "lib",
+                LibraryPath = "/tmp/lib",
+                CellName = "nfet_03v3_lvt",
+                CellPath = "/tmp/lib/nfet_03v3_lvt",
+                Class = Cascode.Workspace.DeviceClass.Nmos,
+                HasLayout = true,
+                HasSymbol = true,
+                Views = new [] { "layout", "symbol" },
+                VtTags = new [] { "LVT" },
+                VddTags = new [] { "3v3" },
+                Tags = Array.Empty<string>()
+            }
+        };
+
+        var models = new[]
+        {
+            new Cascode.Workspace.SpectreModel(
+                name: "nfet_03v3__model",
+                modelType: "model",
+                deviceClass: Cascode.Workspace.DeviceClass.Nmos,
+                voltageDomain: "3.3V",
+                thresholdFlavor: "LVT",
+                corners: Array.Empty<string>(),
+                cornerDetails: Array.Empty<string>(),
+                sections: Array.Empty<string>(),
+                sourceFiles: Array.Empty<string>(),
+                decks: Array.Empty<string>())
+        };
+
+        var matches = Cascode.Workspace.DeviceModelMatcher.Match(devices, models);
+        Assert.NotEmpty(matches);
+        Assert.Contains(matches, m => m.DeviceCanonicalName == devices[0].CanonicalName && m.ModelName == models[0].Name);
+    }
 }

@@ -191,7 +191,7 @@ public static class DeviceModelMatcher
         if (!m.Success) return lower;
         var n = m.Groups["n"].Value;
         var f = m.Groups["f"].Success ? m.Groups["f"].Value : "0";
-        return $"{n.PadLeft(2, '0')}v{f}";
+        return $"{n}v{f}";
     }
 
     private static void Add(Dictionary<string, List<ModelRef>> map, string key, ModelRef value)
