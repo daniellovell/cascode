@@ -24,11 +24,11 @@ public sealed class ModelContext : IEquatable<ModelContext>
     }
 
     /// <summary>
-/// Determines whether the specified object is equal to the current ModelContext instance.
-/// </summary>
-/// <param name="obj">The object to compare with the current instance.</param>
-/// <returns>`true` if <paramref name="obj"/> is a ModelContext whose values match this instance; `false` otherwise.</returns>
-public override bool Equals(object? obj) => Equals(obj as ModelContext);
+    /// Determines whether the specified object is equal to the current <see cref="ModelContext"/> instance.
+    /// </summary>
+    /// <param name="obj">The object to compare with the current instance.</param>
+    /// <returns>`true` if <paramref name="obj"/> is a <see cref="ModelContext"/> whose values match this instance; `false` otherwise.</returns>
+    public override bool Equals(object? obj) => Equals(obj as ModelContext);
 
     /// <summary>
     /// Computes a hash code that represents this ModelContext's value identity.

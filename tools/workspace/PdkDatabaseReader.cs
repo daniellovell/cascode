@@ -149,8 +149,6 @@ public static class PdkDatabaseReader
 
         return models.Select(m => m.Model).ToArray();
     }
-
-    // Efficient, server-side filtered device listing for TUI screens.
     /// <summary>
     /// Load a paginated list of devices with aggregated view names, optionally filtered by device class.
     /// </summary>
@@ -204,8 +202,6 @@ public static class PdkDatabaseReader
         }
         return list;
     }
-
-    // Return include candidates (deck paths) for a model, ordered by preference.
     /// <summary>
     /// Get the include/deck file paths associated with a model, ordered by preference.
     /// </summary>
