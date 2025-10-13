@@ -17,6 +17,19 @@ public sealed class SpectreModel
         Decks = EmptyStringList;
     }
 
+    /// <summary>
+    /// Initializes a SpectreModel with the provided property values.
+    /// </summary>
+    /// <param name="name">Model name.</param>
+    /// <param name="modelType">Model type identifier.</param>
+    /// <param name="deviceClass">Device class.</param>
+    /// <param name="voltageDomain">Optional voltage domain identifier.</param>
+    /// <param name="thresholdFlavor">Optional threshold flavor identifier.</param>
+    /// <param name="corners">List of corner names; if null, an empty list is used.</param>
+    /// <param name="cornerDetails">List of corner detail strings; if null, an empty list is used.</param>
+    /// <param name="sections">List of section names; if null, an empty list is used.</param>
+    /// <param name="sourceFiles">List of source file names; if null, an empty list is used.</param>
+    /// <param name="decks">List of deck names; if null, an empty list is used.</param>
     public SpectreModel(
         string name,
         string modelType,

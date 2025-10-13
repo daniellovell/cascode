@@ -86,6 +86,10 @@ public sealed class WorkspaceScanner
 
         public string Name { get; }
 
+        /// <summary>
+        /// Accumulates attributes from the provided SpectreModel into this aggregator.
+        /// </summary>
+        /// <param name="model">The model whose non-empty scalar attributes and collection elements will be merged into the aggregator.</param>
         public void Add(SpectreModel model)
         {
             if (!string.IsNullOrWhiteSpace(model.ModelType))

@@ -10,6 +10,11 @@ public static class PdkDatabaseReader
 {
     private static IReadOnlyList<string> SplitCsv(string? csv)
         => string.IsNullOrWhiteSpace(csv) ? Array.Empty<string>() : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    /// <summary>
+    /// Load device metadata from the specified PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the read-only PDK SQLite database file.</param>
+    /// <returns>An IReadOnlyList of Device objects representing devices found in the database (empty if none).</returns>
     public static IReadOnlyList<Device> LoadDevices(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -46,6 +51,11 @@ public static class PdkDatabaseReader
         }
         return devices;
     }
+    /// <summary>
+    /// Loads Spectre models and their associated metadata from the specified PDK database.
+    /// </summary>
+    /// <param name="dbPath">File path to the PDK SQLite database.</param>
+    /// <returns>An array of SpectreModel instances populated with name, type, device class, voltage domain, threshold flavor and associated source files, decks, corners, corner details, and sections. Models are returned ordered by name.</returns>
     public static IReadOnlyList<SpectreModel> LoadModels(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -214,6 +224,11 @@ public static class PdkDatabaseReader
 
     public sealed record MatchCoverageByClass(string Class, int Total, int Matched, int Ambiguous, int Unmatched);
 
+    /// <summary>
+    /// Retrieves per-device-class match coverage summaries from the PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the read-only PDK SQLite database.</param>
+    /// <returns>An ordered list of match coverage summaries, one entry per device class, containing total devices, matched count, ambiguous count, and unmatched count.</returns>
     public static IReadOnlyList<MatchCoverageByClass> GetMatchCoverageByClass(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);

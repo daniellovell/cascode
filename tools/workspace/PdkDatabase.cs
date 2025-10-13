@@ -56,6 +56,13 @@ public sealed class PdkDatabase : IDisposable
         CreateSchema();
     }
 
+    /// <summary>
+    /// Ensures the database schema exists by creating all required tables and constraints if they are missing.
+    /// </summary>
+    /// <remarks>
+    /// Executes the DDL statements inside a transaction so the schema creation is applied atomically.
+    /// This method is idempotent and safe to call on an existing schema.
+    /// </remarks>
     private void CreateSchema()
     {
         using var tx = _conn.BeginTransaction();

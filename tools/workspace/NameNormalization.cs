@@ -10,6 +10,15 @@ internal static class NameNormalization
     private static readonly string[] VtTokens = { "ulvt", "llvt", "slvt", "lvt", "rvt", "svt", "nvt", "hvt", "mvt" };
     private static readonly string[] InfraTokens = { "tap", "subtap", "nwelltap", "diffconn", "polyconn", "via", "vias", "customvias" };
 
+    /// <summary>
+    /// Classifies a component or cell name into a DeviceClass category.
+    /// </summary>
+    /// <param name="name">The device or cell name to classify. If null or whitespace, classification is <see cref="DeviceClass.Unknown"/>.</param>
+    /// <returns>
+    /// The inferred <see cref="DeviceClass"/> based on common naming patterns for
+    /// standard cells and primitive devices. Returns <see cref="DeviceClass.Unknown"/>
+    /// when the input is null or whitespace.
+    /// </returns>
     public static DeviceClass ClassifyByName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return DeviceClass.Unknown;
@@ -32,6 +41,14 @@ internal static class NameNormalization
         return DeviceClass.Other;
     }
 
+    /// <summary>
+    /// Determines whether the provided lowercase device name appears to be a standard cell based on common name prefixes.
+    /// </summary>
+    /// <param name="lower">The device name already converted to lowercase.</param>
+    /// <returns>
+    /// `true` if the name starts with a recognizable standard-cell prefix (for
+    /// example, logic gates or flip-flops); `false` otherwise.
+    /// </returns>
     private static bool LooksLikeStdcell(string lower)
     {
         // Common standard cell prefixes
@@ -53,6 +70,12 @@ internal static class NameNormalization
                lower.StartsWith("nr");   // NOR abbreviation
     }
 
+    /// <summary>
+    /// Determines the device subclass for a given component or cell name.
+    /// </summary>
+    /// <param name="name">The component or cell name to classify.</param>
+    /// <returns>The detected DeviceSubclass (for example Inverter, Nand, MIMCAP), or DeviceSubclass.Unknown if no subclass matches.</returns>
+    /// <remarks>Matching is case-insensitive and uses known prefixes for standard-cell subclasses and substring checks for capacitor and resistor subclasses.</remarks>
     public static DeviceSubclass ClassifySubclass(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return DeviceSubclass.Unknown;
@@ -88,6 +111,11 @@ internal static class NameNormalization
         return DeviceSubclass.Unknown;
     }
 
+    /// <summary>
+    /// Extracts voltage/threshold (VT) variant tags from a device name.
+    /// </summary>
+    /// <param name="name">The device name to inspect for VT tokens.</param>
+    /// <returns>An uppercased list of VT tags found in the name; if no tags are detected, returns a list containing "SVT".</returns>
     public static IReadOnlyList<string> ExtractVtTags(string name)
     {
         var lower = name.ToLowerInvariant();
