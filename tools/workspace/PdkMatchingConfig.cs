@@ -53,6 +53,20 @@ public sealed class PdkMatchingConfig
 /// </summary>
 public static class PdkMatchingConfigManager
 {
+    private static readonly object s_cacheLock = new();
+    private static PdkMatchingConfig? s_cachedConfig;
+    private static string? s_cachedPath;
+    private static DateTime s_cachedMtimeUtc;
+
+    public static void InvalidateCache()
+    {
+        lock (s_cacheLock)
+        {
+            s_cachedConfig = null;
+            s_cachedPath = null;
+            s_cachedMtimeUtc = DateTime.MinValue;
+        }
+    }
     /// <summary>Returns CASCODE_HOME root folder, honoring the environment override.</summary>
     public static string GetCascodeHome()
     {
@@ -97,12 +111,29 @@ public static class PdkMatchingConfigManager
         {
             var path = GetConfigFilePath();
             if (!File.Exists(path)) EnsureInitialized();
+
+            var mtimeUtc = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+            lock (s_cacheLock)
+            {
+                if (s_cachedConfig is not null && string.Equals(s_cachedPath, path, StringComparison.Ordinal) && s_cachedMtimeUtc == mtimeUtc)
+                {
+                    return s_cachedConfig;
+                }
+            }
+
             var text = File.ReadAllText(path);
             var cfg = DeserializeYaml(text);
             if (cfg is null || cfg.Classify is null || (cfg.Classify.Classes.Count == 0 && cfg.Classify.Subclasses.Count == 0))
             {
                 // Migrate legacy configs (pre-classify) to default patterns
-                return DeserializeDefaults();
+                cfg = DeserializeDefaults();
+            }
+
+            lock (s_cacheLock)
+            {
+                s_cachedConfig = cfg;
+                s_cachedPath = path;
+                s_cachedMtimeUtc = mtimeUtc;
             }
             return cfg;
         }
