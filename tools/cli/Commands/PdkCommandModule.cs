@@ -513,6 +513,14 @@ internal sealed class PdkCommandModule : ICommandModule
             logger.LogInformation("Initial DB write complete in {ElapsedMs} ms.", swDb.ElapsedMilliseconds);
 
             // Stage 3: Device↔Model matching
+            // Ensure PDK matching patterns are initialized in CASCODE_HOME
+            var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
+            var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
+            if (created)
+                logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+            else
+                logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+
             logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
             var swMatch = System.Diagnostics.Stopwatch.StartNew();
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);

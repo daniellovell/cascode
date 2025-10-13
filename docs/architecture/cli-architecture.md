@@ -45,6 +45,11 @@ Determinism & config
 - Honor `CASCODE_SEED` for any randomized sampling.
 - Use `CASCODE_HOME` to keep state/config writable in sandboxes: `CASCODE_HOME=$(pwd)/.it/local dotnet run --project tools/cli/Cascode.Cli.csproj`.
 
+PDK matching config
+- `pdk scan` initializes YAML at `CASCODE_HOME/config/pdk-matching-patterns.yml` on first run and logs the path.
+- Users edit this YAML to control normalization, class/subclass classification, and matching thresholds.
+- We never migrate existing workspace databases; rerun `pdk scan` after changing YAML to regenerate `pdk.db` for that workspace.
+
 Testing
 - Unit: option/argument binding, command routing, and small services (mocks for domain libs).
 - Integration: run `dotnet run -- …` against `tests/fixtures/pdk/sky130`; verify stdout/golden outputs.

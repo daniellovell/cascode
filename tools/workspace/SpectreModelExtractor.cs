@@ -726,11 +726,6 @@ internal sealed class SpectreModelExtractor
             return DeviceClass.Inductor;
         }
 
-        if (token.Contains("moscap"))
-        {
-            return DeviceClass.Moscap;
-        }
-
         if (token.Contains("tline") || token.Contains("transmission"))
         {
             return DeviceClass.TransmissionLine;

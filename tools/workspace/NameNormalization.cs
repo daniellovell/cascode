@@ -7,8 +7,6 @@ namespace Cascode.Workspace;
 
 internal static class NameNormalization
 {
-    private static readonly string[] VtTokens = { "ulvt", "llvt", "slvt", "lvt", "rvt", "svt", "nvt", "hvt", "mvt" };
-    private static readonly string[] InfraTokens = { "tap", "subtap", "nwelltap", "diffconn", "polyconn", "via", "vias", "customvias" };
 
     /// <summary>
     /// Classifies a component or cell name into a DeviceClass category.
@@ -25,49 +23,8 @@ internal static class NameNormalization
 
         var lower = name.ToLowerInvariant();
 
-        // Check for standard cells first (more specific patterns)
-        if (LooksLikeStdcell(lower)) return DeviceClass.Stdcell;
-
-        // Then check for primitive devices
-        if (lower.Contains("nmos") || lower.Contains("nfet") || lower.Contains("_nch") || lower.Contains("_n_")) return DeviceClass.Nmos;
-        if (lower.Contains("pmos") || lower.Contains("pfet") || lower.Contains("_pch") || lower.Contains("_p_")) return DeviceClass.Pmos;
-        if (lower.Contains("npn") || lower.Contains("pnp")) return DeviceClass.Bipolar;
-        if (lower.Contains("diode") || lower.StartsWith("d")) return DeviceClass.Diode;
-        if (lower.Contains("res") || lower.StartsWith("r")) return DeviceClass.Resistor;
-        if (lower.Contains("cap") || lower.StartsWith("c")) return DeviceClass.Capacitor;
-        if (lower.Contains("ind") || lower.StartsWith("l")) return DeviceClass.Inductor;
-        if (lower.Contains("tline")) return DeviceClass.TransmissionLine;
-        if (lower.Contains("moscap")) return DeviceClass.Moscap;
-        return DeviceClass.Other;
-    }
-
-    /// <summary>
-    /// Determines whether the provided lowercase device name appears to be a standard cell based on common name prefixes.
-    /// </summary>
-    /// <param name="lower">The device name already converted to lowercase.</param>
-    /// <returns>
-    /// `true` if the name starts with a recognizable standard-cell prefix (for
-    /// example, logic gates or flip-flops); `false` otherwise.
-    /// </returns>
-    private static bool LooksLikeStdcell(string lower)
-    {
-        // Common standard cell prefixes
-        return lower.StartsWith("inv") ||
-               lower.StartsWith("buf") ||
-               lower.StartsWith("nand") ||
-               lower.StartsWith("nor") ||
-               lower.StartsWith("and") ||
-               lower.StartsWith("or") ||
-               lower.StartsWith("xor") ||
-               lower.StartsWith("xnor") ||
-               lower.StartsWith("mux") ||
-               lower.StartsWith("demux") ||
-               lower.StartsWith("dff") ||
-               lower.StartsWith("ff") ||
-               lower.StartsWith("latch") ||
-               lower.StartsWith("add") ||
-               lower.StartsWith("nd") || // NAND abbreviation
-               lower.StartsWith("nr");   // NOR abbreviation
+        var cfg = PdkMatchingConfigManager.Load();
+        return TryClassifyFromConfig(lower, cfg);
     }
 
     /// <summary>
@@ -82,33 +39,8 @@ internal static class NameNormalization
 
         var lower = name.ToLowerInvariant();
 
-        // Stdcell subclasses
-        if (lower.StartsWith("inv")) return DeviceSubclass.Inverter;
-        if (lower.StartsWith("buf")) return DeviceSubclass.Buffer;
-        if (lower.StartsWith("nand") || lower.StartsWith("nd")) return DeviceSubclass.Nand;
-        if (lower.StartsWith("nor") || lower.StartsWith("nr")) return DeviceSubclass.Nor;
-        if (lower.StartsWith("and")) return DeviceSubclass.And;
-        if (lower.StartsWith("or")) return DeviceSubclass.Or;
-        if (lower.StartsWith("xor")) return DeviceSubclass.Xor;
-        if (lower.StartsWith("xnor")) return DeviceSubclass.Xnor;
-        if (lower.StartsWith("mux")) return DeviceSubclass.Multiplexer;
-        if (lower.StartsWith("demux")) return DeviceSubclass.Demultiplexer;
-        if (lower.StartsWith("dff") || lower.StartsWith("ff")) return DeviceSubclass.Flipflop;
-        if (lower.StartsWith("latch")) return DeviceSubclass.Latch;
-        if (lower.StartsWith("add")) return DeviceSubclass.Adder;
-
-        // Capacitor subclasses
-        if (lower.Contains("mimcap")) return DeviceSubclass.MIMCAP;
-        if (lower.Contains("momcap")) return DeviceSubclass.MOMCAP;
-        if (lower.Contains("varcap")) return DeviceSubclass.VarCap;
-
-        // Resistor subclasses
-        if (lower.Contains("tfr")) return DeviceSubclass.TFR;
-        if (lower.Contains("rmetal")) return DeviceSubclass.RMetal;
-        if (lower.Contains("rpoly")) return DeviceSubclass.RPoly;
-        if (lower.Contains("rwell")) return DeviceSubclass.RWell;
-
-        return DeviceSubclass.Unknown;
+        var cfg = PdkMatchingConfigManager.Load();
+        return TrySubclassFromConfig(lower, cfg);
     }
 
     /// <summary>
@@ -120,7 +52,8 @@ internal static class NameNormalization
     {
         var lower = name.ToLowerInvariant();
         var tags = new List<string>();
-        foreach (var vt in VtTokens)
+        var vtTokens = PdkMatchingConfigManager.Load().Normalization.VtTokens;
+        foreach (var vt in vtTokens)
         {
             if (lower.Contains("_" + vt) || lower.EndsWith(vt, StringComparison.Ordinal)) tags.Add(vt.ToUpperInvariant());
         }
@@ -141,6 +74,132 @@ internal static class NameNormalization
     public static bool LooksInfra(string name)
     {
         var lower = name.ToLowerInvariant();
-        return InfraTokens.Any(tok => lower.Contains(tok));
+        var tokens = PdkMatchingConfigManager.Load().Classify.InfraTokens;
+        return tokens.Any(tok => lower.Contains(tok));
+    }
+
+    private static DeviceClass TryClassifyFromConfig(string lower, PdkMatchingConfig cfg)
+    {
+        if (cfg.Classify.Classes.Count == 0) return DeviceClass.Unknown;
+
+        // Prefer stdcell first when provided to mimic previous heuristics
+        string? bestKey = null;
+        int bestScore = int.MinValue;
+
+        foreach (var kv in cfg.Classify.Classes)
+        {
+            var score = MatchScore(kv.Value, lower);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestKey = score > int.MinValue ? kv.Key : null;
+            }
+        }
+
+        if (bestKey is null) return DeviceClass.Unknown;
+        return MapClass(bestKey);
+    }
+
+    private static DeviceSubclass TrySubclassFromConfig(string lower, PdkMatchingConfig cfg)
+    {
+        if (cfg.Classify.Subclasses.Count == 0) return DeviceSubclass.Unknown;
+
+        // Restrict subclass patterns to the primary class for this name
+        var parentClass = TryClassifyFromConfig(lower, cfg);
+        var parentKey = parentClass.ToString().ToLowerInvariant();
+        if (cfg.Classify.Subclasses.TryGetValue(parentKey, out var subs))
+        {
+            foreach (var sub in subs)
+            {
+                var score = MatchScore(sub.Value, lower);
+                if (score > int.MinValue) return MapSubclass(sub.Key);
+            }
+        }
+        return DeviceSubclass.Unknown;
+    }
+
+    private static int MatchScore(PdkMatchingConfig.ClassPattern pattern, string lower)
+    {
+        if (pattern.ExcludeContains is not null && pattern.ExcludeContains.Any(tok => lower.Contains(tok))) return int.MinValue;
+        if (pattern.ExcludeRegex is not null && pattern.ExcludeRegex.Any(rx => Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase))) return int.MinValue;
+
+        int score = int.MinValue;
+
+        if (pattern.Prefixes is not null)
+        {
+            foreach (var p in pattern.Prefixes)
+            {
+                if (lower.StartsWith(p)) score = Math.Max(score, 300 + p.Length);
+            }
+        }
+        if (pattern.Contains is not null)
+        {
+            foreach (var c in pattern.Contains)
+            {
+                if (lower.Contains(c)) score = Math.Max(score, 200 + c.Length);
+            }
+        }
+        if (pattern.Regex is not null)
+        {
+            foreach (var rx in pattern.Regex)
+            {
+                if (Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase)) score = Math.Max(score, 250);
+            }
+        }
+
+        return score;
+    }
+
+    private static DeviceClass MapClass(string name)
+    {
+        return name.ToLowerInvariant() switch
+        {
+            "nmos" => DeviceClass.Nmos,
+            "pmos" => DeviceClass.Pmos,
+            "bipolar" => DeviceClass.Bipolar,
+            "diode" => DeviceClass.Diode,
+            "resistor" => DeviceClass.Resistor,
+            "capacitor" => DeviceClass.Capacitor,
+            "inductor" => DeviceClass.Inductor,
+            "moscap" => DeviceClass.Capacitor,
+            "transmissionline" or "tline" => DeviceClass.TransmissionLine,
+            "stdcell" => DeviceClass.Stdcell,
+            _ => DeviceClass.Other
+        };
+    }
+
+    private static DeviceSubclass MapSubclass(string name)
+    {
+        return name.ToLowerInvariant() switch
+        {
+            // Stdcell
+            "inverter" => DeviceSubclass.Inverter,
+            "buffer" => DeviceSubclass.Buffer,
+            "nand" => DeviceSubclass.Nand,
+            "nor" => DeviceSubclass.Nor,
+            "and" => DeviceSubclass.And,
+            "or" => DeviceSubclass.Or,
+            "xor" => DeviceSubclass.Xor,
+            "xnor" => DeviceSubclass.Xnor,
+            "multiplexer" => DeviceSubclass.Multiplexer,
+            "demultiplexer" => DeviceSubclass.Demultiplexer,
+            "flipflop" => DeviceSubclass.Flipflop,
+            "latch" => DeviceSubclass.Latch,
+            "adder" => DeviceSubclass.Adder,
+            // Capacitor
+            "moscap" => DeviceSubclass.MOSCAP,
+            "mimcap" => DeviceSubclass.MIMCAP,
+            "momcap" => DeviceSubclass.MOMCAP,
+            "varcap" => DeviceSubclass.VarCap,
+            // Resistor
+            "tfr" => DeviceSubclass.TFR,
+            "rmetal" => DeviceSubclass.RMetal,
+            "rpoly" => DeviceSubclass.RPoly,
+            "rwell" => DeviceSubclass.RWell,
+            // MOS device subclasses
+            "deepnwell" => DeviceSubclass.DeepNwell,
+            "rf" => DeviceSubclass.RF,
+            _ => DeviceSubclass.Unknown
+        };
     }
 }
