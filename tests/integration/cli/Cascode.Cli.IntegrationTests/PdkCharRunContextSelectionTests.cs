@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cascode.Cli.IntegrationTests;
@@ -29,12 +30,20 @@ public sealed class PdkCharRunContextSelectionTests
         // 3) Find the most recent job dir and inspect spec.json and netlist
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var workRoot = Path.Combine(repoRoot, ".cascode", "workspaces");
-        var wdir = Directory.GetDirectories(workRoot)[0];
+        var workspaceDirs = Directory.GetDirectories(workRoot);
+        Assert.NotEmpty(workspaceDirs);
+        var wdir = workspaceDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
         var charRoot = Path.Combine(wdir, "char", "spectre", "tt");
-        var modelDir = Directory.GetDirectories(charRoot)[0];
-        var jobDir = Directory.GetDirectories(modelDir)[0];
+        var modelDirs = Directory.GetDirectories(charRoot);
+        Assert.NotEmpty(modelDirs);
+        var modelDir = modelDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
+        var jobDirs = Directory.GetDirectories(modelDir);
+        Assert.NotEmpty(jobDirs);
+        var jobDir = jobDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
         var specPath = Path.Combine(jobDir, "spec.json");
-        var netlistPath = Directory.GetFiles(jobDir, "*.scs")[0];
+        var netlistFiles = Directory.GetFiles(jobDir, "*.scs");
+        Assert.NotEmpty(netlistFiles);
+        var netlistPath = netlistFiles.OrderByDescending(File.GetLastWriteTimeUtc).First();
         var specText = File.ReadAllText(specPath);
         var netlistText = File.ReadAllText(netlistPath);
 

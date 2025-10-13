@@ -8,13 +8,6 @@ namespace Cascode.Workspace.Tests;
 
 public sealed class PdkContextContractTests
 {
-    private static string CreateTempDir()
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "cascode_ctx_tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(dir);
-        return dir;
-    }
-
     private static void WriteAll(string path, string content)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -29,9 +22,9 @@ public sealed class PdkContextContractTests
         //   tt_lib noise_best -> include core.scs section=tt_core
         //   ff_lib noise_worst -> include core.scs section=ff_core
         // core.scs defines .model m1 inside each section. There is NO case where (tt, noise_worst) co-occurs.
-        var root = CreateTempDir();
-        var top = Path.Combine(root, "top.scs");
-        var core = Path.Combine(root, "core.scs");
+        using var tempDir = TestUtilities.TempDirectory.Create("cascode-ctx-tests");
+        var top = Path.Combine(tempDir.DirectoryPath, "top.scs");
+        var core = Path.Combine(tempDir.DirectoryPath, "core.scs");
 
         WriteAll(top, @"
 .lib tt_lib noise_best
@@ -54,11 +47,11 @@ endsection
         // Extract models
         var warnings = new List<string>();
         var extractor = new Cascode.Workspace.SpectreModelExtractor();
-        var models = extractor.Extract(root, top, warnings);
+        var models = extractor.Extract(tempDir.DirectoryPath, top, warnings);
 
         // Write DB using current writer
-        var scan = new Cascode.Workspace.WorkspaceScanResult(root, Array.Empty<Cascode.Workspace.WorkspaceLibrary>(), Array.Empty<Cascode.Workspace.ModelDeckRecord>(), models, warnings);
-        var dbDir = Path.Combine(root, ".db");
+        var scan = new Cascode.Workspace.WorkspaceScanResult(tempDir.DirectoryPath, Array.Empty<Cascode.Workspace.WorkspaceLibrary>(), Array.Empty<Cascode.Workspace.ModelDeckRecord>(), models, warnings);
+        var dbDir = Path.Combine(tempDir.DirectoryPath, ".db");
         Directory.CreateDirectory(dbDir);
         var dbPath = Path.Combine(dbDir, "pdk.db");
         Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, scan, devices: null);
