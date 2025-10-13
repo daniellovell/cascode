@@ -116,10 +116,14 @@ public static class PdkDatabaseReader
             }
         }
 
-        // Load corners/sections
+        // Load corners/details/sections from model_contexts (table guaranteed to exist in schema)
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT model_id, corner, detail, section FROM model_corners";
+            cmd.CommandText = @"SELECT mc.model_id, c.name AS corner, d.name AS detail, s.name AS section
+                                 FROM model_contexts mc
+                                 LEFT JOIN corners c ON c.id=mc.corner_id
+                                 LEFT JOIN details d ON d.id=mc.detail_id
+                                 LEFT JOIN sections s ON s.id=mc.section_id";
             using var reader = cmd.ExecuteReader();
             var cornersMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             var detailsMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
@@ -140,6 +144,105 @@ public static class PdkDatabaseReader
         }
 
         return models.Select(m => m.Model).ToArray();
+    }
+
+    // Efficient, server-side filtered device listing for TUI screens.
+    // Returns devices with aggregated views; supports optional class filter and paging.
+    public static IReadOnlyList<Device> LoadDevicesFiltered(string dbPath, DeviceClass? classFilter, int limit, int offset)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        var where = classFilter.HasValue ? "WHERE d.device_class=$cls" : string.Empty;
+        cmd.CommandText = $@"
+            SELECT d.id, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
+                   d.device_class, d.device_subclass, d.has_layout, d.has_symbol,
+                   d.vt_tags, d.vdd_tags, d.tags,
+                   GROUP_CONCAT(v.view)
+            FROM devices d LEFT JOIN device_views v ON v.device_id=d.id
+            {where}
+            GROUP BY d.id
+            ORDER BY d.lib_name, d.cell_name
+            LIMIT $limit OFFSET $offset";
+        if (classFilter.HasValue)
+        {
+            var pCls = cmd.CreateParameter(); pCls.ParameterName = "$cls"; pCls.Value = (int)classFilter.Value; cmd.Parameters.Add(pCls);
+        }
+        var pLim = cmd.CreateParameter(); pLim.ParameterName = "$limit"; pLim.Value = Math.Max(0, limit); cmd.Parameters.Add(pLim);
+        var pOff = cmd.CreateParameter(); pOff.ParameterName = "$offset"; pOff.Value = Math.Max(0, offset); cmd.Parameters.Add(pOff);
+
+        var list = new List<Device>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            var viewsCsv = r.IsDBNull(12) ? string.Empty : r.GetString(12);
+            list.Add(new Device
+            {
+                LibraryName = r.GetString(1),
+                LibraryPath = r.GetString(2),
+                CellName = r.GetString(3),
+                CellPath = r.GetString(4),
+                Class = (DeviceClass)r.GetInt32(5),
+                Subclass = (DeviceSubclass)r.GetInt32(6),
+                HasLayout = r.GetInt32(7) != 0,
+                HasSymbol = r.GetInt32(8) != 0,
+                VtTags = SplitCsv(r.IsDBNull(9) ? null : r.GetString(9)),
+                VddTags = SplitCsv(r.IsDBNull(10) ? null : r.GetString(10)),
+                Tags = SplitCsv(r.IsDBNull(11) ? null : r.GetString(11)),
+                Views = SplitCsv(viewsCsv)
+            });
+        }
+        return list;
+    }
+
+    // Return include candidates (deck paths) for a model, ordered by preference.
+    // Preference: paths containing "/spectre/" or ending with ".scs" first, then others lexicographically.
+    public static IReadOnlyList<string> GetPreferredIncludesForModel(string dbPath, string modelName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT md.path
+                             FROM models m JOIN model_decks md ON md.model_id=m.id
+                             WHERE m.name=$name";
+        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = modelName; cmd.Parameters.Add(p);
+        var paths = new List<string>();
+        using (var r = cmd.ExecuteReader())
+        {
+            while (r.Read()) paths.Add(r.GetString(0));
+        }
+        static int Score(string p)
+        {
+            var lower = p.ToLowerInvariant();
+            var score = 0;
+            if (lower.Contains("/spectre/") || lower.EndsWith(".scs", StringComparison.Ordinal)) score += 2;
+            if (lower.Contains("/models/")) score += 1;
+            return -score; // sort ascending by negative score then by path
+        }
+        return paths
+            .OrderBy(Score)
+            .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    // Returns include+section candidates for a model+corner from model_contexts (table guaranteed to exist in schema).
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetContextsForModelAndCorner(string dbPath, string modelName, string? corner)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT i.path, s.name
+                             FROM model_contexts mc
+                             JOIN models m ON m.id=mc.model_id
+                             LEFT JOIN corners c ON c.id=mc.corner_id
+                             LEFT JOIN sections s ON s.id=mc.section_id
+                             LEFT JOIN includes i ON i.id=mc.include_id
+                             WHERE m.name=$name AND ($corner IS NULL AND c.id IS NULL OR c.name=$corner)
+                             GROUP BY i.path, s.name
+                             ORDER BY s.name";
+        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
+        var pCorner = cmd.CreateParameter(); pCorner.ParameterName = "$corner"; pCorner.Value = (object?)corner ?? DBNull.Value; cmd.Parameters.Add(pCorner);
+        var list = new List<(string, string?)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        return list;
     }
 
     public static int CountMatchedDevices(string dbPath)

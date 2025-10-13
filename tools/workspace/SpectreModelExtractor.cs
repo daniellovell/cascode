@@ -76,6 +76,7 @@ internal sealed class SpectreModelExtractor
         private readonly HashSet<string> _sections = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _sources = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _decks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<ModelContext> _definitionContexts = new();
 
         public SpectreModelBuilder(string name)
         {
@@ -168,6 +169,18 @@ internal sealed class SpectreModelExtractor
             }
         }
 
+        public void AddDefinitionContext(string? corner, string? detail, string? section, string? includePath)
+        {
+            var ctx = new ModelContext
+            {
+                Corner = string.IsNullOrWhiteSpace(corner) ? null : corner,
+                Detail = string.IsNullOrWhiteSpace(detail) ? null : detail,
+                Section = string.IsNullOrWhiteSpace(section) ? null : section,
+                IncludePath = string.IsNullOrWhiteSpace(includePath) ? null : includePath
+            };
+            _definitionContexts.Add(ctx);
+        }
+
         public void AddSource(string source)
         {
             if (!string.IsNullOrWhiteSpace(source))
@@ -202,7 +215,10 @@ internal sealed class SpectreModelExtractor
                 cornerDetails,
                 sections,
                 sources,
-                decks);
+                decks)
+            {
+                DefinitionContexts = _definitionContexts.Count == 0 ? Array.Empty<ModelContext>() : _definitionContexts.ToArray()
+            };
         }
     }
 
@@ -375,6 +391,7 @@ internal sealed class SpectreModelExtractor
                 var builder = ProcessSubcktDirective(line, normalizedPath, deckPath, builders, frames);
                 if (builder is not null)
                 {
+                    // Record sections (for set view)
                     foreach (var context in sectionStack)
                     {
                         if (!string.IsNullOrWhiteSpace(context.NormalizedName))
@@ -382,6 +399,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
+                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    var (corner, detail) = GetActiveCorner(frames);
+                    var sectionName = GetActiveSection(sectionStack);
+                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
                 }
                 continue;
             }
@@ -396,6 +417,7 @@ internal sealed class SpectreModelExtractor
                 var builder = ProcessModelDirective(line, normalizedPath, deckPath, builders, frames);
                 if (builder is not null)
                 {
+                    // Record sections (for set view)
                     foreach (var context in sectionStack)
                     {
                         if (!string.IsNullOrWhiteSpace(context.NormalizedName))
@@ -403,6 +425,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
+                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    var (corner, detail) = GetActiveCorner(frames);
+                    var sectionName = GetActiveSection(sectionStack);
+                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
                 }
             }
         }
@@ -411,6 +437,34 @@ internal sealed class SpectreModelExtractor
         {
             PopFrame(frames, includeFrame.Value.Type);
         }
+    }
+
+    private static (string? corner, string? detail) GetActiveCorner(IEnumerable<CornerFrame> frames)
+    {
+        // Most recent CornerFrame wins
+        foreach (var frame in frames)
+        {
+            // frames is a Stack; enumerate preserves LIFO ordering when iterating directly in VisitFile
+        }
+        string? corner = null;
+        string? detail = null;
+        foreach (var frame in frames.Reverse())
+        {
+            // Reverse to get oldest..newest; pick newest by overwriting
+            if (!string.IsNullOrWhiteSpace(frame.Info.Primary)) corner = frame.Info.Primary;
+            if (!string.IsNullOrWhiteSpace(frame.Info.Detail)) detail = frame.Info.Detail;
+        }
+        return (corner, detail);
+    }
+
+    private static string? GetActiveSection(Stack<SectionContext> sectionStack)
+    {
+        foreach (var sc in sectionStack)
+        {
+            // Stack enumerates LIFO; first element is most recent
+            if (!string.IsNullOrWhiteSpace(sc.NormalizedName)) return sc.NormalizedName;
+        }
+        return null;
     }
 
     private void HandleLibDirective(

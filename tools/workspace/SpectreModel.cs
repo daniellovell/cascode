@@ -15,6 +15,7 @@ public sealed class SpectreModel
         Sections = EmptyStringList;
         SourceFiles = EmptyStringList;
         Decks = EmptyStringList;
+        DefinitionContexts = Array.Empty<ModelContext>();
     }
 
     /// <summary>
@@ -91,4 +92,7 @@ public sealed class SpectreModel
     [JsonPropertyName("decks")]
     public IReadOnlyList<string> Decks { get; set; }
         = EmptyStringList;
+
+    [JsonPropertyName("definitionContexts")]
+    public IReadOnlyList<ModelContext> DefinitionContexts { get; set; } = Array.Empty<ModelContext>();
 }

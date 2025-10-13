@@ -99,13 +99,38 @@ public sealed class PdkDatabase : IDisposable
               FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
             );
 
-            CREATE TABLE IF NOT EXISTS model_corners (
+            CREATE TABLE IF NOT EXISTS corners (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS details (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS sections (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS includes (
+              id INTEGER PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS model_contexts (
               model_id INTEGER NOT NULL,
-              corner TEXT NULL,
-              detail TEXT NULL,
-              section TEXT NULL,
-              PRIMARY KEY(model_id, corner, detail, section),
-              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
+              corner_id INTEGER NULL,
+              detail_id INTEGER NULL,
+              section_id INTEGER NULL,
+              include_id INTEGER NULL,
+              PRIMARY KEY(model_id, corner_id, detail_id, section_id, include_id),
+              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE,
+              FOREIGN KEY(corner_id) REFERENCES corners(id) ON DELETE SET NULL,
+              FOREIGN KEY(detail_id) REFERENCES details(id) ON DELETE SET NULL,
+              FOREIGN KEY(section_id) REFERENCES sections(id) ON DELETE SET NULL,
+              FOREIGN KEY(include_id) REFERENCES includes(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS devices (
