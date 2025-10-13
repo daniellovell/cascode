@@ -45,6 +45,13 @@ internal static class CliIntegrationTestHelper
         return new CliCommandSpec("dotnet", fallbackArgs);
     }
 
+    /// <summary>
+    /// Create a ProcessStartInfo configured to run the CLI from the repository root.
+    /// </summary>
+    /// <param name="repoRoot">Repository root directory used as the process working directory and to locate the CLI executable.</param>
+    /// <param name="args">Arguments to forward to the CLI process.</param>
+    /// <param name="commandLine">The constructed command line string (executable and quoted arguments) produced for diagnostics.</param>
+    /// <returns>A ProcessStartInfo configured with the CLI executable, argument list, redirected output/error, no shell execute, and no window.</returns>
     internal static ProcessStartInfo CreateCliStartInfo(string repoRoot, IReadOnlyList<string> args, out string commandLine)
     {
         var command = BuildCliCommand(repoRoot, args);
@@ -69,6 +76,11 @@ internal static class CliIntegrationTestHelper
 
     private static readonly System.Threading.AsyncLocal<string?> s_cascodeHome = new();
 
+    /// <summary>
+    /// Populate the process start info with a deterministic set of environment variables and ensure a stable, per-test CASCODE_HOME.
+    /// </summary>
+    /// <param name="startInfo">The ProcessStartInfo whose Environment will be populated.</param>
+    /// <param name="repoRoot">Path to the repository root used to create or locate the per-test CASCODE_HOME under <c>.it</c>.</param>
     internal static void ConfigureDeterministicEnvironment(ProcessStartInfo startInfo, string repoRoot)
     {
         foreach (var kv in BuildDeterministicEnvironment(repoRoot))
@@ -90,6 +102,11 @@ internal static class CliIntegrationTestHelper
         startInfo.Environment["CASCODE_HOME"] = current!;
     }
 
+    /// <summary>
+    /// Builds a deterministic set of environment variables for running the CLI from the given repository root.
+    /// </summary>
+    /// <param name="repoRoot">Path to the repository root used to derive deterministic environment values.</param>
+    /// <returns>A dictionary of environment variable names and values that force stable CLI behavior (includes DOTNET_CLI_HOME, DOTNET_SKIP_FIRST_TIME_EXPERIENCE, DOTNET_CLI_TELEMETRY_OPTOUT, DOTNET_NOLOGO; sets USERPROFILE on Windows and DOTNET_ROOT when the dotnet executable's directory can be determined).</returns>
     internal static IDictionary<string, string> BuildDeterministicEnvironment(string repoRoot)
     {
         var env = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -106,6 +123,11 @@ internal static class CliIntegrationTestHelper
         return env;
     }
 
+    /// <summary>
+    /// Gets or creates a per-async-context CASCODE_HOME directory path used by integration tests.
+    /// </summary>
+    /// <param name="repoRoot">Repository root directory under which a per-test directory (./.it/cascode-home-&lt;guid&gt;) will be created if needed.</param>
+    /// <returns>The absolute path to the CASCODE_HOME directory for the current async context; creates and stores a new unique path if one was not already set.</returns>
     internal static string GetOrCreateTestCascodeHome(string repoRoot)
     {
         var current = s_cascodeHome.Value;
@@ -119,6 +141,11 @@ internal static class CliIntegrationTestHelper
         return current!;
     }
 
+    /// <summary>
+    /// Attempts to terminate the specified process and its child processes.
+    /// </summary>
+    /// <param name="process">The process to terminate.</param>
+    /// <remarks>Any exceptions thrown while attempting to kill the process are suppressed.</remarks>
     internal static void TryKillProcess(Process process)
     {
         try { process.Kill(entireProcessTree: true); } catch { }

@@ -8,6 +8,9 @@ public sealed class SpectreModel
 {
     public static readonly IReadOnlyList<string> EmptyStringList = Array.Empty<string>();
 
+    /// <summary>
+    /// Initializes a new instance of SpectreModel, setting all collection properties to shared empty instances and leaving scalar properties at their default values.
+    /// </summary>
     public SpectreModel()
     {
         Corners = EmptyStringList;

@@ -62,6 +62,14 @@ public sealed class PdkDatabase : IDisposable
     /// <remarks>
     /// Executes the DDL statements inside a transaction so the schema creation is applied atomically.
     /// This method is idempotent and safe to call on an existing schema.
+    /// <summary>
+    /// Ensures the database schema exists and is migrated to the expected layout for the PDK.
+    /// </summary>
+    /// <remarks>
+    /// Executes a series of idempotent DDL statements inside a single transaction to create tables,
+    /// keys, unique constraints and foreign-key relationships required by the application.
+    /// Calling this method multiple times is safe; it uses IF NOT EXISTS to avoid redeclaring objects
+    /// and commits atomically only after all statements succeed.
     /// </remarks>
     private void CreateSchema()
     {
@@ -212,6 +220,9 @@ public sealed class PdkDatabase : IDisposable
         tx.Commit();
     }
 
+    /// <summary>
+    /// Releases resources used by the PdkDatabase and closes the underlying database connection.
+    /// </summary>
     public void Dispose()
     {
         _conn.Dispose();

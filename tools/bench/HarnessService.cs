@@ -14,6 +14,12 @@ public static class HarnessService
         return reg;
     }
 
+    /// <summary>
+    /// Discovers testbench harness definitions by searching a set of well-known harness directories.
+    /// </summary>
+    /// <param name="workspaceRoot">Optional workspace root to search; when provided the method includes
+    /// workspaceRoot/lib/harnesses and workspaceRoot/examples/harnesses. If null or whitespace this root is ignored.</param>
+    /// <returns>An enumerable of harnesses found in the discovered directories.</returns>
     public static IEnumerable<ITestbenchHarness> Discover(string workspaceRoot)
     {
         var roots = new List<string>();

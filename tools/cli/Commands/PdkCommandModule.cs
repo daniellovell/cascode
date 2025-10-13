@@ -865,15 +865,34 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     }
 
+    /// <summary>
+    /// Normalize a string for use as a filename by replacing all characters invalid in file names with underscores.
+    /// </summary>
+    /// <param name="name">The input string to sanitize.</param>
+    /// <returns>The input string with every character that is invalid in file names replaced by '_' (underscore).</returns>
     private static string Sanitize(string name)
     {
         foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
         return name;
     }
 
-    private static List<string> SplitCsv(string value)
+    /// <summary>
+        /// Split a comma-separated string into trimmed, non-empty tokens.
+        /// </summary>
+        /// <param name="value">The comma-separated input string to split.</param>
+        /// <returns>A list of trimmed tokens; an empty list if <paramref name="value"/> is null, empty, or consists only of whitespace.</returns>
+        private static List<string> SplitCsv(string value)
         => string.IsNullOrWhiteSpace(value) ? new List<string>() : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
+    /// <summary>
+    /// Generate a testbench and supporting files for the specified Spectre model and place them in the given job directory.
+    /// </summary>
+    /// <param name="model">The Spectre model to generate a testbench for.</param>
+    /// <param name="harnessId">Identifier to use for the generated harness/netlist names.</param>
+    /// <param name="backend">Target backend name (e.g., "spectre" or "ngspice").</param>
+    /// <param name="corner">Optional corner/section used to resolve includes and DB contexts.</param>
+    /// <param name="jobDir">Directory where generated files and netlists will be written.</param>
+    /// <returns>`true` if the testbench files were generated successfully, `false` otherwise.</returns>
     private bool GenerateBenchForModel(SpectreModel model, string harnessId, string backend, string? corner, string jobDir)
     {
         try
@@ -1120,6 +1139,11 @@ internal sealed class PdkCommandModule : ICommandModule
         return null;
     }
 
+    /// <summary>
+    /// Yield candidate file-system locations for the Spectre executable under the specified tool root, tailored to the current operating system.
+    /// </summary>
+    /// <param name="root">Base installation directory to search for common Spectre binary locations.</param>
+    /// <returns>An enumerable of plausible file paths for the Spectre executable appropriate to the current OS.</returns>
     private static IEnumerable<string> EnumerateSpectreGuesses(string root)
     {
         if (OperatingSystem.IsWindows())
@@ -1134,6 +1158,20 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     }
 
+    /// <summary>
+    /// Parse device-related CLI flags and return structured filter criteria.
+    /// </summary>
+    /// <param name="args">Command-line arguments to parse. Recognized flags:
+    /// --class <csv>, --vt <csv>, --vdd <csv>, --infra, --no-infra, --matched, --unmatched, --limit <n>.</param>
+    /// <returns>
+    /// A tuple containing:
+    /// - `classes`: set of class names (case-insensitive),
+    /// - `vts`: set of VT tags (uppercased),
+    /// - `vdds`: set of VDD tags (lowercased),
+    /// - `infra`: `true` to include only infra devices, `false` to exclude infra devices, `null` to include all,
+    /// - `matched`: `true` to include only matched devices, `false` to include only unmatched devices, `null` to include all,
+    /// - `limit`: maximum number of results to show (minimum 1, defaults to 20).
+    /// </returns>
     private static (HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, bool? matched, int limit) ParseDeviceFilters(string[] args)
     {
         var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
