@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests.Infrastructure;
 
@@ -28,7 +29,6 @@ internal static class CliIntegrationTestHelper
         var executablePath = TryGetCliExecutablePath(repoRoot);
         if (executablePath is not null)
         {
-            // Prefer running the built DLL via 'dotnet <dll>' for cross-platform reliability
             var tfmDirectory = Path.GetDirectoryName(executablePath)!;
             var dllPath = Path.Combine(tfmDirectory, "Cascode.Cli.dll");
             if (File.Exists(dllPath))
@@ -39,7 +39,6 @@ internal static class CliIntegrationTestHelper
             }
         }
 
-        // Fallback to 'dotnet run' if we cannot locate the DLL alongside the build output
         var fallbackArgs = new List<string> { "run", "--project", "tools/cli/Cascode.Cli.csproj", "--" };
         fallbackArgs.AddRange(args);
         return new CliCommandSpec("dotnet", fallbackArgs);
@@ -67,27 +66,12 @@ internal static class CliIntegrationTestHelper
         return startInfo;
     }
 
-    private static readonly System.Threading.AsyncLocal<string?> s_cascodeHome = new();
-
     internal static void ConfigureDeterministicEnvironment(ProcessStartInfo startInfo, string repoRoot)
     {
         foreach (var kv in BuildDeterministicEnvironment(repoRoot))
         {
             startInfo.Environment[kv.Key] = kv.Value;
         }
-
-        // Assign a stable, per-test CASCODE_HOME (scoped via AsyncLocal) so
-        // multiple CLI processes within the same test share the same state,
-        // while parallel tests get isolated directories.
-        var current = s_cascodeHome.Value;
-        if (string.IsNullOrEmpty(current))
-        {
-            var itRoot = Path.Combine(repoRoot, ".it");
-            Directory.CreateDirectory(itRoot);
-            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
-            s_cascodeHome.Value = current;
-        }
-        startInfo.Environment["CASCODE_HOME"] = current!;
     }
 
     internal static IDictionary<string, string> BuildDeterministicEnvironment(string repoRoot)
@@ -106,17 +90,10 @@ internal static class CliIntegrationTestHelper
         return env;
     }
 
-    internal static string GetOrCreateTestCascodeHome(string repoRoot)
+    internal static CascodeHomeScope CreateCascodeHome(string repoRoot, string prefix)
     {
-        var current = s_cascodeHome.Value;
-        if (string.IsNullOrEmpty(current))
-        {
-            var itRoot = Path.Combine(repoRoot, ".it");
-            Directory.CreateDirectory(itRoot);
-            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
-            s_cascodeHome.Value = current;
-        }
-        return current!;
+        var itRoot = Path.Combine(repoRoot, ".it");
+        return CascodeHome.CreateUnder(itRoot, prefix, setEnvironmentVariable: false);
     }
 
     internal static void TryKillProcess(Process process)
@@ -126,7 +103,6 @@ internal static class CliIntegrationTestHelper
 
     internal static bool IsRunningInCi()
     {
-        // Check common CI environment variables
         return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")) ||
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")) ||

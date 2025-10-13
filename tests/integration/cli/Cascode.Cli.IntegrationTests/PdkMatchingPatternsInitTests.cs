@@ -15,8 +15,10 @@ public sealed class PdkMatchingPatternsInitTests
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
 
-        var cascodeHome = Infrastructure.CliIntegrationTestHelper.GetOrCreateTestCascodeHome(repoRoot);
-        var expectedPath = Path.Combine(cascodeHome, "config", "pdk-matching-patterns.yml");
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkMatchingPatternsInitTests));
+        cascodeHome.ApplyTo(startInfo.Environment);
+
+        var expectedPath = Path.Combine(cascodeHome.Path, "config", "pdk-matching-patterns.yml");
         if (File.Exists(expectedPath)) File.Delete(expectedPath);
 
         using var process = new Process { StartInfo = startInfo };
@@ -33,4 +35,3 @@ public sealed class PdkMatchingPatternsInitTests
         Assert.Contains("pdk-matching-patterns.yml", stdout, StringComparison.OrdinalIgnoreCase);
     }
 }
-

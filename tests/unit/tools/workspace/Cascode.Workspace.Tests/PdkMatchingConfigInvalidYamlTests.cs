@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Cascode.TestSupport;
 
 namespace Cascode.Workspace.Tests;
 
@@ -8,9 +9,7 @@ public sealed class PdkMatchingConfigInvalidYamlTests
     [Fact]
     public void Load_InvalidYaml_FallsBackToDefaults_AndCaches()
     {
-        using var temp = TestUtilities.TempDirectory.Create("cascode-badcfg-test");
-        var home = temp.DirectoryPath;
-        Environment.SetEnvironmentVariable("CASCODE_HOME", home);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-badcfg");
 
         try
         {
@@ -30,9 +29,7 @@ public sealed class PdkMatchingConfigInvalidYamlTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("CASCODE_HOME", null);
             Cascode.Workspace.PdkMatchingConfigManager.InvalidateCache();
         }
     }
 }
-

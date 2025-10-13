@@ -25,11 +25,10 @@ public sealed class PdkInteractivePersistenceTests
         var workspaceAbs = miniRoot;
         var workspaceRel = Path.GetRelativePath(repoRoot, workspaceAbs);
 
-        // Use a stable CASCODE_HOME so both sessions share state
-        var cascodeHome = CliIntegrationTestHelper.GetOrCreateTestCascodeHome(repoRoot);
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkInteractivePersistenceTests));
         var sharedEnv = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["CASCODE_HOME"] = cascodeHome,
+            ["CASCODE_HOME"] = cascodeHome.Path,
             ["COLUMNS"] = "160",
             ["LINES"] = "50",
             ["CASCODE_LOG_LEVEL"] = "error"
@@ -57,7 +56,7 @@ public sealed class PdkInteractivePersistenceTests
             await session1.SendLineAsync("pdk scan");
             await Task.Delay(100);
             // Wait for the pdk.db file to appear (log level may suppress Info messages)
-            var dbPath = GetExpectedDbPath(cascodeHome, workspaceAbs);
+            var dbPath = GetExpectedDbPath(cascodeHome.Path, workspaceAbs);
             var scanDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
             while (DateTime.UtcNow < scanDeadline && !File.Exists(dbPath))
             {
@@ -80,7 +79,7 @@ public sealed class PdkInteractivePersistenceTests
         }
 
         // Verify CLI config and database exist after first session
-        var configPath = Path.Combine(cascodeHome, "config.json");
+        var configPath = Path.Combine(cascodeHome.Path, "config.json");
         Assert.True(File.Exists(configPath), $"Expected CLI config at '{configPath}' after set-dir.");
         var configJson = await File.ReadAllTextAsync(configPath);
         Assert.Contains(workspaceAbs, configJson, StringComparison.Ordinal);

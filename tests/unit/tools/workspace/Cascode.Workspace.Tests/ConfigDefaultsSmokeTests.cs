@@ -1,4 +1,5 @@
 using System;
+using Cascode.TestSupport;
 
 namespace Cascode.Workspace.Tests;
 
@@ -7,8 +8,7 @@ public sealed class ConfigDefaultsSmokeTests
     [Fact]
     public void Defaults_Load_With_Classify_And_Subclasses()
     {
-        // Use default CASCODE_HOME (unset) to load embedded defaults
-        Environment.SetEnvironmentVariable("CASCODE_HOME", null);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-defaults");
         var cfg = Cascode.Workspace.PdkMatchingConfigManager.Load();
         Assert.NotNull(cfg);
         Assert.NotNull(cfg.Classify);
@@ -18,4 +18,3 @@ public sealed class ConfigDefaultsSmokeTests
         Assert.Contains("stdcell", cfg.Classify.Subclasses.Keys, StringComparer.OrdinalIgnoreCase);
     }
 }
-
