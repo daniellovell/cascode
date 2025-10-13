@@ -109,11 +109,18 @@ internal static class NameNormalization
         var parentKey = parentClass.ToString().ToLowerInvariant();
         if (cfg.Classify.Subclasses.TryGetValue(parentKey, out var subs))
         {
+            var bestScore = int.MinValue;
+            string? bestKey = null;
             foreach (var sub in subs)
             {
                 var score = MatchScore(sub.Value, lower);
-                if (score > int.MinValue) return MapSubclass(sub.Key);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    bestKey = sub.Key;
+                }
             }
+            if (bestKey is not null && bestScore > int.MinValue) return MapSubclass(bestKey);
         }
         return DeviceSubclass.Unknown;
     }

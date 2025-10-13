@@ -13,7 +13,6 @@ public enum DeviceClass
     Resistor,
     Capacitor,
     Inductor,
-    Moscap,
     TransmissionLine,
     Stdcell,
     Other

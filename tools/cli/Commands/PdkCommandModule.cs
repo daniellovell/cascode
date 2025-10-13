@@ -98,7 +98,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
                 foreach (var s in summary)
                 {
-                    var clsEnum = (DeviceClass)s.DeviceClass;
+                    var clsEnum = s.DeviceClass;
                     classRows.Add(new DeviceClassSummaryRow(
                         DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
                         DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
@@ -107,7 +107,7 @@ internal sealed class PdkCommandModule : ICommandModule
                         Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
                         Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
                         ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
-                        IsUncategorized: s.DeviceClass == (int)DeviceClass.Unknown));
+                        IsUncategorized: s.DeviceClass == DeviceClass.Unknown));
                 }
 
                 var title = "Devices by Class";
