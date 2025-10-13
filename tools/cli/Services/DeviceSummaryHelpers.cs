@@ -24,10 +24,19 @@ internal static class DeviceSummaryHelpers
         return $"Showing {start}-{end} of {totalCount} {label}. Use Shift+Up/Down to page; Ctrl+Up/Down to step.";
     }
 
-    internal static string BuildSuggestionText()
+    /// <summary>
+        /// Provides a compact usage tip listing keyboard shortcuts and commands for navigating the device list UI.
+        /// </summary>
+        /// <returns>The tip text shown to users: "Tip: Use Shift+Up/Down to page; Ctrl+Up/Down to step; 'pdk devices' to browse; 'home' to exit."</returns>
+        internal static string BuildSuggestionText()
         => "Tip: Use Shift+Up/Down to page; Ctrl+Up/Down to step; 'pdk devices' to browse; 'home' to exit.";
 
-    internal static string FormatDeviceClassName(DeviceClass deviceClass)
+    /// <summary>
+        /// Formats a <see cref="DeviceClass"/> value into a user-friendly display name.
+        /// </summary>
+        /// <param name="deviceClass">The device class to format.</param>
+        /// <returns>The display name corresponding to the provided device class.</returns>
+        internal static string FormatDeviceClassName(DeviceClass deviceClass)
         => deviceClass switch
         {
             DeviceClass.Unknown => "Unknown",

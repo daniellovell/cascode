@@ -88,6 +88,10 @@ internal sealed class SpectreModelExtractor
         public string? VoltageDomain { get; private set; }
         public string? ThresholdFlavor { get; private set; }
 
+        /// <summary>
+        /// Sets the model type for the builder if a non-empty type is provided and no model type has been set yet.
+        /// </summary>
+        /// <param name="type">The model type to set (ignored if null, empty, or whitespace, or if a model type is already present).</param>
         public void SetModelType(string type)
         {
             if (string.IsNullOrWhiteSpace(type))
@@ -101,6 +105,10 @@ internal sealed class SpectreModelExtractor
             }
         }
 
+        /// <summary>
+        /// Sets the builder's device class if the provided class is known and the builder's device class is not already set.
+        /// </summary>
+        /// <param name="deviceClass">The device class to apply; ignored if `DeviceClass.Unknown` or if the builder already has a non-unknown device class.</param>
         public void SetDeviceClass(DeviceClass deviceClass)
         {
             if (deviceClass == DeviceClass.Unknown)
@@ -564,6 +572,15 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
+    /// <summary>
+    /// Parses a "subckt" directive from a line and updates or creates a SpectreModelBuilder for that subcircuit.
+    /// </summary>
+    /// <param name="line">The input line to parse for a subckt directive.</param>
+    /// <param name="sourcePath">Path of the file containing the directive, added to the builder's sources.</param>
+    /// <param name="deckPath">Top-level deck path associated with the builder, added to the builder's decks.</param>
+    /// <param name="builders">Dictionary mapping model/subckt names to builders; a new builder is added if needed.</param>
+    /// <param name="frames">Context frames whose CornerInfo entries are applied to the builder.</param>
+    /// <returns>The existing or newly created SpectreModelBuilder for the subcircuit name, or `null` if no valid subckt directive/name is found.</returns>
     private static SpectreModelBuilder? ProcessSubcktDirective(
         string line,
         string sourcePath,
@@ -610,6 +627,10 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
+    /// <summary>
+    /// Classifies a model type token and maps it to the corresponding DeviceClass.
+    /// </summary>
+    /// <returns>The DeviceClass that best matches the provided type token; returns DeviceClass.Unknown if the token is null or whitespace.</returns>
     private static DeviceClass ClassifyModelType(string typeToken)
     {
         if (string.IsNullOrWhiteSpace(typeToken))
@@ -667,7 +688,11 @@ internal sealed class SpectreModelExtractor
         return DeviceClass.Other;
     }
 
-    private static bool IsBinModelName(string name)
+    /// <summary>
+        /// Determines whether a model name matches common binary-model naming patterns.
+        /// </summary>
+        /// <returns>`true` if the provided name is non-empty and matches the bin-model regex pattern, `false` otherwise.</returns>
+        private static bool IsBinModelName(string name)
         => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
 
     private static string? InferVoltageDomain(string name)

@@ -468,6 +468,10 @@ public static class PdkDatabaseWriter
         }
     }
 
+    /// <summary>
+    /// Upserts device rows into the devices table and inserts associated device_views rows for each device.
+    /// </summary>
+    /// <param name="devices">The devices to persist; each device's canonical name is used as the key and its properties are written or updated in the database, and its view entries are inserted into device_views.</param>
     private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices)
     {
         using var insertDevice = conn.CreateCommand();
