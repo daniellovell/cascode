@@ -124,11 +124,9 @@ public static class PdkDatabaseWriter
     }
 
     /// <summary>
-    /// Compute and store per-class rollups so the CLI can render instantly.
-    /// <summary>
-    /// Recomputes and persists per-device-class rollup metrics into the database's device_class_summary table.
+    /// Recomputes and persists per-device-class rollup metrics into the database's <c>device_class_summary</c> table.
     /// </summary>
-    /// <param name="dbPath">Filesystem path to the SQLite database file to update; existing device_class_summary rows are replaced or updated.</param>
+    /// <param name="dbPath">Filesystem path to the SQLite database file to update; existing summary rows are replaced or updated.</param>
     public static void RebuildDeviceClassSummary(string dbPath)
     {
         using var db = PdkDatabase.Open(dbPath);
@@ -472,12 +470,11 @@ public static class PdkDatabaseWriter
     }
 
     /// <summary>
-    /// Upserts device rows into the devices table and inserts associated device_views rows for each device.
+    /// Upserts device rows into the devices table and ensures each device's view entries exist in <c>device_views</c>.
     /// </summary>
-    /// <summary>
-    /// Upserts device rows into the devices table and ensures each device's view entries exist in device_views.
-    /// </summary>
-    /// <param name="devices">Devices to persist; each device's canonical name is used as the key and the device's properties (including vt/vdd/tag values and layout/symbol flags) are written or updated and its view entries are inserted into device_views.</param>
+    /// <param name="conn">Open SQLite connection used to persist device metadata.</param>
+    /// <param name="tx">Active transaction that scopes the upsert operations.</param>
+    /// <param name="devices">Devices to persist; each device's canonical name is used as the key and the device's properties (including vt/vdd/tag values and layout/symbol flags) are written or updated and its view entries are inserted into <c>device_views</c>.</param>
     private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices)
     {
         using var insertDevice = conn.CreateCommand();

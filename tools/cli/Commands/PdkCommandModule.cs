@@ -877,12 +877,14 @@ internal sealed class PdkCommandModule : ICommandModule
     }
 
     /// <summary>
-        /// Split a comma-separated string into trimmed, non-empty tokens.
-        /// </summary>
-        /// <param name="value">The comma-separated input string to split.</param>
-        /// <returns>A list of trimmed tokens; an empty list if <paramref name="value"/> is null, empty, or consists only of whitespace.</returns>
-        private static List<string> SplitCsv(string value)
-        => string.IsNullOrWhiteSpace(value) ? new List<string>() : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    /// Split a comma-separated string into trimmed, non-empty tokens.
+    /// </summary>
+    /// <param name="value">The comma-separated input string to split.</param>
+    /// <returns>A list of trimmed tokens; an empty list if <paramref name="value"/> is null, empty, or consists only of whitespace.</returns>
+    private static List<string> SplitCsv(string value)
+        => string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
     /// <summary>
     /// Generate a testbench and supporting files for the specified Spectre model and place them in the given job directory.
