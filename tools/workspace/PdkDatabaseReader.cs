@@ -10,6 +10,9 @@ public static class PdkDatabaseReader
 {
     private static IReadOnlyList<string> SplitCsv(string? csv)
         => string.IsNullOrWhiteSpace(csv) ? Array.Empty<string>() : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static DeviceClass MapDeviceClass(int raw)
+        => Enum.IsDefined(typeof(DeviceClass), raw) ? (DeviceClass)raw : DeviceClass.Unknown;
     /// <summary>
     /// Load device metadata from the specified PDK database.
     /// </summary>
@@ -38,7 +41,7 @@ public static class PdkDatabaseReader
                     LibraryPath = reader.GetString(3),
                     CellName = reader.GetString(4),
                     CellPath = reader.GetString(5),
-                    Class = (DeviceClass)reader.GetInt32(6),
+                    Class = MapDeviceClass(reader.GetInt32(6)),
                     Subclass = (DeviceSubclass)reader.GetInt32(7),
                     HasLayout = reader.GetInt32(8) != 0,
                     HasSymbol = reader.GetInt32(9) != 0,
@@ -74,7 +77,7 @@ public static class PdkDatabaseReader
                 var id = reader.GetInt64(0);
                 var name = reader.GetString(1);
                 var type = reader.GetString(2);
-                var cls = (DeviceClass)reader.GetInt32(3);
+                var cls = MapDeviceClass(reader.GetInt32(3));
                 var vdd = reader.IsDBNull(4) ? null : reader.GetString(4);
                 var vt = reader.IsDBNull(5) ? null : reader.GetString(5);
                 var model = new SpectreModel(name, type, cls, vdd, vt, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList);
@@ -190,7 +193,7 @@ public static class PdkDatabaseReader
                 LibraryPath = r.GetString(2),
                 CellName = r.GetString(3),
                 CellPath = r.GetString(4),
-                Class = (DeviceClass)r.GetInt32(5),
+                Class = MapDeviceClass(r.GetInt32(5)),
                 Subclass = (DeviceSubclass)r.GetInt32(6),
                 HasLayout = r.GetInt32(7) != 0,
                 HasSymbol = r.GetInt32(8) != 0,
@@ -377,7 +380,7 @@ public static class PdkDatabaseReader
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
-            var cls = (DeviceClass)r.GetInt32(0);
+            var cls = MapDeviceClass(r.GetInt32(0));
             list.Add(new MatchCoverageByClass(cls.ToString(), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4)));
         }
         return list;
@@ -433,7 +436,7 @@ public static class PdkDatabaseReader
         );
     }
 
-    public sealed record DeviceClassSummaryRow(int DeviceClass, int DeviceCount, int Matched, int Ambiguous, int Unmatched, string VoltageDomainsCsv, string ThresholdsCsv, string CornersCsv, string ExampleModel, int Decks);
+    public sealed record DeviceClassSummaryRow(DeviceClass DeviceClass, int DeviceCount, int Matched, int Ambiguous, int Unmatched, string VoltageDomainsCsv, string ThresholdsCsv, string CornersCsv, string ExampleModel, int Decks);
 
     public static IReadOnlyList<DeviceClassSummaryRow> LoadDeviceClassSummary(string dbPath)
     {
@@ -446,7 +449,8 @@ public static class PdkDatabaseReader
         while (r.Read())
         {
             list.Add(new DeviceClassSummaryRow(
-                r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4),
+                MapDeviceClass(r.GetInt32(0)),
+                r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4),
                 r.IsDBNull(5) ? string.Empty : r.GetString(5),
                 r.IsDBNull(6) ? string.Empty : r.GetString(6),
                 r.IsDBNull(7) ? string.Empty : r.GetString(7),

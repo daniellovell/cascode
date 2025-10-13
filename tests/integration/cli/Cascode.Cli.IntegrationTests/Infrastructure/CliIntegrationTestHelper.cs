@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests.Infrastructure;
 
@@ -28,7 +29,6 @@ internal static class CliIntegrationTestHelper
         var executablePath = TryGetCliExecutablePath(repoRoot);
         if (executablePath is not null)
         {
-            // Prefer running the built DLL via 'dotnet <dll>' for cross-platform reliability
             var tfmDirectory = Path.GetDirectoryName(executablePath)!;
             var dllPath = Path.Combine(tfmDirectory, "Cascode.Cli.dll");
             if (File.Exists(dllPath))
@@ -39,7 +39,6 @@ internal static class CliIntegrationTestHelper
             }
         }
 
-        // Fallback to 'dotnet run' if we cannot locate the DLL alongside the build output
         var fallbackArgs = new List<string> { "run", "--project", "tools/cli/Cascode.Cli.csproj", "--" };
         fallbackArgs.AddRange(args);
         return new CliCommandSpec("dotnet", fallbackArgs);
@@ -74,32 +73,12 @@ internal static class CliIntegrationTestHelper
         return startInfo;
     }
 
-    private static readonly System.Threading.AsyncLocal<string?> s_cascodeHome = new();
-
-    /// <summary>
-    /// Populate the process start info with a deterministic set of environment variables and ensure a stable, per-test CASCODE_HOME.
-    /// </summary>
-    /// <param name="startInfo">The ProcessStartInfo whose Environment will be populated.</param>
-    /// <param name="repoRoot">Path to the repository root used to create or locate the per-test CASCODE_HOME under <c>.it</c>.</param>
     internal static void ConfigureDeterministicEnvironment(ProcessStartInfo startInfo, string repoRoot)
     {
         foreach (var kv in BuildDeterministicEnvironment(repoRoot))
         {
             startInfo.Environment[kv.Key] = kv.Value;
         }
-
-        // Assign a stable, per-test CASCODE_HOME (scoped via AsyncLocal) so
-        // multiple CLI processes within the same test share the same state,
-        // while parallel tests get isolated directories.
-        var current = s_cascodeHome.Value;
-        if (string.IsNullOrEmpty(current))
-        {
-            var itRoot = Path.Combine(repoRoot, ".it");
-            Directory.CreateDirectory(itRoot);
-            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
-            s_cascodeHome.Value = current;
-        }
-        startInfo.Environment["CASCODE_HOME"] = current!;
     }
 
     /// <summary>
@@ -123,22 +102,10 @@ internal static class CliIntegrationTestHelper
         return env;
     }
 
-    /// <summary>
-    /// Gets or creates a per-async-context CASCODE_HOME directory path used by integration tests.
-    /// </summary>
-    /// <param name="repoRoot">Repository root directory under which a per-test directory (./.it/cascode-home-&lt;guid&gt;) will be created if needed.</param>
-    /// <returns>The absolute path to the CASCODE_HOME directory for the current async context; creates and stores a new unique path if one was not already set.</returns>
-    internal static string GetOrCreateTestCascodeHome(string repoRoot)
+    internal static CascodeHomeScope CreateCascodeHome(string repoRoot, string prefix)
     {
-        var current = s_cascodeHome.Value;
-        if (string.IsNullOrEmpty(current))
-        {
-            var itRoot = Path.Combine(repoRoot, ".it");
-            Directory.CreateDirectory(itRoot);
-            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
-            s_cascodeHome.Value = current;
-        }
-        return current!;
+        var itRoot = Path.Combine(repoRoot, ".it");
+        return CascodeHome.CreateUnder(itRoot, prefix, setEnvironmentVariable: false);
     }
 
     /// <summary>
@@ -153,7 +120,6 @@ internal static class CliIntegrationTestHelper
 
     internal static bool IsRunningInCi()
     {
-        // Check common CI environment variables
         return !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CI")) ||
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GITHUB_ACTIONS")) ||
                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TF_BUILD")) ||
