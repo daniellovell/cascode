@@ -689,11 +689,11 @@ internal sealed class SpectreModelExtractor
     }
 
     /// <summary>
-        /// Determines whether a model name matches common binary-model naming patterns.
-        /// </summary>
-        /// <returns>`true` if the provided name is non-empty and matches the bin-model regex pattern, `false` otherwise.</returns>
-        private static bool IsBinModelName(string name)
-        => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
+    /// Determines whether a model name matches common binary-model naming patterns.
+    /// </summary>
+    /// <returns>`true` if the provided name is non-empty and matches the bin-model regex pattern, `false` otherwise.</returns>
+    private static bool IsBinModelName(string name)
+    => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
 
     private static string? InferVoltageDomain(string name)
     {
