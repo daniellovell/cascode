@@ -58,7 +58,11 @@ public static class PdkDatabaseReader
     /// Loads Spectre models and their associated metadata from the specified PDK database.
     /// </summary>
     /// <param name="dbPath">File path to the PDK SQLite database.</param>
-    /// <returns>An array of SpectreModel instances populated with name, type, device class, voltage domain, threshold flavor and associated source files, decks, corners, corner details, and sections. Models are returned ordered by name.</returns>
+    /// <summary>
+    /// Load Spectre models from the PDK database and populate their metadata.
+    /// </summary>
+    /// <param name="dbPath">Path to the PDK database file.</param>
+    /// <returns>An array of SpectreModel instances populated with name, type, device class, voltage domain, threshold flavor, source files, decks, corners, corner details, and sections; models are ordered by name.</returns>
     public static IReadOnlyList<SpectreModel> LoadModels(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -148,9 +152,14 @@ public static class PdkDatabaseReader
 
         return models.Select(m => m.Model).ToArray();
     }
-
-    // Efficient, server-side filtered device listing for TUI screens.
-    // Returns devices with aggregated views; supports optional class filter and paging.
+    /// <summary>
+    /// Load a paginated list of devices with aggregated view names, optionally filtered by device class.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <param name="classFilter">Optional device class to restrict results; when null no class filtering is applied.</param>
+    /// <param name="limit">Maximum number of devices to return; negative values are treated as zero.</param>
+    /// <param name="offset">Number of devices to skip for paging; negative values are treated as zero.</param>
+    /// <returns>A list of Device objects ordered by library name then cell name. Each Device.Views contains comma-aggregated view names from the database; other device fields are populated from the corresponding database columns.</returns>
     public static IReadOnlyList<Device> LoadDevicesFiltered(string dbPath, DeviceClass? classFilter, int limit, int offset)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -196,9 +205,14 @@ public static class PdkDatabaseReader
         }
         return list;
     }
-
-    // Return include candidates (deck paths) for a model, ordered by preference.
-    // Preference: paths containing "/spectre/" or ending with ".scs" first, then others lexicographically.
+    /// <summary>
+    /// Get the include/deck file paths associated with a model, ordered by preference.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <param name="modelName">Name of the model whose include/deck paths to retrieve.</param>
+    /// <returns>
+    /// An array of include/deck paths for the specified model, ordered so that Spectre-related files (paths containing "/spectre/" or ending with ".scs") come first, then paths that contain "/models/", and finally other paths; ties are ordered case-insensitively by path.
+    /// </returns>
     public static IReadOnlyList<string> GetPreferredIncludesForModel(string dbPath, string modelName)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -226,7 +240,13 @@ public static class PdkDatabaseReader
             .ToArray();
     }
 
-    // Returns include+section candidates for a model+corner from model_contexts (table guaranteed to exist in schema).
+    /// <summary>
+    /// Retrieve include file candidates and their optional section names for a given model and corner.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK database.</param>
+    /// <param name="modelName">Name of the model to query.</param>
+    /// <param name="corner">Optional corner name to filter by; pass <c>null</c> to select contexts without a corner.</param>
+    /// <returns>An <see cref="IReadOnlyList{T}"/> of tuples where `IncludePath` is the include file path (empty string if the database value is NULL) and `Section` is the section name or <c>null</c> if none.</returns>
     public static IReadOnlyList<(string IncludePath, string? Section)> GetContextsForModelAndCorner(string dbPath, string modelName, string? corner)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -248,6 +268,11 @@ public static class PdkDatabaseReader
         return list;
     }
 
+    /// <summary>
+    /// Get the number of distinct devices that have at least one model match in the PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <returns>The count of distinct devices appearing in the device_model_matches table; 0 if the result cannot be converted to an integer.</returns>
     public static int CountMatchedDevices(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -435,7 +460,11 @@ public static class PdkDatabaseReader
         return list;
     }
 
-    // Load the best-ranked model per device in a single query (reduces N+1 lookups)
+    /// <summary>
+    /// Load the best-ranked model name for each device.
+    /// </summary>
+    /// <param name="dbPath">Path to the PDK SQLite database file.</param>
+    /// <returns>A case-insensitive dictionary mapping each device's canonical name to the best-match model name. If multiple models share the best rank for a device, the first encountered mapping is preserved.</returns>
     public static IReadOnlyDictionary<string, string> LoadBestMatchByDevice(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);

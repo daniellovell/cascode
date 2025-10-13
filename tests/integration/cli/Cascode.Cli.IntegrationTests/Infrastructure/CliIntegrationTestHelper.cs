@@ -44,6 +44,13 @@ internal static class CliIntegrationTestHelper
         return new CliCommandSpec("dotnet", fallbackArgs);
     }
 
+    /// <summary>
+    /// Create a ProcessStartInfo configured to run the CLI from the repository root.
+    /// </summary>
+    /// <param name="repoRoot">Repository root directory used as the process working directory and to locate the CLI executable.</param>
+    /// <param name="args">Arguments to forward to the CLI process.</param>
+    /// <param name="commandLine">The constructed command line string (executable and quoted arguments) produced for diagnostics.</param>
+    /// <returns>A ProcessStartInfo configured with the CLI executable, argument list, redirected output/error, no shell execute, and no window.</returns>
     internal static ProcessStartInfo CreateCliStartInfo(string repoRoot, IReadOnlyList<string> args, out string commandLine)
     {
         var command = BuildCliCommand(repoRoot, args);
@@ -74,6 +81,11 @@ internal static class CliIntegrationTestHelper
         }
     }
 
+    /// <summary>
+    /// Builds a deterministic set of environment variables for running the CLI from the given repository root.
+    /// </summary>
+    /// <param name="repoRoot">Path to the repository root used to derive deterministic environment values.</param>
+    /// <returns>A dictionary of environment variable names and values that force stable CLI behavior (includes DOTNET_CLI_HOME, DOTNET_SKIP_FIRST_TIME_EXPERIENCE, DOTNET_CLI_TELEMETRY_OPTOUT, DOTNET_NOLOGO; sets USERPROFILE on Windows and DOTNET_ROOT when the dotnet executable's directory can be determined).</returns>
     internal static IDictionary<string, string> BuildDeterministicEnvironment(string repoRoot)
     {
         var env = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -96,6 +108,11 @@ internal static class CliIntegrationTestHelper
         return CascodeHome.CreateUnder(itRoot, prefix, setEnvironmentVariable: false);
     }
 
+    /// <summary>
+    /// Attempts to terminate the specified process and its child processes.
+    /// </summary>
+    /// <param name="process">The process to terminate.</param>
+    /// <remarks>Any exceptions thrown while attempting to kill the process are suppressed.</remarks>
     internal static void TryKillProcess(Process process)
     {
         try { process.Kill(entireProcessTree: true); } catch { }

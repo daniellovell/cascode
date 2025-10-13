@@ -124,8 +124,9 @@ public static class PdkDatabaseWriter
     }
 
     /// <summary>
-    /// Compute and store per-class rollups so the CLI can render instantly.
+    /// Recomputes and persists per-device-class rollup metrics into the database's <c>device_class_summary</c> table.
     /// </summary>
+    /// <param name="dbPath">Filesystem path to the SQLite database file to update; existing summary rows are replaced or updated.</param>
     public static void RebuildDeviceClassSummary(string dbPath)
     {
         using var db = PdkDatabase.Open(dbPath);
@@ -348,6 +349,10 @@ public static class PdkDatabaseWriter
         }
     }
 
+    /// <summary>
+    /// Upserts model records and their related metadata (sources, decks, and definition contexts) into the database using the provided transaction.
+    /// </summary>
+    /// <param name="models">The collection of SpectreModel entries to persist; for each model this writes or updates the core model row, inserts source files and decks, and, when present, creates or looks up corner/detail/section/include tokens and links them via model_contexts.</param>
     private static void UpsertModels(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<SpectreModel> models)
     {
         using var insertModel = conn.CreateCommand();
@@ -465,9 +470,11 @@ public static class PdkDatabaseWriter
     }
 
     /// <summary>
-    /// Upserts device rows into the devices table and inserts associated device_views rows for each device.
+    /// Upserts device rows into the devices table and ensures each device's view entries exist in <c>device_views</c>.
     /// </summary>
-    /// <param name="devices">The devices to persist; each device's canonical name is used as the key and its properties are written or updated in the database, and its view entries are inserted into device_views.</param>
+    /// <param name="conn">Open SQLite connection used to persist device metadata.</param>
+    /// <param name="tx">Active transaction that scopes the upsert operations.</param>
+    /// <param name="devices">Devices to persist; each device's canonical name is used as the key and the device's properties (including vt/vdd/tag values and layout/symbol flags) are written or updated and its view entries are inserted into <c>device_views</c>.</param>
     private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices)
     {
         using var insertDevice = conn.CreateCommand();
