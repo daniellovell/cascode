@@ -105,11 +105,11 @@ public static class PdkMatchingConfigManager
     /// Loads the matching configuration, creating the file with defaults if absent.
     /// Never throws: on error, returns defaults embedded in the assembly.
     /// </summary>
-    public static PdkMatchingConfig Load()
+    public static PdkMatchingConfig Load(Microsoft.Extensions.Logging.ILogger? logger = null)
     {
+        string path = GetConfigFilePath();
         try
         {
-            var path = GetConfigFilePath();
             if (!File.Exists(path)) EnsureInitialized();
 
             var mtimeUtc = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
@@ -137,9 +137,33 @@ public static class PdkMatchingConfigManager
             }
             return cfg;
         }
-        catch
+        catch (Exception ex)
         {
-            return DeserializeDefaults();
+            try
+            {
+                if (logger is null)
+                {
+                    Console.Error.WriteLine($"[cascode] Failed to load PDK matching config at '{path}': {ex.Message}. Using embedded defaults.");
+                }
+                // If a logger was provided, prefer basic message to avoid extension method dependency
+                else
+                {
+                    var msg = $"Failed to load PDK matching config at '{path}': {ex.Message}. Using embedded defaults.";
+                    logger.Log(Microsoft.Extensions.Logging.LogLevel.Error, new Microsoft.Extensions.Logging.EventId(0, "PdkMatchingConfigLoadError"), msg, ex, static (s, e) => s);
+                }
+            }
+            catch { /* ignore console failures */ }
+
+            var fallback = DeserializeDefaults();
+            // Cache the fallback to avoid repeated parse attempts until file changes
+            var mtimeUtc = File.Exists(path) ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue;
+            lock (s_cacheLock)
+            {
+                s_cachedConfig = fallback;
+                s_cachedPath = path;
+                s_cachedMtimeUtc = mtimeUtc;
+            }
+            return fallback;
         }
     }
 

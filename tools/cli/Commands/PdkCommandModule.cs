@@ -521,6 +521,9 @@ internal sealed class PdkCommandModule : ICommandModule
             else
                 logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
 
+            // Validate and warm the config with TUI-compatible logging
+            try { Cascode.Workspace.PdkMatchingConfigManager.Load(logger); } catch { /* handled in manager */ }
+
             logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
             var swMatch = System.Diagnostics.Stopwatch.StartNew();
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);

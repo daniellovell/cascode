@@ -50,6 +50,7 @@ classify:
     - If present in a device name, the device is tagged “infra”
   classes: map<className → ClassPattern>
   subclasses: map<className → map<subclassName → ClassPattern>>
+    - Subclass patterns are evaluated in file order; if more than one matches, the first wins.
 
 ClassPattern fields (any may be used):
 
