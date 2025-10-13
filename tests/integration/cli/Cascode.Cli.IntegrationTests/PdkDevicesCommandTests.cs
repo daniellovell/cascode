@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -10,8 +11,11 @@ public sealed class PdkDevicesCommandTests
     [Fact]
     public async Task PdkDevicesCommand_WithValidWorkspace_PrintsDeviceSummary()
     {
+        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkDevicesCommandTests));
         var scanResult = await RunCliAsync(
             TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk",
             "scan",
             "tests/fixtures/pdk/sky130");
@@ -19,6 +23,7 @@ public sealed class PdkDevicesCommandTests
 
         var devicesResult = await RunCliAsync(
             TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk",
             "devices",
             "--workspace",
@@ -38,14 +43,12 @@ public sealed class PdkDevicesCommandTests
             $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}");
     }
 
-    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, params string[] args)
+    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
-        var cascodeHome = System.IO.Path.Combine(repoRoot, ".it", nameof(PdkDevicesCommandTests));
-        System.IO.Directory.CreateDirectory(cascodeHome);
-        startInfo.Environment["CASCODE_HOME"] = cascodeHome;
+        cascodeHome.ApplyTo(startInfo.Environment);
 
         using var process = new Process { StartInfo = startInfo };
 

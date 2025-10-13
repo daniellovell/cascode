@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -10,15 +11,22 @@ public sealed class PdkCharRunContextSelectionTests
     [Fact]
     public async Task PdkCharRun_UsesDbContexts_ForSectionSelection()
     {
+        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkCharRunContextSelectionTests));
+
         // 1) Scan fixture PDK (sky130) to build DB
-        var scan = await RunCliAsync(TimeSpan.FromMinutes(2),
+        var scan = await RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk", "scan", "tests/fixtures/pdk/sky130");
         AssertSuccess(scan);
 
         // 2) Run a single-model char for 'tt' and verify the generated spec/netlist references a valid include+section
         // We choose a model that exists under tt in the fixture example_corner_models.scs
         var modelName = "sky130_fd_pr__nfet_example_tt"; // defined under section tttt_nmos_tn
-        var run = await RunCliAsync(TimeSpan.FromMinutes(2),
+        var run = await RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk", "char", "run",
             "--backend", "spectre",
             "--corner", "tt",
@@ -28,9 +36,7 @@ public sealed class PdkCharRunContextSelectionTests
         AssertSuccess(run);
 
         // 3) Find the most recent job dir and inspect spec.json and netlist
-        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var cascodeHome = Path.Combine(repoRoot, ".it", nameof(PdkCharRunContextSelectionTests));
-        var workRoot = Path.Combine(cascodeHome, "workspaces");
+        var workRoot = Path.Combine(cascodeHome.Path, "workspaces");
         var workspaceDirs = Directory.GetDirectories(workRoot);
         Assert.NotEmpty(workspaceDirs);
         var wdir = workspaceDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
@@ -58,14 +64,12 @@ public sealed class PdkCharRunContextSelectionTests
         Assert.True(result.ExitCode == 0, $"Exit {result.ExitCode}. Stdout: {result.Stdout}\nStderr: {result.Stderr}");
     }
 
-    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, params string[] args)
+    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
-        var cascodeHome = Path.Combine(repoRoot, ".it", nameof(PdkCharRunContextSelectionTests));
-        Directory.CreateDirectory(cascodeHome);
-        startInfo.Environment["CASCODE_HOME"] = cascodeHome;
+        cascodeHome.ApplyTo(startInfo.Environment);
         using var process = new System.Diagnostics.Process { StartInfo = startInfo };
         if (!process.Start()) throw new InvalidOperationException("Failed to start CLI");
         var so = process.StandardOutput.ReadToEndAsync();

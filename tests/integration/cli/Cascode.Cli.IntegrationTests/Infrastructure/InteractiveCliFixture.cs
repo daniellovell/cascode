@@ -3,6 +3,7 @@ using Xunit;
 
 namespace Cascode.Cli.IntegrationTests.Infrastructure;
 
+// Disable test parallelization to prevent race conditions when modifying global environment variables (e.g., CASCODE_HOME) and shared file system state.
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class InteractiveCliCollection : ICollectionFixture<InteractiveCliFixture>
 {

@@ -27,7 +27,7 @@ Key components
 - `SpectreDeckInspector` — collects model files/sections from `.cdsinit` context.
 - `SpectreModelExtractor` — parses decks into logical models; prefers subckts over raw `.model` bins.
 - `ModelGeometryExtractor` — normalizes geometry constraints into a compact structure.
-- `NameNormalization` — shared heuristics for class/subclass/VT/VDD/tags.
+- `NameNormalization` — config‑driven classification (no heuristics) for class/subclass/VT/VDD/tags; reads YAML from CASCODE_HOME.
 - `DeviceModelMatcher` — produces `DeviceModelMatch` with ranking and notes.
 - `PdkDatabaseWriter/Reader` — persistence boundary to `pdk.db`.
 
@@ -37,13 +37,14 @@ Data model (logical)
 - DeviceModelMatch: device_id, ordered model_names (subckt-first), quality, notes.
 
 Classification taxonomy
-- `DeviceClass` enum: Unknown, Nmos, Pmos, Bipolar, Diode, Resistor, Capacitor, Inductor, Moscap, TransmissionLine, Stdcell, Other.
-- `DeviceSubclass` enum provides fine-grained classification:
+- `DeviceClass` enum (selected): Unknown, Nmos, Pmos, Bipolar, Diode, Resistor, Capacitor, Inductor, TransmissionLine, Stdcell, Other.
+- `DeviceSubclass` enum (selected):
   - Stdcell: Inverter, Buffer, Nand, Nor, And, Or, Xor, Xnor, Multiplexer, Demultiplexer, Flipflop, Latch, Adder.
-  - Capacitor: MIMCAP, MOMCAP, VarCap.
+  - Capacitor: MOSCAP, MIMCAP, MOMCAP, VarCap.
   - Resistor: TFR (thin-film), RMetal, RPoly, RWell.
-- `NameNormalization.ClassifyByName()` determines primary class from cell name patterns.
-- `NameNormalization.ClassifySubclass()` refines classification with subclass detection.
+  - MOS devices: DeepNwell, RF.
+- `NameNormalization.ClassifyByName()` determines class using YAML only.
+- `NameNormalization.ClassifySubclass()` refines classification using per‑class YAML subclass rules.
 
 Pipeline (high level)
 1) Parse `cds.lib` → `List<WorkspaceLibrary>` (name, path).

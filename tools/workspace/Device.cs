@@ -13,7 +13,6 @@ public enum DeviceClass
     Resistor,
     Capacitor,
     Inductor,
-    Moscap,
     TransmissionLine,
     Stdcell,
     Other
@@ -39,12 +38,16 @@ public enum DeviceSubclass
     // Capacitor subclasses
     MIMCAP,
     MOMCAP,
+    MOSCAP,
     VarCap,
     // Resistor subclasses
     TFR,
     RMetal,
     RPoly,
-    RWell
+    RWell,
+    // MOS device subclasses
+    DeepNwell,
+    RF
 }
 
 public sealed class Device
@@ -65,4 +68,3 @@ public sealed class Device
     public string CanonicalName => string.IsNullOrWhiteSpace(LibraryName) ? CellName : $"{LibraryName}__{CellName}";
     public string DisplayName => CellName;
 }
-

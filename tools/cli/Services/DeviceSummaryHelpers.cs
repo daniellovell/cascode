@@ -47,7 +47,6 @@ internal static class DeviceSummaryHelpers
         DeviceClass.Resistor => "Resistor",
         DeviceClass.Capacitor => "Capacitor",
         DeviceClass.Inductor => "Inductor",
-        DeviceClass.Moscap => "MOSCAP",
         DeviceClass.TransmissionLine => "Transmission Line",
         DeviceClass.Stdcell => "StdCell",
         DeviceClass.Other => "Other",

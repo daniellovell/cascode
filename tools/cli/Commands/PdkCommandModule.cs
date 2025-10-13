@@ -98,7 +98,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
                 foreach (var s in summary)
                 {
-                    var clsEnum = (DeviceClass)s.DeviceClass;
+                    var clsEnum = s.DeviceClass;
                     classRows.Add(new DeviceClassSummaryRow(
                         DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
                         DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
@@ -107,7 +107,7 @@ internal sealed class PdkCommandModule : ICommandModule
                         Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
                         Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
                         ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
-                        IsUncategorized: s.DeviceClass == (int)DeviceClass.Unknown));
+                        IsUncategorized: s.DeviceClass == DeviceClass.Unknown));
                 }
 
                 var title = "Devices by Class";
@@ -513,6 +513,17 @@ internal sealed class PdkCommandModule : ICommandModule
             logger.LogInformation("Initial DB write complete in {ElapsedMs} ms.", swDb.ElapsedMilliseconds);
 
             // Stage 3: Device↔Model matching
+            // Ensure PDK matching patterns are initialized in CASCODE_HOME
+            var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
+            var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
+            if (created)
+                logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+            else
+                logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+
+            // Validate and warm the config with TUI-compatible logging
+            try { Cascode.Workspace.PdkMatchingConfigManager.Load(logger); } catch { /* handled in manager */ }
+
             logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
             var swMatch = System.Diagnostics.Stopwatch.StartNew();
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
