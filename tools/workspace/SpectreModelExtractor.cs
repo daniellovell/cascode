@@ -442,10 +442,7 @@ internal sealed class SpectreModelExtractor
     private static (string? corner, string? detail) GetActiveCorner(IEnumerable<CornerFrame> frames)
     {
         // Most recent CornerFrame wins
-        foreach (var frame in frames)
-        {
-            // frames is a Stack; enumerate preserves LIFO ordering when iterating directly in VisitFile
-        }
+        // frames is a Stack; enumerate preserves LIFO ordering when iterating directly in VisitFile
         string? corner = null;
         string? detail = null;
         foreach (var frame in frames.Reverse())
