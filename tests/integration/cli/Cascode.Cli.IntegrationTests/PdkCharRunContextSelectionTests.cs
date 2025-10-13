@@ -29,7 +29,8 @@ public sealed class PdkCharRunContextSelectionTests
 
         // 3) Find the most recent job dir and inspect spec.json and netlist
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var workRoot = Path.Combine(repoRoot, ".cascode", "workspaces");
+        var cascodeHome = Path.Combine(repoRoot, ".it", nameof(PdkCharRunContextSelectionTests));
+        var workRoot = Path.Combine(cascodeHome, "workspaces");
         var workspaceDirs = Directory.GetDirectories(workRoot);
         Assert.NotEmpty(workspaceDirs);
         var wdir = workspaceDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
@@ -62,6 +63,9 @@ public sealed class PdkCharRunContextSelectionTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        var cascodeHome = Path.Combine(repoRoot, ".it", nameof(PdkCharRunContextSelectionTests));
+        Directory.CreateDirectory(cascodeHome);
+        startInfo.Environment["CASCODE_HOME"] = cascodeHome;
         using var process = new System.Diagnostics.Process { StartInfo = startInfo };
         if (!process.Start()) throw new InvalidOperationException("Failed to start CLI");
         var so = process.StandardOutput.ReadToEndAsync();
@@ -79,4 +83,3 @@ public sealed class PdkCharRunContextSelectionTests
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }
-

@@ -43,7 +43,7 @@ Error handling & diagnostics
 
 Determinism & config
 - Honor `CASCODE_SEED` for any randomized sampling.
-- Use `HOME` override to keep config writable in sandboxes: `HOME=$(pwd) dotnet run --project tools/cli/Cascode.Cli.csproj`.
+- Use `CASCODE_HOME` to keep state/config writable in sandboxes: `CASCODE_HOME=$(pwd)/.it/local dotnet run --project tools/cli/Cascode.Cli.csproj`.
 
 Testing
 - Unit: option/argument binding, command routing, and small services (mocks for domain libs).
@@ -59,3 +59,15 @@ Open items
 - Background jobs/async progress in interactive mode.
 - Stable, machine-readable JSON output mode across commands.
 
+Live rendering and event model
+- Interactive mode renders a single persistent Spectre.Console Layout inside `AnsiConsole.Live`. The layout instance is not recreated and the console is never cleared during a command.
+- UI updates are event-driven, with a short periodic refresh for responsiveness. `ShellState` centralizes state and exposes `Changed` and `RequestRender()`; producers (logger via `ShellLoggerProvider.AddMessage`, long‑running task milestones) raise these to trigger a redraw. The Live loop also refreshes on a ~100 ms timeout to keep the prompt spinner responsive even when no logs are emitted.
+- On `Changed` or timeout, only affected panels are rebuilt, then the Live context is refreshed:
+  - Log panel: `ShellRenderer.BuildLog(state)`
+  - Navigator panel: `ShellRenderer.BuildNavigator(state)`
+  - Details panel: `ShellRenderer.BuildDeckDetails(state)`
+  - Prompt row: `ShellRenderer.BuildPrompt(state)`
+- The prompt row always remains visible. During long‑running work, `ShellState.StartBusy("…")/StopBusy()` dims the prompt and shows a lightweight text spinner (`ShellState.GetSpinnerFrame()`), advanced by the periodic refresh (not tied to log writes).
+- Thread‑safety: log messages are appended under a lock; renderers read via `ShellState.GetMessagesSnapshot()` to avoid concurrent modification.
+- Do not nest Spectre `Status`/`Progress` inside the TUI. These controls own the console and are not composed within the Live‑hosted layout. Use the event‑driven panel updates instead.
+- Run‑once mode is unchanged and streams via SimpleConsole; the same logger feeds both modes.

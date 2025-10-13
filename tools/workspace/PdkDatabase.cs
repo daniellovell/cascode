@@ -120,12 +120,13 @@ public sealed class PdkDatabase : IDisposable
             );
 
             CREATE TABLE IF NOT EXISTS model_contexts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
               model_id INTEGER NOT NULL,
               corner_id INTEGER NULL,
               detail_id INTEGER NULL,
               section_id INTEGER NULL,
               include_id INTEGER NULL,
-              PRIMARY KEY(model_id, corner_id, detail_id, section_id, include_id),
+              UNIQUE(model_id, corner_id, detail_id, section_id, include_id),
               FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE,
               FOREIGN KEY(corner_id) REFERENCES corners(id) ON DELETE SET NULL,
               FOREIGN KEY(detail_id) REFERENCES details(id) ON DELETE SET NULL,

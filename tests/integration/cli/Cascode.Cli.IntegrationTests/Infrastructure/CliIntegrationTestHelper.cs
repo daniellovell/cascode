@@ -67,19 +67,33 @@ internal static class CliIntegrationTestHelper
         return startInfo;
     }
 
+    private static readonly System.Threading.AsyncLocal<string?> s_cascodeHome = new();
+
     internal static void ConfigureDeterministicEnvironment(ProcessStartInfo startInfo, string repoRoot)
     {
         foreach (var kv in BuildDeterministicEnvironment(repoRoot))
         {
             startInfo.Environment[kv.Key] = kv.Value;
         }
+
+        // Assign a stable, per-test CASCODE_HOME (scoped via AsyncLocal) so
+        // multiple CLI processes within the same test share the same state,
+        // while parallel tests get isolated directories.
+        var current = s_cascodeHome.Value;
+        if (string.IsNullOrEmpty(current))
+        {
+            var itRoot = Path.Combine(repoRoot, ".it");
+            Directory.CreateDirectory(itRoot);
+            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
+            s_cascodeHome.Value = current;
+        }
+        startInfo.Environment["CASCODE_HOME"] = current!;
     }
 
     internal static IDictionary<string, string> BuildDeterministicEnvironment(string repoRoot)
     {
         var env = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["HOME"] = repoRoot,
             ["DOTNET_CLI_HOME"] = repoRoot,
             ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
             ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
@@ -90,6 +104,19 @@ internal static class CliIntegrationTestHelper
         if (!string.IsNullOrEmpty(dotnetRoot)) env["DOTNET_ROOT"] = dotnetRoot!;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) env["USERPROFILE"] = repoRoot;
         return env;
+    }
+
+    internal static string GetOrCreateTestCascodeHome(string repoRoot)
+    {
+        var current = s_cascodeHome.Value;
+        if (string.IsNullOrEmpty(current))
+        {
+            var itRoot = Path.Combine(repoRoot, ".it");
+            Directory.CreateDirectory(itRoot);
+            current = Path.Combine(itRoot, $"cascode-home-{Guid.NewGuid():N}");
+            s_cascodeHome.Value = current;
+        }
+        return current!;
     }
 
     internal static void TryKillProcess(Process process)

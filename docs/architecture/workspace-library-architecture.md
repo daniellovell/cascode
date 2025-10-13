@@ -68,7 +68,7 @@ Observability
 - `CASCODE_DEBUG=1` may emit normalized keys and candidate sets for diagnosis.
 
 CLI contract
-- `pdk scan` populates `~/.cascode/workspaces/<hash>/pdk.db` (or repo-local HOME override).
+- `pdk scan` populates `$CASCODE_HOME/workspaces/<hash>/pdk.db` (default `~/.cascode/workspaces/<hash>/pdk.db` when CASCODE_HOME is unset).
 - `pdk devices`, `pdk device`, `pdk match` read from `pdk.db` to present catalogs and coverage.
 
 Testing strategy
@@ -79,4 +79,3 @@ Testing strategy
 Open items
 - OA-only enumeration (future integration).
 - Optional manual override map for edge-case device↔model bindings.
-

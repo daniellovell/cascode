@@ -43,6 +43,9 @@ public sealed class PdkDevicesCommandTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        var cascodeHome = System.IO.Path.Combine(repoRoot, ".it", nameof(PdkDevicesCommandTests));
+        System.IO.Directory.CreateDirectory(cascodeHome);
+        startInfo.Environment["CASCODE_HOME"] = cascodeHome;
 
         using var process = new Process { StartInfo = startInfo };
 

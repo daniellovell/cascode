@@ -33,11 +33,13 @@ public static class HarnessService
             }
         }
         catch { }
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!string.IsNullOrEmpty(home))
+        var cascodeHome = Environment.GetEnvironmentVariable("CASCODE_HOME");
+        if (string.IsNullOrWhiteSpace(cascodeHome))
         {
-            roots.Add(Path.Combine(home, ".cascode", "harnesses"));
+            var user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrEmpty(user)) cascodeHome = Path.Combine(user, ".cascode");
         }
+        if (!string.IsNullOrWhiteSpace(cascodeHome)) roots.Add(Path.Combine(cascodeHome!, "harnesses"));
 
         return YamlHarnessDiscovery.Discover(roots);
     }

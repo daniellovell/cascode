@@ -11,18 +11,26 @@ internal static class WorkspaceState
 
     public static string GetRoot()
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(home))
+        // Prefer explicit CASCODE_HOME override to avoid ambiguity with HOME.
+        var cascodeHome = Environment.GetEnvironmentVariable("CASCODE_HOME");
+        if (!string.IsNullOrWhiteSpace(cascodeHome))
         {
-            home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return cascodeHome!;
         }
 
-        if (string.IsNullOrEmpty(home))
+        // Fallback to OS user profile (never read HOME directly).
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(userProfile))
         {
-            home = Directory.GetCurrentDirectory();
+            userProfile = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         }
 
-        return Path.Combine(home, RootFolderName);
+        if (string.IsNullOrEmpty(userProfile))
+        {
+            userProfile = Directory.GetCurrentDirectory();
+        }
+
+        return Path.Combine(userProfile, RootFolderName);
     }
 
     public static string GetWorkspaceFolder(string workspaceRoot)

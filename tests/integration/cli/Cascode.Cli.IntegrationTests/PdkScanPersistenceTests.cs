@@ -82,6 +82,10 @@ public sealed class PdkScanPersistenceTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        // Use a class-scoped CASCODE_HOME so all CLI invocations in this test share state
+        var cascodeHome = System.IO.Path.Combine(repoRoot, ".it", nameof(PdkScanPersistenceTests));
+        System.IO.Directory.CreateDirectory(cascodeHome);
+        startInfo.Environment["CASCODE_HOME"] = cascodeHome;
 
         using var process = new Process { StartInfo = startInfo };
 
@@ -117,4 +121,3 @@ public sealed class PdkScanPersistenceTests
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }
-

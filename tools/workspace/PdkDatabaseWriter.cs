@@ -443,7 +443,7 @@ public static class PdkDatabaseWriter
 
             // Persist definition contexts if present; otherwise skip (no fabrication)
             pMid.Value = id;
-            var contexts = (model as dynamic)?.DefinitionContexts as IReadOnlyList<ModelContext>;
+            var contexts = model.DefinitionContexts;
             if (contexts is not null)
             {
                 foreach (var ctx in contexts)
