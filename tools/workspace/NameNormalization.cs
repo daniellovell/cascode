@@ -82,7 +82,6 @@ internal static class NameNormalization
     {
         if (cfg.Classify.Classes.Count == 0) return DeviceClass.Unknown;
 
-        // Prefer stdcell first when provided to mimic previous heuristics
         string? bestKey = null;
         int bestScore = int.MinValue;
 
