@@ -98,7 +98,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
                 foreach (var s in summary)
                 {
-                    var clsEnum = (DeviceClass)s.DeviceClass;
+                    var clsEnum = s.DeviceClass;
                     classRows.Add(new DeviceClassSummaryRow(
                         DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
                         DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
@@ -107,7 +107,7 @@ internal sealed class PdkCommandModule : ICommandModule
                         Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
                         Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
                         ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
-                        IsUncategorized: s.DeviceClass == (int)DeviceClass.Unknown));
+                        IsUncategorized: s.DeviceClass == DeviceClass.Unknown));
                 }
 
                 var title = "Devices by Class";
@@ -149,6 +149,7 @@ internal sealed class PdkCommandModule : ICommandModule
                     {
                         var d = devices[i];
                         var vt = d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags);
+                        // Values from DB are already numeric CSV; reader maps them to display strings.
                         var vdd = d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags);
                         var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
                         rows.Add(new DeviceSummaryRow(i + 1, d.CellName, d.Class.ToString(), vt, vdd, views, string.Empty));
@@ -513,6 +514,17 @@ internal sealed class PdkCommandModule : ICommandModule
             logger.LogInformation("Initial DB write complete in {ElapsedMs} ms.", swDb.ElapsedMilliseconds);
 
             // Stage 3: Device↔Model matching
+            // Ensure PDK matching patterns are initialized in CASCODE_HOME
+            var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
+            var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
+            if (created)
+                logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+            else
+                logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+
+            // Validate and warm the config with TUI-compatible logging
+            try { Cascode.Workspace.PdkMatchingConfigManager.Load(logger); } catch { /* handled in manager */ }
+
             logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
             var swMatch = System.Diagnostics.Stopwatch.StartNew();
             var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
@@ -865,23 +877,36 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     }
 
+    /// <summary>
+    /// Normalize a string for use as a filename by replacing all characters invalid in file names with underscores.
+    /// </summary>
+    /// <param name="name">The input string to sanitize.</param>
+    /// <returns>The input string with every character that is invalid in file names replaced by '_' (underscore).</returns>
     private static string Sanitize(string name)
     {
         foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
         return name;
     }
 
-    private static string FormatList(IEnumerable<string> values)
-    {
-        var distinct = values.Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-        if (distinct.Length == 0) return "-";
-        if (distinct.Length <= 5) return string.Join(", ", distinct);
-        return string.Join(", ", distinct.Take(5)) + $" … ({distinct.Length - 5} more)";
-    }
-
+    /// <summary>
+    /// Split a comma-separated string into trimmed, non-empty tokens.
+    /// </summary>
+    /// <param name="value">The comma-separated input string to split.</param>
+    /// <returns>A list of trimmed tokens; an empty list if <paramref name="value"/> is null, empty, or consists only of whitespace.</returns>
     private static List<string> SplitCsv(string value)
-        => string.IsNullOrWhiteSpace(value) ? new List<string>() : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        => string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
 
+    /// <summary>
+    /// Generate a testbench and supporting files for the specified Spectre model and place them in the given job directory.
+    /// </summary>
+    /// <param name="model">The Spectre model to generate a testbench for.</param>
+    /// <param name="harnessId">Identifier to use for the generated harness/netlist names.</param>
+    /// <param name="backend">Target backend name (e.g., "spectre" or "ngspice").</param>
+    /// <param name="corner">Optional corner/section used to resolve includes and DB contexts.</param>
+    /// <param name="jobDir">Directory where generated files and netlists will be written.</param>
+    /// <returns>`true` if the testbench files were generated successfully, `false` otherwise.</returns>
     private bool GenerateBenchForModel(SpectreModel model, string harnessId, string backend, string? corner, string jobDir)
     {
         try
@@ -899,20 +924,44 @@ internal sealed class PdkCommandModule : ICommandModule
                 catch { return File.Exists(path) ? Path.GetFullPath(path) : null; }
             }
 
-            var rawDecks = model.Decks ?? Array.Empty<string>();
-            var decksWithSection = rawDecks.Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>()).Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            var resolvedIncludes = new List<string>();
+            var decksWithSection = new List<string>();
             var extraIncludes = new List<string>();
-            if (!string.IsNullOrWhiteSpace(corner))
-            {
-                var key = corner.Trim();
-                sourceIncludesAll = sourceIncludesAll.Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-            }
-            if (decksWithSection.Count == 0) extraIncludes = sourceIncludesAll; else extraIncludes.Clear();
+            string? resolvedSection = corner;
 
-            var resolvedIncludes = new List<string>(decksWithSection.Count + extraIncludes.Count);
-            resolvedIncludes.AddRange(decksWithSection);
-            resolvedIncludes.AddRange(extraIncludes);
+            // Prefer exact contexts from the DB when available
+            if (File.Exists(dbPath))
+            {
+                var ctxs = Cascode.Workspace.PdkDatabaseReader.GetContextsForModelAndCorner(dbPath, model.Name, corner);
+                if (ctxs.Count > 0)
+                {
+                    var chosen = ctxs[0];
+                    var inc = TryNormalizeInclude(chosen.IncludePath) ?? chosen.IncludePath;
+                    if (!string.IsNullOrWhiteSpace(inc))
+                    {
+                        resolvedIncludes.Add(inc!);
+                        decksWithSection.Add(inc!);
+                    }
+                    resolvedSection = string.IsNullOrWhiteSpace(chosen.Section) ? corner : chosen.Section;
+                }
+            }
+
+            if (resolvedIncludes.Count == 0)
+            {
+                // Fallback to heuristic based on decks and source files
+                var rawDecks = model.Decks ?? Array.Empty<string>();
+                decksWithSection = rawDecks.Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>()).Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (!string.IsNullOrWhiteSpace(corner))
+                {
+                    var key = corner.Trim();
+                    sourceIncludesAll = sourceIncludesAll.Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                }
+                if (decksWithSection.Count == 0) extraIncludes = sourceIncludesAll; else extraIncludes.Clear();
+                resolvedIncludes.AddRange(decksWithSection);
+                resolvedIncludes.AddRange(extraIncludes);
+            }
 
             static string ResolveModelNameForNetlist(SpectreModel m)
             {
@@ -930,7 +979,6 @@ internal sealed class PdkCommandModule : ICommandModule
             if (resolvedIncludes.Count == 0) _state.AddMessage($"[warn] No include decks located for model '{model.Name}'. Spectre run may fail.");
 
             // Apply geometry constraints from PDK database
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
             if (File.Exists(dbPath))
             {
                 var geom = Cascode.Workspace.PdkDatabaseReader.LoadGeometryForModel(dbPath, model.Name);
@@ -989,7 +1037,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 Vds = vdsVal,
                 Vsb = 0.0,
                 Includes = resolvedIncludes,
-                Section = corner,
+                Section = resolvedSection,
                 JobDir = jobDir,
                 ResultsCsv = "results.csv"
             };
@@ -1002,7 +1050,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 DeckPaths = resolvedIncludes,
                 IncludePathsWithSection = decksWithSection,
                 IncludePathsWithoutSection = extraIncludes,
-                Section = corner,
+                Section = resolvedSection,
                 Args = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
             };
 
@@ -1105,6 +1153,11 @@ internal sealed class PdkCommandModule : ICommandModule
         return null;
     }
 
+    /// <summary>
+    /// Yield candidate file-system locations for the Spectre executable under the specified tool root, tailored to the current operating system.
+    /// </summary>
+    /// <param name="root">Base installation directory to search for common Spectre binary locations.</param>
+    /// <returns>An enumerable of plausible file paths for the Spectre executable appropriate to the current OS.</returns>
     private static IEnumerable<string> EnumerateSpectreGuesses(string root)
     {
         if (OperatingSystem.IsWindows())
@@ -1119,68 +1172,20 @@ internal sealed class PdkCommandModule : ICommandModule
         }
     }
 
-    // Removed JSON cache loader; the CLI uses the PDK database exclusively.
-
-    /* private static void ParseModelArguments(string[] args, HashSet<DeviceClass> filters, int totalCount, ref int limit)
-    {
-        if (args.Length == 0) return;
-        for (var i = 0; i < args.Length; i++)
-        {
-            var arg = args[i];
-            if (string.IsNullOrWhiteSpace(arg)) continue;
-            if (arg.Equals("--limit", StringComparison.OrdinalIgnoreCase))
-            {
-                if (i + 1 < args.Length && int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLimit))
-                {
-                    limit = Math.Clamp(parsedLimit, 1, Math.Max(1, totalCount));
-                    i++;
-                }
-                continue;
-            }
-            foreach (var token in ExpandFilterToken(arg)) if (TryResolveDeviceClass(token, out var dc)) filters.Add(dc);
-        }
-    } */
-
-    /* private static IEnumerable<string> ExpandFilterToken(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token)) yield break;
-        var trimmed = token.Trim();
-        var segments = trimmed.Split(new[] { '/', ',' }, StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0)
-        {
-            yield return trimmed.Trim('/');
-            yield break;
-        }
-        foreach (var segment in segments)
-        {
-            var clean = segment.Trim().Trim('/');
-            if (clean.Length == 0) continue;
-            yield return clean;
-        }
-    } */
-
-    /* private static bool TryResolveDeviceClass(string token, out DeviceClass deviceClass)
-    {
-        deviceClass = DeviceClass.Unknown;
-        if (string.IsNullOrWhiteSpace(token)) return false;
-        var normalized = token.Trim().Trim('/').ToLowerInvariant();
-        switch (normalized)
-        {
-            case "nmos" or "nfet" or "nch": deviceClass = DeviceClass.Nmos; return true;
-            case "pmos" or "pfet" or "pch": deviceClass = DeviceClass.Pmos; return true;
-            case "cap" or "caps" or "capacitor" or "capacitors": deviceClass = DeviceClass.Capacitor; return true;
-            case "res" or "resistor" or "resistors": deviceClass = DeviceClass.Resistor; return true;
-            case "diode" or "diodes": deviceClass = DeviceClass.Diode; return true;
-            case "bjt" or "bipolar": deviceClass = DeviceClass.Bipolar; return true;
-            case "moscap": deviceClass = DeviceClass.Moscap; return true;
-            case "ind" or "inductor" or "inductors": deviceClass = DeviceClass.Inductor; return true;
-            case "tline" or "tl" or "transmissionline": deviceClass = DeviceClass.TransmissionLine; return true;
-            case "other": deviceClass = DeviceClass.Other; return true;
-            case "unknown" or "uncat" or "uncategorized" or "unmatched": deviceClass = DeviceClass.Unknown; return true;
-            default: return false;
-        }
-    } */
-
+    /// <summary>
+    /// Parse device-related CLI flags and return structured filter criteria.
+    /// </summary>
+    /// <param name="args">Command-line arguments to parse. Recognized flags:
+    /// --class <csv>, --vt <csv>, --vdd <csv>, --infra, --no-infra, --matched, --unmatched, --limit <n>.</param>
+    /// <returns>
+    /// A tuple containing:
+    /// - `classes`: set of class names (case-insensitive),
+    /// - `vts`: set of VT tags (uppercased),
+    /// - `vdds`: set of VDD tags (lowercased),
+    /// - `infra`: `true` to include only infra devices, `false` to exclude infra devices, `null` to include all,
+    /// - `matched`: `true` to include only matched devices, `false` to include only unmatched devices, `null` to include all,
+    /// - `limit`: maximum number of results to show (minimum 1, defaults to 20).
+    /// </returns>
     private static (HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, bool? matched, int limit) ParseDeviceFilters(string[] args)
     {
         var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

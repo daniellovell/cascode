@@ -27,3 +27,4 @@ error.log
 
 # Testing files
 *.trx
+.it/**

@@ -8,6 +8,9 @@ public sealed class SpectreModel
 {
     public static readonly IReadOnlyList<string> EmptyStringList = Array.Empty<string>();
 
+    /// <summary>
+    /// Initializes a new instance of SpectreModel, setting all collection properties to shared empty instances and leaving scalar properties at their default values.
+    /// </summary>
     public SpectreModel()
     {
         Corners = EmptyStringList;
@@ -15,6 +18,7 @@ public sealed class SpectreModel
         Sections = EmptyStringList;
         SourceFiles = EmptyStringList;
         Decks = EmptyStringList;
+        DefinitionContexts = Array.Empty<ModelContext>();
     }
 
     /// <summary>
@@ -91,4 +95,7 @@ public sealed class SpectreModel
     [JsonPropertyName("decks")]
     public IReadOnlyList<string> Decks { get; set; }
         = EmptyStringList;
+
+    [JsonPropertyName("definitionContexts")]
+    public IReadOnlyList<ModelContext> DefinitionContexts { get; set; } = Array.Empty<ModelContext>();
 }

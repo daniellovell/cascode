@@ -28,6 +28,9 @@ public static class ModelGeometryExtractor
 {
     public static List<ModelGeometry> Extract(IReadOnlyList<SpectreModel> models)
     {
+        // Cache normalized file contents to avoid redundant reads
+        var fileCache = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
         var list = new List<ModelGeometry>();
         foreach (var m in models)
         {
@@ -42,20 +45,13 @@ public static class ModelGeometryExtractor
                 foreach (var path in paths)
                 {
                     if (!File.Exists(path)) continue;
-                    var lines = File.ReadAllLines(path);
-                    // Join continuation lines ending with '\' or starting with '+'
-                    var normalized = new List<string>();
-                    var acc = new StringBuilder();
-                    foreach (var raw in lines)
+
+                    // Check cache first to avoid redundant file reads
+                    if (!fileCache.TryGetValue(path, out var normalized))
                     {
-                        var line = raw.Trim();
-                        if (line.Length == 0 || line.StartsWith("*")) continue;
-                        if (line.StartsWith("+")) { acc.Append(' ').Append(line[1..].Trim()); continue; }
-                        if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
-                        if (line.EndsWith("\\")) { acc.Append(line[..^1].Trim()); continue; }
-                        normalized.Add(line);
+                        normalized = ReadAndNormalizeFile(path);
+                        fileCache[path] = normalized;
                     }
-                    if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
 
                     // Parse accumulated lines
                     bool inTargetSubckt = false;
@@ -101,6 +97,25 @@ public static class ModelGeometryExtractor
             }
         }
         return list;
+    }
+
+    private static List<string> ReadAndNormalizeFile(string path)
+    {
+        var lines = File.ReadAllLines(path);
+        // Join continuation lines ending with '\' or starting with '+'
+        var normalized = new List<string>();
+        var acc = new StringBuilder();
+        foreach (var raw in lines)
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith("*")) continue;
+            if (line.StartsWith("+")) { acc.Append(' ').Append(line[1..].Trim()); continue; }
+            if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
+            if (line.EndsWith("\\")) { acc.Append(line[..^1].Trim()); continue; }
+            normalized.Add(line);
+        }
+        if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
+        return normalized;
     }
 
     private static bool TryParseModelParams(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)

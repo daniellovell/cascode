@@ -15,6 +15,8 @@ public sealed class PdkScanStreamingTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkScanStreamingTests));
+        cascodeHome.ApplyTo(startInfo.Environment);
 
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Cascode.TestSupport;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -14,8 +15,11 @@ public sealed class PdkScanPersistenceTests
     {
         // Run a full scan of the sky130 fixture
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkScanPersistenceTests));
+
         var scanResult = await RunCliAsync(
             TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk",
             "scan",
             "tests/fixtures/pdk/sky130");
@@ -30,6 +34,7 @@ public sealed class PdkScanPersistenceTests
         // Query devices for the same workspace and verify the total device count
         var devicesResult = await RunCliAsync(
             TimeSpan.FromMinutes(2),
+            cascodeHome,
             "pdk",
             "devices",
             "--workspace",
@@ -77,11 +82,12 @@ public sealed class PdkScanPersistenceTests
             $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}");
     }
 
-    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, params string[] args)
+    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        cascodeHome.ApplyTo(startInfo.Environment);
 
         using var process = new Process { StartInfo = startInfo };
 
@@ -117,4 +123,3 @@ public sealed class PdkScanPersistenceTests
 
     private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }
-
