@@ -425,12 +425,13 @@ public static class PdkDatabaseWriter
         var pSid = insContext.CreateParameter(); pSid.ParameterName = "$sid"; insContext.Parameters.Add(pSid);
         var pIid = insContext.CreateParameter(); pIid.ParameterName = "$iid"; insContext.Parameters.Add(pIid);
 
+        var matchingConfig = PdkMatchingConfigManager.Load();
         foreach (var model in models)
         {
             mName.Value = model.Name;
             mType.Value = model.ModelType ?? string.Empty;
             mClass.Value = (int)model.DeviceClass;
-            var tokenForModel = VddFormatting.ExtractTokenFromVoltageDomain(model.VoltageDomain, PdkMatchingConfigManager.Load());
+            var tokenForModel = VddFormatting.ExtractTokenFromVoltageDomain(model.VoltageDomain, matchingConfig);
             if (VddFormatting.TryTokenToVolts(tokenForModel, out var modelVolts)) mVdd.Value = modelVolts; else mVdd.Value = DBNull.Value;
             mVt.Value = (object?)model.ThresholdFlavor ?? DBNull.Value;
             insertModel.ExecuteNonQuery();

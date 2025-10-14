@@ -82,17 +82,13 @@ internal sealed class CdsLibParser
             {
                 ParseDefine(line, filePath, libraries, warnings, logger);
             }
-            else if (StartsWithToken(line, "INCLUDE") || StartsWithToken(line, "SOFTINCLUDE"))
+            else if (StartsWithToken(line, "INCLUDE"))
             {
-                var includePath = ExtractPath(line, 1, filePath);
-                if (includePath is null)
-                {
-                    warnings?.Add($"Unable to parse include in '{filePath}': '{line}'.");
-                    continue;
-                }
-
-                logger?.LogDebug("Including {Include}", includePath);
-                ParseFile(includePath, libraries, visited, warnings, logger);
+                ParseInclude(line, "INCLUDE", filePath, libraries, visited, warnings, logger);
+            }
+            else if (StartsWithToken(line, "SOFTINCLUDE"))
+            {
+                ParseInclude(line, "SOFTINCLUDE", filePath, libraries, visited, warnings, logger);
             }
         }
     }
@@ -104,29 +100,45 @@ internal sealed class CdsLibParser
         ICollection<string>? warnings,
         ILogger? logger)
     {
-        var parts = SplitTokens(line);
-        if (parts.Length < 3)
+        if (!TryParseDefineTokens(line, out var name, out var rawPath))
         {
             warnings?.Add($"Malformed DEFINE in '{filePath}': '{line}'.");
             return;
         }
 
-        var name = parts[1];
         var baseDirectory = Path.GetDirectoryName(filePath) ?? _workspaceRoot;
-        var libraryPath = NormalizePath(parts[2], baseDirectory);
+        var libraryPath = NormalizePath(rawPath, baseDirectory);
         libraries.Add(new WorkspaceLibrary(name, libraryPath));
         logger?.LogInformation("DEFINE {Name} -> {Path}", name, libraryPath);
     }
 
-    private string? ExtractPath(string line, int tokenIndex, string currentFile)
+    private void ParseInclude(
+        string line,
+        string token,
+        string currentFile,
+        List<WorkspaceLibrary> libraries,
+        HashSet<string> visited,
+        ICollection<string>? warnings,
+        ILogger? logger)
     {
-        var parts = SplitTokens(line);
-        if (tokenIndex >= parts.Length)
+        var includePath = ExtractIncludePath(line, token, currentFile);
+        if (includePath is null)
+        {
+            warnings?.Add($"Unable to parse include in '{currentFile}': '{line}'.");
+            return;
+        }
+
+        logger?.LogDebug("Including {Include}", includePath);
+        ParseFile(includePath, libraries, visited, warnings, logger);
+    }
+
+    private string? ExtractIncludePath(string line, string token, string currentFile)
+    {
+        if (!TryParseIncludeToken(line, token, out var rawPath))
         {
             return null;
         }
 
-        var rawPath = parts[tokenIndex];
         var baseDirectory = Path.GetDirectoryName(currentFile) ?? _workspaceRoot;
         return NormalizePath(rawPath, baseDirectory);
     }
@@ -196,6 +208,63 @@ internal sealed class CdsLibParser
     private static bool StartsWithToken(string line, string token)
         => line.StartsWith(token, StringComparison.OrdinalIgnoreCase);
 
-    private static string[] SplitTokens(string line)
-        => line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    private static bool TryParseDefineTokens(string line, out string name, out string rawPath)
+    {
+        name = string.Empty;
+        rawPath = string.Empty;
+
+        var span = line.AsSpan();
+        const string token = "DEFINE";
+        if (span.Length < token.Length)
+        {
+            return false;
+        }
+
+        var remainder = span[token.Length..].TrimStart();
+        if (remainder.Length == 0)
+        {
+            return false;
+        }
+
+        var nameLength = 0;
+        while (nameLength < remainder.Length && !char.IsWhiteSpace(remainder[nameLength]))
+        {
+            nameLength++;
+        }
+
+        if (nameLength == 0)
+        {
+            return false;
+        }
+
+        name = remainder[..nameLength].ToString();
+
+        var pathSpan = remainder[nameLength..].TrimStart();
+        if (pathSpan.Length == 0)
+        {
+            return false;
+        }
+
+        rawPath = pathSpan.ToString();
+        return true;
+    }
+
+    private static bool TryParseIncludeToken(string line, string token, out string rawPath)
+    {
+        rawPath = string.Empty;
+
+        if (line.Length < token.Length)
+        {
+            return false;
+        }
+
+        var remainder = line.AsSpan(token.Length).TrimStart();
+        if (remainder.Length == 0)
+        {
+            return false;
+        }
+
+        rawPath = remainder.ToString();
+        return true;
+    }
 }

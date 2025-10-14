@@ -1181,7 +1181,7 @@ internal sealed class PdkCommandModule : ICommandModule
     /// A tuple containing:
     /// - `classes`: set of class names (case-insensitive),
     /// - `vts`: set of VT tags (uppercased),
-    /// - `vdds`: set of VDD tags (lowercased),
+    /// - `vdds`: set of normalized VDD display strings (e.g., 1.8V),
     /// - `infra`: `true` to include only infra devices, `false` to exclude infra devices, `null` to include all,
     /// - `matched`: `true` to include only matched devices, `false` to include only unmatched devices, `null` to include all,
     /// - `limit`: maximum number of results to show (minimum 1, defaults to 20).
@@ -1207,7 +1207,11 @@ internal sealed class PdkCommandModule : ICommandModule
             }
             else if (a.Equals("--vdd", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                foreach (var tok in SplitCsv(args[++i])) vdds.Add(tok.ToLowerInvariant());
+                foreach (var tok in SplitCsv(args[++i]))
+                {
+                    if (TryNormalizeVddFilter(tok, out var normalized)) vdds.Add(normalized);
+                    else vdds.Add(tok.ToLowerInvariant());
+                }
             }
             else if (a.Equals("--infra", StringComparison.OrdinalIgnoreCase)) infra = true;
             else if (a.Equals("--no-infra", StringComparison.OrdinalIgnoreCase)) infra = false;
@@ -1225,7 +1229,7 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         if (classes.Count > 0 && !classes.Contains(d.Class.ToString(), StringComparer.OrdinalIgnoreCase)) return false;
         if (vts.Count > 0 && !d.VtTags.Any(t => vts.Contains(t, StringComparer.OrdinalIgnoreCase))) return false;
-        if (vdds.Count > 0 && !d.VddTags.Any(t => vdds.Contains(t, StringComparer.OrdinalIgnoreCase))) return false;
+        if (vdds.Count > 0 && !DeviceMatchesVddFilters(d.VddTags, vdds)) return false;
         if (infra.HasValue)
         {
             var isInfra = d.Tags.Any(t => t.Equals("infra", StringComparison.OrdinalIgnoreCase));
@@ -1237,6 +1241,49 @@ internal sealed class PdkCommandModule : ICommandModule
             if (matched.Value != isMatched) return false;
         }
         return true;
+    }
+
+    internal static bool TryNormalizeVddFilter(string raw, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+
+        var trimmed = raw.Trim();
+        // First handle canonical tokens such as 1v8, 01v05.
+        var lower = trimmed.ToLowerInvariant();
+        if (VddFormatting.TryTokenToVolts(lower, out var fromToken))
+        {
+            normalized = VddFormatting.PrettyFromVolts(fromToken);
+            return true;
+        }
+
+        // Strip trailing V/v from numeric inputs like 1.8V.
+        if (lower.EndsWith("v", StringComparison.Ordinal))
+        {
+            lower = lower[..^1];
+        }
+
+        if (double.TryParse(lower, NumberStyles.Float, CultureInfo.InvariantCulture, out var volts))
+        {
+            normalized = VddFormatting.PrettyFromVolts(volts);
+            return true;
+        }
+
+        return false;
+    }
+
+    internal static bool DeviceMatchesVddFilters(IReadOnlyList<string> deviceVddTags, HashSet<string> filters)
+    {
+        if (filters.Count == 0) return true;
+        if (deviceVddTags is null || deviceVddTags.Count == 0) return false;
+
+        foreach (var tag in deviceVddTags)
+        {
+            if (TryNormalizeVddFilter(tag, out var normalized) && filters.Contains(normalized)) return true;
+            if (filters.Contains(tag)) return true;
+        }
+
+        return false;
     }
 
     private CommandResult PdkMatch(string[] args)
