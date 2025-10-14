@@ -27,14 +27,24 @@ Key components
 - `SpectreDeckInspector` — collects model files/sections from `.cdsinit` context.
 - `SpectreModelExtractor` — parses decks into logical models; prefers subckts over raw `.model` bins.
 - `ModelGeometryExtractor` — normalizes geometry constraints into a compact structure.
-- `NameNormalization` — shared heuristics for class/VT/VDD/tags.
+- `NameNormalization` — config‑driven classification (no heuristics) for class/subclass/VT/VDD/tags; reads YAML from CASCODE_HOME.
 - `DeviceModelMatcher` — produces `DeviceModelMatch` with ranking and notes.
 - `PdkDatabaseWriter/Reader` — persistence boundary to `pdk.db`.
 
 Data model (logical)
-- Device: id, class (NMOS|PMOS| …), library, paths, views, has_layout, has_symbol, vt_tags, vdd_tags, tags.
-- Model: name, class, thresholdFlavor, voltageDomain, modelType=subckt|model, sections/decks, geometry.
+- Device: id, class (Nmos|Pmos|Stdcell|Capacitor|Resistor|…), subclass (Inverter|Buffer|MIMCAP|TFR|…), library, paths, views, has_layout, has_symbol, vt_tags, vdd_tags, tags.
+- Model: name, class (Nmos|Pmos|…), thresholdFlavor, voltageDomain, modelType=subckt|model, sections/decks, geometry.
 - DeviceModelMatch: device_id, ordered model_names (subckt-first), quality, notes.
+
+Classification taxonomy
+- `DeviceClass` enum (selected): Unknown, Nmos, Pmos, Bipolar, Diode, Resistor, Capacitor, Inductor, TransmissionLine, Stdcell, Other.
+- `DeviceSubclass` enum (selected):
+  - Stdcell: Inverter, Buffer, Nand, Nor, And, Or, Xor, Xnor, Multiplexer, Demultiplexer, Flipflop, Latch, Adder.
+  - Capacitor: MOSCAP, MIMCAP, MOMCAP, VarCap.
+  - Resistor: TFR (thin-film), RMetal, RPoly, RWell.
+  - MOS devices: DeepNwell, RF.
+- `NameNormalization.ClassifyByName()` determines class using YAML only.
+- `NameNormalization.ClassifySubclass()` refines classification using per‑class YAML subclass rules.
 
 Pipeline (high level)
 1) Parse `cds.lib` → `List<WorkspaceLibrary>` (name, path).
@@ -59,7 +69,7 @@ Observability
 - `CASCODE_DEBUG=1` may emit normalized keys and candidate sets for diagnosis.
 
 CLI contract
-- `pdk scan` populates `~/.cascode/workspaces/<hash>/pdk.db` (or repo-local HOME override).
+- `pdk scan` populates `$CASCODE_HOME/workspaces/<hash>/pdk.db` (default `~/.cascode/workspaces/<hash>/pdk.db` when CASCODE_HOME is unset).
 - `pdk devices`, `pdk device`, `pdk match` read from `pdk.db` to present catalogs and coverage.
 
 Testing strategy
@@ -70,4 +80,3 @@ Testing strategy
 Open items
 - OA-only enumeration (future integration).
 - Optional manual override map for edge-case device↔model bindings.
-

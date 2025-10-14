@@ -65,6 +65,21 @@ internal static class PathUtilities
         return result;
     }
 
+    /// <summary>
+    /// Validates that a file is a legal Spectre model deck.
+    /// Currently only .scs files are supported.
+    /// </summary>
+    public static bool IsValidSpectreModelDeck(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var extension = Path.GetExtension(path);
+        return string.Equals(extension, ".scs", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string ExpandHome(string value)
     {
         if (string.IsNullOrWhiteSpace(value) || value[0] != '~')

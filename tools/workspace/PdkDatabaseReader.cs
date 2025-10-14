@@ -10,6 +10,14 @@ public static class PdkDatabaseReader
 {
     private static IReadOnlyList<string> SplitCsv(string? csv)
         => string.IsNullOrWhiteSpace(csv) ? Array.Empty<string>() : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static DeviceClass MapDeviceClass(int raw)
+        => Enum.IsDefined(typeof(DeviceClass), raw) ? (DeviceClass)raw : DeviceClass.Unknown;
+    /// <summary>
+    /// Load device metadata from the specified PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the read-only PDK SQLite database file.</param>
+    /// <returns>An IReadOnlyList of Device objects representing devices found in the database (empty if none).</returns>
     public static IReadOnlyList<Device> LoadDevices(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -18,7 +26,7 @@ public static class PdkDatabaseReader
         {
             cmd.CommandText = @"
                 SELECT d.canonical_name, d.display_name, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
-                       d.device_class, d.has_layout, d.has_symbol, d.vt_tags, d.vdd_tags, d.tags,
+                       d.device_class, d.device_subclass, d.has_layout, d.has_symbol, d.vt_tags, d.vdd_tags, d.tags,
                        GROUP_CONCAT(v.view)
                 FROM devices d LEFT JOIN device_views v ON d.id=v.device_id
                 GROUP BY d.id
@@ -26,25 +34,37 @@ public static class PdkDatabaseReader
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                var viewsCsv = reader.IsDBNull(12) ? string.Empty : reader.GetString(12);
+                var viewsCsv = reader.IsDBNull(13) ? string.Empty : reader.GetString(13);
                 devices.Add(new Device
                 {
                     LibraryName = reader.GetString(2),
                     LibraryPath = reader.GetString(3),
                     CellName = reader.GetString(4),
                     CellPath = reader.GetString(5),
-                    Class = (SpectreModelDeviceClass)reader.GetInt32(6),
-                    HasLayout = reader.GetInt32(7) != 0,
-                    HasSymbol = reader.GetInt32(8) != 0,
-                    VtTags = SplitCsv(reader.IsDBNull(9) ? null : reader.GetString(9)),
-                    VddTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
-                    Tags = SplitCsv(reader.IsDBNull(11) ? null : reader.GetString(11)),
+                    Class = MapDeviceClass(reader.GetInt32(6)),
+                    Subclass = (DeviceSubclass)reader.GetInt32(7),
+                    HasLayout = reader.GetInt32(8) != 0,
+                    HasSymbol = reader.GetInt32(9) != 0,
+                    VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
+                    VddTags = reader.IsDBNull(11)
+                        ? Array.Empty<string>()
+                        : new[] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
+                    Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
                     Views = SplitCsv(viewsCsv)
                 });
             }
         }
         return devices;
     }
+    /// <summary>
+    /// Loads Spectre models and their associated metadata from the specified PDK database.
+    /// </summary>
+    /// <param name="dbPath">File path to the PDK SQLite database.</param>
+    /// <summary>
+    /// Load Spectre models from the PDK database and populate their metadata.
+    /// </summary>
+    /// <param name="dbPath">Path to the PDK database file.</param>
+    /// <returns>An array of SpectreModel instances populated with name, type, device class, voltage domain, threshold flavor, source files, decks, corners, corner details, and sections; models are ordered by name.</returns>
     public static IReadOnlyList<SpectreModel> LoadModels(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -59,7 +79,7 @@ public static class PdkDatabaseReader
                 var id = reader.GetInt64(0);
                 var name = reader.GetString(1);
                 var type = reader.GetString(2);
-                var cls = (SpectreModelDeviceClass)reader.GetInt32(3);
+                var cls = MapDeviceClass(reader.GetInt32(3));
                 var vdd = reader.IsDBNull(4) ? null : reader.GetString(4);
                 var vt = reader.IsDBNull(5) ? null : reader.GetString(5);
                 var model = new SpectreModel(name, type, cls, vdd, vt, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList);
@@ -105,10 +125,14 @@ public static class PdkDatabaseReader
             }
         }
 
-        // Load corners/sections
+        // Load corners/details/sections from model_contexts (table guaranteed to exist in schema)
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT model_id, corner, detail, section FROM model_corners";
+            cmd.CommandText = @"SELECT mc.model_id, c.name AS corner, d.name AS detail, s.name AS section
+                                 FROM model_contexts mc
+                                 LEFT JOIN corners c ON c.id=mc.corner_id
+                                 LEFT JOIN details d ON d.id=mc.detail_id
+                                 LEFT JOIN sections s ON s.id=mc.section_id";
             using var reader = cmd.ExecuteReader();
             var cornersMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
             var detailsMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
@@ -130,7 +154,132 @@ public static class PdkDatabaseReader
 
         return models.Select(m => m.Model).ToArray();
     }
+    /// <summary>
+    /// Load a paginated list of devices with aggregated view names, optionally filtered by device class.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <param name="classFilter">Optional device class to restrict results; when null no class filtering is applied.</param>
+    /// <param name="limit">Maximum number of devices to return; negative values are treated as zero.</param>
+    /// <param name="offset">Number of devices to skip for paging; negative values are treated as zero.</param>
+    /// <returns>A list of Device objects ordered by library name then cell name. Each Device.Views contains comma-aggregated view names from the database; other device fields are populated from the corresponding database columns.</returns>
+    public static IReadOnlyList<Device> LoadDevicesFiltered(string dbPath, DeviceClass? classFilter, int limit, int offset)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        var where = classFilter.HasValue ? "WHERE d.device_class=$cls" : string.Empty;
+        cmd.CommandText = $@"
+            SELECT d.id, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
+                   d.device_class, d.device_subclass, d.has_layout, d.has_symbol,
+                   d.vt_tags, d.vdd_tags, d.tags,
+                   GROUP_CONCAT(v.view)
+            FROM devices d LEFT JOIN device_views v ON v.device_id=d.id
+            {where}
+            GROUP BY d.id
+            ORDER BY d.lib_name, d.cell_name
+            LIMIT $limit OFFSET $offset";
+        if (classFilter.HasValue)
+        {
+            var pCls = cmd.CreateParameter(); pCls.ParameterName = "$cls"; pCls.Value = (int)classFilter.Value; cmd.Parameters.Add(pCls);
+        }
+        var pLim = cmd.CreateParameter(); pLim.ParameterName = "$limit"; pLim.Value = Math.Max(0, limit); cmd.Parameters.Add(pLim);
+        var pOff = cmd.CreateParameter(); pOff.ParameterName = "$offset"; pOff.Value = Math.Max(0, offset); cmd.Parameters.Add(pOff);
 
+        var list = new List<Device>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            var viewsCsv = r.IsDBNull(12) ? string.Empty : r.GetString(12);
+            var vdds = r.IsDBNull(10) ? Array.Empty<string>() : new[] { VddFormatting.PrettyFromVolts(r.GetDouble(10)) };
+            list.Add(new Device
+            {
+                LibraryName = r.GetString(1),
+                LibraryPath = r.GetString(2),
+                CellName = r.GetString(3),
+                CellPath = r.GetString(4),
+                Class = MapDeviceClass(r.GetInt32(5)),
+                Subclass = (DeviceSubclass)r.GetInt32(6),
+                HasLayout = r.GetInt32(7) != 0,
+                HasSymbol = r.GetInt32(8) != 0,
+                VtTags = SplitCsv(r.IsDBNull(9) ? null : r.GetString(9)),
+                VddTags = vdds,
+                Tags = SplitCsv(r.IsDBNull(11) ? null : r.GetString(11)),
+                Views = SplitCsv(viewsCsv)
+            });
+        }
+        return list;
+    }
+    /// <summary>
+    /// Get the include/deck file paths associated with a model, ordered by preference.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <param name="modelName">Name of the model whose include/deck paths to retrieve.</param>
+    /// <returns>
+    /// An array of include/deck paths for the specified model, ordered so that Spectre-related files (paths containing "/spectre/" or ending with ".scs") come first, then paths that contain "/models/", and finally other paths; ties are ordered case-insensitively by path.
+    /// </returns>
+    public static IReadOnlyList<string> GetPreferredIncludesForModel(string dbPath, string modelName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT md.path
+                             FROM models m JOIN model_decks md ON md.model_id=m.id
+                             WHERE m.name=$name";
+        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = modelName; cmd.Parameters.Add(p);
+        var paths = new List<string>();
+        using (var r = cmd.ExecuteReader())
+        {
+            while (r.Read()) paths.Add(r.GetString(0));
+        }
+        static int Score(string p)
+        {
+            var lower = p.ToLowerInvariant();
+            var score = 0;
+            if (lower.Contains("/spectre/") || lower.EndsWith(".scs", StringComparison.Ordinal)) score += 2;
+            if (lower.Contains("/models/")) score += 1;
+            return -score; // sort ascending by negative score then by path
+        }
+        return paths
+            .OrderBy(Score)
+            .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Retrieve include file candidates and their optional section names for a given model and corner.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK database.</param>
+    /// <param name="modelName">Name of the model to query.</param>
+    /// <param name="corner">Optional corner name to filter by; pass <c>null</c> to select contexts without a corner.</param>
+    /// <returns>An <see cref="IReadOnlyList{T}"/> of tuples where `IncludePath` is the include file path (empty string if the database value is NULL) and `Section` is the section name or <c>null</c> if none.</returns>
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetContextsForModelAndCorner(string dbPath, string modelName, string? corner)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT i.path, s.name
+                             FROM model_contexts mc
+                             JOIN models m ON m.id=mc.model_id
+                             LEFT JOIN corners c ON c.id=mc.corner_id
+                             LEFT JOIN sections s ON s.id=mc.section_id
+                             LEFT JOIN includes i ON i.id=mc.include_id
+                             WHERE m.name=$name
+                               AND (
+                                     ($corner IS NULL AND c.id IS NULL)      -- no-corner contexts when corner param is null
+                                  OR ($corner IS NOT NULL AND c.name=$corner) -- specific corner contexts when corner param is provided
+                               )
+                             GROUP BY i.path, s.name
+                             ORDER BY s.name, i.path";
+        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
+        var pCorner = cmd.CreateParameter(); pCorner.ParameterName = "$corner"; pCorner.Value = (object?)corner ?? DBNull.Value; cmd.Parameters.Add(pCorner);
+        var list = new List<(string, string?)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        return list;
+    }
+
+    /// <summary>
+    /// Get the number of distinct devices that have at least one model match in the PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
+    /// <returns>The count of distinct devices appearing in the device_model_matches table; 0 if the result cannot be converted to an integer.</returns>
     public static int CountMatchedDevices(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -213,6 +362,11 @@ public static class PdkDatabaseReader
 
     public sealed record MatchCoverageByClass(string Class, int Total, int Matched, int Ambiguous, int Unmatched);
 
+    /// <summary>
+    /// Retrieves per-device-class match coverage summaries from the PDK database.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the read-only PDK SQLite database.</param>
+    /// <returns>An ordered list of match coverage summaries, one entry per device class, containing total devices, matched count, ambiguous count, and unmatched count.</returns>
     public static IReadOnlyList<MatchCoverageByClass> GetMatchCoverageByClass(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -233,7 +387,7 @@ public static class PdkDatabaseReader
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
-            var cls = (SpectreModelDeviceClass)r.GetInt32(0);
+            var cls = MapDeviceClass(r.GetInt32(0));
             list.Add(new MatchCoverageByClass(cls.ToString(), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4)));
         }
         return list;
@@ -289,7 +443,7 @@ public static class PdkDatabaseReader
         );
     }
 
-    public sealed record DeviceClassSummaryRow(int DeviceClass, int DeviceCount, int Matched, int Ambiguous, int Unmatched, string VoltageDomainsCsv, string ThresholdsCsv, string CornersCsv, string ExampleModel, int Decks);
+    public sealed record DeviceClassSummaryRow(DeviceClass DeviceClass, int DeviceCount, int Matched, int Ambiguous, int Unmatched, string VoltageDomainsCsv, string ThresholdsCsv, string CornersCsv, string ExampleModel, int Decks);
 
     public static IReadOnlyList<DeviceClassSummaryRow> LoadDeviceClassSummary(string dbPath)
     {
@@ -302,7 +456,8 @@ public static class PdkDatabaseReader
         while (r.Read())
         {
             list.Add(new DeviceClassSummaryRow(
-                r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4),
+                MapDeviceClass(r.GetInt32(0)),
+                r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4),
                 r.IsDBNull(5) ? string.Empty : r.GetString(5),
                 r.IsDBNull(6) ? string.Empty : r.GetString(6),
                 r.IsDBNull(7) ? string.Empty : r.GetString(7),
@@ -312,7 +467,11 @@ public static class PdkDatabaseReader
         return list;
     }
 
-    // Load the best-ranked model per device in a single query (reduces N+1 lookups)
+    /// <summary>
+    /// Load the best-ranked model name for each device.
+    /// </summary>
+    /// <param name="dbPath">Path to the PDK SQLite database file.</param>
+    /// <returns>A case-insensitive dictionary mapping each device's canonical name to the best-match model name. If multiple models share the best rank for a device, the first encountered mapping is preserved.</returns>
     public static IReadOnlyDictionary<string, string> LoadBestMatchByDevice(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);

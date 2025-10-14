@@ -22,4 +22,4 @@
 
 ## Development Notes
 - Build the CLI: `dotnet build tools/cli/Cascode.Cli.csproj`
-- Run interactively: `HOME=$(pwd) dotnet run --project tools/cli/Cascode.Cli.csproj`
+- Run interactively: `CASCODE_HOME=$(pwd)/.it/local dotnet run --project tools/cli/Cascode.Cli.csproj`

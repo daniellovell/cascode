@@ -1,7 +1,7 @@
-# **Chapter 2 — Core Concepts**
+# **Chapter 2: Core Concepts**
 
 > This chapter defines the **semantic scaffolding** of *cascode*: the building blocks, how they relate, and the invariants the compiler and tools rely upon. Syntax is shown informally; the formal grammar appears in Chapter 11.
-> Normative keywords **MUST**, **MUST NOT**, **SHOULD**, **MAY** follow RFC 2119.
+> Normative keywords **MUST**, **MUST NOT**, **SHOULD**, **MAY** follow [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
 
 ---
 
@@ -13,7 +13,7 @@ A **program** comprises one or more `.cas` files organized under a package names
 
 ## 2.2 Modules, Motifs, Traits
 
-The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** serves as a reusable building block with defined **ports**, **params**, and **contracts** while maintaining encapsulated internal structure. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** functions as an interface that defines contracts through **ports**, **bundles**, **roles**, and **behavioral expectations** that modules and motifs can **implement**. This abstraction enables substitution during synthesis—for instance, any entity implementing `AmplifierStage` becomes eligible to fill `slot Core: AmplifierStage`.
+The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** serves as a reusable building block with defined **ports**, **params**, and **contracts** while maintaining encapsulated internal structure. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** functions as an interface that defines contracts through **ports**, **bundles**, **roles**, and **behavioral expectations** that modules and motifs can **implement**. This abstraction enables substitution during synthesis - for instance, any entity implementing `AmplifierStage` becomes eligible to fill `slot Core: AmplifierStage`.
 
 **Normative**
 
@@ -26,11 +26,11 @@ The cascode type system distinguishes three fundamental entities. A **module** r
 
 **Port kinds** (non-exhaustive):
 
-* `supply`, `ground` — special; **MUST NOT** short to `electrical`.
-* `electrical` — general (single-ended).
-* `diff` — differential bundle abstraction (has fields `.p`/`.n`).
-* `bias` — bias/control nets (typed for headroom/legality checks).
-* `rf`, `clk` — specialized kinds with additional contracts (impedance, phase/timing).
+* `supply`, `ground` - special; **MUST NOT** short to `electrical`.
+* `electrical` - general (single-ended).
+* `diff` - differential bundle abstraction (has fields `.p`/`.n`).
+* `bias` - bias/control nets (typed for headroom/legality checks).
+* `rf`, `clk` - specialized kinds with additional contracts (impedance, phase/timing).
 
 **Roles**
 
@@ -74,7 +74,7 @@ params { m:int=1; }          // motif parameters
 
 ## 2.6 Units and Dimensions
 
-Literals may specify **units** including voltage (`V`), current (`A`), resistance (`Ω`), capacitance (`F`), inductance (`H`), frequency (`Hz`), gain (`dB`), phase (`deg`), time (`s`, `ps`), power (`mW`), and noise density (`nV/√Hz`). The compiler enforces **dimensional consistency** across all expressions and specifications. SI prefixes undergo automatic conversion, while non-linear units such as decibels are treated as scalars with semantics defined per metric (detailed in Chapter 5).
+Literals may specify **units** including voltage (`V`), current (`A`), capacitance (`F`), inductance (`H`), frequency (`Hz`), gain (`dB`), phase (`deg`), time (`s`, `ps`), power (`mW`), and noise density (`nV/√Hz`). The compiler enforces **dimensional consistency** across all expressions and specifications. SI prefixes undergo automatic conversion, while non-linear units such as decibels are treated as scalars with semantics defined per metric (detailed in Chapter 5).
 
 ```cas
 supply VDD = 1.2V;
@@ -117,19 +117,19 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 **Schematic-like sugar** (all expand to primitives in CasIR):
 
-* `attach` — bind a structural motif to a target instance with explicit port mapping.
+* `attach` - bind a structural motif to a target instance with explicit port mapping.
 
   ```cas
   attach Cascode on dp { in<-dp.drain_l; bias<-vb_casc; vref<-VDD; }
   ```
 
-* `pair` — instantiate symmetric **left/right** branches with `.l`/`.r` handles.
+* `pair` - instantiate symmetric **left/right** branches with `.l`/`.r` handles.
 
   ```cas
   pair casN = NMOSCascode(dp.drain_l, dp.drain_r) { bias=vb_casc; ref<-GND; };
   ```
 
-* `CurrentMirror` — **general** mirror motif (preferred over specialized variants).
+* `CurrentMirror` - **general** mirror motif (preferred over specialized variants).
 
   ```cas
   mirP = new CurrentMirror(polarity=PMOS) {
@@ -139,7 +139,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   };
   ```
 
-* `ActiveLoad` — **general** active load motif with polarity parameter (wraps primitive transistor with semantic interface).
+* `ActiveLoad` - **general** active load motif with polarity parameter (wraps primitive transistor with semantic interface).
 
   ```cas
   load = new ActiveLoad(polarity=PMOS) {
@@ -149,7 +149,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   };
   ```
 
-* `fb R(...)`, `fb C(...)` — feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.14 for passive kinds/scope.
+* `fb R(...)`, `fb C(...)` - feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.14 for passive kinds/scope.
 
 **Acyclicity**
 
@@ -210,10 +210,10 @@ When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically
 
 Mixed‑signal flows commonly require timing/level checks on electrical nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
 
-* `rise_time(node, v_lo, v_hi)` — time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
-* `fall_time(node, v_hi, v_lo)` — analogous definition for falling transitions.
-* `voh(node)` / `vol(node)` — steady‑state high/low levels measured at the node under the bench’s toggling pattern. Units: voltage. `voh` is the plateau following a rising transition; `vol` is analogous for falling.
-* `toggle_power(node, freq, duty)` — average dynamic power attributable to toggling a designated driver/input. Units: power. Computed from rail current integration over whole cycles.
+* `rise_time(node, v_lo, v_hi)` - time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
+* `fall_time(node, v_hi, v_lo)` - analogous definition for falling transitions.
+* `voh(node)` / `vol(node)` - steady‑state high/low levels measured at the node under the bench's toggling pattern. Units: voltage. `voh` is the plateau following a rising transition; `vol` is analogous for falling.
+* `toggle_power(node, freq, duty)` - average dynamic power attributable to toggling a designated driver/input. Units: power. Computed from rail current integration over whole cycles.
 
 Normative
 
@@ -359,7 +359,7 @@ The cascode language recognizes that not all passive elements serve equivalent p
 
 ```cas
 C1 = new Cap(OUT, GND) { kind=MIM | MOM | MFC; value=500fF; }
-R1 = new Res(A, OUT)   { kind=TFR | Poly | Metal | Pseudo; value=10kΩ; }
+R1 = new Res(A, OUT)   { kind=TFR | Poly | Metal | Pseudo; value=10k; }
 L1 = new Ind(A, B)     { kind=Spiral | MIMStack | Metal; value=2nH; }
 ```
 
@@ -400,8 +400,8 @@ M2 = new PMOS() {
 
 **Parameters:**
 
-* `W` (width): **derived by synthesis from specifications** — never hardcoded in ADL
-* `L` (length): **derived by synthesis from specifications** — never hardcoded in ADL
+* `W` (width): **derived by synthesis from specifications** - never hardcoded in ADL
+* `L` (length): **derived by synthesis from specifications** - never hardcoded in ADL
 * `m` (multiplier): optional, default=1
 
 **Process-agnostic semantics (normative):**

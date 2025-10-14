@@ -392,7 +392,7 @@ The synthesis and optimization engine modifies the graph through a constrained s
 - replace_subgraph(patternId, binder)
 - set_param(inst, name, value)
 
-High-level patterns and syntactic sugar in ADL—including attach, pair, mirror, and feedback constructs—lower to sequences of these primitive operations during the desugaring phase.
+High-level patterns and syntactic sugar in ADL - including attach, pair, mirror, and feedback constructs - lower to sequences of these primitive operations during the desugaring phase.
 
 ---
 

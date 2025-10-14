@@ -15,6 +15,7 @@ internal sealed class ShellState
 {
     private const int MaxMessages = 1000;
     private readonly List<string> _messages = new();
+    private readonly object _messagesLock = new();
     private readonly List<string> _history = new();
 
     public ShellState(string workspaceRoot)
@@ -31,7 +32,32 @@ internal sealed class ShellState
 
     public int? SelectedDeckIndex { get; set; }
 
-    public IReadOnlyList<string> Messages => _messages;
+    public string[] GetMessagesSnapshot()
+    {
+        lock (_messagesLock)
+        {
+            return _messages.ToArray();
+        }
+    }
+
+    public event Action? Changed;
+    private void OnChanged()
+    {
+        // Notify subscribers best-effort. Today we expect at most one subscriber
+        // (the interactive renderer). Guard in debug and isolate each handler.
+        var handlers = Changed;
+        if (handlers is null) return;
+
+        System.Diagnostics.Debug.Assert(
+            handlers.GetInvocationList().Length <= 1,
+            "ShellState.Changed should have at most one subscriber.");
+
+        foreach (Action h in handlers.GetInvocationList())
+        {
+            try { h(); }
+            catch { /* best-effort: keep notifying others */ }
+        }
+    }
 
     public int LogViewport { get; private set; } = 10;
 
@@ -58,7 +84,14 @@ internal sealed class ShellState
     public string? CharCorner { get; private set; }
     public string? CharBackend { get; private set; }
 
+    // Busy/prompt spinner state
+    public bool IsBusy { get; private set; }
+    public string BusyText { get; private set; } = string.Empty;
+    private static readonly string[] SpinnerFrames = new[] { "⠋", "⠙", "⠸", "⠴", "⠦", "⠇" };
+    private int _spinnerIndex;
+
     private int _historyCursor;
+    private bool _hasStreamedOutput;
 
     public void SetWorkspace(string root)
     {
@@ -74,11 +107,15 @@ internal sealed class ShellState
 
         Scan = null;
         SelectedDeckIndex = null;
-        _messages.Clear();
+        lock (_messagesLock)
+        {
+            _messages.Clear();
+        }
         _history.Clear();
         ResetHistoryCursor();
         LogScrollOffset = 0;
         ShowHome();
+        _hasStreamedOutput = false;
     }
 
     public void UpdatePdkRoot(string? root)
@@ -88,20 +125,24 @@ internal sealed class ShellState
 
     public void AddMessage(string message)
     {
-        if (_messages.Count >= MaxMessages)
+        lock (_messagesLock)
         {
-            _messages.RemoveAt(0);
+            if (_messages.Count >= MaxMessages)
+            {
+                _messages.RemoveAt(0);
+            }
+
+            _messages.Add(message);
+
+            if (!IsLogPinned)
+            {
+                var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+                LogScrollOffset = Math.Min(LogScrollOffset + 1, maxOffset);
+            }
+
+            ClampScrollOffset();
         }
-
-        _messages.Add(message);
-
-        if (!IsLogPinned)
-        {
-            var maxOffset = Math.Max(0, _messages.Count - LogViewport);
-            LogScrollOffset = Math.Min(LogScrollOffset + 1, maxOffset);
-        }
-
-        ClampScrollOffset();
+        OnChanged();
     }
 
     public void RecordCommand(string command)
@@ -114,6 +155,18 @@ internal sealed class ShellState
 
         AddMessage($"> {trimmed}");
         AddHistory(trimmed);
+    }
+
+    public bool HasStreamedOutput => _hasStreamedOutput;
+
+    public void MarkStreamedOutput()
+    {
+        _hasStreamedOutput = true;
+    }
+
+    public void ResetStreamedOutput()
+    {
+        _hasStreamedOutput = false;
     }
 
     public void UpdateLogViewport(int viewport)
@@ -129,7 +182,7 @@ internal sealed class ShellState
 
     public void ScrollLogUp(int lines)
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var maxOffset = Math.Max(0, GetMessageCount() - LogViewport);
         if (maxOffset == 0)
         {
             LogScrollOffset = 0;
@@ -141,18 +194,19 @@ internal sealed class ShellState
 
     public void ScrollLogDown(int lines)
     {
-        if (_messages.Count <= LogViewport)
+        var messageCount = GetMessageCount();
+        if (messageCount <= LogViewport)
         {
             LogScrollOffset = 0;
             return;
         }
 
-        LogScrollOffset = Math.Clamp(LogScrollOffset - lines, 0, Math.Max(0, _messages.Count - LogViewport));
+        LogScrollOffset = Math.Clamp(LogScrollOffset - lines, 0, Math.Max(0, messageCount - LogViewport));
     }
 
     public void ScrollLogHome()
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var maxOffset = Math.Max(0, GetMessageCount() - LogViewport);
         LogScrollOffset = maxOffset;
     }
 
@@ -162,6 +216,35 @@ internal sealed class ShellState
     }
 
     public void PinLog() => LogScrollOffset = 0;
+
+    public void StartBusy(string text)
+    {
+        IsBusy = true;
+        BusyText = text ?? string.Empty;
+        _spinnerIndex = 0;
+        OnChanged();
+    }
+
+    public void StopBusy()
+    {
+        IsBusy = false;
+        BusyText = string.Empty;
+        _spinnerIndex = 0;
+        OnChanged();
+    }
+
+    public string GetSpinnerFrame()
+    {
+        return SpinnerFrames[_spinnerIndex % SpinnerFrames.Length];
+    }
+
+    // Advance the spinner independently of log writes while busy.
+    public void TickSpinner()
+    {
+        if (!IsBusy) return;
+        _spinnerIndex = (_spinnerIndex + 1) % SpinnerFrames.Length;
+        // No OnChanged() here: the interactive loop refreshes on a timer.
+    }
 
     public void ShowHome()
     {
@@ -293,7 +376,18 @@ internal sealed class ShellState
 
     private void ClampScrollOffset()
     {
-        var maxOffset = Math.Max(0, _messages.Count - LogViewport);
+        var count = GetMessageCount();
+        var maxOffset = Math.Max(0, count - LogViewport);
         LogScrollOffset = Math.Clamp(LogScrollOffset, 0, maxOffset);
+    }
+
+    public void RequestRender() => OnChanged();
+
+    private int GetMessageCount()
+    {
+        lock (_messagesLock)
+        {
+            return _messages.Count;
+        }
     }
 }

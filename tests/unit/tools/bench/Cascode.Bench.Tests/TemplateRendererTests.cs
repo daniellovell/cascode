@@ -1,0 +1,26 @@
+using Cascode.Bench;
+using Xunit;
+
+namespace Cascode.Bench.Tests;
+
+public class TemplateRendererTests
+{
+    [Fact]
+    public void TemplateRenderer_PreprocessesLiquidBlocks()
+    {
+        var model = new
+        {
+            spec = new { name = "demo" },
+            items = new[] { "alpha", "beta" },
+        };
+
+        const string conditionalTemplate = "{% if true %}value{% endif %}";
+        const string loopTemplate = "{% for item in items %}{{ item }}{% endfor %}";
+
+        var conditionalRender = TemplateRenderer.Render(conditionalTemplate, model);
+        var loopRender = TemplateRenderer.Render(loopTemplate, model);
+
+        Assert.Equal("value", conditionalRender);
+        Assert.Equal("alphabeta", loopRender);
+    }
+}

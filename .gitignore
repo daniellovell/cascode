@@ -1,4 +1,5 @@
 .vs/
+.vscode/
 dotnet-home/
 **/obj/**
 
@@ -6,6 +7,7 @@ tools/**/bin/Debug/**
 
 AGENTS.md
 CURSOR.md
+CLAUDE.md
 
 .dotnet/
 .local/
@@ -13,8 +15,16 @@ CURSOR.md
 .cascode/
 
 **/.cache/*
+**/bin/*
 build/
 CASCODE_DESIGN_DOC.md
 MY_NOTES.md
 
+error.log
+
 .bashrc
+*.log
+
+# Testing files
+*.trx
+.it/**
