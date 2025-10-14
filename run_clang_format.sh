@@ -10,7 +10,7 @@ if ! command -v "$CLANG_FORMAT" &> /dev/null; then
 fi
 
 
-# Run clang-format on .cs and .json files in Assets/ folder
+# Run clang-format on all .cs files in the repository
 find . -type f \( -name "*.cs" \) -exec "$CLANG_FORMAT" -i -style=file {} +
 
 echo "Formatting complete."

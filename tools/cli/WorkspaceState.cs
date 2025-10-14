@@ -13,9 +13,8 @@ internal static class WorkspaceState
     /// Determine the filesystem root directory used to store Cascode state.
     /// </summary>
     /// <remarks>
-    /// If the environment variable CASCODE_HOME is set and not empty, its value is returned.
-    /// Otherwise the OS user profile path is used, falling back to the application data folder and then to the current working directory if earlier values are empty.
-    /// The returned path is the chosen base path combined with the RootFolderName (".cascode").
+    /// If the environment variable CASCODE_HOME is set and not empty, its value is treated as the complete Cascode root path and returned without modification.
+    /// When CASCODE_HOME is absent or empty, the method selects a base path by checking the OS user profile, then the application data folder, and finally the current working directory if needed, and combines that base path with the RootFolderName (".cascode").
     /// </remarks>
     /// <returns>The full path to the Cascode root directory.</returns>
     public static string GetRoot()
