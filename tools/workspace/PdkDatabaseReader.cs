@@ -48,7 +48,7 @@ public static class PdkDatabaseReader
                     VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
                     VddTags = reader.IsDBNull(11)
                         ? Array.Empty<string>()
-                        : new [] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
+                        : new[] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
                     Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
                     Views = SplitCsv(viewsCsv)
                 });
