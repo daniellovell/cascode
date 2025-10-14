@@ -1,37 +1,65 @@
-using System.Text;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
 internal sealed class CdsLibParser
 {
-    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
 
-    public IReadOnlyList<WorkspaceLibrary> Parse(string rootPath, ICollection<string>? warnings = null)
+    private readonly HashSet<string> _attemptedVariables = new(StringComparer.Ordinal);
+    private WorkspaceBashEnvironment? _workspaceEnvironment;
+    private string _workspaceRoot = string.Empty;
+
+    public IReadOnlyList<WorkspaceLibrary> Parse(string rootPath, ICollection<string>? warnings = null, ILogger? logger = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
+
+        _workspaceRoot = Path.GetFullPath(rootPath);
+        _attemptedVariables.Clear();
+        _workspaceEnvironment = null;
+
         var libraries = new List<WorkspaceLibrary>();
         var visited = new HashSet<string>(PathComparer);
 
-        var cdsLibPath = Path.Combine(rootPath, "cds.lib");
+        var cdsLibPath = Path.Combine(_workspaceRoot, "cds.lib");
         if (!File.Exists(cdsLibPath))
         {
-            warnings?.Add($"cds.lib not found under '{rootPath}'.");
+            warnings?.Add($"cds.lib not found under '{_workspaceRoot}'.");
             return libraries;
         }
 
-        ParseFile(cdsLibPath, rootPath, libraries, visited, warnings);
+        logger?.LogInformation("Root cds.lib: {Path}", cdsLibPath);
+        EnsureRootEnvironmentVariables(cdsLibPath, logger);
+
+        ParseFile(cdsLibPath, libraries, visited, warnings, logger);
         return libraries;
     }
 
-    private static void ParseFile(
+    private void EnsureRootEnvironmentVariables(string cdsLibPath, ILogger? logger)
+    {
+        var variableNames = EnvironmentVariableScanner.FromFile(cdsLibPath);
+        if (variableNames.Count > 0)
+        {
+            logger?.LogDebug("Found {Count} env var references in root cds.lib", variableNames.Count);
+        }
+        LoadMissingVariables(variableNames);
+    }
+
+    private void ParseFile(
         string filePath,
-        string workspaceRoot,
         List<WorkspaceLibrary> libraries,
         HashSet<string> visited,
-        ICollection<string>? warnings)
+        ICollection<string>? warnings,
+        ILogger? logger)
     {
         if (!visited.Add(Path.GetFullPath(filePath)))
         {
-            return; // prevent include cycles
+            return;
         }
 
         if (!File.Exists(filePath))
@@ -39,6 +67,8 @@ internal sealed class CdsLibParser
             warnings?.Add($"cds.lib include '{filePath}' does not exist.");
             return;
         }
+
+        logger?.LogDebug("Reading {File}", filePath);
 
         foreach (var rawLine in File.ReadAllLines(filePath))
         {
@@ -50,27 +80,29 @@ internal sealed class CdsLibParser
 
             if (StartsWithToken(line, "DEFINE"))
             {
-                ParseDefine(line, filePath, libraries, warnings);
+                ParseDefine(line, filePath, libraries, warnings, logger);
             }
             else if (StartsWithToken(line, "INCLUDE") || StartsWithToken(line, "SOFTINCLUDE"))
             {
-                var includePath = ExtractPath(line, 1, filePath, workspaceRoot);
+                var includePath = ExtractPath(line, 1, filePath);
                 if (includePath is null)
                 {
                     warnings?.Add($"Unable to parse include in '{filePath}': '{line}'.");
                     continue;
                 }
 
-                ParseFile(includePath, workspaceRoot, libraries, visited, warnings);
+                logger?.LogDebug("Including {Include}", includePath);
+                ParseFile(includePath, libraries, visited, warnings, logger);
             }
         }
     }
 
-    private static void ParseDefine(
+    private void ParseDefine(
         string line,
         string filePath,
         ICollection<WorkspaceLibrary> libraries,
-        ICollection<string>? warnings)
+        ICollection<string>? warnings,
+        ILogger? logger)
     {
         var parts = SplitTokens(line);
         if (parts.Length < 3)
@@ -80,11 +112,13 @@ internal sealed class CdsLibParser
         }
 
         var name = parts[1];
-        var libraryPath = NormalizePath(parts[2], Path.GetDirectoryName(filePath));
+        var baseDirectory = Path.GetDirectoryName(filePath) ?? _workspaceRoot;
+        var libraryPath = NormalizePath(parts[2], baseDirectory);
         libraries.Add(new WorkspaceLibrary(name, libraryPath));
+        logger?.LogInformation("DEFINE {Name} -> {Path}", name, libraryPath);
     }
 
-    private static string? ExtractPath(string line, int tokenIndex, string currentFile, string workspaceRoot)
+    private string? ExtractPath(string line, int tokenIndex, string currentFile)
     {
         var parts = SplitTokens(line);
         if (tokenIndex >= parts.Length)
@@ -93,13 +127,17 @@ internal sealed class CdsLibParser
         }
 
         var rawPath = parts[tokenIndex];
-        return NormalizePath(rawPath, Path.GetDirectoryName(currentFile) ?? workspaceRoot);
+        var baseDirectory = Path.GetDirectoryName(currentFile) ?? _workspaceRoot;
+        return NormalizePath(rawPath, baseDirectory);
     }
 
-    private static string NormalizePath(string rawPath, string? baseDirectory)
+    private string NormalizePath(string rawPath, string baseDirectory)
     {
+        EnsureVariablesForRawPath(rawPath);
+
         var trimmed = rawPath.Trim('"', '\'', '`');
         var expanded = Environment.ExpandEnvironmentVariables(trimmed);
+        expanded = EnvironmentVariableScanner.Expand(expanded, Environment.GetEnvironmentVariable);
         if (string.IsNullOrEmpty(expanded))
         {
             return trimmed;
@@ -110,8 +148,49 @@ internal sealed class CdsLibParser
             return Path.GetFullPath(expanded);
         }
 
-        var root = string.IsNullOrEmpty(baseDirectory) ? Directory.GetCurrentDirectory() : baseDirectory;
+        var root = string.IsNullOrEmpty(baseDirectory) ? _workspaceRoot : baseDirectory;
         return Path.GetFullPath(Path.Combine(root, expanded));
+    }
+
+    private void EnsureVariablesForRawPath(string rawPath)
+    {
+        var candidateNames = EnvironmentVariableScanner.FromText(rawPath);
+        if (candidateNames.Count == 0)
+        {
+            return;
+        }
+
+        var missing = new List<string>();
+        foreach (var name in candidateNames)
+        {
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(name)))
+            {
+                continue;
+            }
+
+            if (_attemptedVariables.Add(name))
+            {
+                missing.Add(name);
+            }
+        }
+
+        if (missing.Count == 0)
+        {
+            return;
+        }
+
+        LoadMissingVariables(missing);
+    }
+
+    private void LoadMissingVariables(IReadOnlyCollection<string> variableNames)
+    {
+        if (variableNames.Count == 0)
+        {
+            return;
+        }
+
+        _workspaceEnvironment ??= new WorkspaceBashEnvironment(_workspaceRoot);
+        _workspaceEnvironment.LoadVariables(variableNames);
     }
 
     private static bool StartsWithToken(string line, string token)

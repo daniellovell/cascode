@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
@@ -9,10 +10,11 @@ public sealed class WorkspaceScanner
 {
     private readonly CdsLibParser _cdsLibParser = new();
     private readonly CdsInitScanner _cdsInitScanner = new();
+    private readonly LibInitScanner _libInitScanner = new();
     private readonly SpectreDeckInspector _deckInspector = new();
     private readonly SpectreModelExtractor _modelExtractor = new();
 
-    public WorkspaceScanResult Scan(string workspaceRoot)
+    public WorkspaceScanResult Scan(string workspaceRoot, Microsoft.Extensions.Logging.ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot))
         {
@@ -21,15 +23,42 @@ public sealed class WorkspaceScanner
 
         var root = Path.GetFullPath(workspaceRoot);
         var warnings = new List<string>();
+        logger?.LogInformation("Workspace root resolved to {Root}", root);
 
-        var libraries = _cdsLibParser.Parse(root, warnings);
+        var libraries = _cdsLibParser.Parse(root, warnings, logger);
+        logger?.LogInformation("Parsed cds.lib hierarchy → {Count} libraries", libraries.Count);
 
-        var deckPaths = _cdsInitScanner.FindModelDecks(root, warnings);
+        var deckPaths = new List<string>();
+        var deckComparer = OperatingSystem.IsWindows()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+        var deckSet = new HashSet<string>(deckComparer);
+
+        void AddDeckPaths(IEnumerable<string> paths)
+        {
+            foreach (var path in paths)
+            {
+                if (deckSet.Add(path))
+                {
+                    deckPaths.Add(path);
+                    logger?.LogInformation("Discovered model deck: {Path}", path);
+                }
+            }
+        }
+
+        logger?.LogInformation("Inspecting cdsinit files for model decks");
+        AddDeckPaths(_cdsInitScanner.FindModelDecks(root, warnings, logger));
+
+        logger?.LogInformation("Inspecting libInit files for model decks");
+        AddDeckPaths(_libInitScanner.FindModelDecks(root, libraries, warnings, logger));
+        logger?.LogInformation("Total model decks discovered so far: {Count}", deckPaths.Count);
+
         var deckRecords = new List<ModelDeckRecord>(deckPaths.Count);
         var models = new List<SpectreModel>();
 
         foreach (var deckPath in deckPaths)
         {
+            logger?.LogInformation("Inspecting deck {Deck}", deckPath);
             var record = _deckInspector.Inspect(root, deckPath, warnings);
             var modelsForDeck = _modelExtractor.Extract(root, deckPath, warnings);
             record = record with { Models = modelsForDeck };
@@ -42,6 +71,8 @@ public sealed class WorkspaceScanner
         }
 
         var consolidated = ConsolidateModels(models);
+        logger?.LogInformation("Consolidated {Raw} model entries → {Consolidated} unique models", models.Count, consolidated.Count);
+        logger?.LogInformation("Workspace scan complete");
 
         return new WorkspaceScanResult(root, libraries, deckRecords, consolidated, warnings);
     }

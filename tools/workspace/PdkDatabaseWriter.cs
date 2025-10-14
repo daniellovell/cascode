@@ -124,8 +124,9 @@ public static class PdkDatabaseWriter
     }
 
     /// <summary>
-    /// Compute and store per-class rollups so the CLI can render instantly.
+    /// Recomputes and persists per-device-class rollup metrics into the database's <c>device_class_summary</c> table.
     /// </summary>
+    /// <param name="dbPath">Filesystem path to the SQLite database file to update; existing summary rows are replaced or updated.</param>
     public static void RebuildDeviceClassSummary(string dbPath)
     {
         using var db = PdkDatabase.Open(dbPath);
@@ -155,7 +156,11 @@ public static class PdkDatabaseWriter
                 if (!classVt.TryGetValue(cls, out var vtSet)) { vtSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase); classVt[cls] = vtSet; }
                 if (!classVdd.TryGetValue(cls, out var vddSet)) { vddSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase); classVdd[cls] = vddSet; }
                 if (!r.IsDBNull(1)) foreach (var tok in r.GetString(1).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)) vtSet.Add(tok);
-                if (!r.IsDBNull(2)) foreach (var tok in r.GetString(2).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)) vddSet.Add(tok);
+                if (!r.IsDBNull(2))
+                {
+                    var vv = r.GetDouble(2);
+                    vddSet.Add(VddFormatting.PrettyFromVolts(vv));
+                }
             }
         }
 
@@ -218,30 +223,28 @@ public static class PdkDatabaseWriter
                 names.Add(mname);
             }
 
-            // Corners
-            using (var c2 = db.Connection.CreateCommand())
+            // Corners from model_contexts (table guaranteed to exist in schema)
+            using var c2 = db.Connection.CreateCommand();
+            c2.Transaction = tx;
+            c2.CommandText = @"SELECT mc.model_id, c.name FROM model_contexts mc JOIN corners c ON c.id=mc.corner_id WHERE c.name IS NOT NULL AND c.name<>''";
+            using var r2 = c2.ExecuteReader();
+            var cornersByModel = new Dictionary<long, HashSet<string>>();
+            while (r2.Read())
             {
-                c2.Transaction = tx;
-                c2.CommandText = "SELECT model_id, corner FROM model_corners WHERE corner IS NOT NULL AND corner<>''";
-                using var r2 = c2.ExecuteReader();
-                var cornersByModel = new Dictionary<long, HashSet<string>>();
-                while (r2.Read())
+                var mid = r2.GetInt64(0);
+                var corner = r2.IsDBNull(1) ? string.Empty : r2.GetString(1);
+                if (string.IsNullOrWhiteSpace(corner)) continue;
+                if (!cornersByModel.TryGetValue(mid, out var set)) { set = new HashSet<string>(StringComparer.OrdinalIgnoreCase); cornersByModel[mid] = set; }
+                set.Add(corner);
+            }
+            foreach (var (cls, mids) in modelsByClass)
+            {
+                var agg = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var mid in mids)
                 {
-                    var mid = r2.GetInt64(0);
-                    var corner = r2.IsDBNull(1) ? string.Empty : r2.GetString(1);
-                    if (string.IsNullOrWhiteSpace(corner)) continue;
-                    if (!cornersByModel.TryGetValue(mid, out var set)) { set = new HashSet<string>(StringComparer.OrdinalIgnoreCase); cornersByModel[mid] = set; }
-                    set.Add(corner);
+                    if (cornersByModel.TryGetValue(mid, out var set)) foreach (var c in set) agg.Add(c);
                 }
-                foreach (var (cls, mids) in modelsByClass)
-                {
-                    var agg = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var mid in mids)
-                    {
-                        if (cornersByModel.TryGetValue(mid, out var set)) foreach (var c in set) agg.Add(c);
-                    }
-                    classCorners[cls] = agg;
-                }
+                classCorners[cls] = agg;
             }
 
             // Deck counts
@@ -350,6 +353,10 @@ public static class PdkDatabaseWriter
         }
     }
 
+    /// <summary>
+    /// Upserts model records and their related metadata (sources, decks, and definition contexts) into the database using the provided transaction.
+    /// </summary>
+    /// <param name="models">The collection of SpectreModel entries to persist; for each model this writes or updates the core model row, inserts source files and decks, and, when present, creates or looks up corner/detail/section/include tokens and links them via model_contexts.</param>
     private static void UpsertModels(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<SpectreModel> models)
     {
         using var insertModel = conn.CreateCommand();
@@ -391,29 +398,47 @@ public static class PdkDatabaseWriter
         var dMid = insertDeck.CreateParameter(); dMid.ParameterName = "$model_id"; insertDeck.Parameters.Add(dMid);
         var dPath = insertDeck.CreateParameter(); dPath.ParameterName = "$path"; insertDeck.Parameters.Add(dPath);
 
-        using var insertCorner = conn.CreateCommand();
-        insertCorner.Transaction = tx;
-        insertCorner.CommandText = @"
-            INSERT INTO model_corners(model_id, corner, detail, section)
-            VALUES ($model_id, $corner, $detail, $section)
-            ON CONFLICT(model_id, corner, detail, section) DO NOTHING;";
-        var cMid = insertCorner.CreateParameter(); cMid.ParameterName = "$model_id"; insertCorner.Parameters.Add(cMid);
-        var cCorner = insertCorner.CreateParameter(); cCorner.ParameterName = "$corner"; insertCorner.Parameters.Add(cCorner);
-        var cDetail = insertCorner.CreateParameter(); cDetail.ParameterName = "$detail"; insertCorner.Parameters.Add(cDetail);
-        var cSection = insertCorner.CreateParameter(); cSection.ParameterName = "$section"; insertCorner.Parameters.Add(cSection);
+        // store volts inline in models table; no auxiliary table
+
+        // Dimension upserts for contexts
+        using var insCornerTok = conn.CreateCommand(); insCornerTok.Transaction = tx; insCornerTok.CommandText = "INSERT INTO corners(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;"; var pCornerName = insCornerTok.CreateParameter(); pCornerName.ParameterName = "$n"; insCornerTok.Parameters.Add(pCornerName);
+        using var selCornerTok = conn.CreateCommand(); selCornerTok.Transaction = tx; selCornerTok.CommandText = "SELECT id FROM corners WHERE name=$n"; var pSelCorner = selCornerTok.CreateParameter(); pSelCorner.ParameterName = "$n"; selCornerTok.Parameters.Add(pSelCorner);
+
+        using var insDetailTok = conn.CreateCommand(); insDetailTok.Transaction = tx; insDetailTok.CommandText = "INSERT INTO details(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;"; var pDetailName = insDetailTok.CreateParameter(); pDetailName.ParameterName = "$n"; insDetailTok.Parameters.Add(pDetailName);
+        using var selDetailTok = conn.CreateCommand(); selDetailTok.Transaction = tx; selDetailTok.CommandText = "SELECT id FROM details WHERE name=$n"; var pSelDetail = selDetailTok.CreateParameter(); pSelDetail.ParameterName = "$n"; selDetailTok.Parameters.Add(pSelDetail);
+
+        using var insSectionTok = conn.CreateCommand(); insSectionTok.Transaction = tx; insSectionTok.CommandText = "INSERT INTO sections(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;"; var pSectionName = insSectionTok.CreateParameter(); pSectionName.ParameterName = "$n"; insSectionTok.Parameters.Add(pSectionName);
+        using var selSectionTok = conn.CreateCommand(); selSectionTok.Transaction = tx; selSectionTok.CommandText = "SELECT id FROM sections WHERE name=$n"; var pSelSection = selSectionTok.CreateParameter(); pSelSection.ParameterName = "$n"; selSectionTok.Parameters.Add(pSelSection);
+
+        using var insIncludeTok = conn.CreateCommand(); insIncludeTok.Transaction = tx; insIncludeTok.CommandText = "INSERT INTO includes(path) VALUES ($p) ON CONFLICT(path) DO NOTHING;"; var pIncludePath = insIncludeTok.CreateParameter(); pIncludePath.ParameterName = "$p"; insIncludeTok.Parameters.Add(pIncludePath);
+        using var selIncludeTok = conn.CreateCommand(); selIncludeTok.Transaction = tx; selIncludeTok.CommandText = "SELECT id FROM includes WHERE path=$p"; var pSelInclude = selIncludeTok.CreateParameter(); pSelInclude.ParameterName = "$p"; selIncludeTok.Parameters.Add(pSelInclude);
+
+        using var insContext = conn.CreateCommand();
+        insContext.Transaction = tx;
+        insContext.CommandText = @"
+            INSERT INTO model_contexts(model_id, corner_id, detail_id, section_id, include_id)
+            VALUES ($mid, $cid, $did, $sid, $iid)
+            ON CONFLICT(model_id, corner_id, detail_id, section_id, include_id) DO NOTHING;";
+        var pMid = insContext.CreateParameter(); pMid.ParameterName = "$mid"; insContext.Parameters.Add(pMid);
+        var pCid = insContext.CreateParameter(); pCid.ParameterName = "$cid"; insContext.Parameters.Add(pCid);
+        var pDid = insContext.CreateParameter(); pDid.ParameterName = "$did"; insContext.Parameters.Add(pDid);
+        var pSid = insContext.CreateParameter(); pSid.ParameterName = "$sid"; insContext.Parameters.Add(pSid);
+        var pIid = insContext.CreateParameter(); pIid.ParameterName = "$iid"; insContext.Parameters.Add(pIid);
 
         foreach (var model in models)
         {
             mName.Value = model.Name;
             mType.Value = model.ModelType ?? string.Empty;
             mClass.Value = (int)model.DeviceClass;
-            mVdd.Value = (object?)model.VoltageDomain ?? DBNull.Value;
+            var tokenForModel = VddFormatting.ExtractTokenFromVoltageDomain(model.VoltageDomain, PdkMatchingConfigManager.Load());
+            if (VddFormatting.TryTokenToVolts(tokenForModel, out var modelVolts)) mVdd.Value = modelVolts; else mVdd.Value = DBNull.Value;
             mVt.Value = (object?)model.ThresholdFlavor ?? DBNull.Value;
             insertModel.ExecuteNonQuery();
 
             gName.Value = model.Name;
             var idObj = getId.ExecuteScalar();
             if (idObj is not long id) continue;
+            // numeric volts already stored inline
 
             sMid.Value = id;
             foreach (var src in model.SourceFiles ?? Array.Empty<string>())
@@ -429,49 +454,35 @@ public static class PdkDatabaseWriter
                 insertDeck.ExecuteNonQuery();
             }
 
-            cMid.Value = id;
-            // Section list lives in model.Sections; corners and cornerDetails are normalized tokens
-            var sections = model.Sections ?? Array.Empty<string>();
-            var corners = model.Corners ?? Array.Empty<string>();
-            var details = model.CornerDetails ?? Array.Empty<string>();
+            // Persist definition contexts if present; otherwise skip (no fabrication)
+            pMid.Value = id;
+            var contexts = model.DefinitionContexts;
+            if (contexts is not null)
+            {
+                foreach (var ctx in contexts)
+                {
+                    long? cornerId = null, detailId = null, sectionId = null, includeId = null;
+                    if (!string.IsNullOrWhiteSpace(ctx.Corner)) { pCornerName.Value = ctx.Corner; insCornerTok.ExecuteNonQuery(); pSelCorner.Value = ctx.Corner; cornerId = (long?)selCornerTok.ExecuteScalar(); }
+                    if (!string.IsNullOrWhiteSpace(ctx.Detail)) { pDetailName.Value = ctx.Detail; insDetailTok.ExecuteNonQuery(); pSelDetail.Value = ctx.Detail; detailId = (long?)selDetailTok.ExecuteScalar(); }
+                    if (!string.IsNullOrWhiteSpace(ctx.Section)) { pSectionName.Value = ctx.Section; insSectionTok.ExecuteNonQuery(); pSelSection.Value = ctx.Section; sectionId = (long?)selSectionTok.ExecuteScalar(); }
+                    if (!string.IsNullOrWhiteSpace(ctx.IncludePath)) { pIncludePath.Value = Path.GetFullPath(ctx.IncludePath); insIncludeTok.ExecuteNonQuery(); pSelInclude.Value = Path.GetFullPath(ctx.IncludePath); includeId = (long?)selIncludeTok.ExecuteScalar(); }
 
-            if (sections.Count == 0 && (corners.Count > 0 || details.Count > 0))
-            {
-                // Record rows with null section but present corner/detail tokens
-                foreach (var cc in corners.DefaultIfEmpty(string.Empty))
-                {
-                    foreach (var dd in details.DefaultIfEmpty(string.Empty))
-                    {
-                        cCorner.Value = string.IsNullOrWhiteSpace(cc) ? DBNull.Value : cc;
-                        cDetail.Value = string.IsNullOrWhiteSpace(dd) ? DBNull.Value : dd;
-                        cSection.Value = DBNull.Value;
-                        insertCorner.ExecuteNonQuery();
-                    }
-                }
-            }
-            else
-            {
-                foreach (var sec in sections.DefaultIfEmpty(string.Empty))
-                {
-                    foreach (var cc in corners.DefaultIfEmpty(string.Empty))
-                    {
-                        foreach (var dd in details.DefaultIfEmpty(string.Empty))
-                        {
-                            cCorner.Value = string.IsNullOrWhiteSpace(cc) ? DBNull.Value : cc;
-                            cDetail.Value = string.IsNullOrWhiteSpace(dd) ? DBNull.Value : dd;
-                            cSection.Value = string.IsNullOrWhiteSpace(sec) ? DBNull.Value : sec;
-                            insertCorner.ExecuteNonQuery();
-                        }
-                    }
+                    pCid.Value = (object?)cornerId ?? DBNull.Value;
+                    pDid.Value = (object?)detailId ?? DBNull.Value;
+                    pSid.Value = (object?)sectionId ?? DBNull.Value;
+                    pIid.Value = (object?)includeId ?? DBNull.Value;
+                    insContext.ExecuteNonQuery();
                 }
             }
         }
     }
 
     /// <summary>
-    /// Upserts device rows into the devices table and inserts associated device_views rows for each device.
+    /// Upserts device rows into the devices table and ensures each device's view entries exist in <c>device_views</c>.
     /// </summary>
-    /// <param name="devices">The devices to persist; each device's canonical name is used as the key and its properties are written or updated in the database, and its view entries are inserted into device_views.</param>
+    /// <param name="conn">Open SQLite connection used to persist device metadata.</param>
+    /// <param name="tx">Active transaction that scopes the upsert operations.</param>
+    /// <param name="devices">Devices to persist; each device's canonical name is used as the key and the device's properties (including vt/vdd/tag values and layout/symbol flags) are written or updated and its view entries are inserted into <c>device_views</c>.</param>
     private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices)
     {
         using var insertDevice = conn.CreateCommand();
@@ -520,6 +531,8 @@ public static class PdkDatabaseWriter
         var vId = insertView.CreateParameter(); vId.ParameterName = "$id"; insertView.Parameters.Add(vId);
         var vView = insertView.CreateParameter(); vView.ParameterName = "$view"; insertView.Parameters.Add(vView);
 
+        // (no auxiliary device_vdds table; single REAL value per device)
+
         foreach (var d in devices)
         {
             pKey.Value = d.CanonicalName;
@@ -533,7 +546,13 @@ public static class PdkDatabaseWriter
             pLayout.Value = d.HasLayout ? 1 : 0;
             pSymbol.Value = d.HasSymbol ? 1 : 0;
             pVt.Value = string.Join(',', d.VtTags ?? Array.Empty<string>());
-            pVdd.Value = string.Join(',', d.VddTags ?? Array.Empty<string>());
+            // Persist a single REAL (first parsed token) for vdd_tags
+            double? voltsValue = null;
+            foreach (var t in d.VddTags ?? Array.Empty<string>())
+            {
+                if (VddFormatting.TryTokenToVolts(t, out var v)) { voltsValue = v; break; }
+            }
+            pVdd.Value = voltsValue.HasValue ? voltsValue.Value : DBNull.Value;
             pTags.Value = string.Join(',', d.Tags ?? Array.Empty<string>());
             insertDevice.ExecuteNonQuery();
 

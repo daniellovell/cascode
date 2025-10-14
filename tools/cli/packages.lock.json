@@ -204,7 +204,8 @@
         "dependencies": {
           "Microsoft.Data.Sqlite": "[8.0.8, )",
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
-          "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.8, )"
+          "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.8, )",
+          "YamlDotNet": "[13.7.1, )"
         }
       }
     }

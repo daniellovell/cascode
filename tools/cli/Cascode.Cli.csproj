@@ -19,6 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Cascode.Cli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\workspace\Cascode.Workspace.csproj" />
     <ProjectReference Include="..\bench\Cascode.Bench.csproj" />
   </ItemGroup>

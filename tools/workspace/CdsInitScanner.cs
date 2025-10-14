@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
@@ -12,22 +13,36 @@ internal sealed class CdsInitScanner
         "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-    public IReadOnlyList<string> FindModelDecks(string workspaceRoot, ICollection<string>? warnings = null)
+    public IReadOnlyList<string> FindModelDecks(string workspaceRoot, ICollection<string>? warnings = null, Microsoft.Extensions.Logging.ILogger? logger = null)
     {
-        var candidates = EnumerateCandidateFiles(workspaceRoot).Distinct(StringComparer.OrdinalIgnoreCase);
+        var candidates = EnumerateCandidateFiles(workspaceRoot, logger)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        logger?.LogDebug("[cdsinit] Candidate files: {Count}", candidates.Count);
         var decks = new List<string>();
 
         foreach (var file in candidates)
         {
-            foreach (var path in ExtractModelPaths(workspaceRoot, file, warnings))
+            logger?.LogDebug("[cdsinit] Inspecting {File}", file);
+            foreach (var path in ExtractModelPaths(workspaceRoot, file, warnings, logger))
             {
-                if (File.Exists(path) && !decks.Contains(path, StringComparer.OrdinalIgnoreCase))
-                {
-                    decks.Add(path);
-                }
-                else if (!File.Exists(path))
+                if (!File.Exists(path))
                 {
                     warnings?.Add($"Model deck '{path}' referenced by {file} does not exist.");
+                    logger?.LogWarning("[cdsinit] Missing model deck: {Path}", path);
+                    continue;
+                }
+
+                if (!PathUtilities.IsValidSpectreModelDeck(path))
+                {
+                    logger?.LogDebug("[cdsinit] Skipping non-Spectre file: {Path}", path);
+                    continue;
+                }
+
+                if (!decks.Contains(path, StringComparer.OrdinalIgnoreCase))
+                {
+                    decks.Add(path);
+                    logger?.LogInformation("[cdsinit] Discovered model deck: {Path}", path);
                 }
             }
         }
@@ -35,7 +50,7 @@ internal sealed class CdsInitScanner
         return decks;
     }
 
-    private static IEnumerable<string> EnumerateCandidateFiles(string workspaceRoot)
+    private static IEnumerable<string> EnumerateCandidateFiles(string workspaceRoot, Microsoft.Extensions.Logging.ILogger? logger)
     {
         var candidates = new List<string>();
 
@@ -44,6 +59,7 @@ internal sealed class CdsInitScanner
             if (File.Exists(path))
             {
                 candidates.Add(Path.GetFullPath(path));
+                logger?.LogDebug("[cdsinit] Found candidate {Path}", path);
             }
         }
 
@@ -65,7 +81,7 @@ internal sealed class CdsInitScanner
         return candidates;
     }
 
-    private static IEnumerable<string> ExtractModelPaths(string workspaceRoot, string filePath, ICollection<string>? warnings)
+    private static IEnumerable<string> ExtractModelPaths(string workspaceRoot, string filePath, ICollection<string>? warnings, Microsoft.Extensions.Logging.ILogger? logger)
     {
         var result = new List<string>();
         var root = Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory();
@@ -88,6 +104,7 @@ internal sealed class CdsInitScanner
                     if (normalized is not null)
                     {
                         result.Add(normalized);
+                        logger?.LogDebug("[cdsinit] Candidate deck '{Deck}' extracted from {File}", normalized, filePath);
                     }
                 }
             }
@@ -95,6 +112,7 @@ internal sealed class CdsInitScanner
         catch (Exception ex)
         {
             warnings?.Add($"Failed to parse {filePath}: {ex.Message}");
+            logger?.LogWarning("[cdsinit] Failed to parse {File}: {Message}", filePath, ex.Message);
         }
 
         return result;

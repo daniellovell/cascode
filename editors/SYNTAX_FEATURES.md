@@ -108,7 +108,7 @@ All SI-prefixed physical quantities are highlighted:
 - **Voltage**: `1.8V`, `0.9*VDD`, `500mV`, `10µV`
 - **Current**: `1mA`, `500µA`, `10nA`
 - **Capacitance**: `15pF`, `2pF`, `100nF`
-- **Resistance**: `50Ω`, `20MOhm`, `1kΩ`
+- **Resistance**: `50`, `20M`, `1k`
 - **Inductance**: `2nH`, `1µH` (added)
 - **Time**: `1.2ns`, `300ps`, `1µs`
 - **Frequency**: `50MHz`, `100MHz`, `1GHz`
@@ -342,7 +342,7 @@ wrap spice """
 env {
   vdd = VDD;
   load C on PAD = 15pF;      // becomes bench harness
-  source Z = 50Ω;
+  source Z = 50;
   icmr in [0.55V..0.75V];
 }
 ```

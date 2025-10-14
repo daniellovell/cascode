@@ -70,7 +70,7 @@ sky130/
 
 1. Point the CLI at this directory:
    ```bash
-   CASCODE_PDK_ROOT=tests/fixtures/pdk/sky130 dotnet run --project tools/cli/Cascode.Cli.csproj
+   CASCODE_HOME=$(pwd)/.it/local CASCODE_PDK_ROOT=tests/fixtures/pdk/sky130 dotnet run --project tools/cli/Cascode.Cli.csproj
    ```
    or run `pdk set-dir tests/fixtures/pdk/sky130` from inside the shell.
 2. Execute `pdk scan` to populate the local model database. The scan should

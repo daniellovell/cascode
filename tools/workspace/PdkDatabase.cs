@@ -57,11 +57,13 @@ public sealed class PdkDatabase : IDisposable
     }
 
     /// <summary>
-    /// Ensures the database schema exists by creating all required tables and constraints if they are missing.
+    /// Ensures the database schema exists and is migrated to the expected layout for the PDK.
     /// </summary>
     /// <remarks>
-    /// Executes the DDL statements inside a transaction so the schema creation is applied atomically.
-    /// This method is idempotent and safe to call on an existing schema.
+    /// Executes a series of idempotent DDL statements inside a single transaction to create tables,
+    /// keys, unique constraints and foreign-key relationships required by the application.
+    /// Calling this method multiple times is safe; it uses IF NOT EXISTS to avoid redeclaring objects
+    /// and commits atomically only after all statements succeed, preserving atomic schema updates.
     /// </remarks>
     private void CreateSchema()
     {
@@ -99,13 +101,39 @@ public sealed class PdkDatabase : IDisposable
               FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
             );
 
-            CREATE TABLE IF NOT EXISTS model_corners (
+            CREATE TABLE IF NOT EXISTS corners (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS details (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS sections (
+              id INTEGER PRIMARY KEY,
+              name TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS includes (
+              id INTEGER PRIMARY KEY,
+              path TEXT NOT NULL UNIQUE
+            );
+
+            CREATE TABLE IF NOT EXISTS model_contexts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
               model_id INTEGER NOT NULL,
-              corner TEXT NULL,
-              detail TEXT NULL,
-              section TEXT NULL,
-              PRIMARY KEY(model_id, corner, detail, section),
-              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
+              corner_id INTEGER NULL,
+              detail_id INTEGER NULL,
+              section_id INTEGER NULL,
+              include_id INTEGER NULL,
+              UNIQUE(model_id, corner_id, detail_id, section_id, include_id),
+              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE,
+              FOREIGN KEY(corner_id) REFERENCES corners(id) ON DELETE SET NULL,
+              FOREIGN KEY(detail_id) REFERENCES details(id) ON DELETE SET NULL,
+              FOREIGN KEY(section_id) REFERENCES sections(id) ON DELETE SET NULL,
+              FOREIGN KEY(include_id) REFERENCES includes(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS devices (
@@ -121,7 +149,7 @@ public sealed class PdkDatabase : IDisposable
               has_layout INTEGER NOT NULL,
               has_symbol INTEGER NOT NULL,
               vt_tags TEXT NULL,
-              vdd_tags TEXT NULL,
+              vdd_tags REAL NULL,
               tags TEXT NULL
             );
 
@@ -186,6 +214,9 @@ public sealed class PdkDatabase : IDisposable
         tx.Commit();
     }
 
+    /// <summary>
+    /// Releases resources used by the PdkDatabase and closes the underlying database connection.
+    /// </summary>
     public void Dispose()
     {
         _conn.Dispose();

@@ -23,7 +23,8 @@ MY_NOTES.md
 error.log
 
 .bashrc
-
+*.log
 
 # Testing files
 *.trx
+.it/**

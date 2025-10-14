@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -22,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\..\shared\**\*.cs" />
     <ProjectReference Include="..\..\..\..\tools\cli\Cascode.Cli.csproj" />
   </ItemGroup>
 

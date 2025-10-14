@@ -138,10 +138,6 @@
           "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?F\\b"
         },
         {
-          "name": "constant.numeric.unit.resistance.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Ω\\b"
-        },
-        {
           "name": "constant.numeric.unit.resistance.ascii.cascode",
           "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Ohm\\b"
         },

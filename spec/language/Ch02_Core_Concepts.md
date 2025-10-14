@@ -74,7 +74,7 @@ params { m:int=1; }          // motif parameters
 
 ## 2.6 Units and Dimensions
 
-Literals may specify **units** including voltage (`V`), current (`A`), resistance (`Ω`), capacitance (`F`), inductance (`H`), frequency (`Hz`), gain (`dB`), phase (`deg`), time (`s`, `ps`), power (`mW`), and noise density (`nV/√Hz`). The compiler enforces **dimensional consistency** across all expressions and specifications. SI prefixes undergo automatic conversion, while non-linear units such as decibels are treated as scalars with semantics defined per metric (detailed in Chapter 5).
+Literals may specify **units** including voltage (`V`), current (`A`), capacitance (`F`), inductance (`H`), frequency (`Hz`), gain (`dB`), phase (`deg`), time (`s`, `ps`), power (`mW`), and noise density (`nV/√Hz`). The compiler enforces **dimensional consistency** across all expressions and specifications. SI prefixes undergo automatic conversion, while non-linear units such as decibels are treated as scalars with semantics defined per metric (detailed in Chapter 5).
 
 ```cas
 supply VDD = 1.2V;
@@ -359,7 +359,7 @@ The cascode language recognizes that not all passive elements serve equivalent p
 
 ```cas
 C1 = new Cap(OUT, GND) { kind=MIM | MOM | MFC; value=500fF; }
-R1 = new Res(A, OUT)   { kind=TFR | Poly | Metal | Pseudo; value=10kΩ; }
+R1 = new Res(A, OUT)   { kind=TFR | Poly | Metal | Pseudo; value=10k; }
 L1 = new Ind(A, B)     { kind=Spiral | MIMStack | Metal; value=2nH; }
 ```
 
