@@ -180,12 +180,18 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "13.7.1",
+        "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
+      },
       "cascode.workspace": {
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[8.0.8, )",
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
-          "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.8, )"
+          "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.8, )",
+          "YamlDotNet": "[13.7.1, )"
         }
       }
     }

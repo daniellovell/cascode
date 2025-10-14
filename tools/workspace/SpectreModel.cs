@@ -4,25 +4,13 @@ using System.Text.Json.Serialization;
 
 namespace Cascode.Workspace;
 
-public enum SpectreModelDeviceClass
-{
-    Unknown = 0,
-    Nmos,
-    Pmos,
-    Bipolar,
-    Diode,
-    Resistor,
-    Capacitor,
-    Inductor,
-    Moscap,
-    TransmissionLine,
-    Other
-}
-
 public sealed class SpectreModel
 {
     public static readonly IReadOnlyList<string> EmptyStringList = Array.Empty<string>();
 
+    /// <summary>
+    /// Initializes a new instance of SpectreModel, setting all collection properties to shared empty instances and leaving scalar properties at their default values.
+    /// </summary>
     public SpectreModel()
     {
         Corners = EmptyStringList;
@@ -30,12 +18,26 @@ public sealed class SpectreModel
         Sections = EmptyStringList;
         SourceFiles = EmptyStringList;
         Decks = EmptyStringList;
+        DefinitionContexts = Array.Empty<ModelContext>();
     }
 
+    /// <summary>
+    /// Initializes a SpectreModel with the provided property values.
+    /// </summary>
+    /// <param name="name">Model name.</param>
+    /// <param name="modelType">Model type identifier.</param>
+    /// <param name="deviceClass">Device class.</param>
+    /// <param name="voltageDomain">Optional voltage domain identifier.</param>
+    /// <param name="thresholdFlavor">Optional threshold flavor identifier.</param>
+    /// <param name="corners">List of corner names; if null, an empty list is used.</param>
+    /// <param name="cornerDetails">List of corner detail strings; if null, an empty list is used.</param>
+    /// <param name="sections">List of section names; if null, an empty list is used.</param>
+    /// <param name="sourceFiles">List of source file names; if null, an empty list is used.</param>
+    /// <param name="decks">List of deck names; if null, an empty list is used.</param>
     public SpectreModel(
         string name,
         string modelType,
-        SpectreModelDeviceClass deviceClass,
+        DeviceClass deviceClass,
         string? voltageDomain,
         string? thresholdFlavor,
         IReadOnlyList<string> corners,
@@ -64,7 +66,7 @@ public sealed class SpectreModel
     public string ModelType { get; set; } = string.Empty;
 
     [JsonPropertyName("deviceClass")]
-    public SpectreModelDeviceClass DeviceClass { get; set; } = SpectreModelDeviceClass.Unknown;
+    public DeviceClass DeviceClass { get; set; } = DeviceClass.Unknown;
 
     [JsonPropertyName("voltageDomain")]
     public string? VoltageDomain { get; set; }
@@ -93,4 +95,7 @@ public sealed class SpectreModel
     [JsonPropertyName("decks")]
     public IReadOnlyList<string> Decks { get; set; }
         = EmptyStringList;
+
+    [JsonPropertyName("definitionContexts")]
+    public IReadOnlyList<ModelContext> DefinitionContexts { get; set; } = Array.Empty<ModelContext>();
 }

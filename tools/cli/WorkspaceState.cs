@@ -9,22 +9,44 @@ internal static class WorkspaceState
 {
     private const string RootFolderName = ".cascode";
 
+    /// <summary>
+    /// Determine the filesystem root directory used to store Cascode state.
+    /// </summary>
+    /// <remarks>
+    /// If the environment variable CASCODE_HOME is set and not empty, its value is returned.
+    /// Otherwise the OS user profile path is used, falling back to the application data folder and then to the current working directory if earlier values are empty.
+    /// The returned path is the chosen base path combined with the RootFolderName (".cascode").
+    /// </remarks>
+    /// <returns>The full path to the Cascode root directory.</returns>
     public static string GetRoot()
     {
-        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (string.IsNullOrEmpty(home))
+        // Prefer explicit CASCODE_HOME override to avoid ambiguity with HOME.
+        var cascodeHome = Environment.GetEnvironmentVariable("CASCODE_HOME");
+        if (!string.IsNullOrWhiteSpace(cascodeHome))
         {
-            home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return cascodeHome!;
         }
 
-        if (string.IsNullOrEmpty(home))
+        // Fallback to OS user profile (never read HOME directly).
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(userProfile))
         {
-            home = Directory.GetCurrentDirectory();
+            userProfile = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         }
 
-        return Path.Combine(home, RootFolderName);
+        if (string.IsNullOrEmpty(userProfile))
+        {
+            userProfile = Directory.GetCurrentDirectory();
+        }
+
+        return Path.Combine(userProfile, RootFolderName);
     }
 
+    /// <summary>
+    /// Compute the per-workspace directory path used to store workspace-specific Cascode state.
+    /// </summary>
+    /// <param name="workspaceRoot">The workspace root path used to identify and locate the workspace state.</param>
+    /// <returns>The full filesystem path to the workspace's Cascode folder under the global root.</returns>
     public static string GetWorkspaceFolder(string workspaceRoot)
     {
         var hash = ComputeHash(workspaceRoot);

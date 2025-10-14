@@ -17,7 +17,7 @@ class LatchToPad_Auto {
   env {
     vdd = VDD;
     load C = 15pF;
-    source Z = 50Ω;
+    source Z = 50;
     temp = 27C;
   }
 

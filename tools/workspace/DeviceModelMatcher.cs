@@ -12,15 +12,15 @@ public static class DeviceModelMatcher
         var result = new List<DeviceModelMatchRecord>();
 
         if (devices.Count == 0 || models.Count == 0) return result;
-
+        var cfg = PdkMatchingConfigManager.Load();
         var index = BuildModelIndex(models);
 
         foreach (var d in devices)
         {
             if (!d.HasLayout || !d.HasSymbol) continue;
 
-            var dNorm = NormalizeDeviceName(d.CellName);
-            var dBase = StripVtVddTokens(dNorm);
+            var dNorm = NormalizeDeviceName(d.CellName, cfg);
+            var dBase = StripVtVddTokens(dNorm, cfg);
             var dVt = new HashSet<string>(d.VtTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             var dVdd = new HashSet<string>(d.VddTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             var dClass = d.Class;
@@ -42,12 +42,13 @@ public static class DeviceModelMatcher
                 // lightly penalize non-ESD models for infra-tagged devices
                 foreach (var kv in candidates.ToList())
                 {
-                    if (!kv.Key.Name.Contains("esd", StringComparison.OrdinalIgnoreCase)) candidates[kv.Key] = kv.Value - 5;
+                    if (!kv.Key.Name.Contains(cfg.Behavior.EsdKeyword ?? "esd", StringComparison.OrdinalIgnoreCase))
+                        candidates[kv.Key] = kv.Value - Math.Max(0, cfg.Behavior.InfraPenaltyNonEsd);
                 }
             }
 
             var ordered = candidates
-                .Where(kv => kv.Value >= 30) // threshold for acceptance
+                .Where(kv => kv.Value >= Math.Max(0, cfg.Behavior.MinAcceptScore)) // threshold for acceptance
                 .OrderByDescending(kv => kv.Value)
                 .ThenBy(kv => kv.Key.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -58,7 +59,7 @@ public static class DeviceModelMatcher
             }
 
             var top = ordered[0].Value;
-            var ambiguousCut = top - 3;
+            var ambiguousCut = top - Math.Max(0, cfg.Behavior.AmbiguousMargin);
             var topGroup = ordered.Where(kv => kv.Value >= ambiguousCut).ToList();
 
             var quality = ordered[0].Key.NormalizedName.Equals(dNorm, StringComparison.OrdinalIgnoreCase)
@@ -97,37 +98,47 @@ public static class DeviceModelMatcher
         return score;
     }
 
-    private static string NormalizeDeviceName(string name)
+    private static string NormalizeDeviceName(string name, PdkMatchingConfig cfg)
     {
         if (string.IsNullOrWhiteSpace(name)) return name;
         var n = name.Trim().ToLowerInvariant();
-        n = StripVendorPrefix(n);
+        n = StripVendorPrefix(n, cfg);
         n = CollapseUnderscores(n);
         return n;
     }
 
-    private static string NormalizeModelName(string name)
+    private static string NormalizeModelName(string name, PdkMatchingConfig cfg)
     {
         if (string.IsNullOrWhiteSpace(name)) return name;
         var n = name.Trim().ToLowerInvariant();
-        n = Regex.Replace(n, @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$", "");
-        n = StripVendorPrefix(n);
+        if (!string.IsNullOrWhiteSpace(cfg.Normalization.ModelSuffixRegex))
+            n = Regex.Replace(n, cfg.Normalization.ModelSuffixRegex, "");
+        n = StripVendorPrefix(n, cfg);
         n = CollapseUnderscores(n);
         return n;
     }
 
-    private static string StripVtVddTokens(string value)
+    private static string StripVtVddTokens(string value, PdkMatchingConfig cfg)
     {
         var n = value;
-        n = Regex.Replace(n, @"_(ulvt|llvt|slvt|lvt|rvt|svt|nvt|hvt|mvt)\b", "");
-        n = Regex.Replace(n, @"_\d+v\d+\b", "");
+        if (cfg.Normalization.VtTokens.Count > 0)
+        {
+            var vtUnion = string.Join('|', cfg.Normalization.VtTokens.Select(Regex.Escape));
+            n = Regex.Replace(n, @"_(" + vtUnion + ")\b", "");
+        }
+        if (!string.IsNullOrWhiteSpace(cfg.Normalization.VddTokenRegex))
+            n = Regex.Replace(n, cfg.Normalization.VddTokenRegex, "");
         n = CollapseUnderscores(n);
         return n;
     }
 
-    private static string StripVendorPrefix(string n)
+    private static string StripVendorPrefix(string n, PdkMatchingConfig cfg)
     {
-        if (n.StartsWith("sky130_fd_pr__")) return n["sky130_fd_pr__".Length..];
+        foreach (var p in cfg.Normalization.VendorPrefixes)
+        {
+            if (string.IsNullOrWhiteSpace(p)) continue;
+            if (n.StartsWith(p, StringComparison.Ordinal)) return n[p.Length..];
+        }
         return n;
     }
 
@@ -141,25 +152,10 @@ public static class DeviceModelMatcher
     {
         public Dictionary<string, List<ModelRef>> NameIndex { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<ModelRef>> BaseIndex { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<SpectreModelDeviceClass, List<ModelRef>> ClassIndex { get; } = new();
+        public Dictionary<DeviceClass, List<ModelRef>> ClassIndex { get; } = new();
     }
 
-    private sealed record ModelRef(string Name, string NormalizedName, string BaseName, SpectreModelDeviceClass Class, string? Vt, string? Vdd, bool IsSubckt)
-    {
-        public string VddToken => ExtractVddToken(Vdd);
-
-        private static string ExtractVddToken(string? v)
-        {
-            if (string.IsNullOrWhiteSpace(v)) return string.Empty;
-            // normalize "1.8V" → "01v8" token form for comparison with device tags
-            var lower = v.ToLowerInvariant();
-            var m = Regex.Match(lower, @"(?<n>\d+)(?:\.(?<f>\d+))?v");
-            if (!m.Success) return lower;
-            var n = m.Groups["n"].Value;
-            var f = m.Groups["f"].Success ? m.Groups["f"].Value : "0";
-            return $"{n.PadLeft(2, '0')}v{f}";
-        }
-    }
+    private sealed record ModelRef(string Name, string NormalizedName, string BaseName, DeviceClass Class, string? Vt, string? Vdd, string VddToken, bool IsSubckt);
 
     private sealed class ModelRefComparer : IEqualityComparer<ModelRef>
     {
@@ -170,12 +166,15 @@ public static class DeviceModelMatcher
 
     private static ModelIndex BuildModelIndex(IReadOnlyList<SpectreModel> models)
     {
+        var cfg = PdkMatchingConfigManager.Load();
         var index = new ModelIndex();
         foreach (var m in models)
         {
-            var norm = NormalizeModelName(m.Name);
-            var @base = StripVtVddTokens(norm);
-            var mr = new ModelRef(m.Name, norm, @base, m.DeviceClass, m.ThresholdFlavor, m.VoltageDomain, string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase));
+            var norm = NormalizeModelName(m.Name, cfg);
+            var @base = StripVtVddTokens(norm, cfg);
+            // Normalize the model's voltage domain to a canonical VDD token used for matching.
+            var vddToken = VddFormatting.ExtractTokenFromVoltageDomain(m.VoltageDomain, cfg);
+            var mr = new ModelRef(m.Name, norm, @base, m.DeviceClass, m.ThresholdFlavor, m.VoltageDomain, vddToken, string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase));
             Add(index.NameIndex, norm, mr);
             Add(index.BaseIndex, @base, mr);
             if (!index.ClassIndex.TryGetValue(m.DeviceClass, out var list)) index.ClassIndex[m.DeviceClass] = list = new List<ModelRef>();
@@ -184,10 +183,11 @@ public static class DeviceModelMatcher
         return index;
     }
 
+    // Intentionally left for historical reference; logic moved to VddFormatting.
+
     private static void Add(Dictionary<string, List<ModelRef>> map, string key, ModelRef value)
     {
         if (!map.TryGetValue(key, out var list)) map[key] = list = new List<ModelRef>();
         list.Add(value);
     }
 }
-

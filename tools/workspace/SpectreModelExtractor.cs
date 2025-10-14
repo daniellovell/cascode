@@ -76,7 +76,12 @@ internal sealed class SpectreModelExtractor
         private readonly HashSet<string> _sections = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _sources = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _decks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<ModelContext> _definitionContexts = new();
 
+        /// <summary>
+        /// Initializes a new instance of SpectreModelBuilder for the specified model or subcircuit name.
+        /// </summary>
+        /// <param name="name">The model or subcircuit name that this builder will accumulate metadata for.</param>
         public SpectreModelBuilder(string name)
         {
             Name = name;
@@ -84,10 +89,14 @@ internal sealed class SpectreModelExtractor
 
         public string Name { get; }
         public string? ModelType { get; private set; }
-        public SpectreModelDeviceClass DeviceClass { get; private set; } = SpectreModelDeviceClass.Unknown;
+        public DeviceClass DeviceClass { get; private set; } = DeviceClass.Unknown;
         public string? VoltageDomain { get; private set; }
         public string? ThresholdFlavor { get; private set; }
 
+        /// <summary>
+        /// Sets the model type for the builder if a non-empty type is provided and no model type has been set yet.
+        /// </summary>
+        /// <param name="type">The model type to set (ignored if null, empty, or whitespace, or if a model type is already present).</param>
         public void SetModelType(string type)
         {
             if (string.IsNullOrWhiteSpace(type))
@@ -101,14 +110,18 @@ internal sealed class SpectreModelExtractor
             }
         }
 
-        public void SetDeviceClass(SpectreModelDeviceClass deviceClass)
+        /// <summary>
+        /// Sets the builder's device class if the provided class is known and the builder's device class is not already set.
+        /// </summary>
+        /// <param name="deviceClass">The device class to apply; ignored if `DeviceClass.Unknown` or if the builder already has a non-unknown device class.</param>
+        public void SetDeviceClass(DeviceClass deviceClass)
         {
-            if (deviceClass == SpectreModelDeviceClass.Unknown)
+            if (deviceClass == DeviceClass.Unknown)
             {
                 return;
             }
 
-            if (DeviceClass == SpectreModelDeviceClass.Unknown)
+            if (DeviceClass == DeviceClass.Unknown)
             {
                 DeviceClass = deviceClass;
             }
@@ -152,6 +165,10 @@ internal sealed class SpectreModelExtractor
             }
         }
 
+        /// <summary>
+        /// Record the given section name for the model if it is not null, empty, or whitespace.
+        /// </summary>
+        /// <param name="section">The section name to record; ignored when null, empty, or only whitespace.</param>
         public void AddSectionName(string section)
         {
             if (!string.IsNullOrWhiteSpace(section))
@@ -160,6 +177,29 @@ internal sealed class SpectreModelExtractor
             }
         }
 
+        /// <summary>
+        /// Add a model definition context to the builder's collected definition contexts.
+        /// </summary>
+        /// <param name="corner">The primary corner name in which the definition appears, or null if unspecified.</param>
+        /// <param name="detail">The corner detail (sub-corner) for the definition, or null if unspecified.</param>
+        /// <param name="section">The normalized section name containing the definition, or null if unspecified.</param>
+        /// <param name="includePath">The workspace-normalized include file path where the definition was found, or null if not from an include.</param>
+        public void AddDefinitionContext(string? corner, string? detail, string? section, string? includePath)
+        {
+            var ctx = new ModelContext
+            {
+                Corner = string.IsNullOrWhiteSpace(corner) ? null : corner,
+                Detail = string.IsNullOrWhiteSpace(detail) ? null : detail,
+                Section = string.IsNullOrWhiteSpace(section) ? null : section,
+                IncludePath = string.IsNullOrWhiteSpace(includePath) ? null : includePath
+            };
+            _definitionContexts.Add(ctx);
+        }
+
+        /// <summary>
+        /// Records a source file path where the model is referenced.
+        /// </summary>
+        /// <param name="source">The source file path to add; null or whitespace values are ignored.</param>
         public void AddSource(string source)
         {
             if (!string.IsNullOrWhiteSpace(source))
@@ -176,6 +216,14 @@ internal sealed class SpectreModelExtractor
             }
         }
 
+        /// <summary>
+        /// Constructs a SpectreModel populated from the builder's accumulated data.
+        /// </summary>
+        /// <returns>
+        /// A SpectreModel containing the builder's Name, ModelType (empty string if unset), DeviceClass, VoltageDomain, ThresholdFlavor,
+        /// and case-insensitively ordered arrays of corners, corner details, sections, sources, and decks. DefinitionContexts is set
+        /// to the collected definition contexts (empty array if none).
+        /// </returns>
         public SpectreModel Build()
         {
             var corners = _corners.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -194,7 +242,10 @@ internal sealed class SpectreModelExtractor
                 cornerDetails,
                 sections,
                 sources,
-                decks);
+                decks)
+            {
+                DefinitionContexts = _definitionContexts.Count == 0 ? Array.Empty<ModelContext>() : _definitionContexts.ToArray()
+            };
         }
     }
 
@@ -266,6 +317,19 @@ internal sealed class SpectreModelExtractor
         return filtered;
     }
 
+    /// <summary>
+    /// Parse the specified Spectre deck file (and any files it includes) to discover model and subckt definitions,
+    /// update the provided builders with extracted model metadata and definition contexts, and track include/section frames.
+    /// </summary>
+    /// <param name="workspaceRoot">Root directory of the workspace used to resolve relative include paths.</param>
+    /// <param name="filePath">Path to the file to parse; may be absolute or relative to the workspace.</param>
+    /// <param name="deckPath">Original deck path associated with this parsing session (used to record model provenance).</param>
+    /// <param name="includeFrame">Optional corner frame to push for the scope introduced by an include directive.</param>
+    /// <param name="includeSectionFilter">Optional section filter applied when processing an included file; null means no filter.</param>
+    /// <param name="frames">Stack of active corner/detail frames that represents nested lib/section/include scopes; may be modified (push/pop) during parsing.</param>
+    /// <param name="builders">Map of model/subckt name to SpectreModelBuilder that will be created/updated with discovered definitions and metadata.</param>
+    /// <param name="visited">Set of already visited (file, section-filter) keys used to avoid reprocessing the same include more than once; this method will add the current visit key.</param>
+    /// <param name="warnings">Optional collection to receive warning messages (e.g., missing include files); may be null.</param>
     private void VisitFile(
         string workspaceRoot,
         string filePath,
@@ -367,6 +431,7 @@ internal sealed class SpectreModelExtractor
                 var builder = ProcessSubcktDirective(line, normalizedPath, deckPath, builders, frames);
                 if (builder is not null)
                 {
+                    // Record sections (for set view)
                     foreach (var context in sectionStack)
                     {
                         if (!string.IsNullOrWhiteSpace(context.NormalizedName))
@@ -374,6 +439,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
+                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    var (corner, detail) = GetActiveCorner(frames);
+                    var sectionName = GetActiveSection(sectionStack);
+                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
                 }
                 continue;
             }
@@ -388,6 +457,7 @@ internal sealed class SpectreModelExtractor
                 var builder = ProcessModelDirective(line, normalizedPath, deckPath, builders, frames);
                 if (builder is not null)
                 {
+                    // Record sections (for set view)
                     foreach (var context in sectionStack)
                     {
                         if (!string.IsNullOrWhiteSpace(context.NormalizedName))
@@ -395,6 +465,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
+                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    var (corner, detail) = GetActiveCorner(frames);
+                    var sectionName = GetActiveSection(sectionStack);
+                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
                 }
             }
         }
@@ -405,6 +479,55 @@ internal sealed class SpectreModelExtractor
         }
     }
 
+    /// <summary>
+    /// Determine the active corner primary name and its detail from the provided corner frames, using the most recent frame values when multiple are present.
+    /// </summary>
+    /// <param name="frames">An ordered collection of CornerFrame values representing nested corner/include/section context; more recent frames override earlier ones.</param>
+    /// <returns>
+    /// A tuple where `corner` is the active primary corner name (or null if none) and `detail` is the active corner detail (or null if none).
+    /// </returns>
+    private static (string? corner, string? detail) GetActiveCorner(IEnumerable<CornerFrame> frames)
+    {
+        // Most recent CornerFrame wins
+        // frames is a Stack; enumerate preserves LIFO ordering when iterating directly in VisitFile
+        string? corner = null;
+        string? detail = null;
+        foreach (var frame in frames.Reverse())
+        {
+            // Reverse to get oldest..newest; pick newest by overwriting
+            if (!string.IsNullOrWhiteSpace(frame.Info.Primary)) corner = frame.Info.Primary;
+            if (!string.IsNullOrWhiteSpace(frame.Info.Detail)) detail = frame.Info.Detail;
+        }
+        return (corner, detail);
+    }
+
+    /// <summary>
+    /// Finds the active section name from a stack of section contexts.
+    /// </summary>
+    /// <param name="sectionStack">Stack of section contexts (LIFO) to search for an active section.</param>
+    /// <returns>The most recent non-empty normalized section name, or <c>null</c> if none is found.</returns>
+    private static string? GetActiveSection(Stack<SectionContext> sectionStack)
+    {
+        foreach (var sc in sectionStack)
+        {
+            // Stack enumerates LIFO; first element is most recent
+            if (!string.IsNullOrWhiteSpace(sc.NormalizedName)) return sc.NormalizedName;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Process a `.lib` directive: either resolve and visit an included library file (optionally scoped to a corner/section)
+    /// or push a library block frame for subsequent lines to inherit corner/context information.
+    /// </summary>
+    /// <param name="line">The full directive line starting with the `.lib` token.</param>
+    /// <param name="workspaceRoot">Root path of the workspace used to normalize include paths.</param>
+    /// <param name="directory">Directory of the current file used to resolve relative include paths.</param>
+    /// <param name="deckPath">Original deck path used as the model's deck identifier when visiting includes.</param>
+    /// <param name="frames">Stack of active corner frames to update when entering a lib block.</param>
+    /// <param name="builders">Map of model name to builder instances to populate while visiting includes.</param>
+    /// <param name="visited">Set of visited file/section keys to avoid reprocessing files.</param>
+    /// <param name="warnings">Optional collection to append resolution warnings (e.g., unresolved include paths).</param>
     private void HandleLibDirective(
         string line,
         string workspaceRoot,
@@ -564,6 +687,15 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
+    /// <summary>
+    /// Parses a "subckt" directive from a line and updates or creates a SpectreModelBuilder for that subcircuit.
+    /// </summary>
+    /// <param name="line">The input line to parse for a subckt directive.</param>
+    /// <param name="sourcePath">Path of the file containing the directive, added to the builder's sources.</param>
+    /// <param name="deckPath">Top-level deck path associated with the builder, added to the builder's decks.</param>
+    /// <param name="builders">Dictionary mapping model/subckt names to builders; a new builder is added if needed.</param>
+    /// <param name="frames">Context frames whose CornerInfo entries are applied to the builder.</param>
+    /// <returns>The existing or newly created SpectreModelBuilder for the subcircuit name, or `null` if no valid subckt directive/name is found.</returns>
     private static SpectreModelBuilder? ProcessSubcktDirective(
         string line,
         string sourcePath,
@@ -610,65 +742,68 @@ internal sealed class SpectreModelExtractor
         return builder;
     }
 
-    private static SpectreModelDeviceClass ClassifyModelType(string typeToken)
+    /// <summary>
+    /// Classifies a model type token and maps it to the corresponding DeviceClass.
+    /// </summary>
+    /// <returns>The DeviceClass that best matches the provided type token; returns DeviceClass.Unknown if the token is null or whitespace.</returns>
+    private static DeviceClass ClassifyModelType(string typeToken)
     {
         if (string.IsNullOrWhiteSpace(typeToken))
         {
-            return SpectreModelDeviceClass.Unknown;
+            return DeviceClass.Unknown;
         }
 
         var token = typeToken.Trim().ToLowerInvariant();
 
         if (token.Contains("nmos") || token.Contains("nfet"))
         {
-            return SpectreModelDeviceClass.Nmos;
+            return DeviceClass.Nmos;
         }
 
         if (token.Contains("pmos") || token.Contains("pfet"))
         {
-            return SpectreModelDeviceClass.Pmos;
+            return DeviceClass.Pmos;
         }
 
         if (token.Contains("npn") || token.Contains("pnp") || token.Contains("bjt"))
         {
-            return SpectreModelDeviceClass.Bipolar;
+            return DeviceClass.Bipolar;
         }
 
         if (token.Equals("d", StringComparison.OrdinalIgnoreCase) || token.Contains("diode"))
         {
-            return SpectreModelDeviceClass.Diode;
+            return DeviceClass.Diode;
         }
 
         if (token.Equals("r", StringComparison.OrdinalIgnoreCase) || token.Contains("res"))
         {
-            return SpectreModelDeviceClass.Resistor;
+            return DeviceClass.Resistor;
         }
 
         if (token.Equals("c", StringComparison.OrdinalIgnoreCase) || token.Contains("cap"))
         {
-            return SpectreModelDeviceClass.Capacitor;
+            return DeviceClass.Capacitor;
         }
 
         if (token.Contains("ind"))
         {
-            return SpectreModelDeviceClass.Inductor;
-        }
-
-        if (token.Contains("moscap"))
-        {
-            return SpectreModelDeviceClass.Moscap;
+            return DeviceClass.Inductor;
         }
 
         if (token.Contains("tline") || token.Contains("transmission"))
         {
-            return SpectreModelDeviceClass.TransmissionLine;
+            return DeviceClass.TransmissionLine;
         }
 
-        return SpectreModelDeviceClass.Other;
+        return DeviceClass.Other;
     }
 
+    /// <summary>
+    /// Determines whether a model name matches common binary-model naming patterns.
+    /// </summary>
+    /// <returns>`true` if the provided name is non-empty and matches the bin-model regex pattern, `false` otherwise.</returns>
     private static bool IsBinModelName(string name)
-        => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
+    => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
 
     private static string? InferVoltageDomain(string name)
     {
@@ -943,6 +1078,11 @@ internal sealed class SpectreModelExtractor
         return value.Trim().Trim('"', '\'').ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Determines whether a string appears to represent a file system path or path-like value.
+    /// </summary>
+    /// <param name="input">The string to inspect for path characters.</param>
+    /// <returns>`true` if <paramref name="input"/> is not null/whitespace and contains '/' or '\' or '.', `false` otherwise.</returns>
     private static bool LooksLikePath(string input)
     {
         if (string.IsNullOrWhiteSpace(input))

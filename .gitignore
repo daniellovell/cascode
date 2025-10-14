@@ -1,4 +1,5 @@
 .vs/
+.vscode/
 dotnet-home/
 **/obj/**
 
@@ -6,6 +7,7 @@ tools/**/bin/Debug/**
 
 AGENTS.md
 CURSOR.md
+CLAUDE.md
 
 .dotnet/
 .local/
@@ -21,3 +23,8 @@ MY_NOTES.md
 error.log
 
 .bashrc
+*.log
+
+# Testing files
+*.trx
+.it/**
