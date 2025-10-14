@@ -259,7 +259,7 @@ public static class PdkDatabaseReader
                              LEFT JOIN includes i ON i.id=mc.include_id
                              WHERE m.name=$name AND ($corner IS NULL AND c.id IS NULL OR c.name=$corner)
                              GROUP BY i.path, s.name
-                             ORDER BY s.name";
+                             ORDER BY s.name, i.path";
         var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
         var pCorner = cmd.CreateParameter(); pCorner.ParameterName = "$corner"; pCorner.Value = (object?)corner ?? DBNull.Value; cmd.Parameters.Add(pCorner);
         var list = new List<(string, string?)>();
