@@ -149,6 +149,7 @@ internal sealed class PdkCommandModule : ICommandModule
                     {
                         var d = devices[i];
                         var vt = d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags);
+                        // Values from DB are already numeric CSV; reader maps them to display strings.
                         var vdd = d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags);
                         var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
                         rows.Add(new DeviceSummaryRow(i + 1, d.CellName, d.Class.ToString(), vt, vdd, views, string.Empty));

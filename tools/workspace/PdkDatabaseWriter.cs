@@ -156,7 +156,11 @@ public static class PdkDatabaseWriter
                 if (!classVt.TryGetValue(cls, out var vtSet)) { vtSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase); classVt[cls] = vtSet; }
                 if (!classVdd.TryGetValue(cls, out var vddSet)) { vddSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase); classVdd[cls] = vddSet; }
                 if (!r.IsDBNull(1)) foreach (var tok in r.GetString(1).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)) vtSet.Add(tok);
-                if (!r.IsDBNull(2)) foreach (var tok in r.GetString(2).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)) vddSet.Add(tok);
+                if (!r.IsDBNull(2))
+                {
+                    var vv = r.GetDouble(2);
+                    vddSet.Add(VddFormatting.PrettyFromVolts(vv));
+                }
             }
         }
 
@@ -394,6 +398,8 @@ public static class PdkDatabaseWriter
         var dMid = insertDeck.CreateParameter(); dMid.ParameterName = "$model_id"; insertDeck.Parameters.Add(dMid);
         var dPath = insertDeck.CreateParameter(); dPath.ParameterName = "$path"; insertDeck.Parameters.Add(dPath);
 
+        // store volts inline in models table; no auxiliary table
+
         // Dimension upserts for contexts
         using var insCornerTok = conn.CreateCommand(); insCornerTok.Transaction = tx; insCornerTok.CommandText = "INSERT INTO corners(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;"; var pCornerName = insCornerTok.CreateParameter(); pCornerName.ParameterName = "$n"; insCornerTok.Parameters.Add(pCornerName);
         using var selCornerTok = conn.CreateCommand(); selCornerTok.Transaction = tx; selCornerTok.CommandText = "SELECT id FROM corners WHERE name=$n"; var pSelCorner = selCornerTok.CreateParameter(); pSelCorner.ParameterName = "$n"; selCornerTok.Parameters.Add(pSelCorner);
@@ -424,13 +430,15 @@ public static class PdkDatabaseWriter
             mName.Value = model.Name;
             mType.Value = model.ModelType ?? string.Empty;
             mClass.Value = (int)model.DeviceClass;
-            mVdd.Value = (object?)model.VoltageDomain ?? DBNull.Value;
+            var tokenForModel = VddFormatting.ExtractTokenFromVoltageDomain(model.VoltageDomain, PdkMatchingConfigManager.Load());
+            if (VddFormatting.TryTokenToVolts(tokenForModel, out var modelVolts)) mVdd.Value = modelVolts; else mVdd.Value = DBNull.Value;
             mVt.Value = (object?)model.ThresholdFlavor ?? DBNull.Value;
             insertModel.ExecuteNonQuery();
 
             gName.Value = model.Name;
             var idObj = getId.ExecuteScalar();
             if (idObj is not long id) continue;
+            // numeric volts already stored inline
 
             sMid.Value = id;
             foreach (var src in model.SourceFiles ?? Array.Empty<string>())
@@ -523,6 +531,8 @@ public static class PdkDatabaseWriter
         var vId = insertView.CreateParameter(); vId.ParameterName = "$id"; insertView.Parameters.Add(vId);
         var vView = insertView.CreateParameter(); vView.ParameterName = "$view"; insertView.Parameters.Add(vView);
 
+        // (no auxiliary device_vdds table; single REAL value per device)
+
         foreach (var d in devices)
         {
             pKey.Value = d.CanonicalName;
@@ -536,7 +546,13 @@ public static class PdkDatabaseWriter
             pLayout.Value = d.HasLayout ? 1 : 0;
             pSymbol.Value = d.HasSymbol ? 1 : 0;
             pVt.Value = string.Join(',', d.VtTags ?? Array.Empty<string>());
-            pVdd.Value = string.Join(',', d.VddTags ?? Array.Empty<string>());
+            // Persist a single REAL (first parsed token) for vdd_tags
+            double? voltsValue = null;
+            foreach (var t in d.VddTags ?? Array.Empty<string>())
+            {
+                if (VddFormatting.TryTokenToVolts(t, out var v)) { voltsValue = v; break; }
+            }
+            pVdd.Value = voltsValue.HasValue ? voltsValue.Value : DBNull.Value;
             pTags.Value = string.Join(',', d.Tags ?? Array.Empty<string>());
             insertDevice.ExecuteNonQuery();
 

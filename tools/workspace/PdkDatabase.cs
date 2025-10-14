@@ -149,7 +149,7 @@ public sealed class PdkDatabase : IDisposable
               has_layout INTEGER NOT NULL,
               has_symbol INTEGER NOT NULL,
               vt_tags TEXT NULL,
-              vdd_tags TEXT NULL,
+              vdd_tags REAL NULL,
               tags TEXT NULL
             );
 

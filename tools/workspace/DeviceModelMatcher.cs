@@ -172,7 +172,8 @@ public static class DeviceModelMatcher
         {
             var norm = NormalizeModelName(m.Name, cfg);
             var @base = StripVtVddTokens(norm, cfg);
-            var vddToken = ExtractVddToken(m.VoltageDomain, cfg);
+            // Normalize the model's voltage domain to a canonical VDD token used for matching.
+            var vddToken = VddFormatting.ExtractTokenFromVoltageDomain(m.VoltageDomain, cfg);
             var mr = new ModelRef(m.Name, norm, @base, m.DeviceClass, m.ThresholdFlavor, m.VoltageDomain, vddToken, string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase));
             Add(index.NameIndex, norm, mr);
             Add(index.BaseIndex, @base, mr);
@@ -182,17 +183,7 @@ public static class DeviceModelMatcher
         return index;
     }
 
-    private static string ExtractVddToken(string? v, PdkMatchingConfig cfg)
-    {
-        if (string.IsNullOrWhiteSpace(v)) return string.Empty;
-        var lower = v.ToLowerInvariant();
-        var pattern = string.IsNullOrWhiteSpace(cfg.Normalization.VddExtractRegex) ? @"(?<n>\d+)(?:\.(?<f>\d+))?v" : cfg.Normalization.VddExtractRegex;
-        var m = Regex.Match(lower, pattern);
-        if (!m.Success) return lower;
-        var n = m.Groups["n"].Value;
-        var f = m.Groups["f"].Success ? m.Groups["f"].Value : "0";
-        return $"{n}v{f}";
-    }
+    // Intentionally left for historical reference; logic moved to VddFormatting.
 
     private static void Add(Dictionary<string, List<ModelRef>> map, string key, ModelRef value)
     {

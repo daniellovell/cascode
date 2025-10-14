@@ -46,7 +46,9 @@ public static class PdkDatabaseReader
                     HasLayout = reader.GetInt32(8) != 0,
                     HasSymbol = reader.GetInt32(9) != 0,
                     VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
-                    VddTags = SplitCsv(reader.IsDBNull(11) ? null : reader.GetString(11)),
+                    VddTags = reader.IsDBNull(11)
+                        ? Array.Empty<string>()
+                        : new [] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
                     Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
                     Views = SplitCsv(viewsCsv)
                 });
@@ -187,6 +189,7 @@ public static class PdkDatabaseReader
         while (r.Read())
         {
             var viewsCsv = r.IsDBNull(12) ? string.Empty : r.GetString(12);
+            var vdds = r.IsDBNull(10) ? Array.Empty<string>() : new[] { VddFormatting.PrettyFromVolts(r.GetDouble(10)) };
             list.Add(new Device
             {
                 LibraryName = r.GetString(1),
@@ -198,7 +201,7 @@ public static class PdkDatabaseReader
                 HasLayout = r.GetInt32(7) != 0,
                 HasSymbol = r.GetInt32(8) != 0,
                 VtTags = SplitCsv(r.IsDBNull(9) ? null : r.GetString(9)),
-                VddTags = SplitCsv(r.IsDBNull(10) ? null : r.GetString(10)),
+                VddTags = vdds,
                 Tags = SplitCsv(r.IsDBNull(11) ? null : r.GetString(11)),
                 Views = SplitCsv(viewsCsv)
             });
