@@ -65,7 +65,7 @@ cascode --help
 ## 💡 Why cascode?
 
 * **Bridges behavior and structure.** Mix spec-only requests ("meet GBW/PM/gain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
-* **Motif-centric.** Build with well-named blocks: `DiffPairNMOS`, `PMOSCascodeLoad`, `MillerRz`, `StrongArmLatch`, etc.
+* **Motif-centric.** Build with well‑named blocks: `DiffPair`, `CurrentMirror`, `MillerRz`, `StrongArmLatch`, etc.
 * **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
 * **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
 * **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first-class; contracts (`req`/`ens`) capture headroom and validity.
@@ -131,19 +131,24 @@ class AmpGuided implements Amplifier {
 ### Structural 5T OTA (concise)
 
 ```cas
-package analog.ota; import lib.motifs.*;
+package analog.ota; import lib.std.synth.*;
 
 class OTA5T implements Amplifier {
   supply VDD=1.8V; ground GND;
-  port in_p vinp, in_n vinn; port out vout; bias vbias_n;
+  port in IN: Diff; port out VOUT; bias VTAIL;
 
   use {
-    dp = new DiffPairNMOS(vinp, vinn) { gnd=GND; tail=vbias_n; };
-    attach FiveTLoadPMOS on dp { vdd=VDD; out=vout; };  // diode+mirror load in 1 line
-    C(vout, GND, 1pF);
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P <- IN.P; IN.N <- IN.N; BASE <- GND; BIAS <- VTAIL;
+    };
+
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+    attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+
+    C(VOUT, GND, 1pF);
   }
 
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(vout) in [0.2V..1.6V]; power<=2mW; }
+  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(VOUT) in [0.2V..1.6V]; power<=2mW; }
   bench { AC_OpenLoop; UnityUGF; Step; }
 }
 ```
@@ -152,12 +157,9 @@ class OTA5T implements Amplifier {
 
 ```cas
 use {
-  dp = new DiffPairNMOS(vinp, vinn) { gnd=GND; tail=vbias_n; };
-
-  pm = mirror.PMOS(sense=dp.out_l, vdd=VDD,
-                   taps={ n2:1, nmir:2, vout:2 });   // auto diode at sense
-  nm = mirror.NMOS(sense=pm.nmir, gnd=GND, taps={ vout:1 }); // auto diode at sense
-
+  dp = new DiffPair { p=NMOS; hasTail=true } { IN.P<-vinp; IN.N<-vinn; BASE<-GND; BIAS<-vbias_n; };
+  cm = new CurrentMirror { p=PMOS; taps=1 };
+  attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
   C(vout, GND, 1pF);
 }
 ```
@@ -285,16 +287,17 @@ class SenseChainAuto {
 
 > **Why CasIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (roles, traits, benches) and provenance.
 
-**CasIR snippet (for `OTA5T`)**:
+**CasIR snippet (for `OTA5T`, illustrative)**:
 
 ```json
 {
   "nets":[{"id":"VDD","type":"supply"},{"id":"GND","type":"supply"},
           {"id":"vinp"},{"id":"vinn"},{"id":"nL"},{"id":"nR"},{"id":"vout"}],
   "motifs":[
-    {"id":"dp","type":"DiffPairNMOS",
-     "ports":{"in_p":"vinp","in_n":"vinn","out_l":"nL","out_r":"nR","tail":"vbias_n","gnd":"GND"}},
-    {"id":"m5t","type":"FiveTLoadPMOS","ports":{"target":"dp","out":"vout","vdd":"VDD"}},
+    {"id":"dp","type":"DiffPair",
+     "ports":{"IN.P":"vinp","IN.N":"vinn","OUT.N":"nN","OUT.P":"nP","BASE":"GND","BIAS":"vbias_n"}},
+    {"id":"cm","type":"CurrentMirror",
+     "ports":{"SENSE":"nN","TAP":"nP"}},
     {"id":"cl","type":"Cap","ports":{"p":"vout","n":"GND"}, "params":{"C":1e-12}}
   ],
   "constraints":{

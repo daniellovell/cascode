@@ -41,6 +41,16 @@ Ports and nets may carry semantic **roles** such as `stage1_out`, `ota_out`, or 
 * Port-kind **compatibility** is enforced at connect time (e.g., `bias→gate` inside motifs is allowed; `bias→out` is forbidden unless a motif explicitly exposes this).
 * Each `supply`/`ground` port **MUST** connect to exactly one global net per instantiation context.
 
+### 2.3.1 Port Naming Conventions
+
+To improve readability and keep interfaces visually distinct from internal nets, the specification adopts the following convention:
+
+- External ports exported by modules and motifs use ALL_CAPS_WITH_UNDERSCORES (e.g., `IN_P`, `IN_N`, `OUT`, `OUT_L`, `OUT_R`).
+- Rails remain `VDD`/`GND` (already ALL CAPS).
+- Internal nets and instance locals inside `use {}` blocks use lowerCamelCase.
+
+This convention is normative for the standard libraries and examples and SHOULD be followed by user code for consistency.
+
 ---
 
 ## 2.4 Bundles (Structured Port Groups)
@@ -48,7 +58,7 @@ Ports and nets may carry semantic **roles** such as `stage1_out`, `ota_out`, or 
 A **Bundle** is a typed, named group of ports (e.g., a differential pair or an amplifier I/O interface).
 
 ```cas
-bundle Diff   { p: electrical; n: electrical; }
+bundle Diff   { P: electrical; N: electrical; }
 bundle AmpIO  { in: Diff; out: electrical; }
 ```
 
@@ -63,11 +73,11 @@ Bundles serve two primary purposes: they **reduce verbosity** while making **bin
 
 ## 2.5 Parameters and Defaults
 
-**Parameters** (declared via `param` or `params`) define compile-time tunables for modules and motifs. These parameters may be typed as `int`, `real`, `enum`, or **unit-typed** quantities. While default values may be provided, required parameters must be explicitly set at instantiation time.
+**Parameters** (declared via `param` or `params`) define compile-time tunables for modules and motifs. These parameters may be typed as `bool`, `int`, `real`, `enum`, `polarity`, or **unit-typed** quantities. While default values may be provided, required parameters must be explicitly set at instantiation time.
 
 ```cas
 param CL = 2pF;              // module parameter
-params { m:int=1; }          // motif parameters
+params { enabled: bool=true; m:int=1; }          // motif parameters
 ```
 
 ---
@@ -120,24 +130,121 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 * `attach` - bind a structural motif to a target instance with explicit port mapping.
 
   ```cas
-  attach Cascode on dp { in<-dp.drain_l; bias<-vb_casc; vref<-VDD; }
+  // Example: attach a cascode pair atop a differential pair using bundles.
+  attach CascodePair on dp { IN <- OUT; BIAS <- VB_CASC }
   ```
 
-* `pair` - instantiate symmetric **left/right** branches with `.l`/`.r` handles.
+* `pair` - instantiate symmetric **left/right** branches with `.l`/`.r` handles. (Omitted here; see the Grammar for details.)
+
+* `CurrentMirror` - general mirror motif with `SENSE` and `TAP` ports. Rails are inferred from polarity unless overridden.
 
   ```cas
-  pair casN = NMOSCascode(dp.drain_l, dp.drain_r) { bias=vb_casc; ref<-GND; };
+  cm = new CurrentMirror { p=PMOS; taps=1 };
+  attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P }
   ```
 
-* `CurrentMirror` - **general** mirror motif (preferred over specialized variants).
+### 2.8.3 Attach Name Resolution
 
-  ```cas
-  mirP = new CurrentMirror(polarity=PMOS) {
-    sense <- dp.drain_l;      // diode device at sense node
-    vref  <- VDD;             // PMOS reference rail
-    taps  { n2:1, OUT:2; }    // multi-tap with ratios
-  };
-  ```
+Within an `attach X on target { … }` block, identifiers on the left‑hand side of bindings refer to the attached motif `X` and must name its ports. Identifiers on the right‑hand side resolve in two steps: first against the public ports of `target` (including bundle fields like `OUT.N`/`OUT.P`), then against names in the surrounding module scope (nets and ports). If a right‑hand identifier would resolve in both places, the reference must be qualified (for example, `target.OUT.N`). Names that cannot be resolved after this search are errors.
+
+Example (attaching a current mirror to a differential pair):
+
+```cas
+cm = new CurrentMirror { p=PMOS; taps=1; };
+dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN_P <- VINP; IN_N <- VINN; BASE <- GND; BIAS <- VTAIL; };
+attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+```
+
+Here `SENSE` and `TAP` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP <- dp.OUT.P` to disambiguate.
+
+#### 2.8.a Scoped Orientation on Pair‑Like Targets
+
+Orientation sugar is permitted only when the attachment is unambiguously “pair‑like.” Two cases qualify:
+
+1) Bundle match. Both the attached motif and the target expose a common pair bundle (for example, `Diff { P, N }`). Writing a single bundle binding implies field‑wise mapping:
+
+```cas
+// Both sides declare Diff bundles.
+motif CascodePair { ports [ IN: Diff, OUT: Diff, BIAS: bias ] }
+attach CascodePair on dp { IN <- OUT }   // expands to IN.P<-OUT.P; IN.N<-OUT.N
+```
+
+Reversed orientation in this case requires explicit field mapping (for example, `IN.p <- OUT.n; IN.n <- OUT.p`).
+
+2) Name match. The attached motif and the target share identical port names and compatible kinds for all required connections. To avoid surprises, orientation‑by‑name is opt‑in using an explicit directive:
+
+```cas
+motif Probe { ports [ OUT: Diff ] }
+attach Probe on dp by name;   // binds OUT.P<-dp.OUT.P; OUT.N<-dp.OUT.N
+```
+
+Outside these cases, users MUST bind complementary ports explicitly. For example, attaching a `CurrentMirror` (ports `SENSE`, `TAP`) to a `DiffPair` (port `OUT: Diff`) requires explicit mapping:
+
+```cas
+attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P }
+```
+
+Name resolution inside `attach` follows §2.8.3 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).
+
+### 2.8.1 Param‑Variants (sugar to avoid nested conditionals)
+
+Parameter‑driven structural choices are common (e.g., a device `p∈{NMOS,PMOS}` or a compensator style). To avoid verbose nested `if` blocks, the language introduces two pieces of sugar that desugar prior to CasIR emission:
+
+1) Polarity‑polymorphic constructors (native type)
+
+   ```cas
+   // new MOS(p) chooses NMOS or PMOS primitive at elaboration
+   T = new MOS(p) { gate<-vin; drain->vout; source<-ref; bulk<-ref; };
+   ```
+
+2) Variant blocks over enum parameters
+
+   ```cas
+   match style {
+     case A: { /* variant A */ }
+     case B: { /* variant B */ }
+   }
+   ```
+
+Both forms expand to ordinary motif and primitive instantiations; they introduce no new runtime semantics.
+
+### 2.8.2 Computed Ports (ports[…] and ports{…})
+
+To keep interfaces concise yet expressive, ports are declared in two blocks:
+
+- `ports[…]` lists mandatory ports that are always present.
+- `ports { … }` is an evaluable block where parameter‑dependent logic may declare additional ports.
+
+Example:
+
+```cas
+motif DiffPair {
+  params { p: polarity = NMOS; hasTail: bool = true; }
+  ports [ IN: Diff, OUT: Diff, BASE: electrical ]
+  ports { if (hasTail) { BIAS: bias; } }
+}
+```
+
+Normative
+
+- Declarations inside `ports { … }` are evaluated at elaboration time. Names declared in `ports[…]` are always present.
+- Conditional ports are compile‑time; call sites MUST bind all ports that exist after evaluation; names not declared MUST NOT be referenced.
+- CasIR contains only the realized port set.
+
+### 2.5.1 Native Polarity Type and Bulk Policy
+
+In addition to `bool`, `int`, `real`, and enums, the language defines a primitive `polarity` type with literals `NMOS` and `PMOS`. This enables concise, type‑checked parameterization of device polarity and supports the `new MOS(polarity)` constructor sugar in §2.8.1.
+
+Bulk policy: When a primitive MOS is instantiated without an explicit bulk binding, the compiler applies a target‑tech policy (default: tie NMOS bulk to ground domain and PMOS bulk to supply domain in benches; technology adapters may override). This allows reusable motifs (like DiffPair) to avoid hard‑coding rails and remain stackable (e.g., Gilbert cells) while still producing legal SPICE.
+
+Example: “BASE” semantics
+
+Some motifs provide a stable external name for a configuration‑dependent internal junction. For the differential pair above, `BASE` is defined as:
+
+- when `hasTail==false`: the common source of the pair;
+- when `hasTail==true`: the bottom of the internal tail device.
+
+The intermediate node between the pair and the tail is internal when the tail is present. This keeps the interface small while remaining composable.
 
 * `ActiveLoad` - **general** active load motif with polarity parameter (wraps primitive transistor with semantic interface).
 

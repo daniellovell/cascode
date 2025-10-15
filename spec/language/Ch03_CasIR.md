@@ -76,7 +76,7 @@ Invariants
 Bundles are optional groupings of related nets for convenience, most commonly differential pairs.
 
 ```json
-{ "id": "IN", "type": "Diff", "fields": {"p": "VINP", "n": "VINN"} }
+  { "id": "IN", "type": "Diff", "fields": {"P": "VINP", "N": "VINN"} }
 ```
 
 **Rules**
@@ -90,15 +90,14 @@ Every design entity is a motif instance with type, ports, and params. Ports hold
 ```json
 {
   "id": "dp",
-  "type": "DiffPairNMOS",
+  "type": "DiffPair",
   "traits": ["AmplifierStage"],
   "ports": {
-    "in.p": "VINP",
-    "in.n": "VINN",
-    "drain_l": "N1",
-    "drain_r": "N2",
-    "src": "NSRC",
-    "gnd": "GND"
+    "IN.P": "VINP",
+    "IN.N": "VINN",
+    "OUT.N": "N1",
+    "OUT.P": "N2",
+    "BASE": "NSRC"
   },
   "params": {
     "L": {"value": 1.8e-7, "unit": "m"},
@@ -188,8 +187,8 @@ Tools routinely need fast graph queries. CasIR allows serializing derived views 
 ```json
 "indices": {
   "connectivity_hash": "sha256:...", 
-  "pin_to_net": { "dp.in.p": "VINP", "dp.drain_l": "N1" },
-  "net_to_pins": { "VINP": ["dp.in.p"], "N1": ["dp.drain_l", "mirP.sense"] },
+  "pin_to_net": { "dp.IN.P": "VINP", "dp.OUT.N": "N1" },
+  "net_to_pins": { "VINP": ["dp.IN.P"], "N1": ["dp.OUT.N", "cm.SENSE"] },
   "adjacency":   { "instance_to_instances": {"dp": ["mirP", "tail"]} }
 }
 ```
@@ -354,8 +353,8 @@ Provenance links IR elements back to ADL source and records transformation steps
 ```json
 "provenance": {
   "sources": [ {"file": "examples/OTA5T.cas", "span": {"from": 1, "to": 120}} ],
-  "pin_spans": { "dp.drain_l": {"file": "examples/OTA5T.cas", "from": 10, "to": 10} },
-  "aliases": [ {"name": "n1", "pin": "dp.drain_l"}, {"name": "n2", "pin": "dp.drain_r"} ],
+  "pin_spans": { "dp.OUT.N": {"file": "examples/OTA5T.cas", "from": 10, "to": 10} },
+  "aliases": [ {"name": "nN", "pin": "dp.OUT.N"}, {"name": "nP", "pin": "dp.OUT.P"} ],
   "transforms": ["desugar.attach", "desugar.mirror", "slot.fill"]
 }
 ```
@@ -423,9 +422,10 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
   "motifs": [
     {
       "id": "dp",
-      "type": "DiffPairNMOS",
+      "type": "DiffPair",
       "traits": ["AmplifierStage"],
-      "ports": {"in.p": "VINP", "in.n": "VINN", "drain_l": "N1", "drain_r": "N2", "src": "NSRC", "gnd": "GND"},
+      "ports": {"IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "NSRC"},
+      "params": {"hasTail": false},
       "params": {"L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
     },
     {
@@ -457,7 +457,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
     ],
     "graph": [
       {"id": "g_card_tail", "rule": "cardinality", "select": "type:TailCurrentSourceNMOS", "min": 1, "max": 1},
-      {"id": "g_path", "rule": "path_exists", "from": "IN.p", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
+      {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
     "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "OUT"} ]

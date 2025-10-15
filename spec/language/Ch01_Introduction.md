@@ -53,7 +53,7 @@ In summary:
 ```java
 package analog.amp; import lib.ota.*;
 
-bundle Diff { p: electrical; n: electrical; }
+bundle Diff { P: electrical; N: electrical; }
 
 class AmpAuto implements Amplifier {
   supply VDD=1.2V; ground GND;
@@ -94,28 +94,22 @@ class AmpAuto implements Amplifier {
 ```java
 package analog.ota; import lib.motifs.*;
 
-bundle Diff { p: electrical; n: electrical; }
+bundle Diff { P: electrical; N: electrical; }
 
 class OTA5T implements Amplifier {
   supply VDD=1.8V; ground GND;
   port in IN: Diff; port out OUT: electrical;
 
-  env  {
-    vdd = VDD;
-    load C = 1pF;          // bench load is mandatory via env
-    source Z = 50;
-  }
+  env  { vdd = VDD; load C = 1pF; source Z = 50; }
 
   use {
-    dp   = new DiffPairNMOS() { in<-IN; };
-    tail = new TailNMOS()     { out->dp.src; ref<-GND; };
-
-    // PMOS mirror: diode at left branch, taps to right + OUT
-    mirP = new CurrentMirror(polarity=PMOS) {
-      sense <- dp.drain_l;
-      vref  <- VDD;
-      taps  { n2:1, OUT:2; }
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P <- IN.P; IN.N <- IN.N; BASE <- GND; BIAS <- vbias_n;
     };
+
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+    attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+    OUT <- dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 
   spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(OUT) in [0.2V..1.6V]; power<=2mW; }
