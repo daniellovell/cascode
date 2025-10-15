@@ -1,0 +1,20 @@
+package lib.std.synth;
+
+// General current mirror motif with explicit SENSE/TAP ports.
+// Rails are inferred from polarity unless an override is provided.
+motif CurrentMirror {
+  params { p: polarity = PMOS; taps: int = 1; ratio: int = 1; }
+  // Mandatory ports.
+  ports [ SENSE: electrical, TAP: electrical ]
+  // Optional override port: if bound, this rail is used; otherwise, the
+  // compiler infers RAIL = VDD for PMOS and RAIL = VSS for NMOS.
+  ports { RAIL: supply; }
+
+  use {
+    // Diode-connected device at SENSE.
+    M_D = new MOS(p) { drain <- SENSE; gate <- SENSE; source <- RAIL; };
+
+    // Mirrored device at TAP.
+    M_M = new MOS(p) { drain <- TAP; gate <- SENSE; source <- RAIL; };
+  }
+}

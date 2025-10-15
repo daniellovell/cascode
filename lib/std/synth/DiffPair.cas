@@ -1,0 +1,38 @@
+package lib.std.synth;
+
+// Parametric differential pair motif with optional internal tail and polarity.
+// Ports use Diff bundles for clarity and graceful attachment.
+motif DiffPair {
+  params {
+    p: polarity = NMOS;
+    hasTail: bool = true;    // when true, include an internal tail device
+  }
+
+  // Mandatory ports (always present)
+  ports [
+    IN:  Diff,               // Fields: P, N
+    OUT: Diff,               // Fields: P, N (OUT.N is the inverting node)
+    BASE: electrical         // Bottom of pair if no tail; bottom of tail if present
+  ]
+
+  // Computed ports (evaluated at elaboration)
+  ports {
+    if (hasTail) { BIAS: bias; }
+  }
+
+  use {
+    // Pair devices: gate on IN, drains on OUT, sources tied at tnode.
+    M_N = new MOS(p) { gate <- IN.P; drain -> OUT.N; source -> tnode; };
+    M_P = new MOS(p) { gate <- IN.N; drain -> OUT.P; source -> tnode; };
+
+    if (hasTail) {
+      // Internal tail device; BASE is the bottom of the tail.
+      M_TAIL = new MOS(p) { drain <- tnode; source <- BASE; gate <- BIAS; };
+    } else {
+      // No tail inside; BASE is the pair’s common source.
+      connect tnode -> BASE;
+    }
+  }
+
+  // char { ... }  // to be added when characterized
+}
