@@ -328,6 +328,46 @@ attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P }
 
 Name resolution inside `attach` follows §2.8.4 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).
 
+### 2.8.5 Family Mapping in `attach` (Wildcards, Ranges, Lists)
+
+Attach blocks may bind families of pins concisely using wildcards, ranges, and ordered lists. All forms elaborate to explicit `connect` statements.
+
+Syntax (informal)
+
+- Family selectors on the left‑hand side (LHS):
+  - `TAP[*]` — all indices in the realized family.
+  - `TAP[a..b]` — indices `a, a+1, …, b-1` (half‑open range; `b>a`).
+  - `TAP[{i0,i1,…}]` — explicit ordered index list.
+
+- Right‑hand side (RHS) forms:
+  - Single pin path (e.g., `OUT.P`).
+  - Family selector (e.g., `OUTS[*]`, `OUTS[a..b]`).
+  - Bundle field list: `OUT.{P,N}` — ordered list of bundle fields.
+
+Semantics (normative)
+
+- Fan‑in: `TAP[family] -> SINK` (RHS single pin) expands to `connect TAP[i] -> SINK` for each index `i` selected on the LHS. Multiple identical connects to the same pair are deduplicated in CasIR.
+- Elementwise: `LHS family -> RHS family/field list` requires equal cardinality after evaluation. Expansion pairs items in order (first‑to‑first, second‑to‑second, …).
+- Family selectors are evaluated after parameter evaluation (for example, `taps`). Out‑of‑range indices and negative bounds are errors. Zero‑length families are errors.
+- Bundle field lists MUST reference existing fields and the count MUST match the LHS family size.
+- Bracketed indices (e.g., `TAP[0]`) are part of the pin path (see §3.3 Pin Path Grammar) and introduce no array semantics at runtime.
+
+Examples
+
+```cas
+// Fan‑in: all taps feed a single node.
+attach cm to dp { SENSE -> OUT.N; TAP[*] -> OUT.P }
+
+// Elementwise: tap i to sink i (requires OUTS[i] ports).
+attach cm to arr { TAP[*] -> OUTS[*] }
+
+// Elementwise: two taps to bundle fields, ordered.
+attach cm2 to dp { TAP[0..2] -> OUT.{N, P} }
+
+// Reordered mapping.
+attach cm2 to dp { TAP[{1,0}] -> OUT.{P, N} }
+```
+
 #### Acyclicity
 
 Structural nets maintain an **acyclic** topology unless a motif explicitly permits legal loops (such as cross-coupled latches). The compiler enforces acyclicity constraints during elaboration.
