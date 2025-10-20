@@ -48,6 +48,8 @@ In summary:
 
 ### 1.5 Cascode in a few examples
 
+All examples follow the repository style convention for connectivity: binds and connects are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but new code should use `->` consistently.
+
 **Spec-only definition of an amplifier (engine picks topology)**
 
 ```java
@@ -73,7 +75,7 @@ module AmpAuto implements SingleEndedAmplifier {
     Power<=1mW;
   }
 
-  slot Core: AmplifierStage bind { IN<-IN; OUT->OUT; }
+  slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }
 
   // Choose topology via synthesis and **enable** comp (or disable with 'None')
   synth {
@@ -104,12 +106,12 @@ module OTA5T implements SingleEndedAmplifier {
 
   use {
     dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P <- IN.P; IN.N <- IN.N; BASE <- GND; BIAS <- vbias_n;
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> vbias_n;
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
-    OUT <- dp.OUT.P;  // Single‑ended pickoff for illustration.
+    attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
+    OUT -> dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
@@ -137,10 +139,10 @@ module CommonSourceAmp implements SingleEndedAmplifier {
 
   use {
     // Primitive NMOS input transistor (synthesis sizes W/L from specs)
-    M_in = new NMOS() { gate<-vin; drain<-vout; source<-GND; bulk<-GND; };
+    M_in = new NMOS() { gate -> vin; drain -> vout; source -> GND; bulk -> GND; };
 
     // Generic active load motif with polarity
-    load = new ActiveLoad(polarity=PMOS) { node<-vout; bias<-vb1; vref<-VDD; };
+    load = new ActiveLoad(polarity=PMOS) { node -> vout; bias -> vb1; vref -> VDD; };
   }
 }
 
@@ -156,8 +158,8 @@ module TwoStageAmp implements SingleEndedAmplifier {
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { IN<-IN; OUT->N1; }
-  slot S2: AmplifierStage bind { IN<-N1; OUT->OUT; }
+  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
+  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
 
   synth {
     from lib.ota.*;
@@ -177,8 +179,8 @@ module TwoStageAmp_Manual implements SingleEndedAmplifier {
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { IN<-IN; OUT->N1; }
-  slot S2: AmplifierStage bind { IN<-N1; OUT->OUT; }
+  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
+  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
 
   use {
     fill S1 with FoldedCascodePMOS { /* params… */ };
@@ -292,11 +294,11 @@ module LatchToPad {
 
   use {
     sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
-    sa.in_p <- vip; sa.in_n <- vin; sa.out -> COMP_OUT;
+    sa.in_p -> vip; sa.in_n -> vin; sa.out -> COMP_OUT;
   }
 
   // Let synthesis choose a stdcell inverter or a composite pad driver
-  slot Buf: InverterLike bind { IN<-COMP_OUT; OUT->PAD; }
+  slot Buf: InverterLike bind { IN -> COMP_OUT; OUT -> PAD; }
 
   spec {
     RiseTime(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;

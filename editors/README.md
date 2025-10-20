@@ -75,7 +75,7 @@ The TextMate grammar recognizes:
 - **Percentage**: `10%`, `50%`
 
 ### Operators
-- **Connection**: `->` (drives), `<-` (driven by), `<->` (bidirectional)
+- **Connection**: `->` (bind/connect; preferred), `<->` (bidirectional). `<-` is still recognized by the language, but the house style uses `->`.
 - **Range**: `..` (e.g., `[0.5V..0.8V]`)
 - **Comparison**: `==`, `!=`, `<=`, `>=`, `<`, `>`
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`

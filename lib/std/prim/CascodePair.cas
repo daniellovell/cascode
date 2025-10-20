@@ -14,9 +14,9 @@ motif CascodePair implements CascodeLike {
 
   use {
     // Left (P) branch device.
-    M_P = new MOS(p) { gate <- BIAS; drain -> DRAIN.P; source -> SOURCE.P; };
+    M_P = new MOS(p) { gate -> BIAS; drain -> DRAIN.P; source -> SOURCE.P; };
 
     // Right (N) branch device.
-    M_N = new MOS(p) { gate <- BIAS; drain -> DRAIN.N; source -> SOURCE.N; };
+    M_N = new MOS(p) { gate -> BIAS; drain -> DRAIN.N; source -> SOURCE.N; };
   }
 }

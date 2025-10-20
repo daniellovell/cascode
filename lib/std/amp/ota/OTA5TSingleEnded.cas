@@ -11,7 +11,7 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
   use {
     // Differential pair with internal tail. Base at ground; bias is VTAIL.
     dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P <- IN.P; IN.N <- IN.N; BASE <- GND; BIAS <- VTAIL;
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
     };
 
     // PMOS current mirror as active load; rails inferred from polarity.
@@ -19,6 +19,6 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
     attach cm to dp;   // Uses CurrentMirrorLike → DiffOutput connector
 
     // Single-ended output taken from the sensed branch.
-    connect OUT <- dp.OUT.N;
+    connect dp.OUT.N -> OUT;
   }
 }

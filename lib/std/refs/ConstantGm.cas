@@ -15,11 +15,11 @@ motif ConstantGm implements CurrentReference {
 
     // Degeneration resistor placement depends on polarity parameter.
     if (p == PMOS) {
-      RB_P = R(RB) { P <- cm_p.TAP; N <- VDD; };
-      connect OUT <- cm_n.TAP;
+      RB_P = R(RB) { P -> cm_p.TAP; N -> VDD; };
+      connect cm_n.TAP -> OUT;
     } else {
-      RB_N = R(RB) { P <- cm_n.TAP; N <- GND; };
-      connect OUT <- cm_p.TAP;
+      RB_N = R(RB) { P -> cm_n.TAP; N -> GND; };
+      connect cm_p.TAP -> OUT;
     }
   }
 }

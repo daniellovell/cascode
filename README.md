@@ -140,11 +140,11 @@ module OTA5T implements SingleEndedAmplifier {
 
   use {
     dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P <- IN.P; IN.N <- IN.N; BASE <- GND; BIAS <- VTAIL;
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
+    attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
@@ -176,7 +176,7 @@ module InverterOTA implements SingleEndedAmplifier {
 
   use {
     inv = new InverterGm(vdd=VDD, gnd=GND);
-    inv.in <- vin; inv.out -> vout;
+    inv.in -> vin; inv.out -> vout;
     fb R(vout -> vin, 20M) { type=Auto; }  // MOS pseudo-res if needed
     C(vout, GND, 0.5pF);
   }
@@ -386,7 +386,7 @@ cd editors/vscode && ./install.sh
 cd editors\vscode; .\install.ps1
 ```
 
-Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<-`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<->`), and more. The style guide standardizes bind/connect arrows as `pin -> net`. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
 ---
 

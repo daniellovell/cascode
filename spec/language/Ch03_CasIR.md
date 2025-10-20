@@ -197,7 +197,7 @@ Example (after elaboration)
   { "id": "cm",  "type": "CurrentMirror",  "ports": { "SENSE": "N1",   "TAP": "N2",    "RAIL": "VDD" } }
 ```
 
-Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE←dp.OUT.N` and `TAP←dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
+Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE->dp.OUT.N` and `TAP->dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
 
 ---
 

@@ -21,12 +21,12 @@ motif DiffPair implements DiffOutput {
 
   use {
     // Pair devices: gate on IN, drains on OUT, sources tied at tnode.
-    M_N = new MOS(p) { gate <- IN.P; drain -> OUT.N; source -> tnode; };
-    M_P = new MOS(p) { gate <- IN.N; drain -> OUT.P; source -> tnode; };
+    M_N = new MOS(p) { gate -> IN.P; drain -> OUT.N; source -> tnode; };
+    M_P = new MOS(p) { gate -> IN.N; drain -> OUT.P; source -> tnode; };
 
     if (hasTail) {
       // Internal tail device; BASE is the bottom of the tail.
-      M_TAIL = new MOS(p) { drain <- tnode; source <- BASE; gate <- BIAS; };
+      M_TAIL = new MOS(p) { drain -> tnode; source -> BASE; gate -> BIAS; };
     } else {
       // No tail inside; BASE is the pair’s common source.
       connect tnode -> BASE;

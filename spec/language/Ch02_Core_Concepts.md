@@ -123,9 +123,11 @@ The `use {}` construct creates motif and module instances through `new` expressi
 The language requires that **all** `slot` bindings and cross-instance connections be explicitly specified. **Auto-binding by name or role is strictly prohibited** to ensure design intent remains unambiguous.
 
 ```cas
-slot Core: AmplifierStage bind { IN<-IN; OUT->OUT; }   // bundle-to-bundle binding
+slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }   // bundle-to-bundle binding
 connect A.OUT -> B.IN;                                 // explicit net connection
 ```
+
+Style convention (normative for repo sources): binds, connect statements, and attach mappings are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but the standard library and documentation adhere to `->`.
 
 **Attach and connectors (unified)**
 
@@ -180,7 +182,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   attach cm to dp;
 
   // Explicit mapping remains available:
-  attach CascodePair to dp { SOURCE <- OUT; BIAS <- VB_CASC }
+  attach CascodePair to dp { SOURCE -> OUT; BIAS -> VB_CASC }
   ```
 
 - `pair` - instantiate symmetric left/right branches with `.l`/`.r` handles. (Omitted here; see Grammar.)
@@ -193,11 +195,11 @@ Example (attaching a current mirror to a differential pair):
 
 ```cas
 cm = new CurrentMirror { p=PMOS; taps=1; };
-dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN.P <- VINP; IN.N <- VINN; BASE <- GND; BIAS <- VTAIL; };
-attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
+dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN.P -> VINP; IN.N -> VINN; BASE -> GND; BIAS -> VTAIL; };
+attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
 ```
 
-Here `SENSE` and `TAP` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP <- dp.OUT.P` to disambiguate.
+Here `SENSE` and `TAP` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP -> dp.OUT.P` to disambiguate.
 
 #### 2.8.a Scoped Orientation on Pair‑Like Targets
 
@@ -208,22 +210,22 @@ Orientation sugar is permitted only when the attachment is unambiguously “pair
 ```cas
 // Both sides declare Diff bundles.
 motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
-attach CascodePair to dp { SOURCE <- OUT }   // expands to SOURCE.P<-OUT.P; SOURCE.N<-OUT.N
+attach CascodePair to dp { SOURCE -> OUT }   // expands to SOURCE.P->OUT.P; SOURCE.N->OUT.N
 ```
 
-Reversed orientation in this case requires explicit field mapping (for example, `IN.P <- OUT.N; IN.N <- OUT.P`).
+Reversed orientation in this case requires explicit field mapping (for example, `IN.P -> OUT.N; IN.N -> OUT.P`).
 
 2) Name match. The attached motif and the target share identical port names and compatible kinds for all required connections. To avoid surprises, orientation‑by‑name is opt‑in using an explicit directive:
 
 ```cas
 motif Probe { ports [ OUT: Diff ] }
-attach Probe to dp by name;   // binds OUT.P<-dp.OUT.P; OUT.N<-dp.OUT.N
+attach Probe to dp by name;   // binds OUT.P->dp.OUT.P; OUT.N->dp.OUT.N
 ```
 
 Outside these cases, users MUST bind complementary ports explicitly. For example, attaching a `CurrentMirror` (ports `SENSE`, `TAP`) to a `DiffPair` (port `OUT: Diff`) requires explicit mapping:
 
 ```cas
-attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P }
+attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P }
 ```
 
 Name resolution inside `attach` follows §2.8.3 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).
@@ -236,7 +238,7 @@ Parameter‑driven structural choices are common (e.g., a device `p∈{NMOS,PMOS
 
    ```cas
    // new MOS(p) chooses NMOS or PMOS primitive at elaboration
-   T = new MOS(p) { gate<-vin; drain->vout; source<-ref; bulk<-ref; };
+   T = new MOS(p) { gate -> vin; drain -> vout; source -> ref; bulk -> ref; };
    ```
 
 2) Variant blocks over enum parameters
@@ -292,9 +294,9 @@ The intermediate node between the pair and the tail is internal when the tail is
 
   ```cas
   load = new ActiveLoad(polarity=PMOS) {
-    node <- vout;             // node being loaded
-    bias <- vb1;              // gate bias voltage
-    vref <- VDD;              // reference rail (VDD for PMOS, GND for NMOS)
+    node -> vout;             // node being loaded
+    bias -> vb1;              // gate bias voltage
+    vref -> VDD;              // reference rail (VDD for PMOS, GND for NMOS)
   };
   ```
 
@@ -425,7 +427,7 @@ Semantics (normative)
 A **`slot`** is a typed placeholder to be filled either by **synthesis** or by an explicit **structural fill**.
 
 ```cas
-slot Core: AmplifierStage bind { in<-IN; out->OUT; }    // binding is mandatory
+slot Core: AmplifierStage bind { in -> IN; out -> OUT; }    // binding is mandatory
 ```
 
 **Filling a slot (choose one, normative)**
@@ -449,7 +451,7 @@ synth {
 ```cas
 use {
   fill Core with TeleCascodeNMOS { /* params… */ }
-    bind { in<-IN; out->OUT; };
+    bind { in -> IN; out -> OUT; };
   Core.comp None;
 }
 ```
@@ -522,7 +524,7 @@ To meet edge‑time and level specs under `env{}` loads, the engine ranks `Inver
 Example:
 
 ```cas
-slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+slot Buf: InverterLike bind { in -> COMP_OUT; out -> PAD; }
 synth {
   from lib.std.sky130.hd.*;
   allow Buf in { INV_*, PadDriver };
@@ -566,11 +568,11 @@ For schematic-style structural design, cascode provides **primitive transistor t
 
 ```cas
 M1 = new NMOS() { 
-  gate<-vin; drain<-vout; source<-GND; bulk<-GND;
+  gate -> vin; drain -> vout; source -> GND; bulk -> GND;
 };
 
 M2 = new PMOS() { 
-  gate<-vb1; drain<-vout; source<-VDD; bulk<-VDD;
+  gate -> vb1; drain -> vout; source -> VDD; bulk -> VDD;
 };
 ```
 
@@ -655,17 +657,17 @@ motif ActiveLoad {
   use {
     if (polarity == PMOS) {
       M = new PMOS() { 
-        drain<-node; 
-        source<-vref; 
-        bulk<-vref;
-        gate<-(diode_connected ? node : bias);
+        drain -> node; 
+        source -> vref; 
+        bulk -> vref;
+        gate -> (diode_connected ? node : bias);
       };
     } else {
       M = new NMOS() { 
-        drain<-node; 
-        source<-vref; 
-        bulk<-vref;
-        gate<-(diode_connected ? node : bias);
+        drain -> node; 
+        source -> vref; 
+        bulk -> vref;
+        gate -> (diode_connected ? node : bias);
       };
     }
   }

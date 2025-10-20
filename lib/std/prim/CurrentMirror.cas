@@ -12,9 +12,9 @@ motif CurrentMirror implements CurrentMirrorLike {
 
   use {
     // Diode-connected device at SENSE.
-    M_D = new MOS(p) { drain <- SENSE; gate <- SENSE; source <- RAIL; };
+    M_D = new MOS(p) { drain -> SENSE; gate -> SENSE; source -> RAIL; };
 
     // Mirrored device at TAP.
-    M_M = new MOS(p) { drain <- TAP; gate <- SENSE; source <- RAIL; };
+    M_M = new MOS(p) { drain -> TAP; gate -> SENSE; source -> RAIL; };
   }
 }
