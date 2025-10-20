@@ -144,7 +144,7 @@ module OTA5T implements SingleEndedAmplifier {
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+    attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
@@ -307,49 +307,44 @@ module SenseChainAuto {
 ```
 cascode/
 ├─ README.md
-├─ LICENSE
+├─ AGENTS.md
 ├─ spec/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     ├─ Ch03_CasIR.md                 
-│     └─ Grammar.ebnf                  
-├─ spec/casir-schema/                  # JSON Schema for CasIR 
-│  ├─ casir-json-1.schema.json         # root schema 
-│  └─ casir-json-1-el.schema.json      # EL overlay 
+│     └─ Ch03_CasIR.md
+├─ spec/casir-schema/
+│  └─ casir-json-1.schema.json
 ├─ lib/
-│  ├─ motifs/               # standard motif library (types + SPICE templates)
-│  ├─ traits/
-│  ├─ patterns/
-│  └─ tech/                 # tech adapters, gm/Id LUTs, fitted models (stubs)
+│  └─ std/
+│     ├─ prim/                 # primitive motifs + interface traits
+│     │  ├─ DiffPair.cas
+│     │  ├─ CurrentMirror.cas
+│     │  ├─ CascodePair.cas
+│     │  ├─ DiffOutput.cas
+│     │  ├─ CascodeLike.cas
+│     │  └─ CurrentMirrorLike.cas
+│     ├─ amp/                  # amplifier traits and topologies
+│     │  └─ ota/
+│     │     └─ OTA5TSingleEnded.cas
+│     └─ refs/                 # reference circuits
+│        ├─ ReferenceCircuit.cas
+│        ├─ VoltageReference.cas
+│        ├─ CurrentReference.cas
+│        └─ ConstantGm.cas
 ├─ tools/
-│  ├─ cli/                  # `cascode` CLI (synth | verify | run | fmt)
-│  ├─ parser/               # ANTLR grammar + generated C# parser glue
-│  ├─ compiler/             # ADL to CasIR front end 
-│  ├─ synthesis/            # topology selection, sizing, optimization
-│  ├─ backends/
-│  │  └─ spice/             # SPICE netlist writer + bench emitters
-│  └─ casir/                # IR types, canonical JSON writer, schema validation
-│  📄 tools/README.md       # Architecture guide for CLI, services, and utilities
+│  ├─ cli/
+│  └─ parser/
+├─ editors/
+│  └─ vscode/
 ├─ examples/
-│  ├─ AmpAuto.cas
-│  ├─ AmpGuided.cas
-│  ├─ OTA5T.cas
-│  ├─ OTATelescopic.cas
-│  ├─ InverterOTA.cas
-│  ├─ InverterTIA.cas
-│  ├─ SALatch.cas
-│  └─ SenseChainAuto.cas
-├─ tests/
-│  ├─ fixtures/
-│  │  └─ adl/                # source `.cas` inputs used by tests
-│  ├─ golden/
-│  │  ├─ ir/                 # canonical `.cir.json` snapshots (HL/ML/EL)
-│  │  └─ spice/              # tiny golden netlists (smoke tests)
-│  └─ conformance/           # parser/semantics cases, negative tests
-└─ docs/
-   ├─ getting-started.md
-   └─ benchmarks/AMSGENBench.md
+│  ├─ LatchToPad_Auto.cas
+│  ├─ LatchToPad_ManualBuffer.cas
+│  └─ harnesses/
+└─ tests/
+   ├─ fixtures/
+   ├─ integration/
+   └─ unit/
 ```
 
 ### Component Responsibilities
@@ -360,9 +355,8 @@ cascode/
 - `tools/backends/spice`: Netlist writers per simulator and bench emitters driven by CasIR `constraints.measure` and `harness`.
 
 ### Notes
-- Build artifacts go in `build/` (not committed). Generated ANTLR sources are excluded from VCS.
-- CasIR on disk is JSON only; YAML is not used. Canonical writer ensures stable diffs.
-- JSON Schema lives under `spec/language/schema/` and is the contract for `.cir.json` files.
+- Build artifacts go in `build/` (not committed).
+- CasIR on disk is JSON only with explicit units; the JSON Schema lives under `spec/casir-schema/`.
 
 ---
 

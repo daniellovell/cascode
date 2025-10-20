@@ -2,7 +2,7 @@ package lib.std.prim;
 
 // Cascode pair motif with Diff bundle ports for source and drain.
 // A single BIAS port drives both gates. Polarity selects NMOS/PMOS devices.
-motif CascodePair {
+motif CascodePair implements CascodeLike {
   params { p: polarity = NMOS; }
 
   // Mandatory ports. Bundle fields are P and N.

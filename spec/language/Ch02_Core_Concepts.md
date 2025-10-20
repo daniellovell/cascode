@@ -27,6 +27,10 @@ This separation enables substitution during synthesis—for instance, any entity
 * A motif is **synthesizable** by definition and **MUST NOT** contain `spec {}` or `bench {}` blocks. Behavioral requirements belong to the module that instantiates the motif (or to its enclosing harness).
 * A slot **MUST** be typed by a trait that declares ports (an interface trait). Typing a slot by a spec-only trait is an error.
 
+Library placement note
+
+The standard primitive interface traits used by connectors—such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike`—live under the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑reside to keep wiring semantics close to the building blocks they compose.
+
 Trait extension (normative)
 
 * Use `extend` to define an interface trait from a spec-only trait:
@@ -123,18 +127,35 @@ slot Core: AmplifierStage bind { IN<-IN; OUT->OUT; }   // bundle-to-bundle bindi
 connect A.OUT -> B.IN;                                 // explicit net connection
 ```
 
-**Cascade sugar**
+**Attach and connectors (unified)**
 
-The `cascade { A -> B -> C; }` syntax provides a concise representation for sequential connections, but is permitted **only** when the underlying trait defines a canonical **connector** (such as `AmplifierStage: OUT→IN`). A trait declares connectors inside an optional `connector` block:
+Connectors are declared on interface traits and define how two instances that implement compatible traits wire together. There are two forms:
+
+1) Within‑trait connector (both sides implement the same trait):
 
 ```cas
 trait AmplifierStage extend Amplifier {
-  ports { IN: Diff; OUT: electrical; }
+  ports [ IN: Diff, OUT: electrical ]
   connector { OUT -> IN; }
 }
 ```
 
-Each arrow maps a **source port or bundle field** on the left to a **sink** on the right. Bundles may qualify fields with dotted syntax (`IN.P`). A connector block may list multiple arrows separated by semicolons or newlines. The compiler expands cascade expressions into equivalent explicit `connect` statements by following these connector definitions. A trait **MUST NOT** define more than one connector block, and the block **MUST** reference declared ports or bundle fields.
+2) Cross‑trait connector (left implements this trait; right implements the target trait):
+
+```cas
+trait CurrentMirrorLike {
+  ports [ SENSE: electrical, TAP: electrical ]
+  connector to DiffOutput { SENSE -> OUT.N; TAP -> OUT.P }
+}
+```
+
+Semantics (normative):
+
+- Arrows map a source port/bundle field on the left to a sink on the right. Unnamed bundle arrows expand field‑wise by identical field names (PascalCase; Diff uses P/N).
+- Only interface traits may declare connectors; spec‑only traits MUST NOT. A trait declares at most one connector block per target trait (including the within‑trait case).
+- attach A to B resolves exactly one applicable connector from traits implemented by A and B. If none match, an explicit attach block is required. If more than one matches, the binding MUST be disambiguated using `attach using TraitName A to B` or by providing an explicit attach block.
+- `attach A to B to C` chains pairwise: (A,B), then (B,C). There is no transitive propagation.
+- Connectors expand to explicit `connect` statements; they never create new nets.
 
 **Alias**
 
@@ -142,7 +163,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 **Normative**
 
-* If a connector is not defined for a trait, `cascade` **MUST** be rejected (use explicit `connect`).
+* If no connector applies for a pair, `attach` without a block **MUST** be rejected (use explicit `attach { … }` or add a connector).
 * Binding a bundle **MUST** bind all fields; partial binding is an error.
 
 ---
@@ -151,32 +172,29 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 **Schematic-like sugar** (all expand to primitives in CasIR):
 
-* `attach` - bind a structural motif to a target instance with explicit port mapping.
+- `attach` — bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
 
   ```cas
-  // Example: attach a cascode pair atop a differential pair using bundles.
-  attach CascodePair on dp { SOURCE <- OUT; BIAS <- VB_CASC }
-  ```
-
-* `pair` - instantiate symmetric **left/right** branches with `.l`/`.r` handles. (Omitted here; see the Grammar for details.)
-
-* `CurrentMirror` - general mirror motif with `SENSE` and `TAP` ports. Rails are inferred from polarity unless overridden.
-
-  ```cas
+  // Connector-driven attach (no explicit mapping needed):
   cm = new CurrentMirror { p=PMOS; taps=1 };
-  attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P }
+  attach cm to dp;
+
+  // Explicit mapping remains available:
+  attach CascodePair to dp { SOURCE <- OUT; BIAS <- VB_CASC }
   ```
+
+- `pair` — instantiate symmetric left/right branches with `.l`/`.r` handles. (Omitted here; see Grammar.)
 
 ### 2.8.3 Attach Name Resolution
 
-Within an `attach X on target { … }` block, identifiers on the left‑hand side of bindings refer to the attached motif `X` and must name its ports. Identifiers on the right‑hand side resolve in two steps: first against the public ports of `target` (including bundle fields like `OUT.N`/`OUT.P`), then against names in the surrounding module scope (nets and ports). If a right‑hand identifier would resolve in both places, the reference must be qualified (for example, `target.OUT.N`). Names that cannot be resolved after this search are errors.
+Within an `attach X to target { … }` block, identifiers on the left‑hand side of bindings refer to the attached motif `X` and must name its ports. Identifiers on the right‑hand side resolve in two steps: first against the public ports of `target` (including bundle fields like `OUT.N`/`OUT.P`), then against names in the surrounding module scope (nets and ports). If a right‑hand identifier would resolve in both places, the reference must be qualified (for example, `target.OUT.N`). Names that cannot be resolved after this search are errors.
 
 Example (attaching a current mirror to a differential pair):
 
 ```cas
 cm = new CurrentMirror { p=PMOS; taps=1; };
-dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN_P <- VINP; IN_N <- VINN; BASE <- GND; BIAS <- VTAIL; };
-attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN.P <- VINP; IN.N <- VINN; BASE <- GND; BIAS <- VTAIL; };
+attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
 ```
 
 Here `SENSE` and `TAP` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP <- dp.OUT.P` to disambiguate.
@@ -190,7 +208,7 @@ Orientation sugar is permitted only when the attachment is unambiguously “pair
 ```cas
 // Both sides declare Diff bundles.
 motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
-attach CascodePair on dp { SOURCE <- OUT }   // expands to SOURCE.P<-OUT.P; SOURCE.N<-OUT.N
+attach CascodePair to dp { SOURCE <- OUT }   // expands to SOURCE.P<-OUT.P; SOURCE.N<-OUT.N
 ```
 
 Reversed orientation in this case requires explicit field mapping (for example, `IN.P <- OUT.N; IN.N <- OUT.P`).
@@ -199,13 +217,13 @@ Reversed orientation in this case requires explicit field mapping (for example, 
 
 ```cas
 motif Probe { ports [ OUT: Diff ] }
-attach Probe on dp by name;   // binds OUT.P<-dp.OUT.P; OUT.N<-dp.OUT.N
+attach Probe to dp by name;   // binds OUT.P<-dp.OUT.P; OUT.N<-dp.OUT.N
 ```
 
 Outside these cases, users MUST bind complementary ports explicitly. For example, attaching a `CurrentMirror` (ports `SENSE`, `TAP`) to a `DiffPair` (port `OUT: Diff`) requires explicit mapping:
 
 ```cas
-attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P }
+attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P }
 ```
 
 Name resolution inside `attach` follows §2.8.3 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).

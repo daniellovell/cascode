@@ -46,11 +46,11 @@
         },
         {
           "name": "keyword.other.declaration.cascode",
-          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|cascade|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
+          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
         },
         {
           "name": "keyword.other.directive.cascode",
-          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|fb|pair|new|in|out|diff|clk|bias)\\b"
+          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|using|fb|pair|new|in|out|diff|clk|bias)\\b"
         },
         {
           "name": "keyword.other.type.cascode",
@@ -275,7 +275,7 @@
       "patterns": [
         {
           "name": "support.type.trait.cascode",
-          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|Compensator|CurrentMirror|CurrentMirrorLike|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|DiffOutput|CascodeLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
           "name": "support.type.motif.cascode",

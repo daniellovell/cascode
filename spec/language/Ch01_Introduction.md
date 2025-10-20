@@ -108,7 +108,7 @@ module OTA5T implements SingleEndedAmplifier {
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+    attach cm to dp { SENSE <- OUT.N; TAP <- OUT.P };
     OUT <- dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 

@@ -16,7 +16,7 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
 
     // PMOS current mirror as active load; rails inferred from polarity.
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
+    attach cm to dp;   // Uses CurrentMirrorLike → DiffOutput connector
 
     // Single-ended output taken from the sensed branch.
     connect OUT <- dp.OUT.N;

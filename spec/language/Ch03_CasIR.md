@@ -180,6 +180,27 @@ This keeps connectivity uniform and makes incidence building trivial.
 
 ---
 
+### 3.3.5 Elaboration of Attach and Connectors
+
+CasIR does not serialize connectors or attach chains. The front‑end elaborates all `attach …` and `attach … to … to …` chains by resolving connectors declared on interface traits (§2.8), then emitting explicit `connect` edges into `motifs[].ports`.
+
+Normative
+
+- Connector resolution and attach chains are elaboration‑time sugar. CasIR always contains explicit port→net bindings only.
+- When a connector maps unnamed bundles, field‑wise expansion uses identical field names (PascalCase; `Diff` uses `P`/`N`).
+- If no connector applies or multiple apply without explicit disambiguation, the front‑end must reject the source before CasIR emission.
+
+Example (after elaboration)
+
+```json
+  { "id": "dp",  "type": "DiffPair",      "ports": { "IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "GND", "BIAS": "VTAIL" } },
+  { "id": "cm",  "type": "CurrentMirror",  "ports": { "SENSE": "N1",   "TAP": "N2",    "RAIL": "VDD" } }
+```
+
+Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE←dp.OUT.N` and `TAP←dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
+
+---
+
 ## 3.4 Derived Indices (Optional)
 
 Tools routinely need fast graph queries. CasIR allows serializing derived views under indices. They are optional and must match ports exactly.
