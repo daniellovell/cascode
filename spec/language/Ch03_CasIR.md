@@ -81,7 +81,7 @@ Bundles are optional groupings of related nets for convenience, most commonly di
 
 **Rules**
 
-Bundles do not create edges directly; instead, pins address bundle fields via dotted paths such as in.p and in.n, which resolve to the underlying nets. At ML and EL elaboration levels, all referenced bundle fields must resolve to concrete nets.
+Bundles do not create edges directly; instead, pins address bundle fields via dotted paths such as IN.P and IN.N, which resolve to the underlying nets. At ML and EL elaboration levels, all referenced bundle fields must resolve to concrete nets.
 
 ### 3.3.3 Motif Instances
 
@@ -210,11 +210,11 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
     {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"}
   ],
   "graph": [
-    {"id": "g_card_tail", "rule": "cardinality", "select": "type:TailNMOS", "min": 1, "max": 1},
-    {"id": "g_path", "rule": "path_exists", "from": "IN.p", "to": "OUT", "through_types": ["CurrentMirror"]}
+    {"id": "g_card_tail", "rule": "cardinality", "select": "type:CurrentMirror", "min": 1, "max": 1},
+    {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["CurrentMirror"]}
   ],
   "measure": [
-    {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "OUT"}
+    {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "OUT"}
   ]
 }
 ```
@@ -411,12 +411,13 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
     {"id": "VINN", "domain": "electrical"},
     {"id": "N1",   "domain": "electrical"},
     {"id": "N2",   "domain": "electrical"},
+    {"id": "IBIAS", "domain": "electrical"},
     {"id": "NSRC", "domain": "electrical"},
     {"id": "OUT",  "domain": "electrical"}
   ],
 
   "bundles": [
-    {"id": "IN", "type": "Diff", "fields": {"p": "VINP", "n": "VINN"}}
+    {"id": "IN", "type": "Diff", "fields": {"P": "VINP", "N": "VINN"}}
   ],
 
   "motifs": [
@@ -429,10 +430,10 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
       "params": {"L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
     },
     {
-      "id": "tail",
-      "type": "TailCurrentSourceNMOS",
-      "ports": {"out": "NSRC", "gate": "VBIAS_N", "gnd": "GND"},
-      "params": {"L": {"value": 5.0e-7, "unit": "m"}, "W": {"value": 1.0e-6, "unit": "m"}}
+      "id": "tailBias",
+      "type": "CurrentMirror",
+      "params": {"polarity": "NMOS", "taps": 1, "ratio": 1},
+      "ports": {"SENSE": "IBIAS", "TAP": "NSRC", "RAIL": "GND"}
     },
     {
       "id": "pml",
@@ -456,11 +457,11 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
       {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
     ],
     "graph": [
-      {"id": "g_card_tail", "rule": "cardinality", "select": "type:TailCurrentSourceNMOS", "min": 1, "max": 1},
+      {"id": "g_card_tail", "rule": "cardinality", "select": "type:CurrentMirror", "min": 1, "max": 1},
       {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "OUT"} ]
+    "measure": [ {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "OUT"} ]
   },
 
   "harness": {
@@ -470,7 +471,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
     "pvt":      {"corners": ["TT@27C"]}
   },
 
-  "benches": ["AC_OpenLoop", "UnityUGF", "Step"],
+  "benches": ["SEAmplifierACBench", "UnityUGF", "Step"],
   "provenance": {"sources": [ {"file": "examples/OTA5T.cas", "span": {"from": 1, "to": 120}} ]}
 }
 ```
@@ -526,7 +527,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
       {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "vout"} ]
+    "measure": [ {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "vout"} ]
   },
 
   "harness": {
@@ -536,7 +537,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
     "pvt":      {"corners": ["TT@27C"]}
   },
 
-  "benches": ["AC_OpenLoop", "Step"],
+  "benches": ["SEAmplifierACBench", "Step"],
   "provenance": {"sources": [ {"file": "examples/CSAmplifier.cas", "span": {"from": 1, "to": 25}} ]}
 }
 ```

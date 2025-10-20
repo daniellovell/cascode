@@ -41,7 +41,7 @@ Trait extension (normative)
 
 * `supply`, `ground` - special; **MUST NOT** short to `electrical`.
 * `electrical` - general (single-ended).
-* `diff` - differential bundle abstraction (has fields `.p`/`.n`).
+* `diff` - differential bundle abstraction (has fields `.P`/`.N`).
 * `bias` - bias/control nets (typed for headroom/legality checks).
 * `rf`, `clk` - specialized kinds with additional contracts (impedance, phase/timing).
 
@@ -72,8 +72,10 @@ A **Bundle** is a typed, named group of ports (e.g., a differential pair or an a
 
 ```cas
 bundle Diff   { P: electrical; N: electrical; }
-bundle AmpIO  { in: Diff; out: electrical; }
+bundle AmpIO  { IN: Diff; OUT: electrical; }
 ```
+
+The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bundles that wrap normative ports (such as `AmpIO`) adopt the ALL_CAPS naming used for external ports so that binding syntax aligns with Chapter 2.3.1.
 
 Bundles serve two primary purposes: they **reduce verbosity** while making **binding explicit** without ambiguity. These constructs are valid within module ports, motif ports, `slot` trait definitions, and `bind` statements.
 
@@ -117,13 +119,22 @@ The `use {}` construct creates motif and module instances through `new` expressi
 The language requires that **all** `slot` bindings and cross-instance connections be explicitly specified. **Auto-binding by name or role is strictly prohibited** to ensure design intent remains unambiguous.
 
 ```cas
-slot Core: AmplifierStage bind { in<-IN; out->OUT; }   // bundle-to-bundle binding
-connect A.out -> B.in;                                 // explicit net connection
+slot Core: AmplifierStage bind { IN<-IN; OUT->OUT; }   // bundle-to-bundle binding
+connect A.OUT -> B.IN;                                 // explicit net connection
 ```
 
 **Cascade sugar**
 
-The `cascade { A -> B -> C; }` syntax provides a concise representation for sequential connections, but is permitted **only** when the underlying trait defines a canonical **connector** (such as `AmplifierStage: out→in`). The compiler expands cascade expressions into equivalent explicit `connect` statements.
+The `cascade { A -> B -> C; }` syntax provides a concise representation for sequential connections, but is permitted **only** when the underlying trait defines a canonical **connector** (such as `AmplifierStage: OUT→IN`). A trait declares connectors inside an optional `connector` block:
+
+```cas
+trait AmplifierStage extend Amplifier {
+  ports { IN: Diff; OUT: electrical; }
+  connector { OUT -> IN; }
+}
+```
+
+Each arrow maps a **source port or bundle field** on the left to a **sink** on the right. Bundles may qualify fields with dotted syntax (`IN.P`). A connector block may list multiple arrows separated by semicolons or newlines. The compiler expands cascade expressions into equivalent explicit `connect` statements by following these connector definitions. A trait **MUST NOT** define more than one connector block, and the block **MUST** reference declared ports or bundle fields.
 
 **Alias**
 
@@ -578,7 +589,7 @@ At the Electrical Level (EL), the synthesis engine selects the PDK device for ea
 **Use cases:**
 
 * **Hand-crafted topologies**: CS stages, differential pairs, mirrors where explicit transistor-level control is desired
-* **Motif internals**: Building blocks like `ActiveLoad`, `CurrentMirror`, `TailNMOS` wrap primitives with semantic interfaces
+* **Motif internals**: Building blocks like `ActiveLoad`, `CurrentMirror`, and tail bias mirrors wrap primitives with semantic interfaces
 * **Non-synthesizable designs**: Test structures, bias generators, reference circuits
 
 ---
