@@ -307,7 +307,6 @@ module SenseChainAuto {
 ```
 cascode/
 ├─ README.md
-├─ AGENTS.md
 ├─ spec/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
@@ -317,17 +316,17 @@ cascode/
 │  └─ casir-json-1.schema.json
 ├─ lib/
 │  └─ std/
-│     ├─ prim/                 # primitive motifs + interface traits
+│     ├─ prim/                 # Primitive motifs + interface traits
 │     │  ├─ DiffPair.cas
 │     │  ├─ CurrentMirror.cas
 │     │  ├─ CascodePair.cas
 │     │  ├─ DiffOutput.cas
 │     │  ├─ CascodeLike.cas
 │     │  └─ CurrentMirrorLike.cas
-│     ├─ amp/                  # amplifier traits and topologies
+│     ├─ amp/                  # Amplifier traits and topologies
 │     │  └─ ota/
 │     │     └─ OTA5TSingleEnded.cas
-│     └─ refs/                 # reference circuits
+│     └─ refs/                 # Reference circuits
 │        ├─ ReferenceCircuit.cas
 │        ├─ VoltageReference.cas
 │        ├─ CurrentReference.cas

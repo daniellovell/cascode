@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-Write-Host "🎨 Installing Cascode syntax highlighting..."
+Write-Host "Installing Cascode syntax highlighting..."
 
 $SrcDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Targets = New-Object System.Collections.Generic.List[string]
@@ -45,13 +45,13 @@ foreach ($Target in $Targets) {
   
   Write-Host "  Copying to $(Split-Path -Leaf $Parent) ($Target)"
   Copy-Item -Recurse -Force $SrcDir $Target
-  Write-Host "  ✅ Installed to $(Split-Path -Leaf $Parent)"
+  Write-Host "  Installed to $(Split-Path -Leaf $Parent)"
 }
 
 Write-Host ""
-Write-Host "✨ Installation complete!"
+Write-Host "Installation complete!"
 Write-Host ""
-Write-Host "📝 Next steps:"
+Write-Host "Next steps:"
 Write-Host "   1. Restart your editor"
 Write-Host "   2. Open any .cas file"
 Write-Host "   3. Syntax highlighting should work automatically"
