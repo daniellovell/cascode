@@ -42,7 +42,7 @@ Trait extension (normative)
 
 ## 2.3 Port Kinds, Roles, and Net Types
 
-**Port kinds** (non-exhaustive):
+#### Port kinds (non-exhaustive)
 
 * `supply`, `ground` - special; **MUST NOT** short to `electrical`.
 * `electrical` - general (single-ended).
@@ -93,7 +93,9 @@ Bundles serve two primary purposes: they **reduce verbosity** while making **bin
 
 ## 2.5 Parameters and Defaults
 
-**Parameters** (declared via `param` or `params`) define compile-time tunables for modules and motifs. These parameters may be typed as `bool`, `int`, `real`, `enum`, `polarity`, or **unit-typed** quantities. While default values may be provided, required parameters must be explicitly set at instantiation time.
+#### Parameters
+
+Parameters (declared via `param` or `params`) define compile-time tunables for modules and motifs. These parameters may be typed as `bool`, `int`, `real`, `enum`, `polarity`, or **unit-typed** quantities. While default values may be provided, required parameters must be explicitly set at instantiation time.
 
 ```cas
 param CL = 2pF;              // module parameter
@@ -192,7 +194,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 ## 2.8 Structural Composition Primitives
 
-**Schematic-like sugar** (all expand to primitives in CasIR):
+#### Schematic-like sugar (all expand to primitives in CasIR)
 
 - `attach` - bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
 
@@ -353,9 +355,13 @@ The compiler **realizes** compensation **internally** within the stage through d
 
 ## 2.10 Contracts and Patterns
 
-**Contracts** encapsulate boundary assumptions (`req`) and guarantees (`ens`) for motifs and modules. Examples include `req Headroom>=0.35V`, `ens PassbandGain>=20`, and `ens ICMR in [0.4V..0.9V]`.
+#### Contracts
 
-**Patterns** define recognizers and binders for canonical subgraphs (such as 5T current mirrors), enabling automated ingestion from SPICE netlists and canonicalization into structured motifs.
+Contracts encapsulate boundary assumptions (`req`) and guarantees (`ens`) for motifs and modules. Examples include `req Headroom>=0.35V`, `ens PassbandGain>=20`, and `ens ICMR in [0.4V..0.9V]`.
+
+#### Patterns
+
+Patterns define recognizers and binders for canonical subgraphs (such as 5T current mirrors), enabling automated ingestion from SPICE netlists and canonicalization into structured motifs.
 
 #### Normative
 
@@ -562,7 +568,7 @@ synth {
 
 The cascode language recognizes that not all passive elements serve equivalent purposes, distinguishing between **physical** and **notional** passives based on their role in the design flow.
 
-**Physical passives** (enter layout, DRC/LVS, parasitics):
+#### Physical passives (enter layout, DRC/LVS, parasitics)
 
 ```cas
 C1 = new Cap(OUT, GND) { kind=MIM | MOM | MFC; value=500fF; }
@@ -570,7 +576,7 @@ R1 = new Res(A, OUT)   { kind=TFR | Poly | Metal | Pseudo; value=10k; }
 L1 = new Ind(A, B)     { kind=Spiral | MIMStack | Metal; value=2nH; }
 ```
 
-**Notional passives** (bench support / modeling):
+#### Notional passives (bench support / modeling)
 
 The preferred approach for expressing loads and sources utilizes **`env{}`** declarations, which the toolchain materializes as **harness** elements during bench generation (as detailed in section 2.11). While minimal `bench.fixtures` may accommodate special measurement hooks such as current probe shunts, they must not be used for loads or sources that fall under `env{}` coverage.
 
