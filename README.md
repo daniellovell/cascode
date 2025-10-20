@@ -64,7 +64,7 @@ cascode --help
 
 ## 💡 Why cascode?
 
-* **Bridges behavior and structure.** Mix spec-only requests ("meet GBW/PM/gain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
+* **Bridges behavior and structure.** Mix spec-only requests ("meet GainBandwidth/PhaseMargin/PassbandGain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
 * **Motif-centric.** Build with well‑named blocks: `DiffPair`, `CurrentMirror`, `MillerRz`, `StrongArmLatch`, etc.
 * **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
 * **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
@@ -75,45 +75,45 @@ cascode --help
 
 ## 📝 Language at a Glance
 
-### Spec-only amplifier (you pick the topology)
+### Spec-only amplifier
 
-````markdown
-```cascode
+In this example, the amplifier is defined by the specification and the **synthesis will choose the topology** from available topologies.
+
+
+```java
 package analog.amp; import lib.ota.*;
 
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD = 1.2V; ground GND;
   port in_p vip, in_n vin; port out vout;
   param CL = 2pF;
 
   env  { icmr in [0.55V..0.75V]; load C = CL; }
-  spec { gbw>=100MHz; pm>=60deg; gain>=70dB; swing(vout) in [0.2V..1.0V]; power<=1mW; }
+  spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB; OutputSwing(vout) in [0.2V..1.0V]; Power<=1mW; }
 
-  slot Core : AmplifierStage;      // choose a core
-  slot Comp : Compensator?;        // optional compensation
+  slot Core : AmplifierStage;      // Choose a core
+  slot Comp : Compensator?;        // Optional compensation
 
   synth {
-    from lib.ota.*;                // search space
-    fill Core, Comp;               // decide these slots
+    from lib.ota.*;                // Search space
+    fill Core, Comp;               // Decide these slots
     prefer inputPolarity = NMOS;
     objective minimize power + 0.2*area;
   }
-
-  bench { AC_OpenLoop; UnityUGF; Step; NoiseIn; }
 }
 ```
-````
 
-### Guided selection (whitelist topologies)
+### Guided selection
 
-````markdown
-```cascode
-class AmpGuided implements Amplifier {
+In this example, the amplifier is defined by the specification and the synthesis will choose the topology **from the allowed topologies**.
+
+```java
+module AmpGuided implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in_p vip, in_n vin; port out vout; param CL=3pF;
 
   env  { load C=CL; icmr in [0.5V..0.8V]; }
-  spec { gbw>=120MHz; pm>=60deg; gain>=72dB; power<=1mW; }
+  spec { GainBandwidth>=120MHz; PhaseMargin>=60deg; PassbandGain>=72dB; Power<=1mW; }
 
   slot Core : AmplifierStage; slot Comp : Compensator?;
 
@@ -126,16 +126,17 @@ class AmpGuided implements Amplifier {
   }
 }
 ```
-````
 
-### Structural 5T OTA (concise)
+### Manual 5T OTA
 
-```cas
+Here we manually structurally define the amplifier using the primitives available in Cascode's standard library.
+
+```java
 package analog.ota; import lib.std.synth.*;
 
-class OTA5T implements Amplifier {
+module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
-  port in IN: Diff; port out VOUT; bias VTAIL;
+  port in IN: Diff; port out OUT; bias VTAIL;
 
   use {
     dp = new DiffPair { p=NMOS; hasTail=true } {
@@ -144,29 +145,16 @@ class OTA5T implements Amplifier {
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
     attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
-
-    C(VOUT, GND, 1pF);
   }
 
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(VOUT) in [0.2V..1.6V]; power<=2mW; }
+  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
   bench { AC_OpenLoop; UnityUGF; Step; }
-}
-```
-
-### Structural 5T OTA (explicit mirrors)
-
-```cas
-use {
-  dp = new DiffPair { p=NMOS; hasTail=true } { IN.P<-vinp; IN.N<-vinn; BASE<-GND; BIAS<-vbias_n; };
-  cm = new CurrentMirror { p=PMOS; taps=1 };
-  attach cm on dp { SENSE <- OUT.N; TAP <- OUT.P };
-  C(vout, GND, 1pF);
 }
 ```
 
 #### SPICE wrap as a reusable "lego" (wide-swing mirror)
 
-```cas
+```java
 motif WideSwingPMOSMirror implements CurrentMirror {
   ports { sense, out: electrical; vdd: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
@@ -182,8 +170,8 @@ motif WideSwingPMOSMirror implements CurrentMirror {
 
 #### Self-biased inverter OTA / TIA (feedback sugar)
 
-```cas
-class InverterOTA implements Amplifier {
+```java
+module InverterOTA implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   use {
@@ -193,14 +181,14 @@ class InverterOTA implements Amplifier {
     C(vout, GND, 0.5pF);
   }
 
-  spec { gbw>=50MHz; pm>=60deg; gain>=35dB; power<=500uW; }
+  spec { GainBandwidth>=50MHz; PhaseMargin>=60deg; PassbandGain>=35dB; Power<=500uW; }
 }
 ```
 
 ### Strong-arm latch (clocked comparator)
 
-```cas
-class SALatch implements Comparator {
+```java
+module SALatch implements Comparator {
   supply VDD=1.2V; ground GND; port in_p vip, in_n vin; diff out(vop, von); clk phi;
 
   use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
@@ -211,10 +199,14 @@ class SALatch implements Comparator {
 }
 ```
 
-### System-level sense chain (spec-first pipeline)
+### System-level sense chain
 
-```cas
-class SenseChainAuto {
+This example shows a system-level sense chain with a front-end block, a baseband filter, a variable gain amplifier, and an output driver. The synthesis will choose the topology from the available topologies. 
+
+It will make these choices based on the specifications of each block, each of their own `env` and `spec` blocks, and the overall `SenseChainAuto` `env` and `spec` blocks.
+
+```java
+module SenseChainAuto {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   env {
@@ -223,10 +215,10 @@ class SenseChainAuto {
   }
 
   spec {
-    gain == 40dB +/- 1dB over [10kHz..2MHz];
-    in_noise <= 20nV/sqrtHz at 100kHz;
-    settle(out, 1% step(0->1V)) <= 1us;
-    power <= 10mW;
+    PassbandGain == 40dB +/- 1dB over [10kHz..2MHz];
+    NoiseIn <= 20nV/sqrtHz at 100kHz;
+    Settle(out, 1% step(0->1V)) <= 1us;
+    Power <= 10mW;
   }
 
   slot FrontEnd : FrontEndBlock;
@@ -302,7 +294,7 @@ class SenseChainAuto {
   ],
   "constraints":{
     "numeric":["GBW>=5.0e7","PM>=60deg","Gain_dB>=55","Power<=2e-3",
-               "Swing(vout) in [0.2,1.6]"]
+               "OutputSwing(vout) in [0.2,1.6]"]
   },
   "benches":["AC_OpenLoop","UnityUGF","Step"],
   "provenance":{"source":"examples/OTA5T.cas"}

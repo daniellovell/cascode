@@ -13,12 +13,25 @@ A **program** comprises one or more `.cas` files organized under a package names
 
 ## 2.2 Modules, Motifs, Traits
 
-The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** serves as a reusable building block with defined **ports**, **params**, and **contracts** while maintaining encapsulated internal structure. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** functions as an interface that defines contracts through **ports**, **bundles**, **roles**, and **behavioral expectations** that modules and motifs can **implement**. This abstraction enables substitution during synthesis - for instance, any entity implementing `AmplifierStage` becomes eligible to fill `slot Core: AmplifierStage`.
+The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** is a synthesizable structural unit with defined **ports**, **params**, and **contracts**; it encapsulates internal structure and is eligible for topology selection when it **implements** a trait. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** may be either:
+
+1) a **spec-only trait** that declares canonical metric names (no ports), or
+2) an **interface trait** that extends a spec-only trait by adding ports and by mapping those metrics to concrete bench outputs (see §2.11.3).
+
+This separation enables substitution during synthesis—for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
 
 **Normative**
 
 * An entity implementing a trait **MUST** expose a **superset** of the trait’s ports/bundles and satisfy its declared **contracts** (2.10).
 * A module is **instantiable** only when all required ports are bound and all declared `slot`s are **filled** (structurally or via `synth`).
+* A motif is **synthesizable** by definition and **MUST NOT** contain `spec {}` or `bench {}` blocks. Behavioral requirements belong to the module that instantiates the motif (or to its enclosing harness).
+* A slot **MUST** be typed by a trait that declares ports (an interface trait). Typing a slot by a spec-only trait is an error.
+
+Trait extension (normative)
+
+* Use `extend` to define an interface trait from a spec-only trait:
+  `trait SingleEndedAmplifier extend Amplifier { … }`.
+* Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
 
 ---
 
@@ -88,7 +101,7 @@ Literals may specify **units** including voltage (`V`), current (`A`), capacitan
 
 ```cas
 supply VDD = 1.2V;
-spec { gbw>=100MHz; gain>=70dB; pm>=60deg; power<=1mW; }
+spec { GainBandwidth>=100MHz; PassbandGain>=70dB; PhaseMargin>=60deg; Power<=1mW; }
 ```
 
 ---
@@ -131,7 +144,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
   ```cas
   // Example: attach a cascode pair atop a differential pair using bundles.
-  attach CascodePair on dp { IN <- OUT; BIAS <- VB_CASC }
+  attach CascodePair on dp { SOURCE <- OUT; BIAS <- VB_CASC }
   ```
 
 * `pair` - instantiate symmetric **left/right** branches with `.l`/`.r` handles. (Omitted here; see the Grammar for details.)
@@ -165,8 +178,8 @@ Orientation sugar is permitted only when the attachment is unambiguously “pair
 
 ```cas
 // Both sides declare Diff bundles.
-motif CascodePair { ports [ IN: Diff, OUT: Diff, BIAS: bias ] }
-attach CascodePair on dp { IN <- OUT }   // expands to IN.P<-OUT.P; IN.N<-OUT.N
+motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
+attach CascodePair on dp { SOURCE <- OUT }   // expands to SOURCE.P<-OUT.P; SOURCE.N<-OUT.N
 ```
 
 Reversed orientation in this case requires explicit field mapping (for example, `IN.p <- OUT.n; IN.n <- OUT.p`).
@@ -298,7 +311,39 @@ The compiler **realizes** compensation **internally** within the stage through d
 
 ## 2.11 Behavioral Description: `spec`, `env`, `bench` and the **Harness**
 
-The **`spec {}`** block enumerates **required metrics** including gain-bandwidth (`gbw`), phase margin (`pm`), gain, input-referred noise (`noise_in`), slew rate (`sr`), settling time (`settle`), zero-tau frequency (`zt`), output swing (`swing(node)`), and power consumption (`power`). The **`env {}`** block characterizes the **operating environment** through supply voltage (`vdd`), input common-mode range (ICMR), **mandatory** load specifications, **mandatory** source impedance, temperature, and process corners. The **`bench {}`** block selects appropriate measurement benches spanning AC, noise, and transient analyses, as well as domain-specific benches such as `LatchDecision`.
+The **`spec {}`** block enumerates **required metrics** including GainBandwidth, PhaseMargin, PassbandGain, input‑referred noise (NoiseIn), slew rate (SlewRate), settling time (Settle), zero‑tau frequency (ZeroTau), output swing (OutputSwing(node)), and power consumption (Power). The **`env {}`** block characterizes the **operating environment** through supply voltage (`vdd`), input common‑mode range (ICMR), mandatory load specifications, mandatory source impedance, temperature, and process corners. The **`bench {}`** block selects additional measurement benches beyond those implied by the specification.
+
+Bench inference from `spec` (normative)
+
+When a design declares a `spec {}` block, the toolchain infers the minimal set of benches required to determine each declared metric. This set is part of the compilation contract and is independent of any explicit `bench {}` block. Authors may add an explicit `bench {}` block to request extra benches (for example, characterization or debugging). In that case, the executed benches are the union of the spec‑implied set and the explicitly requested set. Explicit benches do not remove or replace benches inferred from `spec {}` unless the toolchain provides a documented override.
+
+### 2.11.3 Metrics From Benches (Trait‑Anchored Mapping)
+
+Benches produce named metrics. Interface traits map canonical metric names from a spec‑only trait to concrete bench metrics for their wiring style. This allows a single set of metric names (for example, GainBandwidth, PassbandGain, PhaseMargin) to be realized via different benches for single‑ended versus fully differential interfaces.
+
+Informal syntax:
+
+```
+// Spec‑only trait (no ports): declares canonical metric names.
+trait Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swing; Power; NoiseIn; } }
+
+// Interface traits refine Amplifier by adding ports and mapping metrics.
+trait SingleEndedAmplifier extend Amplifier {
+  ports [ IN: Diff, OUT: electrical ]; supply VDD; ground GND;
+  metrics {
+    GainBandwidth from SEAmplifierACBench.GainBandwidth;
+    PassbandGain  from SEAmplifierACBench.PassbandGain;
+    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
+  }
+}
+
+bench SEAmplifierACBench {
+  spectre_template = "SEAmplifierACBench.tpl";
+  metrics [ GainBandwidth: Hz, PassbandGain: dB, PhaseMargin: deg ]
+}
+```
+
+Bench inference uses the active interface trait(s) on the design or candidate motif to determine which benches to run for each metric that appears in `spec {}`. A single bench may provide multiple metrics. Authors may override a specific mapping where supported by tooling.
 
 **Harness semantics (normative)**
 
@@ -547,9 +592,9 @@ char {
   benches { ac_openloop; noise_in; step; }          // characterization benches
   pvt     { TT@27C, SS@-40C, FF@125C; }
   sweep   { CL:[0.5pF..5pF]; VDD:[1.0V..1.3V]; gmId:[10..22]V^-1; }
-  fit     { gbw~GP("fit/gbw.gp"); gain_db~PWL("fit/gain.pwl");
-            pm_deg~PWL("fit/pm.pwl"); noise_in~GP("fit/noise.gp");
-            power~affine(I_total, VDD); }
+  fit     { GainBandwidth~GP("fit/gbw.gp"); PassbandGain~PWL("fit/gain.pwl");
+            PhaseMargin~PWL("fit/pm.pwl"); NoiseIn~GP("fit/noise.gp");
+            Power~affine(I_total, VDD); }
   validity{ icmr:[0.4V..0.9V]; swing:[0.2V..1.0V]; }
 }
 ```

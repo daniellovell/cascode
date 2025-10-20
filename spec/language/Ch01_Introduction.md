@@ -55,7 +55,7 @@ package analog.amp; import lib.ota.*;
 
 bundle Diff { P: electrical; N: electrical; }
 
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   param CL=2pF;
@@ -68,8 +68,8 @@ class AmpAuto implements Amplifier {
   }
 
   spec {
-    gbw>=100MHz; pm>=60deg; gain>=70dB;
-    swing(OUT) in [0.2V..1.0V];
+    GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB;
+    OutputSwing(OUT) in [0.2V..1.0V];
     power<=1mW;
   }
 
@@ -96,7 +96,7 @@ package analog.ota; import lib.motifs.*;
 
 bundle Diff { P: electrical; N: electrical; }
 
-class OTA5T implements Amplifier {
+module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
   port in IN: Diff; port out OUT: electrical;
 
@@ -112,7 +112,7 @@ class OTA5T implements Amplifier {
     OUT <- dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(OUT) in [0.2V..1.6V]; power<=2mW; }
+  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
 }
 
 ```
@@ -122,7 +122,7 @@ class OTA5T implements Amplifier {
 ```java
 package analog.ota; import lib.motifs.*;
 
-class CommonSourceAmp implements Amplifier {
+module CommonSourceAmp implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
   port in vin; port out vout;
   bias vb1;
@@ -133,7 +133,7 @@ class CommonSourceAmp implements Amplifier {
     source Z = 50;
   }
 
-  spec { gbw>=50MHz; gain>=40dB; pm>=60deg; power<=5mW; }
+  spec { GainBandwidth>=50MHz; PassbandGain>=40dB; PhaseMargin>=60deg; Power<=5mW; }
 
   use {
     // Primitive NMOS input transistor (synthesis sizes W/L from specs)
@@ -151,7 +151,7 @@ class CommonSourceAmp implements Amplifier {
 Option 1: Synthesis fills both slots
 
 ```java
-class TwoStageAmp implements Amplifier {
+module TwoStageAmp implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
@@ -172,7 +172,7 @@ class TwoStageAmp implements Amplifier {
 Option 2: Structural fill (no `synth` needed)
 
 ```java
-class TwoStageAmp_Manual implements Amplifier {
+module TwoStageAmp_Manual implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
@@ -284,7 +284,7 @@ Example: Strong‑arm latch to pad with a selectable output inverter:
 ```cas
 package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
 
-class LatchToPad {
+module LatchToPad {
   supply VDD=1.8V; ground GND; port in vip, vin; port out PAD;
   net COMP_OUT: electrical;
 

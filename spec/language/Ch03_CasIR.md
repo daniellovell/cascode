@@ -204,7 +204,7 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
 ```json
 "constraints": {
   "numeric": [
-    {"id": "c_gbw", "kind": "ineq", "lhs": {"metric": "gbw"}, "op": ">=", "rhs": {"value": 1.0e8, "unit": "Hz"}, "scope": {"node": "OUT"}}
+    {"id": "c_gbw", "kind": "ineq", "lhs": {"metric": "GainBandwidth"}, "op": ">=", "rhs": {"value": 1.0e8, "unit": "Hz"}, "scope": {"node": "OUT"}}
   ],
   "tech": [
     {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"}
@@ -214,7 +214,7 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
     {"id": "g_path", "rule": "path_exists", "from": "IN.p", "to": "OUT", "through_types": ["CurrentMirror"]}
   ],
   "measure": [
-    {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "OUT"}
+    {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "OUT"}
   ]
 }
 ```
@@ -450,7 +450,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
 
   "constraints": {
     "numeric": [
-      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "gbw"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "OUT"}},
+      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "OUT"}},
       {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 55,    "unit": "dB"}, "scope": {"node": "OUT"}},
       {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "OUT"}},
       {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
@@ -460,7 +460,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
       {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "OUT"} ]
+    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "OUT"} ]
   },
 
   "harness": {
@@ -520,13 +520,13 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 
   "constraints": {
     "numeric": [
-      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "gbw"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
+      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
       {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
       {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
       {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "vout"} ]
+    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "GainBandwidth", "node": "vout"} ]
   },
 
   "harness": {
