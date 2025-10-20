@@ -56,7 +56,7 @@ The TextMate grammar recognizes:
 
 ### Keywords
 - **Package/Import**: `package`, `import`
-- **Declarations**: `class`, `motif`, `trait`, `interface`, `implements`, `extends`
+- **Declarations**: `module`, `motif`, `trait`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`
 - **Structure**: `attach`, `mirror`, `fb`, `pair`, `new`
@@ -81,15 +81,15 @@ The TextMate grammar recognizes:
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`
 
 ### Built-in Functions & Benches
-- **Spec functions**: `rise_time`, `fall_time`, `gbw`, `pm`, `gain`, `swing`, `voh`, `vol`, `power`, `area`
+- **Spec functions**: `rise_time`, `fall_time`, `GainBandwidth`, `PhaseMargin`, `PassbandGain`, `OutputSwing`, `voh`, `vol`, `Power`, `Area`
 - **Bench names**: `AC_OpenLoop`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
 - **Port types**: `electrical`, `digital`, `analog`, `supply`, `ground`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
-- **Common traits**: `Amplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
-- **Common motifs**: `DiffPairNMOS`, `StrongArmLatch`, `MillerRC`, `PadDriver`
+- **Common traits**: `Amplifier`, `SingleEndedAmplifier`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
+- **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`
 
 ## 🔧 Extending the Grammar
 
@@ -162,9 +162,9 @@ Until linguist is updated, use markdown code fences with manual syntax specifica
 
 ````markdown
 ```cascode
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD = 1.2V; ground GND;
-  spec { gbw>=100MHz; pm>=60deg; }
+  spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; }
 }
 ```
 ````

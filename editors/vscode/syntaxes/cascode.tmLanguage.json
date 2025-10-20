@@ -42,7 +42,7 @@
         },
         {
           "name": "keyword.other.class.cascode",
-          "match": "\\b(class|motif|trait|interface|implements|extends)\\b"
+          "match": "\\b(module|motif|trait|implements|extend)\\b"
         },
         {
           "name": "keyword.other.declaration.cascode",
@@ -255,7 +255,7 @@
       "patterns": [
         {
           "name": "support.function.spec.cascode",
-          "match": "\\b(rise_time|fall_time|voh|vol|power|area|gbw|pm|gain|swing|icmr|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
+          "match": "\\b(rise_time|fall_time|voh|vol|power|area|GainBandwidth|PhaseMargin|PassbandGain|OutputSwing|ICMR|NoiseIn|Power|Area|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
         },
         {
           "name": "support.function.bench.cascode",
@@ -275,14 +275,14 @@
       "patterns": [
         {
           "name": "support.type.trait.cascode",
-          "match": "\\b(Amplifier|AmplifierStage|Compensator|CurrentMirror|CurrentMirrorLike|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|Compensator|CurrentMirror|CurrentMirrorLike|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
           "name": "support.type.motif.cascode",
-          "match": "\\b(DiffPairNMOS|DiffPairPMOS|TailNMOS|TailPMOS|PMOSCascodeLoad|FiveTLoadPMOS|NMOSCascode|MillerRC|MillerRz|Ahuja|StrongArmLatch|TeleCascodeNMOS|FoldedCascodePMOS|CSStageNMOS|GainBoosting|InverterGm|PadDriver|WideSwingPMOSMirror|WideSwingNMOSMirror|Cap|Res|Ind)\\b"
+          "match": "\\b(DiffPair|CascodePair|CurrentMirror|MillerRC|MillerRz|Ahuja|StrongArmLatch|PadDriver|Cap|Res|Ind)\\b"
         },
         {
-          "match": "\\b(class|motif|trait|interface)\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "\\b(module|motif|trait)\\s+([A-Z][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.class.cascode" },
             "2": { "name": "entity.name.type.class.cascode" }
