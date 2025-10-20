@@ -15,23 +15,25 @@ A **program** comprises one or more `.cas` files organized under a package names
 
 The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** is a synthesizable structural unit with defined **ports**, **params**, and **contracts**; it encapsulates internal structure and is eligible for topology selection when it **implements** a trait. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** may be either:
 
-1) a **spec-only trait** that declares canonical metric names (no ports), or
-2) an **interface trait** that extends a spec-only trait by adding ports and by mapping those metrics to concrete bench outputs (see §2.11.3).
+1) a **spec-only trait** that declares canonical metric names and contains no port definitions, or
+2) an **interface trait** that extends a spec-only trait, adding ports and mapping metrics to concrete bench outputs (see §2.11.3).
 
 This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
 
-#### Normative
+#### Normative Requirements
 
-* An entity implementing a trait **MUST** expose a **superset** of the trait’s ports/bundles and satisfy its declared **contracts** (2.10).
+* An entity implementing a trait **MUST** expose a **superset** of the trait's ports/bundles and satisfy its declared **contracts** (2.10).
 * A module is **instantiable** only when all required ports are bound and all declared `slot`s are **filled** (structurally or via `synth`).
-* A motif is **synthesizable** by definition and **MUST NOT** contain `spec {}` or `bench {}` blocks. Behavioral requirements belong to the module that instantiates the motif (or to its enclosing harness).
+* A motif **MUST NOT** contain `spec {}` or `bench {}` blocks.
 * A slot **MUST** be typed by a trait that declares ports (an interface trait). Typing a slot by a spec-only trait is an error.
 
-Library placement note
+Motifs represent synthesizable circuit topologies and must remain pure structural definitions. Behavioral specifications and verification benches belong at the module level, where they guide synthesis decisions, or within enclosing harnesses that validate composed designs. Similarly, slots function as structural placeholders in the wiring graph and require interface traits that provide the port definitions necessary for establishing electrical connections. Spec-only traits, which define behavioral contracts without physical port structure, cannot satisfy this requirement.
 
-The standard primitive interface traits used by connectors - such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike` - live under the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑reside to keep wiring semantics close to the building blocks they compose.
+#### Library Placement
 
-Trait extension (normative)
+The standard primitive interface traits used by connectors - such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
+
+#### Trait Extension
 
 * Use `extend` to define an interface trait from a spec-only trait:
   `trait SingleEndedAmplifier extend Amplifier { … }`.
