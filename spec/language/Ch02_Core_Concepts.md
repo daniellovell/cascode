@@ -18,7 +18,7 @@ The cascode type system distinguishes three fundamental entities. A **module** r
 1) a **spec-only trait** that declares canonical metric names (no ports), or
 2) an **interface trait** that extends a spec-only trait by adding ports and by mapping those metrics to concrete bench outputs (see §2.11.3).
 
-This separation enables substitution during synthesis—for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
+This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
 
 **Normative**
 
@@ -29,7 +29,7 @@ This separation enables substitution during synthesis—for instance, any entity
 
 Library placement note
 
-The standard primitive interface traits used by connectors—such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike`—live under the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑reside to keep wiring semantics close to the building blocks they compose.
+The standard primitive interface traits used by connectors - such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike` - live under the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑reside to keep wiring semantics close to the building blocks they compose.
 
 Trait extension (normative)
 
@@ -172,7 +172,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 **Schematic-like sugar** (all expand to primitives in CasIR):
 
-- `attach` — bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
+- `attach` - bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
 
   ```cas
   // Connector-driven attach (no explicit mapping needed):
@@ -183,7 +183,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   attach CascodePair to dp { SOURCE <- OUT; BIAS <- VB_CASC }
   ```
 
-- `pair` — instantiate symmetric left/right branches with `.l`/`.r` handles. (Omitted here; see Grammar.)
+- `pair` - instantiate symmetric left/right branches with `.l`/`.r` handles. (Omitted here; see Grammar.)
 
 ### 2.8.3 Attach Name Resolution
 

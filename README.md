@@ -337,8 +337,6 @@ cascode/
 ├─ editors/
 │  └─ vscode/
 ├─ examples/
-│  ├─ LatchToPad_Auto.cas
-│  ├─ LatchToPad_ManualBuffer.cas
 │  └─ harnesses/
 └─ tests/
    ├─ fixtures/
