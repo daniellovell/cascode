@@ -1,0 +1,13 @@
+package lib.std.amp;
+
+// Interface trait: Fully differential amplifier.
+trait FullyDiffAmplifier extend Amplifier {
+  ports [ IN: Diff, OUT: Diff ]
+  supply VDD; ground GND;
+
+  metrics {
+    GainBandwidth from FDAmplifierACBench.GainBandwidth;
+    PassbandGain  from FDAmplifierACBench.PassbandGain;
+    PhaseMargin   from FDAmplifierACBench.PhaseMargin;
+  }
+}

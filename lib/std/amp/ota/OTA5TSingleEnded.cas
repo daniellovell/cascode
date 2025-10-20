@@ -1,0 +1,24 @@
+package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+
+// Five-transistor OTA (single-ended) built from DiffPair + CurrentMirror.
+// Synthesizable structural motif (no spec/bench blocks here).
+motif OTA5TSingleEnded implements SingleEndedAmplifier {
+  supply VDD = 1.8V; ground GND;
+
+  // Public interface (ALL CAPS ports; Diff bundle fields are P/N).
+  ports [ IN: Diff, OUT: electrical, VTAIL: bias ]
+
+  use {
+    // Differential pair with internal tail. Base at ground; bias is VTAIL.
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
+    };
+
+    // PMOS current mirror as active load; rails inferred from polarity.
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+    attach cm to dp;   // Uses CurrentMirrorLike → DiffOutput connector
+
+    // Single-ended output taken from the sensed branch.
+    connect dp.OUT.N -> OUT;
+  }
+}

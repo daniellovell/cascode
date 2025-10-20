@@ -1,0 +1,26 @@
+package lib.std.refs; import lib.std.amp.*; import lib.std.prim.*;
+
+// Constant-gm current reference built from two mirrors and a degeneration resistor.
+// gm ≈ 1/RB via feedback from the selected mirror tap to the rail.
+motif ConstantGm implements CurrentReference {
+  params { p: polarity = PMOS; RB: resistance = 10k; }
+  supply VDD=1.8V; ground GND;
+  ports [ OUT: electrical ]
+
+  use {
+    // Two mirrors, chained by the within-trait connector (SENSE -> TAP[0]).
+    cm_p = new CurrentMirror { p=PMOS };
+    cm_n = new CurrentMirror { p=NMOS };
+    attach cm_n to cm_p;
+
+    // Degeneration resistor placement depends on polarity parameter.
+    if (p == PMOS) {
+      RB_P = R(RB) { P -> cm_p.TAP[0]; N -> VDD; };
+      connect cm_n.TAP[0] -> OUT;
+    } else {
+      RB_N = R(RB) { P -> cm_n.TAP[0]; N -> GND; };
+      connect cm_p.TAP[0] -> OUT;
+    }
+  }
+}
+

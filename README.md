@@ -9,7 +9,7 @@
 
 **cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
 
-It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
+It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (modules, traits, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
 
 ## Language Specification
@@ -58,14 +58,14 @@ cascode --help
 - Pre-release (release candidates, nightly tags):
   - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.2.0-rc.1`)
   - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.2.0-rc.1`
-  - Direct download: grab the matching asset from the GitHub release marked “Pre-release”.
+  - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---
 
 ## 💡 Why cascode?
 
-* **Bridges behavior and structure.** Mix spec-only requests ("meet GBW/PM/gain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
-* **Motif-centric.** Build with well-named blocks: `DiffPairNMOS`, `PMOSCascodeLoad`, `MillerRz`, `StrongArmLatch`, etc.
+* **Bridges behavior and structure.** Mix spec-only requests ("meet GainBandwidth/PhaseMargin/PassbandGain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
+* **Motif-centric.** Build with well‑named blocks: `DiffPair`, `CurrentMirror`, `MillerRz`, `StrongArmLatch`, etc.
 * **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
 * **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
 * **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first-class; contracts (`req`/`ens`) capture headroom and validity.
@@ -75,45 +75,45 @@ cascode --help
 
 ## 📝 Language at a Glance
 
-### Spec-only amplifier (you pick the topology)
+### Spec-only amplifier
 
-````markdown
-```cascode
+In this example, the amplifier is defined by the specification and the **synthesis will choose the topology** from available topologies.
+
+
+```java
 package analog.amp; import lib.ota.*;
 
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD = 1.2V; ground GND;
   port in_p vip, in_n vin; port out vout;
   param CL = 2pF;
 
   env  { icmr in [0.55V..0.75V]; load C = CL; }
-  spec { gbw>=100MHz; pm>=60deg; gain>=70dB; swing(vout) in [0.2V..1.0V]; power<=1mW; }
+  spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB; OutputSwing(vout) in [0.2V..1.0V]; Power<=1mW; }
 
-  slot Core : AmplifierStage;      // choose a core
-  slot Comp : Compensator?;        // optional compensation
+  slot Core : AmplifierStage;      // Choose a core
+  slot Comp : Compensator?;        // Optional compensation
 
   synth {
-    from lib.ota.*;                // search space
-    fill Core, Comp;               // decide these slots
+    from lib.ota.*;                // Search space
+    fill Core, Comp;               // Decide these slots
     prefer inputPolarity = NMOS;
-    objective minimize power + 0.2*area;
+    objective minimize Power + 0.2*Area;
   }
-
-  bench { AC_OpenLoop; UnityUGF; Step; NoiseIn; }
 }
 ```
-````
 
-### Guided selection (whitelist topologies)
+### Guided selection
 
-````markdown
-```cascode
-class AmpGuided implements Amplifier {
+In this example, the amplifier is defined by the specification and the synthesis will choose the topology **from the allowed topologies**.
+
+```java
+module AmpGuided implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in_p vip, in_n vin; port out vout; param CL=3pF;
 
   env  { load C=CL; icmr in [0.5V..0.8V]; }
-  spec { gbw>=120MHz; pm>=60deg; gain>=72dB; power<=1mW; }
+  spec { GainBandwidth>=120MHz; PhaseMargin>=60deg; PassbandGain>=72dB; Power<=1mW; }
 
   slot Core : AmplifierStage; slot Comp : Compensator?;
 
@@ -122,49 +122,39 @@ class AmpGuided implements Amplifier {
     allow Core in { TeleCascodeNMOS, FoldedCascodePMOS };
     prefer Comp in { MillerRC, MillerRz };
     forbid GainBoosting;
-    objective minimize power;
+    objective minimize Power;
   }
 }
 ```
-````
 
-### Structural 5T OTA (concise)
+### Manual 5T OTA
 
-```cas
-package analog.ota; import lib.motifs.*;
+Here we manually structurally define the amplifier using the primitives available in Cascode's standard library.
 
-class OTA5T implements Amplifier {
+```java
+package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+
+module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
-  port in_p vinp, in_n vinn; port out vout; bias vbias_n;
+  port in IN: Diff; port out OUT; bias VTAIL;
 
   use {
-    dp = new DiffPairNMOS(vinp, vinn) { gnd=GND; tail=vbias_n; };
-    attach FiveTLoadPMOS on dp { vdd=VDD; out=vout; };  // diode+mirror load in 1 line
-    C(vout, GND, 1pF);
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
+    };
+
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
   }
 
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(vout) in [0.2V..1.6V]; power<=2mW; }
-  bench { AC_OpenLoop; UnityUGF; Step; }
-}
-```
-
-### Structural 5T OTA (explicit mirrors)
-
-```cas
-use {
-  dp = new DiffPairNMOS(vinp, vinn) { gnd=GND; tail=vbias_n; };
-
-  pm = mirror.PMOS(sense=dp.out_l, vdd=VDD,
-                   taps={ n2:1, nmir:2, vout:2 });   // auto diode at sense
-  nm = mirror.NMOS(sense=pm.nmir, gnd=GND, taps={ vout:1 }); // auto diode at sense
-
-  C(vout, GND, 1pF);
+  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
+  bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
 
 #### SPICE wrap as a reusable "lego" (wide-swing mirror)
 
-```cas
+```java
 motif WideSwingPMOSMirror implements CurrentMirror {
   ports { sense, out: electrical; vdd: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
@@ -180,39 +170,43 @@ motif WideSwingPMOSMirror implements CurrentMirror {
 
 #### Self-biased inverter OTA / TIA (feedback sugar)
 
-```cas
-class InverterOTA implements Amplifier {
+```java
+module InverterOTA implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   use {
     inv = new InverterGm(vdd=VDD, gnd=GND);
-    inv.in <- vin; inv.out -> vout;
+    inv.in -> vin; inv.out -> vout;
     fb R(vout -> vin, 20M) { type=Auto; }  // MOS pseudo-res if needed
     C(vout, GND, 0.5pF);
   }
 
-  spec { gbw>=50MHz; pm>=60deg; gain>=35dB; power<=500uW; }
+  spec { GainBandwidth>=50MHz; PhaseMargin>=60deg; PassbandGain>=35dB; Power<=500uW; }
 }
 ```
 
 ### Strong-arm latch (clocked comparator)
 
-```cas
-class SALatch implements Comparator {
+```java
+module SALatch implements Comparator {
   supply VDD=1.2V; ground GND; port in_p vip, in_n vin; diff out(vop, von); clk phi;
 
   use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
 
-  spec { decision_time(phi@posedge, DeltaVin=5mV) <= 300ps; offset <= 2mV; kickback_in <= 30mV; power <= 1mW; }
+  spec { DecisionTime(phi@posedge, DeltaVin=5mV) <= 300ps; Offset <= 2mV; Kickback <= 30mV; Power <= 1mW; }
   bench { LatchDecision; OffsetMC; Kickback; }
   phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 }
 ```
 
-### System-level sense chain (spec-first pipeline)
+### System-level sense chain
 
-```cas
-class SenseChainAuto {
+This example shows a system-level sense chain with a front-end block, a baseband filter, a variable gain amplifier, and an output driver. The synthesis will choose the topology from the available topologies. 
+
+It will make these choices based on the specifications of each block, each of their own `env` and `spec` blocks, and the overall `SenseChainAuto` `env` and `spec` blocks.
+
+```java
+module SenseChainAuto {
   supply VDD=1.2V; ground GND; port in vin; port out vout;
 
   env {
@@ -221,10 +215,10 @@ class SenseChainAuto {
   }
 
   spec {
-    gain == 40dB +/- 1dB over [10kHz..2MHz];
-    in_noise <= 20nV/sqrtHz at 100kHz;
-    settle(out, 1% step(0->1V)) <= 1us;
-    power <= 10mW;
+    PassbandGain == 40dB +/- 1dB over [10kHz..2MHz];
+    NoiseIn <= 20nV/sqrtHz at 100kHz;
+    Settle(out, 1% step(0->1V)) <= 1us;
+    Power <= 10mW;
   }
 
   slot FrontEnd : FrontEndBlock;
@@ -236,7 +230,7 @@ class SenseChainAuto {
     from lib.sense.*, lib.filters.*, lib.buffers.*;
     fill FrontEnd, Filter, VGA, Driver;
     prefer FrontEnd in { InverterTIA, OTA_TIA };
-    objective minimize power;
+    objective minimize Power;
   }
 
   bench { ChainAC; ChainNoise; Step; }
@@ -258,7 +252,7 @@ class SenseChainAuto {
 
 3. **Feasibility Guards** (fast checks)
 
-   * Headroom stacks, ICMR, GBW vs. power, PM (two-stage guards), device/legal limits.
+   * Headroom stacks, ICMR, GainBandwidth vs. Power, PhaseMargin (two-stage guards), device/legal limits.
 
 4. **Topology Selection (if `synth {}` present)**
 
@@ -285,23 +279,24 @@ class SenseChainAuto {
 
 > **Why CasIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (roles, traits, benches) and provenance.
 
-**CasIR snippet (for `OTA5T`)**:
+**CasIR snippet (for `OTA5T`, illustrative)**:
 
 ```json
 {
   "nets":[{"id":"VDD","type":"supply"},{"id":"GND","type":"supply"},
           {"id":"vinp"},{"id":"vinn"},{"id":"nL"},{"id":"nR"},{"id":"vout"}],
   "motifs":[
-    {"id":"dp","type":"DiffPairNMOS",
-     "ports":{"in_p":"vinp","in_n":"vinn","out_l":"nL","out_r":"nR","tail":"vbias_n","gnd":"GND"}},
-    {"id":"m5t","type":"FiveTLoadPMOS","ports":{"target":"dp","out":"vout","vdd":"VDD"}},
+    {"id":"dp","type":"DiffPair",
+     "ports":{"IN.P":"vinp","IN.N":"vinn","OUT.N":"nN","OUT.P":"nP","BASE":"GND","BIAS":"vbias_n"}},
+    {"id":"cm","type":"CurrentMirror",
+     "ports":{"SENSE":"nN","TAP[0]":"nP"}},
     {"id":"cl","type":"Cap","ports":{"p":"vout","n":"GND"}, "params":{"C":1e-12}}
   ],
   "constraints":{
-    "numeric":["GBW>=5.0e7","PM>=60deg","Gain_dB>=55","Power<=2e-3",
-               "Swing(vout) in [0.2,1.6]"]
+    "numeric":["GainBandwidth>=5.0e7","PhaseMargin>=60deg","PassbandGain>=55","Power<=2e-3",
+               "OutputSwing(vout) in [0.2,1.6]"]
   },
-  "benches":["AC_OpenLoop","UnityUGF","Step"],
+  "benches":["SEAmplifierACBench","UnityUGF","Step"],
   "provenance":{"source":"examples/OTA5T.cas"}
 }
 ```
@@ -312,49 +307,41 @@ class SenseChainAuto {
 ```
 cascode/
 ├─ README.md
-├─ LICENSE
 ├─ spec/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     ├─ Ch03_CasIR.md                 
-│     └─ Grammar.ebnf                  
-├─ spec/casir-schema/                  # JSON Schema for CasIR 
-│  ├─ casir-json-1.schema.json         # root schema 
-│  └─ casir-json-1-el.schema.json      # EL overlay 
+│     └─ Ch03_CasIR.md
+├─ spec/casir-schema/
+│  └─ casir-json-1.schema.json
 ├─ lib/
-│  ├─ motifs/               # standard motif library (types + SPICE templates)
-│  ├─ traits/
-│  ├─ patterns/
-│  └─ tech/                 # tech adapters, gm/Id LUTs, fitted models (stubs)
+│  └─ std/
+│     ├─ prim/                 # Primitive motifs + interface traits
+│     │  ├─ DiffPair.cas
+│     │  ├─ CurrentMirror.cas
+│     │  ├─ CascodePair.cas
+│     │  ├─ DiffOutput.cas
+│     │  ├─ CascodeLike.cas
+│     │  └─ CurrentMirrorLike.cas
+│     ├─ amp/                  # Amplifier traits and topologies
+│     │  └─ ota/
+│     │     └─ OTA5TSingleEnded.cas
+│     └─ refs/                 # Reference circuits
+│        ├─ ReferenceCircuit.cas
+│        ├─ VoltageReference.cas
+│        ├─ CurrentReference.cas
+│        └─ ConstantGm.cas
 ├─ tools/
-│  ├─ cli/                  # `cascode` CLI (synth | verify | run | fmt)
-│  ├─ parser/               # ANTLR grammar + generated C# parser glue
-│  ├─ compiler/             # ADL to CasIR front end 
-│  ├─ synthesis/            # topology selection, sizing, optimization
-│  ├─ backends/
-│  │  └─ spice/             # SPICE netlist writer + bench emitters
-│  └─ casir/                # IR types, canonical JSON writer, schema validation
-│  📄 tools/README.md       # Architecture guide for CLI, services, and utilities
+│  ├─ cli/
+│  └─ parser/
+├─ editors/
+│  └─ vscode/
 ├─ examples/
-│  ├─ AmpAuto.cas
-│  ├─ AmpGuided.cas
-│  ├─ OTA5T.cas
-│  ├─ OTATelescopic.cas
-│  ├─ InverterOTA.cas
-│  ├─ InverterTIA.cas
-│  ├─ SALatch.cas
-│  └─ SenseChainAuto.cas
-├─ tests/
-│  ├─ fixtures/
-│  │  └─ adl/                # source `.cas` inputs used by tests
-│  ├─ golden/
-│  │  ├─ ir/                 # canonical `.cir.json` snapshots (HL/ML/EL)
-│  │  └─ spice/              # tiny golden netlists (smoke tests)
-│  └─ conformance/           # parser/semantics cases, negative tests
-└─ docs/
-   ├─ getting-started.md
-   └─ benchmarks/AMSGENBench.md
+│  └─ harnesses/
+└─ tests/
+   ├─ fixtures/
+   ├─ integration/
+   └─ unit/
 ```
 
 ### Component Responsibilities
@@ -365,9 +352,8 @@ cascode/
 - `tools/backends/spice`: Netlist writers per simulator and bench emitters driven by CasIR `constraints.measure` and `harness`.
 
 ### Notes
-- Build artifacts go in `build/` (not committed). Generated ANTLR sources are excluded from VCS.
-- CasIR on disk is JSON only; YAML is not used. Canonical writer ensures stable diffs.
-- JSON Schema lives under `spec/language/schema/` and is the contract for `.cir.json` files.
+- Build artifacts go in `build/` (not committed).
+- CasIR on disk is JSON only with explicit units; the JSON Schema lives under `spec/casir-schema/`.
 
 ---
 
@@ -400,7 +386,7 @@ cd editors/vscode && ./install.sh
 cd editors\vscode; .\install.ps1
 ```
 
-Highlights keywords (`class`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<-`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<->`), and more. The style guide standardizes bind/connect arrows as `pin -> net`. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
 ---
 

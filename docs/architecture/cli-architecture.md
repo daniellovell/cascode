@@ -53,7 +53,7 @@ PDK matching config
 Testing
 - Unit: option/argument binding, command routing, and small services (mocks for domain libs).
 - Integration: run `dotnet run -- …` against `tests/fixtures/pdk/sky130`; verify stdout/golden outputs.
-- Architecture: enforce “no deps on CLI from other tools”.
+- Architecture: enforce "no deps on CLI from other tools".
 
 Extensibility
 - New command = new `ICliCommand` with help/usage + tests.

@@ -15,7 +15,7 @@ If we do this well, getting from ADL to SPICE is a straight line: parse and elab
 
 ## 3.1 Design Principles
 
-The CasIR design prioritizes **connectivity as the primary concern**, establishing the port-to-net mapping within each motif instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes motif instances with ports and parameters, with syntactic sugar for constructs like attach, pair, mirror taps, and feedback already expanded.
+The CasIR design prioritizes **connectivity as the primary concern**, establishing the port-to-net mapping within each motif instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes motif instances with ports and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
 
 **Deterministic JSON** output maintains stability by sorting arrays by id and writing objects with sorted keys, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (with open slots), ML (slots chosen with some symbolic parameters), and EL (fully numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
 
@@ -76,12 +76,12 @@ Invariants
 Bundles are optional groupings of related nets for convenience, most commonly differential pairs.
 
 ```json
-{ "id": "IN", "type": "Diff", "fields": {"p": "VINP", "n": "VINN"} }
+  { "id": "IN", "type": "Diff", "fields": {"P": "VINP", "N": "VINN"} }
 ```
 
-**Rules**
+#### Rules
 
-Bundles do not create edges directly; instead, pins address bundle fields via dotted paths such as in.p and in.n, which resolve to the underlying nets. At ML and EL elaboration levels, all referenced bundle fields must resolve to concrete nets.
+Bundles do not create edges directly; instead, pins address bundle fields via dotted paths such as IN.P and IN.N, which resolve to the underlying nets. At ML and EL elaboration levels, all referenced bundle fields must resolve to concrete nets.
 
 ### 3.3.3 Motif Instances
 
@@ -90,15 +90,14 @@ Every design entity is a motif instance with type, ports, and params. Ports hold
 ```json
 {
   "id": "dp",
-  "type": "DiffPairNMOS",
+  "type": "DiffPair",
   "traits": ["AmplifierStage"],
   "ports": {
-    "in.p": "VINP",
-    "in.n": "VINN",
-    "drain_l": "N1",
-    "drain_r": "N2",
-    "src": "NSRC",
-    "gnd": "GND"
+    "IN.P": "VINP",
+    "IN.N": "VINN",
+    "OUT.N": "N1",
+    "OUT.P": "N2",
+    "BASE": "NSRC"
   },
   "params": {
     "L": {"value": 1.8e-7, "unit": "m"},
@@ -108,7 +107,7 @@ Every design entity is a motif instance with type, ports, and params. Ports hold
 }
 ```
 
-**Primitive transistors in CasIR:**
+#### Primitive transistors in CasIR
 
 Primitive `NMOS` and `PMOS` instances appear as ordinary motifs with type reflecting the primitive name. At HL and ML elaboration, dimensional parameters remain symbolic; at EL they are fully sized.
 
@@ -125,7 +124,7 @@ Primitive `NMOS` and `PMOS` instances appear as ordinary motifs with type reflec
   "params": {
     "W": {"symbolic": "Auto"},
     "L": {"symbolic": "Auto"},
-    "m": {"value": 1}
+    "mult": {"value": 1}
   },
   "impl": { "primitive": true, "pdk": "sky130" }
 }
@@ -146,7 +145,7 @@ At EL (after synthesis):
   "params": {
     "W": {"value": 1.2e-5, "unit": "m"},
     "L": {"value": 1.8e-7, "unit": "m"},
-    "m": {"value": 4}
+    "mult": {"value": 4}
   },
   "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
 }
@@ -156,12 +155,13 @@ At EL, the selected PDK device is recorded under `impl.pdk_device` (e.g., `nfet_
 
 Pin Path Grammar
 
-- pinPath = ident ( "." ident )*
+- pinPath = ident ( "." ident | "[" int "]" )*
 - ident = [A-Za-z_][A-Za-z0-9_]*
+- int = [0-9]+
 
-**Guidance**
+#### Guidance
 
-External connectivity should prefer stable, named sub-pins over numeric indices (for example, tap.OUT rather than tap[1]) to improve diff stability and provenance tracking. Indices should be used only when the motif schema fundamentally requires ordered pins, at which point index positions become part of the schema contract.
+External connectivity should prefer stable, named sub-pins over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical pin path; bracket segments are not array lookups but syntactic components of the path.
 
 ### 3.3.4 Mirrors and Other Structured Pins
 
@@ -171,13 +171,34 @@ All external connectivity is under ports. Additional per-pin metadata such as mi
 {
   "id": "mirP",
   "type": "CurrentMirror",
-  "params": {"polarity": "PMOS"},
-  "ports": {"sense": "N1", "vref": "VDD", "tap.OUT": "OUT", "tap.N2": "N2"},
-  "pins_meta": {"tap.OUT": {"ratio": 2}, "tap.N2": {"ratio": 1}}
+  "params": {"polarity": "PMOS", "taps": 2, "ratio": 3},
+  "ports": {"SENSE": "N1", "TAP[0]": "OUT", "TAP[1]": "N2", "RAIL": "VDD"},
+  "pins_meta": {"TAP[0]": {"ratio": 3}, "TAP[1]": {"ratio": 1}}
 }
 ```
 
 This keeps connectivity uniform and makes incidence building trivial.
+
+---
+
+### 3.3.5 Elaboration of Attach and Connectors
+
+CasIR does not serialize connectors or attach chains. The front‑end elaborates all `attach …` and `attach … to … to …` chains by resolving connectors declared on interface traits (§2.8), then emitting explicit `connect` edges into `motifs[].ports`.
+
+Normative
+
+- Connector resolution and attach chains are elaboration‑time sugar. CasIR always contains explicit port→net bindings only.
+- When a connector maps unnamed bundles, field‑wise expansion uses identical field names (PascalCase; `Diff` uses `P`/`N`).
+- If no connector applies or multiple apply without explicit disambiguation, the front‑end must reject the source before CasIR emission.
+
+Example (after elaboration)
+
+```json
+  { "id": "dp",  "type": "DiffPair",      "ports": { "IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "GND", "BIAS": "VTAIL" } },
+  { "id": "cm",  "type": "CurrentMirror",  "ports": { "SENSE": "N1",   "TAP[0]": "N2",    "RAIL": "VDD" } }
+```
+
+Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE->dp.OUT.N` and `TAP[0]->dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
 
 ---
 
@@ -188,8 +209,8 @@ Tools routinely need fast graph queries. CasIR allows serializing derived views 
 ```json
 "indices": {
   "connectivity_hash": "sha256:...", 
-  "pin_to_net": { "dp.in.p": "VINP", "dp.drain_l": "N1" },
-  "net_to_pins": { "VINP": ["dp.in.p"], "N1": ["dp.drain_l", "mirP.sense"] },
+  "pin_to_net": { "dp.IN.P": "VINP", "dp.OUT.N": "N1" },
+  "net_to_pins": { "VINP": ["dp.IN.P"], "N1": ["dp.OUT.N", "cm.SENSE"] },
   "adjacency":   { "instance_to_instances": {"dp": ["mirP", "tail"]} }
 }
 ```
@@ -205,22 +226,22 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
 ```json
 "constraints": {
   "numeric": [
-    {"id": "c_gbw", "kind": "ineq", "lhs": {"metric": "gbw"}, "op": ">=", "rhs": {"value": 1.0e8, "unit": "Hz"}, "scope": {"node": "OUT"}}
+    {"id": "c_gbw", "kind": "ineq", "lhs": {"metric": "GainBandwidth"}, "op": ">=", "rhs": {"value": 1.0e8, "unit": "Hz"}, "scope": {"node": "OUT"}}
   ],
   "tech": [
     {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"}
   ],
   "graph": [
-    {"id": "g_card_tail", "rule": "cardinality", "select": "type:TailNMOS", "min": 1, "max": 1},
-    {"id": "g_path", "rule": "path_exists", "from": "IN.p", "to": "OUT", "through_types": ["CurrentMirror"]}
+    {"id": "g_card_tail", "rule": "cardinality", "select": "type:CurrentMirror", "min": 1, "max": 1},
+    {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["CurrentMirror"]}
   ],
   "measure": [
-    {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "OUT"}
+    {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "OUT"}
   ]
 }
 ```
 
-**Guidance**
+#### Guidance
 
 Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints and measurement intents carry explicit units, with sizing tools responsible for conversion to internal SI base units.
 
@@ -320,14 +341,14 @@ motif instance with explicit rails. For the master `.cas` source example, see
 
   "constraints": {
     "numeric": [
-      {"id": "c_rise", "kind": "ineq", "lhs": {"metric": "rise_time", "node": "PAD", "v_lo": {"symbolic":"0.1*VDD"}, "v_hi": {"symbolic":"0.9*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
-      {"id": "c_fall", "kind": "ineq", "lhs": {"metric": "fall_time", "node": "PAD", "v_hi": {"symbolic":"0.9*VDD"}, "v_lo": {"symbolic":"0.1*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
-      {"id": "c_voh",  "kind": "ineq", "lhs": {"metric": "voh", "node": "PAD"}, "op": ">=", "rhs": {"value": 0.9, "unit": "VDD"}},
-      {"id": "c_vol",  "kind": "ineq", "lhs": {"metric": "vol", "node": "PAD"}, "op": "<=", "rhs": {"value": 0.1, "unit": "VDD"}}
+      {"id": "c_rise", "kind": "ineq", "lhs": {"metric": "RiseTime", "node": "PAD", "v_lo": {"symbolic":"0.1*VDD"}, "v_hi": {"symbolic":"0.9*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_fall", "kind": "ineq", "lhs": {"metric": "FallTime", "node": "PAD", "v_hi": {"symbolic":"0.9*VDD"}, "v_lo": {"symbolic":"0.1*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_voh",  "kind": "ineq", "lhs": {"metric": "VOH", "node": "PAD"}, "op": ">=", "rhs": {"value": 0.9, "unit": "VDD"}},
+      {"id": "c_vol",  "kind": "ineq", "lhs": {"metric": "VOL", "node": "PAD"}, "op": "<=", "rhs": {"value": 0.1, "unit": "VDD"}}
     ],
     "measure": [
-      {"id": "m_rise", "bench": "StepToggle", "metric": "rise_time", "node": "PAD"},
-      {"id": "m_fall", "bench": "StepToggle", "metric": "fall_time", "node": "PAD"}
+      {"id": "m_rise", "bench": "StepToggle", "metric": "RiseTime", "node": "PAD"},
+      {"id": "m_fall", "bench": "StepToggle", "metric": "FallTime", "node": "PAD"}
     ]
   },
 
@@ -354,9 +375,9 @@ Provenance links IR elements back to ADL source and records transformation steps
 ```json
 "provenance": {
   "sources": [ {"file": "examples/OTA5T.cas", "span": {"from": 1, "to": 120}} ],
-  "pin_spans": { "dp.drain_l": {"file": "examples/OTA5T.cas", "from": 10, "to": 10} },
-  "aliases": [ {"name": "n1", "pin": "dp.drain_l"}, {"name": "n2", "pin": "dp.drain_r"} ],
-  "transforms": ["desugar.attach", "desugar.mirror", "slot.fill"]
+  "pin_spans": { "dp.OUT.N": {"file": "examples/OTA5T.cas", "from": 10, "to": 10} },
+  "aliases": [ {"name": "nN", "pin": "dp.OUT.N"}, {"name": "nP", "pin": "dp.OUT.P"} ],
+  "transforms": ["desugar.attach", "slot.fill"]
 }
 ```
 
@@ -392,7 +413,7 @@ The synthesis and optimization engine modifies the graph through a constrained s
 - replace_subgraph(patternId, binder)
 - set_param(inst, name, value)
 
-High-level patterns and syntactic sugar in ADL - including attach, pair, mirror, and feedback constructs - lower to sequences of these primitive operations during the desugaring phase.
+High-level patterns and syntactic sugar in ADL - including attach, pair, and feedback constructs - lower to sequences of these primitive operations during the desugaring phase.
 
 ---
 
@@ -412,27 +433,28 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
     {"id": "VINN", "domain": "electrical"},
     {"id": "N1",   "domain": "electrical"},
     {"id": "N2",   "domain": "electrical"},
+    {"id": "IBIAS", "domain": "electrical"},
     {"id": "NSRC", "domain": "electrical"},
     {"id": "OUT",  "domain": "electrical"}
   ],
 
   "bundles": [
-    {"id": "IN", "type": "Diff", "fields": {"p": "VINP", "n": "VINN"}}
+    {"id": "IN", "type": "Diff", "fields": {"P": "VINP", "N": "VINN"}}
   ],
 
   "motifs": [
     {
       "id": "dp",
-      "type": "DiffPairNMOS",
+      "type": "DiffPair",
       "traits": ["AmplifierStage"],
-      "ports": {"in.p": "VINP", "in.n": "VINN", "drain_l": "N1", "drain_r": "N2", "src": "NSRC", "gnd": "GND"},
-      "params": {"L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
+      "ports": {"IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "NSRC"},
+      "params": {"hasTail": false, "L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
     },
     {
-      "id": "tail",
-      "type": "TailCurrentSourceNMOS",
-      "ports": {"out": "NSRC", "gate": "VBIAS_N", "gnd": "GND"},
-      "params": {"L": {"value": 5.0e-7, "unit": "m"}, "W": {"value": 1.0e-6, "unit": "m"}}
+      "id": "tailBias",
+      "type": "CurrentMirror",
+      "params": {"polarity": "NMOS", "taps": 1, "ratio": 1},
+      "ports": {"SENSE": "IBIAS", "TAP[0]": "NSRC", "RAIL": "GND"}
     },
     {
       "id": "pml",
@@ -450,17 +472,17 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
 
   "constraints": {
     "numeric": [
-      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "gbw"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "OUT"}},
-      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 55,    "unit": "dB"}, "scope": {"node": "OUT"}},
-      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "OUT"}},
-      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
+      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "OUT"}},
+      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "PassbandGain"}, "op": ">=", "rhs": {"value": 55,    "unit": "dB"}, "scope": {"node": "OUT"}},
+      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "PhaseMargin"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "OUT"}},
+      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "Power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
     ],
     "graph": [
-      {"id": "g_card_tail", "rule": "cardinality", "select": "type:TailCurrentSourceNMOS", "min": 1, "max": 1},
-      {"id": "g_path", "rule": "path_exists", "from": "IN.p", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
+      {"id": "g_card_tail", "rule": "cardinality", "select": "type:CurrentMirror", "min": 1, "max": 1},
+      {"id": "g_path", "rule": "path_exists", "from": "IN.P", "to": "OUT", "through_types": ["PMOSMirrorActiveLoad"]}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "OUT"} ]
+    "measure": [ {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "OUT"} ]
   },
 
   "harness": {
@@ -470,7 +492,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
     "pvt":      {"corners": ["TT@27C"]}
   },
 
-  "benches": ["AC_OpenLoop", "UnityUGF", "Step"],
+  "benches": ["SEAmplifierACBench", "UnityUGF", "Step"],
   "provenance": {"sources": [ {"file": "examples/OTA5T.cas", "span": {"from": 1, "to": 120}} ]}
 }
 ```
@@ -504,7 +526,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
       "params": {
         "W": {"value": 1.2e-5, "unit": "m"},
         "L": {"value": 1.8e-7, "unit": "m"},
-        "m": {"value": 4}
+        "mult": {"value": 4}
       },
       "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
     },
@@ -520,13 +542,13 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 
   "constraints": {
     "numeric": [
-      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "gbw"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
-      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
-      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
-      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
+      {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
+      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "PassbandGain"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
+      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "PhaseMargin"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
+      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "Power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
-    "measure": [ {"id": "m_gbw", "bench": "AC_OpenLoop", "metric": "gbw", "node": "vout"} ]
+    "measure": [ {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "vout"} ]
   },
 
   "harness": {
@@ -536,12 +558,12 @@ This example demonstrates a single-ended common-source amplifier using a primiti
     "pvt":      {"corners": ["TT@27C"]}
   },
 
-  "benches": ["AC_OpenLoop", "Step"],
+  "benches": ["SEAmplifierACBench", "Step"],
   "provenance": {"sources": [ {"file": "examples/CSAmplifier.cas", "span": {"from": 1, "to": 25}} ]}
 }
 ```
 
-**Primitive and Structured Motif Representation**
+#### Primitive and Structured Motif Representation
 
 For language-level semantics of primitives and structured motifs, see
 [Chapter 2 §2.14.5](Ch02_Core_Concepts.md#2145-active-device-primitives-nmos-and-pmos) and
@@ -612,7 +634,7 @@ The testing strategy encompasses three complementary approaches:
 
 ## 3.16 *cascode* -> CasIR -> SPICE
 
-The transformation from ADL to SPICE follows a systematic progression through CasIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, mirror, and feedback into concrete motifs and connections. CasIR captures these connections uniformly within ports, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
+The transformation from ADL to SPICE follows a systematic progression through CasIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, and feedback into concrete motifs and connections. CasIR captures these connections uniformly within ports, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
 
 Sizing augments parameter values without modifying connectivity, and once all parameters become numeric, the IR reaches EL status and becomes ready for emission. SPICE writing reads ports to determine node names and prints devices according to library templates, with harness elements and bench configurations derived from constraints.measure and harness specifications.
 

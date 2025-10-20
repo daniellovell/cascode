@@ -56,10 +56,10 @@ The TextMate grammar recognizes:
 
 ### Keywords
 - **Package/Import**: `package`, `import`
-- **Declarations**: `class`, `motif`, `trait`, `interface`, `implements`, `extends`
+- **Declarations**: `module`, `motif`, `trait`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`
-- **Structure**: `attach`, `mirror`, `fb`, `pair`, `new`
+- **Structure**: `attach`, `fb`, `pair`, `new`
 - **Port Roles**: `in`, `out`, `diff`, `clk`, `bias`
 
 ### Typed Units
@@ -75,21 +75,21 @@ The TextMate grammar recognizes:
 - **Percentage**: `10%`, `50%`
 
 ### Operators
-- **Connection**: `->` (drives), `<-` (driven by), `<->` (bidirectional)
+- **Connection**: `->` (bind/connect; preferred), `<->` (bidirectional). `<-` is still recognized by the language, but the house style uses `->`.
 - **Range**: `..` (e.g., `[0.5V..0.8V]`)
 - **Comparison**: `==`, `!=`, `<=`, `>=`, `<`, `>`
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`
 
 ### Built-in Functions & Benches
-- **Spec functions**: `rise_time`, `fall_time`, `gbw`, `pm`, `gain`, `swing`, `voh`, `vol`, `power`, `area`
-- **Bench names**: `AC_OpenLoop`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
+- **Spec functions**: `GainBandwidth`, `PassbandGain`, `PhaseMargin`, `OutputSwing`, `NoiseIn`, `SlewRate`, `Settle`, `ZeroTau`, `Power`, `DynamicPower`, `TogglePower`, `Headroom`, `ICMR`, `RiseTime`, `FallTime`, `VOH`, `VOL`, `Area`
+- **Bench names**: `SEAmplifierACBench`, `FDAmplifierACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
 - **Port types**: `electrical`, `digital`, `analog`, `supply`, `ground`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
-- **Common traits**: `Amplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
-- **Common motifs**: `DiffPairNMOS`, `StrongArmLatch`, `MillerRC`, `PadDriver`
+- **Common traits**: `Amplifier`, `SingleEndedAmplifier`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
+- **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`
 
 ## 🔧 Extending the Grammar
 
@@ -162,9 +162,9 @@ Until linguist is updated, use markdown code fences with manual syntax specifica
 
 ````markdown
 ```cascode
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD = 1.2V; ground GND;
-  spec { gbw>=100MHz; pm>=60deg; }
+  spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; }
 }
 ```
 ````

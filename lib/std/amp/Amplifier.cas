@@ -1,0 +1,9 @@
+package lib.std.amp;
+
+// Trait: Amplifier (spec-only)
+// Declares canonical metric names; no ports are defined here.
+// Interface traits (e.g., SingleEndedAmplifier, FullyDiffAmplifier)
+// refine this trait by adding ports and mapping metrics to benches.
+trait Amplifier {
+  metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; OutputSwing; Power; NoiseIn; }
+}

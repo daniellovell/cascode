@@ -1,0 +1,16 @@
+package lib.std.amp;
+
+// Interface trait: Single-ended amplifier.
+// Provides ports and bench metric mappings for Amplifier metrics.
+trait SingleEndedAmplifier extend Amplifier {
+  ports [ IN: Diff, OUT: electrical ]
+  supply VDD; ground GND;
+
+  // Declarative mapping from canonical metrics to bench metrics.
+  metrics {
+    GainBandwidth from SEAmplifierACBench.GainBandwidth;
+    PassbandGain  from SEAmplifierACBench.PassbandGain;
+    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
+    // ICMR and Swing are handled by dedicated benches; left unspecified here.
+  }
+}

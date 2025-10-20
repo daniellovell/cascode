@@ -42,15 +42,15 @@
         },
         {
           "name": "keyword.other.class.cascode",
-          "match": "\\b(class|motif|trait|interface|implements|extends)\\b"
+          "match": "\\b(module|motif|trait|implements|extend)\\b"
         },
         {
           "name": "keyword.other.declaration.cascode",
-          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|cascade|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
+          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
         },
         {
           "name": "keyword.other.directive.cascode",
-          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|mirror|fb|pair|new|in|out|diff|clk|bias)\\b"
+          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|using|fb|pair|new|in|out|diff|clk|bias)\\b"
         },
         {
           "name": "keyword.other.type.cascode",
@@ -255,11 +255,11 @@
       "patterns": [
         {
           "name": "support.function.spec.cascode",
-          "match": "\\b(rise_time|fall_time|voh|vol|power|area|gbw|pm|gain|swing|icmr|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
+          "match": "\\b(GainBandwidth|PassbandGain|PhaseMargin|OutputSwing|NoiseIn|SlewRate|Settle|ZeroTau|Power|DynamicPower|TogglePower|Headroom|ICMR|RiseTime|FallTime|VOH|VOL|Area)\\b"
         },
         {
           "name": "support.function.bench.cascode",
-          "match": "\\b(AC_OpenLoop|UnityUGF|Step|NoiseIn|LatchDecision|OffsetMC|Kickback|StepToggle|ChainAC|ChainNoise)\\b"
+          "match": "\\b(SEAmplifierACBench|FDAmplifierACBench|UnityUGF|Step|NoiseIn|StepToggle)\\b"
         },
         {
           "name": "support.function.component.cascode",
@@ -275,14 +275,14 @@
       "patterns": [
         {
           "name": "support.type.trait.cascode",
-          "match": "\\b(Amplifier|AmplifierStage|Compensator|CurrentMirror|CurrentMirrorLike|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|DiffOutput|CascodeLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
           "name": "support.type.motif.cascode",
-          "match": "\\b(DiffPairNMOS|DiffPairPMOS|TailNMOS|TailPMOS|PMOSCascodeLoad|FiveTLoadPMOS|NMOSCascode|MillerRC|MillerRz|Ahuja|StrongArmLatch|TeleCascodeNMOS|FoldedCascodePMOS|CSStageNMOS|GainBoosting|InverterGm|PadDriver|WideSwingPMOSMirror|WideSwingNMOSMirror|Cap|Res|Ind)\\b"
+          "match": "\\b(DiffPair|CascodePair|CurrentMirror|MillerRC|MillerRz|Ahuja|StrongArmLatch|PadDriver|Cap|Res|Ind)\\b"
         },
         {
-          "match": "\\b(class|motif|trait|interface)\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "\\b(module|motif|trait)\\s+([A-Z][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.class.cascode" },
             "2": { "name": "entity.name.type.class.cascode" }

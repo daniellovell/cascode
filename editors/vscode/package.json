@@ -2,7 +2,7 @@
   "name": "cascode-lang",
   "displayName": "Cascode Language Support",
   "description": "Syntax highlighting and language support for Cascode (.cas) files",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "publisher": "cascode",
   "repository": {
     "type": "git",
@@ -11,6 +11,7 @@
   "engines": {
     "vscode": "^1.75.0"
   },
+  "main": "./extension.js",
   "activationEvents": [
     "onLanguage:cascode"
   ],

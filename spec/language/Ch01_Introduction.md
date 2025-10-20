@@ -1,6 +1,6 @@
 
 
-## **Chapter 1 - Introduction**
+## Chapter 1 - Introduction
 
 ### 1.1 Purpose and Scope
 
@@ -22,13 +22,13 @@ Analog and mixed-signal (A/MS) IP forms the foundation of high-performance syste
 
 ### 1.3 Design Goals and Non-Goals
 
-**Goals**
+#### Goals
 
 The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
 
 Type safety extends to physical dimensions through **typed units** (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates **synthesis as a native construct** via `slot` and `synth` directives that automatically choose, size, and verify implementations. **Interoperability** with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, **traceability** ensures that CasIR preserves complete provenance, constraints, and benchmark intents.
 
-**Non-Goals**
+#### Non-Goals
 
 Several capabilities remain explicitly outside the language scope. cascode does not replace SPICE device models or analog simulation semantics, instead leveraging these established foundations. The synthesis engine may employ heuristics and optimization modulo theories (OMT) without guaranteeing unique optimality of chosen topologies. Finally, the language avoids mandating specific PDK formats, simulators, or gm/Id table structures, maintaining flexibility across tool ecosystems.
 
@@ -48,14 +48,16 @@ In summary:
 
 ### 1.5 Cascode in a few examples
 
-**Spec-only definition of an amplifier (engine picks topology)**
+All examples follow the repository style convention for connectivity: binds and connects are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but new code should use `->` consistently.
+
+#### Spec-only definition of an amplifier (engine picks topology)
 
 ```java
 package analog.amp; import lib.ota.*;
 
-bundle Diff { p: electrical; n: electrical; }
+bundle Diff { P: electrical; N: electrical; }
 
-class AmpAuto implements Amplifier {
+module AmpAuto implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   param CL=2pF;
@@ -68,12 +70,12 @@ class AmpAuto implements Amplifier {
   }
 
   spec {
-    gbw>=100MHz; pm>=60deg; gain>=70dB;
-    swing(OUT) in [0.2V..1.0V];
-    power<=1mW;
+    GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB;
+    OutputSwing(OUT) in [0.2V..1.0V];
+    Power<=1mW;
   }
 
-  slot Core: AmplifierStage bind { in<-IN; out->OUT; }
+  slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }
 
   // Choose topology via synthesis and **enable** comp (or disable with 'None')
   synth {
@@ -82,53 +84,47 @@ class AmpAuto implements Amplifier {
     prefer inputPolarity = NMOS;
     // Optional compensation policy on the chosen Core
     Core.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // or: Core.comp None;
-    objective minimize power;
+    objective minimize Power;
   }
 
-  bench { AC_OpenLoop; UnityUGF; Step; }
+  bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
 
-**Structural definition of a 5T OTA**
+#### Structural definition of a 5T OTA
 
 ```java
 package analog.ota; import lib.motifs.*;
 
-bundle Diff { p: electrical; n: electrical; }
+bundle Diff { P: electrical; N: electrical; }
 
-class OTA5T implements Amplifier {
+module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
   port in IN: Diff; port out OUT: electrical;
 
-  env  {
-    vdd = VDD;
-    load C = 1pF;          // bench load is mandatory via env
-    source Z = 50;
-  }
+  env  { vdd = VDD; load C = 1pF; source Z = 50; }
 
   use {
-    dp   = new DiffPairNMOS() { in<-IN; };
-    tail = new TailNMOS()     { out->dp.src; ref<-GND; };
-
-    // PMOS mirror: diode at left branch, taps to right + OUT
-    mirP = new CurrentMirror(polarity=PMOS) {
-      sense <- dp.drain_l;
-      vref  <- VDD;
-      taps  { n2:1, OUT:2; }
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> vbias_n;
     };
+
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
+    OUT -> dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 
-  spec { gbw>=50MHz; gain>=55dB; pm>=60deg; swing(OUT) in [0.2V..1.6V]; power<=2mW; }
+  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
 }
 
 ```
 
-**Structural single-ended CS amplifier with primitive transistor**
+#### Structural single-ended CS amplifier with primitive transistor
 
 ```java
 package analog.ota; import lib.motifs.*;
 
-class CommonSourceAmp implements Amplifier {
+module CommonSourceAmp implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
   port in vin; port out vout;
   bias vb1;
@@ -139,38 +135,38 @@ class CommonSourceAmp implements Amplifier {
     source Z = 50;
   }
 
-  spec { gbw>=50MHz; gain>=40dB; pm>=60deg; power<=5mW; }
+  spec { GainBandwidth>=50MHz; PassbandGain>=40dB; PhaseMargin>=60deg; Power<=5mW; }
 
   use {
     // Primitive NMOS input transistor (synthesis sizes W/L from specs)
-    M_in = new NMOS() { gate<-vin; drain<-vout; source<-GND; bulk<-GND; };
+    M_in = new NMOS() { gate -> vin; drain -> vout; source -> GND; bulk -> GND; };
 
     // Generic active load motif with polarity
-    load = new ActiveLoad(polarity=PMOS) { node<-vout; bias<-vb1; vref<-VDD; };
+    load = new ActiveLoad(polarity=PMOS) { node -> vout; bias -> vb1; vref -> VDD; };
   }
 }
 
 ```
 
-**Two stages in cascade with slots**
+#### Two stages in cascade with slots
 
 Option 1: Synthesis fills both slots
 
 ```java
-class TwoStageAmp implements Amplifier {
+module TwoStageAmp implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { in<-IN; out->N1; }
-  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
+  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
 
   synth {
     from lib.ota.*;
     fill S1, S2;
     S1.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // enable comp on first stage
     S2.comp None;                                   // no comp on second
-    objective minimize power;
+    objective minimize Power;
   }
 }
 ```
@@ -178,13 +174,13 @@ class TwoStageAmp implements Amplifier {
 Option 2: Structural fill (no `synth` needed)
 
 ```java
-class TwoStageAmp_Manual implements Amplifier {
+module TwoStageAmp_Manual implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { in<-IN; out->N1; }
-  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
+  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
 
   use {
     fill S1 with FoldedCascodePMOS { /* params… */ };
@@ -197,7 +193,7 @@ class TwoStageAmp_Manual implements Amplifier {
 
 ```
 
-**SPICE wrap (wide-swing NMOS mirror motif)**
+#### SPICE wrap (wide-swing NMOS mirror motif)
 
 ```java
 motif WideSwingNMOSMirror implements CurrentMirror {
@@ -283,14 +279,14 @@ explicit supply pins. Stdcells typically enter the system through `wrap spice`
 from PDK‑provided subcircuits and may participate in synthesis when annotated
 with `char {}` manifests.
 
-The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `rise_time`, `fall_time`, `voh`, and `vol`, with verification performed through standard benches.
+The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `RiseTime`, `FallTime`, `VOH`, and `VOL`, with verification performed through standard benches.
 
 Example: Strong‑arm latch to pad with a selectable output inverter:
 
 ```cas
 package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
 
-class LatchToPad {
+module LatchToPad {
   supply VDD=1.8V; ground GND; port in vip, vin; port out PAD;
   net COMP_OUT: electrical;
 
@@ -298,16 +294,16 @@ class LatchToPad {
 
   use {
     sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
-    sa.in_p <- vip; sa.in_n <- vin; sa.out -> COMP_OUT;
+    sa.in_p -> vip; sa.in_n -> vin; sa.out -> COMP_OUT;
   }
 
   // Let synthesis choose a stdcell inverter or a composite pad driver
-  slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+  slot Buf: InverterLike bind { IN -> COMP_OUT; OUT -> PAD; }
 
   spec {
-    rise_time(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
-    fall_time(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
-    voh(PAD) >= 0.9*VDD; vol(PAD) <= 0.1*VDD; power<=2mW;
+    RiseTime(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
+    FallTime(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
+    VOH(PAD) >= 0.9*VDD; VOL(PAD) <= 0.1*VDD; Power<=2mW;
   }
 
   bench { StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; } }
@@ -315,13 +311,13 @@ class LatchToPad {
   synth {
     from lib.std.sky130.hd.*;                 // stdcell wrappers
     allow Buf in { INV_*, PadDriver };        // single cell or composite
-    prefer minimize dynamic_power;
+    prefer minimize DynamicPower;
   }
 }
 ```
 
 In this flow, the heavy pad load (15 pF) appears via `env{}` and the synthesis
-engine chooses an implementation of `InverterLike` that meets `rise_time` /
-`fall_time` constraints at `PAD` while respecting power objectives. The choice
+engine chooses an implementation of `InverterLike` that meets `RiseTime` /
+`FallTime` constraints at `PAD` while respecting power objectives. The choice
 may be a single strong INV or a composite `PadDriver` that implements the same
 trait.

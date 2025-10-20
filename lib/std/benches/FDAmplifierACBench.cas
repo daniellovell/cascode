@@ -1,0 +1,14 @@
+package lib.std.benches;
+
+// AC bench for fully differential amplifiers.
+bench FDAmplifierACBench {
+  spectre_template = "FDAmplifierACBench.tpl";
+  metrics [
+    GainBandwidth: Hz,
+    PassbandGain: dB,
+    PhaseMargin: deg,
+    LowpassBandwidth: Hz,
+    HighpassBandwidth: Hz,
+    BandpassBandwidth: Hz
+  ]
+}
