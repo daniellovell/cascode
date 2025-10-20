@@ -15,7 +15,7 @@ If we do this well, getting from ADL to SPICE is a straight line: parse and elab
 
 ## 3.1 Design Principles
 
-The CasIR design prioritizes **connectivity as the primary concern**, establishing the port-to-net mapping within each motif instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes motif instances with ports and parameters, with syntactic sugar for constructs like attach, pair, mirror taps, and feedback already expanded.
+The CasIR design prioritizes **connectivity as the primary concern**, establishing the port-to-net mapping within each motif instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes motif instances with ports and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
 
 **Deterministic JSON** output maintains stability by sorting arrays by id and writing objects with sorted keys, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (with open slots), ML (slots chosen with some symbolic parameters), and EL (fully numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
 
@@ -376,7 +376,7 @@ Provenance links IR elements back to ADL source and records transformation steps
   "sources": [ {"file": "examples/OTA5T.cas", "span": {"from": 1, "to": 120}} ],
   "pin_spans": { "dp.OUT.N": {"file": "examples/OTA5T.cas", "from": 10, "to": 10} },
   "aliases": [ {"name": "nN", "pin": "dp.OUT.N"}, {"name": "nP", "pin": "dp.OUT.P"} ],
-  "transforms": ["desugar.attach", "desugar.mirror", "slot.fill"]
+  "transforms": ["desugar.attach", "slot.fill"]
 }
 ```
 
@@ -412,7 +412,7 @@ The synthesis and optimization engine modifies the graph through a constrained s
 - replace_subgraph(patternId, binder)
 - set_param(inst, name, value)
 
-High-level patterns and syntactic sugar in ADL - including attach, pair, mirror, and feedback constructs - lower to sequences of these primitive operations during the desugaring phase.
+High-level patterns and syntactic sugar in ADL - including attach, pair, and feedback constructs - lower to sequences of these primitive operations during the desugaring phase.
 
 ---
 
@@ -633,7 +633,7 @@ The testing strategy encompasses three complementary approaches:
 
 ## 3.16 *cascode* -> CasIR -> SPICE
 
-The transformation from ADL to SPICE follows a systematic progression through CasIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, mirror, and feedback into concrete motifs and connections. CasIR captures these connections uniformly within ports, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
+The transformation from ADL to SPICE follows a systematic progression through CasIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, and feedback into concrete motifs and connections. CasIR captures these connections uniformly within ports, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
 
 Sizing augments parameter values without modifying connectivity, and once all parameters become numeric, the IR reaches EL status and becomes ready for emission. SPICE writing reads ports to determine node names and prints devices according to library templates, with harness elements and bench configurations derived from constraints.measure and harness specifications.
 
