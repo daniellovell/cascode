@@ -50,7 +50,7 @@
         },
         {
           "name": "keyword.other.directive.cascode",
-          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|mirror|fb|pair|new|in|out|diff|clk|bias)\\b"
+          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|fb|pair|new|in|out|diff|clk|bias)\\b"
         },
         {
           "name": "keyword.other.type.cascode",
@@ -255,11 +255,11 @@
       "patterns": [
         {
           "name": "support.function.spec.cascode",
-          "match": "\\b(rise_time|fall_time|voh|vol|power|area|GainBandwidth|PhaseMargin|PassbandGain|OutputSwing|ICMR|NoiseIn|Power|Area|decision_time|offset|kickback_in|settle|in_noise|noise_in|sr|zt|headroom|toggle_power|dynamic_power|gain_min_db)\\b"
+          "match": "\\b(GainBandwidth|PassbandGain|PhaseMargin|OutputSwing|NoiseIn|SlewRate|Settle|ZeroTau|Power|DynamicPower|TogglePower|Headroom|ICMR|RiseTime|FallTime|VOH|VOL|Area)\\b"
         },
         {
           "name": "support.function.bench.cascode",
-          "match": "\\b(AC_OpenLoop|UnityUGF|Step|NoiseIn|LatchDecision|OffsetMC|Kickback|StepToggle|ChainAC|ChainNoise)\\b"
+          "match": "\\b(SEAmplifierACBench|FDAmplifierACBench|UnityUGF|Step|NoiseIn|StepToggle)\\b"
         },
         {
           "name": "support.function.component.cascode",

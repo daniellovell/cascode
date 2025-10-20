@@ -70,10 +70,10 @@ module AmpAuto implements SingleEndedAmplifier {
   spec {
     GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB;
     OutputSwing(OUT) in [0.2V..1.0V];
-    power<=1mW;
+    Power<=1mW;
   }
 
-  slot Core: AmplifierStage bind { in<-IN; out->OUT; }
+  slot Core: AmplifierStage bind { IN<-IN; OUT->OUT; }
 
   // Choose topology via synthesis and **enable** comp (or disable with 'None')
   synth {
@@ -82,10 +82,10 @@ module AmpAuto implements SingleEndedAmplifier {
     prefer inputPolarity = NMOS;
     // Optional compensation policy on the chosen Core
     Core.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // or: Core.comp None;
-    objective minimize power;
+    objective minimize Power;
   }
 
-  bench { AC_OpenLoop; UnityUGF; Step; }
+  bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
 
@@ -156,15 +156,15 @@ module TwoStageAmp implements SingleEndedAmplifier {
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { in<-IN; out->N1; }
-  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+  slot S1: AmplifierStage bind { IN<-IN; OUT->N1; }
+  slot S2: AmplifierStage bind { IN<-N1; OUT->OUT; }
 
   synth {
     from lib.ota.*;
     fill S1, S2;
     S1.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // enable comp on first stage
     S2.comp None;                                   // no comp on second
-    objective minimize power;
+    objective minimize Power;
   }
 }
 ```
@@ -177,8 +177,8 @@ module TwoStageAmp_Manual implements SingleEndedAmplifier {
   port in IN: Diff; port out OUT: electrical;
   net N1: electrical;
 
-  slot S1: AmplifierStage bind { in<-IN; out->N1; }
-  slot S2: AmplifierStage bind { in<-N1; out->OUT; }
+  slot S1: AmplifierStage bind { IN<-IN; OUT->N1; }
+  slot S2: AmplifierStage bind { IN<-N1; OUT->OUT; }
 
   use {
     fill S1 with FoldedCascodePMOS { /* params… */ };
@@ -277,7 +277,7 @@ explicit supply pins. Stdcells typically enter the system through `wrap spice`
 from PDK‑provided subcircuits and may participate in synthesis when annotated
 with `char {}` manifests.
 
-The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `rise_time`, `fall_time`, `voh`, and `vol`, with verification performed through standard benches.
+The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `RiseTime`, `FallTime`, `VOH`, and `VOL`, with verification performed through standard benches.
 
 Example: Strong‑arm latch to pad with a selectable output inverter:
 
@@ -296,12 +296,12 @@ module LatchToPad {
   }
 
   // Let synthesis choose a stdcell inverter or a composite pad driver
-  slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
+  slot Buf: InverterLike bind { IN<-COMP_OUT; OUT->PAD; }
 
   spec {
-    rise_time(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
-    fall_time(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
-    voh(PAD) >= 0.9*VDD; vol(PAD) <= 0.1*VDD; power<=2mW;
+    RiseTime(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
+    FallTime(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
+    VOH(PAD) >= 0.9*VDD; VOL(PAD) <= 0.1*VDD; Power<=2mW;
   }
 
   bench { StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; } }
@@ -309,13 +309,13 @@ module LatchToPad {
   synth {
     from lib.std.sky130.hd.*;                 // stdcell wrappers
     allow Buf in { INV_*, PadDriver };        // single cell or composite
-    prefer minimize dynamic_power;
+    prefer minimize DynamicPower;
   }
 }
 ```
 
 In this flow, the heavy pad load (15 pF) appears via `env{}` and the synthesis
-engine chooses an implementation of `InverterLike` that meets `rise_time` /
-`fall_time` constraints at `PAD` while respecting power objectives. The choice
+engine chooses an implementation of `InverterLike` that meets `RiseTime` /
+`FallTime` constraints at `PAD` while respecting power objectives. The choice
 may be a single strong INV or a composite `PadDriver` that implements the same
 trait.

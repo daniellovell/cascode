@@ -319,14 +319,14 @@ motif instance with explicit rails. For the master `.cas` source example, see
 
   "constraints": {
     "numeric": [
-      {"id": "c_rise", "kind": "ineq", "lhs": {"metric": "rise_time", "node": "PAD", "v_lo": {"symbolic":"0.1*VDD"}, "v_hi": {"symbolic":"0.9*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
-      {"id": "c_fall", "kind": "ineq", "lhs": {"metric": "fall_time", "node": "PAD", "v_hi": {"symbolic":"0.9*VDD"}, "v_lo": {"symbolic":"0.1*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
-      {"id": "c_voh",  "kind": "ineq", "lhs": {"metric": "voh", "node": "PAD"}, "op": ">=", "rhs": {"value": 0.9, "unit": "VDD"}},
-      {"id": "c_vol",  "kind": "ineq", "lhs": {"metric": "vol", "node": "PAD"}, "op": "<=", "rhs": {"value": 0.1, "unit": "VDD"}}
+      {"id": "c_rise", "kind": "ineq", "lhs": {"metric": "RiseTime", "node": "PAD", "v_lo": {"symbolic":"0.1*VDD"}, "v_hi": {"symbolic":"0.9*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_fall", "kind": "ineq", "lhs": {"metric": "FallTime", "node": "PAD", "v_hi": {"symbolic":"0.9*VDD"}, "v_lo": {"symbolic":"0.1*VDD"}}, "op": "<=", "rhs": {"value": 1.2e-9, "unit": "s"}},
+      {"id": "c_voh",  "kind": "ineq", "lhs": {"metric": "VOH", "node": "PAD"}, "op": ">=", "rhs": {"value": 0.9, "unit": "VDD"}},
+      {"id": "c_vol",  "kind": "ineq", "lhs": {"metric": "VOL", "node": "PAD"}, "op": "<=", "rhs": {"value": 0.1, "unit": "VDD"}}
     ],
     "measure": [
-      {"id": "m_rise", "bench": "StepToggle", "metric": "rise_time", "node": "PAD"},
-      {"id": "m_fall", "bench": "StepToggle", "metric": "fall_time", "node": "PAD"}
+      {"id": "m_rise", "bench": "StepToggle", "metric": "RiseTime", "node": "PAD"},
+      {"id": "m_fall", "bench": "StepToggle", "metric": "FallTime", "node": "PAD"}
     ]
   },
 
@@ -452,9 +452,9 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
   "constraints": {
     "numeric": [
       {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "OUT"}},
-      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 55,    "unit": "dB"}, "scope": {"node": "OUT"}},
-      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "OUT"}},
-      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
+      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "PassbandGain"}, "op": ">=", "rhs": {"value": 55,    "unit": "dB"}, "scope": {"node": "OUT"}},
+      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "PhaseMargin"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "OUT"}},
+      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "Power"},   "op": "<=", "rhs": {"value": 2.0e-3, "unit": "W"}}
     ],
     "graph": [
       {"id": "g_card_tail", "rule": "cardinality", "select": "type:CurrentMirror", "min": 1, "max": 1},
@@ -522,9 +522,9 @@ This example demonstrates a single-ended common-source amplifier using a primiti
   "constraints": {
     "numeric": [
       {"id": "c_gbw",  "kind": "ineq", "lhs": {"metric": "GainBandwidth"},     "op": ">=", "rhs": {"value": 5.0e7, "unit": "Hz"}, "scope": {"node": "vout"}},
-      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "gain_db"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
-      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "pm_deg"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
-      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
+      {"id": "c_gain", "kind": "ineq", "lhs": {"metric": "PassbandGain"}, "op": ">=", "rhs": {"value": 40,    "unit": "dB"}, "scope": {"node": "vout"}},
+      {"id": "c_pm",   "kind": "ineq", "lhs": {"metric": "PhaseMargin"},  "op": ">=", "rhs": {"value": 60,    "unit": "deg"}, "scope": {"node": "vout"}},
+      {"id": "c_pwr",  "kind": "ineq", "lhs": {"metric": "Power"},   "op": "<=", "rhs": {"value": 5.0e-3, "unit": "W"}}
     ],
     "tech": [ {"id": "t_lmin", "kind": "limit", "on": "*", "rule": "L>=", "value": 1.8e-7, "unit": "m"} ],
     "measure": [ {"id": "m_gbw", "bench": "SEAmplifierACBench", "metric": "GainBandwidth", "node": "vout"} ]

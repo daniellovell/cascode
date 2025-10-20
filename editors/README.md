@@ -59,7 +59,7 @@ The TextMate grammar recognizes:
 - **Declarations**: `module`, `motif`, `trait`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`
-- **Structure**: `attach`, `mirror`, `fb`, `pair`, `new`
+- **Structure**: `attach`, `fb`, `pair`, `new`
 - **Port Roles**: `in`, `out`, `diff`, `clk`, `bias`
 
 ### Typed Units
@@ -81,8 +81,8 @@ The TextMate grammar recognizes:
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`
 
 ### Built-in Functions & Benches
-- **Spec functions**: `rise_time`, `fall_time`, `GainBandwidth`, `PhaseMargin`, `PassbandGain`, `OutputSwing`, `voh`, `vol`, `Power`, `Area`
-- **Bench names**: `AC_OpenLoop`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
+- **Spec functions**: `GainBandwidth`, `PassbandGain`, `PhaseMargin`, `OutputSwing`, `NoiseIn`, `SlewRate`, `Settle`, `ZeroTau`, `Power`, `DynamicPower`, `TogglePower`, `Headroom`, `ICMR`, `RiseTime`, `FallTime`, `VOH`, `VOL`, `Area`
+- **Bench names**: `SEAmplifierACBench`, `FDAmplifierACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits

@@ -62,7 +62,7 @@ To improve readability and keep interfaces visually distinct from internal nets,
 - Rails remain `VDD`/`GND` (already ALL CAPS).
 - Internal nets and instance locals inside `use {}` blocks use lowerCamelCase.
 
-This convention is normative for the standard libraries and examples and SHOULD be followed by user code for consistency.
+This convention is normative for the standard libraries and examples and SHOULD be followed by user code for consistency. Bundles default to PascalCase unless they mirror normative ALL_CAPS ports; the standard `Diff` bundle fixes its fields to `P` and `N`.
 
 ---
 
@@ -75,7 +75,7 @@ bundle Diff   { P: electrical; N: electrical; }
 bundle AmpIO  { IN: Diff; OUT: electrical; }
 ```
 
-The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bundles that wrap normative ports (such as `AmpIO`) adopt the ALL_CAPS naming used for external ports so that binding syntax aligns with Chapter 2.3.1.
+The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bundles that wrap normative ports (such as `AmpIO`) adopt the ALL_CAPS naming used for external ports so that binding syntax aligns with Chapter 2.3.1. Custom bundles that introduce ad-hoc groupings may select their own field casing, but the chosen style **MUST** remain consistent wherever that bundle appears.
 
 Bundles serve two primary purposes: they **reduce verbosity** while making **binding explicit** without ambiguity. These constructs are valid within module ports, motif ports, `slot` trait definitions, and `bind` statements.
 
@@ -193,7 +193,7 @@ motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
 attach CascodePair on dp { SOURCE <- OUT }   // expands to SOURCE.P<-OUT.P; SOURCE.N<-OUT.N
 ```
 
-Reversed orientation in this case requires explicit field mapping (for example, `IN.p <- OUT.n; IN.n <- OUT.p`).
+Reversed orientation in this case requires explicit field mapping (for example, `IN.P <- OUT.N; IN.N <- OUT.P`).
 
 2) Name match. The attached motif and the target share identical port names and compatible kinds for all required connections. To avoid surprises, orientation‑by‑name is opt‑in using an explicit directive:
 
@@ -309,7 +309,7 @@ The compiler **realizes** compensation **internally** within the stage through d
 
 ## 2.10 Contracts and Patterns
 
-**Contracts** encapsulate boundary assumptions (`req`) and guarantees (`ens`) for motifs and modules. Examples include `req headroom>=0.35V`, `ens gain_min_db>=20`, and `ens icmr in [0.4V..0.9V]`.
+**Contracts** encapsulate boundary assumptions (`req`) and guarantees (`ens`) for motifs and modules. Examples include `req Headroom>=0.35V`, `ens PassbandGain>=20`, and `ens ICMR in [0.4V..0.9V]`.
 
 **Patterns** define recognizers and binders for canonical subgraphs (such as 5T current mirrors), enabling automated ingestion from SPICE netlists and canonicalization into structured motifs.
 
@@ -373,15 +373,15 @@ When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically
 
 Mixed‑signal flows commonly require timing/level checks on electrical nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
 
-* `rise_time(node, v_lo, v_hi)` - time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
-* `fall_time(node, v_hi, v_lo)` - analogous definition for falling transitions.
-* `voh(node)` / `vol(node)` - steady‑state high/low levels measured at the node under the bench's toggling pattern. Units: voltage. `voh` is the plateau following a rising transition; `vol` is analogous for falling.
-* `toggle_power(node, freq, duty)` - average dynamic power attributable to toggling a designated driver/input. Units: power. Computed from rail current integration over whole cycles.
+* `RiseTime(node, v_lo, v_hi)` - time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
+* `FallTime(node, v_hi, v_lo)` - analogous definition for falling transitions.
+* `VOH(node)` / `VOL(node)` - steady‑state high/low levels measured at the node under the bench's toggling pattern. Units: voltage. `VOH` is the plateau following a rising transition; `VOL` is analogous for falling.
+* `TogglePower(node, freq, duty)` - average dynamic power attributable to toggling a designated driver/input. Units: power. Computed from rail current integration over whole cycles.
 
 Normative
 
 * Threshold crossings use linear interpolation between simulator timesteps.
-* Overshoot/undershoot are ignored for `rise_time`/`fall_time`; use the first monotone crossing after the input toggle.
+* Overshoot/undershoot are ignored for `RiseTime`/`FallTime`; use the first monotone crossing after the input toggle.
 * When `VDD` varies in time, percentage thresholds use the instantaneous rail value at the start of the measured edge.
 
 ### 2.11.2 Bench: `StepToggle`
@@ -398,7 +398,7 @@ Semantics (normative)
 
 * The bench injects a rail‑to‑rail pulse at `node` (or at the unique upstream driver input if resolvable) with `freq`/`duty` and optional finite `slew`. If `slew=Auto`, the source transitions are ideal.
 * `cycles` selects the number of toggles before measurement; default `3` with measurements on the last cycle.
-* Measurements permitted: `rise_time`, `fall_time`, `voh`, `vol`, `toggle_power`.
+* Measurements permitted: `RiseTime`, `FallTime`, `VOH`, `VOL`, `TogglePower`.
 
 ---
 
@@ -422,7 +422,7 @@ synth {
   fill Core;                        // which slots to decide
   allow Core in { TeleCascodeNMOS, FoldedCascodePMOS };  // optional structural limits
   Core.comp { style=MillerRC; Cc=Auto; Rz=Auto; }        // stage property
-  objective minimize power;
+  objective minimize Power;
 }
 ```
 
@@ -457,8 +457,8 @@ trait InverterLike {
   port in  IN : electrical;
   port out OUT: electrical;
   supply VDD; ground GND;
-  ens voh(OUT) >= 0.9*VDD;  // typical electrical guarantees
-  ens vol(OUT) <= 0.1*VDD;
+  ens VOH(OUT) >= 0.9*VDD;  // typical electrical guarantees
+  ens VOL(OUT) <= 0.1*VDD;
 }
 
 // Optional composite that still implements InverterLike
@@ -486,8 +486,8 @@ motif INV_X4 implements InverterLike {
   """ map { IN=A; OUT=Y; VDD=VPWR; GND=VGND; VPB=VPB; VNB=VNB; }
   char {
     sweep { CL:[0.5pF..30pF]; VDD:[1.6V..1.95V]; }
-    validity{ voh>=0.9*VDD; vol<=0.1*VDD; }
-    fit { rise_time~PWL("fit/inv4_tr_vs_cl.pwl"); fall_time~PWL("fit/inv4_tf_vs_cl.pwl"); }
+    validity{ VOH>=0.9*VDD; VOL<=0.1*VDD; }
+    fit { RiseTime~PWL("fit/inv4_tr_vs_cl.pwl"); FallTime~PWL("fit/inv4_tf_vs_cl.pwl"); }
   }
 }
 ```
@@ -499,7 +499,7 @@ Normative
 
 ### 2.13.3 Synthesis Guidance
 
-To meet edge‑time and level specs under `env{}` loads, the engine ranks `InverterLike` candidates using `char{}` fits (rise/fall vs. `CL`, and voh/vol validity). Objectives such as `minimize dynamic_power` may be applied subject to timing/level constraints.
+To meet edge‑time and level specs under `env{}` loads, the engine ranks `InverterLike` candidates using `char{}` fits (Rise/Fall vs. `CL`, and VOH/VOL validity). Objectives such as `minimize DynamicPower` may be applied subject to timing/level constraints.
 
 Example:
 
@@ -508,7 +508,7 @@ slot Buf: InverterLike bind { in<-COMP_OUT; out->PAD; }
 synth {
   from lib.std.sky130.hd.*;
   allow Buf in { INV_*, PadDriver };
-  objective minimize dynamic_power;
+  objective minimize DynamicPower;
 }
 ```
 
@@ -600,7 +600,7 @@ Library entities intended for synthesis **MUST** declare a **`char {}`** manifes
 
 ```cas
 char {
-  benches { ac_openloop; noise_in; step; }          // characterization benches
+  benches { SEAmplifierACBench; NoiseIn; Step; }          // characterization benches
   pvt     { TT@27C, SS@-40C, FF@125C; }
   sweep   { CL:[0.5pF..5pF]; VDD:[1.0V..1.3V]; gmId:[10..22]V^-1; }
   fit     { GainBandwidth~GP("fit/gbw.gp"); PassbandGain~PWL("fit/gain.pwl");

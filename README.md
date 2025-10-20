@@ -9,7 +9,7 @@
 
 **cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
 
-It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (classes, interfaces, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
+It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (modules, traits, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
 
 ## Language Specification
@@ -98,7 +98,7 @@ module AmpAuto implements SingleEndedAmplifier {
     from lib.ota.*;                // Search space
     fill Core, Comp;               // Decide these slots
     prefer inputPolarity = NMOS;
-    objective minimize power + 0.2*area;
+    objective minimize Power + 0.2*Area;
   }
 }
 ```
@@ -122,7 +122,7 @@ module AmpGuided implements SingleEndedAmplifier {
     allow Core in { TeleCascodeNMOS, FoldedCascodePMOS };
     prefer Comp in { MillerRC, MillerRz };
     forbid GainBoosting;
-    objective minimize power;
+    objective minimize Power;
   }
 }
 ```
@@ -148,7 +148,7 @@ module OTA5T implements SingleEndedAmplifier {
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
-  bench { AC_OpenLoop; UnityUGF; Step; }
+  bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
 
@@ -193,7 +193,7 @@ module SALatch implements Comparator {
 
   use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
 
-  spec { decision_time(phi@posedge, DeltaVin=5mV) <= 300ps; offset <= 2mV; kickback_in <= 30mV; power <= 1mW; }
+  spec { DecisionTime(phi@posedge, DeltaVin=5mV) <= 300ps; Offset <= 2mV; Kickback <= 30mV; Power <= 1mW; }
   bench { LatchDecision; OffsetMC; Kickback; }
   phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 }
@@ -230,7 +230,7 @@ module SenseChainAuto {
     from lib.sense.*, lib.filters.*, lib.buffers.*;
     fill FrontEnd, Filter, VGA, Driver;
     prefer FrontEnd in { InverterTIA, OTA_TIA };
-    objective minimize power;
+    objective minimize Power;
   }
 
   bench { ChainAC; ChainNoise; Step; }
@@ -252,7 +252,7 @@ module SenseChainAuto {
 
 3. **Feasibility Guards** (fast checks)
 
-   * Headroom stacks, ICMR, GBW vs. power, PM (two-stage guards), device/legal limits.
+   * Headroom stacks, ICMR, GainBandwidth vs. Power, PhaseMargin (two-stage guards), device/legal limits.
 
 4. **Topology Selection (if `synth {}` present)**
 
@@ -293,10 +293,10 @@ module SenseChainAuto {
     {"id":"cl","type":"Cap","ports":{"p":"vout","n":"GND"}, "params":{"C":1e-12}}
   ],
   "constraints":{
-    "numeric":["GBW>=5.0e7","PM>=60deg","Gain_dB>=55","Power<=2e-3",
+    "numeric":["GainBandwidth>=5.0e7","PhaseMargin>=60deg","PassbandGain>=55","Power<=2e-3",
                "OutputSwing(vout) in [0.2,1.6]"]
   },
-  "benches":["AC_OpenLoop","UnityUGF","Step"],
+  "benches":["SEAmplifierACBench","UnityUGF","Step"],
   "provenance":{"source":"examples/OTA5T.cas"}
 }
 ```
@@ -395,7 +395,7 @@ cd editors/vscode && ./install.sh
 cd editors\vscode; .\install.ps1
 ```
 
-Highlights keywords (`class`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<-`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<-`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
 ---
 
