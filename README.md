@@ -132,7 +132,7 @@ module AmpGuided implements SingleEndedAmplifier {
 Here we manually structurally define the amplifier using the primitives available in Cascode's standard library.
 
 ```java
-package analog.ota; import lib.std.synth.*;
+package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
