@@ -447,8 +447,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, mirror,
       "type": "DiffPair",
       "traits": ["AmplifierStage"],
       "ports": {"IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "NSRC"},
-      "params": {"hasTail": false},
-      "params": {"L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
+      "params": {"hasTail": false, "L": {"value": 1.8e-7, "unit": "m"}, "W": {"value": 2.0e-6, "unit": "m"}}
     },
     {
       "id": "tailBias",
