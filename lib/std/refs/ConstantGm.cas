@@ -8,18 +8,18 @@ motif ConstantGm implements CurrentReference {
   ports [ OUT: electrical ]
 
   use {
-    // Two mirrors, chained by the within-trait connector (SENSE -> TAP).
+    // Two mirrors, chained by the within-trait connector (SENSE -> TAP[0]).
     cm_p = new CurrentMirror { p=PMOS };
     cm_n = new CurrentMirror { p=NMOS };
     attach cm_n to cm_p;
 
     // Degeneration resistor placement depends on polarity parameter.
     if (p == PMOS) {
-      RB_P = R(RB) { P -> cm_p.TAP; N -> VDD; };
-      connect cm_n.TAP -> OUT;
+      RB_P = R(RB) { P -> cm_p.TAP[0]; N -> VDD; };
+      connect cm_n.TAP[0] -> OUT;
     } else {
-      RB_N = R(RB) { P -> cm_n.TAP; N -> GND; };
-      connect cm_p.TAP -> OUT;
+      RB_N = R(RB) { P -> cm_n.TAP[0]; N -> GND; };
+      connect cm_p.TAP[0] -> OUT;
     }
   }
 }

@@ -1,20 +1,28 @@
 package lib.std.prim;
 
-// General current mirror motif with explicit SENSE/TAP ports.
+// General current mirror motif with explicit SENSE port and per-tap outputs.
 // Rails are inferred from polarity unless an override is provided.
 motif CurrentMirror implements CurrentMirrorLike {
   params { p: polarity = PMOS; taps: int = 1; ratio: int = 1; }
-  // Mandatory ports.
-  ports [ SENSE: electrical, TAP: electrical ]
-  // Optional override port: if bound, this rail is used; otherwise, the
-  // compiler infers RAIL = VDD for PMOS and RAIL = VSS for NMOS.
-  ports { RAIL: supply; }
+  // Mandatory port.
+  ports [ SENSE: electrical ]
+  // Optional override port and per-tap outputs.
+  ports {
+    RAIL: supply;
+    for i in [0:taps] { TAP[i]: electrical; }
+  }
 
   use {
-    // Diode-connected device at SENSE.
-    M_D = new MOS(p) { drain -> SENSE; gate -> SENSE; source -> RAIL; };
+    // Diode-connected sense device (unity ratio).
+    M_SENSE = new MOS(p) { drain -> SENSE; gate -> SENSE; source -> RAIL; };
 
-    // Mirrored device at TAP.
-    M_M = new MOS(p) { drain -> TAP; gate -> SENSE; source -> RAIL; };
+    // Output devices: one per requested tap, each scaled by `ratio`.
+    repeat tap in [0:taps] {
+      M_TAP[tap] = new MOS(p) { mult = ratio } {
+        drain -> TAP[tap];
+        gate -> SENSE;
+        source -> RAIL;
+      };
+    }
   }
 }

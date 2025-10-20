@@ -1,4 +1,4 @@
-# **Chapter 2: Core Concepts**
+# Chapter 2: Core Concepts
 
 > This chapter defines the **semantic scaffolding** of *cascode*: the building blocks, how they relate, and the invariants the compiler and tools rely upon. Syntax is shown informally; the formal grammar appears in Chapter 11.
 > Normative keywords **MUST**, **MUST NOT**, **SHOULD**, **MAY** follow [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
@@ -20,7 +20,7 @@ The cascode type system distinguishes three fundamental entities. A **module** r
 
 This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
 
-**Normative**
+#### Normative
 
 * An entity implementing a trait **MUST** expose a **superset** of the trait’s ports/bundles and satisfy its declared **contracts** (2.10).
 * A module is **instantiable** only when all required ports are bound and all declared `slot`s are **filled** (structurally or via `synth`).
@@ -36,6 +36,7 @@ Trait extension (normative)
 * Use `extend` to define an interface trait from a spec-only trait:
   `trait SingleEndedAmplifier extend Amplifier { … }`.
 * Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
+* Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait’s port family evaluated at the same parameter values.
 
 ---
 
@@ -49,11 +50,11 @@ Trait extension (normative)
 * `bias` - bias/control nets (typed for headroom/legality checks).
 * `rf`, `clk` - specialized kinds with additional contracts (impedance, phase/timing).
 
-**Roles**
+#### Roles
 
 Ports and nets may carry semantic **roles** such as `stage1_out`, `ota_out`, or `cmfb_ctrl` that provide semantic context beyond basic electrical connectivity. These role annotations guide automated **pattern recognition**, enable targeted **contract** enforcement, and inform **benchmark generation** strategies.
 
-**Normative**
+#### Normative
 
 * Port-kind **compatibility** is enforced at connect time (e.g., `bias→gate` inside motifs is allowed; `bias→out` is forbidden unless a motif explicitly exposes this).
 * Each `supply`/`ground` port **MUST** connect to exactly one global net per instantiation context.
@@ -83,7 +84,7 @@ The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bun
 
 Bundles serve two primary purposes: they **reduce verbosity** while making **binding explicit** without ambiguity. These constructs are valid within module ports, motif ports, `slot` trait definitions, and `bind` statements.
 
-**Normative**
+#### Normative
 
 * Binding a bundle **MUST** map all required fields (compile-time error if any are missing).
 * Bundle field kinds **MUST** match (structural subtyping is **not** implied).
@@ -98,6 +99,21 @@ Bundles serve two primary purposes: they **reduce verbosity** while making **bin
 param CL = 2pF;              // module parameter
 params { enabled: bool=true; m:int=1; }          // motif parameters
 ```
+
+### 2.5.1 Native Polarity Type and Bulk Policy
+
+In addition to `bool`, `int`, `real`, and enums, the language defines a primitive `polarity` type with literals `NMOS` and `PMOS`. This enables concise, type‑checked parameterization of device polarity and supports the `new MOS(polarity)` constructor sugar in §2.8.1.
+
+Bulk policy: When a primitive MOS is instantiated without an explicit bulk binding, the compiler applies a target‑tech policy (default: tie NMOS bulk to ground domain and PMOS bulk to supply domain in benches; technology adapters may override). This allows reusable motifs (like DiffPair) to avoid hard‑coding rails and remain stackable (e.g., Gilbert cells) while still producing legal SPICE.
+
+Example: "BASE" semantics
+
+Some motifs provide a stable external name for a configuration‑dependent internal junction. For the differential pair above, `BASE` is defined as:
+
+- when `hasTail==false`: the common source of the pair;
+- when `hasTail==true`: the bottom of the internal tail device.
+
+The intermediate node between the pair and the tail is internal when the tail is present. This keeps the interface small while remaining composable.
 
 ---
 
@@ -114,11 +130,11 @@ spec { GainBandwidth>=100MHz; PassbandGain>=70dB; PhaseMargin>=60deg; Power<=1mW
 
 ## 2.7 Instances and Connections (Explicit Binding)
 
-**Instances**
+#### Instances
 
 The `use {}` construct creates motif and module instances through `new` expressions with **inline field binding**. The language mandates that all cross-instance connections be explicit, accomplished through `bind`, `connect`, or `cascade` statements.
 
-**Explicit binding (mandatory)**
+#### Explicit binding (mandatory)
 
 The language requires that **all** `slot` bindings and cross-instance connections be explicitly specified. **Auto-binding by name or role is strictly prohibited** to ensure design intent remains unambiguous.
 
@@ -129,7 +145,7 @@ connect A.OUT -> B.IN;                                 // explicit net connectio
 
 Style convention (normative for repo sources): binds, connect statements, and attach mappings are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but the standard library and documentation adhere to `->`.
 
-**Attach and connectors (unified)**
+#### Attach and connectors (unified)
 
 Connectors are declared on interface traits and define how two instances that implement compatible traits wire together. There are two forms:
 
@@ -146,9 +162,13 @@ trait AmplifierStage extend Amplifier {
 
 ```cas
 trait CurrentMirrorLike {
-  ports [ SENSE: electrical, TAP: electrical ]
-  connector to DiffOutput { SENSE -> OUT.N; TAP -> OUT.P }
+  params { taps: int = 1; }
+  ports [ SENSE: electrical ]
+  ports { for i in [0:taps] { TAP[i]: electrical; } }
+  connector to DiffOutput { SENSE -> OUT.N; TAP[0] -> OUT.P }
 }
+
+`TAP[0]` is the primary tap exposed by connectors. Additional taps (`TAP[1]`, `TAP[2]`, …) are optional and are wired explicitly by the author when needed.
 ```
 
 Semantics (normative):
@@ -159,11 +179,11 @@ Semantics (normative):
 - `attach A to B to C` chains pairwise: (A,B), then (B,C). There is no transitive propagation.
 - Connectors expand to explicit `connect` statements; they never create new nets.
 
-**Alias**
+#### Alias
 
 The `alias` construct may expose internal nets as top-level ports to improve design clarity, but aliases do not introduce auto-binding behavior.
 
-**Normative**
+#### Normative
 
 * If no connector applies for a pair, `attach` without a block **MUST** be rejected (use explicit `attach { … }` or add a connector).
 * Binding a bundle **MUST** bind all fields; partial binding is an error.
@@ -178,7 +198,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
   ```cas
   // Connector-driven attach (no explicit mapping needed):
-  cm = new CurrentMirror { p=PMOS; taps=1 };
+  cm = new CurrentMirror { p=PMOS; taps=1; };
   attach cm to dp;
 
   // Explicit mapping remains available:
@@ -186,49 +206,6 @@ The `alias` construct may expose internal nets as top-level ports to improve des
   ```
 
 - `pair` - instantiate symmetric left/right branches with `.l`/`.r` handles. (Omitted here; see Grammar.)
-
-### 2.8.3 Attach Name Resolution
-
-Within an `attach X to target { … }` block, identifiers on the left‑hand side of bindings refer to the attached motif `X` and must name its ports. Identifiers on the right‑hand side resolve in two steps: first against the public ports of `target` (including bundle fields like `OUT.N`/`OUT.P`), then against names in the surrounding module scope (nets and ports). If a right‑hand identifier would resolve in both places, the reference must be qualified (for example, `target.OUT.N`). Names that cannot be resolved after this search are errors.
-
-Example (attaching a current mirror to a differential pair):
-
-```cas
-cm = new CurrentMirror { p=PMOS; taps=1; };
-dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN.P -> VINP; IN.N -> VINN; BASE -> GND; BIAS -> VTAIL; };
-attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
-```
-
-Here `SENSE` and `TAP` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP -> dp.OUT.P` to disambiguate.
-
-#### 2.8.a Scoped Orientation on Pair‑Like Targets
-
-Orientation sugar is permitted only when the attachment is unambiguously “pair‑like.” Two cases qualify:
-
-1) Bundle match. Both the attached motif and the target expose a common pair bundle (for example, `Diff { P, N }`). Writing a single bundle binding implies field‑wise mapping:
-
-```cas
-// Both sides declare Diff bundles.
-motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
-attach CascodePair to dp { SOURCE -> OUT }   // expands to SOURCE.P->OUT.P; SOURCE.N->OUT.N
-```
-
-Reversed orientation in this case requires explicit field mapping (for example, `IN.P -> OUT.N; IN.N -> OUT.P`).
-
-2) Name match. The attached motif and the target share identical port names and compatible kinds for all required connections. To avoid surprises, orientation‑by‑name is opt‑in using an explicit directive:
-
-```cas
-motif Probe { ports [ OUT: Diff ] }
-attach Probe to dp by name;   // binds OUT.P->dp.OUT.P; OUT.N->dp.OUT.N
-```
-
-Outside these cases, users MUST bind complementary ports explicitly. For example, attaching a `CurrentMirror` (ports `SENSE`, `TAP`) to a `DiffPair` (port `OUT: Diff`) requires explicit mapping:
-
-```cas
-attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P }
-```
-
-Name resolution inside `attach` follows §2.8.3 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).
 
 ### 2.8.1 Param‑Variants (sugar to avoid nested conditionals)
 
@@ -275,34 +252,81 @@ Normative
 - Conditional ports are compile‑time; call sites MUST bind all ports that exist after evaluation; names not declared MUST NOT be referenced.
 - CasIR contains only the realized port set.
 
-### 2.5.1 Native Polarity Type and Bulk Policy
+### 2.8.3 Repeat Blocks and Indexed Ports
 
-In addition to `bool`, `int`, `real`, and enums, the language defines a primitive `polarity` type with literals `NMOS` and `PMOS`. This enables concise, type‑checked parameterization of device polarity and supports the `new MOS(polarity)` constructor sugar in §2.8.1.
+Structural sugar includes two loop forms that elaborate to explicit instances and ports:
 
-Bulk policy: When a primitive MOS is instantiated without an explicit bulk binding, the compiler applies a target‑tech policy (default: tie NMOS bulk to ground domain and PMOS bulk to supply domain in benches; technology adapters may override). This allows reusable motifs (like DiffPair) to avoid hard‑coding rails and remain stackable (e.g., Gilbert cells) while still producing legal SPICE.
+- `for i in [start:end] { port[i]: … }` inside `ports { … }` declares a family of ports indexed from `start` to `end-1`. Indices must be compile-time integers.
+- `repeat idx in [start:end] { … }` inside `use { … }` clones the enclosed block for each index in the same range. The desugared instances are named by appending `_[idx]`.
 
-Example: “BASE” semantics
+Example (multi-tap current mirror excerpt):
 
-Some motifs provide a stable external name for a configuration‑dependent internal junction. For the differential pair above, `BASE` is defined as:
+```cas
+ports {
+  RAIL: supply;
+  for i in [0:taps] { TAP[i]: electrical; }
+}
 
-- when `hasTail==false`: the common source of the pair;
-- when `hasTail==true`: the bottom of the internal tail device.
+use {
+  M_SENSE = new MOS(p) { drain -> SENSE; gate -> SENSE; source -> RAIL; };
+  repeat tap in [0:taps] {
+    M_TAP[tap] = new MOS(p) { mult = ratio } { drain -> TAP[tap]; gate -> SENSE; source -> RAIL; };
+  }
+}
+```
 
-The intermediate node between the pair and the tail is internal when the tail is present. This keeps the interface small while remaining composable.
+Normative
 
-* `ActiveLoad` - **general** active load motif with polarity parameter (wraps primitive transistor with semantic interface).
+- Loop bounds MUST evaluate to integers during elaboration; negative or zero-length intervals are rejected.
+- Port families declared with `for` create deterministic names `name[index]`. The implementing entity MUST bind every generated port.
+- `repeat` clones emit distinct instances; statements inside the block behave as if written explicitly for each index after substituting the loop variable.
+- Parameters that drive loop bounds (such as `taps` on `CurrentMirror`) MUST be ≥1. The total drive strength of a mirror is the per-tap `ratio` multiplied by the number of generated taps; additional taps beyond index `0` require explicit wiring.
 
-  ```cas
-  load = new ActiveLoad(polarity=PMOS) {
-    node -> vout;             // node being loaded
-    bias -> vb1;              // gate bias voltage
-    vref -> VDD;              // reference rail (VDD for PMOS, GND for NMOS)
-  };
-  ```
+### 2.8.4 Attach Name Resolution
 
-* `fb R(...)`, `fb C(...)` - feedback creators (expand to `Res`/`Cap` instances with direction metadata). See 2.14 for passive kinds/scope.
+Within an `attach X to target { … }` block, identifiers on the left‑hand side of bindings refer to the attached motif `X` and must name its ports. Identifiers on the right‑hand side resolve in two steps: first against the public ports of `target` (including bundle fields like `OUT.N`/`OUT.P`), then against names in the surrounding module scope (nets and ports). If a right‑hand identifier would resolve in both places, the reference must be qualified (for example, `target.OUT.N`). Names that cannot be resolved after this search are errors.
 
-**Acyclicity**
+Example (attaching a current mirror to a differential pair):
+
+```cas
+cm = new CurrentMirror { p=PMOS; taps=2; ratio=2; };
+dp = new DiffPair     { p=NMOS;  hasTail=true; } { IN.P -> VINP; IN.N -> VINN; BASE -> GND; BIAS -> VTAIL; };
+attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
+connect cm.TAP[1] -> cascodeBias;
+```
+
+Here `SENSE` and `TAP[0]` are ports of `cm`, while `OUT.N` and `OUT.P` resolve to `dp.OUT.N` and `dp.OUT.P` by the target‑first rule. Additional taps appear as `TAP[1]`, `TAP[2]`, … and must be wired explicitly. If the surrounding scope also declares `OUT.P`, the binding must be written as `TAP[0] -> dp.OUT.P` to disambiguate.
+
+#### 2.8.a Scoped Orientation on Pair‑Like Targets
+
+Orientation sugar is permitted only when the attachment is unambiguously "pair‑like." Two cases qualify:
+
+1) Bundle match. Both the attached motif and the target expose a common pair bundle (for example, `Diff { P, N }`). Writing a single bundle binding implies field‑wise mapping:
+
+```cas
+// Both sides declare Diff bundles.
+motif CascodePair { ports [ DRAIN: Diff, SOURCE: Diff, BIAS: bias ] }
+attach CascodePair to dp { SOURCE -> OUT }   // expands to SOURCE.P->OUT.P; SOURCE.N->OUT.N
+```
+
+Reversed orientation in this case requires explicit field mapping (for example, `IN.P -> OUT.N; IN.N -> OUT.P`).
+
+2) Name match. The attached motif and the target share identical port names and compatible kinds for all required connections. To avoid surprises, orientation‑by‑name is opt‑in using an explicit directive:
+
+```cas
+motif Probe { ports [ OUT: Diff ] }
+attach Probe to dp by name;   // binds OUT.P->dp.OUT.P; OUT.N->dp.OUT.N
+```
+
+Outside these cases, users MUST bind complementary ports explicitly. For example, attaching a `CurrentMirror` (ports `SENSE`, `TAP[0]`) to a `DiffPair` (port `OUT: Diff`) requires explicit mapping:
+
+```cas
+attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P }
+```
+
+Name resolution inside `attach` follows §2.8.4 (left‑hand identifiers refer to the attached motif; right‑hand identifiers resolve to the target first, then the surrounding scope, with qualification required on ambiguity).
+
+#### Acyclicity
 
 Structural nets maintain an **acyclic** topology unless a motif explicitly permits legal loops (such as cross-coupled latches). The compiler enforces acyclicity constraints during elaboration.
 
@@ -320,7 +344,7 @@ Core.comp { style=MillerRC | MillerRz | Ahuja | None | Auto;
 
 The compiler **realizes** compensation **internally** within the stage through dedicated devices or by selecting compensated variants from the library. From an external perspective, compensation manifests solely as a *property* of the stage.
 
-**Normative**
+#### Normative
 
 * If `Core.comp None;` is set, no compensation circuitry may be realized.
 * Supported styles and parameter semantics **MUST** be documented by the chosen stage’s library entry.
@@ -333,7 +357,7 @@ The compiler **realizes** compensation **internally** within the stage through d
 
 **Patterns** define recognizers and binders for canonical subgraphs (such as 5T current mirrors), enabling automated ingestion from SPICE netlists and canonicalization into structured motifs.
 
-**Normative**
+#### Normative
 
 * Tools **MUST** enforce `req` at instantiation given `env{}`; violations are compile-time errors.
 * `ens` are used for feasibility/search; violations found during verification **MUST** be reported.
@@ -376,7 +400,7 @@ bench SEAmplifierACBench {
 
 Bench inference uses the active interface trait(s) on the design or candidate motif to determine which benches to run for each metric that appears in `spec {}`. A single bench may provide multiple metrics. Authors may override a specific mapping where supported by tooling.
 
-**Harness semantics (normative)**
+#### Harness semantics (normative)
 
 * `env` **MUST** synthesize a **bench harness**:
 
@@ -385,7 +409,7 @@ Bench inference uses the active interface trait(s) on the design or candidate mo
   * `vdd`, `icmr`, temperature, corners → bench operating conditions.
 * Harness elements **do not** enter layout/LVS; they are bench-only by definition.
 
-**Spec↔Env merge (normative)**
+#### Spec↔Env merge (normative)
 
 When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically injects `spec.icmr ⊇ env.icmr`. When both specifications exist, the constraint `spec.icmr ⊇ env.icmr` must hold.
 
@@ -430,7 +454,7 @@ A **`slot`** is a typed placeholder to be filled either by **synthesis** or by a
 slot Core: AmplifierStage bind { in -> IN; out -> OUT; }    // binding is mandatory
 ```
 
-**Filling a slot (choose one, normative)**
+#### Filling a slot (choose one, normative)
 
 Slots must be filled through one of two mechanisms:
 
@@ -456,7 +480,7 @@ use {
 }
 ```
 
-**Normative**
+#### Normative
 
 * Declaring a `slot` without a corresponding **synthesis fill** or **structural fill** is a compile error.
 * `allow/forbid` are hard constraints; `prefer` is a soft objective.
@@ -550,7 +574,7 @@ L1 = new Ind(A, B)     { kind=Spiral | MIMStack | Metal; value=2nH; }
 
 The preferred approach for expressing loads and sources utilizes **`env{}`** declarations, which the toolchain materializes as **harness** elements during bench generation (as detailed in section 2.11). While minimal `bench.fixtures` may accommodate special measurement hooks such as current probe shunts, they must not be used for loads or sources that fall under `env{}` coverage.
 
-**Sugar constraints (normative)**
+#### Sugar constraints (normative)
 
 * `C(a,b,val)`, `R(a,b,val)`, `L(a,b,val)` **sugar** is permitted:
 
@@ -564,7 +588,7 @@ The preferred approach for expressing loads and sources utilizes **`env{}`** dec
 
 For schematic-style structural design, cascode provides **primitive transistor types** as first-class constructs alongside passive devices. These primitives enable direct topological specification while maintaining **process-agnostic** representation.
 
-**Primitive transistor syntax:**
+#### Primitive transistor syntax
 
 ```cas
 M1 = new NMOS() { 
@@ -576,37 +600,37 @@ M2 = new PMOS() {
 };
 ```
 
-**Port structure:**
+#### Port structure
 
 * `NMOS`: `{ gate, drain, source, bulk: electrical }`
 * `PMOS`: `{ gate, drain, source, bulk: electrical }`
 
-**Parameters:**
+#### Parameters
 
 * `W` (width): **derived by synthesis from specifications** - never hardcoded in ADL
 * `L` (length): **derived by synthesis from specifications** - never hardcoded in ADL
-* `m` (multiplier): optional, default=1
+* `mult` (logical multiplicity / finger count): optional, default=1
 
-**Process-agnostic semantics (normative):**
+#### Process-agnostic semantics (normative)
 
 Primitive transistors are **topology-only constructs** in cascode source. They emit to CasIR as motif instances with type `"NMOS"` or `"PMOS"`, carrying port connectivity but **no dimensional parameters until synthesis**.
 
 The synthesis engine:
 1. Consults the active **PDK database** to access gm/Id tables and technology rules
-2. Derives W, L, and m from `spec{}` constraints (gain, bandwidth, power, etc.)
+2. Derives W, L, and `mult` from `spec{}` constraints (gain, bandwidth, power, etc.)
 3. Applies PDK-specific constraints (Lmin, discrete widths, finger limits)
 4. Emits sized parameters to CasIR at EL (Electrical Level)
 
 At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in CasIR as `impl.pdk_device` (e.g., `nfet_01v8`). SPICE emission uses this selected device directly.
 
-**Normative:**
+#### Normative
 
 * Primitive transistors **MUST** have all four ports explicitly connected.
 * Dimensional parameters (W, L) **MUST NOT** be specified in ADL; they are synthesis outputs.
 * At EL, primitive transistors **MUST** carry `impl.pdk_device` in CasIR; earlier phases remain PDK‑agnostic.
 * Primitives appearing in entities marked `Synthesizable` may be characterized with `char{}` manifests that are **process-qualified** (e.g., `char@sky130`).
 
-**Use cases:**
+#### Use cases
 
 * **Hand-crafted topologies**: CS stages, differential pairs, mirrors where explicit transistor-level control is desired
 * **Motif internals**: Building blocks like `ActiveLoad`, `CurrentMirror`, and tail bias mirrors wrap primitives with semantic interfaces
@@ -630,7 +654,7 @@ char {
 }
 ```
 
-**Normative**
+#### Normative
 
 * Synthesis **MUST** consult fits for feasibility/ranking before SPICE.
 * Final acceptance **MUST** rely on SPICE; fit error bounds **MUST** be surfaced.
@@ -702,7 +726,7 @@ motif WideSwingPMOSMirror implements CurrentMirrorLike {
 }
 ```
 
-**Normative**
+#### Normative
 
 * `map{}` **MUST** bind subckt pins to *cascode* ports bijectively.
 * Wrapped motifs are **Synthesizable** only when accompanied by `char{}`.
@@ -717,7 +741,7 @@ motif WideSwingPMOSMirror implements CurrentMirrorLike {
 clk phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 ```
 
-**Normative**
+#### Normative
 
 * Clocked motifs (e.g., `StrongArmLatch`) **MUST** expose a `clk` and document timing contracts that benches rely on.
 

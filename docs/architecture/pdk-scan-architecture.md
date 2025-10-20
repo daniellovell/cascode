@@ -33,7 +33,7 @@ normalization:
   vdd_token_regex: string (regex)
     - Pattern stripped from names for base form, e.g. _01v8
   vdd_extract_regex: string (regex with groups n,f)
-    - Converts “1.8V” → “01v8” for comparing to device VDD tags
+    - Converts "1.8V" → "01v8" for comparing to device VDD tags
 
 behavior:
   min_accept_score: int
@@ -47,7 +47,7 @@ behavior:
 
 classify:
   infra_tokens: list of strings
-    - If present in a device name, the device is tagged “infra”
+    - If present in a device name, the device is tagged "infra"
   classes: map<className → ClassPattern>
   subclasses: map<className → map<subclassName → ClassPattern>>
     - Subclass patterns are evaluated in file order; if more than one matches, the first wins.

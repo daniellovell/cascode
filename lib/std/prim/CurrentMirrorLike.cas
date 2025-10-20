@@ -2,15 +2,17 @@ package lib.std.prim;
 
 // Interface trait: current mirror with sense and tap.
 trait CurrentMirrorLike {
-  ports [ SENSE: electrical, TAP: electrical ]
+  params { taps: int = 1; }
+  ports [ SENSE: electrical ]
+  ports { for i in [0:taps] { TAP[i]: electrical; } }
 
   // Attach connectors (unified connector model):
-  // - Within-trait chaining (mirror to mirror): SENSE -> TAP
-  connector { SENSE -> TAP; }
+  // - Within-trait chaining (mirror to mirror) defaults to the primary tap.
+  connector { SENSE -> TAP[0]; }
 
-  // - Mirror onto a DiffOutput (e.g., DiffPair OUT):
-  connector to DiffOutput { SENSE -> OUT.N; TAP -> OUT.P; }
+  // - Mirror onto a DiffOutput (e.g., DiffPair OUT) uses the primary tap.
+  connector to DiffOutput { SENSE -> OUT.N; TAP[0] -> OUT.P; }
 
-  // - Mirror onto a Cascode-like stage (sense on N, tap on P):
-  connector to CascodeLike { SENSE -> DRAIN.N; TAP -> DRAIN.P; }
+  // - Mirror onto a Cascode-like stage (sense on N, tap on P) also uses the primary tap.
+  connector to CascodeLike { SENSE -> DRAIN.N; TAP[0] -> DRAIN.P; }
 }

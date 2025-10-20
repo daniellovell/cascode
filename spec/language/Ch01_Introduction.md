@@ -1,6 +1,6 @@
 
 
-## **Chapter 1 - Introduction**
+## Chapter 1 - Introduction
 
 ### 1.1 Purpose and Scope
 
@@ -22,13 +22,13 @@ Analog and mixed-signal (A/MS) IP forms the foundation of high-performance syste
 
 ### 1.3 Design Goals and Non-Goals
 
-**Goals**
+#### Goals
 
 The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
 
 Type safety extends to physical dimensions through **typed units** (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates **synthesis as a native construct** via `slot` and `synth` directives that automatically choose, size, and verify implementations. **Interoperability** with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, **traceability** ensures that CasIR preserves complete provenance, constraints, and benchmark intents.
 
-**Non-Goals**
+#### Non-Goals
 
 Several capabilities remain explicitly outside the language scope. cascode does not replace SPICE device models or analog simulation semantics, instead leveraging these established foundations. The synthesis engine may employ heuristics and optimization modulo theories (OMT) without guaranteeing unique optimality of chosen topologies. Finally, the language avoids mandating specific PDK formats, simulators, or gm/Id table structures, maintaining flexibility across tool ecosystems.
 
@@ -50,7 +50,7 @@ In summary:
 
 All examples follow the repository style convention for connectivity: binds and connects are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but new code should use `->` consistently.
 
-**Spec-only definition of an amplifier (engine picks topology)**
+#### Spec-only definition of an amplifier (engine picks topology)
 
 ```java
 package analog.amp; import lib.ota.*;
@@ -91,7 +91,7 @@ module AmpAuto implements SingleEndedAmplifier {
 }
 ```
 
-**Structural definition of a 5T OTA**
+#### Structural definition of a 5T OTA
 
 ```java
 package analog.ota; import lib.motifs.*;
@@ -110,7 +110,7 @@ module OTA5T implements SingleEndedAmplifier {
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
+    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
     OUT -> dp.OUT.P;  // Single‑ended pickoff for illustration.
   }
 
@@ -119,7 +119,7 @@ module OTA5T implements SingleEndedAmplifier {
 
 ```
 
-**Structural single-ended CS amplifier with primitive transistor**
+#### Structural single-ended CS amplifier with primitive transistor
 
 ```java
 package analog.ota; import lib.motifs.*;
@@ -148,7 +148,7 @@ module CommonSourceAmp implements SingleEndedAmplifier {
 
 ```
 
-**Two stages in cascade with slots**
+#### Two stages in cascade with slots
 
 Option 1: Synthesis fills both slots
 
@@ -193,7 +193,7 @@ module TwoStageAmp_Manual implements SingleEndedAmplifier {
 
 ```
 
-**SPICE wrap (wide-swing NMOS mirror motif)**
+#### SPICE wrap (wide-swing NMOS mirror motif)
 
 ```java
 motif WideSwingNMOSMirror implements CurrentMirror {

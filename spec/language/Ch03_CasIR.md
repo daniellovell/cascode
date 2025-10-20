@@ -79,7 +79,7 @@ Bundles are optional groupings of related nets for convenience, most commonly di
   { "id": "IN", "type": "Diff", "fields": {"P": "VINP", "N": "VINN"} }
 ```
 
-**Rules**
+#### Rules
 
 Bundles do not create edges directly; instead, pins address bundle fields via dotted paths such as IN.P and IN.N, which resolve to the underlying nets. At ML and EL elaboration levels, all referenced bundle fields must resolve to concrete nets.
 
@@ -107,7 +107,7 @@ Every design entity is a motif instance with type, ports, and params. Ports hold
 }
 ```
 
-**Primitive transistors in CasIR:**
+#### Primitive transistors in CasIR
 
 Primitive `NMOS` and `PMOS` instances appear as ordinary motifs with type reflecting the primitive name. At HL and ML elaboration, dimensional parameters remain symbolic; at EL they are fully sized.
 
@@ -124,7 +124,7 @@ Primitive `NMOS` and `PMOS` instances appear as ordinary motifs with type reflec
   "params": {
     "W": {"symbolic": "Auto"},
     "L": {"symbolic": "Auto"},
-    "m": {"value": 1}
+    "mult": {"value": 1}
   },
   "impl": { "primitive": true, "pdk": "sky130" }
 }
@@ -145,7 +145,7 @@ At EL (after synthesis):
   "params": {
     "W": {"value": 1.2e-5, "unit": "m"},
     "L": {"value": 1.8e-7, "unit": "m"},
-    "m": {"value": 4}
+    "mult": {"value": 4}
   },
   "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
 }
@@ -155,12 +155,13 @@ At EL, the selected PDK device is recorded under `impl.pdk_device` (e.g., `nfet_
 
 Pin Path Grammar
 
-- pinPath = ident ( "." ident )*
+- pinPath = ident ( "." ident | "[" int "]" )*
 - ident = [A-Za-z_][A-Za-z0-9_]*
+- int = [0-9]+
 
-**Guidance**
+#### Guidance
 
-External connectivity should prefer stable, named sub-pins over numeric indices (for example, tap.OUT rather than tap[1]) to improve diff stability and provenance tracking. Indices should be used only when the motif schema fundamentally requires ordered pins, at which point index positions become part of the schema contract.
+External connectivity should prefer stable, named sub-pins over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical pin path; bracket segments are not array lookups but syntactic components of the path.
 
 ### 3.3.4 Mirrors and Other Structured Pins
 
@@ -170,9 +171,9 @@ All external connectivity is under ports. Additional per-pin metadata such as mi
 {
   "id": "mirP",
   "type": "CurrentMirror",
-  "params": {"polarity": "PMOS"},
-  "ports": {"sense": "N1", "vref": "VDD", "tap.OUT": "OUT", "tap.N2": "N2"},
-  "pins_meta": {"tap.OUT": {"ratio": 2}, "tap.N2": {"ratio": 1}}
+  "params": {"polarity": "PMOS", "taps": 2, "ratio": 3},
+  "ports": {"SENSE": "N1", "TAP[0]": "OUT", "TAP[1]": "N2", "RAIL": "VDD"},
+  "pins_meta": {"TAP[0]": {"ratio": 3}, "TAP[1]": {"ratio": 1}}
 }
 ```
 
@@ -194,10 +195,10 @@ Example (after elaboration)
 
 ```json
   { "id": "dp",  "type": "DiffPair",      "ports": { "IN.P": "VINP", "IN.N": "VINN", "OUT.N": "N1", "OUT.P": "N2", "BASE": "GND", "BIAS": "VTAIL" } },
-  { "id": "cm",  "type": "CurrentMirror",  "ports": { "SENSE": "N1",   "TAP": "N2",    "RAIL": "VDD" } }
+  { "id": "cm",  "type": "CurrentMirror",  "ports": { "SENSE": "N1",   "TAP[0]": "N2",    "RAIL": "VDD" } }
 ```
 
-Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE->dp.OUT.N` and `TAP->dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
+Here a `CurrentMirrorLike → DiffOutput` connector has expanded `attach cm to dp` into explicit `SENSE->dp.OUT.N` and `TAP[0]->dp.OUT.P` edges. The chain form `attach A to B to C` elaborates pairwise, producing ports for `(A,B)` then `(B,C)`.
 
 ---
 
@@ -240,7 +241,7 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
 }
 ```
 
-**Guidance**
+#### Guidance
 
 Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints and measurement intents carry explicit units, with sizing tools responsible for conversion to internal SI base units.
 
@@ -453,7 +454,7 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, and fee
       "id": "tailBias",
       "type": "CurrentMirror",
       "params": {"polarity": "NMOS", "taps": 1, "ratio": 1},
-      "ports": {"SENSE": "IBIAS", "TAP": "NSRC", "RAIL": "GND"}
+      "ports": {"SENSE": "IBIAS", "TAP[0]": "NSRC", "RAIL": "GND"}
     },
     {
       "id": "pml",
@@ -525,7 +526,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
       "params": {
         "W": {"value": 1.2e-5, "unit": "m"},
         "L": {"value": 1.8e-7, "unit": "m"},
-        "m": {"value": 4}
+        "mult": {"value": 4}
       },
       "impl": { "primitive": true, "pdk_device": "nfet_01v8" }
     },
@@ -562,7 +563,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 }
 ```
 
-**Primitive and Structured Motif Representation**
+#### Primitive and Structured Motif Representation
 
 For language-level semantics of primitives and structured motifs, see
 [Chapter 2 §2.14.5](Ch02_Core_Concepts.md#2145-active-device-primitives-nmos-and-pmos) and

@@ -58,7 +58,7 @@ cascode --help
 - Pre-release (release candidates, nightly tags):
   - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.2.0-rc.1`)
   - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.2.0-rc.1`
-  - Direct download: grab the matching asset from the GitHub release marked “Pre-release”.
+  - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---
 
@@ -144,7 +144,7 @@ module OTA5T implements SingleEndedAmplifier {
     };
 
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE -> OUT.N; TAP -> OUT.P };
+    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
@@ -289,7 +289,7 @@ module SenseChainAuto {
     {"id":"dp","type":"DiffPair",
      "ports":{"IN.P":"vinp","IN.N":"vinn","OUT.N":"nN","OUT.P":"nP","BASE":"GND","BIAS":"vbias_n"}},
     {"id":"cm","type":"CurrentMirror",
-     "ports":{"SENSE":"nN","TAP":"nP"}},
+     "ports":{"SENSE":"nN","TAP[0]":"nP"}},
     {"id":"cl","type":"Cap","ports":{"p":"vout","n":"GND"}, "params":{"C":1e-12}}
   ],
   "constraints":{
