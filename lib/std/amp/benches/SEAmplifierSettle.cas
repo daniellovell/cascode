@@ -1,0 +1,11 @@
+package lib.std.amp.benches;
+
+// RC settling bench for single-ended amplifiers.
+bench SEAmplifierSettle {
+  spectre_template = "SEAmplifierSettle.tpl";
+  metrics [
+    // Concrete metric names resolved by post-processing; template provides waveforms.
+    // Examples: SettleTime_0p1: s, SettleTime_1p0: s
+  ]
+}
+
