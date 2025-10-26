@@ -5,5 +5,13 @@ package lib.std.amp;
 // Interface traits (e.g., SingleEndedAmplifier, FullyDiffAmplifier)
 // refine this trait by adding ports and mapping metrics to benches.
 trait Amplifier {
-  metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; OutputSwing; Power; NoiseIn; }
+  metrics { 
+    GainBandwidth;
+    PassbandGain;
+    PhaseMargin;
+    ICMR;
+    OutputSwing;
+    Power;
+    NoiseIn;
+  }
 }

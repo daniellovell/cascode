@@ -28,10 +28,8 @@ motif DiffPair implements DiffOutput {
       // Internal tail device; BASE is the bottom of the tail.
       M_TAIL = new MOS(p) { drain -> tnode; source -> BASE; gate -> BIAS; };
     } else {
-      // No tail inside; BASE is the pair’s common source.
+      // No tail inside. BASE is the pair's common source.
       connect tnode -> BASE;
     }
   }
-
-  // char { ... }  // to be added when characterized
 }
