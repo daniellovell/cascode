@@ -1,6 +1,6 @@
 package lib.std.prim;
 
 // Interface trait: modules exposing a differential output bundle.
-trait DiffOutput {
+trait DiffPairLike {
   ports [ OUT: Diff ]
 }

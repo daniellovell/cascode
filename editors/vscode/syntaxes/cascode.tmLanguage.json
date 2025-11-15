@@ -275,7 +275,7 @@
       "patterns": [
         {
           "name": "support.type.trait.cascode",
-          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|DiffOutput|CascodeLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|DiffPairLike|CascodePairLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
           "name": "support.type.motif.cascode",

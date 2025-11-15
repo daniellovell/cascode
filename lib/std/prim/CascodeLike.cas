@@ -1,6 +1,0 @@
-package lib.std.prim;
-
-// Interface trait: cascode pair with differential nodes.
-trait CascodeLike {
-  ports [ DRAIN: Diff, SOURCE: Diff ]
-}

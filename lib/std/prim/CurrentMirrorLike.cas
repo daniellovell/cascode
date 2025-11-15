@@ -10,9 +10,9 @@ trait CurrentMirrorLike {
   // - Within-trait chaining (mirror to mirror) defaults to the primary tap.
   connector { SENSE -> TAP[0]; }
 
-  // - Mirror onto a DiffOutput (e.g., DiffPair OUT) uses the primary tap.
-  connector to DiffOutput { SENSE -> OUT.N; TAP[0] -> OUT.P; }
+  // - Mirror onto a DiffPairLike (e.g., DiffPair OUT) uses the primary tap.
+  connector to DiffPairLike { SENSE -> OUT.N; TAP[0] -> OUT.P; }
 
   // - Mirror onto a Cascode-like stage (sense on N, tap on P) also uses the primary tap.
-  connector to CascodeLike { SENSE -> DRAIN.N; TAP[0] -> DRAIN.P; }
+  connector to CascodePairLike { SENSE -> DRAIN.N; TAP[0] -> DRAIN.P; }
 }
