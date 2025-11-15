@@ -16,9 +16,9 @@ include "{{ inc }}"
 VSS (vss 0) vsource dc=0
 VCM (vcm vss) vsource dc={{ vcm }}
 
-// Large-signal pulse for slew measurement (rise/fall times provided upstream)
+// Large-signal pulse for slew measurement (rise/fall times and width provided upstream)
 VIN (vin_src vss) vsource type=pulse val0={{ vcm - 0.5*slew_amp_v }} val1={{ vcm + 0.5*slew_amp_v }} \
-    rise={{ slew_rise_s }} fall={{ slew_fall_s }} period={{ slew_period_s }}
+    rise={{ slew_rise_s }} fall={{ slew_fall_s }} width={{ slew_width_s }} period={{ slew_period_s }}
 
 subckt ideal_balun d c p n
     K0 (d 0 p c) transformer n1=2

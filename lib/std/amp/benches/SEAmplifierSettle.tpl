@@ -17,7 +17,8 @@ VSS (vss 0) vsource dc=0
 VCM (vcm vss) vsource dc={{ vcm }}
 
 // Step source around VCM (amplitude provided upstream, e.g., 1%, 10%, 100%)
-VIN (vin_src vss) vsource type=pulse val0={{ vcm }} val1={{ vcm + step_amp_v }} period={{ step_period_s }}
+VIN (vin_src vss) vsource type=pulse val0={{ vcm }} val1={{ vcm + step_amp_v }} \
+    rise={{ step_rise_s }} fall={{ step_fall_s }} width={{ step_width_s }} delay={{ step_delay_s }} period={{ step_period_s }}
 
 subckt ideal_balun d c p n
     K0 (d 0 p c) transformer n1=2
