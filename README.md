@@ -5,6 +5,8 @@
   <img alt="Cascode Logo" src="spec/logos/cascode_banner_light.png">
 </picture>
 
+![CI](https://github.com/daniellovell/cascode/actions/workflows/dotnet.yml/badge.svg)
+
 *Synthesized analog description language for rapid, portable analog/mixed-signal design*
 
 **cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
