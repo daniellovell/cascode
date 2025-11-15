@@ -1,0 +1,10 @@
+package lib.std.amp.benches;
+
+// Stability bench for fully differential amplifiers (unity-gain non-inverting, loop break on negative leg).
+bench FDAmplifierStability {
+  spectre_template = "FDAmplifierStability.tpl";
+  metrics [
+    PhaseMargin: deg
+  ]
+}
+
