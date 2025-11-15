@@ -1,7 +1,7 @@
 package lib.std.prim;
 
 // Parametric differential pair motif with optional internal tail and polarity.
-motif DiffPair implements DiffOutput {
+motif DiffPair implements DiffPairLike {
   params {
     p: polarity = NMOS;
     hasTail: bool = true;    // when true, include an internal tail device

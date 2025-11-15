@@ -320,7 +320,7 @@ cascode/
 │     │  ├─ DiffPair.cas
 │     │  ├─ CurrentMirror.cas
 │     │  ├─ CascodePair.cas
-│     │  ├─ DiffOutput.cas
+│     │  ├─ DiffPairLike.cas
 │     │  ├─ CascodeLike.cas
 │     │  └─ CurrentMirrorLike.cas
 │     ├─ amp/                  # Amplifier traits and topologies

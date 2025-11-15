@@ -31,7 +31,7 @@ Motifs represent synthesizable circuit topologies and must remain pure structura
 
 #### Library Placement
 
-The standard primitive interface traits used by connectors - such as `DiffOutput`, `CascodeLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
+The standard primitive interface traits used by connectors - such as `DiffPairLike`, `CascodeLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
 
 #### Trait Extension
 
@@ -169,7 +169,7 @@ trait CurrentMirrorLike {
   params { taps: int = 1; }
   ports [ SENSE: electrical ]
   ports { for i in [0:taps] { TAP[i]: electrical; } }
-  connector to DiffOutput { SENSE -> OUT.N; TAP[0] -> OUT.P }
+  connector to DiffPairLike { SENSE -> OUT.N; TAP[0] -> OUT.P }
 }
 
 `TAP[0]` is the primary tap exposed by connectors. Additional taps (`TAP[1]`, `TAP[2]`, …) are optional and are wired explicitly by the author when needed.
