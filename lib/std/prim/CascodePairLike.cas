@@ -3,5 +3,8 @@ package lib.std.prim;
 // Interface trait: cascode pair with differential nodes.
 trait CascodePairLike {
   ports [ DRAIN: Diff, SOURCE: Diff ]
+
+  // Within-trait connector: stack cascodes (upper DRAIN to lower SOURCE).
+  connector { DRAIN -> SOURCE; }
 }
 

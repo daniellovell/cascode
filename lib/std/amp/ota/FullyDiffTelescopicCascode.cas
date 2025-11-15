@@ -1,7 +1,7 @@
 package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
-// Fully differential telescopic cascode OTA.
-// Stack: DiffPair -> NMOS CascodePair -> two PMOS CascodePairs (one per branch).
+// Fully differential telescopic cascode OTA with double-cascode PMOS load.
+// Stack: DiffPair -> NMOS CascodePair -> PMOS CascodePair (lower) -> PMOS CascodePair (upper).
 // Synthesizable structural motif (no spec/bench blocks here).
 motif FullyDiffTelescopicCascode implements FullyDiffAmplifier {
   supply VDD = 1.8V; ground GND;
@@ -12,8 +12,8 @@ motif FullyDiffTelescopicCascode implements FullyDiffAmplifier {
     OUT: Diff,
     VTAIL: bias,
     VCAS_N: bias,
-    VCAS_P_P: bias,
-    VCAS_P_N: bias
+    VCAS_P_LO: bias,
+    VCAS_P_HI: bias
   ]
 
   use {
@@ -25,27 +25,27 @@ motif FullyDiffTelescopicCascode implements FullyDiffAmplifier {
     // NMOS cascode pair cascoding the diff pair outputs.
     casc_n = new CascodePair { p=NMOS };
 
-    // PMOS cascode pairs as active loads (one per branch).
-    casc_p_p = new CascodePair { p=PMOS };
-    casc_p_n = new CascodePair { p=PMOS };
+    // PMOS cascode pairs as double-cascode active load.
+    casc_p_lo = new CascodePair { p=PMOS };
+    casc_p_hi = new CascodePair { p=PMOS };
 
-    // Attach chain: cascode pairs stack onto the diff pair.
+    // Attach NMOS cascode to diff pair.
     attach casc_n to dp;
-    attach casc_p_p to casc_n;
-    attach casc_p_n to casc_n;
+
+    // Stack PMOS cascodes: upper sources to VDD, lower drains to output.
+    attach casc_p_hi to casc_p_lo;
 
     // Wire bias voltages.
     connect casc_n.BIAS -> VCAS_N;
-    connect casc_p_p.BIAS -> VCAS_P_P;
-    connect casc_p_n.BIAS -> VCAS_P_N;
+    connect casc_p_lo.BIAS -> VCAS_P_LO;
+    connect casc_p_hi.BIAS -> VCAS_P_HI;
 
-    // PMOS cascode drains to supply.
-    connect casc_p_p.DRAIN -> VDD;
-    connect casc_p_n.DRAIN -> VDD;
+    // PMOS upper cascode sources to supply (top).
+    connect casc_p_hi.SOURCE -> VDD;
 
-    // Outputs are at the junction of PMOS sources and NMOS cascode drains.
-    connect casc_p_p.SOURCE.P -> OUT.P;
-    connect casc_p_n.SOURCE.N -> OUT.N;
+    // Outputs are at the junction of NMOS drains and PMOS lower drains.
+    connect casc_n.DRAIN -> OUT;
+    connect casc_p_lo.DRAIN -> OUT;
   }
 }
 
