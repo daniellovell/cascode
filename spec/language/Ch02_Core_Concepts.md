@@ -31,7 +31,7 @@ Motifs represent synthesizable circuit topologies and must remain pure structura
 
 #### Library Placement
 
-The standard primitive interface traits used by connectors - such as `DiffPairLike`, `CascodeLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
+The standard primitive interface traits used by connectors - such as `DiffPairLike`, `CascodePairLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
 
 #### Trait Extension
 

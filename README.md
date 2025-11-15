@@ -321,7 +321,7 @@ cascode/
 │     │  ├─ CurrentMirror.cas
 │     │  ├─ CascodePair.cas
 │     │  ├─ DiffPairLike.cas
-│     │  ├─ CascodeLike.cas
+│     │  ├─ CascodePairLike.cas
 │     │  └─ CurrentMirrorLike.cas
 │     ├─ amp/                  # Amplifier traits and topologies
 │     │  └─ ota/
