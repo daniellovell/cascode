@@ -120,6 +120,16 @@
           "xunit.extensibility.core": "[2.9.3]"
         }
       },
+      "cascode.casir": {
+        "type": "Project"
+      },
+      "cascode.compiler": {
+        "type": "Project",
+        "dependencies": {
+          "Cascode.Casir": "[1.0.0, )",
+          "Cascode.Parser": "[1.0.0, )"
+        }
+      },
       "cascode.parser": {
         "type": "Project",
         "dependencies": {

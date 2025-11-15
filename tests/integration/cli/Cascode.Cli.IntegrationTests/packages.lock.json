@@ -41,6 +41,11 @@
         "resolved": "3.1.5",
         "contentHash": "tKi7dSTwP4m5m9eXPM2Ime4Kn7xNf4x4zT9sdLO/G4hZVnQCRiMTWoSZqI/pYTVeI27oPPqHBKYI/DjJ9GsYgA=="
       },
+      "Antlr4.Runtime.Standard": {
+        "type": "Transitive",
+        "resolved": "4.13.1",
+        "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
+      },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
         "resolved": "18.0.0",
@@ -308,16 +313,33 @@
           "YamlDotNet": "[13.7.1, )"
         }
       },
+      "cascode.casir": {
+        "type": "Project"
+      },
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
           "Cascode.Bench": "[1.0.0, )",
+          "Cascode.Compiler": "[1.0.0, )",
           "Cascode.Workspace": "[1.0.0, )",
           "Microsoft.Extensions.Logging": "[8.0.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
           "Microsoft.Extensions.Logging.Console": "[8.0.0, )",
           "Spectre.Console": "[0.47.0, )",
           "System.Text.Json": "[8.0.5, )"
+        }
+      },
+      "cascode.compiler": {
+        "type": "Project",
+        "dependencies": {
+          "Cascode.Casir": "[1.0.0, )",
+          "Cascode.Parser": "[1.0.0, )"
+        }
+      },
+      "cascode.parser": {
+        "type": "Project",
+        "dependencies": {
+          "Antlr4.Runtime.Standard": "[4.13.1, )"
         }
       },
       "cascode.workspace": {
