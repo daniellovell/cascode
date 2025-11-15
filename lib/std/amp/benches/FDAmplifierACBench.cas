@@ -1,8 +1,8 @@
-package lib.std.benches;
+package lib.std.amp.benches;
 
-// AC bench for single-ended amplifiers.
-bench SEAmplifierACBench {
-  spectre_template = "SEAmplifierACBench.tpl";
+// AC bench for fully differential amplifiers.
+bench FDAmplifierACBench {
+  spectre_template = "FDAmplifierACBench.tpl";
   metrics [
     GainBandwidth: Hz,
     PassbandGain: dB,
@@ -12,3 +12,4 @@ bench SEAmplifierACBench {
     BandpassBandwidth: Hz
   ]
 }
+
