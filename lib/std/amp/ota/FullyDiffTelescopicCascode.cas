@@ -1,0 +1,51 @@
+package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+
+// Fully differential telescopic cascode OTA.
+// Stack: DiffPair -> NMOS CascodePair -> two PMOS CascodePairs (one per branch).
+// Synthesizable structural motif (no spec/bench blocks here).
+motif FullyDiffTelescopicCascode implements FullyDiffAmplifier {
+  supply VDD = 1.8V; ground GND;
+
+  // Public interface (ALL CAPS ports; Diff bundle fields are P/N).
+  ports [
+    IN: Diff,
+    OUT: Diff,
+    VTAIL: bias,
+    VCAS_N: bias,
+    VCAS_P_P: bias,
+    VCAS_P_N: bias
+  ]
+
+  use {
+    // Input differential pair with internal tail. Base at ground; bias is VTAIL.
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
+    };
+
+    // NMOS cascode pair cascoding the diff pair outputs.
+    casc_n = new CascodePair { p=NMOS };
+
+    // PMOS cascode pairs as active loads (one per branch).
+    casc_p_p = new CascodePair { p=PMOS };
+    casc_p_n = new CascodePair { p=PMOS };
+
+    // Attach chain: cascode pairs stack onto the diff pair.
+    attach casc_n to dp;
+    attach casc_p_p to casc_n;
+    attach casc_p_n to casc_n;
+
+    // Wire bias voltages.
+    connect casc_n.BIAS -> VCAS_N;
+    connect casc_p_p.BIAS -> VCAS_P_P;
+    connect casc_p_n.BIAS -> VCAS_P_N;
+
+    // PMOS cascode drains to supply.
+    connect casc_p_p.DRAIN -> VDD;
+    connect casc_p_n.DRAIN -> VDD;
+
+    // Outputs are at the junction of PMOS sources and NMOS cascode drains.
+    connect casc_p_p.SOURCE.P -> OUT.P;
+    connect casc_p_n.SOURCE.N -> OUT.N;
+  }
+}
+

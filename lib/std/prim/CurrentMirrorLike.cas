@@ -14,5 +14,5 @@ trait CurrentMirrorLike {
   connector to DiffPairLike { SENSE -> OUT.N; TAP[0] -> OUT.P; }
 
   // - Mirror onto a Cascode-like stage (sense on N, tap on P) also uses the primary tap.
-  connector to CascodeLike { SENSE -> DRAIN.N; TAP[0] -> DRAIN.P; }
+  connector to CascodePairLike { SENSE -> DRAIN.N; TAP[0] -> DRAIN.P; }
 }
