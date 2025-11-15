@@ -28,3 +28,6 @@ error.log
 # Testing files
 *.trx
 .it/**
+
+# Git SPR
+.spr.yml

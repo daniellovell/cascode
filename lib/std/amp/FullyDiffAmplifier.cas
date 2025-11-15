@@ -8,6 +8,6 @@ trait FullyDiffAmplifier extend Amplifier {
   metrics {
     GainBandwidth from FDAmplifierACBench.GainBandwidth;
     PassbandGain  from FDAmplifierACBench.PassbandGain;
-    PhaseMargin   from FDAmplifierACBench.PhaseMargin;
+    PhaseMargin   from FDAmplifierStability.PhaseMargin;
   }
 }
