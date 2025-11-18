@@ -8,6 +8,10 @@ public static class CascodeParserFacade
 {
     public static CascodeSyntaxTree Parse(string path, string text)
     {
+        if (path is null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
         if (text is null)
         {
             throw new ArgumentNullException(nameof(text));
