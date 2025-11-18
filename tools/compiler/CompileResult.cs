@@ -8,6 +8,6 @@ public sealed class CompileResult
 {
     public CasirDocument? Casir { get; init; }
 
-    public IReadOnlyList<Diagnostic> Diagnostics { get; init; } = new List<Diagnostic>();
+    public IReadOnlyList<Diagnostic> Diagnostics { get; init; } = Array.Empty<Diagnostic>();
 }
 
