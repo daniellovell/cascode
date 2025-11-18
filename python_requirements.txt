@@ -1,2 +1,2 @@
-antlr4-tools
+antlr4-tools>=0.2.2
 

@@ -24,11 +24,6 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         var diagnostics = tree.Diagnostics;
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
-            foreach (var d in diagnostics)
-            {
-                Console.WriteLine($"parse error: {d.FilePath}:{d.Line}:{d.Column}: {d.Message}");
-            }
-
             return new CompileResult
             {
                 Casir = null,
@@ -39,10 +34,19 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().FirstOrDefault();
         if (motif is null)
         {
+            var compilerDiagnostics = new List<Diagnostic>(diagnostics)
+            {
+                new Diagnostic(
+                    "CAS0001: No motif declaration found",
+                    DiagnosticSeverity.Error,
+                    tree.Root.FilePath,
+                    tree.Root.Line,
+                    tree.Root.Column)
+            };
             return new CompileResult
             {
                 Casir = null,
-                Diagnostics = diagnostics
+                Diagnostics = compilerDiagnostics
             };
         }
 

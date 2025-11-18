@@ -336,6 +336,7 @@ cascode/
 ```
 
 ### Component Responsibilities
+
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
 - `tools/compiler`: Front end that turns ADL into CasIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
 - `tools/casir`: CasIR object model, canonical JSON writer (sorted keys/ids, explicit units), and JSON Schema validation.

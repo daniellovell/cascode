@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Cascode.Compiler;
+using Cascode.Parser;
 using Xunit;
 
 namespace Cascode.Compiler.Tests;
@@ -41,6 +43,24 @@ public class OtaCompilerTests
         var expectedJson = File.ReadAllText(
             Path.Combine(repoRoot, "tests/golden/casir/ota/OTA5TSingleEndedSimplified.ml.cir"));
         Assert.Equal(Normalize(expectedJson), Normalize(actualJson));
+    }
+
+    [Fact]
+    public void Compile_NoMotifDeclaration_ReturnsCas0001Diagnostic()
+    {
+        var sourcePath = "test.cas";
+        var sourceText = "package test;\n";
+
+        var compiler = new SimpleCascodeCompiler();
+        var result = compiler.CompileToCasir(
+            new[] { new SourceUnit(sourcePath, sourceText) },
+            new CompileOptions("test", "ML"));
+
+        Assert.Null(result.Casir);
+        var cas0001Diagnostic = Assert.Single(
+            result.Diagnostics.Where(d => d.Message.Contains("CAS0001: No motif declaration found")));
+        Assert.Equal(DiagnosticSeverity.Error, cas0001Diagnostic.Severity);
+        Assert.Equal(sourcePath, cas0001Diagnostic.FilePath);
     }
 
     private static string GetRepoRoot()
