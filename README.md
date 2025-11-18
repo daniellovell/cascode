@@ -318,7 +318,7 @@ cascode/
 │  └─ casir-json-1.schema.json
 ├─ lib/
 │  └─ std/
-│     ├─ prim/                 # Primitive motifs + interface traitsas
+│     ├─ prim/                 # Primitive motifs + interface traits
 │     ├─ amp/                  # Amplifier traits and topologies
 │     │  └─ ota/
 │     └─ refs/                 # Reference circuits (current/voltage references)
