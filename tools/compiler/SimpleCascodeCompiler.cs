@@ -50,17 +50,28 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             };
         }
 
-        var design = ElaborateMotif(motif);
+        var elaborationDiagnostics = new List<Diagnostic>(diagnostics);
+        var design = ElaborateMotif(motif, elaborationDiagnostics);
+
+        if (elaborationDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return new CompileResult
+            {
+                Casir = null,
+                Diagnostics = elaborationDiagnostics
+            };
+        }
+
         var casir = LowerToCasir(design, options);
 
         return new CompileResult
         {
             Casir = casir,
-            Diagnostics = diagnostics
+            Diagnostics = elaborationDiagnostics
         };
     }
 
-    private static StructuralDesign ElaborateMotif(MotifDeclarationSyntax motif)
+    private static StructuralDesign ElaborateMotif(MotifDeclarationSyntax motif, ICollection<Diagnostic> diagnostics)
     {
         var design = new StructuralDesign();
 
@@ -110,7 +121,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                     };
                     break;
                 case ConnectStatementSyntax connect:
-                    BindConnect(design, connect);
+                    BindConnect(design, connect, diagnostics);
                     break;
                 case AttachStatementSyntax attach:
                     // v0: bare attach recorded but not elaborated; OTA test focuses on explicit connect.
@@ -133,7 +144,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         };
     }
 
-    private static void BindConnect(StructuralDesign design, ConnectStatementSyntax connect)
+    private static void BindConnect(StructuralDesign design, ConnectStatementSyntax connect, ICollection<Diagnostic> diagnostics)
     {
         // v0: support only dp.OUT.N -> OUT, where left is instance pin and right is top-level net.
         var from = connect.FromPin;
@@ -142,12 +153,24 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         var parts = from.Split('.');
         if (parts.Length < 2)
         {
+            diagnostics.Add(new Diagnostic(
+                $"CAS0002: Invalid connection source format '{from}'. Expected 'instance.pin'.",
+                DiagnosticSeverity.Error,
+                connect.FilePath,
+                connect.Line,
+                connect.Column));
             return;
         }
 
         var instanceId = parts[0];
         if (!design.Instances.TryGetValue(instanceId, out var instance))
         {
+            diagnostics.Add(new Diagnostic(
+                $"CAS0003: Instance '{instanceId}' not found in design.",
+                DiagnosticSeverity.Error,
+                connect.FilePath,
+                connect.Line,
+                connect.Column));
             return;
         }
 
@@ -155,7 +178,13 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
 
         if (!design.Nets.ContainsKey(to))
         {
-            design.Nets[to] = new NetInfo { Id = to, Domain = "electrical" };
+            diagnostics.Add(new Diagnostic(
+                $"CAS0004: Connection target '{to}' is not a declared net or port.",
+                DiagnosticSeverity.Error,
+                connect.FilePath,
+                connect.Line,
+                connect.Column));
+            return;
         }
 
         instance.Ports[pinPath] = to;

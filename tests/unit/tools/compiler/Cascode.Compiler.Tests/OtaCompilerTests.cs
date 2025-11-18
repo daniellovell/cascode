@@ -64,6 +64,36 @@ public class OtaCompilerTests
         Assert.Equal(sourcePath, cas0001Diagnostic.FilePath);
     }
 
+    [Fact]
+    public void Compile_InvalidConnections_ReturnsDiagnostics()
+    {
+        var sourcePath = "test.cas";
+        var sourceText = @"
+package test;
+motif Test {
+    supply VDD; ground GND;
+    ports [ OUT: electrical ]
+    use {
+        inst = new SomeMotif {};
+        connect InvalidFormat -> OUT;
+        connect missing.OUT -> OUT;
+        connect inst.PIN -> MissingNet;
+    }
+}";
+
+        var compiler = new SimpleCascodeCompiler();
+        var result = compiler.CompileToCasir(
+            new[] { new SourceUnit(sourcePath, sourceText) },
+            new CompileOptions("test", "ML"));
+
+        Assert.Null(result.Casir);
+        var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        Assert.Equal(3, errors.Count);
+        Assert.Contains(errors, d => d.Message.Contains("CAS0002"));
+        Assert.Contains(errors, d => d.Message.Contains("CAS0003"));
+        Assert.Contains(errors, d => d.Message.Contains("CAS0004"));
+    }
+
     private static string GetRepoRoot()
     {
         var dir = AppContext.BaseDirectory;
