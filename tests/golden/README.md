@@ -18,4 +18,4 @@ Layout (intended)
 For the v0 OTA slice the CasIR “golden” already lives under
 `tests/golden/casir/ota/OTA5TSingleEndedSimplified.ml.cir`, and the compiler
 unit test (`OtaCompilerTests`) loads it from disk. Additional motifs/modules
-can now be added following the same pattern. 
+can now be added following the same pattern.
