@@ -14,8 +14,6 @@ Layout (intended)
   compiler for those sources (HL/ML/EL where applicable).
 - `tests/golden/spice/…` — SPICE netlists and bench harness netlists generated
   from CasIR for back-end regression and cross-simulator checks.
-- `tests/golden/spice/…` — SPICE netlists and bench harness netlists generated
-  from CasIR for back-end regression and cross-simulator checks.
 
 For the v0 OTA slice the CasIR “golden” already lives under
 `tests/golden/casir/ota/OTA5TSingleEndedSimplified.ml.cir`, and the compiler
