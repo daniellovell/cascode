@@ -318,44 +318,52 @@ cascode/
 │  └─ casir-json-1.schema.json
 ├─ lib/
 │  └─ std/
-│     ├─ prim/                 # Primitive motifs + interface traits
-│     │  ├─ DiffPair.cas
-│     │  ├─ CurrentMirror.cas
-│     │  ├─ CascodePair.cas
-│     │  ├─ DiffPairLike.cas
-│     │  ├─ CascodePairLike.cas
-│     │  └─ CurrentMirrorLike.cas
+│     ├─ prim/                 # Primitive motifs + interface traitsas
 │     ├─ amp/                  # Amplifier traits and topologies
 │     │  └─ ota/
-│     │     └─ OTA5TSingleEnded.cas
-│     └─ refs/                 # Reference circuits
-│        ├─ ReferenceCircuit.cas
-│        ├─ VoltageReference.cas
-│        ├─ CurrentReference.cas
-│        └─ ConstantGm.cas
+│     └─ refs/                 # Reference circuits (current/voltage references)
 ├─ tools/
 │  ├─ cli/
 │  └─ parser/
+├─ tests/
+│  ├─ golden/              # Canonical Cascode/CasIR/SPICE fixtures (see below)
+│  ├─ integration/
+│  └─ unit/
 ├─ editors/
 │  └─ vscode/
-├─ examples/
-│  └─ harnesses/
-└─ tests/
-   ├─ fixtures/
-   ├─ integration/
-   └─ unit/
+└─ examples/
+   └─ harnesses/
 ```
 
 ### Component Responsibilities
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
 - `tools/compiler`: Front end that turns ADL into CasIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
 - `tools/casir`: CasIR object model, canonical JSON writer (sorted keys/ids, explicit units), and JSON Schema validation.
-- `tools/synthesis`: Slot fill, topology selection, sizing/optimization, and updating CasIR params (connectivity remains in `ports`).
-- `tools/backends/spice`: Netlist writers per simulator and bench emitters driven by CasIR `constraints.measure` and `harness`.
+- `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
+- `tools/bench`: Testbench harness discovery, bench generation, and SPICE backend adapters (Ngspice, Spectre).
 
 ### Notes
 - Build artifacts go in `build/` (not committed).
 - CasIR on disk is JSON only with explicit units; the JSON Schema lives under `spec/casir-schema/`.
+
+---
+
+## 🧪 Quick Start (build & test)
+
+CLI / compiler build
+
+```bash
+# Build everything (compiler, CLI, tests)
+dotnet build
+
+# Run the CLI
+dotnet run --project tools/cli/Cascode.Cli.csproj
+```
+
+## ♻️ Golden fixtures
+
+`tests/golden/` is the canonical store for regression assets that tie Cascode
+sources to expected CasIR/SPICE outputs.
 
 ---
 
@@ -364,14 +372,9 @@ cascode/
 > Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
 
 ```bash
-# Synthesize topology and emit CasIR
-cascode synth examples/AmpAuto.cas -o build/AmpAuto.cir
-
-# Verify with SPICE + benches (tool selection and PDK binding vary by setup)
-cascode verify build/AmpAuto.cir --spice spectre --pdk gpdk045
-
-# End-to-end (synth + size + verify + report)
-cascode run examples/AmpGuided.cas --pdk gpdk045 --out build/
+# Compile ADL to CasIR
+cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
+# Output: build/OTA5TSingleEndedSimplified.cir
 ```
 
 ---
