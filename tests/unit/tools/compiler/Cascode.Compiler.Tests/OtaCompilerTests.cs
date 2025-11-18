@@ -58,7 +58,8 @@ public class OtaCompilerTests
 
         Assert.Null(result.Casir);
         var cas0001Diagnostic = Assert.Single(
-            result.Diagnostics.Where(d => d.Message.Contains("CAS0001: No motif declaration found")));
+            result.Diagnostics,
+            d => d.Message.Contains("CAS0001: No motif declaration found"));
         Assert.Equal(DiagnosticSeverity.Error, cas0001Diagnostic.Severity);
         Assert.Equal(sourcePath, cas0001Diagnostic.FilePath);
     }
