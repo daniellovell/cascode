@@ -5,15 +5,25 @@ using Antlr4.Runtime;
 
 namespace Cascode.Parser;
 
+/// <summary>
+/// Translates ANTLR parse trees into immutable Cascode syntax nodes.
+/// </summary>
 internal sealed class CascodeAstBuilder
 {
     private readonly string _filePath;
 
+    /// <summary>
+    /// Initializes a builder bound to a specific source file used for location data.
+    /// </summary>
+    /// <param name="filePath">Source file path.</param>
     public CascodeAstBuilder(string filePath)
     {
         _filePath = filePath;
     }
 
+    /// <summary>
+    /// Builds the root <see cref="CompilationUnitSyntax"/> from the ANTLR parse context.
+    /// </summary>
     public CompilationUnitSyntax Build(CascodeParser.CompilationUnitContext context)
     {
         var package = context.packageDecl() is { } pkgCtx ? BuildPackage(pkgCtx) : null;

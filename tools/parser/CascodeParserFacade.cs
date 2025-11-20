@@ -4,8 +4,17 @@ using Antlr4.Runtime;
 
 namespace Cascode.Parser;
 
+/// <summary>
+/// Entry point for parsing Cascode source text into a syntax tree plus diagnostics.
+/// </summary>
 public static class CascodeParserFacade
 {
+    /// <summary>
+    /// Parses the provided source text using the ANTLR-generated lexer and parser.
+    /// </summary>
+    /// <param name="path">File path used for diagnostic reporting.</param>
+    /// <param name="text">Source text to parse.</param>
+    /// <returns>A syntax tree with collected diagnostics.</returns>
     public static CascodeSyntaxTree Parse(string path, string text)
     {
         if (path is null)

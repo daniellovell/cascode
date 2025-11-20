@@ -6,8 +6,20 @@ using Cascode.Parser;
 
 namespace Cascode.Compiler;
 
+/// <summary>
+/// Minimal reference implementation of <see cref="ICascodeCompiler"/> that handles a single motif per file.
+/// </summary>
+/// <remarks>
+/// The v0 pipeline targets structural netlisting for regression fixtures rather than full language coverage.
+/// </remarks>
 public sealed class SimpleCascodeCompiler : ICascodeCompiler
 {
+    /// <summary>
+    /// Parses, elaborates, and lowers the provided sources into a CasIR document.
+    /// </summary>
+    /// <param name="sources">Compilation units to process. Only the first unit is consumed in v0.</param>
+    /// <param name="options">Compilation options controlling the target CasIR level.</param>
+    /// <returns>Compilation result containing either CasIR output or error diagnostics.</returns>
     public CompileResult CompileToCasir(
         IReadOnlyList<SourceUnit> sources,
         CompileOptions options)
@@ -74,6 +86,12 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         };
     }
 
+    /// <summary>
+    /// Builds a structural design from the parsed motif and records semantic diagnostics.
+    /// </summary>
+    /// <param name="motif">Motif syntax node to elaborate.</param>
+    /// <param name="diagnostics">Diagnostic sink that receives compiler errors.</param>
+    /// <returns>Structural design with nets, bundles, and instances.</returns>
     private static StructuralDesign ElaborateMotif(MotifDeclarationSyntax motif, ICollection<Diagnostic> diagnostics)
     {
         var design = new StructuralDesign();
@@ -136,6 +154,11 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         return design;
     }
 
+    /// <summary>
+    /// Maps a port kind token to the CasIR domain string used during lowering.
+    /// </summary>
+    /// <param name="kind">Case-sensitive kind value from the syntax tree.</param>
+    /// <returns>CasIR domain name.</returns>
     private static string MapKindToDomain(string kind)
     {
         return kind switch
@@ -147,6 +170,12 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         };
     }
 
+    /// <summary>
+    /// Records a port-to-net connection on an instance, validating both endpoints.
+    /// </summary>
+    /// <param name="design">Accumulated structural design being elaborated.</param>
+    /// <param name="connect">Connect statement syntax.</param>
+    /// <param name="diagnostics">Diagnostic sink that receives compiler errors.</param>
     private static void BindConnect(StructuralDesign design, ConnectStatementSyntax connect, ICollection<Diagnostic> diagnostics)
     {
         // v0: support only dp.OUT.N -> OUT, where left is instance pin and right is top-level net.
@@ -193,6 +222,12 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         instance.Ports[pinPath] = to;
     }
 
+    /// <summary>
+    /// Converts the elaborated structural design into a CasIR document.
+    /// </summary>
+    /// <param name="design">Structural design produced during elaboration.</param>
+    /// <param name="options">Compilation options that supply the target CasIR level.</param>
+    /// <returns>CasIR document ready for serialization or further passes.</returns>
     private static CasirDocument LowerToCasir(StructuralDesign design, CompileOptions options)
     {
         var doc = new CasirDocument
