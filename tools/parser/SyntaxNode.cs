@@ -145,6 +145,7 @@ public sealed class PortDeclarationSyntax : SyntaxNode
     }
 
     public string Name { get; }
+    // TODO: Consider converting Kind to enum once port kinds are finalized in spec
     public string Kind { get; }
 }
 
