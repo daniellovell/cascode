@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="..\workspace\Cascode.Workspace.csproj" />
     <ProjectReference Include="..\bench\Cascode.Bench.csproj" />
+    <ProjectReference Include="..\compiler\Cascode.Compiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>

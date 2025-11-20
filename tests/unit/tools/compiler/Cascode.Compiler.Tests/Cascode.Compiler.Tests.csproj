@@ -21,7 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\tools\parser\Cascode.Parser.csproj" />
+    <ProjectReference Include="..\..\..\..\..\tools\compiler\Cascode.Compiler.csproj" />
   </ItemGroup>
 
 </Project>
+
