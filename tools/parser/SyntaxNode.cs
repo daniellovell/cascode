@@ -88,7 +88,7 @@ public sealed class TraitDeclarationSyntax : MemberDeclarationSyntax
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(extends);
-        
+
         Name = name;
         Extends = extends.ToList().AsReadOnly();
     }

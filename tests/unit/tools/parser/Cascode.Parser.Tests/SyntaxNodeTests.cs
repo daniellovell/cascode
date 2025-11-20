@@ -11,7 +11,7 @@ public class SyntaxNodeTests
     {
         Assert.Throws<ArgumentNullException>(() => new CompilationUnitSyntax(
             "file", 1, 1, null, null!, new List<MemberDeclarationSyntax>()));
-            
+
         Assert.Throws<ArgumentNullException>(() => new CompilationUnitSyntax(
             "file", 1, 1, null, new List<ImportDeclarationSyntax>(), null!));
     }
@@ -21,13 +21,13 @@ public class SyntaxNodeTests
     {
         var imports = new List<ImportDeclarationSyntax>();
         var members = new List<MemberDeclarationSyntax>();
-        
+
         var cu = new CompilationUnitSyntax(
             "file", 1, 1, null, imports, members);
-            
+
         // Mutate original lists
         imports.Add(new ImportDeclarationSyntax("f", 1, 1, "imp", false));
-        
+
         // Assert AST is unchanged
         Assert.Empty(cu.Imports);
     }
@@ -37,15 +37,15 @@ public class SyntaxNodeTests
     {
         Assert.Throws<ArgumentNullException>(() => new TraitDeclarationSyntax(
             "file", 1, 1, null!, new List<string>()));
-            
+
         Assert.Throws<ArgumentNullException>(() => new TraitDeclarationSyntax(
             "file", 1, 1, "name", null!));
 
         var extends = new List<string> { "Base" };
         var trait = new TraitDeclarationSyntax("file", 1, 1, "Name", extends);
-        
+
         extends.Add("Other");
-        
+
         Assert.Single(trait.Extends);
         Assert.Equal("Base", trait.Extends[0]);
     }
@@ -63,10 +63,10 @@ public class SyntaxNodeTests
 
         var motif = new MotifDeclarationSyntax(
             "file", 1, 1, "Name", implements, ports, supplies, grounds, null);
-            
+
         implements.Add("Interface");
         ports.Add(new PortDeclarationSyntax("f", 1, 1, "p", "in"));
-        
+
         Assert.Empty(motif.Implements);
         Assert.Empty(motif.Ports);
     }
