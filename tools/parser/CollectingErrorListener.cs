@@ -23,6 +23,16 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
         _diagnostics = diagnostics;
     }
 
+    private void AddSyntaxDiagnostic(string message, int line, int charPositionInLine)
+    {
+        _diagnostics.Add(new Diagnostic(
+            message,
+            DiagnosticSeverity.Error,
+            _filePath,
+            line,
+            charPositionInLine + 1));
+    }
+
     /// <summary>
     /// Handles parser errors with offending tokens.
     /// </summary>
@@ -35,12 +45,7 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
         string msg,
         RecognitionException e)
     {
-        _diagnostics.Add(new Diagnostic(
-            msg,
-            DiagnosticSeverity.Error,
-            _filePath,
-            line,
-            charPositionInLine + 1));
+        AddSyntaxDiagnostic(msg, line, charPositionInLine);
     }
 
     /// <summary>
@@ -55,11 +60,6 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
         string msg,
         RecognitionException e)
     {
-        _diagnostics.Add(new Diagnostic(
-            msg,
-            DiagnosticSeverity.Error,
-            _filePath,
-            line,
-            charPositionInLine + 1));
+        AddSyntaxDiagnostic(msg, line, charPositionInLine);
     }
 }
