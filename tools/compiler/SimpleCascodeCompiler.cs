@@ -12,6 +12,9 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         IReadOnlyList<SourceUnit> sources,
         CompileOptions options)
     {
+        ArgumentNullException.ThrowIfNull(sources, nameof(sources));
+        ArgumentNullException.ThrowIfNull(options, nameof(options));
+
         if (sources.Count == 0)
         {
             throw new ArgumentException("No sources provided", nameof(sources));

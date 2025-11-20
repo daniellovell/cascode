@@ -61,14 +61,30 @@ public class SyntaxNodeTests
         Assert.Throws<ArgumentNullException>(() => new MotifDeclarationSyntax(
             "file", 1, 1, null!, implements, ports, supplies, grounds, null));
 
+        Assert.Throws<ArgumentNullException>(() => new MotifDeclarationSyntax(
+            "file", 1, 1, "Name", null!, ports, supplies, grounds, null));
+
+        Assert.Throws<ArgumentNullException>(() => new MotifDeclarationSyntax(
+            "file", 1, 1, "Name", implements, null!, supplies, grounds, null));
+
+        Assert.Throws<ArgumentNullException>(() => new MotifDeclarationSyntax(
+            "file", 1, 1, "Name", implements, ports, null!, grounds, null));
+
+        Assert.Throws<ArgumentNullException>(() => new MotifDeclarationSyntax(
+            "file", 1, 1, "Name", implements, ports, supplies, null!, null));
+
         var motif = new MotifDeclarationSyntax(
             "file", 1, 1, "Name", implements, ports, supplies, grounds, null);
 
         implements.Add("Interface");
         ports.Add(new PortDeclarationSyntax("f", 1, 1, "p", "in"));
+        supplies.Add(new SupplyDeclarationSyntax("f", 1, 1, "VDD"));
+        grounds.Add(new GroundDeclarationSyntax("f", 1, 1, "GND"));
 
         Assert.Empty(motif.Implements);
         Assert.Empty(motif.Ports);
+        Assert.Empty(motif.Supplies);
+        Assert.Empty(motif.Grounds);
     }
 
     [Fact]
