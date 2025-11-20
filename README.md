@@ -13,6 +13,11 @@
 
 It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (modules, traits, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
+## Getting Started
+
+New to Cascode? Start here to understand the core concepts through a practical OTA example:
+
+- **[Getting Started Guide](docs/GETTING_STARTED.md)**
 
 ## Language Specification
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
