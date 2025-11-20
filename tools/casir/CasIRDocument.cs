@@ -5,11 +5,13 @@ namespace Cascode.CasIR;
 
 public sealed class CasirDocument
 {
+    public const string DefaultFormat = "casir-json-1";
+
     [JsonPropertyName("ir_version")]
     public int IrVersion { get; init; } = 1;
 
     [JsonPropertyName("format")]
-    public string Format { get; init; } = "casir-json-1";
+    public string Format { get; init; } = DefaultFormat;
 
     [JsonPropertyName("level")]
     public CasIRLevel Level { get; init; } = CasIRLevel.ML;

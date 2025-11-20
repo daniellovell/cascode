@@ -55,7 +55,8 @@ internal sealed class BuildCommandModule : ICommandModule
         foreach (var diag in result.Diagnostics)
         {
             var severity = diag.Severity.ToString().ToLowerInvariant();
-            _state.AddMessage($"{inputPath}:{diag.Line}:{diag.Column}: {severity}: {diag.Message}");
+            var path = string.IsNullOrEmpty(diag.FilePath) ? inputPath : diag.FilePath;
+            _state.AddMessage($"{path}:{diag.Line}:{diag.Column}: {severity}: {diag.Message}");
         }
 
         if (result.CasIR is null)

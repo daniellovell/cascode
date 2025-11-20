@@ -70,5 +70,20 @@ public class SyntaxNodeTests
         Assert.Empty(motif.Implements);
         Assert.Empty(motif.Ports);
     }
+
+    [Fact]
+    public void UseBlockSyntax_Constructor_GuardsAndCopies()
+    {
+        var statements = new List<UseStatementSyntax>();
+
+        Assert.Throws<ArgumentNullException>(() => new UseBlockSyntax(
+            "file", 1, 1, null!));
+
+        var useBlock = new UseBlockSyntax("file", 1, 1, statements);
+
+        statements.Add(new InstanceDeclarationSyntax("f", 1, 1, "inst", "Type"));
+
+        Assert.Empty(useBlock.Statements);
+    }
 }
 
