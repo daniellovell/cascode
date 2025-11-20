@@ -6,7 +6,7 @@ namespace Cascode.CasIR;
 /// Defines the elaboration level of a CasIR document.
 /// </summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum CasirLevel
+public enum CasIRLevel
 {
     /// <summary>
     /// High Level: Slots are represented as instances; values/params may be symbolic.

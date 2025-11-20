@@ -13,4 +13,4 @@ namespace Cascode.Compiler;
 /// </remarks>
 public sealed record CompileOptions(
     string EntryMotifFullName,
-    CasirLevel Level);
+    CasIRLevel Level);

@@ -75,6 +75,7 @@ Use professional prose and use precisely the level of verbosity that is required
 
 ### Required Local Checks
 - Build: `dotnet build tools/cli/Cascode.Cli.csproj`.
+- Test: `dotnet test Cascode.sln --configuration Release`.
 - Run: `dotnet run --project tools/cli/Cascode.Cli.csproj -- pdk scan tests/fixtures/pdk/sky130`.
 - Verify: `... -- pdk devices --workspace tests/fixtures/pdk/sky130` and `... -- pdk set-dir tests/fixtures/pdk/sky130`.
 

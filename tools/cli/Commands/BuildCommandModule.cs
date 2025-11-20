@@ -47,7 +47,7 @@ internal sealed class BuildCommandModule : ICommandModule
 
         var compiler = new SimpleCascodeCompiler();
         // TODO: We need to intelligently detect which level of CasIR should be compiled to.
-        var options = new CompileOptions(string.Empty, CasirLevel.ML);
+        var options = new CompileOptions(string.Empty, CasIRLevel.ML);
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(inputPath, text) },
             options);

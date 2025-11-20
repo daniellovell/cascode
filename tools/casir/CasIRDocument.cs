@@ -12,7 +12,7 @@ public sealed class CasirDocument
     public string Format { get; init; } = "casir-json-1";
 
     [JsonPropertyName("level")]
-    public CasirLevel Level { get; init; } = CasirLevel.ML;
+    public CasIRLevel Level { get; init; } = CasIRLevel.ML;
 
     [JsonPropertyName("nets")]
     public List<Net> Nets { get; init; } = new();

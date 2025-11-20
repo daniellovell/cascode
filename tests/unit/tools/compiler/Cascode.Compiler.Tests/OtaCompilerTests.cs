@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using Cascode.CasIR;
 using Cascode.Compiler;
 using Cascode.Parser;
 using Xunit;
@@ -20,7 +21,7 @@ public class OtaCompilerTests
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", "ML"));
+            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", CasIRLevel.ML));
 
         Assert.NotNull(result.CasIR);
         var casir = result.CasIR!;
@@ -54,7 +55,7 @@ public class OtaCompilerTests
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", "ML"));
+            new CompileOptions("test", CasIRLevel.ML));
 
         Assert.Null(result.CasIR);
         var cas0001Diagnostic = Assert.Single(
@@ -84,7 +85,7 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", "ML"));
+            new CompileOptions("test", CasIRLevel.ML));
 
         Assert.Null(result.CasIR);
         var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
