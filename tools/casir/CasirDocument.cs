@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Cascode.Casir;
+namespace Cascode.CasIR;
 
 public sealed class CasirDocument
 {

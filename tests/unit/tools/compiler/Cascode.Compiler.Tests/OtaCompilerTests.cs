@@ -22,8 +22,8 @@ public class OtaCompilerTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", "ML"));
 
-        Assert.NotNull(result.Casir);
-        var casir = result.Casir!;
+        Assert.NotNull(result.CasIR);
+        var casir = result.CasIR!;
 
         // Nets should include OUT and bundle nets for IN.
         Assert.Contains(casir.Nets, n => n.Id == "OUT");
@@ -56,7 +56,7 @@ public class OtaCompilerTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("test", "ML"));
 
-        Assert.Null(result.Casir);
+        Assert.Null(result.CasIR);
         var cas0001Diagnostic = Assert.Single(
             result.Diagnostics,
             d => d.Message.Contains("CAS0001: No motif declaration found"));
@@ -86,7 +86,7 @@ motif Test {
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("test", "ML"));
 
-        Assert.Null(result.Casir);
+        Assert.Null(result.CasIR);
         var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.Equal(3, errors.Count);
         Assert.Contains(errors, d => d.Message.Contains("CAS0002"));

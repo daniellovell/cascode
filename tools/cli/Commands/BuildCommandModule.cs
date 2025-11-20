@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
-using Cascode.Casir;
+using Cascode.CasIR;
 using Cascode.Compiler;
 
 namespace Cascode.Cli.Commands;
@@ -58,7 +58,7 @@ internal sealed class BuildCommandModule : ICommandModule
             _state.AddMessage($"{inputPath}:{diag.Line}:{diag.Column}: {severity}: {diag.Message}");
         }
 
-        if (result.Casir is null)
+        if (result.CasIR is null)
         {
             _state.AddMessage("Build failed; no CasIR produced.");
             return CommandResult.Failure;
@@ -71,7 +71,7 @@ internal sealed class BuildCommandModule : ICommandModule
 
         try
         {
-            var json = JsonSerializer.Serialize(result.Casir, new JsonSerializerOptions
+            var json = JsonSerializer.Serialize(result.CasIR, new JsonSerializerOptions
             {
                 WriteIndented = true
             });

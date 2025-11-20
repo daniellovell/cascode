@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Cascode.Casir;
+namespace Cascode.CasIR;
 
 /// <summary>
 /// Defines the elaboration level of a CasIR document.

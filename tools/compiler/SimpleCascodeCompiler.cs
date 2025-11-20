@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cascode.Casir;
+using Cascode.CasIR;
 using Cascode.Parser;
 
 namespace Cascode.Compiler;
@@ -26,7 +26,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             return new CompileResult
             {
-                Casir = null,
+                CasIR = null,
                 Diagnostics = diagnostics
             };
         }
@@ -45,7 +45,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             };
             return new CompileResult
             {
-                Casir = null,
+                CasIR = null,
                 Diagnostics = compilerDiagnostics
             };
         }
@@ -57,7 +57,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             return new CompileResult
             {
-                Casir = null,
+                CasIR = null,
                 Diagnostics = elaborationDiagnostics
             };
         }
@@ -66,7 +66,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
 
         return new CompileResult
         {
-            Casir = casir,
+            CasIR = casir,
             Diagnostics = elaborationDiagnostics
         };
     }

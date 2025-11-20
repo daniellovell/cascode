@@ -210,7 +210,7 @@
       "cascode.compiler": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Casir": "[1.0.0, )",
+          "Cascode.CasIR": "[1.0.0, )",
           "Cascode.Parser": "[1.0.0, )"
         }
       },

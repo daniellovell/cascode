@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\parser\Cascode.Parser.csproj" />
-    <ProjectReference Include="..\casir\Cascode.Casir.csproj" />
+    <ProjectReference Include="..\casir\Cascode.CasIR.csproj" />
   </ItemGroup>
 </Project>
 
