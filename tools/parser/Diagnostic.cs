@@ -9,6 +9,10 @@ public sealed class Diagnostic
         Message = message ?? throw new ArgumentNullException(nameof(message));
         Severity = severity;
         FilePath = filePath ?? string.Empty;
+        if (line < 1)
+            throw new ArgumentOutOfRangeException(nameof(line), line, "Line must be a positive integer (>= 1).");
+        if (column < 1)
+            throw new ArgumentOutOfRangeException(nameof(column), column, "Column must be a positive integer (>= 1).");
         Line = line;
         Column = column;
     }
