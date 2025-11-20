@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace Cascode.Parser;
 
@@ -27,9 +29,12 @@ public sealed class CompilationUnitSyntax : SyntaxNode
         IReadOnlyList<ImportDeclarationSyntax> imports,
         IReadOnlyList<MemberDeclarationSyntax> members) : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(imports);
+        ArgumentNullException.ThrowIfNull(members);
+
         Package = package;
-        Imports = imports;
-        Members = members;
+        Imports = imports.ToList().AsReadOnly();
+        Members = members.ToList().AsReadOnly();
     }
 
     public PackageDeclarationSyntax? Package { get; }
@@ -42,6 +47,7 @@ public sealed class PackageDeclarationSyntax : SyntaxNode
     public PackageDeclarationSyntax(string filePath, int line, int column, string name)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
         Name = name;
     }
 
@@ -53,6 +59,7 @@ public sealed class ImportDeclarationSyntax : SyntaxNode
     public ImportDeclarationSyntax(string filePath, int line, int column, string name, bool isWildcard)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
         Name = name;
         IsWildcard = isWildcard;
     }
@@ -79,8 +86,11 @@ public sealed class TraitDeclarationSyntax : MemberDeclarationSyntax
         IReadOnlyList<string> extends)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(extends);
+        
         Name = name;
-        Extends = extends;
+        Extends = extends.ToList().AsReadOnly();
     }
 
     public string Name { get; }
@@ -101,11 +111,17 @@ public sealed class MotifDeclarationSyntax : MemberDeclarationSyntax
         UseBlockSyntax? useBlock)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(implements);
+        ArgumentNullException.ThrowIfNull(ports);
+        ArgumentNullException.ThrowIfNull(supplies);
+        ArgumentNullException.ThrowIfNull(grounds);
+
         Name = name;
-        Implements = implements;
-        Ports = ports;
-        Supplies = supplies;
-        Grounds = grounds;
+        Implements = implements.ToList().AsReadOnly();
+        Ports = ports.ToList().AsReadOnly();
+        Supplies = supplies.ToList().AsReadOnly();
+        Grounds = grounds.ToList().AsReadOnly();
         UseBlock = useBlock;
     }
 
@@ -122,6 +138,8 @@ public sealed class PortDeclarationSyntax : SyntaxNode
     public PortDeclarationSyntax(string filePath, int line, int column, string name, string kind)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(kind);
         Name = name;
         Kind = kind;
     }
@@ -135,6 +153,7 @@ public sealed class SupplyDeclarationSyntax : SyntaxNode
     public SupplyDeclarationSyntax(string filePath, int line, int column, string name)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
         Name = name;
     }
 
@@ -146,6 +165,7 @@ public sealed class GroundDeclarationSyntax : SyntaxNode
     public GroundDeclarationSyntax(string filePath, int line, int column, string name)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(name);
         Name = name;
     }
 
@@ -157,7 +177,8 @@ public sealed class UseBlockSyntax : SyntaxNode
     public UseBlockSyntax(string filePath, int line, int column, IReadOnlyList<UseStatementSyntax> statements)
         : base(filePath, line, column)
     {
-        Statements = statements;
+        ArgumentNullException.ThrowIfNull(statements);
+        Statements = statements.ToList().AsReadOnly();
     }
 
     public IReadOnlyList<UseStatementSyntax> Statements { get; }
@@ -181,6 +202,8 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
         string typeName)
         : base(filePath, line, column)
     {
+        ArgumentNullException.ThrowIfNull(instanceName);
+        ArgumentNullException.ThrowIfNull(typeName);
         InstanceName = instanceName;
         TypeName = typeName;
     }
@@ -195,12 +218,14 @@ public sealed class AttachStatementSyntax : UseStatementSyntax
         string filePath,
         int line,
         int column,
-        string SourceInstance,
-        string TargetInstance)
+        string sourceInstance,
+        string targetInstance)
         : base(filePath, line, column)
     {
-        Source = SourceInstance;
-        Target = TargetInstance;
+        ArgumentNullException.ThrowIfNull(sourceInstance);
+        ArgumentNullException.ThrowIfNull(targetInstance);
+        Source = sourceInstance;
+        Target = targetInstance;
     }
 
     public string Source { get; }
@@ -213,12 +238,14 @@ public sealed class ConnectStatementSyntax : UseStatementSyntax
         string filePath,
         int line,
         int column,
-        string From,
-        string To)
+        string from,
+        string to)
         : base(filePath, line, column)
     {
-        FromPin = From;
-        ToPin = To;
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+        FromPin = from;
+        ToPin = to;
     }
 
     public string FromPin { get; }
