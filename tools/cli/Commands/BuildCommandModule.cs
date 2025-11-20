@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using Cascode.Casir;
 using Cascode.Compiler;
 
 namespace Cascode.Cli.Commands;
@@ -45,7 +46,8 @@ internal sealed class BuildCommandModule : ICommandModule
         }
 
         var compiler = new SimpleCascodeCompiler();
-        var options = new CompileOptions(string.Empty, "ML");
+        // TODO: We need to intelligently detect which level of CasIR should be compiled to.
+        var options = new CompileOptions(string.Empty, CasirLevel.ML);
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(inputPath, text) },
             options);

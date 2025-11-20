@@ -1,3 +1,5 @@
+using Cascode.Casir;
+
 namespace Cascode.Compiler;
 
 /// <summary>
@@ -11,5 +13,4 @@ namespace Cascode.Compiler;
 /// </remarks>
 public sealed record CompileOptions(
     string EntryMotifFullName,
-    string Level);
-
+    CasirLevel Level);
