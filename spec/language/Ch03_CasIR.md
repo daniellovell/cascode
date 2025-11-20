@@ -11,13 +11,23 @@ CasIR serves as the single, authoritative handoff between the Cascode front end 
 
 If we do this well, getting from ADL to SPICE is a straight line: parse and elaborate ADL into instances and nets, write CasIR, pick and size implementations, then print SPICE by looking up port ordering in library templates and substituting the already-known node names.
 
+Most compilers follow a familiar arc: lex and parse source into an abstract syntax tree (AST), lower that AST into an intermediate representation (IR), run optimizations on the IR, then lower again to a concrete target before emission. Cascode follows the same shape; the interesting design work lives in the CasIR and optimization stages. This chapter focuses on that IR step in the context of the Cascode front end.
+
+CasIR is produced at three elaboration levels that describe how far the front end has progressed:
+
+- HL (High Level): design slots may remain open (for example, instances with type "__slot__"), and many parameters can stay symbolic or null, but connectivity through nets and ports is already complete.
+- ML (Mid Level): all slots have been bound to concrete motif types and all pins are connected; parameters may still be symbolic, and the representation remains PDK-agnostic.
+- EL (Electrical Level): parameters are numeric wherever required by the spec, all pins are connected, and PDK-specific device choices have been recorded so that the document is SPICE-ready.
+
+Rules in the rest of this chapter tighten as you move from HL to ML to EL; §3.7 lists the exact invariants per level.
+
 ---
 
 ## 3.1 Design Principles
 
 The CasIR design prioritizes **connectivity as the primary concern**, establishing the port-to-net mapping within each motif instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes motif instances with ports and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
 
-**Deterministic JSON** output maintains stability by sorting arrays by id and writing objects with sorted keys, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (with open slots), ML (slots chosen with some symbolic parameters), and EL (fully numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
+**Deterministic JSON** output maintains stability by sorting arrays by id and writing objects with sorted keys, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (High Level, with open slots and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
 
 **Derived indices remain optional** - while tools may serialize incidence or adjacency indices for debugging purposes, these are derived views that loaders must recompute and verify if present. Finally, the **extensible, non-leaky** architecture places vendor or dialect fields under extensions, avoiding special-purpose modifications to the core model.
 
@@ -286,15 +296,15 @@ CasIR files declare a level: HL, ML, or EL. Pin coverage and parameter rules dep
 
 HL - High Level
 
-- Slots are represented as instances with type "__slot__" and required traits. All pins are connected to nets, but values and some params may be symbolic or null.
+- Slots are represented as instances with type "__slot__" and required traits. All pins are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ML - Mid Level
 
-- Slots are replaced by concrete motif types. All pins are connected to nets. Params may still be symbolic.
+- Slots are replaced by concrete motif types. All pins are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic.
 
 EL - Electrical Level
 
-- All params are numeric. All pins are connected. The document is ready for SPICE emission.
+- Parameters are numeric wherever required by this specification. All pins are connected, PDK-specific device choices have been recorded, and the document is ready for SPICE emission.
 
 Parameter Representation
 

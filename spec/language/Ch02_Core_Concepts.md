@@ -38,7 +38,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 * Use `extend` to define an interface trait from a spec-only trait:
   `trait SingleEndedAmplifier extend Amplifier { … }`.
 * Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
-* Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait’s port family evaluated at the same parameter values.
+* Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait's port family evaluated at the same parameter values.
 
 ---
 
