@@ -58,7 +58,7 @@ trait SingleEndedAmplifier extend Amplifier {
   metrics {
     GainBandwidth from SEAmplifierACBench.GainBandwidth;
     PassbandGain  from SEAmplifierACBench.PassbandGain;
-    PhaseMargin   from SEAmplifierStability.PhaseMargin;
+    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
   }
 }
 ```
