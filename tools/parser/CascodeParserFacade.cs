@@ -37,6 +37,7 @@ public static class CascodeParserFacade
         parser.RemoveErrorListeners();
 
         var listener = new CollectingErrorListener(path, diagnostics);
+        lexer.AddErrorListener(listener);
         parser.AddErrorListener(listener);
 
         var rootContext = parser.compilationUnit();

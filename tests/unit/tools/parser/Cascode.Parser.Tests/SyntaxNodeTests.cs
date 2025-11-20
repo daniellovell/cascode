@@ -101,5 +101,18 @@ public class SyntaxNodeTests
 
         Assert.Empty(useBlock.Statements);
     }
-}
 
+    [Fact]
+    public void Parse_WithLexicalError_ReportsDiagnostic()
+    {
+        const string text = "$"; // invalid character for lexer
+
+        var tree = CascodeParserFacade.Parse("test.cas", text);
+
+        Assert.Contains(tree.Diagnostics, d =>
+            d.Severity == DiagnosticSeverity.Error &&
+            d.Line == 1 &&
+            d.Column == 1 &&
+            d.Message.Contains("token recognition", StringComparison.OrdinalIgnoreCase));
+    }
+}
