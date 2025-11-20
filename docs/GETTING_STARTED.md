@@ -8,7 +8,7 @@ Cascode organizes analog design around a few primary language constructs: traits
 
 A **trait** defines a behavioral contract. It specifies what ports a circuit exposes, what metrics it produces, and how those metrics map to concrete measurements. Traits can inherit from other traits, so we can build a taxonomy of circuit behaviors. An `Amplifier` trait, for instance, declares canonical metrics like gain-bandwidth and phase margin without prescribing any specific topology. A trait is analogous to an interface in object-oriented programming; it establishes expectations but carries no implementation.
 
-![[resources/images/getting_started_traits.png|400]]
+<img src="resources/images/getting_started_traits.png" alt="Trait hierarchy diagram" width="400"/>
 
 A **motif** is a reusable structural building block. It is an entry in the topology selection catalog. It implements one or more traits by answering questions about circuit topology: which subcircuits to instantiate, how to connect them, and what design parameters to expose.
 
@@ -16,7 +16,7 @@ Motifs compose. What I mean is, a `DiffPair` motif can be instantiated within an
 
 Very importantly, motifs contain no performance specifications. They describe structure, not requirements.
 
-![[resources/images/getting_started_motifs.png|400]]
+<img src="resources/images/getting_started_motifs.png" alt="Motif composition diagram" width="400"/>
 
 A **module** represents a complete design unit. It instantiates motifs, binds their free parameters, and attaches quantitative performance targets. A module declaration might state that gain-bandwidth must exceed 250 MHz or that phase margin must stay above 60 degrees. These specifications drive synthesis and optimization. Unlike a motif, which defines a reusable pattern, a module defines a concrete design instance with measurable goals.
 
@@ -143,7 +143,7 @@ module MyOTA {
 
 What we have constructed is captured in the diagram below.
 
-![[resources/images/getting_started_example.png|400]]
+<img src="resources/images/getting_started_example.png" alt="5T OTA structure with traits, motifs, and module" width="400"/>
 
 ## What We've Accomplished
 
