@@ -169,7 +169,7 @@ internal sealed class CascodeAstBuilder
         {
             var integerLiteral = quantityCtx.IntegerLiteral();
             var realLiteral = quantityCtx.RealLiteral();
-            
+
             if (integerLiteral is null && realLiteral is null)
             {
                 var (qLine, qColumn) = GetLocation(quantityCtx.Start);
@@ -178,7 +178,7 @@ internal sealed class CascodeAstBuilder
                     $"Quantity literal at {_filePath}:{qLine}:{qColumn} is missing a numeric value. " +
                     $"Expected IntegerLiteral or RealLiteral, but found: '{quantityText}'");
             }
-            
+
             var numericText = integerLiteral?.GetText() ?? realLiteral!.GetText();
             var unit = quantityCtx.Identifier()?.GetText();
             var numericValue = double.Parse(numericText, System.Globalization.CultureInfo.InvariantCulture);

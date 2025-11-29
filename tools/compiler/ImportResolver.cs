@@ -122,6 +122,33 @@ internal sealed class ImportResolver
                 }
             }
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            diagnostics.Add(new Diagnostic(
+                $"CAS0006: Failed to read import file '{filePath}' (access denied): {ex.Message}",
+                DiagnosticSeverity.Warning,
+                filePath,
+                1,
+                1));
+        }
+        catch (System.Security.SecurityException ex)
+        {
+            diagnostics.Add(new Diagnostic(
+                $"CAS0006: Failed to read import file '{filePath}' (security exception): {ex.Message}",
+                DiagnosticSeverity.Warning,
+                filePath,
+                1,
+                1));
+        }
+        catch (PathTooLongException ex)
+        {
+            diagnostics.Add(new Diagnostic(
+                $"CAS0006: Failed to read import file '{filePath}' (path too long): {ex.Message}",
+                DiagnosticSeverity.Warning,
+                filePath,
+                1,
+                1));
+        }
         catch (IOException ex)
         {
             diagnostics.Add(new Diagnostic(
