@@ -129,6 +129,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPortDecl([NotNull] CascodeParser.PortDeclContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.portKind"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPortKind([NotNull] CascodeParser.PortKindContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.useBlock"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -146,6 +152,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitInstanceDecl([NotNull] CascodeParser.InstanceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.constructorArgs"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitConstructorArgs([NotNull] CascodeParser.ConstructorArgsContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.instanceParams"/>.
 	/// </summary>
@@ -206,6 +218,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitQualifiedName([NotNull] CascodeParser.QualifiedNameContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.nameSegment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitNameSegment([NotNull] CascodeParser.NameSegmentContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.literal"/>.
 	/// </summary>

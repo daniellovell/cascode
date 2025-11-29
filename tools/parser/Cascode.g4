@@ -69,7 +69,16 @@ portList
     ;
 
 portDecl
-    : Identifier ':' Identifier
+    : Identifier ':' portKind
+    ;
+
+portKind
+    : Identifier
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
     ;
 
 useBlock
@@ -83,7 +92,11 @@ useStatement
     ;
 
 instanceDecl
-    : Identifier '=' 'new' Identifier instanceParams? instanceBinds? ';'
+    : Identifier '=' 'new' Identifier constructorArgs? instanceParams? instanceBinds? ';'
+    ;
+
+constructorArgs
+    : '(' (paramValue (',' paramValue)*)? ')'
     ;
 
 instanceParams
@@ -128,7 +141,17 @@ pinRef
     ;
 
 qualifiedName
-    : Identifier ('.' Identifier)*
+    : nameSegment ('.' nameSegment)*
+    ;
+
+// Allows keywords to be used as identifiers in names (e.g., package analog.ota)
+nameSegment
+    : Identifier
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
     ;
 
 literal
@@ -151,14 +174,28 @@ portsComputedBlock
     : 'ports' '{' portsComputedToken* '}'
     ;
 
+// Tokens that can appear in computed ports blocks (e.g., ports { if (hasTail) { BIAS: bias; } })
+// Includes keywords that may appear in port kind position or control flow
 portsComputedToken
     : Identifier
+    | IntegerLiteral
     | '('
     | ')'
     | '{'
     | '}'
+    | '['
+    | ']'
     | ':'
     | ';'
+    | ','
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
+    | 'if'
+    | 'for'
+    | 'in'
     ;
 
 Identifier

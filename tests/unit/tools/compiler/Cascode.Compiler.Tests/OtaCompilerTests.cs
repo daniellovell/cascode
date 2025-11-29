@@ -21,7 +21,10 @@ public class OtaCompilerTests
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", CasIRLevel.ML));
+            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", CasIRLevel.ML)
+            {
+                LibraryRoots = new[] { repoRoot }
+            });
 
         Assert.NotNull(result.CasIR);
         var casir = result.CasIR!;
@@ -172,7 +175,10 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToCasir(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML));
+            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML)
+            {
+                LibraryRoots = new[] { repoRoot }
+            });
 
         Assert.NotNull(result.CasIR);
         var casir = result.CasIR!;
@@ -205,4 +211,25 @@ motif Test {
 
     private static string Normalize(string text)
         => text.Replace("\r\n", "\n").Trim();
+
+    [Fact]
+    public void GenerateGoldenCasir()
+    {
+        var repoRoot = GetRepoRoot();
+        var sources = new[] {
+            ("tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas", "tests/golden/casir/ota/OTA5TSingleEndedSimplified.ml.cir"),
+            ("tests/golden/cas/ota/OTA5TSingleEnded.cas", "tests/golden/casir/ota/OTA5TSingleEnded.ml.cir")
+        };
+        foreach (var (src, dst) in sources)
+        {
+            var sourcePath = Path.Combine(repoRoot, src);
+            var sourceText = File.ReadAllText(sourcePath);
+            var compiler = new SimpleCascodeCompiler();
+            var result = compiler.CompileToCasir(
+                new[] { new SourceUnit(sourcePath, sourceText) },
+                new CompileOptions("test", CasIRLevel.ML) { LibraryRoots = new[] { repoRoot } });
+            var json = JsonSerializer.Serialize(result.CasIR, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(repoRoot, dst), json);
+        }
+    }
 }

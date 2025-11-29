@@ -318,6 +318,7 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
         int column,
         string instanceName,
         string typeName,
+        IReadOnlyList<string>? constructorArgs = null,
         IReadOnlyList<InstanceParameterSyntax>? parameters = null,
         IReadOnlyList<BindingSyntax>? bindings = null)
         : base(filePath, line, column)
@@ -326,6 +327,7 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
         ArgumentNullException.ThrowIfNull(typeName);
         InstanceName = instanceName;
         TypeName = typeName;
+        ConstructorArgs = constructorArgs is null ? Array.Empty<string>() : constructorArgs.ToList().AsReadOnly();
         Parameters = parameters is null ? Array.Empty<InstanceParameterSyntax>() : parameters.ToList().AsReadOnly();
         Bindings = bindings is null ? Array.Empty<BindingSyntax>() : bindings.ToList().AsReadOnly();
     }
@@ -335,6 +337,9 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
 
     /// <summary>Fully qualified motif type name.</summary>
     public string TypeName { get; }
+
+    /// <summary>Constructor arguments (e.g., for MOS(p), this would be ["p"]).</summary>
+    public IReadOnlyList<string> ConstructorArgs { get; }
 
     /// <summary>Instance parameters (e.g., p=NMOS, hasTail=true).</summary>
     public IReadOnlyList<InstanceParameterSyntax> Parameters { get; }

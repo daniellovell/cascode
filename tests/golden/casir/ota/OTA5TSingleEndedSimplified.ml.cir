@@ -71,5 +71,104 @@
       },
       "params": null
     }
+  ],
+  "definitions": [
+    {
+      "name": "CurrentMirror",
+      "package": "lib.std.prim",
+      "implements": [
+        "CurrentMirrorLike"
+      ],
+      "params": null,
+      "ports": [
+        {
+          "name": "SENSE",
+          "kind": "analog"
+        }
+      ],
+      "supplies": null,
+      "grounds": null,
+      "instances": [
+        {
+          "id": "M_SENSE",
+          "type": "MOS",
+          "traits": null,
+          "ports": {
+            "drain": "SENSE",
+            "gate": "SENSE",
+            "source": "RAIL"
+          },
+          "params": null
+        },
+        {
+          "id": "tap",
+          "type": "MOS",
+          "traits": null,
+          "ports": {
+            "drain": "TAP["
+          },
+          "params": null
+        }
+      ]
+    },
+    {
+      "name": "DiffPair",
+      "package": "lib.std.prim",
+      "implements": [
+        "DiffPairLike"
+      ],
+      "params": null,
+      "ports": [
+        {
+          "name": "IN",
+          "kind": "Diff"
+        },
+        {
+          "name": "OUT",
+          "kind": "Diff"
+        },
+        {
+          "name": "BASE",
+          "kind": "analog"
+        }
+      ],
+      "supplies": null,
+      "grounds": null,
+      "instances": [
+        {
+          "id": "M_N",
+          "type": "MOS",
+          "traits": null,
+          "ports": {
+            "gate": "IN.P",
+            "drain": "OUT.N",
+            "source": "tnode"
+          },
+          "params": null
+        },
+        {
+          "id": "M_P",
+          "type": "MOS",
+          "traits": null,
+          "ports": {
+            "gate": "IN.N",
+            "drain": "OUT.P",
+            "source": "tnode"
+          },
+          "params": null
+        },
+        {
+          "id": "M_TAIL",
+          "type": "MOS",
+          "traits": null,
+          "ports": {
+            "drain": "tnode",
+            "source": "BASE",
+            "gate": "BIAS"
+          },
+          "params": null
+        }
+      ]
+    }
   ]
 }

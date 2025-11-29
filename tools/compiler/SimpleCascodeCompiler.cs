@@ -77,13 +77,67 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             };
         }
 
-        var casir = LowerToCasir(design, options);
+        // Collect referenced motif types
+        var referencedTypes = design.Instances.Values
+            .Select(i => i.Type)
+            .ToHashSet(StringComparer.Ordinal);
+
+        // Resolve imports and collect definitions
+        List<MotifDefinition>? definitions = null;
+        if (options.LibraryRoots is { Count: > 0 })
+        {
+            var resolver = new ImportResolver(options.LibraryRoots);
+            var resolvedMotifs = resolver.ResolveImports(tree.Root, referencedTypes, elaborationDiagnostics);
+
+            if (resolvedMotifs.Count > 0)
+            {
+                definitions = resolvedMotifs
+                    .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                    .Select(kvp => ImportResolver.ToDefinition(
+                        kvp.Value,
+                        kvp.Value.FilePath.Contains("lib") ? ExtractPackage(kvp.Value.FilePath) : null))
+                    .ToList();
+            }
+        }
+
+        var casir = LowerToCasir(design, options, definitions);
 
         return new CompileResult
         {
             CasIR = casir,
             Diagnostics = elaborationDiagnostics
         };
+    }
+
+    /// <summary>
+    /// Extracts the package name from a file path.
+    /// </summary>
+    private static string? ExtractPackage(string filePath)
+    {
+        // Convert path like "C:\...\lib\std\prim\DiffPair.cas" to "lib.std.prim"
+        var normalized = filePath.Replace('\\', '/');
+        var libIndex = normalized.LastIndexOf("/lib/", StringComparison.OrdinalIgnoreCase);
+        if (libIndex < 0)
+        {
+            libIndex = normalized.IndexOf("lib/", StringComparison.OrdinalIgnoreCase);
+            if (libIndex != 0)
+            {
+                return null;
+            }
+        }
+        else
+        {
+            libIndex++; // Skip the leading /
+        }
+
+        var pathPart = normalized[libIndex..];
+        var lastSlash = pathPart.LastIndexOf('/');
+        if (lastSlash > 0)
+        {
+            pathPart = pathPart[..lastSlash];
+        }
+
+        return pathPart.Replace('/', '.');
     }
 
     /// <summary>
@@ -289,12 +343,14 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// </summary>
     /// <param name="design">Structural design produced during elaboration.</param>
     /// <param name="options">Compilation options that supply the target CasIR level.</param>
+    /// <param name="definitions">Optional motif definitions to include.</param>
     /// <returns>CasIR document ready for serialization or further passes.</returns>
-    private static CasirDocument LowerToCasir(StructuralDesign design, CompileOptions options)
+    private static CasirDocument LowerToCasir(StructuralDesign design, CompileOptions options, List<MotifDefinition>? definitions)
     {
         var doc = new CasirDocument
         {
-            Level = options.Level
+            Level = options.Level,
+            Definitions = definitions
         };
 
         foreach (var net in design.Nets.Values.OrderBy(n => n.Id, StringComparer.Ordinal))

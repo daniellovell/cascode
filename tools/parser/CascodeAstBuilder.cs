@@ -139,8 +139,8 @@ internal sealed class CascodeAstBuilder
 
         foreach (var pd in list.portDecl())
         {
-            var name = pd.Identifier(0).GetText();
-            var kind = pd.Identifier(1).GetText();
+            var name = pd.Identifier().GetText();
+            var kind = pd.portKind().GetText();
             var (line, column) = GetLocation(pd.Start);
             yield return new PortDeclarationSyntax(_filePath, line, column, name, kind);
         }
@@ -231,6 +231,16 @@ internal sealed class CascodeAstBuilder
         var typeName = ids.Length > 1 ? ids[1].GetText() : string.Empty;
         var (line, column) = GetLocation(ctx.Start);
 
+        // Extract constructor arguments (e.g., MOS(p) -> ["p"])
+        var constructorArgs = new List<string>();
+        if (ctx.constructorArgs() is { } argsCtx)
+        {
+            foreach (var argCtx in argsCtx.paramValue())
+            {
+                constructorArgs.Add(argCtx.GetText());
+            }
+        }
+
         var parameters = new List<InstanceParameterSyntax>();
         if (ctx.instanceParams() is { } paramsCtx)
         {
@@ -255,7 +265,7 @@ internal sealed class CascodeAstBuilder
             }
         }
 
-        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName, parameters, bindings);
+        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName, constructorArgs, parameters, bindings);
     }
 
     private AttachStatementSyntax BuildAttach(CascodeParser.AttachStmtContext ctx)
@@ -281,6 +291,6 @@ internal sealed class CascodeAstBuilder
 
     private static string BuildQualifiedName(CascodeParser.QualifiedNameContext ctx)
     {
-        return string.Join(".", ctx.Identifier().Select(id => id.GetText()));
+        return string.Join(".", ctx.nameSegment().Select(seg => seg.GetText()));
     }
 }
