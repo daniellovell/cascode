@@ -23,7 +23,7 @@ motif Test {
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var instance = motif.UseBlock!.Statements.OfType<InstanceDeclarationSyntax>().Single();
@@ -50,7 +50,7 @@ motif Test {
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var instance = motif.UseBlock!.Statements.OfType<InstanceDeclarationSyntax>().Single();
@@ -81,7 +81,7 @@ motif Test {
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var instance = motif.UseBlock!.Statements.OfType<InstanceDeclarationSyntax>().Single();
@@ -108,7 +108,7 @@ motif Test {
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var instance = motif.UseBlock!.Statements.OfType<InstanceDeclarationSyntax>().Single();
@@ -138,7 +138,7 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
 
         var tree = CascodeParserFacade.Parse("OTA5TSingleEnded.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var instances = motif.UseBlock!.Statements.OfType<InstanceDeclarationSyntax>().ToList();
@@ -162,12 +162,6 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
         Assert.Equal("PMOS", cm.Parameters[0].Value);
         Assert.Equal("taps", cm.Parameters[1].Name);
         Assert.Equal("1", cm.Parameters[1].Value);
-    }
-
-    private static void AssertNoParseErrors(CascodeSyntaxTree tree)
-    {
-        var errors = tree.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        Assert.True(errors.Count == 0, $"Expected no parse errors but got: {string.Join("; ", errors.Select(e => e.Message))}");
     }
 }
 

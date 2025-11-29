@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using Xunit;
 
@@ -27,7 +28,7 @@ motif Test {{
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var supply = motif.Supplies.Single();
@@ -52,7 +53,7 @@ motif Test {{
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var supply = motif.Supplies.Single();
@@ -74,7 +75,7 @@ motif Test {
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var supply = motif.Supplies.Single();
@@ -114,7 +115,7 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
 
         var tree = CascodeParserFacade.Parse("OTA5TSingleEnded.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         // Verify supply has the correct value
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
@@ -140,20 +141,14 @@ motif Test {{
 
         var tree = CascodeParserFacade.Parse("test.cas", text);
 
-        AssertNoParseErrors(tree);
+        ParserTestHelpers.AssertNoParseErrors(tree);
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().Single();
         var supply = motif.Supplies.Single();
 
         Assert.NotNull(supply.Value);
-        Assert.Equal(double.Parse(literal), supply.Value!.NumericValue);
+        Assert.Equal(double.Parse(literal, CultureInfo.InvariantCulture), supply.Value!.NumericValue);
         Assert.Null(supply.Value.Unit);
-    }
-
-    private static void AssertNoParseErrors(CascodeSyntaxTree tree)
-    {
-        var errors = tree.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        Assert.True(errors.Count == 0, $"Expected no parse errors but got: {string.Join("; ", errors.Select(e => e.Message))}");
     }
 }
 

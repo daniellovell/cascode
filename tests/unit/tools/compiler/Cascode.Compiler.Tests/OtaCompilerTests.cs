@@ -212,7 +212,7 @@ motif Test {
     private static string Normalize(string text)
         => text.Replace("\r\n", "\n").Trim();
 
-    [Fact]
+    [Fact(Skip = "Manual test")]
     public void GenerateGoldenCasir()
     {
         var repoRoot = GetRepoRoot();
