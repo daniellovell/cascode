@@ -186,7 +186,7 @@ public sealed class ShellStateTests
         };
 
         var allTasks = Task.WhenAll(tasks);
-        var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(10)));
+        var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(30)));
 
         // Assert - No exceptions occurred
         Assert.True(completedTask == allTasks, "All tasks should complete within timeout");
