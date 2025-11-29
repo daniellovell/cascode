@@ -196,7 +196,7 @@ module InverterOTA implements SingleEndedAmplifier {
 
 ```java
 module SALatch implements Comparator {
-  supply VDD=1.2V; ground GND; port in_p vip, in_n vin; diff out(vop, von); clk phi;
+  supply VDD=1.2V; ground GND; port in_p vip, in_n vin; diff out(vop, von); clock phi;
 
   use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
 

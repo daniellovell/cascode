@@ -74,7 +74,7 @@ f: (instanceId, pinPath) -> netId
 { "id": "OUT", "domain": "analog", "roles": ["ota_out"] }
 ```
 
-The domain field specifies one of: `supply`, `ground`, `signal`, `analog`, `digital`, `mixed`, `bias`, `rf`, or `clk`. The signal types form a hierarchy where `analog`, `digital`, and `mixed` are subtypes of `signal`. Extensions may introduce additional domains under their respective namespaces. Roles provide optional labels that assist pattern matching, bench selection, and diagnostics. The rail field supplies an optional canonical rail name for supply or ground nets, such as VDD or GND.
+The domain field specifies one of: `supply`, `ground`, `signal`, `analog`, `digital`, `mixed`, `bias`, `rf`, or `clock`. The signal types form a hierarchy where `analog`, `digital`, and `mixed` are subtypes of `signal`. Extensions may introduce additional domains under their respective namespaces. Roles provide optional labels that assist pattern matching, bench selection, and diagnostics. The rail field supplies an optional canonical rail name for supply or ground nets, such as VDD or GND.
 
 Invariants
 

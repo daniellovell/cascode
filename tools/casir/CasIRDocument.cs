@@ -57,7 +57,7 @@ public sealed class Net
     public string Id { get; init; } = string.Empty;
 
     /// <summary>
-    /// Net domain: supply, ground, signal, analog, digital, mixed, bias, rf, or clk.
+    /// Net domain: supply, ground, signal, analog, digital, mixed, bias, rf, or clock.
     /// </summary>
     [JsonPropertyName("domain")]
     public string Domain { get; init; } = string.Empty;

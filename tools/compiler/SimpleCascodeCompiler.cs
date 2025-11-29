@@ -171,7 +171,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             "mixed" => "mixed",
             "signal" => "signal",
             "rf" => "rf",
-            "clk" => "clk",
+            "clock" => "clock",
             _ => "signal"
         };
     }

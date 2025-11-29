@@ -53,7 +53,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 * `mixed` - explicit domain boundary signals (comparator outputs, ADC/DAC interfaces); subtype of `signal`.
 * `diff` - differential bundle abstraction (has fields `.P`/`.N`).
 * `bias` - bias/control nets (typed for headroom/legality checks).
-* `rf`, `clk` - specialized kinds with additional contracts (impedance, phase/timing).
+* `rf`, `clock` - specialized kinds with additional contracts (impedance, phase/timing).
 
 #### Signal Type Hierarchy
 
@@ -802,15 +802,15 @@ motif WideSwingPMOSMirror {
 
 ## 2.18 Clocks and Phases
 
-* `clk` ports carry timing semantics; `phase {}` specifies frequency, duty, edge slew.
+* `clock` ports carry timing semantics; `phase {}` specifies frequency, duty, edge slew.
 
 ```cas
-clk phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
+clock phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 ```
 
 #### Normative
 
-* Clocked motifs (e.g., `StrongArmLatch`) **MUST** expose a `clk` and document timing contracts that benches rely on.
+* Clocked motifs (e.g., `StrongArmLatch`) **MUST** expose a `clock` and document timing contracts that benches rely on.
 
 ---
 

@@ -89,7 +89,7 @@
       "required": ["id", "domain"],
       "properties": {
         "id":     { "$ref": "#/$defs/Identifier" },
-        "domain": { "type": "string", "enum": ["supply", "ground", "signal", "analog", "digital", "mixed", "bias", "rf", "clk"] },
+        "domain": { "type": "string", "enum": ["supply", "ground", "signal", "analog", "digital", "mixed", "bias", "rf", "clock"] },
         "rail":   { "$ref": "#/$defs/Identifier" },
         "roles":  { "type": "array", "items": { "type": "string" } }
       }
