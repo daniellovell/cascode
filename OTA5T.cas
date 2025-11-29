@@ -1,0 +1,16 @@
+package analog.ota;
+
+motif OTA5TSingleEndedSimplified implements SingleEndedAmplifier {
+  supply VDD; ground GND;
+  ports [ IN: Diff, OUT: analog, VTAIL: bias ]
+
+  use {
+    dp = new DiffPair { p=NMOS; hasTail=true } {
+      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
+    };
+
+    cm = new CurrentMirror { p=PMOS; taps=1 };
+
+    connect dp.OUT.N -> OUT;
+  }
+}

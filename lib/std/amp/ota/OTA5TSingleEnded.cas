@@ -6,7 +6,7 @@ motif OTA5TSingleEnded implements SingleEndedAmplifier {
   supply VDD = 1.8V; ground GND;
 
   // Public interface (ALL CAPS ports; Diff bundle fields are P/N).
-  ports [ IN: Diff, OUT: electrical, VTAIL: bias ]
+  ports [ IN: Diff, OUT: analog, VTAIL: bias ]
 
   use {
     // Differential pair with internal tail. Base at ground; bias is VTAIL.

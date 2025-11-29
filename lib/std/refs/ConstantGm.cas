@@ -5,7 +5,7 @@ package lib.std.refs; import lib.std.amp.*; import lib.std.prim.*;
 motif ConstantGm implements CurrentReference {
   params { p: polarity = PMOS; RB: resistance = 10k; }
   supply VDD=1.8V; ground GND;
-  ports [ OUT: electrical ]
+  ports [ OUT: analog ]
 
   use {
     // Two mirrors, chained by the within-trait connector (SENSE -> TAP[0]).

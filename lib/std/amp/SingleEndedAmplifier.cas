@@ -3,7 +3,7 @@ package lib.std.amp;
 // Interface trait: Single-ended amplifier.
 // Provides ports and bench metric mappings for Amplifier metrics.
 trait SingleEndedAmplifier extend Amplifier {
-  ports [ IN: Diff, OUT: electrical ]
+  ports [ IN: Diff, OUT: analog ]
   supply VDD; ground GND;
 
   // Declarative mapping from canonical metrics to bench metrics.

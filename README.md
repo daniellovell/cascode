@@ -163,7 +163,7 @@ module OTA5T implements SingleEndedAmplifier {
 
 ```java
 motif WideSwingPMOSMirror implements CurrentMirror {
-  ports { sense, out: electrical; vdd: supply; }
+  ports { sense, out: analog; vdd: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
 
   wrap spice """

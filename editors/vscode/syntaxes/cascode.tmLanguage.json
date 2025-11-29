@@ -54,7 +54,7 @@
         },
         {
           "name": "keyword.other.type.cascode",
-          "match": "\\b(electrical|digital|analog|thermal|signal|rf)\\b"
+          "match": "\\b(signal|analog|digital|mixed|thermal|rf)\\b"
         },
         {
           "name": "storage.modifier.cascode",

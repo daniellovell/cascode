@@ -86,7 +86,7 @@ The TextMate grammar recognizes:
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
-- **Port types**: `electrical`, `digital`, `analog`, `supply`, `ground`
+- **Port types**: `signal`, `analog`, `digital`, `mixed`, `supply`, `ground`, `bias`, `rf`, `clk`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
 - **Common traits**: `Amplifier`, `SingleEndedAmplifier`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
 - **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`
