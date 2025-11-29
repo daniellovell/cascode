@@ -209,6 +209,57 @@ public sealed class PdkDatabase : IDisposable
               example_model TEXT NULL,
               decks INTEGER NOT NULL
             );
+
+            -- Characterization LUT tables
+            CREATE TABLE IF NOT EXISTS char_runs (
+              id INTEGER PRIMARY KEY,
+              model_id INTEGER NOT NULL,
+              corner TEXT NOT NULL,
+              backend TEXT NOT NULL,
+              timestamp TEXT NOT NULL,
+              w_m REAL NOT NULL,
+              l_m REAL NOT NULL,
+              nf INTEGER NOT NULL,
+              vds REAL NOT NULL,
+              vsb REAL NOT NULL,
+              temperature_c REAL NOT NULL,
+              status TEXT NOT NULL,
+              job_dir TEXT NOT NULL,
+              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS char_lut_points (
+              id INTEGER PRIMARY KEY,
+              run_id INTEGER NOT NULL,
+              vgs REAL NOT NULL,
+              id_a REAL,
+              gm REAL,
+              gds REAL,
+              gm_over_id REAL,
+              vth REAL,
+              vdsat REAL,
+              ro REAL,
+              gm_ro REAL,
+              ft REAL,
+              cgs REAL,
+              cgd REAL,
+              FOREIGN KEY(run_id) REFERENCES char_runs(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS char_run_summary (
+              run_id INTEGER PRIMARY KEY,
+              gm_id_peak REAL,
+              vgs_at_peak_gm_id REAL,
+              vth_extracted REAL,
+              id_at_vth REAL,
+              gm_ro_max REAL,
+              ft_max REAL,
+              saturation_margin REAL,
+              FOREIGN KEY(run_id) REFERENCES char_runs(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_char_runs_model ON char_runs(model_id, corner);
+            CREATE INDEX IF NOT EXISTS idx_char_lut_points_run ON char_lut_points(run_id);
         ";
         cmd.ExecuteNonQuery();
         tx.Commit();

@@ -54,9 +54,18 @@ public sealed class PdkCharRunContextSelectionTests
         var specText = File.ReadAllText(specPath);
         var netlistText = File.ReadAllText(netlistPath);
 
-        Assert.Contains("\"section\":", specText, StringComparison.OrdinalIgnoreCase);
+        using var spec = System.Text.Json.JsonDocument.Parse(specText);
+        Assert.True(spec.RootElement.TryGetProperty("includes", out var includesElem));
+        Assert.True(includesElem.GetArrayLength() > 0);
+        var includePath = includesElem[0].GetString();
+        Assert.False(string.IsNullOrWhiteSpace(includePath));
+        Assert.True(File.Exists(includePath!), $"Include path should exist: {includePath}");
+
+        Assert.True(spec.RootElement.TryGetProperty("section", out var sectionElem));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, sectionElem.ValueKind);
+
         Assert.Contains("include", netlistText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("section=", netlistText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("section=", netlistText, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertSuccess(ProcessResult result)

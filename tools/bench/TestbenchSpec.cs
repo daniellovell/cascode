@@ -4,7 +4,9 @@ namespace Cascode.Bench;
 
 public sealed class TestbenchSpec
 {
-    [JsonPropertyName("backend")] public BenchBackendType Backend { get; init; } = BenchBackendType.Ngspice;
+    [JsonPropertyName("backend")]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public BenchBackendType Backend { get; init; } = BenchBackendType.Ngspice;
     [JsonPropertyName("name")] public string Name { get; init; } = "gm_id";
     [JsonPropertyName("model_name")] public string ModelName { get; init; } = string.Empty;
     [JsonPropertyName("corner")]

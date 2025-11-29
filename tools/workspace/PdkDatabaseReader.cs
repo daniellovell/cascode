@@ -276,6 +276,31 @@ public static class PdkDatabaseReader
     }
 
     /// <summary>
+    /// Retrieve all include/section contexts recorded for a model, regardless of corner.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK database.</param>
+    /// <param name="modelName">Name of the model to query.</param>
+    /// <returns>An ordered list of include/section tuples for the model.</returns>
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetAllContextsForModel(string dbPath, string modelName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT i.path, s.name
+                             FROM model_contexts mc
+                             JOIN models m ON m.id=mc.model_id
+                             LEFT JOIN sections s ON s.id=mc.section_id
+                             LEFT JOIN includes i ON i.id=mc.include_id
+                             WHERE m.name=$name
+                             GROUP BY i.path, s.name
+                             ORDER BY s.name, i.path";
+        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
+        var list = new List<(string, string?)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        return list;
+    }
+
+    /// <summary>
     /// Get the number of distinct devices that have at least one model match in the PDK database.
     /// </summary>
     /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>

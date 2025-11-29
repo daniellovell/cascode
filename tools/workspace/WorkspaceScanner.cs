@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
@@ -14,12 +15,14 @@ public sealed class WorkspaceScanner
     private readonly SpectreDeckInspector _deckInspector = new();
     private readonly SpectreModelExtractor _modelExtractor = new();
 
-    public WorkspaceScanResult Scan(string workspaceRoot, Microsoft.Extensions.Logging.ILogger? logger = null)
+    public WorkspaceScanResult Scan(string workspaceRoot, ILogger? logger = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot))
         {
             throw new ArgumentException("Workspace root must be provided", nameof(workspaceRoot));
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var root = Path.GetFullPath(workspaceRoot);
         var warnings = new List<string>();
@@ -27,6 +30,8 @@ public sealed class WorkspaceScanner
 
         var libraries = _cdsLibParser.Parse(root, warnings, logger);
         logger?.LogInformation("Parsed cds.lib hierarchy → {Count} libraries", libraries.Count);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var deckPaths = new List<string>();
         var deckComparer = OperatingSystem.IsWindows()
@@ -49,15 +54,21 @@ public sealed class WorkspaceScanner
         logger?.LogInformation("Inspecting cdsinit files for model decks");
         AddDeckPaths(_cdsInitScanner.FindModelDecks(root, warnings, logger));
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         logger?.LogInformation("Inspecting libInit files for model decks");
         AddDeckPaths(_libInitScanner.FindModelDecks(root, libraries, warnings, logger));
         logger?.LogInformation("Total model decks discovered so far: {Count}", deckPaths.Count);
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var deckRecords = new List<ModelDeckRecord>(deckPaths.Count);
         var models = new List<SpectreModel>();
 
         foreach (var deckPath in deckPaths)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             logger?.LogInformation("Inspecting deck {Deck}", deckPath);
             var record = _deckInspector.Inspect(root, deckPath, warnings);
             var modelsForDeck = _modelExtractor.Extract(root, deckPath, warnings);
@@ -69,6 +80,8 @@ public sealed class WorkspaceScanner
                 models.Add(model);
             }
         }
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         var consolidated = ConsolidateModels(models);
         logger?.LogInformation("Consolidated {Raw} model entries → {Consolidated} unique models", models.Count, consolidated.Count);
@@ -109,6 +122,7 @@ public sealed class WorkspaceScanner
         private readonly HashSet<string> _sections = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _sources = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _decks = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<ModelContext> _definitionContexts = new();
 
         public SpectreModelAggregator(string name)
         {
@@ -158,6 +172,14 @@ public sealed class WorkspaceScanner
                 _sections.Add(section);
             }
 
+            if (model.DefinitionContexts is not null)
+            {
+                foreach (var ctx in model.DefinitionContexts)
+                {
+                    _definitionContexts.Add(ctx);
+                }
+            }
+
             foreach (var source in model.SourceFiles)
             {
                 _sources.Add(source);
@@ -181,6 +203,12 @@ public sealed class WorkspaceScanner
             var sections = _sections.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var sources = _sources.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var decks = _decks.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
+            var contexts = _definitionContexts
+                .OrderBy(c => c.Corner ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.Detail ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.Section ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(c => c.IncludePath ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
             return new SpectreModel(
                 Name,
@@ -192,7 +220,10 @@ public sealed class WorkspaceScanner
                 cornerDetails.Length == 0 ? SpectreModel.EmptyStringList : cornerDetails,
                 sections.Length == 0 ? SpectreModel.EmptyStringList : sections,
                 sources.Length == 0 ? SpectreModel.EmptyStringList : sources,
-                decks.Length == 0 ? SpectreModel.EmptyStringList : decks);
+                decks.Length == 0 ? SpectreModel.EmptyStringList : decks)
+            {
+                DefinitionContexts = contexts.Length == 0 ? Array.Empty<ModelContext>() : contexts
+            };
         }
     }
 }

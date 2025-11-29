@@ -297,19 +297,11 @@ internal static class CharExportService
             var lines = File.ReadAllLines(chosen);
             if (lines.Length == 0) { message = "Empty raw/nutascii file."; return false; }
 
+            int varCount = 0;
             int headerEnd = -1;
             int rowWidth = 0;
             var names = new List<string>();
             var nums = new List<double>();
-
-            int idxVar(string name)
-            {
-                for (int i = 0; i < names.Count; i++) if (names[i].Equals(name, StringComparison.OrdinalIgnoreCase)) return i; return -1;
-            }
-            int idxContains(string token, string? token2 = null)
-            {
-                for (int i = 0; i < names.Count; i++) if ((names[i].IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0) && (token2 is null || names[i].IndexOf(token2, StringComparison.OrdinalIgnoreCase) >= 0)) return i; return -1;
-            }
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -317,8 +309,21 @@ internal static class CharExportService
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 if (headerEnd < 0)
                 {
+                    if (line.StartsWith("No. Variables", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var parts = line.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        if (parts.Length == 2 && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedVars))
+                        {
+                            varCount = parsedVars;
+                        }
+                    }
                     if (line.StartsWith("Variables:", StringComparison.OrdinalIgnoreCase))
                     {
+                        var tokensInline = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (tokensInline.Length >= 3)
+                        {
+                            names.Add(tokensInline[2]);
+                        }
                         i++;
                         for (; i < lines.Length; i++)
                         {
@@ -328,7 +333,8 @@ internal static class CharExportService
                             var parts = l.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                             if (parts.Length >= 3)
                             {
-                                var name = parts[2];
+                                var name = parts[1];
+                                if (string.IsNullOrWhiteSpace(name) && parts.Length >= 3) name = parts[2];
                                 names.Add(name);
                             }
                         }
@@ -341,7 +347,7 @@ internal static class CharExportService
                 {
                     if (line.StartsWith("Values:", StringComparison.OrdinalIgnoreCase))
                     {
-                        rowWidth = names.Count + 1;
+                        rowWidth = varCount > 0 ? varCount : names.Count;
                         continue;
                     }
                     var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
@@ -352,25 +358,41 @@ internal static class CharExportService
                 }
             }
 
-            int findNode(string vname, string plain)
+            if (varCount > 0 && names.Count < varCount)
             {
-                var idx = idxVar(vname);
-                if (idx >= 0) return idx;
-                return idxVar(plain);
+                if (!names.Contains("dc", StringComparer.OrdinalIgnoreCase))
+                {
+                    names.Insert(0, "dc");
+                }
+                while (names.Count < varCount)
+                {
+                    names.Insert(0, $"var{varCount - names.Count}");
+                }
             }
 
-            var ig = findNode("v(g)", "g");
-            var isrc = findNode("v(s)", "s");
-            var idn = findNode("v(d)", "d");
-            var iVdr = Math.Max(idxVar("i(vdr)"), idxContains("vdr", "branch"));
-            var iVsd = Math.Max(idxVar("i(vsd)"), idxContains("vsd", "branch"));
-            int iIMos = -1;
-            int iIdTerm = -1;
+            int findNode(string vname, string plain)
+            {
+                for (int j = 0; j < names.Count; j++)
+                {
+                    var nm = names[j];
+                    if (nm.Equals(vname, StringComparison.OrdinalIgnoreCase) || nm.Equals(plain, StringComparison.OrdinalIgnoreCase))
+                        return j;
+                }
+                return -1;
+            }
+
+            var ig = findNode("vgs", "g");
+            if (ig < 0) ig = findNode("vsg", "vsg");
+            var isrc = findNode("vs", "s");
+            var idn = findNode("vd", "d");
+            int iVdr = -1;
             for (int k = 0; k < names.Count; k++)
             {
-                var nm = names[k];
-                if (nm.EndsWith(":d", StringComparison.OrdinalIgnoreCase)) iIdTerm = k;
-                if (iIMos < 0 && nm.StartsWith("i(m", StringComparison.OrdinalIgnoreCase)) iIMos = k;
+                if (names[k].IndexOf("vdr", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    iVdr = k;
+                    break;
+                }
             }
 
             if (ig < 0 || isrc < 0 || idn < 0)
@@ -379,23 +401,23 @@ internal static class CharExportService
                 return false;
             }
 
-            int points = nums.Count / rowWidth;
+            if (rowWidth <= 0)
+            {
+                rowWidth = names.Count;
+            }
+
+            int points = rowWidth > 0 ? nums.Count / rowWidth : 0;
             var sb = new List<string>();
             sb.Add("vgs,vd,id");
             for (int p = 0; p < points; p++)
             {
-                int baseIdx = p * rowWidth + 1; // skip row index
+                int baseIdx = p * rowWidth;
                 double vg = nums[baseIdx + ig];
                 double vs = nums[baseIdx + isrc];
                 double vd = nums[baseIdx + idn];
-                double id;
                 double cur = double.NaN;
-                if (iVdr >= 0) cur = nums[baseIdx + iVdr];
-                else if (iVsd >= 0) cur = nums[baseIdx + iVsd];
-                else if (iIdTerm >= 0) cur = nums[baseIdx + iIdTerm];
-                else if (iIMos >= 0) cur = nums[baseIdx + iIMos];
-                var useDeviceCurrent = iIMos >= 0 && iVdr < 0 && iVsd < 0;
-                id = double.IsNaN(cur) ? double.NaN : (useDeviceCurrent ? cur : -cur);
+                if (iVdr >= 0 && baseIdx + iVdr < nums.Count) cur = nums[baseIdx + iVdr];
+                var id = double.IsNaN(cur) ? double.NaN : -cur;
                 var vgs = vg - vs;
                 sb.Add(string.Join(',', vgs.ToString(CultureInfo.InvariantCulture), vd.ToString(CultureInfo.InvariantCulture), id.ToString(CultureInfo.InvariantCulture)));
             }

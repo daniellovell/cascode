@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace Cascode.Workspace;
 
@@ -15,12 +16,15 @@ public sealed class PhysicalLibraryScanner
     /// </summary>
     /// <param name="libraries">The libraries to scan; each WorkspaceLibrary's Path is enumerated for cell directories.</param>
     /// <param name="warnings">Optional collection to receive non-fatal warnings (e.g., missing library path or per-library scan failures).</param>
+    /// <param name="cancellationToken">Token to cancel the scan operation.</param>
     /// <returns>A list of Device objects representing cells that have both layout and symbol views, populated with classification, tags, view names, and source library information.</returns>
-    public List<Device> Scan(IReadOnlyList<WorkspaceLibrary> libraries, ICollection<string>? warnings = null)
+    public List<Device> Scan(IReadOnlyList<WorkspaceLibrary> libraries, ICollection<string>? warnings = null, CancellationToken cancellationToken = default)
     {
         var devices = new List<Device>();
         foreach (var lib in libraries)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 var libPath = lib.Path;
@@ -32,6 +36,8 @@ public sealed class PhysicalLibraryScanner
 
                 foreach (var cellDir in Directory.EnumerateDirectories(libPath))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var cellName = Path.GetFileName(cellDir) ?? cellDir;
                     var views = SafeListDir(cellDir).Select(Path.GetFileName).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!).ToList();
                     var hasLayout = views.Any(v => LayoutViews.Contains(v!, StringComparer.OrdinalIgnoreCase));
@@ -61,6 +67,10 @@ public sealed class PhysicalLibraryScanner
                         Tags = tags
                     });
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
