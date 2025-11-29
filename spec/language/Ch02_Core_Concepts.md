@@ -730,9 +730,9 @@ Motifs often wrap primitive transistors with semantic interfaces. The `ActiveLoa
 ```cas
 motif ActiveLoad {
   ports {
-    node: analog;        // the node being loaded
-    bias: bias;          // gate bias voltage
-    vref: supply;        // reference rail (VDD for PMOS, GND for NMOS)
+    NODE: analog;        // the node being loaded
+    BIAS: bias;          // gate bias voltage
+    VREF: supply;        // reference rail (VDD for PMOS, GND for NMOS)
   }
   
   params {
@@ -742,18 +742,18 @@ motif ActiveLoad {
   
   use {
     if (polarity == PMOS) {
-      M = new PMOS() { 
-        drain -> node; 
-        source -> vref; 
-        bulk -> vref;
-        gate -> (diode_connected ? node : bias);
+      M = new PMOS { 
+        drain -> NODE; 
+        source -> VREF; 
+        bulk -> VREF;
+        gate -> (diode_connected ? NODE : BIAS);
       };
     } else {
-      M = new NMOS() { 
-        drain -> node; 
-        source -> vref; 
-        bulk -> vref;
-        gate -> (diode_connected ? node : bias);
+      M = new NMOS { 
+        drain -> NODE; 
+        source -> VREF; 
+        bulk -> VREF;
+        gate -> (diode_connected ? NODE : BIAS);
       };
     }
   }
@@ -775,18 +775,23 @@ This pattern demonstrates **abstraction without loss of transparency**: the prim
 `wrap spice """ … """ map { … }` turns a SPICE subckt into a **motif** with ports/params/contracts. For an NMOS variant of this pattern, see [Chapter 1 §1.5](Ch01_Introduction.md#15-cascode-in-a-few-examples).
 
 ```cas
-motif WideSwingPMOSMirror implements CurrentMirrorLike {
-  ports  { sense, out: analog; vref: supply; }
+motif WideSwingPMOSMirror {
+  ports  { SENSE: analog; OUT: analog; VREF: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
   wrap spice """
     .subckt WS_PMOS_MIRROR sense out vref m=1 Wp=2u Lp=0.18u
     M1 out  sense vref vref pch W={Wp*m} L={Lp}
     M2 sense sense vref vref pch W={Wp}   L={Lp}   ; diode
     .ends
-  """ map { sense=sense; out=out; vref=vref; }
+  """ map { SENSE=sense; OUT=out; VREF=vref; }
   // char { ... } // required to be Synthesizable
 }
 ```
+
+> [!NOTE]
+> **Limitation: SPICE wraps and parameterized traits**
+>
+> This motif does not declare `implements CurrentMirrorLike` because the trait requires a parameterized `TAP[i]` port family. SPICE subcircuits have fixed port lists and cannot directly implement traits with parameterized ports. Future language versions may address this through constrained trait implementation (e.g., `implements CurrentMirrorLike where taps=1`) or parameterized `map { }` blocks that generate port bindings from loop expressions.
 
 #### Normative
 

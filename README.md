@@ -162,8 +162,8 @@ module OTA5T implements SingleEndedAmplifier {
 #### SPICE wrap as a reusable "lego" (wide-swing mirror)
 
 ```java
-motif WideSwingPMOSMirror implements CurrentMirror {
-  ports { sense, out: analog; vdd: supply; }
+motif WideSwingPMOSMirror {
+  ports { SENSE: analog; OUT: analog; VDD: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
 
   wrap spice """
@@ -171,7 +171,7 @@ motif WideSwingPMOSMirror implements CurrentMirror {
     M1 out  sense vdd vdd pch W={Wp*m} L={Lp}
     M2 sense sense vdd vdd pch W={Wp}   L={Lp}   ; diode
     .ends
-  """ map { sense=sense; out=out; vdd=vdd; }
+  """ map { SENSE=sense; OUT=out; VDD=vdd; }
 }
 ```
 
