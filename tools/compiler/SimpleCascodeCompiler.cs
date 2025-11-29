@@ -103,8 +103,8 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             {
                 var pNet = port.Name + "_P";
                 var nNet = port.Name + "_N";
-                design.Nets[pNet] = new NetInfo { Id = pNet, Domain = "electrical" };
-                design.Nets[nNet] = new NetInfo { Id = nNet, Domain = "electrical" };
+                design.Nets[pNet] = new NetInfo { Id = pNet, Domain = "analog" };
+                design.Nets[nNet] = new NetInfo { Id = nNet, Domain = "analog" };
                 design.Bundles[port.Name] = new BundleInfo { Id = port.Name, PNet = pNet, NNet = nNet };
             }
             else
@@ -166,7 +166,13 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             "supply" => "supply",
             "ground" => "ground",
             "bias" => "bias",
-            _ => "electrical"
+            "analog" => "analog",
+            "digital" => "digital",
+            "mixed" => "mixed",
+            "signal" => "signal",
+            "rf" => "rf",
+            "clock" => "clock",
+            _ => "signal"
         };
     }
 

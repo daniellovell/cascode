@@ -5,11 +5,11 @@ package lib.std.prim;
 motif CurrentMirror implements CurrentMirrorLike {
   params { p: polarity = PMOS; taps: int = 1; ratio: int = 1; }
   // Mandatory port.
-  ports [ SENSE: electrical ]
+  ports [ SENSE: analog ]
   // Optional override port and per-tap outputs.
   ports {
     RAIL: supply;
-    for i in [0:taps] { TAP[i]: electrical; }
+    for i in [0:taps] { TAP[i]: analog; }
   }
 
   use {

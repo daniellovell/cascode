@@ -11,7 +11,7 @@ motif DiffPair implements DiffPairLike {
   ports [
     IN:  Diff,               // Fields: P, N
     OUT: Diff,               // Fields: P, N (OUT.N is the inverting node)
-    BASE: electrical         // Bottom of pair if no tail; bottom of tail if present
+    BASE: analog             // Bottom of pair if no tail; bottom of tail if present
   ]
 
   // Computed ports (evaluated at elaboration)

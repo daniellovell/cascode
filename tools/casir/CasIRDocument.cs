@@ -48,7 +48,7 @@ public sealed class CasirDocument
 }
 
 /// <summary>
-/// Defines a single net and its electrical domain.
+/// Defines a single net and its signal domain.
 /// </summary>
 public sealed class Net
 {
@@ -57,7 +57,7 @@ public sealed class Net
     public string Id { get; init; } = string.Empty;
 
     /// <summary>
-    /// Net domain such as supply, ground, electrical, bias, rf, or clk.
+    /// Net domain: supply, ground, signal, analog, digital, mixed, bias, rf, or clock.
     /// </summary>
     [JsonPropertyName("domain")]
     public string Domain { get; init; } = string.Empty;

@@ -55,11 +55,11 @@ All examples follow the repository style convention for connectivity: binds and 
 ```java
 package analog.amp; import lib.ota.*;
 
-bundle Diff { P: electrical; N: electrical; }
+bundle Diff { P: analog; N: analog; }
 
 module AmpAuto implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: electrical;
+  port in IN: Diff; port out OUT: analog;
   param CL=2pF;
 
   env  {
@@ -96,11 +96,11 @@ module AmpAuto implements SingleEndedAmplifier {
 ```java
 package analog.ota; import lib.motifs.*;
 
-bundle Diff { P: electrical; N: electrical; }
+bundle Diff { P: analog; N: analog; }
 
 module OTA5T implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
-  port in IN: Diff; port out OUT: electrical;
+  port in IN: Diff; port out OUT: analog;
 
   env  { vdd = VDD; load C = 1pF; source Z = 50; }
 
@@ -126,8 +126,8 @@ package analog.ota; import lib.motifs.*;
 
 module CommonSourceAmp implements SingleEndedAmplifier {
   supply VDD=1.8V; ground GND;
-  port in vin; port out vout;
-  bias vb1;
+  ports [ VIN: analog, VOUT: analog ]
+  bias VB1;
 
   env  {
     vdd = VDD;
@@ -139,10 +139,10 @@ module CommonSourceAmp implements SingleEndedAmplifier {
 
   use {
     // Primitive NMOS input transistor (synthesis sizes W/L from specs)
-    M_in = new NMOS() { gate -> vin; drain -> vout; source -> GND; bulk -> GND; };
+    M_in = new NMOS { gate -> VIN; drain -> VOUT; source -> GND; bulk -> GND; };
 
     // Generic active load motif with polarity
-    load = new ActiveLoad(polarity=PMOS) { node -> vout; bias -> vb1; vref -> VDD; };
+    load = new ActiveLoad { polarity=PMOS } { node -> VOUT; bias -> VB1; vref -> VDD; };
   }
 }
 
@@ -155,8 +155,8 @@ Option 1: Synthesis fills both slots
 ```java
 module TwoStageAmp implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: electrical;
-  net N1: electrical;
+  port in IN: Diff; port out OUT: analog;
+  net N1: analog;
 
   slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
   slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
@@ -176,8 +176,8 @@ Option 2: Structural fill (no `synth` needed)
 ```java
 module TwoStageAmp_Manual implements SingleEndedAmplifier {
   supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: electrical;
-  net N1: electrical;
+  port in IN: Diff; port out OUT: analog;
+  net N1: analog;
 
   slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
   slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
@@ -198,7 +198,7 @@ module TwoStageAmp_Manual implements SingleEndedAmplifier {
 ```java
 motif WideSwingNMOSMirror implements CurrentMirror {
   ports {
-    sense, out, ibias: electrical;
+    sense, out, ibias: analog;
     vss: supply;
   }
 
@@ -274,12 +274,12 @@ A *cascode* implementation is conformant if it:
 
 Many analog and mixed‑signal designs leverage digital standard cells (stdcells)
 for buffering, phase detection, and simple logic around analog cores. cascode
-supports this by treating stdcells as ordinary motifs with electrical ports and
+supports this by treating stdcells as ordinary motifs with `digital` ports and
 explicit supply pins. Stdcells typically enter the system through `wrap spice`
 from PDK‑provided subcircuits and may participate in synthesis when annotated
 with `char {}` manifests.
 
-The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `electrical` ports and explicit `supply` and `ground` rails, requiring no specialized net domains. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through electrical measurements including `RiseTime`, `FallTime`, `VOH`, and `VOL`, with verification performed through standard benches.
+The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `digital` ports and explicit `supply` and `ground` rails. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through digital measurements including `RiseTime`, `FallTime`, `VOH`, and `VOL`, with verification performed through standard benches.
 
 Example: Strong‑arm latch to pad with a selectable output inverter:
 
@@ -287,14 +287,16 @@ Example: Strong‑arm latch to pad with a selectable output inverter:
 package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
 
 module LatchToPad {
-  supply VDD=1.8V; ground GND; port in vip, vin; port out PAD;
-  net COMP_OUT: electrical;
+  supply VDD=1.8V; ground GND;
+  ports [ VIP: analog, VIN: analog, PAD: digital ]
+  net COMP_OUT: digital;
 
   env { vdd=VDD; load C on PAD = 15pF; source Z = 50; }
 
   use {
-    sa = new StrongArmLatch() { vdd=VDD; gnd=GND; };
-    sa.in_p -> vip; sa.in_n -> vin; sa.out -> COMP_OUT;
+    sa = new StrongArmLatch { vdd=VDD; gnd=GND } {
+      IN_P -> VIP; IN_N -> VIN; OUT -> COMP_OUT;
+    };
   }
 
   // Let synthesis choose a stdcell inverter or a composite pad driver
