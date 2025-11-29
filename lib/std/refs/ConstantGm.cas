@@ -1,7 +1,7 @@
 package lib.std.refs; import lib.std.amp.*; import lib.std.prim.*;
 
 // Constant-gm current reference built from two mirrors and a degeneration resistor.
-// gm ≈ 1/RB via feedback from the selected mirror tap to the rail.
+// gm = 1/RB via feedback from the selected mirror tap to the rail.
 motif ConstantGm implements CurrentReference {
   params { p: polarity = PMOS; RB: resistance = 10k; }
   supply VDD=1.8V; ground GND;
