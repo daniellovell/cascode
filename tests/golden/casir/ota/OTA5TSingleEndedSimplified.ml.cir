@@ -11,19 +11,19 @@
     },
     {
       "id": "IN_N",
-      "domain": "electrical",
+      "domain": "analog",
       "rail": null,
       "roles": null
     },
     {
       "id": "IN_P",
-      "domain": "electrical",
+      "domain": "analog",
       "rail": null,
       "roles": null
     },
     {
       "id": "OUT",
-      "domain": "electrical",
+      "domain": "analog",
       "rail": null,
       "roles": null
     },

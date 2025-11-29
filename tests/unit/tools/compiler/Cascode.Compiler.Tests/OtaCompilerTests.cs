@@ -73,7 +73,7 @@ public class OtaCompilerTests
 package test;
 motif Test {
     supply VDD; ground GND;
-    ports [ OUT: electrical ]
+    ports [ OUT: analog ]
     use {
         inst = new SomeMotif {};
         connect InvalidFormat -> OUT;

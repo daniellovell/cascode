@@ -24,15 +24,15 @@ internal sealed class StructuralDesign
 }
 
 /// <summary>
-/// Describes a single net and its electrical domain.
+/// Describes a single net and its signal domain.
 /// </summary>
 internal sealed class NetInfo
 {
     /// <summary>Identifier of the net as referenced by connects.</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Domain name used for CasIR lowering (e.g., <c>electrical</c>, <c>supply</c>).</summary>
-    public string Domain { get; init; } = "electrical";
+    /// <summary>Domain name used for CasIR lowering (e.g., <c>signal</c>, <c>analog</c>, <c>digital</c>, <c>supply</c>).</summary>
+    public string Domain { get; init; } = "signal";
 
     /// <summary>Optional rail name when the domain is a supply or ground.</summary>
     public string? Rail { get; init; }

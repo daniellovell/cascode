@@ -27,7 +27,7 @@ This separation enables substitution during synthesis - for instance, any entity
 * A motif **MUST NOT** contain `spec {}` or `bench {}` blocks.
 * A slot **MUST** be typed by a trait that declares ports (an interface trait). Typing a slot by a spec-only trait is an error.
 
-Motifs represent synthesizable circuit topologies and must remain pure structural definitions. Behavioral specifications and verification benches belong at the module level, where they guide synthesis decisions, or within enclosing harnesses that validate composed designs. Similarly, slots function as structural placeholders in the wiring graph and require interface traits that provide the port definitions necessary for establishing electrical connections. Spec-only traits, which define behavioral contracts without physical port structure, cannot satisfy this requirement.
+Motifs represent synthesizable circuit topologies and must remain pure structural definitions. Behavioral specifications and verification benches belong at the module level, where they guide synthesis decisions, or within enclosing harnesses that validate composed designs. Similarly, slots function as structural placeholders in the wiring graph and require interface traits that provide the port definitions necessary for establishing connections. Spec-only traits, which define behavioral contracts without physical port structure, cannot satisfy this requirement.
 
 #### Library Placement
 
@@ -46,15 +46,29 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 
 #### Port kinds (non-exhaustive)
 
-* `supply`, `ground` - special; **MUST NOT** short to `electrical`.
-* `electrical` - general (single-ended).
+* `supply`, `ground` - special; **MUST NOT** short to signal types.
+* `signal` - general-purpose signal net (replaces the former `electrical` domain).
+* `analog` - continuous-valued signals (amplifier I/O, bias references); subtype of `signal`.
+* `digital` - discrete-valued signals (stdcell ports, logic nets); subtype of `signal`.
+* `mixed` - explicit domain boundary signals (comparator outputs, ADC/DAC interfaces); subtype of `signal`.
 * `diff` - differential bundle abstraction (has fields `.P`/`.N`).
 * `bias` - bias/control nets (typed for headroom/legality checks).
 * `rf`, `clk` - specialized kinds with additional contracts (impedance, phase/timing).
 
+#### Signal Type Hierarchy
+
+The signal types form a subtype hierarchy: `analog`, `digital`, and `mixed` are all subtypes of `signal`. Connection compatibility follows these rules:
+
+* A `signal`-typed port accepts connections from `signal`, `analog`, `digital`, or `mixed` nets.
+* An `analog`-typed port accepts only `analog` or `signal` nets.
+* A `digital`-typed port accepts only `digital` or `signal` nets.
+* A `mixed`-typed port accepts any signal subtype, marking intentional domain crossings.
+
+When no domain is explicitly specified, nets default to `signal`.
+
 #### Roles
 
-Ports and nets may carry semantic **roles** such as `stage1_out`, `ota_out`, or `cmfb_ctrl` that provide semantic context beyond basic electrical connectivity. These role annotations guide automated **pattern recognition**, enable targeted **contract** enforcement, and inform **benchmark generation** strategies.
+Ports and nets may carry semantic **roles** such as `stage1_out`, `ota_out`, or `cmfb_ctrl` that provide semantic context beyond basic connectivity. These role annotations guide automated **pattern recognition**, enable targeted **contract** enforcement, and inform **benchmark generation** strategies.
 
 #### Normative
 
@@ -78,8 +92,8 @@ This convention is normative for the standard libraries and examples and SHOULD 
 A **Bundle** is a typed, named group of ports (e.g., a differential pair or an amplifier I/O interface).
 
 ```cas
-bundle Diff   { P: electrical; N: electrical; }
-bundle AmpIO  { IN: Diff; OUT: electrical; }
+bundle Diff   { P: analog; N: analog; }
+bundle AmpIO  { IN: Diff; OUT: analog; }
 ```
 
 The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bundles that wrap normative ports (such as `AmpIO`) adopt the ALL_CAPS naming used for external ports so that binding syntax aligns with Chapter 2.3.1. Custom bundles that introduce ad-hoc groupings may select their own field casing, but the chosen style **MUST** remain consistent wherever that bundle appears.
@@ -157,7 +171,7 @@ Connectors are declared on interface traits and define how two instances that im
 
 ```cas
 trait AmplifierStage extend Amplifier {
-  ports [ IN: Diff, OUT: electrical ]
+  ports [ IN: Diff, OUT: analog ]
   connector { OUT -> IN; }
 }
 ```
@@ -167,8 +181,8 @@ trait AmplifierStage extend Amplifier {
 ```cas
 trait CurrentMirrorLike {
   params { taps: int = 1; }
-  ports [ SENSE: electrical ]
-  ports { for i in [0:taps] { TAP[i]: electrical; } }
+  ports [ SENSE: analog ]
+  ports { for i in [0:taps] { TAP[i]: analog; } }
   connector to DiffPairLike { SENSE -> OUT.N; TAP[0] -> OUT.P }
 }
 
@@ -245,7 +259,7 @@ Example:
 ```cas
 motif DiffPair {
   params { p: polarity = NMOS; hasTail: bool = true; }
-  ports [ IN: Diff, OUT: Diff, BASE: electrical ]
+  ports [ IN: Diff, OUT: Diff, BASE: analog ]
   ports { if (hasTail) { BIAS: bias; } }
 }
 ```
@@ -268,7 +282,7 @@ Example (multi-tap current mirror excerpt):
 ```cas
 ports {
   RAIL: supply;
-  for i in [0:taps] { TAP[i]: electrical; }
+  for i in [0:taps] { TAP[i]: analog; }
 }
 
 use {
@@ -432,7 +446,7 @@ trait Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swin
 
 // Interface traits refine Amplifier by adding ports and mapping metrics.
 trait SingleEndedAmplifier extend Amplifier {
-  ports [ IN: Diff, OUT: electrical ]; supply VDD; ground GND;
+  ports [ IN: Diff, OUT: analog ]; supply VDD; ground GND;
   metrics {
     GainBandwidth from SEAmplifierACBench.GainBandwidth;
     PassbandGain  from SEAmplifierACBench.PassbandGain;
@@ -463,7 +477,7 @@ When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically
 
 ### 2.11.1 Edge and Level Metrics for Digital‑Style Use
 
-Mixed‑signal flows commonly require timing/level checks on electrical nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
+Mixed‑signal flows commonly require timing/level checks on digital nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
 
 * `RiseTime(node, v_lo, v_hi)` - time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
 * `FallTime(node, v_hi, v_lo)` - analogous definition for falling transitions.
@@ -538,7 +552,7 @@ use {
 
 ## 2.13 Digital‑Style Motifs (Stdcell Integration)
 
-PDK digital standard cells are modeled as ordinary motifs with electrical pins and explicit rails. No new logic net type is introduced; intent is conveyed via traits and contracts.
+PDK digital standard cells are modeled as ordinary motifs with `digital` ports and explicit rails. Intent is conveyed via traits and contracts.
 
 ### 2.13.1 Traits for Eligibility
 
@@ -546,16 +560,16 @@ Traits express functional intent so slots can be filled by either single stdcell
 
 ```cas
 trait InverterLike {
-  port in  IN : electrical;
-  port out OUT: electrical;
+  port in  IN : digital;
+  port out OUT: digital;
   supply VDD; ground GND;
-  ens VOH(OUT) >= 0.9*VDD;  // typical electrical guarantees
+  ens VOH(OUT) >= 0.9*VDD;  // typical digital guarantees
   ens VOL(OUT) <= 0.1*VDD;
 }
 
 // Optional composite that still implements InverterLike
 motif PadDriver implements InverterLike {
-  ports { IN: electrical; OUT: electrical; VDD: supply; GND: ground; }
+  ports { IN: digital; OUT: digital; VDD: supply; GND: ground; }
   params { stages:int=2; bank:int=4; strength_hint: enum{Auto,X1,X2,X4,X8}=Auto; }
 }
 ```
@@ -571,7 +585,7 @@ When wrapping stdcells, map rails and well/bulk pins explicitly and avoid hidden
 
 ```cas
 motif INV_X4 implements InverterLike {
-  ports { IN: electrical; OUT: electrical; VDD: supply; GND: ground; VPB: supply; VNB: ground; }
+  ports { IN: digital; OUT: digital; VDD: supply; GND: ground; VPB: supply; VNB: ground; }
   wrap spice """
     .subckt sky130_fd_sc_hd__inv_4 A Y VPWR VGND VPB VNB
     .ends
@@ -587,7 +601,7 @@ motif INV_X4 implements InverterLike {
 Normative
 
 * If a PDK view exposes VPB/VNB (or equivalent bulk pins), wrappers **MUST** surface them as ports and map them bijectively in `map {}`.
-* Stdcells are authored with `electrical` ports; no new net kinds are required.
+* Stdcells are authored with `digital` ports for I/O signals.
 
 ### 2.13.3 Synthesis Guidance
 
@@ -650,8 +664,8 @@ M2 = new PMOS() {
 
 #### Port structure
 
-* `NMOS`: `{ gate, drain, source, bulk: electrical }`
-* `PMOS`: `{ gate, drain, source, bulk: electrical }`
+* `NMOS`: `{ gate, drain, source, bulk: analog }`
+* `PMOS`: `{ gate, drain, source, bulk: analog }`
 
 #### Parameters
 
@@ -716,7 +730,7 @@ Motifs often wrap primitive transistors with semantic interfaces. The `ActiveLoa
 ```cas
 motif ActiveLoad {
   ports {
-    node: electrical;    // the node being loaded
+    node: analog;        // the node being loaded
     bias: bias;          // gate bias voltage
     vref: supply;        // reference rail (VDD for PMOS, GND for NMOS)
   }
@@ -762,7 +776,7 @@ This pattern demonstrates **abstraction without loss of transparency**: the prim
 
 ```cas
 motif WideSwingPMOSMirror implements CurrentMirrorLike {
-  ports  { sense, out: electrical; vref: supply; }
+  ports  { sense, out: analog; vref: supply; }
   params { m:int=1; Wp=2u; Lp=0.18u; }
   wrap spice """
     .subckt WS_PMOS_MIRROR sense out vref m=1 Wp=2u Lp=0.18u
