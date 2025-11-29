@@ -205,19 +205,42 @@ public sealed class PortDeclarationSyntax : SyntaxNode
 }
 
 /// <summary>
+/// Represents a numeric literal with an optional unit suffix (e.g., 1.8V, 100MHz).
+/// </summary>
+public sealed class QuantityLiteralSyntax : SyntaxNode
+{
+    public QuantityLiteralSyntax(string filePath, int line, int column, double numericValue, string? unit)
+        : base(filePath, line, column)
+    {
+        NumericValue = numericValue;
+        Unit = unit;
+    }
+
+    /// <summary>The numeric portion of the literal.</summary>
+    public double NumericValue { get; }
+
+    /// <summary>The unit suffix (e.g., "V", "MHz"), or null if bare numeric.</summary>
+    public string? Unit { get; }
+}
+
+/// <summary>
 /// Supply rail declaration node.
 /// </summary>
 public sealed class SupplyDeclarationSyntax : SyntaxNode
 {
-    public SupplyDeclarationSyntax(string filePath, int line, int column, string name)
+    public SupplyDeclarationSyntax(string filePath, int line, int column, string name, QuantityLiteralSyntax? value = null)
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(name);
         Name = name;
+        Value = value;
     }
 
     /// <summary>Supply rail name.</summary>
     public string Name { get; }
+
+    /// <summary>Optional voltage value with unit (e.g., 1.8V).</summary>
+    public QuantityLiteralSyntax? Value { get; }
 }
 
 /// <summary>
@@ -264,6 +287,27 @@ public abstract class UseStatementSyntax : SyntaxNode
 }
 
 /// <summary>
+/// Represents a single parameter assignment in an instance declaration (e.g., p=NMOS).
+/// </summary>
+public sealed class InstanceParameterSyntax : SyntaxNode
+{
+    public InstanceParameterSyntax(string filePath, int line, int column, string name, string value)
+        : base(filePath, line, column)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(value);
+        Name = name;
+        Value = value;
+    }
+
+    /// <summary>Parameter name (left side of =).</summary>
+    public string Name { get; }
+
+    /// <summary>Parameter value as string (right side of =).</summary>
+    public string Value { get; }
+}
+
+/// <summary>
 /// Declares a motif instance inside the containing motif.
 /// </summary>
 public sealed class InstanceDeclarationSyntax : UseStatementSyntax
@@ -273,13 +317,17 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
         int line,
         int column,
         string instanceName,
-        string typeName)
+        string typeName,
+        IReadOnlyList<InstanceParameterSyntax>? parameters = null,
+        IReadOnlyList<BindingSyntax>? bindings = null)
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(instanceName);
         ArgumentNullException.ThrowIfNull(typeName);
         InstanceName = instanceName;
         TypeName = typeName;
+        Parameters = parameters is null ? Array.Empty<InstanceParameterSyntax>() : parameters.ToList().AsReadOnly();
+        Bindings = bindings is null ? Array.Empty<BindingSyntax>() : bindings.ToList().AsReadOnly();
     }
 
     /// <summary>Local instance identifier.</summary>
@@ -287,6 +335,33 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
 
     /// <summary>Fully qualified motif type name.</summary>
     public string TypeName { get; }
+
+    /// <summary>Instance parameters (e.g., p=NMOS, hasTail=true).</summary>
+    public IReadOnlyList<InstanceParameterSyntax> Parameters { get; }
+
+    /// <summary>Inline port bindings (e.g., IN.P -> IN.P).</summary>
+    public IReadOnlyList<BindingSyntax> Bindings { get; }
+}
+
+/// <summary>
+/// Represents a single port binding in an instance (e.g., IN.P -> IN.P).
+/// </summary>
+public sealed class BindingSyntax : SyntaxNode
+{
+    public BindingSyntax(string filePath, int line, int column, string fromPin, string toPin)
+        : base(filePath, line, column)
+    {
+        ArgumentNullException.ThrowIfNull(fromPin);
+        ArgumentNullException.ThrowIfNull(toPin);
+        FromPin = fromPin;
+        ToPin = toPin;
+    }
+
+    /// <summary>Source pin reference (left side of ->).</summary>
+    public string FromPin { get; }
+
+    /// <summary>Target net or pin reference (right side of ->).</summary>
+    public string ToPin { get; }
 }
 
 /// <summary>

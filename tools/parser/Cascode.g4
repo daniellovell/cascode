@@ -87,7 +87,20 @@ instanceDecl
     ;
 
 instanceParams
-    : '{' (~'}')* '}'
+    : '{' (instanceParam (';' instanceParam)* ';'?)? '}'
+    ;
+
+instanceParam
+    : Identifier '=' paramValue
+    ;
+
+paramValue
+    : Identifier
+    | IntegerLiteral
+    | RealLiteral
+    | quantityLiteral
+    | 'true'
+    | 'false'
     ;
 
 instanceBinds
@@ -119,11 +132,19 @@ qualifiedName
     ;
 
 literal
-    : IntegerLiteral
+    : quantityLiteral
+    | IntegerLiteral
     | RealLiteral
     | StringLiteral
     | 'true'
     | 'false'
+    ;
+
+// Quantity literals are numeric values followed immediately by a unit identifier.
+// The lexer produces separate tokens (e.g., RealLiteral + Identifier), so the parser
+// combines them here. Units include: V, mV, A, mA, uA, F, pF, Hz, MHz, GHz, deg, dB, s, ps, ns, nm, um, mW, etc.
+quantityLiteral
+    : (IntegerLiteral | RealLiteral) Identifier
     ;
     
 portsComputedBlock

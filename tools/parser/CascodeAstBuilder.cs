@@ -150,7 +150,47 @@ internal sealed class CascodeAstBuilder
     {
         var name = ctx.Identifier().GetText();
         var (line, column) = GetLocation(ctx.Start);
-        return new SupplyDeclarationSyntax(_filePath, line, column, name);
+
+        QuantityLiteralSyntax? value = null;
+        if (ctx.literal() is { } literalCtx)
+        {
+            value = BuildLiteralAsQuantity(literalCtx);
+        }
+
+        return new SupplyDeclarationSyntax(_filePath, line, column, name, value);
+    }
+
+    private QuantityLiteralSyntax? BuildLiteralAsQuantity(CascodeParser.LiteralContext ctx)
+    {
+        var (line, column) = GetLocation(ctx.Start);
+
+        // Check for quantity literal (numeric + unit)
+        if (ctx.quantityLiteral() is { } quantityCtx)
+        {
+            var numericText = quantityCtx.IntegerLiteral()?.GetText()
+                              ?? quantityCtx.RealLiteral()?.GetText()
+                              ?? "0";
+            var unit = quantityCtx.Identifier()?.GetText();
+            var numericValue = double.Parse(numericText, System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, unit);
+        }
+
+        // Bare integer literal
+        if (ctx.IntegerLiteral() is { } intLit)
+        {
+            var numericValue = double.Parse(intLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
+        }
+
+        // Bare real literal
+        if (ctx.RealLiteral() is { } realLit)
+        {
+            var numericValue = double.Parse(realLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
+        }
+
+        // Other literal types (bool, string) are not quantity-convertible
+        return null;
     }
 
     private GroundDeclarationSyntax BuildGround(CascodeParser.GroundDeclContext ctx)
@@ -190,7 +230,32 @@ internal sealed class CascodeAstBuilder
         var instanceName = ids[0].GetText();
         var typeName = ids.Length > 1 ? ids[1].GetText() : string.Empty;
         var (line, column) = GetLocation(ctx.Start);
-        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName);
+
+        var parameters = new List<InstanceParameterSyntax>();
+        if (ctx.instanceParams() is { } paramsCtx)
+        {
+            foreach (var paramCtx in paramsCtx.instanceParam())
+            {
+                var paramName = paramCtx.Identifier().GetText();
+                var paramValue = paramCtx.paramValue().GetText();
+                var (pLine, pColumn) = GetLocation(paramCtx.Start);
+                parameters.Add(new InstanceParameterSyntax(_filePath, pLine, pColumn, paramName, paramValue));
+            }
+        }
+
+        var bindings = new List<BindingSyntax>();
+        if (ctx.instanceBinds() is { } bindsCtx)
+        {
+            foreach (var bindingCtx in bindsCtx.binding())
+            {
+                var fromPin = bindingCtx.pinRef(0).GetText();
+                var toPin = bindingCtx.pinRef(1).GetText();
+                var (bLine, bColumn) = GetLocation(bindingCtx.Start);
+                bindings.Add(new BindingSyntax(_filePath, bLine, bColumn, fromPin, toPin));
+            }
+        }
+
+        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName, parameters, bindings);
     }
 
     private AttachStatementSyntax BuildAttach(CascodeParser.AttachStmtContext ctx)
