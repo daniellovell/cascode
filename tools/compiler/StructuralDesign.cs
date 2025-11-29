@@ -31,7 +31,7 @@ internal sealed class NetInfo
     /// <summary>Identifier of the net as referenced by connects.</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Domain name used for CasIR lowering (e.g., <c>signal</c>, <c>analog</c>, <c>digital</c>, <c>supply</c>).</summary>
+    /// <summary>Domain name used for CasIR lowering. Valid values: <c>signal</c> (default), <c>analog</c>, <c>digital</c>, <c>mixed</c>, <c>supply</c>, <c>ground</c>, <c>bias</c>, <c>rf</c>, <c>clk</c>.</summary>
     public string Domain { get; init; } = "signal";
 
     /// <summary>Optional rail name when the domain is a supply or ground.</summary>
