@@ -1,4 +1,5 @@
 package analog.ota;
+import lib.std.prim.*;
 
 motif OTA5TSingleEndedSimplified implements SingleEndedAmplifier {
   supply VDD; ground GND;

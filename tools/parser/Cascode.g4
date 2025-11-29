@@ -69,7 +69,16 @@ portList
     ;
 
 portDecl
-    : Identifier ':' Identifier
+    : Identifier ':' portKind
+    ;
+
+portKind
+    : Identifier
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
     ;
 
 useBlock
@@ -83,11 +92,28 @@ useStatement
     ;
 
 instanceDecl
-    : Identifier '=' 'new' Identifier instanceParams? instanceBinds? ';'
+    : Identifier '=' 'new' Identifier constructorArgs? instanceParams? instanceBinds? ';'
+    ;
+
+constructorArgs
+    : '(' (paramValue (',' paramValue)*)? ')'
     ;
 
 instanceParams
-    : '{' (~'}')* '}'
+    : '{' (instanceParam (';' instanceParam)* ';'?)? '}'
+    ;
+
+instanceParam
+    : Identifier '=' paramValue
+    ;
+
+paramValue
+    : Identifier
+    | IntegerLiteral
+    | RealLiteral
+    | quantityLiteral
+    | 'true'
+    | 'false'
     ;
 
 instanceBinds
@@ -115,29 +141,61 @@ pinRef
     ;
 
 qualifiedName
-    : Identifier ('.' Identifier)*
+    : nameSegment ('.' nameSegment)*
+    ;
+
+// Allows keywords to be used as identifiers in names (e.g., package analog.ota)
+nameSegment
+    : Identifier
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
     ;
 
 literal
-    : IntegerLiteral
+    : quantityLiteral
+    | IntegerLiteral
     | RealLiteral
     | StringLiteral
     | 'true'
     | 'false'
+    ;
+
+// Quantity literals are numeric values followed immediately by a unit identifier.
+// The lexer produces separate tokens (e.g., RealLiteral + Identifier), so the parser
+// combines them here. Units include: V, mV, A, mA, uA, F, pF, Hz, MHz, GHz, deg, dB, s, ps, ns, nm, um, mW, etc.
+quantityLiteral
+    : (IntegerLiteral | RealLiteral) Identifier
     ;
     
 portsComputedBlock
     : 'ports' '{' portsComputedToken* '}'
     ;
 
+// Tokens that can appear in computed ports blocks (e.g., ports { if (hasTail) { BIAS: bias; } })
+// Includes keywords that may appear in port kind position or control flow
 portsComputedToken
     : Identifier
+    | IntegerLiteral
     | '('
     | ')'
     | '{'
     | '}'
+    | '['
+    | ']'
     | ':'
     | ';'
+    | ','
+    | 'supply'
+    | 'ground'
+    | 'bias'
+    | 'analog'
+    | 'digital'
+    | 'if'
+    | 'for'
+    | 'in'
     ;
 
 Identifier

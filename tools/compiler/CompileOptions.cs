@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Cascode.CasIR;
 
 namespace Cascode.Compiler;
@@ -13,4 +14,11 @@ namespace Cascode.Compiler;
 /// </remarks>
 public sealed record CompileOptions(
     string EntryMotifFullName,
-    CasIRLevel Level);
+    CasIRLevel Level)
+{
+    /// <summary>
+    /// Root directories to search for imported motif definitions.
+    /// Import paths like <c>lib.std.prim.DiffPair</c> are resolved relative to these roots.
+    /// </summary>
+    public IReadOnlyList<string>? LibraryRoots { get; init; }
+}
