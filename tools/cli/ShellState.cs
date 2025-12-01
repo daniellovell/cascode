@@ -8,7 +8,8 @@ namespace Cascode.Cli;
 internal enum ShellViewMode
 {
     Home = 0,
-    DeviceSummary
+    DeviceSummary,
+    CharRead
 }
 
 internal sealed class ShellState
@@ -68,6 +69,8 @@ internal sealed class ShellState
     public ShellViewMode ViewMode { get; private set; } = ShellViewMode.Home;
 
     public DeviceSummaryViewState? DeviceSummary { get; private set; }
+
+    public CharReadViewState? CharRead { get; private set; }
 
     public int DeviceDetailOffset { get; private set; }
 
@@ -250,6 +253,7 @@ internal sealed class ShellState
     {
         ViewMode = ShellViewMode.Home;
         DeviceSummary = null;
+        CharRead = null;
         DeviceDetailOffset = 0;
         DeviceDetailPageSize = 0;
     }
@@ -305,6 +309,12 @@ internal sealed class ShellState
     {
         ReplaceDeviceSummary(summary ?? throw new ArgumentNullException(nameof(summary)));
         ViewMode = ShellViewMode.DeviceSummary;
+    }
+
+    public void ShowCharRead(CharReadViewState view)
+    {
+        CharRead = view ?? throw new ArgumentNullException(nameof(view));
+        ViewMode = ShellViewMode.CharRead;
     }
 
     public void ReplaceDeviceSummary(DeviceSummaryViewState summary)

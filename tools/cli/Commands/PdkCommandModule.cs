@@ -964,18 +964,23 @@ internal sealed class PdkCommandModule : ICommandModule
         var (ftIdx, _) = Services.CharIoHelpers.FindColumn(headers, "ft");
 
         var preview = Math.Min(head, samples.Count);
-        var table = new Table().Border(TableBorder.SimpleHeavy).AddColumn("#").AddColumn(controlName.ToUpperInvariant()).AddColumn("Id");
-        if (gmIdx >= 0) table.AddColumn("gm");
-        if (gmIdIdx >= 0) table.AddColumn("gm/Id");
-        if (gmPerWIdx >= 0) table.AddColumn("gm/W");
-        if (idPerWIdx >= 0) table.AddColumn("Id/W");
-        if (vstarIdx >= 0) table.AddColumn("Vov");
-        if (roIdx >= 0) table.AddColumn("ro");
-        if (gmRoIdx >= 0) table.AddColumn("gm·ro");
-        if (ftIdx >= 0) table.AddColumn("fT");
-        if (vthIdx >= 0) table.AddColumn("Vth");
 
+        // Build headers
+        var displayHeaders = new List<string> { "#", controlName.ToUpperInvariant(), "Id" };
+        if (gmIdx >= 0) displayHeaders.Add("gm");
+        if (gmIdIdx >= 0) displayHeaders.Add("gm/Id");
+        if (gmPerWIdx >= 0) displayHeaders.Add("gm/W");
+        if (idPerWIdx >= 0) displayHeaders.Add("Id/W");
+        if (vstarIdx >= 0) displayHeaders.Add("Vov");
+        if (roIdx >= 0) displayHeaders.Add("ro");
+        if (gmRoIdx >= 0) displayHeaders.Add("gm·ro");
+        if (ftIdx >= 0) displayHeaders.Add("fT");
+        if (vthIdx >= 0) displayHeaders.Add("Vth");
+
+        // Build rows
         static double sampleSafe(IReadOnlyList<double> data, int idx) => idx >= 0 && idx < data.Count ? data[idx] : double.NaN;
+        var displayRows = new List<List<string>>();
+
         for (var i = 0; i < preview; i++)
         {
             var sample = samples[i];
@@ -994,25 +999,50 @@ internal sealed class PdkCommandModule : ICommandModule
             if (gmRoIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmRoIdx)));
             if (ftIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, ftIdx)));
             if (vthIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, vthIdx)));
-            table.AddRow(row.ToArray());
+            displayRows.Add(row);
         }
 
-        AnsiConsole.Write(new Rule($"[bold]{query}[/] — {backend} / {corner}") { Justification = Justify.Left });
-        AnsiConsole.Write(table);
-        if (gmIdIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, gmIdIdx, "gm/Id");
-        if (idIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, idIdx, "Id");
-        if (gmPerWIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, gmPerWIdx, "gm/W");
-        if (idPerWIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, idPerWIdx, "Id/W");
-        if (vstarIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, vstarIdx, "Vov");
-        if (roIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, roIdx, "ro");
-        if (gmRoIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, gmRoIdx, "gm·ro");
-        if (ftIdx >= 0) Services.CharIoHelpers.RenderSparkline(samples, ftIdx, "fT");
+        // Build sparklines
+        var sparklines = new Dictionary<string, IReadOnlyList<double>>();
+        List<double> ExtractCol(int idx) => samples.Select(s => sampleSafe(s, idx)).ToList();
+
+        if (gmIdIdx >= 0) sparklines["gm/Id"] = ExtractCol(gmIdIdx);
+        if (idIdx >= 0) sparklines["Id"] = ExtractCol(idIdx);
+        if (gmPerWIdx >= 0) sparklines["gm/W"] = ExtractCol(gmPerWIdx);
+        if (idPerWIdx >= 0) sparklines["Id/W"] = ExtractCol(idPerWIdx);
+        if (vstarIdx >= 0) sparklines["Vov"] = ExtractCol(vstarIdx);
+        if (roIdx >= 0) sparklines["ro"] = ExtractCol(roIdx);
+        if (gmRoIdx >= 0) sparklines["gm·ro"] = ExtractCol(gmRoIdx);
+        if (ftIdx >= 0) sparklines["fT"] = ExtractCol(ftIdx);
 
         if (controlIdx >= 0 && vthIdx >= 0)
         {
-            var vovSeries = samples.Select(s => sampleSafe(s, controlIdx) - sampleSafe(s, vthIdx)).ToArray();
-            Services.CharIoHelpers.RenderSparkline(vovSeries.Select(v => new[] { v }).ToList(), 0, "Vov (VGS-Vth)");
+            sparklines["Vov (VGS-Vth)"] = samples.Select(s => sampleSafe(s, controlIdx) - sampleSafe(s, vthIdx)).ToList();
         }
+
+        if (_isInteractive())
+        {
+            var rowsReadOnly = displayRows.Select(r => (IReadOnlyList<string>)r).ToList();
+            var view = new CharReadViewState(query, $"{backend} / {corner}", displayHeaders, rowsReadOnly, sparklines, derivedPath);
+            _state.ShowCharRead(view);
+            _state.AddMessage($"Showing characterization for {query}");
+            return CommandResult.Success;
+        }
+
+        // Non-interactive fallthrough
+        var table = new Table().Border(TableBorder.SimpleHeavy);
+        foreach (var h in displayHeaders) table.AddColumn(h);
+        foreach (var r in displayRows) table.AddRow(r.ToArray());
+
+        AnsiConsole.Write(new Rule($"[bold]{query}[/] — {backend} / {corner}") { Justification = Justify.Left });
+        AnsiConsole.Write(table);
+
+        foreach (var kvp in sparklines)
+        {
+             AnsiConsole.Write(ShellRenderer.BuildSparkline(kvp.Key, kvp.Value));
+             AnsiConsole.WriteLine();
+        }
+
         _state.AddMessage($"Derived source: {derivedPath}");
         return CommandResult.Success;
     }
