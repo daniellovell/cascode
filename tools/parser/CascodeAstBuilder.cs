@@ -139,8 +139,8 @@ internal sealed class CascodeAstBuilder
 
         foreach (var pd in list.portDecl())
         {
-            var name = pd.Identifier(0).GetText();
-            var kind = pd.Identifier(1).GetText();
+            var name = pd.Identifier().GetText();
+            var kind = pd.portKind().GetText();
             var (line, column) = GetLocation(pd.Start);
             yield return new PortDeclarationSyntax(_filePath, line, column, name, kind);
         }
@@ -150,7 +150,57 @@ internal sealed class CascodeAstBuilder
     {
         var name = ctx.Identifier().GetText();
         var (line, column) = GetLocation(ctx.Start);
-        return new SupplyDeclarationSyntax(_filePath, line, column, name);
+
+        QuantityLiteralSyntax? value = null;
+        if (ctx.literal() is { } literalCtx)
+        {
+            value = BuildLiteralAsQuantity(literalCtx);
+        }
+
+        return new SupplyDeclarationSyntax(_filePath, line, column, name, value);
+    }
+
+    private QuantityLiteralSyntax? BuildLiteralAsQuantity(CascodeParser.LiteralContext ctx)
+    {
+        var (line, column) = GetLocation(ctx.Start);
+
+        // Check for quantity literal (numeric + unit)
+        if (ctx.quantityLiteral() is { } quantityCtx)
+        {
+            var integerLiteral = quantityCtx.IntegerLiteral();
+            var realLiteral = quantityCtx.RealLiteral();
+
+            if (integerLiteral is null && realLiteral is null)
+            {
+                var (qLine, qColumn) = GetLocation(quantityCtx.Start);
+                var quantityText = quantityCtx.GetText();
+                throw new InvalidOperationException(
+                    $"Quantity literal at {_filePath}:{qLine}:{qColumn} is missing a numeric value. " +
+                    $"Expected IntegerLiteral or RealLiteral, but found: '{quantityText}'");
+            }
+
+            var numericText = integerLiteral?.GetText() ?? realLiteral!.GetText();
+            var unit = quantityCtx.Identifier()?.GetText();
+            var numericValue = double.Parse(numericText, System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, unit);
+        }
+
+        // Bare integer literal
+        if (ctx.IntegerLiteral() is { } intLit)
+        {
+            var numericValue = double.Parse(intLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
+        }
+
+        // Bare real literal
+        if (ctx.RealLiteral() is { } realLit)
+        {
+            var numericValue = double.Parse(realLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
+        }
+
+        // Other literal types (bool, string) are not quantity-convertible
+        return null;
     }
 
     private GroundDeclarationSyntax BuildGround(CascodeParser.GroundDeclContext ctx)
@@ -190,7 +240,42 @@ internal sealed class CascodeAstBuilder
         var instanceName = ids[0].GetText();
         var typeName = ids.Length > 1 ? ids[1].GetText() : string.Empty;
         var (line, column) = GetLocation(ctx.Start);
-        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName);
+
+        // Extract constructor arguments (e.g., MOS(p) -> ["p"])
+        var constructorArgs = new List<string>();
+        if (ctx.constructorArgs() is { } argsCtx)
+        {
+            foreach (var argCtx in argsCtx.paramValue())
+            {
+                constructorArgs.Add(argCtx.GetText());
+            }
+        }
+
+        var parameters = new List<InstanceParameterSyntax>();
+        if (ctx.instanceParams() is { } paramsCtx)
+        {
+            foreach (var paramCtx in paramsCtx.instanceParam())
+            {
+                var paramName = paramCtx.Identifier().GetText();
+                var paramValue = paramCtx.paramValue().GetText();
+                var (pLine, pColumn) = GetLocation(paramCtx.Start);
+                parameters.Add(new InstanceParameterSyntax(_filePath, pLine, pColumn, paramName, paramValue));
+            }
+        }
+
+        var bindings = new List<BindingSyntax>();
+        if (ctx.instanceBinds() is { } bindsCtx)
+        {
+            foreach (var bindingCtx in bindsCtx.binding())
+            {
+                var fromPin = bindingCtx.pinRef(0).GetText();
+                var toPin = bindingCtx.pinRef(1).GetText();
+                var (bLine, bColumn) = GetLocation(bindingCtx.Start);
+                bindings.Add(new BindingSyntax(_filePath, bLine, bColumn, fromPin, toPin));
+            }
+        }
+
+        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName, constructorArgs, parameters, bindings);
     }
 
     private AttachStatementSyntax BuildAttach(CascodeParser.AttachStmtContext ctx)
@@ -216,6 +301,6 @@ internal sealed class CascodeAstBuilder
 
     private static string BuildQualifiedName(CascodeParser.QualifiedNameContext ctx)
     {
-        return string.Join(".", ctx.Identifier().Select(id => id.GetText()));
+        return string.Join(".", ctx.nameSegment().Select(seg => seg.GetText()));
     }
 }

@@ -50,11 +50,11 @@
         },
         {
           "name": "keyword.other.directive.cascode",
-          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|using|fb|pair|new|in|out|diff|clk|bias)\\b"
+          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|using|fb|pair|new|in|out|diff|clock|bias)\\b"
         },
         {
           "name": "keyword.other.type.cascode",
-          "match": "\\b(electrical|digital|analog|thermal|signal|rf)\\b"
+          "match": "\\b(signal|analog|digital|mixed|supply|ground|bias|rf|clock|thermal)\\b"
         },
         {
           "name": "storage.modifier.cascode",
