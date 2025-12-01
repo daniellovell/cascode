@@ -1,8 +1,8 @@
 package lib.std;
 
 trait InverterLike {
-  port in  IN  : electrical;
-  port out OUT : electrical;
+  port in  IN  : digital;
+  port out OUT : digital;
   supply VDD; ground GND;
 
   // Typical guarantees; library char{ } refines and verifies these bounds

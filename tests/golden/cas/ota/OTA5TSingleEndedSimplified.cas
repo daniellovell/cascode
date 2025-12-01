@@ -1,8 +1,9 @@
 package analog.ota;
+import lib.std.prim.*;
 
 motif OTA5TSingleEndedSimplified implements SingleEndedAmplifier {
   supply VDD; ground GND;
-  ports [ IN: Diff, OUT: electrical, VTAIL: bias ]
+  ports [ IN: Diff, OUT: analog, VTAIL: bias ]
 
   use {
     dp = new DiffPair { p=NMOS; hasTail=true } {

@@ -7,7 +7,7 @@
 
 ## 3.0 Summary
 
-CasIR serves as the single, authoritative handoff between the Cascode front end and the rest of the toolchain. Its role is both simple and critical: representing every electrical connection as a binding from an instance pin to a net, preserving sufficient structure and metadata to support search operations, rewrites, sizing, and benchmark generation, while maintaining deterministic output that facilitates diff operations and serves as a golden artifact in tests and reviews.
+CasIR serves as the single, authoritative handoff between the Cascode front end and the rest of the toolchain. Its role is both simple and critical: representing every connection as a binding from an instance pin to a net, preserving sufficient structure and metadata to support search operations, rewrites, sizing, and benchmark generation, while maintaining deterministic output that facilitates diff operations and serves as a golden artifact in tests and reviews.
 
 If we do this well, getting from ADL to SPICE is a straight line: parse and elaborate ADL into instances and nets, write CasIR, pick and size implementations, then print SPICE by looking up port ordering in library templates and substituting the already-known node names.
 
@@ -71,10 +71,10 @@ f: (instanceId, pinPath) -> netId
 ### 3.3.1 Nets
 
 ```json
-{ "id": "OUT", "domain": "electrical", "roles": ["ota_out"] }
+{ "id": "OUT", "domain": "analog", "roles": ["ota_out"] }
 ```
 
-The domain field specifies one of supply, ground, electrical, bias, rf, or clk, with extensions permitted to introduce additional domains under their respective namespaces. Roles provide optional labels that assist pattern matching, bench selection, and diagnostics. The rail field supplies an optional canonical rail name for supply or ground nets, such as VDD or GND.
+The domain field specifies one of: `supply`, `ground`, `signal`, `analog`, `digital`, `mixed`, `bias`, `rf`, or `clock`. The signal types form a hierarchy where `analog`, `digital`, and `mixed` are subtypes of `signal`. Extensions may introduce additional domains under their respective namespaces. Roles provide optional labels that assist pattern matching, bench selection, and diagnostics. The rail field supplies an optional canonical rail name for supply or ground nets, such as VDD or GND.
 
 Invariants
 
@@ -321,9 +321,9 @@ Parameter Representation
 ### 3.11.1 Example: ML CasIR for Latch→Pad Buffer Slice (with stdcell INV)
 
 This ML example focuses on the output buffer slot filled by a PDK stdcell
-inverter after synthesis. Nets are electrical; the stdcell appears as a normal
-motif instance with explicit rails. For the master `.cas` source example, see
-[Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
+inverter after synthesis. The stdcell appears as a normal motif instance with
+explicit rails and `digital` domain nets. For the master `.cas` source example,
+see [Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
 
 ```json
 {
@@ -335,8 +335,8 @@ motif instance with explicit rails. For the master `.cas` source example, see
   "nets": [
     {"id": "VDD",  "domain": "supply",   "rail": "VDD"},
     {"id": "GND",  "domain": "ground",   "rail": "GND"},
-    {"id": "COMP_OUT", "domain": "electrical"},
-    {"id": "PAD",  "domain": "electrical"}
+    {"id": "COMP_OUT", "domain": "digital"},
+    {"id": "PAD",  "domain": "digital"}
   ],
 
   "motifs": [
@@ -439,13 +439,13 @@ High-level patterns and syntactic sugar in ADL - including attach, pair, and fee
   "nets": [
     {"id": "VDD",  "domain": "supply",    "rail": "VDD"},
     {"id": "GND",  "domain": "ground",    "rail": "GND"},
-    {"id": "VINP", "domain": "electrical"},
-    {"id": "VINN", "domain": "electrical"},
-    {"id": "N1",   "domain": "electrical"},
-    {"id": "N2",   "domain": "electrical"},
-    {"id": "IBIAS", "domain": "electrical"},
-    {"id": "NSRC", "domain": "electrical"},
-    {"id": "OUT",  "domain": "electrical"}
+    {"id": "VINP", "domain": "analog"},
+    {"id": "VINN", "domain": "analog"},
+    {"id": "N1",   "domain": "analog"},
+    {"id": "N2",   "domain": "analog"},
+    {"id": "IBIAS", "domain": "analog"},
+    {"id": "NSRC", "domain": "analog"},
+    {"id": "OUT",  "domain": "analog"}
   ],
 
   "bundles": [
@@ -523,8 +523,8 @@ This example demonstrates a single-ended common-source amplifier using a primiti
   "nets": [
     {"id": "VDD",  "domain": "supply",    "rail": "VDD"},
     {"id": "GND",  "domain": "ground",    "rail": "GND"},
-    {"id": "vin",  "domain": "electrical"},
-    {"id": "vout", "domain": "electrical"},
+    {"id": "vin",  "domain": "analog"},
+    {"id": "vout", "domain": "analog"},
     {"id": "vb1",  "domain": "bias"}
   ],
 

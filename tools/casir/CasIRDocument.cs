@@ -45,10 +45,87 @@ public sealed class CasirDocument
     /// </summary>
     [JsonPropertyName("motifs")]
     public List<MotifInstance> Motifs { get; init; } = new();
+
+    /// <summary>
+    /// Motif type definitions for all referenced types. Each entry describes the structure
+    /// of a motif type used by instances in this document.
+    /// </summary>
+    [JsonPropertyName("definitions")]
+    public List<MotifDefinition>? Definitions { get; init; }
 }
 
 /// <summary>
-/// Defines a single net and its electrical domain.
+/// Describes a motif type definition, including its ports, parameters, and internal structure.
+/// </summary>
+public sealed class MotifDefinition
+{
+    /// <summary>Simple motif type name (e.g., "DiffPair").</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Fully qualified package path (e.g., "lib.std.prim").</summary>
+    [JsonPropertyName("package")]
+    public string? Package { get; init; }
+
+    /// <summary>Traits this motif implements.</summary>
+    [JsonPropertyName("implements")]
+    public List<string>? Implements { get; init; }
+
+    /// <summary>Parameter declarations with optional defaults.</summary>
+    [JsonPropertyName("params")]
+    public List<ParamDeclaration>? Params { get; init; }
+
+    /// <summary>Port declarations defining the motif's interface.</summary>
+    [JsonPropertyName("ports")]
+    public List<PortDeclaration>? Ports { get; init; }
+
+    /// <summary>Supply declarations.</summary>
+    [JsonPropertyName("supplies")]
+    public List<string>? Supplies { get; init; }
+
+    /// <summary>Ground declarations.</summary>
+    [JsonPropertyName("grounds")]
+    public List<string>? Grounds { get; init; }
+
+    /// <summary>Child motif instances within this definition.</summary>
+    [JsonPropertyName("instances")]
+    public List<MotifInstance>? Instances { get; init; }
+}
+
+/// <summary>
+/// Declares a parameter on a motif definition.
+/// </summary>
+public sealed class ParamDeclaration
+{
+    /// <summary>Parameter name.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Parameter type (e.g., "polarity", "bool", "int").</summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+
+    /// <summary>Default value if not overridden.</summary>
+    [JsonPropertyName("default")]
+    public string? Default { get; init; }
+}
+
+/// <summary>
+/// Declares a port on a motif definition.
+/// </summary>
+public sealed class PortDeclaration
+{
+    /// <summary>Port name.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Port kind (e.g., "analog", "Diff", "bias").</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Defines a single net and its signal domain.
 /// </summary>
 public sealed class Net
 {
@@ -57,7 +134,7 @@ public sealed class Net
     public string Id { get; init; } = string.Empty;
 
     /// <summary>
-    /// Net domain such as supply, ground, electrical, bias, rf, or clk.
+    /// Net domain: supply, ground, signal, analog, digital, mixed, bias, rf, or clock.
     /// </summary>
     [JsonPropertyName("domain")]
     public string Domain { get; init; } = string.Empty;

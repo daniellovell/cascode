@@ -3,8 +3,8 @@ package lib.std.prim;
 // Interface trait: current mirror with sense and tap.
 trait CurrentMirrorLike {
   params { taps: int = 1; }
-  ports [ SENSE: electrical ]
-  ports { for i in [0:taps] { TAP[i]: electrical; } }
+  ports [ SENSE: analog ]
+  ports { for i in [0:taps] { TAP[i]: analog; } }
 
   // Attach connectors (unified connector model):
   // - Within-trait chaining (mirror to mirror) defaults to the primary tap.

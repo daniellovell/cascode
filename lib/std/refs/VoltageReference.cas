@@ -2,7 +2,7 @@ package lib.std.refs;
 
 // Interface trait for voltage references.
 trait VoltageReference extend ReferenceCircuit {
-  ports [ OUT: electrical ]
+  ports [ OUT: analog ]
   supply VDD; ground GND;
 }
 
