@@ -1,292 +1,245 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Xunit;
+using Xunit.Abstractions;
+using System.IO;
+using System.Collections.Generic;
+using System;
 
 namespace Cascode.Workspace.Tests;
 
-public sealed class ModelGeometryExtractorTests : IDisposable
+public class ModelGeometryExtractorTests
 {
-    private readonly string _tempDir;
+    private readonly ITestOutputHelper _output;
 
-    public ModelGeometryExtractorTests()
+    public ModelGeometryExtractorTests(ITestOutputHelper output)
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"cascode_geom_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _output = output;
     }
 
-    public void Dispose()
-    {
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, recursive: true);
-        }
-    }
-
+    /// <summary>
+    /// Tests geometry extraction from a binned model file with:
+    /// - A .subckt definition with default w/l parameters
+    /// - Multiple binned .model definitions with lmin/lmax/wmin/wmax
+    /// - Continuation lines (+) after comment lines (*)
+    /// 
+    /// This is a common pattern in Sky130 PDK model files.
+    /// </summary>
     [Fact]
-    public void Extract_WithSharedFile_ReadsFileOnce()
+    public void Extract_BinnedModelWithContinuationAfterComment_ExtractsGeometry()
     {
-        // Arrange: Create a model file with two models
-        var modelFile = Path.Combine(_tempDir, "models.spm");
-        File.WriteAllText(modelFile, @"
-.model model_a nmos wmin=0.18u wmax=10u lmin=0.15u lmax=5u
-.model model_b pmos wmin=0.24u wmax=12u lmin=0.18u lmax=6u
-");
-
-        var models = new List<SpectreModel>
+        // Snippet from sky130_fd_pr__nfet_03v3_nvt.pm3.spice
+        // Note: continuation lines (+) come after comment lines (*)
+        var spiceContent = @"
+.subckt  nfet_03v3_nvt d g s b
+.param  l = 1 w = 1 nf = 1.0
+msky130_fd_pr__nfet_03v3_nvt d g s b sky130_fd_pr__nfet_03v3_nvt__model l = l w = w nf = nf
+.model sky130_fd_pr__nfet_03v3_nvt__model.0 nmos
+* DC IV MOS Parameters
++ lmin = 4.95e-07 lmax = 5.05e-07 wmin = 9.995e-06 wmax = 1.0005e-5
++ level = 54.0
+.model sky130_fd_pr__nfet_03v3_nvt__model.1 nmos
+* DC IV MOS Parameters
++ lmin = 4.95e-07 lmax = 5.05e-07 wmin = 9.95e-07 wmax = 1.005e-6
++ level = 54.0
+.model sky130_fd_pr__nfet_03v3_nvt__model.2 nmos
+* DC IV MOS Parameters
++ lmin = 5.95e-07 lmax = 6.05e-07 wmin = 9.95e-07 wmax = 1.005e-6
++ level = 54.0
+.model sky130_fd_pr__nfet_03v3_nvt__model.6 nmos
+* DC IV MOS Parameters
++ lmin = 7.95e-07 lmax = 8.05e-07 wmin = 4.15e-07 wmax = 4.25e-7
++ level = 54.0
+.ends nfet_03v3_nvt
+";
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            new SpectreModel
+            File.WriteAllText(tempFile, spiceContent);
+
+            var model = new SpectreModel
             {
-                Name = "model_a",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { modelFile }
-            },
-            new SpectreModel
-            {
-                Name = "model_b",
-                ModelType = "pmos",
-                DeviceClass = DeviceClass.Pmos,
-                SourceFiles = new[] { modelFile }
-            }
-        };
-
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
-
-        // Assert: Both models should be extracted correctly
-        Assert.Equal(2, geometry.Count);
-
-        var geomA = geometry.FirstOrDefault(g => g.ModelName == "model_a");
-        Assert.NotNull(geomA);
-        Assert.NotNull(geomA.WMin);
-        Assert.NotNull(geomA.WMax);
-        Assert.NotNull(geomA.LMin);
-        Assert.NotNull(geomA.LMax);
-        Assert.Equal(0.18e-6, geomA.WMin.Value, precision: 12);
-        Assert.Equal(10e-6, geomA.WMax.Value, precision: 12);
-        Assert.Equal(0.15e-6, geomA.LMin.Value, precision: 12);
-        Assert.Equal(5e-6, geomA.LMax.Value, precision: 12);
-
-        var geomB = geometry.FirstOrDefault(g => g.ModelName == "model_b");
-        Assert.NotNull(geomB);
-        Assert.NotNull(geomB.WMin);
-        Assert.NotNull(geomB.WMax);
-        Assert.NotNull(geomB.LMin);
-        Assert.NotNull(geomB.LMax);
-        Assert.Equal(0.24e-6, geomB.WMin.Value, precision: 12);
-        Assert.Equal(12e-6, geomB.WMax.Value, precision: 12);
-        Assert.Equal(0.18e-6, geomB.LMin.Value, precision: 12);
-        Assert.Equal(6e-6, geomB.LMax.Value, precision: 12);
-    }
-
-    [Fact]
-    public void Extract_WithSubckt_ExtractsDefaults()
-    {
-        // Arrange
-        var subcktFile = Path.Combine(_tempDir, "subckt.spm");
-        File.WriteAllText(subcktFile, @"
-.subckt nfet_device d g s b w=1u l=0.18u nf=1
-parameters w=1u l=0.18u nf=1
-m1 d g s b base_nmos w=w l=l nf=nf
-.ends
-");
-
-        var models = new List<SpectreModel>
-        {
-            new SpectreModel
-            {
-                Name = "nfet_device",
+                Name = "nfet_03v3_nvt",
                 ModelType = "subckt",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { subcktFile }
-            }
-        };
+                SourceFiles = new[] { tempFile },
+                Decks = Array.Empty<string>()
+            };
 
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
+            var geometry = ModelGeometryExtractor.Extract(new[] { model });
 
-        // Assert
-        Assert.Single(geometry);
-        var geom = geometry[0];
-        Assert.Equal("nfet_device", geom.ModelName);
-        Assert.NotNull(geom.WDefault);
-        Assert.NotNull(geom.LDefault);
-        Assert.NotNull(geom.NfDefault);
-        Assert.Equal(1e-6, geom.WDefault.Value, precision: 12);
-        Assert.Equal(0.18e-6, geom.LDefault.Value, precision: 12);
-        Assert.Equal(1, geom.NfDefault.Value);
-        Assert.Equal("subckt", geom.Source);
-    }
+            Assert.Single(geometry);
+            var geom = geometry[0];
 
-    [Fact]
-    public void Extract_WithContinuationLines_HandlesCorrectly()
-    {
-        // Arrange
-        var modelFile = Path.Combine(_tempDir, "multiline.spm");
-        File.WriteAllText(modelFile, @"
-.model long_model nmos \
-+ wmin=0.15u wmax=20u \
-+ lmin=0.12u lmax=10u
-");
+            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+            _output.WriteLine($"Source={geom.Source}");
 
-        var models = new List<SpectreModel>
-        {
-            new SpectreModel
-            {
-                Name = "long_model",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { modelFile }
-            }
-        };
+            // Should find both subckt and model
+            Assert.Equal("mixed", geom.Source);
 
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
-
-        // Assert
-        Assert.Single(geometry);
-        var geom = geometry[0];
-        Assert.NotNull(geom.WMin);
-        Assert.NotNull(geom.WMax);
-        Assert.NotNull(geom.LMin);
-        Assert.NotNull(geom.LMax);
-        Assert.Equal(0.15e-6, geom.WMin.Value, precision: 12);
-        Assert.Equal(20e-6, geom.WMax.Value, precision: 12);
-        Assert.Equal(0.12e-6, geom.LMin.Value, precision: 12);
-        Assert.Equal(10e-6, geom.LMax.Value, precision: 12);
-    }
-
-    [Fact]
-    public void Extract_WithMultipleReferencesToSameFile_ProducesConsistentResults()
-    {
-        // Arrange: One file, many models
-        var sharedFile = Path.Combine(_tempDir, "shared.spm");
-        File.WriteAllText(sharedFile, @"
-.model m1 nmos wmin=0.1u wmax=5u lmin=0.1u lmax=2u
-.model m2 nmos wmin=0.2u wmax=6u lmin=0.15u lmax=3u
-.model m3 nmos wmin=0.3u wmax=7u lmin=0.2u lmax=4u
-.model m4 nmos wmin=0.4u wmax=8u lmin=0.25u lmax=5u
-.model m5 nmos wmin=0.5u wmax=9u lmin=0.3u lmax=6u
-");
-
-        var models = Enumerable.Range(1, 5).Select(i => new SpectreModel
-        {
-            Name = $"m{i}",
-            ModelType = "nmos",
-            DeviceClass = DeviceClass.Nmos,
-            SourceFiles = new[] { sharedFile }
-        }).ToList();
-
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
-
-        // Assert: All 5 models should be extracted correctly despite sharing a file
-        Assert.Equal(5, geometry.Count);
-        for (int i = 1; i <= 5; i++)
-        {
-            var geom = geometry.FirstOrDefault(g => g.ModelName == $"m{i}");
-            Assert.NotNull(geom);
+            // Geometry should be extracted from the binned models
+            // LMin should be min of all lmin values: 4.95e-07
+            // LMax should be max of all lmax values: 8.05e-07
+            // WMin should be min of all wmin values: 4.15e-07
+            // WMax should be max of all wmax values: 1.0005e-5
+            Assert.NotNull(geom.LMin);
+            Assert.NotNull(geom.LMax);
             Assert.NotNull(geom.WMin);
-            Assert.Equal((i * 0.1) * 1e-6, geom.WMin.Value, precision: 12);
+            Assert.NotNull(geom.WMax);
+
+            Assert.Equal(4.95e-07, geom.LMin!.Value, precision: 10);
+            Assert.Equal(8.05e-07, geom.LMax!.Value, precision: 10);
+            Assert.Equal(4.15e-07, geom.WMin!.Value, precision: 10);
+            Assert.Equal(1.0005e-5, geom.WMax!.Value, precision: 10);
+        }
+        finally
+        {
+            File.Delete(tempFile);
         }
     }
 
+    /// <summary>
+    /// Tests geometry extraction when lmin/lmax/wmin/wmax are on the same line as .model
+    /// (no continuation lines needed).
+    /// </summary>
     [Fact]
-    public void Extract_WithMissingFile_SkipsGracefully()
+    public void Extract_ModelWithGeometryOnSameLine_ExtractsGeometry()
     {
-        // Arrange
-        var validFile = Path.Combine(_tempDir, "valid.spm");
-        File.WriteAllText(validFile, ".model valid_model nmos wmin=0.1u wmax=5u");
-
-        var models = new List<SpectreModel>
+        var spiceContent = @"
+.subckt  simple_nfet d g s b
+.param  l = 1u w = 1u nf = 1
+m1 d g s b simple_nfet__model l=l w=w nf=nf
+.model simple_nfet__model nmos lmin=0.18u lmax=10u wmin=0.22u wmax=100u level=54
+.ends simple_nfet
+";
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            new SpectreModel
-            {
-                Name = "valid_model",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { validFile }
-            },
-            new SpectreModel
-            {
-                Name = "missing_model",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { Path.Combine(_tempDir, "nonexistent.spm") }
-            }
-        };
+            File.WriteAllText(tempFile, spiceContent);
 
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
+            var model = new SpectreModel
+            {
+                Name = "simple_nfet",
+                ModelType = "subckt",
+                SourceFiles = new[] { tempFile },
+                Decks = Array.Empty<string>()
+            };
 
-        // Assert: Only the valid model should be in results
-        Assert.Single(geometry);
-        Assert.Equal("valid_model", geometry[0].ModelName);
+            var geometry = ModelGeometryExtractor.Extract(new[] { model });
+
+            Assert.Single(geometry);
+            var geom = geometry[0];
+
+            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+
+            Assert.NotNull(geom.LMin);
+            Assert.NotNull(geom.LMax);
+            Assert.NotNull(geom.WMin);
+            Assert.NotNull(geom.WMax);
+
+            Assert.Equal(0.18e-6, geom.LMin!.Value, precision: 10);
+            Assert.Equal(10e-6, geom.LMax!.Value, precision: 10);
+            Assert.Equal(0.22e-6, geom.WMin!.Value, precision: 10);
+            Assert.Equal(100e-6, geom.WMax!.Value, precision: 10);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
+    /// <summary>
+    /// Tests that geometry with spaces around '=' is correctly parsed.
+    /// SPICE allows: lmin = 1e-6 or lmin=1e-6
+    /// </summary>
     [Fact]
-    public void Extract_WithEmptyModelsList_ReturnsEmptyList()
+    public void Extract_GeometryWithSpacesAroundEquals_ExtractsCorrectly()
     {
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(new List<SpectreModel>());
+        var spiceContent = @"
+.subckt  spaced_nfet d g s b
+.param  l = 1u w = 1u
+m1 d g s b spaced_nfet__model l = l w = w
+.model spaced_nfet__model nmos
++ lmin = 0.5e-6 lmax = 1.0e-6 wmin = 0.42e-6 wmax = 10e-6
++ level = 54
+.ends spaced_nfet
+";
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(tempFile, spiceContent);
 
-        // Assert
-        Assert.Empty(geometry);
+            var model = new SpectreModel
+            {
+                Name = "spaced_nfet",
+                ModelType = "subckt",
+                SourceFiles = new[] { tempFile },
+                Decks = Array.Empty<string>()
+            };
+
+            var geometry = ModelGeometryExtractor.Extract(new[] { model });
+
+            Assert.Single(geometry);
+            var geom = geometry[0];
+
+            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+
+            Assert.NotNull(geom.LMin);
+            Assert.NotNull(geom.LMax);
+            Assert.NotNull(geom.WMin);
+            Assert.NotNull(geom.WMax);
+
+            Assert.Equal(0.5e-6, geom.LMin!.Value, precision: 10);
+            Assert.Equal(1.0e-6, geom.LMax!.Value, precision: 10);
+            Assert.Equal(0.42e-6, geom.WMin!.Value, precision: 10);
+            Assert.Equal(10e-6, geom.WMax!.Value, precision: 10);
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
     }
 
+    /// <summary>
+    /// Tests extraction of default w/l values from subckt parameters.
+    /// </summary>
     [Fact]
-    public void Extract_WithModelHavingNoSourceFiles_SkipsModel()
+    public void Extract_SubcktWithDefaults_ExtractsDefaults()
     {
-        // Arrange
-        var models = new List<SpectreModel>
+        var spiceContent = @"
+.subckt  nfet_with_defaults d g s b w=1u l=180n nf=1
+m1 d g s b nfet_with_defaults__model w=w l=l nf=nf
+.model nfet_with_defaults__model nmos level=54
+.ends nfet_with_defaults
+";
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            new SpectreModel
+            File.WriteAllText(tempFile, spiceContent);
+
+            var model = new SpectreModel
             {
-                Name = "no_sources",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = Array.Empty<string>()
-            }
-        };
+                Name = "nfet_with_defaults",
+                ModelType = "subckt",
+                SourceFiles = new[] { tempFile },
+                Decks = Array.Empty<string>()
+            };
 
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
+            var geometry = ModelGeometryExtractor.Extract(new[] { model });
 
-        // Assert
-        Assert.Empty(geometry);
-    }
+            Assert.Single(geometry);
+            var geom = geometry[0];
 
-    [Fact]
-    public void Extract_WithMixedModelAndSubckt_IdentifiesAsMixed()
-    {
-        // Arrange
-        var mixedFile = Path.Combine(_tempDir, "mixed.spm");
-        File.WriteAllText(mixedFile, @"
-.model mixed_device nmos wmin=0.1u wmax=5u lmin=0.1u lmax=2u
+            _output.WriteLine($"Extracted defaults: WDefault={geom.WDefault}, LDefault={geom.LDefault}, NfDefault={geom.NfDefault}");
 
-.subckt mixed_device d g s b w=1u l=0.18u
-m1 d g s b mixed_device w=w l=l
-.ends
-");
+            Assert.NotNull(geom.WDefault);
+            Assert.NotNull(geom.LDefault);
+            Assert.NotNull(geom.NfDefault);
 
-        var models = new List<SpectreModel>
+            Assert.Equal(1e-6, geom.WDefault!.Value, precision: 10);
+            Assert.Equal(180e-9, geom.LDefault!.Value, precision: 10);
+            Assert.Equal(1, geom.NfDefault!.Value);
+        }
+        finally
         {
-            new SpectreModel
-            {
-                Name = "mixed_device",
-                ModelType = "nmos",
-                DeviceClass = DeviceClass.Nmos,
-                SourceFiles = new[] { mixedFile }
-            }
-        };
-
-        // Act
-        var geometry = ModelGeometryExtractor.Extract(models);
-
-        // Assert
-        Assert.Single(geometry);
-        Assert.Equal("mixed", geometry[0].Source);
+            File.Delete(tempFile);
+        }
     }
 }

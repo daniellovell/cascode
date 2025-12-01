@@ -30,7 +30,8 @@ public sealed class DeviceCharPlannerTests : IDisposable
     {
         var dbPath = Path.Combine(_tempDir, "plan.db");
         var includePath = Path.Combine(_tempDir, "model.scs");
-        File.WriteAllText(includePath, "simulator lang=spectre");
+        // Include a .lib directive so FileHasLibrarySections returns true
+        File.WriteAllText(includePath, "simulator lang=spectre\n.lib ttt\n.model nmos_model nmos\n.endl ttt");
 
         var models = new List<SpectreModel>
         {

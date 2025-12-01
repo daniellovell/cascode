@@ -103,13 +103,34 @@ public static class ModelGeometryExtractor
     {
         var lines = File.ReadAllLines(path);
         // Join continuation lines ending with '\' or starting with '+'
+        // Also handle cases where comments appear between a statement and its continuation
         var normalized = new List<string>();
         var acc = new StringBuilder();
+
         foreach (var raw in lines)
         {
             var line = raw.Trim();
-            if (line.Length == 0 || line.StartsWith("*")) continue;
-            if (line.StartsWith("+")) { acc.Append(' ').Append(line[1..].Trim()); continue; }
+            if (line.Length == 0) continue;
+            if (line.StartsWith("*"))
+            {
+                // Skip comments but don't break continuation tracking
+                continue;
+            }
+            if (line.StartsWith("+"))
+            {
+                // Continuation line - append to accumulator or last line
+                if (acc.Length > 0)
+                {
+                    acc.Append(' ').Append(line[1..].Trim());
+                }
+                else if (normalized.Count > 0)
+                {
+                    // Append to the last normalized line (continuation after comment)
+                    var lastIdx = normalized.Count - 1;
+                    normalized[lastIdx] = normalized[lastIdx] + " " + line[1..].Trim();
+                }
+                continue;
+            }
             if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
             if (line.EndsWith("\\")) { acc.Append(line[..^1].Trim()); continue; }
             normalized.Add(line);
@@ -121,17 +142,60 @@ public static class ModelGeometryExtractor
     private static bool TryParseModelParams(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)
     {
         // .model <name> <type> params...
-        if (!Regex.IsMatch(line, @$"^\.?model\s+{Regex.Escape(modelName)}\b", RegexOptions.IgnoreCase)) return false;
+        // First try exact match
+        if (Regex.IsMatch(line, @$"^\.?model\s+{Regex.Escape(modelName)}\b", RegexOptions.IgnoreCase))
+        {
+            return ExtractModelGeometryFromLine(line, modelName, ref wmin, ref wmax, ref lmin, ref lmax);
+        }
+
+        // Also match model names that contain the base model name (e.g., sky130_fd_pr__nfet_03v3_nvt__model.0 contains nfet_03v3_nvt)
+        // This handles binned models where the base subckt name is embedded in the full model name
+        var modelMatch = Regex.Match(line, @"^\.?model\s+(\S+)", RegexOptions.IgnoreCase);
+        if (modelMatch.Success)
+        {
+            var fullModelName = modelMatch.Groups[1].Value;
+            // Check if the full model name contains the base model name (case-insensitive)
+            if (fullModelName.Contains(modelName, StringComparison.OrdinalIgnoreCase))
+            {
+                return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
+            }
+        }
+
+        return false;
+    }
+
+    private static bool ExtractModelGeometryFromLine(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)
+    {
         var idx = line.IndexOf(modelName, StringComparison.OrdinalIgnoreCase);
         if (idx < 0) return false;
         var rest = line[(idx + modelName.Length)..];
-        var tokens = SplitArgs(rest);
-        foreach (var tok in tokens)
+
+        // Use regex to find key=value pairs, handling optional spaces around '='
+        // Pattern matches: key = value or key=value
+        // For binned models, we want the overall range across all bins
+        // So we take min of all lmin/wmin values and max of all lmax/wmax values
+        foreach (Match match in Regex.Matches(rest, @"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase))
         {
-            if (TryParseAssign(tok, "wmin", out var v)) wmin = ParseSi(v);
-            else if (TryParseAssign(tok, "wmax", out v)) wmax = ParseSi(v);
-            else if (TryParseAssign(tok, "lmin", out v)) lmin = ParseSi(v);
-            else if (TryParseAssign(tok, "lmax", out v)) lmax = ParseSi(v);
+            var key = match.Groups[1].Value.ToLowerInvariant();
+            var valStr = match.Groups[2].Value;
+            var val = ParseSi(valStr);
+            if (!val.HasValue) continue;
+
+            switch (key)
+            {
+                case "wmin":
+                    wmin = wmin.HasValue ? Math.Min(wmin.Value, val.Value) : val;
+                    break;
+                case "wmax":
+                    wmax = wmax.HasValue ? Math.Max(wmax.Value, val.Value) : val;
+                    break;
+                case "lmin":
+                    lmin = lmin.HasValue ? Math.Min(lmin.Value, val.Value) : val;
+                    break;
+                case "lmax":
+                    lmax = lmax.HasValue ? Math.Max(lmax.Value, val.Value) : val;
+                    break;
+            }
         }
         return true;
     }
