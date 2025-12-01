@@ -60,7 +60,7 @@ The TextMate grammar recognizes:
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`
 - **Structure**: `attach`, `fb`, `pair`, `new`
-- **Port Roles**: `in`, `out`, `diff`, `clk`, `bias`
+- **Port Roles**: `in`, `out`, `diff`, `clock`, `bias`
 
 ### Typed Units
 - **Voltage**: `1.8V`, `0.9*VDD`, `mV`, `µV`
@@ -86,7 +86,7 @@ The TextMate grammar recognizes:
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
-- **Port types**: `electrical`, `digital`, `analog`, `supply`, `ground`
+- **Port types**: `signal`, `analog`, `digital`, `mixed`, `supply`, `ground`, `bias`, `rf`, `clock`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
 - **Common traits**: `Amplifier`, `SingleEndedAmplifier`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
 - **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`

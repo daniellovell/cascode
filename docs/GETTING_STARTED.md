@@ -52,7 +52,7 @@ The `SingleEndedAmplifier` trait extends that surface with the single-ended port
 package lib.std.amp;
 
 trait SingleEndedAmplifier extend Amplifier {
-  ports [ IN: Diff, OUT: electrical ]
+  ports [ IN: Diff, OUT: analog ]
   supply VDD; ground GND;
 
   metrics {
@@ -90,7 +90,7 @@ import lib.std.prim.*;
 
 motif OTA5TSingleEnded implements SingleEndedAmplifier {
   supply VDD = 1.8V; ground GND;
-  ports [ IN: Diff, OUT: electrical, VTAIL: bias ]
+  ports [ IN: Diff, OUT: analog, VTAIL: bias ]
 
   use {
     // Differential pair with internal tail
@@ -112,7 +112,7 @@ Finally, a top-level module `MyOTA` instantiates the motif, binds its `VTAIL` to
 
 ```java
 module MyOTA {
-  ports [ IN: Diff, OUT: electrical ]
+  ports [ IN: Diff, OUT: analog ]
   supply VDD = 1.8V; ground GND;
 
   spec {
