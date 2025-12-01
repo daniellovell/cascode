@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+
 namespace Cascode.Bench;
 
 public sealed class GmIdHarness : ITestbenchHarness
@@ -16,6 +20,8 @@ public sealed class GmIdHarness : ITestbenchHarness
         new HarnessParam("l_m", "number", "Length (m)", 0.18e-6),
         new HarnessParam("mult", "integer", "Multiplier", 1),
         new HarnessParam("nf", "integer", "Fingers", 1),
+        new HarnessParam("drain_bias_mode", "string", "Drain bias mode: fixed or scaled", "fixed"),
+        new HarnessParam("drain_alpha", "number", "When scaled, Vd = alpha * VGS", 1.0),
     };
 
     public TestbenchPlan BuildPlan(TestbenchContext ctx)
@@ -25,6 +31,16 @@ public sealed class GmIdHarness : ITestbenchHarness
         {
             ["results"] = spec.ResultsCsv,
         };
+
+        var data = new Dictionary<string, object>();
+        if (spec.Backend == BenchBackendType.Spectre)
+        {
+            var templateFile = "gm_id_v1.scs.tpl";
+            data["template_path"] = FindTemplatePath(templateFile);
+            data["template_name"] = templateFile;
+            data["params"] = BuildTemplateParams(spec);
+        }
+
         return new TestbenchPlan
         {
             HarnessId = Id,
@@ -32,7 +48,61 @@ public sealed class GmIdHarness : ITestbenchHarness
             NetlistName = spec.Name + (spec.Backend == BenchBackendType.Ngspice ? ".cir" : ".scs"),
             Artifacts = artifacts,
             Notes = Description,
+            Data = data
+        };
+    }
+
+    private static string FindTemplatePath(string templateFile)
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "templates", templateFile),
+            Path.Combine(Path.GetDirectoryName(typeof(GmIdHarness).Assembly.Location) ?? string.Empty, "templates", templateFile)
+        };
+        foreach (var c in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(c) && File.Exists(c)) return c;
+        }
+        return templateFile; // allow TryRenderTemplate to fall back to embedded resource lookup
+    }
+
+    private static IDictionary<string, object> BuildTemplateParams(TestbenchSpec spec)
+    {
+        // Provide simple defaults for geometry-related params; Spectre will fill in more detailed
+        // parasitics via the model when available.
+        double W = spec.W_M;
+        double L = spec.L_M;
+        int nf = Math.Max(1, spec.Nfingers);
+        int mult = Math.Max(1, spec.Mult);
+        double area = W * L * nf;
+        double peri = 2.0 * (W + L) * nf;
+
+        return new Dictionary<string, object>
+        {
+            ["vds"] = spec.Vds,
+            ["vsb"] = spec.Vsb,
+            ["start"] = spec.Vgs.Start,
+            ["stop"] = spec.Vgs.Stop,
+            ["step"] = spec.Vgs.Step,
+            ["w_m"] = W,
+            ["l_m"] = L,
+            ["mult"] = mult,
+            ["nf"] = nf,
+            ["inst_name"] = spec.IsSubckt ? "X1" : "M1",
+            ["drain_bias_mode"] = "fixed",
+            ["drain_alpha"] = 1.0,
+            ["as"] = area * 0.5,
+            ["ad"] = area * 0.5,
+            ["ps"] = peri * 0.5,
+            ["pd"] = peri * 0.5,
+            ["nrd"] = 0.0,
+            ["nrs"] = 0.0,
+            ["sa"] = 0.0,
+            ["sb"] = 0.0,
+            ["sd"] = 0.0,
+            ["sca"] = 0.0,
+            ["scb"] = 0.0,
+            ["scc"] = 0.0
         };
     }
 }
-

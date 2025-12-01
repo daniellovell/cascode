@@ -443,6 +443,19 @@ public static class PdkDatabaseReader
 
     public sealed record GeometryRow(double? WMin, double? WMax, double? LMin, double? LMax, int? NfMin, int? NfMax, double? WDefault, double? LDefault, int? NfDefault, string? Source, string? Notes);
 
+    public sealed record DeviceGeometryRow(
+        double? WMin,
+        double? WMax,
+        double? LMin,
+        double? LMax,
+        int? NfMin,
+        int? NfMax,
+        double? WDefault,
+        double? LDefault,
+        int? NfDefault,
+        string? Source,
+        string? Notes);
+
     public static GeometryRow? LoadGeometryForModel(string dbPath, string modelName)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -454,6 +467,31 @@ public static class PdkDatabaseReader
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
         return new GeometryRow(
+            reader.IsDBNull(0) ? null : reader.GetDouble(0),
+            reader.IsDBNull(1) ? null : reader.GetDouble(1),
+            reader.IsDBNull(2) ? null : reader.GetDouble(2),
+            reader.IsDBNull(3) ? null : reader.GetDouble(3),
+            reader.IsDBNull(4) ? null : reader.GetInt32(4),
+            reader.IsDBNull(5) ? null : reader.GetInt32(5),
+            reader.IsDBNull(6) ? null : reader.GetDouble(6),
+            reader.IsDBNull(7) ? null : reader.GetDouble(7),
+            reader.IsDBNull(8) ? null : reader.GetInt32(8),
+            reader.IsDBNull(9) ? null : reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10)
+        );
+    }
+
+    public static DeviceGeometryRow? LoadGeometryForDevice(string dbPath, string deviceCanonicalName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"
+            SELECT g.w_min, g.w_max, g.l_min, g.l_max, g.nf_min, g.nf_max, g.w_default, g.l_default, g.nf_default, g.source, g.notes
+            FROM device_geometry g JOIN devices d ON d.id=g.device_id WHERE d.canonical_name=$name";
+        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = deviceCanonicalName; cmd.Parameters.Add(p);
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read()) return null;
+        return new DeviceGeometryRow(
             reader.IsDBNull(0) ? null : reader.GetDouble(0),
             reader.IsDBNull(1) ? null : reader.GetDouble(1),
             reader.IsDBNull(2) ? null : reader.GetDouble(2),

@@ -21,9 +21,8 @@ public sealed class PdkCharRunContextSelectionTests
             "pdk", "scan", "tests/fixtures/pdk/sky130");
         AssertSuccess(scan);
 
-        // 2) Run a single-model char for 'tt' and verify the generated spec/netlist references a valid include+section
-        // We choose a model that exists under tt in the fixture example_corner_models.scs
-        var modelName = "sky130_fd_pr__nfet_example_tt"; // defined under section tttt_nmos_tn
+        // 2) Run a single-device char for 'tt' and verify the generated spec/netlist references a valid include
+        var deviceNeedle = "nfet_01v8";
         var run = await RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
@@ -31,7 +30,7 @@ public sealed class PdkCharRunContextSelectionTests
             "--backend", "spectre",
             "--corner", "tt",
             "--limit", "1",
-            "--name-contains", modelName,
+            "--name-contains", deviceNeedle,
             "--workspace", "tests/fixtures/pdk/sky130");
         AssertSuccess(run);
 
@@ -61,11 +60,10 @@ public sealed class PdkCharRunContextSelectionTests
         Assert.False(string.IsNullOrWhiteSpace(includePath));
         Assert.True(File.Exists(includePath!), $"Include path should exist: {includePath}");
 
-        Assert.True(spec.RootElement.TryGetProperty("section", out var sectionElem));
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, sectionElem.ValueKind);
+        Assert.True(spec.RootElement.TryGetProperty("device_name", out var deviceNameElem));
+        Assert.Contains(deviceNeedle, deviceNameElem.GetString(), StringComparison.OrdinalIgnoreCase);
 
         Assert.Contains("include", netlistText, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("section=", netlistText, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AssertSuccess(ProcessResult result)

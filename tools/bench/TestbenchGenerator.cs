@@ -61,12 +61,38 @@ public sealed class TestbenchGenerator
         }
 
         var path = pathObj?.ToString();
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) && plan.Data.TryGetValue("template_name", out var nameObj))
+        {
+            path = nameObj?.ToString();
+        }
+
+        string? templateText = null;
+        if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+        {
+            templateText = File.ReadAllText(path);
+        }
+        else if (!string.IsNullOrWhiteSpace(path))
+        {
+            // Attempt to load from embedded resources (bench assembly)
+            var asm = typeof(TestbenchGenerator).Assembly;
+            var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(Path.GetFileName(path), StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(resName))
+            {
+                using var stream = asm.GetManifestResourceStream(resName);
+                if (stream is not null)
+                {
+                    using var reader = new StreamReader(stream);
+                    templateText = reader.ReadToEnd();
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(templateText))
         {
             return null;
         }
 
-        var tpl = File.ReadAllText(path);
+        var tpl = templateText!;
         // Build template model
         var model = new
         {
@@ -74,7 +100,8 @@ public sealed class TestbenchGenerator
             {
                 temperature_c = ctx.Spec.TemperatureC,
                 model_name = ctx.Spec.ModelName,
-                results_csv = ctx.Spec.ResultsCsv
+                results_csv = ctx.Spec.ResultsCsv,
+                is_subckt = ctx.Spec.IsSubckt
             },
             includes = ctx.DeckPaths,
             includes_with_section = ctx.IncludePathsWithSection,

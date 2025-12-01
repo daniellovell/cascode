@@ -255,6 +255,46 @@ public sealed class CharLutWriterTests : IDisposable
     }
 
     [Fact]
+    public void GetDeviceCoverage_UsesDeviceRuns()
+    {
+        var dbPath = Path.Combine(_tempDir, "test_device_coverage.db");
+        SetupMinimalDatabase(dbPath);
+
+        using (var db = PdkDatabase.Open(dbPath))
+        {
+            using var cmd = db.Connection.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol, vt_tags, vdd_tags, tags)
+                VALUES ('lib__d1', 'd1', 'lib', '/tmp', 'd1', '/tmp/d1', 1, 0, 1, 1, 'LVT', 1.8, NULL);
+                INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol, vt_tags, vdd_tags, tags)
+                VALUES ('lib__p1', 'p1', 'lib', '/tmp', 'p1', '/tmp/p1', 2, 0, 1, 1, 'HVT', 1.8, NULL);";
+            cmd.ExecuteNonQuery();
+        }
+
+        var runs = new[]
+        {
+            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__d1", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j1" },
+            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__d1", Corner = "ff", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j2" },
+            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__p1", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j3" }
+        };
+        foreach (var r in runs) CharLutWriter.WriteCharRun(dbPath, r);
+
+        var coverage = CharLutReader.GetDeviceCoverage(dbPath);
+        Assert.Equal(2, coverage.Devices.Count);
+        Assert.Contains("lib__d1", coverage.Devices);
+        Assert.Contains("lib__p1", coverage.Devices);
+        Assert.Contains("tt", coverage.Corners);
+        Assert.Contains("ff", coverage.Corners);
+        Assert.Equal(3, coverage.TotalRuns);
+        Assert.True(coverage.HasRun("lib__d1", "tt"));
+        Assert.True(coverage.HasRun("lib__d1", "ff"));
+        Assert.True(coverage.HasRun("lib__p1", "tt"));
+        Assert.False(coverage.HasRun("lib__p1", "ff"));
+        Assert.Equal(DeviceClass.Nmos, coverage.GetDeviceClass("lib__d1"));
+        Assert.Equal(DeviceClass.Pmos, coverage.GetDeviceClass("lib__p1"));
+    }
+
+    [Fact]
     public void GetLatestRunForModel_ReturnsNewestRun()
     {
         // Arrange
@@ -302,6 +342,55 @@ public sealed class CharLutWriterTests : IDisposable
         Assert.NotNull(latest);
         Assert.Equal(2e-6, latest.W_M, precision: 12);
         Assert.Equal("/tmp/new", latest.JobDir);
+    }
+
+    [Fact]
+    public void WriteCharRun_AssociatesDeviceWhenPresent()
+    {
+        // Arrange
+        var dbPath = Path.Combine(_tempDir, "test_device.db");
+        SetupMinimalDatabase(dbPath);
+
+        using (var db = PdkDatabase.Open(dbPath))
+        {
+            using var cmd = db.Connection.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol)
+                VALUES ('lib:cell', 'cell', 'lib', '/tmp/lib', 'cell', '/tmp/cell', 1, 0, 1, 1)";
+            cmd.ExecuteNonQuery();
+        }
+
+        var run = new CharRunRecord
+        {
+            ModelName = "test_model",
+            DeviceName = "lib:cell",
+            Corner = "tt",
+            Backend = "spectre",
+            Timestamp = DateTime.UtcNow,
+            W_M = 1e-6,
+            L_M = 180e-9,
+            Nf = 1,
+            Vds = 0.9,
+            Vsb = 0.0,
+            TemperatureC = 27.0,
+            Status = "complete",
+            JobDir = "/tmp/char/job-device"
+        };
+
+        // Act
+        var runId = CharLutWriter.WriteCharRun(dbPath, run);
+
+        // Assert
+        using var db2 = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd2 = db2.Connection.CreateCommand();
+        cmd2.CommandText = "SELECT device_id FROM char_runs WHERE id=$id";
+        var p = cmd2.CreateParameter(); p.ParameterName = "$id"; p.Value = runId; cmd2.Parameters.Add(p);
+        var deviceId = cmd2.ExecuteScalar();
+        Assert.NotNull(deviceId);
+
+        var loaded = CharLutReader.LoadCharRun(dbPath, runId);
+        Assert.NotNull(loaded);
+        Assert.Equal("lib:cell", loaded!.DeviceName);
     }
 
     private void SetupMinimalDatabase(string dbPath)

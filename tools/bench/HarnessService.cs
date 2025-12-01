@@ -9,6 +9,10 @@ public static class HarnessService
         var reg = new HarnessRegistry();
         foreach (var h in Discover(workspaceRoot))
         {
+            if (reg.TryGet(h.Id, out _))
+            {
+                continue; // keep built-in when IDs collide with discovered harnesses
+            }
             reg.Register(h);
         }
         return reg;

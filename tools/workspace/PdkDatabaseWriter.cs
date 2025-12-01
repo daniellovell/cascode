@@ -138,6 +138,77 @@ public static class PdkDatabaseWriter
         tx.Commit();
     }
 
+    public static void UpsertDeviceGeometry(string dbPath, IReadOnlyList<Device> devices, IReadOnlyList<DeviceModelMatchRecord> matches, IReadOnlyList<ModelGeometry> modelGeometry)
+    {
+        using var db = PdkDatabase.Open(dbPath);
+        using var tx = db.Connection.BeginTransaction();
+
+        var deviceId = LoadIdMap(db.Connection, tx, "devices", "canonical_name");
+        var geomByModel = modelGeometry.ToDictionary(g => g.ModelName, StringComparer.OrdinalIgnoreCase);
+        var bestByDevice = new Dictionary<string, (int Rank, string ModelName)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var match in matches.OrderBy(m => m.Rank).ThenBy(m => m.ModelName, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!bestByDevice.TryGetValue(match.DeviceCanonicalName, out var current) || match.Rank < current.Rank)
+            {
+                bestByDevice[match.DeviceCanonicalName] = (match.Rank, match.ModelName);
+            }
+        }
+
+        using var insert = db.Connection.CreateCommand();
+        insert.Transaction = tx;
+        insert.CommandText = @"
+            INSERT INTO device_geometry(device_id, w_min, w_max, l_min, l_max, nf_min, nf_max, w_default, l_default, nf_default, source, notes)
+            VALUES ($id, $wmin, $wmax, $lmin, $lmax, $nfmin, $nfmax, $wdef, $ldef, $nfdef, $src, $notes)
+            ON CONFLICT(device_id) DO UPDATE SET
+                w_min=excluded.w_min,
+                w_max=excluded.w_max,
+                l_min=excluded.l_min,
+                l_max=excluded.l_max,
+                nf_min=excluded.nf_min,
+                nf_max=excluded.nf_max,
+                w_default=excluded.w_default,
+                l_default=excluded.l_default,
+                nf_default=excluded.nf_default,
+                source=excluded.source,
+                notes=excluded.notes;";
+        var pid = insert.CreateParameter(); pid.ParameterName = "$id"; insert.Parameters.Add(pid);
+        var pwmin = insert.CreateParameter(); pwmin.ParameterName = "$wmin"; insert.Parameters.Add(pwmin);
+        var pwmax = insert.CreateParameter(); pwmax.ParameterName = "$wmax"; insert.Parameters.Add(pwmax);
+        var plmin = insert.CreateParameter(); plmin.ParameterName = "$lmin"; insert.Parameters.Add(plmin);
+        var plmax = insert.CreateParameter(); plmax.ParameterName = "$lmax"; insert.Parameters.Add(plmax);
+        var pnfmin = insert.CreateParameter(); pnfmin.ParameterName = "$nfmin"; insert.Parameters.Add(pnfmin);
+        var pnfmax = insert.CreateParameter(); pnfmax.ParameterName = "$nfmax"; insert.Parameters.Add(pnfmax);
+        var pwdef = insert.CreateParameter(); pwdef.ParameterName = "$wdef"; insert.Parameters.Add(pwdef);
+        var pldef = insert.CreateParameter(); pldef.ParameterName = "$ldef"; insert.Parameters.Add(pldef);
+        var pnfdef = insert.CreateParameter(); pnfdef.ParameterName = "$nfdef"; insert.Parameters.Add(pnfdef);
+        var psrc = insert.CreateParameter(); psrc.ParameterName = "$src"; insert.Parameters.Add(psrc);
+        var pnotes = insert.CreateParameter(); pnotes.ParameterName = "$notes"; insert.Parameters.Add(pnotes);
+
+        foreach (var device in devices)
+        {
+            if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
+            if (!bestByDevice.TryGetValue(device.CanonicalName, out var best)) continue;
+            if (!geomByModel.TryGetValue(best.ModelName, out var geom)) continue;
+
+            pid.Value = did;
+            pwmin.Value = (object?)geom.WMin ?? DBNull.Value;
+            pwmax.Value = (object?)geom.WMax ?? DBNull.Value;
+            plmin.Value = (object?)geom.LMin ?? DBNull.Value;
+            plmax.Value = (object?)geom.LMax ?? DBNull.Value;
+            pnfmin.Value = (object?)geom.NfMin ?? DBNull.Value;
+            pnfmax.Value = (object?)geom.NfMax ?? DBNull.Value;
+            pwdef.Value = (object?)geom.WDefault ?? DBNull.Value;
+            pldef.Value = (object?)geom.LDefault ?? DBNull.Value;
+            pnfdef.Value = (object?)geom.NfDefault ?? DBNull.Value;
+            var source = string.IsNullOrWhiteSpace(geom.Source) ? best.ModelName : $"{geom.Source}:{best.ModelName}";
+            psrc.Value = source;
+            pnotes.Value = (object?)geom.Notes ?? DBNull.Value;
+            insert.ExecuteNonQuery();
+        }
+
+        tx.Commit();
+    }
+
     /// <summary>
     /// Recomputes and persists per-device-class rollup metrics into the database's <c>device_class_summary</c> table.
     /// </summary>

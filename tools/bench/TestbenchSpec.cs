@@ -29,6 +29,8 @@ public sealed class TestbenchSpec
 
     [JsonPropertyName("job_dir")] public string JobDir { get; init; } = string.Empty;
     [JsonPropertyName("results_csv")] public string ResultsCsv { get; init; } = "results.csv";
+
+    [JsonPropertyName("device_name")] public string? DeviceName { get; init; }
 }
 
 public sealed class SweepSpec

@@ -196,6 +196,22 @@ public sealed class PdkDatabase : IDisposable
               FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
             );
 
+            CREATE TABLE IF NOT EXISTS device_geometry (
+              device_id INTEGER PRIMARY KEY,
+              w_min REAL NULL,
+              w_max REAL NULL,
+              l_min REAL NULL,
+              l_max REAL NULL,
+              nf_min INTEGER NULL,
+              nf_max INTEGER NULL,
+              w_default REAL NULL,
+              l_default REAL NULL,
+              nf_default INTEGER NULL,
+              source TEXT NULL,
+              notes TEXT NULL,
+              FOREIGN KEY(device_id) REFERENCES devices(id) ON DELETE CASCADE
+            );
+
             -- Precomputed rollups to make 'pdk devices' instantaneous
             CREATE TABLE IF NOT EXISTS device_class_summary (
               device_class INTEGER PRIMARY KEY,
@@ -214,6 +230,7 @@ public sealed class PdkDatabase : IDisposable
             CREATE TABLE IF NOT EXISTS char_runs (
               id INTEGER PRIMARY KEY,
               model_id INTEGER NOT NULL,
+              device_id INTEGER NULL,
               corner TEXT NOT NULL,
               backend TEXT NOT NULL,
               timestamp TEXT NOT NULL,
@@ -225,7 +242,8 @@ public sealed class PdkDatabase : IDisposable
               temperature_c REAL NOT NULL,
               status TEXT NOT NULL,
               job_dir TEXT NOT NULL,
-              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE
+              FOREIGN KEY(model_id) REFERENCES models(id) ON DELETE CASCADE,
+              FOREIGN KEY(device_id) REFERENCES devices(id) ON DELETE SET NULL
             );
 
             CREATE TABLE IF NOT EXISTS char_lut_points (

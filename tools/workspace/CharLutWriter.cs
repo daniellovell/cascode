@@ -25,14 +25,21 @@ public static class CharLutWriter
         if (modelId is null)
             throw new InvalidOperationException($"Model '{run.ModelName}' not found in database.");
 
+        long? deviceId = null;
+        if (!string.IsNullOrWhiteSpace(run.DeviceName))
+        {
+            deviceId = GetDeviceId(db.Connection, tx, run.DeviceName!);
+        }
+
         using var cmd = db.Connection.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = @"
-            INSERT INTO char_runs(model_id, corner, backend, timestamp, w_m, l_m, nf, vds, vsb, temperature_c, status, job_dir)
-            VALUES ($mid, $corner, $backend, $ts, $w, $l, $nf, $vds, $vsb, $temp, $status, $jobdir)
+            INSERT INTO char_runs(model_id, device_id, corner, backend, timestamp, w_m, l_m, nf, vds, vsb, temperature_c, status, job_dir)
+            VALUES ($mid, $did, $corner, $backend, $ts, $w, $l, $nf, $vds, $vsb, $temp, $status, $jobdir)
             RETURNING id;";
 
         AddParam(cmd, "$mid", modelId.Value);
+        AddParam(cmd, "$did", (object?)deviceId ?? DBNull.Value);
         AddParam(cmd, "$corner", run.Corner);
         AddParam(cmd, "$backend", run.Backend);
         AddParam(cmd, "$ts", run.Timestamp.ToString("o", CultureInfo.InvariantCulture));
@@ -187,7 +194,8 @@ public static class CharLutWriter
             Vsb = spec.VsbFixed,
             TemperatureC = spec.TemperatureC > 0 ? spec.TemperatureC : 27.0,
             Status = "complete",
-            JobDir = jobDir
+            JobDir = jobDir,
+            DeviceName = string.IsNullOrWhiteSpace(spec.DeviceName) ? null : spec.DeviceName
         };
 
         var runId = WriteCharRun(dbPath, run);
@@ -276,6 +284,16 @@ public static class CharLutWriter
         return result is long id ? id : null;
     }
 
+    private static long? GetDeviceId(SqliteConnection conn, SqliteTransaction tx, string deviceName)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = "SELECT id FROM devices WHERE canonical_name=$name";
+        AddParam(cmd, "$name", deviceName);
+        var result = cmd.ExecuteScalar();
+        return result is long id ? id : null;
+    }
+
     private static SqliteParameter AddParam(SqliteCommand cmd, string name, object value)
     {
         var p = cmd.CreateParameter();
@@ -325,5 +343,7 @@ public static class CharLutWriter
         public double VsbFixed { get; set; }
         [System.Text.Json.Serialization.JsonPropertyName("temperature_c")]
         public double TemperatureC { get; set; }
+        [System.Text.Json.Serialization.JsonPropertyName("device_name")]
+        public string? DeviceName { get; set; }
     }
 }

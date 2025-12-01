@@ -19,9 +19,10 @@ public static class CharLutReader
         using var cmd = db.Connection.CreateCommand();
         cmd.CommandText = @"
             SELECT r.id, m.name, r.corner, r.backend, r.timestamp, r.w_m, r.l_m, r.nf,
-                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir
+                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir, d.canonical_name
             FROM char_runs r
             JOIN models m ON m.id = r.model_id
+            LEFT JOIN devices d ON d.id = r.device_id
             WHERE r.id = $id";
         AddParam(cmd, "$id", runId);
 
@@ -42,7 +43,8 @@ public static class CharLutReader
             Vsb = reader.GetDouble(9),
             TemperatureC = reader.GetDouble(10),
             Status = reader.GetString(11),
-            JobDir = reader.GetString(12)
+            JobDir = reader.GetString(12),
+            DeviceName = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
     }
 
@@ -171,9 +173,10 @@ public static class CharLutReader
         using var cmd = db.Connection.CreateCommand();
         cmd.CommandText = @"
             SELECT r.id, m.name, r.corner, r.backend, r.timestamp, r.w_m, r.l_m, r.nf,
-                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir
+                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir, d.canonical_name
             FROM char_runs r
             JOIN models m ON m.id = r.model_id
+            LEFT JOIN devices d ON d.id = r.device_id
             WHERE m.name = $name AND r.corner = $corner
             ORDER BY r.timestamp DESC
             LIMIT 1";
@@ -197,7 +200,8 @@ public static class CharLutReader
             Vsb = reader.GetDouble(9),
             TemperatureC = reader.GetDouble(10),
             Status = reader.GetString(11),
-            JobDir = reader.GetString(12)
+            JobDir = reader.GetString(12),
+            DeviceName = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
     }
 
@@ -215,9 +219,10 @@ public static class CharLutReader
 
         cmd.CommandText = $@"
             SELECT r.id, m.name, r.corner, r.backend, r.timestamp, r.w_m, r.l_m, r.nf,
-                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir
+                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir, d.canonical_name
             FROM char_runs r
             JOIN models m ON m.id = r.model_id
+            LEFT JOIN devices d ON d.id = r.device_id
             {whereClause}
             ORDER BY r.timestamp DESC";
 
@@ -242,11 +247,119 @@ public static class CharLutReader
                 Vsb = reader.GetDouble(9),
                 TemperatureC = reader.GetDouble(10),
                 Status = reader.GetString(11),
-                JobDir = reader.GetString(12)
+                JobDir = reader.GetString(12),
+                DeviceName = reader.IsDBNull(13) ? null : reader.GetString(13)
             });
         }
 
         return runs;
+    }
+
+    /// <summary>
+    /// Gets all characterization runs for a device, optionally filtered by corner.
+    /// </summary>
+    public static IReadOnlyList<CharRunRecord> GetRunsForDevice(string dbPath, string deviceName, string? corner = null)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+
+        var whereClause = corner is null
+            ? "WHERE d.canonical_name = $name"
+            : "WHERE d.canonical_name = $name AND r.corner = $corner";
+
+        cmd.CommandText = $@"
+            SELECT r.id, m.name, r.corner, r.backend, r.timestamp, r.w_m, r.l_m, r.nf,
+                   r.vds, r.vsb, r.temperature_c, r.status, r.job_dir, d.canonical_name
+            FROM char_runs r
+            JOIN models m ON m.id = r.model_id
+            JOIN devices d ON d.id = r.device_id
+            {whereClause}
+            ORDER BY r.timestamp DESC";
+
+        AddParam(cmd, "$name", deviceName);
+        if (corner is not null) AddParam(cmd, "$corner", corner);
+
+        var runs = new List<CharRunRecord>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            runs.Add(new CharRunRecord
+            {
+                Id = reader.GetInt64(0),
+                ModelName = reader.GetString(1),
+                Corner = reader.GetString(2),
+                Backend = reader.GetString(3),
+                Timestamp = DateTime.Parse(reader.GetString(4), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+                W_M = reader.GetDouble(5),
+                L_M = reader.GetDouble(6),
+                Nf = reader.GetInt32(7),
+                Vds = reader.GetDouble(8),
+                Vsb = reader.GetDouble(9),
+                TemperatureC = reader.GetDouble(10),
+                Status = reader.GetString(11),
+                JobDir = reader.GetString(12),
+                DeviceName = reader.IsDBNull(13) ? null : reader.GetString(13)
+            });
+        }
+
+        return runs;
+    }
+
+    /// <summary>
+    /// Gets per-device characterization coverage using completed runs.
+    /// </summary>
+    public static DeviceCharacterizationCoverage GetDeviceCoverage(string dbPath)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+
+        var devices = new List<string>();
+        var deviceClasses = new Dictionary<string, DeviceClass>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = db.Connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT canonical_name, device_class FROM devices ORDER BY canonical_name";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var name = reader.GetString(0);
+                devices.Add(name);
+                deviceClasses[name] = (DeviceClass)reader.GetInt32(1);
+            }
+        }
+
+        var corners = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = db.Connection.CreateCommand())
+        {
+            cmd.CommandText = "SELECT DISTINCT corner FROM char_runs ORDER BY corner";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read()) corners.Add(reader.GetString(0));
+        }
+
+        var runSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var totalRuns = 0;
+        using (var cmd = db.Connection.CreateCommand())
+        {
+            cmd.CommandText = @"
+                SELECT d.canonical_name, r.corner
+                FROM char_runs r
+                JOIN devices d ON d.id = r.device_id
+                WHERE r.status = 'complete'";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                var device = reader.GetString(0);
+                var cornerVal = reader.GetString(1);
+                runSet.Add($"{device}|{cornerVal}");
+            }
+        }
+
+        totalRuns = runSet.Count;
+
+        return new DeviceCharacterizationCoverage(
+            devices,
+            corners.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToList(),
+            totalRuns,
+            runSet,
+            deviceClasses);
     }
 
     private static void AddParam(SqliteCommand cmd, string name, object value)

@@ -21,6 +21,7 @@ public sealed class CharRunRecord
     public double TemperatureC { get; set; }
     public string Status { get; set; } = string.Empty;
     public string JobDir { get; set; } = string.Empty;
+    public string? DeviceName { get; set; }
 }
 
 /// <summary>
@@ -78,4 +79,34 @@ public sealed class CharacterizationCoverage
 
     public bool HasRun(string modelName, string corner)
         => _runSet.Contains($"{modelName}|{corner}");
+}
+
+public sealed class DeviceCharacterizationCoverage
+{
+    public IReadOnlyList<string> Devices { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> Corners { get; init; } = Array.Empty<string>();
+    public int TotalRuns { get; init; }
+    public IReadOnlyDictionary<string, DeviceClass> DeviceClasses { get; init; } = new Dictionary<string, DeviceClass>(StringComparer.OrdinalIgnoreCase);
+
+    private readonly HashSet<string> _runSet;
+
+    public DeviceCharacterizationCoverage(
+        IReadOnlyList<string> devices,
+        IReadOnlyList<string> corners,
+        int totalRuns,
+        HashSet<string> runSet,
+        IReadOnlyDictionary<string, DeviceClass> deviceClasses)
+    {
+        Devices = devices;
+        Corners = corners;
+        TotalRuns = totalRuns;
+        _runSet = runSet;
+        DeviceClasses = deviceClasses;
+    }
+
+    public bool HasRun(string deviceName, string corner)
+        => _runSet.Contains($"{deviceName}|{corner}");
+
+    public DeviceClass GetDeviceClass(string deviceName)
+        => DeviceClasses.TryGetValue(deviceName, out var cls) ? cls : DeviceClass.Unknown;
 }
