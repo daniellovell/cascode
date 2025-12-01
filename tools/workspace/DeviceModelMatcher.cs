@@ -22,7 +22,13 @@ public static class DeviceModelMatcher
             var dNorm = NormalizeDeviceName(d.CellName, cfg);
             var dBase = StripVtVddTokens(dNorm, cfg);
             var dVt = new HashSet<string>(d.VtTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-            var dVdd = new HashSet<string>(d.VddTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            // Normalize VDD tags to canonical format for consistent matching.
+            // Device VDD tags from ExtractVddTags are already in canonical format (e.g., "01v8"),
+            // while model voltage domains are in pretty format (e.g., "1.8V").
+            // We normalize both to canonical format for comparison.
+            var dVdd = new HashSet<string>(
+                (d.VddTags ?? Array.Empty<string>()).Select(v => NormalizeVddTag(v, cfg)),
+                StringComparer.OrdinalIgnoreCase);
             var dClass = d.Class;
             var dInfra = (d.Tags ?? Array.Empty<string>()).Any(t => t.Equals("infra", StringComparison.OrdinalIgnoreCase));
 
@@ -146,6 +152,25 @@ public static class DeviceModelMatcher
     {
         while (n.Contains("__")) n = n.Replace("__", "_");
         return n.Trim('_');
+    }
+
+    // Canonical VDD token format: <digits>v<digits> (e.g., "01v8", "03v3")
+    private static readonly Regex CanonicalVddRegex = new(@"^\d+v\d+$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Normalizes a VDD tag to canonical format (e.g., "01v8").
+    /// Handles both canonical format (e.g., "01v8") and pretty format (e.g., "1.8V").
+    /// </summary>
+    private static string NormalizeVddTag(string tag, PdkMatchingConfig cfg)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return string.Empty;
+        var lower = tag.Trim().ToLowerInvariant();
+
+        // If already in canonical format (e.g., "01v8"), return as-is
+        if (CanonicalVddRegex.IsMatch(lower)) return lower;
+
+        // Otherwise, try to extract from pretty format (e.g., "1.8V")
+        return VddFormatting.ExtractTokenFromVoltageDomain(tag, cfg);
     }
 
     private sealed class ModelIndex

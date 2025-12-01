@@ -170,22 +170,16 @@ public static class DeviceCharPlanner
             return matched;
         }
 
-        if (!modelsByClass.TryGetValue(device.Class, out var classModels) || classModels.Count == 0)
+        // If strict match failed, check if we should fall back to class-based matching.
+        // For characterization, we prefer skipping over guessing wrong models.
+        if (!bestMatch.TryGetValue(device.CanonicalName, out _))
         {
+            // SKIP the aggressive class-based fallback that might pick any random model of the same class.
+            // This prevents characterizing nfet_01v8 using nfet_g5v0d10v5 or nfet_native if the exact match is missing.
             return null;
         }
 
-        var vtTags = new HashSet<string>(device.VtTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-        var vddTags = new HashSet<string>(device.VddTags ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-
-        var vtMatches = classModels
-            .Where(m => !string.IsNullOrWhiteSpace(m.ThresholdFlavor) && vtTags.Contains(m.ThresholdFlavor))
-            .ToList();
-
-        var vddMatches = vtMatches.Count > 0 ? FilterByVdd(vtMatches, vddTags) : FilterByVdd(classModels, vddTags);
-
-        var pick = vddMatches.Count > 0 ? vddMatches[0] : (vtMatches.Count > 0 ? vtMatches[0] : classModels[0]);
-        return pick;
+        return null;
     }
 
     private static IReadOnlyDictionary<DeviceClass, List<SpectreModel>> GroupModelsByClass(IEnumerable<SpectreModel> models)

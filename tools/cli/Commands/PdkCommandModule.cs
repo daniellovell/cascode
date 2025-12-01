@@ -1039,8 +1039,8 @@ internal sealed class PdkCommandModule : ICommandModule
 
         foreach (var kvp in sparklines)
         {
-             AnsiConsole.Write(ShellRenderer.BuildSparkline(kvp.Key, kvp.Value));
-             AnsiConsole.WriteLine();
+            AnsiConsole.Write(ShellRenderer.BuildSparkline(kvp.Key, kvp.Value));
+            AnsiConsole.WriteLine();
         }
 
         _state.AddMessage($"Derived source: {derivedPath}");
