@@ -26,6 +26,7 @@ public static class WorkspacePaths
     /// </summary>
     public static string GetWorkspaceFolder(string workspaceRoot)
     {
+        ValidateWorkspaceRoot(workspaceRoot);
         var hash = ComputeHash(workspaceRoot);
         return Path.Combine(GetCascodeHome(), "workspaces", hash);
     }
@@ -34,13 +35,27 @@ public static class WorkspacePaths
     /// Gets the path to the PDK database for a given workspace root.
     /// </summary>
     public static string GetDatabasePath(string workspaceRoot)
-        => Path.Combine(GetWorkspaceFolder(workspaceRoot), "pdk.db");
+    {
+        ValidateWorkspaceRoot(workspaceRoot);
+        return Path.Combine(GetWorkspaceFolder(workspaceRoot), "pdk.db");
+    }
 
     /// <summary>
     /// Gets the characterization output folder for a given workspace root.
     /// </summary>
     public static string GetCharacterizationFolder(string workspaceRoot)
-        => Path.Combine(GetWorkspaceFolder(workspaceRoot), "char");
+    {
+        ValidateWorkspaceRoot(workspaceRoot);
+        return Path.Combine(GetWorkspaceFolder(workspaceRoot), "char");
+    }
+
+    private static void ValidateWorkspaceRoot(string workspaceRoot)
+    {
+        if (workspaceRoot == null)
+            throw new ArgumentNullException(nameof(workspaceRoot), "workspaceRoot cannot be null");
+        if (string.IsNullOrWhiteSpace(workspaceRoot))
+            throw new ArgumentException("workspaceRoot cannot be empty or whitespace", nameof(workspaceRoot));
+    }
 
     private static string ComputeHash(string input)
     {

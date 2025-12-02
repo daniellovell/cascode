@@ -69,7 +69,7 @@ public sealed class PdkScanService
 
         // Stage 4: Device↔Model matching
         PdkMatchingConfigManager.EnsureInitialized();
-        try { PdkMatchingConfigManager.Load(logger); } catch { /* handled in manager */ }
+        PdkMatchingConfigManager.Load(logger);
 
         logger.LogInformation("Matching devices to models ({Devices} × {Models})…", devices.Count, workspaceScan.Models.Count);
         var matches = DeviceModelMatcher.Match(devices, workspaceScan.Models);
