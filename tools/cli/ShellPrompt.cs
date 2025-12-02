@@ -120,7 +120,7 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.UpArrow)
+                if (key.Key == ConsoleKey.UpArrow && key.Modifiers == 0)
                 {
                     if (state.TryHistoryPrevious(out var command))
                     {
@@ -130,7 +130,7 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.DownArrow)
+                if (key.Key == ConsoleKey.DownArrow && key.Modifiers == 0)
                 {
                     if (state.TryHistoryNext(out var command))
                     {
