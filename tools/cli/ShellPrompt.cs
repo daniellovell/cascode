@@ -192,6 +192,13 @@ internal static class ShellPrompt
                     continue;
                 }
 
+                if (key.Key == ConsoleKey.Delete)
+                {
+                    buffer.DeleteUnderCursor();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
                 if (key.Key == ConsoleKey.Escape)
                 {
                     buffer.Clear();

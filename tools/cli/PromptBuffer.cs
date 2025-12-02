@@ -97,6 +97,17 @@ internal sealed class PromptBuffer
         Cursor--;
     }
 
+    /// <summary>Delete the character at the cursor position (to the right of the cursor).</summary>
+    public void DeleteUnderCursor()
+    {
+        if (Cursor >= _buffer.Length)
+        {
+            return;
+        }
+
+        _buffer.Remove(Cursor, 1);
+    }
+
     /// <summary>Insert a character at the cursor position.</summary>
     public void Insert(char ch)
     {

@@ -155,4 +155,52 @@ public sealed class PromptBufferTests
 
         Assert.Equal(4, buffer.Cursor);
     }
+
+    [Fact]
+    public void DeleteUnderCursor_DeletesCharacterAtCursor()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("abc");
+        buffer.MoveLeft();
+
+        Assert.Equal(2, buffer.Cursor);
+        Assert.Equal("abc", buffer.Text);
+
+        buffer.DeleteUnderCursor();
+
+        Assert.Equal("ab", buffer.Text);
+        Assert.Equal(2, buffer.Cursor);
+    }
+
+    [Fact]
+    public void DeleteUnderCursor_AtEndOfBuffer_IsNoOp()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("test");
+
+        Assert.Equal(4, buffer.Cursor);
+        Assert.Equal("test", buffer.Text);
+
+        buffer.DeleteUnderCursor();
+
+        Assert.Equal(4, buffer.Cursor);
+        Assert.Equal("test", buffer.Text);
+    }
+
+    [Fact]
+    public void DeleteUnderCursor_DoesNotMoveCursor()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("hello");
+        buffer.MoveLeft();
+        buffer.MoveLeft();
+
+        Assert.Equal(3, buffer.Cursor);
+        Assert.Equal("hello", buffer.Text);
+
+        buffer.DeleteUnderCursor();
+
+        Assert.Equal("helo", buffer.Text);
+        Assert.Equal(3, buffer.Cursor);
+    }
 }
