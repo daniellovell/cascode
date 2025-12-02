@@ -71,7 +71,7 @@ Use professional prose and use precisely the level of verbosity that is required
 - Unit + integration + architecture tests for touched code.
 - Use `tests/fixtures/pdk/sky130`; keep critical golden outputs under `tests/golden/**`.
 - Deterministic by default: normalize time/paths/order; set `CASCODE_SEED` for randomness.
-- CASCODE_HOME isolation: use `Cascode.TestSupport.CascodeHome.Create…` helpers (wired into test csproj via `tests/shared/`). Do not hand-roll `Environment.SetEnvironmentVariable`; each test must own and dispose an isolated home to avoid cross-run interference.
+- CASCODE_HOME isolation: MUST use `Cascode.TestSupport.CascodeHome.Create…` helpers (wired into test csproj via `tests/shared/`). NEVER manually create temp dirs for home or call `Environment.SetEnvironmentVariable("CASCODE_HOME", ...)` in tests. Each test must own and dispose an isolated home to avoid cross-run interference.
 
 ## Required Local Checks
 - Build: `dotnet build tools/cli/Cascode.Cli.csproj`.

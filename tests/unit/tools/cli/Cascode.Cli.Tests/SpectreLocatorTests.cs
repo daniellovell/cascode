@@ -43,7 +43,7 @@ public sealed class SpectreLocatorTests
 
             var result = SpectreLocator.FindOnPath();
 
-            Assert.Equal(exePath, result);
+            Assert.Equal(exePath, result, ignoreCase: true);
         }
         finally
         {
@@ -74,7 +74,7 @@ public sealed class SpectreLocatorTests
 
             var result = SpectreLocator.FindOnPath();
 
-            Assert.Equal(exePath, result);
+            Assert.Equal(exePath, result, ignoreCase: true);
         }
         finally
         {

@@ -548,85 +548,29 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         var overall = System.Diagnostics.Stopwatch.StartNew();
 
-        cancellationToken.ThrowIfCancellationRequested();
+        // Log matching config initialization
+        var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
+        var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
+        if (created)
+            logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+        else
+            logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
 
-        // Workspace scan (already logs internally)
-        var result = _scanner.Scan(targetRoot, logger, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
+        // Use PdkScanService for the core scanning workflow
+        var scanService = new Cascode.Workspace.PdkScanService(_scanner);
+        var scanResult = scanService.ScanAndPersist(targetRoot, logger, cancellationToken);
 
+        // Update CLI state with scan results
         var previousSelection = _state.SelectedDeckIndex;
-        _state.Scan = result;
-        if (result.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
-        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < result.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
+        _state.Scan = scanResult.WorkspaceScan;
+        if (scanResult.WorkspaceScan.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
+        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < scanResult.WorkspaceScan.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
         else _state.SelectedDeckIndex = 0;
 
-        // Stage 1: Physical libraries → devices
-        logger.LogInformation("Scanning physical libraries for devices (libraries={Libraries})…", result.Libraries.Count);
-        cancellationToken.ThrowIfCancellationRequested();
-        var swPhys = System.Diagnostics.Stopwatch.StartNew();
-        var phys = new PhysicalLibraryScanner().Scan(result.Libraries, warnings: null, cancellationToken);
-        swPhys.Stop();
-        logger.LogInformation("Physical scan complete: {Devices} devices across {Libraries} libraries in {ElapsedMs} ms.", phys.Count, result.Libraries.Count, swPhys.ElapsedMilliseconds);
+        overall.Stop();
+        logger.LogInformation("Total scan time: {ElapsedMs} ms.", overall.ElapsedMilliseconds);
 
-        try
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(targetRoot), "pdk.db");
-            if (File.Exists(dbPath)) File.Delete(dbPath);
-
-            // Stage 2: Initial DB write
-            logger.LogInformation("Writing PDK database (libraries/models/devices) → {Path}…", dbPath);
-            cancellationToken.ThrowIfCancellationRequested();
-            var swDb = System.Diagnostics.Stopwatch.StartNew();
-            Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, result, phys, cancellationToken);
-            swDb.Stop();
-            logger.LogInformation("Initial DB write complete in {ElapsedMs} ms.", swDb.ElapsedMilliseconds);
-
-            // Stage 3: Device↔Model matching
-            // Ensure PDK matching patterns are initialized in CASCODE_HOME
-            cancellationToken.ThrowIfCancellationRequested();
-            var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
-            var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
-            if (created)
-                logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
-            else
-                logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
-
-            // Validate and warm the config with TUI-compatible logging
-            try { Cascode.Workspace.PdkMatchingConfigManager.Load(logger); } catch { /* handled in manager */ }
-
-            logger.LogInformation("Matching devices to models ({Devices} × {Models})…", phys.Count, result.Models.Count);
-            cancellationToken.ThrowIfCancellationRequested();
-            var swMatch = System.Diagnostics.Stopwatch.StartNew();
-            var matches = Cascode.Workspace.DeviceModelMatcher.Match(phys, result.Models);
-            Cascode.Workspace.PdkDatabaseWriter.UpsertMatches(dbPath, matches, cancellationToken);
-            swMatch.Stop();
-            logger.LogInformation("Matching complete: {Matches} associations in {ElapsedMs} ms.", matches.Count, swMatch.ElapsedMilliseconds);
-
-            // Stage 4: Geometry extraction
-            logger.LogInformation("Extracting model geometry from sources ({Models})…", result.Models.Count);
-            var swGeom = System.Diagnostics.Stopwatch.StartNew();
-            var geom = Cascode.Workspace.ModelGeometryExtractor.Extract(result.Models);
-            Cascode.Workspace.PdkDatabaseWriter.UpsertGeometry(dbPath, geom);
-            swGeom.Stop();
-            logger.LogInformation("Geometry extraction complete for {Count} models in {ElapsedMs} ms.", geom.Count, swGeom.ElapsedMilliseconds);
-
-            // Stage 5: Project geometry to devices using best matches
-            logger.LogInformation("Projecting geometry onto devices ({Devices})…", phys.Count);
-            var swDeviceGeom = System.Diagnostics.Stopwatch.StartNew();
-            Cascode.Workspace.PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, phys, matches, geom);
-            swDeviceGeom.Stop();
-            logger.LogInformation("Device geometry projection complete in {ElapsedMs} ms.", swDeviceGeom.ElapsedMilliseconds);
-
-            overall.Stop();
-            logger.LogInformation("PDK database updated → {Path} (total {ElapsedMs} ms).", dbPath, overall.ElapsedMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to update PDK database");
-        }
-
-        return result;
+        return scanResult.WorkspaceScan;
     }
 
     // No custom renderable needed; we update the Layout panels in-place.

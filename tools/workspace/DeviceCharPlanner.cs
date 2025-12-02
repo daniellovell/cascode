@@ -114,9 +114,19 @@ public static class DeviceCharPlanner
             if (!string.IsNullOrWhiteSpace(inc))
             {
                 resolvedIncludes.Add(inc);
-                withSection.Add(inc);
+                // Raw SPICE files (e.g., .pm3.spice) don't have .lib sections;
+                // only add to withSection if the file has library blocks.
+                if (FileHasLibrarySections(inc))
+                {
+                    withSection.Add(inc);
+                    resolvedSection = string.IsNullOrWhiteSpace(chosen.Section) ? corner : chosen.Section;
+                }
+                else
+                {
+                    extraIncludes.Add(inc);
+                    resolvedSection = null;
+                }
             }
-            resolvedSection = string.IsNullOrWhiteSpace(chosen.Section) ? corner : chosen.Section;
         }
         else
         {
@@ -279,6 +289,41 @@ public static class DeviceCharPlanner
         if (string.IsNullOrWhiteSpace(path)) return null;
         try { return Path.GetFullPath(path); }
         catch { return File.Exists(path) ? Path.GetFullPath(path) : null; }
+    }
+
+    /// <summary>
+    /// Checks if a file contains .lib/.endl or section/endsection blocks.
+    /// Raw SPICE files (e.g., .pm3.spice) don't have these and should be included without a section filter.
+    /// </summary>
+    private static bool FileHasLibrarySections(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+
+        try
+        {
+            using var reader = new StreamReader(path);
+            string? line;
+            var lineCount = 0;
+            const int maxLinesToCheck = 200;
+
+            while ((line = reader.ReadLine()) != null && lineCount < maxLinesToCheck)
+            {
+                lineCount++;
+                var trimmed = line.TrimStart();
+                if (trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase) ||
+                    trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase) ||
+                    Regex.IsMatch(trimmed, @"^library\b", RegexOptions.IgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+            // If we can't read the file, assume it doesn't have sections
+        }
+
+        return false;
     }
 
     private sealed record IncludeResolution(

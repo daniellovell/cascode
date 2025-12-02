@@ -14,14 +14,7 @@ internal static class CliIntegrationTestHelper
 
     internal static string GetRepositoryRoot()
     {
-        var baseDirectory = AppContext.BaseDirectory;
-        var directory = new DirectoryInfo(baseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "Cascode.sln"))) return directory.FullName;
-            directory = directory.Parent;
-        }
-        throw new InvalidOperationException($"Unable to locate repository root starting from '{baseDirectory}'.");
+        return TestPathUtilities.GetRepositoryRoot();
     }
 
     internal static CliCommandSpec BuildCliCommand(string repoRoot, IReadOnlyList<string> args)

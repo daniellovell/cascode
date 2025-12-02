@@ -363,6 +363,12 @@ internal sealed class SpectreModelExtractor
         var directory = Path.GetDirectoryName(normalizedPath) ?? Directory.GetCurrentDirectory();
         var sectionStack = new Stack<SectionContext>();
 
+        // For characterization, we need to include the top-level deck (e.g., sky130.lib.spice)
+        // with a section filter (e.g., section=tt), not the individual model files.
+        // The deck contains all necessary includes (model definitions + mismatch parameters).
+        // Use the deck path as the effective include path for all models found in this traversal.
+        var effectiveIncludePath = deckPath;
+
         foreach (var rawLine in File.ReadLines(normalizedPath))
         {
             var line = NormalizeLine(rawLine);
@@ -439,10 +445,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
-                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    // Add definition context using the effective include path (parent file if this is a raw SPICE file)
                     var (corner, detail) = GetActiveCorner(frames);
                     var sectionName = GetActiveSection(sectionStack);
-                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
+                    builder.AddDefinitionContext(corner, detail, sectionName, effectiveIncludePath);
                 }
                 continue;
             }
@@ -465,10 +471,10 @@ internal sealed class SpectreModelExtractor
                             builder.AddSectionName(context.NormalizedName);
                         }
                     }
-                    // Add definition context (tuple of corner, detail, section, include where model was defined)
+                    // Add definition context using the effective include path (parent file if this is a raw SPICE file)
                     var (corner, detail) = GetActiveCorner(frames);
                     var sectionName = GetActiveSection(sectionStack);
-                    builder.AddDefinitionContext(corner, detail, sectionName, normalizedPath);
+                    builder.AddDefinitionContext(corner, detail, sectionName, effectiveIncludePath);
                 }
             }
         }
