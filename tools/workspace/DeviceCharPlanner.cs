@@ -312,7 +312,7 @@ public static class DeviceCharPlanner
                 var trimmed = line.TrimStart();
                 if (trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase) ||
                     trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("library", StringComparison.OrdinalIgnoreCase))
+                    Regex.IsMatch(trimmed, @"^library\b", RegexOptions.IgnoreCase))
                 {
                     return true;
                 }

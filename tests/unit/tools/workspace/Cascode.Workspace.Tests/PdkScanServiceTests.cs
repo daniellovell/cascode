@@ -41,8 +41,7 @@ public class PdkScanServiceTests : IDisposable
         var fixturePath = GetFixturePath();
         if (!Directory.Exists(fixturePath))
         {
-            _output.WriteLine($"Skipping: fixture not found at {fixturePath}");
-            return;
+            Assert.Fail($"Fixture not found at {fixturePath}");
         }
 
         var service = new PdkScanService();
@@ -71,8 +70,7 @@ public class PdkScanServiceTests : IDisposable
         var fixturePath = GetFixturePath();
         if (!Directory.Exists(fixturePath))
         {
-            _output.WriteLine($"Skipping: fixture not found at {fixturePath}");
-            return;
+            Assert.Fail($"Fixture not found at {fixturePath}");
         }
 
         var service = new PdkScanService();
@@ -103,8 +101,7 @@ public class PdkScanServiceTests : IDisposable
         var fixturePath = GetFixturePath();
         if (!Directory.Exists(fixturePath))
         {
-            _output.WriteLine($"Skipping: fixture not found at {fixturePath}");
-            return;
+            Assert.Fail($"Fixture not found at {fixturePath}");
         }
 
         var service = new PdkScanService();
@@ -137,8 +134,7 @@ public class PdkScanServiceTests : IDisposable
         var fixturePath = GetFixturePath();
         if (!Directory.Exists(fixturePath))
         {
-            _output.WriteLine($"Skipping: fixture not found at {fixturePath}");
-            return;
+            Assert.Fail($"Fixture not found at {fixturePath}");
         }
 
         var service = new PdkScanService();
@@ -183,8 +179,7 @@ public class PdkScanServiceTests : IDisposable
         var fixturePath = GetFixturePath();
         if (!Directory.Exists(fixturePath))
         {
-            _output.WriteLine($"Skipping: fixture not found at {fixturePath}");
-            return;
+            Assert.Fail($"Fixture not found at {fixturePath}");
         }
 
         var service = new PdkScanService();
