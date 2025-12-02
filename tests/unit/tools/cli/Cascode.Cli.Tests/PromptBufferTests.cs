@@ -90,12 +90,12 @@ public sealed class PromptBufferTests
         var buffer = new PromptBuffer();
         buffer.Replace("test");
         buffer.MoveHome();
-        
+
         Assert.Equal(0, buffer.Cursor);
         Assert.Equal("test", buffer.Text);
-        
+
         buffer.Backspace();
-        
+
         Assert.Equal(0, buffer.Cursor);
         Assert.Equal("test", buffer.Text);
     }
@@ -106,11 +106,11 @@ public sealed class PromptBufferTests
         var buffer = new PromptBuffer();
         buffer.Replace("   word1 word2");
         buffer.MoveHome();
-        
+
         Assert.Equal(0, buffer.Cursor);
-        
+
         buffer.MoveWordRight();
-        
+
         Assert.Equal(9, buffer.Cursor);
     }
 
@@ -119,12 +119,12 @@ public sealed class PromptBufferTests
     {
         var buffer = new PromptBuffer();
         buffer.Replace("test   ");
-        
+
         Assert.Equal(7, buffer.Cursor);
         Assert.Equal(7, buffer.Text.Length);
-        
+
         buffer.MoveWordRight();
-        
+
         Assert.Equal(7, buffer.Cursor);
     }
 
@@ -134,11 +134,11 @@ public sealed class PromptBufferTests
         var buffer = new PromptBuffer();
         buffer.Replace("test");
         buffer.MoveHome();
-        
+
         Assert.Equal(0, buffer.Cursor);
-        
+
         buffer.MoveLeft();
-        
+
         Assert.Equal(0, buffer.Cursor);
     }
 
@@ -147,12 +147,12 @@ public sealed class PromptBufferTests
     {
         var buffer = new PromptBuffer();
         buffer.Replace("test");
-        
+
         Assert.Equal(4, buffer.Cursor);
         Assert.Equal(4, buffer.Text.Length);
-        
+
         buffer.MoveRight();
-        
+
         Assert.Equal(4, buffer.Cursor);
     }
 }
