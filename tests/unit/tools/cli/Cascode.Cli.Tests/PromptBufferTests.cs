@@ -83,4 +83,76 @@ public sealed class PromptBufferTests
         buffer.MoveWordRight();
         Assert.Equal(14, buffer.Cursor);
     }
+
+    [Fact]
+    public void Backspace_AtCursorZero_IsNoOp()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("test");
+        buffer.MoveHome();
+        
+        Assert.Equal(0, buffer.Cursor);
+        Assert.Equal("test", buffer.Text);
+        
+        buffer.Backspace();
+        
+        Assert.Equal(0, buffer.Cursor);
+        Assert.Equal("test", buffer.Text);
+    }
+
+    [Fact]
+    public void MoveWordRight_FromLeadingWhitespace_MovesToNextWord()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("   word1 word2");
+        buffer.MoveHome();
+        
+        Assert.Equal(0, buffer.Cursor);
+        
+        buffer.MoveWordRight();
+        
+        Assert.Equal(9, buffer.Cursor);
+    }
+
+    [Fact]
+    public void MoveWordRight_AtEndOfBuffer_StaysAtEnd()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("test   ");
+        
+        Assert.Equal(7, buffer.Cursor);
+        Assert.Equal(7, buffer.Text.Length);
+        
+        buffer.MoveWordRight();
+        
+        Assert.Equal(7, buffer.Cursor);
+    }
+
+    [Fact]
+    public void MoveLeft_AtCursorZero_DoesNotMove()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("test");
+        buffer.MoveHome();
+        
+        Assert.Equal(0, buffer.Cursor);
+        
+        buffer.MoveLeft();
+        
+        Assert.Equal(0, buffer.Cursor);
+    }
+
+    [Fact]
+    public void MoveRight_AtEndOfBuffer_DoesNotMove()
+    {
+        var buffer = new PromptBuffer();
+        buffer.Replace("test");
+        
+        Assert.Equal(4, buffer.Cursor);
+        Assert.Equal(4, buffer.Text.Length);
+        
+        buffer.MoveRight();
+        
+        Assert.Equal(4, buffer.Cursor);
+    }
 }

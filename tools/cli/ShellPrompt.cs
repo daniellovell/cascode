@@ -219,9 +219,10 @@ internal static class ShellPrompt
     {
         ClearPromptLine();
         AnsiConsole.Markup("[green]cascode[/]> ");
-        if (!string.IsNullOrEmpty(buffer.Text))
+        var text = buffer.Text;
+        if (!string.IsNullOrEmpty(text))
         {
-            AnsiConsole.Console.Write(buffer.Text);
+            AnsiConsole.Console.Write(text);
         }
 
         var tail = buffer.TailLength;
