@@ -443,19 +443,6 @@ public static class PdkDatabaseReader
 
     public sealed record GeometryRow(double? WMin, double? WMax, double? LMin, double? LMax, int? NfMin, int? NfMax, double? WDefault, double? LDefault, int? NfDefault, string? Source, string? Notes);
 
-    public sealed record DeviceGeometryRow(
-        double? WMin,
-        double? WMax,
-        double? LMin,
-        double? LMax,
-        int? NfMin,
-        int? NfMax,
-        double? WDefault,
-        double? LDefault,
-        int? NfDefault,
-        string? Source,
-        string? Notes);
-
     public static GeometryRow? LoadGeometryForModel(string dbPath, string modelName)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
@@ -481,7 +468,7 @@ public static class PdkDatabaseReader
         );
     }
 
-    public static DeviceGeometryRow? LoadGeometryForDevice(string dbPath, string deviceCanonicalName)
+    public static GeometryRow? LoadGeometryForDevice(string dbPath, string deviceCanonicalName)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
@@ -491,7 +478,7 @@ public static class PdkDatabaseReader
         var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = deviceCanonicalName; cmd.Parameters.Add(p);
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
-        return new DeviceGeometryRow(
+        return new GeometryRow(
             reader.IsDBNull(0) ? null : reader.GetDouble(0),
             reader.IsDBNull(1) ? null : reader.GetDouble(1),
             reader.IsDBNull(2) ? null : reader.GetDouble(2),

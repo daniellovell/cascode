@@ -138,8 +138,9 @@ public static class PdkDatabaseWriter
         tx.Commit();
     }
 
-    public static void UpsertDeviceGeometry(string dbPath, IReadOnlyList<Device> devices, IReadOnlyList<DeviceModelMatchRecord> matches, IReadOnlyList<ModelGeometry> modelGeometry)
+    public static void UpsertDeviceGeometry(string dbPath, IReadOnlyList<Device> devices, IReadOnlyList<DeviceModelMatchRecord> matches, IReadOnlyList<ModelGeometry> modelGeometry, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
 
@@ -186,6 +187,7 @@ public static class PdkDatabaseWriter
 
         foreach (var device in devices)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
             if (!bestByDevice.TryGetValue(device.CanonicalName, out var best)) continue;
             if (!geomByModel.TryGetValue(best.ModelName, out var geom)) continue;
@@ -206,6 +208,7 @@ public static class PdkDatabaseWriter
             insert.ExecuteNonQuery();
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         tx.Commit();
     }
 
