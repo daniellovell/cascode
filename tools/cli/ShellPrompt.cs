@@ -48,14 +48,14 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.Home)
+                if ((key.Modifiers & ConsoleModifiers.Control) == 0 && key.Key == ConsoleKey.Home)
                 {
                     buffer.MoveHome();
                     WritePrompt(buffer);
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.End)
+                if ((key.Modifiers & ConsoleModifiers.Control) == 0 && key.Key == ConsoleKey.End)
                 {
                     buffer.MoveEnd();
                     WritePrompt(buffer);
