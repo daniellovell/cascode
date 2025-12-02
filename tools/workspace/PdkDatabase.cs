@@ -24,6 +24,7 @@ public sealed class PdkDatabase : IDisposable
         {
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
+            Pooling = false,
         };
         var conn = new SqliteConnection(builder.ToString());
         conn.Open();
@@ -41,6 +42,7 @@ public sealed class PdkDatabase : IDisposable
         {
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadOnly,
+            Pooling = false,
         };
         var conn = new SqliteConnection(builder.ToString());
         conn.Open();
