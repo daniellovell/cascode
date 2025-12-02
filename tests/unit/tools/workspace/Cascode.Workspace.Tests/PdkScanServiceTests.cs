@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
+using Cascode.TestSupport;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace.Tests;
@@ -14,33 +15,24 @@ namespace Cascode.Workspace.Tests;
 public class PdkScanServiceTests : IDisposable
 {
     private readonly ITestOutputHelper _output;
-    private readonly string _cascodeHome;
-    private readonly string? _originalCascodeHome;
+    private readonly CascodeHomeScope _cascodeHomeHelper;
 
     public PdkScanServiceTests(ITestOutputHelper output)
     {
         _output = output;
 
         // Create isolated CASCODE_HOME for test
-        _cascodeHome = Path.Combine(Path.GetTempPath(), $"cascode-test-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_cascodeHome);
-
-        _originalCascodeHome = Environment.GetEnvironmentVariable("CASCODE_HOME");
-        Environment.SetEnvironmentVariable("CASCODE_HOME", _cascodeHome);
+        _cascodeHomeHelper = CascodeHome.CreateInTemp();
     }
 
     public void Dispose()
     {
-        Environment.SetEnvironmentVariable("CASCODE_HOME", _originalCascodeHome);
-        try { Directory.Delete(_cascodeHome, recursive: true); } catch { }
+        _cascodeHomeHelper.Dispose();
     }
 
     private static string GetFixturePath()
     {
-        // Navigate from test bin directory to fixture
-        var baseDir = AppContext.BaseDirectory;
-        var repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", "..", "..", "..", ".."));
-        return Path.Combine(repoRoot, "tests", "fixtures", "pdk", "sky130");
+        return Path.Combine(TestPathUtilities.GetFixturesDirectory(), "pdk", "sky130");
     }
 
     [Fact]
