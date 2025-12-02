@@ -38,7 +38,14 @@ public static class TestPathUtilities
         var envPath = Environment.GetEnvironmentVariable("FIXTURES_DIR");
         if (!string.IsNullOrEmpty(envPath))
         {
-            return Path.GetFullPath(envPath);
+            var resolvedPath = Path.GetFullPath(envPath);
+            if (!Directory.Exists(resolvedPath))
+            {
+                throw new DirectoryNotFoundException(
+                    $"Fixtures directory not found at '{resolvedPath}' (from FIXTURES_DIR environment variable). " +
+                    "Ensure the directory exists or set 'FIXTURES_DIR' to a valid path.");
+            }
+            return resolvedPath;
         }
 
         var repoRoot = GetRepositoryRoot();
