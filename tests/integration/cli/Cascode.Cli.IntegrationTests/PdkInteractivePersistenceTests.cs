@@ -21,8 +21,8 @@ public sealed class PdkInteractivePersistenceTests
     public async Task PdkDbAndWorkspace_PersistAcrossInteractiveSessions()
     {
         var repoRoot = _fixture.RepoRoot;
-        var miniRoot = CreateMiniWorkspace(repoRoot);
-        var workspaceAbs = miniRoot;
+        // Use the sky130 fixture which has a complete PDK structure with model decks
+        var workspaceAbs = Path.GetFullPath(Path.Combine(repoRoot, "tests", "fixtures", "pdk", "sky130"));
         var workspaceRel = Path.GetRelativePath(repoRoot, workspaceAbs);
 
         using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkInteractivePersistenceTests));
@@ -30,8 +30,7 @@ public sealed class PdkInteractivePersistenceTests
         {
             ["CASCODE_HOME"] = cascodeHome.Path,
             ["COLUMNS"] = "160",
-            ["LINES"] = "50",
-            ["CASCODE_LOG_LEVEL"] = "error"
+            ["LINES"] = "50"
         };
 
         // Session 1: set-dir -> scan -> devices, then exit
@@ -57,30 +56,32 @@ public sealed class PdkInteractivePersistenceTests
             await Task.Delay(100);
             // Wait for the pdk.db file to appear (log level may suppress Info messages)
             var dbPath = GetExpectedDbPath(cascodeHome.Path, workspaceAbs);
-            var scanDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
+            var scanDeadline = DateTime.UtcNow + TimeSpan.FromSeconds(90);
             while (DateTime.UtcNow < scanDeadline && !File.Exists(dbPath))
             {
                 await Task.Delay(100);
             }
             Assert.True(File.Exists(dbPath), $"Timeout waiting for pdk.db at '{dbPath}'.");
 
+            // Wait for scan to complete - look for the "PDK database updated" message
+            await session1.WaitForOutputAsync(
+                output => output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase),
+                TimeSpan.FromSeconds(90));
+
             // Ensure devices are available (force list to guarantee a summary message)
-            await session1.SendLineAsync("pdk devices --list --class nmos --limit 1");
+            await session1.SendLineAsync("pdk devices --list --limit 1");
             await Task.Delay(100);
-            try
-            {
-                await session1.WaitForOutputAsync(
-                    output => output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("Matched:", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("No devices matched", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("No devices discovered", StringComparison.OrdinalIgnoreCase)
-                               || (output.Contains("Showing ", StringComparison.OrdinalIgnoreCase) && output.Contains(" of ", StringComparison.OrdinalIgnoreCase) && output.Contains("devices", StringComparison.OrdinalIgnoreCase)),
-                    TimeSpan.FromSeconds(20));
-            }
-            catch (TimeoutException)
-            {
-                // Best effort: continue; db existence already validated.
-            }
+            var session1Output = await session1.WaitForOutputAsync(
+                output => output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
+                           || output.Contains("No devices matched", StringComparison.OrdinalIgnoreCase)
+                           || output.Contains("No devices discovered", StringComparison.OrdinalIgnoreCase)
+                           || output.Contains("Error", StringComparison.OrdinalIgnoreCase)
+                           || (output.Contains("Showing ", StringComparison.OrdinalIgnoreCase) && output.Contains(" of ", StringComparison.OrdinalIgnoreCase) && output.Contains("devices", StringComparison.OrdinalIgnoreCase)),
+                TimeSpan.FromSeconds(20));
+            Assert.True(
+                session1Output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
+                || session1Output.Contains("Showing ", StringComparison.OrdinalIgnoreCase),
+                $"Expected devices to be discoverable in first session. Output: {session1Output}");
 
             await session1.SendLineAsync("exit");
             await Task.Delay(100);
@@ -114,7 +115,7 @@ public sealed class PdkInteractivePersistenceTests
             }
 
             // Devices should load from existing pdk.db without running scan again
-            await session2.SendLineAsync("pdk devices --list --class nmos --limit 1");
+            await session2.SendLineAsync("pdk devices --list --limit 1");
             await Task.Delay(100);
             // Fail fast if DB is missing (indicates persisted workspace not applied)
             try
@@ -129,20 +130,16 @@ public sealed class PdkInteractivePersistenceTests
             {
                 // Expected path: no immediate error; proceed to wait for the summary
             }
-            try
-            {
-                await session2.WaitForOutputAsync(
-                    output => output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("Matched:", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("No devices matched", StringComparison.OrdinalIgnoreCase)
-                               || output.Contains("No devices discovered", StringComparison.OrdinalIgnoreCase)
-                               || (output.Contains("Showing ", StringComparison.OrdinalIgnoreCase) && output.Contains(" of ", StringComparison.OrdinalIgnoreCase) && output.Contains("devices", StringComparison.OrdinalIgnoreCase)),
-                    TimeSpan.FromSeconds(20));
-            }
-            catch (TimeoutException)
-            {
-                // Allow flakiness in interactive rendering; workspace/db persistence already validated.
-            }
+            var devicesOutput = await session2.WaitForOutputAsync(
+                output => output.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
+                           || output.Contains("No devices matched", StringComparison.OrdinalIgnoreCase)
+                           || output.Contains("No devices discovered", StringComparison.OrdinalIgnoreCase)
+                           || (output.Contains("Showing ", StringComparison.OrdinalIgnoreCase) && output.Contains(" of ", StringComparison.OrdinalIgnoreCase) && output.Contains("devices", StringComparison.OrdinalIgnoreCase)),
+                TimeSpan.FromSeconds(20));
+            Assert.True(
+                devicesOutput.Contains("Devices:", StringComparison.OrdinalIgnoreCase)
+                || devicesOutput.Contains("Showing ", StringComparison.OrdinalIgnoreCase),
+                $"Expected persisted devices to be available without re-scan. Output: {devicesOutput}");
 
             await session2.SendLineAsync("exit");
             await Task.Delay(100);
@@ -161,23 +158,5 @@ public sealed class PdkInteractivePersistenceTests
         }
         var workId = Hash(workspaceAbs);
         return Path.Combine(cascodeHome, "workspaces", workId, "pdk.db");
-    }
-
-    private static string CreateMiniWorkspace(string repoRoot)
-    {
-        var root = Path.Combine(repoRoot, ".it", $"mini-pdk-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(root);
-
-        // Write minimal cds.lib defining a single library under lib/mini
-        var cdsLibPath = Path.Combine(root, "cds.lib");
-        File.WriteAllText(cdsLibPath, "DEFINE mini lib/mini\n");
-
-        // Create a single device with both layout and symbol views so PhysicalLibraryScanner picks it up
-        var libMini = Path.Combine(root, "lib", "mini");
-        var cell = Path.Combine(libMini, "nfet_unit");
-        Directory.CreateDirectory(Path.Combine(cell, "layout"));
-        Directory.CreateDirectory(Path.Combine(cell, "symbol"));
-
-        return root;
     }
 }

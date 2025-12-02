@@ -17,14 +17,14 @@ public sealed class PdkCharRunWithSpectreTests
         using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkCharRunWithSpectreTests));
 
         // 1) Scan fixture PDK (sky130) to build DB
-        var scan = await RunCliAsync(
+        var scan = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk", "scan", "tests/fixtures/pdk/sky130");
-        AssertSuccess(scan, "PDK scan should succeed");
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(scan, "PDK scan should succeed");
 
         // 2) Run characterization with NMOS filter
-        var run = await RunCliAsync(
+        var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(3),
             cascodeHome,
             "pdk", "char", "run",
@@ -32,7 +32,7 @@ public sealed class PdkCharRunWithSpectreTests
             "--corner", "tt",
             "--class", "nmos",
             "--workspace", "tests/fixtures/pdk/sky130");
-        AssertSuccess(run, "Characterization run should succeed");
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(run, "Characterization run should succeed");
 
         // Verify the output mentions characterization completion
         Assert.Contains("Characterization batch complete", run.Stdout, StringComparison.OrdinalIgnoreCase);
@@ -69,12 +69,12 @@ public sealed class PdkCharRunWithSpectreTests
         }
 
         // 8) Verify pdk char status command works
-        var status = await RunCliAsync(
+        var status = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(1),
             cascodeHome,
             "pdk", "char", "status",
             "--workspace", "tests/fixtures/pdk/sky130");
-        AssertSuccess(status, "char status command should succeed");
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(status, "char status command should succeed");
         Assert.Contains("Device coverage:", status.Stdout, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -85,14 +85,14 @@ public sealed class PdkCharRunWithSpectreTests
         using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkCharRunWithSpectreTests));
 
         // Scan fixture
-        var scan = await RunCliAsync(
+        var scan = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk", "scan", "tests/fixtures/pdk/sky130");
-        AssertSuccess(scan, "PDK scan should succeed");
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(scan, "PDK scan should succeed");
 
         // Run with NMOS filter
-        var run = await RunCliAsync(
+        var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(3),
             cascodeHome,
             "pdk", "char", "run",
@@ -101,7 +101,7 @@ public sealed class PdkCharRunWithSpectreTests
             "--class", "nmos",
             "--limit", "5",
             "--workspace", "tests/fixtures/pdk/sky130");
-        AssertSuccess(run, "Characterization run should succeed");
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(run, "Characterization run should succeed");
 
         var workRoot = Path.Combine(cascodeHome.Path, "workspaces");
         var workspaceDirs = Directory.GetDirectories(workRoot);
@@ -117,32 +117,4 @@ public sealed class PdkCharRunWithSpectreTests
 
         Assert.False(hasStdcellRun, "Stdcell devices should not be characterized");
     }
-
-    private static void AssertSuccess(ProcessResult result, string message)
-    {
-        Assert.True(result.ExitCode == 0, $"{message} (Exit {result.ExitCode})\nStdout: {result.Stdout}\nStderr: {result.Stderr}");
-    }
-
-    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
-    {
-        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
-        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
-        cascodeHome.ApplyTo(startInfo.Environment);
-        using var process = new System.Diagnostics.Process { StartInfo = startInfo };
-        if (!process.Start()) throw new InvalidOperationException("Failed to start CLI");
-        var so = process.StandardOutput.ReadToEndAsync();
-        var se = process.StandardError.ReadToEndAsync();
-        using var cts = new System.Threading.CancellationTokenSource(timeout);
-        try { await process.WaitForExitAsync(cts.Token); }
-        catch (OperationCanceledException)
-        {
-            Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
-            await process.WaitForExitAsync();
-            throw new TimeoutException($"Timed out: {commandLine}\nStdout: {await so}\nStderr: {await se}");
-        }
-        return new ProcessResult(process.ExitCode, await so, await se, commandLine);
-    }
-
-    private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }

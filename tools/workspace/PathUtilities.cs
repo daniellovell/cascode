@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Cascode.Workspace;
@@ -7,6 +8,15 @@ internal static class PathUtilities
 {
     private const string WorkDirToken = "$WORK_DIR";
     private const string WorkDirTokenBraced = "${WORK_DIR}";
+
+    private static readonly HashSet<string> ValidSpectreExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".scs",
+        ".spice",
+        ".lib",
+        ".spi",
+        ".sp"
+    };
 
     public static string? NormalizeWorkspacePath(string rawPath, string workspaceRoot, string relativeBase)
     {
@@ -77,11 +87,7 @@ internal static class PathUtilities
         }
 
         var extension = Path.GetExtension(path);
-        return string.Equals(extension, ".scs", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".spice", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".lib", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".spi", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(extension, ".sp", StringComparison.OrdinalIgnoreCase);
+        return ValidSpectreExtensions.Contains(extension);
     }
 
     private static string ExpandHome(string value)

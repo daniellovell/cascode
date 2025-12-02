@@ -4,7 +4,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Cascode.TestSupport;
+using Xunit;
 
 namespace Cascode.Cli.IntegrationTests.Infrastructure;
 
@@ -157,5 +160,87 @@ internal static class CliIntegrationTestHelper
         var parts = new List<string> { Q(executable) };
         parts.AddRange(arguments.Select(Q));
         return string.Join(' ', parts);
+    }
+
+    /// <summary>
+    /// Result of running a CLI process.
+    /// </summary>
+    internal sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
+
+    /// <summary>
+    /// Runs the CLI with the specified arguments and timeout, using the provided CascodeHomeScope for environment configuration.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for the process to complete.</param>
+    /// <param name="cascodeHome">CascodeHomeScope to apply to the process environment.</param>
+    /// <param name="args">Arguments to pass to the CLI.</param>
+    /// <returns>A ProcessResult containing the exit code, stdout, stderr, and command line.</returns>
+    /// <exception cref="TimeoutException">Thrown if the process does not complete within the specified timeout.</exception>
+    internal static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
+    {
+        return await RunCliAsync(timeout, cascodeHome, environmentCustomizer: null, args);
+    }
+
+    /// <summary>
+    /// Runs the CLI with the specified arguments and timeout, using the provided CascodeHomeScope and optional environment customizer.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for the process to complete.</param>
+    /// <param name="cascodeHome">CascodeHomeScope to apply to the process environment.</param>
+    /// <param name="environmentCustomizer">Optional action to customize the process environment before starting.</param>
+    /// <param name="args">Arguments to pass to the CLI.</param>
+    /// <returns>A ProcessResult containing the exit code, stdout, stderr, and command line.</returns>
+    /// <exception cref="TimeoutException">Thrown if the process does not complete within the specified timeout.</exception>
+    internal static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, Action<IDictionary<string, string?>>? environmentCustomizer, params string[] args)
+    {
+        var repoRoot = GetRepositoryRoot();
+        var startInfo = CreateCliStartInfo(repoRoot, args, out var commandLine);
+        ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        cascodeHome.ApplyTo(startInfo.Environment);
+        environmentCustomizer?.Invoke(startInfo.Environment);
+
+        using var process = new Process { StartInfo = startInfo };
+        if (!process.Start())
+        {
+            throw new InvalidOperationException("Failed to start CLI");
+        }
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+
+        using var cts = new CancellationTokenSource(timeout);
+        try
+        {
+            await process.WaitForExitAsync(cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            TryKillProcess(process);
+            await process.WaitForExitAsync();
+
+            var timedOutStdout = await stdoutTask;
+            var timedOutStderr = await stderrTask;
+            throw new TimeoutException($"Timed out: {commandLine}\nStdout: {timedOutStdout}\nStderr: {timedOutStderr}");
+        }
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+
+        return new ProcessResult(process.ExitCode, stdout, stderr, commandLine);
+    }
+
+    /// <summary>
+    /// Asserts that a ProcessResult indicates successful execution (exit code 0).
+    /// </summary>
+    /// <param name="result">The ProcessResult to check.</param>
+    /// <param name="message">Optional custom message to include in the assertion failure.</param>
+    internal static void AssertSuccess(ProcessResult result, string? message = null)
+    {
+        if (message is not null)
+        {
+            Assert.True(result.ExitCode == 0, $"{message} (Exit {result.ExitCode})\nStdout: {result.Stdout}\nStderr: {result.Stderr}");
+        }
+        else
+        {
+            Assert.True(result.ExitCode == 0, $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}\nStderr: {result.Stderr}");
+        }
     }
 }

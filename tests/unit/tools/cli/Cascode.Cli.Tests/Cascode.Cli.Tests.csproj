@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\..\..\shared\**\*.cs" />
     <ProjectReference Include="..\..\..\..\..\tools\cli\Cascode.Cli.csproj" />
   </ItemGroup>
 
