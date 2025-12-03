@@ -120,6 +120,9 @@ module AmpAuto implements SingleEndedAmplifier {
     objective minimize Power;
   }
 
+  // Testbenches for this topology are inherited from
+  // the `SingleEndedAmplifier` trait, but they may 
+  // be overriden, as shown below.
   bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
@@ -138,7 +141,8 @@ module AmpGuided implements SingleEndedAmplifier {
   // ... Specifications `spec` defined same as `AmpAuto` example ...
   spec { GainBandwidth>=120MHz; PhaseMargin>=60deg; PassbandGain>=72dB; Power<=1mW; }
 
-  slot Core : AmplifierStage; slot Comp : Compensator?;
+  slot Core : AmplifierStage; 
+  slot Comp : Compensator?;
 
   synth {
     from lib.ota.*;
@@ -155,22 +159,36 @@ module AmpGuided implements SingleEndedAmplifier {
 
 ### Manual 5T OTA
 
-Here we manually structurally define the amplifier using the primitives available in Cascode's standard library.
+Here the topology is manually defined using reusable building blocks, called "motifs" from Cascode's standard library.
 
 ```java
 package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 module OTA5T implements SingleEndedAmplifier {
-  supply VDD=1.8V; ground GND;
-  port in IN: Diff; port out OUT; bias VTAIL;
+  supply VDD; ground GND;
+  port in IN: Diff;
+  port out OUT: analog;
+  bias VTAIL;
+
+  env {
+    vdd = VDD;
+    icmr in [0.55V..0.75V];
+    load C = 1pF;
+    source Z = 50;
+  }
 
   use {
+    // Differential pair with internal tail device
     dp = new DiffPair { p=NMOS; hasTail=true } {
       IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
     };
 
+    // PMOS current mirror as active load
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
+    attach cm to dp;   // Uses CurrentMirrorLike → DiffPairLike connector
+
+    // Single-ended output taken from the sensed branch
+    connect dp.OUT.N -> OUT;
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
