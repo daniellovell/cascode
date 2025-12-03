@@ -342,8 +342,7 @@ internal static class CharExportService
                             var parts = l.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
                             if (parts.Length >= 3)
                             {
-                                var name = parts[1];
-                                if (string.IsNullOrWhiteSpace(name) && parts.Length >= 3) name = parts[2];
+                                var name = string.IsNullOrWhiteSpace(parts[1]) ? parts[2] : parts[1];
                                 names.Add(name);
                             }
                         }
