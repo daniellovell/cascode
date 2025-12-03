@@ -49,7 +49,6 @@ public static class DeviceCharPlanner
 
         var bestMatch = PdkDatabaseReader.LoadBestMatchByDevice(dbPath);
         var models = PdkDatabaseReader.LoadModels(dbPath).ToDictionary(m => m.Name, StringComparer.OrdinalIgnoreCase);
-        var modelsByClass = GroupModelsByClass(models.Values);
 
         var filteredDevices = devices
             .Where(d => DeviceFilterEvaluator.Matches(d, options.Filters, matchedKeys))
@@ -64,7 +63,7 @@ public static class DeviceCharPlanner
         var plans = new List<DeviceCharPlan>(filteredDevices.Count);
         foreach (var device in filteredDevices)
         {
-            var model = ResolveModelForDevice(device, bestMatch, models, modelsByClass);
+            var model = ResolveModelForDevice(device, bestMatch, models);
             if (model is null) continue;
 
             var includes = ResolveIncludes(dbPath, model, options.Corner);
@@ -171,8 +170,7 @@ public static class DeviceCharPlanner
     private static SpectreModel? ResolveModelForDevice(
         Device device,
         IReadOnlyDictionary<string, string> bestMatch,
-        IReadOnlyDictionary<string, SpectreModel> models,
-        IReadOnlyDictionary<DeviceClass, List<SpectreModel>> modelsByClass)
+        IReadOnlyDictionary<string, SpectreModel> models)
     {
         if (bestMatch.TryGetValue(device.CanonicalName, out var modelName)
             && models.TryGetValue(modelName, out var matched))
@@ -190,27 +188,6 @@ public static class DeviceCharPlanner
         }
 
         return null;
-    }
-
-    private static IReadOnlyDictionary<DeviceClass, List<SpectreModel>> GroupModelsByClass(IEnumerable<SpectreModel> models)
-    {
-        var dict = new Dictionary<DeviceClass, List<SpectreModel>>();
-        foreach (var m in models)
-        {
-            if (!dict.TryGetValue(m.DeviceClass, out var list))
-            {
-                list = new List<SpectreModel>();
-                dict[m.DeviceClass] = list;
-            }
-            list.Add(m);
-        }
-
-        foreach (var kv in dict)
-        {
-            kv.Value.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return dict;
     }
 
     private static List<SpectreModel> FilterByVdd(IEnumerable<SpectreModel> models, HashSet<string> vddTags)

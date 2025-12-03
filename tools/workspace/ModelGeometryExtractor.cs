@@ -27,6 +27,10 @@ public sealed class ModelGeometry
 
 public static class ModelGeometryExtractor
 {
+    private static readonly Regex ModelLineRegex = new(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex GeometryParamsRegex = new(@"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex SubcktEndRegex = new(@"^\.(ends|end)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static List<ModelGeometry> Extract(IReadOnlyList<SpectreModel> models, ILogger? logger = null)
     {
         // Cache normalized file contents to avoid redundant reads
@@ -168,7 +172,7 @@ public static class ModelGeometryExtractor
 
         // Also match model names that contain the base model name (e.g., sky130_fd_pr__nfet_03v3_nvt__model.0 contains nfet_03v3_nvt)
         // This handles binned models where the base subckt name is embedded in the full model name
-        var modelMatch = Regex.Match(line, @"^\.?model\s+(\S+)", RegexOptions.IgnoreCase);
+        var modelMatch = ModelLineRegex.Match(line);
         if (modelMatch.Success)
         {
             var fullModelName = modelMatch.Groups[1].Value;
@@ -192,7 +196,7 @@ public static class ModelGeometryExtractor
         // Pattern matches: key = value or key=value
         // For binned models, we want the overall range across all bins
         // So we take min of all lmin/wmin values and max of all lmax/wmax values
-        foreach (Match match in Regex.Matches(rest, @"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase))
+        foreach (Match match in GeometryParamsRegex.Matches(rest))
         {
             var key = match.Groups[1].Value.ToLowerInvariant();
             var valStr = match.Groups[2].Value;
@@ -238,7 +242,7 @@ public static class ModelGeometryExtractor
         => Regex.IsMatch(line, @$"^\.?subckt\s+{Regex.Escape(subcktName)}\b", RegexOptions.IgnoreCase);
 
     private static bool IsSubcktEnd(string line)
-        => Regex.IsMatch(line, @"^\.(ends|end)\b", RegexOptions.IgnoreCase);
+        => SubcktEndRegex.IsMatch(line);
 
     private static void TryParseParamLine(string line, ref double? wdef, ref double? ldef, ref int? nfdef)
     {
