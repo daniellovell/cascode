@@ -190,7 +190,6 @@ public static class PdkDatabaseWriter
         {
             if (++count % 50 == 0) cancellationToken.ThrowIfCancellationRequested();
             if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
-            if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
             if (!bestByDevice.TryGetValue(device.CanonicalName, out var best)) continue;
             if (!geomByModel.TryGetValue(best.ModelName, out var geom)) continue;
 
