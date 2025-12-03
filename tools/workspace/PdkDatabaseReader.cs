@@ -276,6 +276,31 @@ public static class PdkDatabaseReader
     }
 
     /// <summary>
+    /// Retrieve all include/section contexts recorded for a model, regardless of corner.
+    /// </summary>
+    /// <param name="dbPath">Filesystem path to the PDK database.</param>
+    /// <param name="modelName">Name of the model to query.</param>
+    /// <returns>An ordered list of include/section tuples for the model.</returns>
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetAllContextsForModel(string dbPath, string modelName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"SELECT i.path, s.name
+                             FROM model_contexts mc
+                             JOIN models m ON m.id=mc.model_id
+                             LEFT JOIN sections s ON s.id=mc.section_id
+                             LEFT JOIN includes i ON i.id=mc.include_id
+                             WHERE m.name=$name
+                             GROUP BY i.path, s.name
+                             ORDER BY s.name, i.path";
+        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
+        var list = new List<(string, string?)>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        return list;
+    }
+
+    /// <summary>
     /// Get the number of distinct devices that have at least one model match in the PDK database.
     /// </summary>
     /// <param name="dbPath">Filesystem path to the PDK SQLite database.</param>
@@ -426,6 +451,31 @@ public static class PdkDatabaseReader
             SELECT g.w_min, g.w_max, g.l_min, g.l_max, g.nf_min, g.nf_max, g.w_default, g.l_default, g.nf_default, g.source, g.notes
             FROM model_geometry g JOIN models m ON m.id=g.model_id WHERE m.name=$name";
         var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = modelName; cmd.Parameters.Add(p);
+        using var reader = cmd.ExecuteReader();
+        if (!reader.Read()) return null;
+        return new GeometryRow(
+            reader.IsDBNull(0) ? null : reader.GetDouble(0),
+            reader.IsDBNull(1) ? null : reader.GetDouble(1),
+            reader.IsDBNull(2) ? null : reader.GetDouble(2),
+            reader.IsDBNull(3) ? null : reader.GetDouble(3),
+            reader.IsDBNull(4) ? null : reader.GetInt32(4),
+            reader.IsDBNull(5) ? null : reader.GetInt32(5),
+            reader.IsDBNull(6) ? null : reader.GetDouble(6),
+            reader.IsDBNull(7) ? null : reader.GetDouble(7),
+            reader.IsDBNull(8) ? null : reader.GetInt32(8),
+            reader.IsDBNull(9) ? null : reader.GetString(9),
+            reader.IsDBNull(10) ? null : reader.GetString(10)
+        );
+    }
+
+    public static GeometryRow? LoadGeometryForDevice(string dbPath, string deviceCanonicalName)
+    {
+        using var db = PdkDatabase.OpenReadOnly(dbPath);
+        using var cmd = db.Connection.CreateCommand();
+        cmd.CommandText = @"
+            SELECT g.w_min, g.w_max, g.l_min, g.l_max, g.nf_min, g.nf_max, g.w_default, g.l_default, g.nf_default, g.source, g.notes
+            FROM device_geometry g JOIN devices d ON d.id=g.device_id WHERE d.canonical_name=$name";
+        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = deviceCanonicalName; cmd.Parameters.Add(p);
         using var reader = cmd.ExecuteReader();
         if (!reader.Read()) return null;
         return new GeometryRow(

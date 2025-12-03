@@ -1,6 +1,5 @@
 using Spectre.Console;
 using System;
-using System.Text;
 
 namespace Cascode.Cli;
 
@@ -16,9 +15,9 @@ internal static class ShellPrompt
 
         try
         {
-            var buffer = new StringBuilder();
+            var buffer = new PromptBuffer();
             state.ResetHistoryCursor();
-            WritePrompt(buffer.ToString());
+            WritePrompt(buffer);
 
             while (true)
             {
@@ -35,13 +34,55 @@ internal static class ShellPrompt
                     return null;
                 }
 
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.LeftArrow)
+                {
+                    buffer.MoveWordLeft();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.RightArrow)
+                {
+                    buffer.MoveWordRight();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if ((key.Modifiers & ConsoleModifiers.Control) == 0 && key.Key == ConsoleKey.Home)
+                {
+                    buffer.MoveHome();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if ((key.Modifiers & ConsoleModifiers.Control) == 0 && key.Key == ConsoleKey.End)
+                {
+                    buffer.MoveEnd();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if (key.Key == ConsoleKey.LeftArrow)
+                {
+                    buffer.MoveLeft();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if (key.Key == ConsoleKey.RightArrow)
+                {
+                    buffer.MoveRight();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
                 if ((key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key == ConsoleKey.UpArrow)
                 {
                     var detailStep = getDetailScrollStep();
                     if (tryAdjustDetailOffset(-detailStep))
                     {
                         render();
-                        WritePrompt(buffer.ToString());
+                        WritePrompt(buffer);
                         continue;
                     }
 
@@ -53,7 +94,7 @@ internal static class ShellPrompt
                     var step = Math.Max(1, state.LogViewport / 4);
                     state.ScrollLogUp(step);
                     render();
-                    WritePrompt(buffer.ToString());
+                    WritePrompt(buffer);
                     continue;
                 }
 
@@ -63,7 +104,7 @@ internal static class ShellPrompt
                     if (tryAdjustDetailOffset(detailStep))
                     {
                         render();
-                        WritePrompt(buffer.ToString());
+                        WritePrompt(buffer);
                         continue;
                     }
 
@@ -75,28 +116,26 @@ internal static class ShellPrompt
                     var step = Math.Max(1, state.LogViewport / 4);
                     state.ScrollLogDown(step);
                     render();
-                    WritePrompt(buffer.ToString());
+                    WritePrompt(buffer);
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.UpArrow)
+                if (key.Key == ConsoleKey.UpArrow && key.Modifiers == 0)
                 {
                     if (state.TryHistoryPrevious(out var command))
                     {
-                        buffer.Clear();
-                        buffer.Append(command);
-                        WritePrompt(buffer.ToString());
+                        buffer.Replace(command);
+                        WritePrompt(buffer);
                     }
                     continue;
                 }
 
-                if (key.Key == ConsoleKey.DownArrow)
+                if (key.Key == ConsoleKey.DownArrow && key.Modifiers == 0)
                 {
                     if (state.TryHistoryNext(out var command))
                     {
-                        buffer.Clear();
-                        buffer.Append(command);
-                        WritePrompt(buffer.ToString());
+                        buffer.Replace(command);
+                        WritePrompt(buffer);
                     }
                     continue;
                 }
@@ -108,7 +147,7 @@ internal static class ShellPrompt
                     if (tryAdjustDetailOffset(-step))
                     {
                         render();
-                        WritePrompt(buffer.ToString());
+                        WritePrompt(buffer);
                     }
                     continue;
                 }
@@ -119,7 +158,7 @@ internal static class ShellPrompt
                     if (tryAdjustDetailOffset(step))
                     {
                         render();
-                        WritePrompt(buffer.ToString());
+                        WritePrompt(buffer);
                     }
                     continue;
                 }
@@ -128,7 +167,7 @@ internal static class ShellPrompt
                 {
                     state.ScrollLogHome();
                     render();
-                    WritePrompt(buffer.ToString());
+                    WritePrompt(buffer);
                     continue;
                 }
 
@@ -136,23 +175,27 @@ internal static class ShellPrompt
                 {
                     state.ScrollLogEnd();
                     render();
-                    WritePrompt(buffer.ToString());
+                    WritePrompt(buffer);
                     continue;
                 }
 
                 if (key.Key == ConsoleKey.Enter)
                 {
                     console.WriteLine();
-                    return buffer.ToString();
+                    return buffer.Text;
                 }
 
                 if (key.Key == ConsoleKey.Backspace)
                 {
-                    if (buffer.Length > 0)
-                    {
-                        buffer.Length--;
-                        WritePrompt(buffer.ToString());
-                    }
+                    buffer.Backspace();
+                    WritePrompt(buffer);
+                    continue;
+                }
+
+                if (key.Key == ConsoleKey.Delete)
+                {
+                    buffer.DeleteUnderCursor();
+                    WritePrompt(buffer);
                     continue;
                 }
 
@@ -161,15 +204,15 @@ internal static class ShellPrompt
                     buffer.Clear();
                     state.ResetHistoryCursor();
                     render();
-                    WritePrompt(buffer.ToString());
+                    WritePrompt(buffer);
                     continue;
                 }
 
                 var ch = key.KeyChar;
                 if (!char.IsControl(ch))
                 {
-                    buffer.Append(ch);
-                    WritePrompt(buffer.ToString());
+                    buffer.Insert(ch);
+                    WritePrompt(buffer);
                 }
             }
         }
@@ -179,13 +222,20 @@ internal static class ShellPrompt
         }
     }
 
-    private static void WritePrompt(string buffer)
+    private static void WritePrompt(PromptBuffer buffer)
     {
         ClearPromptLine();
         AnsiConsole.Markup("[green]cascode[/]> ");
-        if (!string.IsNullOrEmpty(buffer))
+        var text = buffer.Text;
+        if (!string.IsNullOrEmpty(text))
         {
-            AnsiConsole.Console.Write(buffer);
+            AnsiConsole.Console.Write(text);
+        }
+
+        var tail = buffer.TailLength;
+        if (tail > 0)
+        {
+            AnsiConsole.Console.Write($"\u001b[{tail}D");
         }
     }
 

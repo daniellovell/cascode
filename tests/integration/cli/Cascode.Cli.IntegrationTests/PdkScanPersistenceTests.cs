@@ -1,10 +1,8 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
 using Cascode.TestSupport;
+using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -17,13 +15,13 @@ public sealed class PdkScanPersistenceTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkScanPersistenceTests));
 
-        var scanResult = await RunCliAsync(
+        var scanResult = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk",
             "scan",
             "tests/fixtures/pdk/sky130");
-        AssertSuccess(scanResult);
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(scanResult);
 
         // Extract the database path from logs and ensure it was written
         var dbPath = TryExtractDbPath(scanResult.Stdout);
@@ -32,14 +30,14 @@ public sealed class PdkScanPersistenceTests
             $"Expected scan to write pdk.db, but could not locate it in logs or on disk. Stdout: {scanResult.Stdout}{Environment.NewLine}Stderr: {scanResult.Stderr}");
 
         // Query devices for the same workspace and verify the total device count
-        var devicesResult = await RunCliAsync(
+        var devicesResult = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk",
             "devices",
             "--workspace",
             "tests/fixtures/pdk/sky130");
-        AssertSuccess(devicesResult);
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(devicesResult);
 
         var deviceCount = TryExtractDeviceCount(devicesResult.Stdout);
         Assert.True(
@@ -74,52 +72,4 @@ public sealed class PdkScanPersistenceTests
         if (m.Success && int.TryParse(m.Groups["count"].Value, out var value)) return value;
         return null;
     }
-
-    private static void AssertSuccess(ProcessResult result)
-    {
-        Assert.True(
-            result.ExitCode == 0,
-            $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}{Environment.NewLine}Stderr: {result.Stderr}");
-    }
-
-    private static async Task<ProcessResult> RunCliAsync(TimeSpan timeout, CascodeHomeScope cascodeHome, params string[] args)
-    {
-        var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, args, out var commandLine);
-        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
-        cascodeHome.ApplyTo(startInfo.Environment);
-
-        using var process = new Process { StartInfo = startInfo };
-
-        if (!process.Start())
-        {
-            throw new InvalidOperationException("Failed to start the Cascode CLI process.");
-        }
-
-        var stdoutTask = process.StandardOutput.ReadToEndAsync();
-        var stderrTask = process.StandardError.ReadToEndAsync();
-
-        using var cts = new CancellationTokenSource(timeout);
-        try
-        {
-            await process.WaitForExitAsync(cts.Token);
-        }
-        catch (OperationCanceledException)
-        {
-            Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
-            await process.WaitForExitAsync();
-
-            var timedOutStdout = await stdoutTask;
-            var timedOutStderr = await stderrTask;
-            throw new TimeoutException(
-                $"Command '{commandLine}' timed out after {timeout}. Stdout: {timedOutStdout}{Environment.NewLine}Stderr: {timedOutStderr}");
-        }
-
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
-
-        return new ProcessResult(process.ExitCode, stdout, stderr, commandLine);
-    }
-
-    private sealed record ProcessResult(int ExitCode, string Stdout, string Stderr, string CommandLine);
 }

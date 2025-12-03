@@ -15,6 +15,7 @@ internal static class ShellRenderer
         return state.ViewMode switch
         {
             ShellViewMode.DeviceSummary => BuildDeviceSummaryLayout(state),
+            ShellViewMode.CharRead => BuildCharReadLayout(state),
             _ => BuildHomeLayout(state)
         };
     }
@@ -107,6 +108,99 @@ internal static class ShellRenderer
         layout["PromptSpacer"].Update(BuildPrompt(state));
 
         return layout;
+    }
+
+    private static Layout BuildCharReadLayout(ShellState state)
+    {
+        var layout = new Layout("Root")
+            .SplitRows(
+                new Layout("MainRows").Ratio(1),
+                new Layout("PromptSpacer").Size(1));
+
+        layout["MainRows"].SplitRows(
+            new Layout("WorkspaceBar").Size(3),
+            new Layout("Content").Ratio(1));
+
+        layout["MainRows"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
+        layout["MainRows"]["Content"].Update(BuildCharReadPanel(state));
+
+        layout["PromptSpacer"].Update(BuildPrompt(state));
+
+        return layout;
+    }
+
+    private static IRenderable BuildCharReadPanel(ShellState state)
+    {
+        var view = state.CharRead ?? CharReadViewState.Empty;
+        var table = new Table().Border(TableBorder.SimpleHeavy);
+        foreach (var header in view.Headers)
+        {
+            table.AddColumn(header);
+        }
+        foreach (var row in view.Rows)
+        {
+            table.AddRow(row.ToArray());
+        }
+
+        var sparklines = new List<IRenderable>();
+        foreach (var kvp in view.Sparklines)
+        {
+            sparklines.Add(BuildSparkline(kvp.Key, kvp.Value));
+        }
+
+        var content = new Rows(
+            new Markup($"[bold]{Markup.Escape(view.Title)}[/] — {Markup.Escape(view.Subtitle)}"),
+            new Rule { Style = Style.Parse("grey") },
+            table,
+            new Rule { Style = Style.Parse("grey") },
+            new Rows(sparklines),
+            new Rule { Style = Style.Parse("grey") },
+            new Markup($"[dim]Derived source: {Markup.Escape(view.SourcePath)}[/]"),
+            new Markup("[dim]Type 'home' to return to the dashboard.[/]")
+        );
+
+        return new Panel(content)
+        {
+            Border = BoxBorder.Rounded,
+            Header = new PanelHeader("Characterization Viewer"),
+            Expand = true,
+            Padding = new Padding(1, 1, 1, 1)
+        };
+    }
+
+    internal static IRenderable BuildSparkline(string label, IEnumerable<double> values)
+    {
+        var list = values.ToList();
+        var finite = list.Where(double.IsFinite).ToList();
+        if (finite.Count == 0) return new Text($"{label}: (no data)");
+
+        var min = finite.Min();
+        var max = finite.Max();
+        if (Math.Abs(max - min) < 1e-12) max = min + 1e-12;
+
+        var glyphs = " ▂▃▄▅▆▇█";
+        var spark = new System.Text.StringBuilder();
+        foreach (var value in list)
+        {
+            var idx = 0;
+            if (double.IsFinite(value))
+            {
+                var normalized = (value - min) / (max - min);
+                normalized = Math.Clamp(normalized, 0.0, 1.0);
+                idx = (int)Math.Round(normalized * (glyphs.Length - 1));
+            }
+            spark.Append(glyphs[idx]);
+        }
+
+        static string Fmt(double v)
+        {
+            if (!double.IsFinite(v)) return string.Empty;
+            var abs = Math.Abs(v);
+            if (abs >= 1e3 || (abs > 0 && abs < 1e-3)) return v.ToString("0.###E+0", CultureInfo.InvariantCulture);
+            return v.ToString("0.###", CultureInfo.InvariantCulture);
+        }
+
+        return new Markup($"[cyan]{Markup.Escape(label)}[/]: {spark} [grey](min {Fmt(min)} / max {Fmt(max)})[/]");
     }
 
     private static IRenderable BuildSummaryPanel(DeviceSummaryViewState summary)

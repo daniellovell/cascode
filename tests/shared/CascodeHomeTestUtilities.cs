@@ -37,6 +37,47 @@ public static class CascodeHome
 }
 
 /// <summary>
+/// A temporary directory that is automatically cleaned up on disposal.
+/// </summary>
+public sealed class TemporaryDirectory : IDisposable
+{
+    /// <summary>
+    /// Initializes a new TemporaryDirectory instance, creating a GUID-based temporary directory.
+    /// </summary>
+    public TemporaryDirectory()
+    {
+        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path);
+    }
+
+    /// <summary>
+    /// Gets the full path to the temporary directory.
+    /// </summary>
+    public string Path { get; }
+
+    /// <summary>
+    /// Recursively deletes the temporary directory and its contents.
+    /// </summary>
+    /// <remarks>
+    /// Performs a best-effort cleanup; any exceptions during deletion are swallowed.
+    /// </remarks>
+    public void Dispose()
+    {
+        try
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup; suppress exceptions to keep tests resilient.
+        }
+    }
+}
+
+/// <summary>
 /// Holds an isolated CASCODE_HOME directory for the lifetime of a test scope.
 /// </summary>
 public sealed class CascodeHomeScope : IDisposable
