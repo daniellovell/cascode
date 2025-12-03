@@ -196,10 +196,11 @@ public static class DeviceCharPlanner
     {
         if (vddTags.Count == 0) return models.ToList();
 
+        var matchingConfig = PdkMatchingConfigManager.Load();
         var list = new List<SpectreModel>();
         foreach (var m in models)
         {
-            var tok = VddFormatting.ExtractTokenFromVoltageDomain(m.VoltageDomain, PdkMatchingConfigManager.Load());
+            var tok = VddFormatting.ExtractTokenFromVoltageDomain(m.VoltageDomain, matchingConfig);
             if (DeviceFilterEvaluator.TryNormalizeVddFilter(tok, out var normalized) && vddTags.Contains(normalized))
             {
                 list.Add(m);

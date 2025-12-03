@@ -163,24 +163,22 @@ public static class ModelGeometryExtractor
 
     private static bool TryParseModelParams(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)
     {
-        // .model <name> <type> params...
-        // First try exact match
-        if (Regex.IsMatch(line, @$"^\.?model\s+{Regex.Escape(modelName)}\b", RegexOptions.IgnoreCase))
+        var modelMatch = ModelLineRegex.Match(line);
+        if (!modelMatch.Success) return false;
+
+        var fullModelName = modelMatch.Groups[1].Value;
+
+        // Exact match
+        if (fullModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase))
         {
-            return ExtractModelGeometryFromLine(line, modelName, ref wmin, ref wmax, ref lmin, ref lmax);
+            return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
         }
 
         // Also match model names that contain the base model name (e.g., sky130_fd_pr__nfet_03v3_nvt__model.0 contains nfet_03v3_nvt)
         // This handles binned models where the base subckt name is embedded in the full model name
-        var modelMatch = ModelLineRegex.Match(line);
-        if (modelMatch.Success)
+        if (ContainsModelNameWithWordBoundaries(fullModelName, modelName))
         {
-            var fullModelName = modelMatch.Groups[1].Value;
-            // Check if the full model name contains the base model name (case-insensitive)
-            if (fullModelName.Contains(modelName, StringComparison.OrdinalIgnoreCase))
-            {
-                return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
-            }
+            return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
         }
 
         return false;
@@ -292,4 +290,14 @@ public static class ModelGeometryExtractor
     }
 
     private static readonly CultureInfo CultureBox = CultureInfo.InvariantCulture;
+
+    private static bool ContainsModelNameWithWordBoundaries(string fullModelName, string modelName)
+    {
+        if (string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(fullModelName)) return false;
+        
+        // Use lookarounds to ensure the match is NOT surrounded by letters or digits.
+        // This treats underscores (and other symbols) as valid boundaries.
+        var pattern = $@"(?<![a-zA-Z0-9]){Regex.Escape(modelName)}(?![a-zA-Z0-9])";
+        return Regex.IsMatch(fullModelName, pattern, RegexOptions.IgnoreCase);
+    }
 }
