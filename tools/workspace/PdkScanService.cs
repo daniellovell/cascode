@@ -83,6 +83,7 @@ public sealed class PdkScanService
         // Stage 6: Project geometry to devices
         logger.LogInformation("Projecting geometry onto devices ({Devices})…", devices.Count);
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, geometry, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         logger.LogInformation("PDK database updated → {Path}", dbPath);
 
