@@ -33,6 +33,8 @@ public sealed record DeviceCharPlan(
 
 public static class DeviceCharPlanner
 {
+    private static readonly Regex LibraryRegex = new(@"^library\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static IReadOnlyList<DeviceCharPlan> Plan(string dbPath, DeviceCharPlannerOptions options)
     {
         if (options is null) throw new ArgumentNullException(nameof(options));
@@ -289,7 +291,7 @@ public static class DeviceCharPlanner
                 var trimmed = line.TrimStart();
                 if (trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase) ||
                     trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase) ||
-                    Regex.IsMatch(trimmed, @"^library\b", RegexOptions.IgnoreCase))
+                    LibraryRegex.IsMatch(trimmed))
                 {
                     return true;
                 }
