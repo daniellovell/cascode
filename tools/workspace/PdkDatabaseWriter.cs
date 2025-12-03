@@ -185,9 +185,11 @@ public static class PdkDatabaseWriter
         var psrc = insert.CreateParameter(); psrc.ParameterName = "$src"; insert.Parameters.Add(psrc);
         var pnotes = insert.CreateParameter(); pnotes.ParameterName = "$notes"; insert.Parameters.Add(pnotes);
 
+        var count = 0;
         foreach (var device in devices)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (++count % 50 == 0) cancellationToken.ThrowIfCancellationRequested();
+            if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
             if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
             if (!bestByDevice.TryGetValue(device.CanonicalName, out var best)) continue;
             if (!geomByModel.TryGetValue(best.ModelName, out var geom)) continue;
