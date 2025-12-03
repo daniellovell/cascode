@@ -294,7 +294,7 @@ public static class ModelGeometryExtractor
     private static bool ContainsModelNameWithWordBoundaries(string fullModelName, string modelName)
     {
         if (string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(fullModelName)) return false;
-        
+
         // Use lookarounds to ensure the match is NOT surrounded by letters or digits.
         // This treats underscores (and other symbols) as valid boundaries.
         var pattern = $@"(?<![a-zA-Z0-9]){Regex.Escape(modelName)}(?![a-zA-Z0-9])";
