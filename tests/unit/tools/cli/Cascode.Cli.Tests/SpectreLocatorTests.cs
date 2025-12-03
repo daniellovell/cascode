@@ -11,25 +11,14 @@ public sealed class SpectreLocatorTests
     [Fact]
     public void FindOnPath_ReturnsNullWhenMissing()
     {
-        var original = Environment.GetEnvironmentVariable("PATH");
-        try
-        {
-            Environment.SetEnvironmentVariable("PATH", Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
-
-            var result = SpectreLocator.FindOnPath();
-
-            Assert.Null(result);
-        }
-        finally
-        {
-            Environment.SetEnvironmentVariable("PATH", original);
-        }
+        var testPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var result = SpectreLocator.FindOnPath(testPath, pathextOverride: null);
+        Assert.Null(result);
     }
 
     [Fact]
     public void FindOnPath_FindsExecutableInPath()
     {
-        var original = Environment.GetEnvironmentVariable("PATH");
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
@@ -38,16 +27,15 @@ public sealed class SpectreLocatorTests
             File.WriteAllText(exePath, "echo stub");
 
             var dotnetDir = Environment.ProcessPath is string p ? Path.GetDirectoryName(p) : null;
+            var original = Environment.GetEnvironmentVariable("PATH");
             var pathValue = string.Join(Path.PathSeparator, new[] { tempDir.FullName, dotnetDir, original }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            Environment.SetEnvironmentVariable("PATH", pathValue);
 
-            var result = SpectreLocator.FindOnPath();
+            var result = SpectreLocator.FindOnPath(pathValue, pathextOverride: null);
 
             Assert.Equal(exePath, result, ignoreCase: true);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", original);
             try { tempDir.Delete(recursive: true); } catch { }
         }
     }
@@ -60,26 +48,21 @@ public sealed class SpectreLocatorTests
             return;
         }
 
-        var originalPath = Environment.GetEnvironmentVariable("PATH");
-        var originalPathext = Environment.GetEnvironmentVariable("PATHEXT");
         var tempDir = Directory.CreateTempSubdirectory();
         try
         {
             var exePath = Path.Combine(tempDir.FullName, "spectre.cmd");
             File.WriteAllText(exePath, "@echo off\nexit /b 0");
 
-            Environment.SetEnvironmentVariable("PATHEXT", ".COM;.EXE;.BAT;.CMD");
+            var originalPath = Environment.GetEnvironmentVariable("PATH");
             var pathValue = string.Join(Path.PathSeparator, new[] { tempDir.FullName, originalPath }.Where(s => !string.IsNullOrWhiteSpace(s)));
-            Environment.SetEnvironmentVariable("PATH", pathValue);
 
-            var result = SpectreLocator.FindOnPath();
+            var result = SpectreLocator.FindOnPath(pathValue, pathextOverride: ".COM;.EXE;.BAT;.CMD");
 
             Assert.Equal(exePath, result, ignoreCase: true);
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PATH", originalPath);
-            Environment.SetEnvironmentVariable("PATHEXT", originalPathext);
             try { tempDir.Delete(recursive: true); } catch { }
         }
     }

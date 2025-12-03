@@ -68,11 +68,7 @@ public sealed class PhysicalLibraryScanner
                     });
                 }
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (!(ex is OperationCanceledException))
             {
                 warnings?.Add($"Failed to scan library '{lib.Name}': {ex.Message}");
             }

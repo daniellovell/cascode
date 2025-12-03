@@ -4,32 +4,29 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using Xunit;
+using Cascode.TestSupport;
 
 namespace Cascode.Workspace.Tests;
 
 public sealed class CharLutWriterTests : IDisposable
 {
-    private readonly string _tempDir;
+    private readonly CascodeHomeScope _cascodeHomeHelper;
 
     public CharLutWriterTests()
     {
-        _tempDir = Path.Combine(Path.GetTempPath(), $"cascode_charlut_test_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(_tempDir);
+        _cascodeHomeHelper = CascodeHome.CreateInTemp();
     }
 
     public void Dispose()
     {
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, recursive: true);
-        }
+        _cascodeHomeHelper.Dispose();
     }
 
     [Fact]
     public void WriteCharRun_InsertsRunMetadata()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test.db");
         SetupMinimalDatabase(dbPath);
 
         var run = new CharRunRecord
@@ -70,7 +67,7 @@ public sealed class CharLutWriterTests : IDisposable
     public void WriteLutPoints_InsertsDataPoints()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_points.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_points.db");
         SetupMinimalDatabase(dbPath);
 
         var run = new CharRunRecord
@@ -114,7 +111,7 @@ public sealed class CharLutWriterTests : IDisposable
     public void WriteRunSummary_ComputesAndStoresPeakMetrics()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_summary.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_summary.db");
         SetupMinimalDatabase(dbPath);
 
         var run = new CharRunRecord
@@ -163,10 +160,10 @@ public sealed class CharLutWriterTests : IDisposable
     public void ImportFromDerivedCsv_ParsesAndStoresLut()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_import.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_import.db");
         SetupMinimalDatabase(dbPath);
 
-        var jobDir = Path.Combine(_tempDir, "job_import");
+        var jobDir = Path.Combine(_cascodeHomeHelper.Path, "job_import");
         Directory.CreateDirectory(jobDir);
 
         // Create a mock spec.json
@@ -217,7 +214,7 @@ public sealed class CharLutWriterTests : IDisposable
     public void GetCharacterizationCoverage_ReturnsModelCornerMatrix()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_coverage.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_coverage.db");
         SetupMinimalDatabase(dbPath);
 
         // Add a second model
@@ -257,7 +254,7 @@ public sealed class CharLutWriterTests : IDisposable
     [Fact]
     public void GetDeviceCoverage_UsesDeviceRuns()
     {
-        var dbPath = Path.Combine(_tempDir, "test_device_coverage.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_device_coverage.db");
         SetupMinimalDatabase(dbPath);
 
         using (var db = PdkDatabase.Open(dbPath))
@@ -298,7 +295,7 @@ public sealed class CharLutWriterTests : IDisposable
     public void GetLatestRunForModel_ReturnsNewestRun()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_latest.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_latest.db");
         SetupMinimalDatabase(dbPath);
 
         var older = new CharRunRecord
@@ -348,7 +345,7 @@ public sealed class CharLutWriterTests : IDisposable
     public void WriteCharRun_AssociatesDeviceWhenPresent()
     {
         // Arrange
-        var dbPath = Path.Combine(_tempDir, "test_device.db");
+        var dbPath = Path.Combine(_cascodeHomeHelper.Path, "test_device.db");
         SetupMinimalDatabase(dbPath);
 
         using (var db = PdkDatabase.Open(dbPath))

@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Cascode.Workspace;
+using Cascode.TestSupport;
 using Xunit;
 using static Cascode.Workspace.Tests.TestUtilities;
 
@@ -11,6 +12,7 @@ public sealed class DefinitionContextAggregationTests
     [Fact]
     public void Scan_PreservesDefinitionContextsThroughAggregation()
     {
+        using var cascodeHome = CascodeHome.CreateInTemp();
         using var workspace = TemporaryWorkspace.Create();
 
         workspace.WriteFile(

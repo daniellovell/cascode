@@ -8,10 +8,15 @@ public static class SpectreLocator
 {
     public static string? FindOnPath()
     {
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        return FindOnPath(pathOverride: null, pathextOverride: null);
+    }
+
+    internal static string? FindOnPath(string? pathOverride, string? pathextOverride)
+    {
+        var pathEnv = pathOverride ?? Environment.GetEnvironmentVariable("PATH");
         if (string.IsNullOrWhiteSpace(pathEnv)) return null;
 
-        var names = BuildCandidateNames("spectre");
+        var names = BuildCandidateNames("spectre", pathextOverride);
         foreach (var rawSegment in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             var segment = Environment.ExpandEnvironmentVariables(rawSegment);
@@ -25,12 +30,12 @@ public static class SpectreLocator
         return null;
     }
 
-    private static IEnumerable<string> BuildCandidateNames(string baseName)
+    private static IEnumerable<string> BuildCandidateNames(string baseName, string? pathextOverride)
     {
         if (OperatingSystem.IsWindows())
         {
             yield return baseName;
-            var pathext = Environment.GetEnvironmentVariable("PATHEXT");
+            var pathext = pathextOverride ?? Environment.GetEnvironmentVariable("PATHEXT");
             var exts = string.IsNullOrWhiteSpace(pathext)
                 ? new[] { ".exe", ".bat", ".cmd", ".com" }
                 : pathext.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

@@ -79,7 +79,7 @@ public sealed class PdkScanService
 
         // Stage 5: Geometry extraction
         logger.LogInformation("Extracting model geometry from sources ({Models})…", workspaceScan.Models.Count);
-        var geometry = ModelGeometryExtractor.Extract(workspaceScan.Models);
+        var geometry = ModelGeometryExtractor.Extract(workspaceScan.Models, logger);
         PdkDatabaseWriter.UpsertGeometry(dbPath, geometry);
         logger.LogInformation("Geometry extraction complete for {Count} models", geometry.Count);
 

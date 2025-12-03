@@ -5,6 +5,7 @@ using System.Text;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
@@ -26,7 +27,7 @@ public sealed class ModelGeometry
 
 public static class ModelGeometryExtractor
 {
-    public static List<ModelGeometry> Extract(IReadOnlyList<SpectreModel> models)
+    public static List<ModelGeometry> Extract(IReadOnlyList<SpectreModel> models, ILogger? logger = null)
     {
         // Cache normalized file contents to avoid redundant reads
         var fileCache = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -91,12 +92,29 @@ public static class ModelGeometryExtractor
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // ignore per-model errors; best effort
+                // Best effort: log but continue processing other models
+                LogExtractionError(logger, m.Name, ex);
             }
         }
         return list;
+    }
+
+    private static void LogExtractionError(ILogger? logger, string modelName, Exception ex)
+    {
+        try
+        {
+            if (logger is null)
+            {
+                Console.Error.WriteLine($"[cascode] Failed to extract geometry for model '{modelName}': {ex.Message}");
+            }
+            else
+            {
+                logger.LogWarning(ex, "Failed to extract geometry for model {ModelName}", modelName);
+            }
+        }
+        catch { /* ignore logging failures */ }
     }
 
     private static List<string> ReadAndNormalizeFile(string path)
