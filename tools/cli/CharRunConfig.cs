@@ -15,7 +15,7 @@ internal sealed class CharRunConfig
     public List<string> NameExcludes { get; set; } = new() { "esd" };
     public List<string> Vt { get; set; } = new(); // ULVT/LLVT/SLVT/LVT/RVT/SVT/NVT/HVT/MVT
     public List<string> Vdd { get; set; } = new(); // e.g., 1.8V/3.3V or normalized tags
-    public bool? Infra { get; set; } = null;
+    public bool? Infra { get; set; } = null; // true = infrastructure devices only, false = exclude infra, null = no filter
 
     public static CharRunConfig Load(string path)
     {

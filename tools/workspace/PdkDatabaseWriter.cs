@@ -82,8 +82,9 @@ public static class PdkDatabaseWriter
         RebuildDeviceClassSummary(dbPath, cancellationToken);
     }
 
-    public static void UpsertGeometry(string dbPath, IReadOnlyList<ModelGeometry> geometry)
+    public static void UpsertGeometry(string dbPath, IReadOnlyList<ModelGeometry> geometry, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
         var modelId = LoadIdMap(db.Connection, tx, "models", "name");
@@ -113,8 +114,14 @@ public static class PdkDatabaseWriter
         var psrc = insert.CreateParameter(); psrc.ParameterName = "$src"; insert.Parameters.Add(psrc);
         var pnotes = insert.CreateParameter(); pnotes.ParameterName = "$notes"; insert.Parameters.Add(pnotes);
 
+        var count = 0;
         foreach (var g in geometry)
         {
+            if (++count % 50 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (!modelId.TryGetValue(g.ModelName, out var mid)) continue;
             pid.Value = mid;
             pwmin.Value = (object?)g.WMin ?? DBNull.Value;
@@ -135,6 +142,7 @@ public static class PdkDatabaseWriter
             insert.ExecuteNonQuery();
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         tx.Commit();
     }
 

@@ -557,7 +557,7 @@ internal sealed class PdkCommandModule : ICommandModule
             logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
 
         // Use PdkScanService for the core scanning workflow
-        var scanService = new Cascode.Workspace.PdkScanService(_scanner);
+        var scanService = new Cascode.Workspace.PdkScanService(_scanner, new Cascode.Workspace.PhysicalLibraryScanner());
         var scanResult = scanService.ScanAndPersist(targetRoot, logger, cancellationToken);
 
         // Update CLI state with scan results

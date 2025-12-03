@@ -96,7 +96,7 @@ public sealed class DeviceCharPlannerTests : IDisposable
         {
             new() { ModelName = "nmos_model", WDefault = 2e-6, LDefault = 0.2e-6, NfDefault = 2, WMin = 1e-6, LMin = 0.1e-6, WMax = 10e-6, LMax = 1e-6, Source = "model" }
         };
-        PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom);
+        PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom, default);
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, modelGeom);
 
         // Override device geometry to prove the planner reads device-level values.
@@ -193,7 +193,7 @@ public sealed class DeviceCharPlannerTests : IDisposable
         {
             new() { ModelName = "nmos_model", WDefault = 1e-6, LDefault = 1e-6, NfDefault = 1, WMin = 1e-6, LMin = 1e-6, WMax = 1e-6, LMax = 1e-6, Source = "model" }
         };
-        PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom);
+        PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom, default);
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, modelGeom);
 
         var filters = new DeviceFilterOptions(classes: new[] { "nmos" }, vts: null, vdds: null, infra: null, matched: null);

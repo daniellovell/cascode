@@ -10,12 +10,14 @@ namespace Cascode.Workspace;
 public sealed class PdkScanService
 {
     private readonly WorkspaceScanner _workspaceScanner;
+    private readonly PhysicalLibraryScanner _physicalLibraryScanner;
 
-    public PdkScanService() : this(new WorkspaceScanner()) { }
+    public PdkScanService() : this(new WorkspaceScanner(), new PhysicalLibraryScanner()) { }
 
-    public PdkScanService(WorkspaceScanner workspaceScanner)
+    public PdkScanService(WorkspaceScanner workspaceScanner, PhysicalLibraryScanner physicalLibraryScanner)
     {
         _workspaceScanner = workspaceScanner ?? throw new ArgumentNullException(nameof(workspaceScanner));
+        _physicalLibraryScanner = physicalLibraryScanner ?? throw new ArgumentNullException(nameof(physicalLibraryScanner));
     }
 
     /// <summary>
@@ -51,7 +53,7 @@ public sealed class PdkScanService
 
         // Stage 2: Physical library scan (devices)
         logger.LogInformation("Scanning physical libraries for devices (libraries={Libraries})…", workspaceScan.Libraries.Count);
-        var devices = new PhysicalLibraryScanner().Scan(workspaceScan.Libraries, warnings: null, cancellationToken);
+        var devices = _physicalLibraryScanner.Scan(workspaceScan.Libraries, warnings: null, cancellationToken);
         logger.LogInformation("Physical scan complete: {Devices} devices", devices.Count);
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -77,7 +79,8 @@ public sealed class PdkScanService
         // Stage 5: Geometry extraction
         logger.LogInformation("Extracting model geometry from sources ({Models})…", workspaceScan.Models.Count);
         var geometry = ModelGeometryExtractor.Extract(workspaceScan.Models, logger);
-        PdkDatabaseWriter.UpsertGeometry(dbPath, geometry);
+        cancellationToken.ThrowIfCancellationRequested();
+        PdkDatabaseWriter.UpsertGeometry(dbPath, geometry, cancellationToken);
         logger.LogInformation("Geometry extraction complete for {Count} models", geometry.Count);
 
         // Stage 6: Project geometry to devices

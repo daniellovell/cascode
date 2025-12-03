@@ -280,6 +280,7 @@ public sealed class PdkDatabase : IDisposable
 
             CREATE INDEX IF NOT EXISTS idx_char_runs_model ON char_runs(model_id, corner);
             CREATE INDEX IF NOT EXISTS idx_char_lut_points_run ON char_lut_points(run_id);
+            CREATE INDEX IF NOT EXISTS idx_char_runs_device ON char_runs(device_id, corner);
         ";
         cmd.ExecuteNonQuery();
         tx.Commit();
