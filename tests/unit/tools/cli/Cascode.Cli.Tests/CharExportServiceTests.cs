@@ -89,7 +89,10 @@ rseff = 5
 rdeff = 6
 w_eff = 1e-6
 """;
-        var opp2 = opp1.Replace("0.10", "0.20", StringComparison.Ordinal).Replace("1e-4", "2e-4", StringComparison.Ordinal).Replace("2e-3", "3e-3", StringComparison.Ordinal);
+        var opp2 = opp1
+            .Replace("vgs = 0.10", "vgs = 0.20", StringComparison.Ordinal)
+            .Replace("ids = 1e-4", "ids = 2e-4", StringComparison.Ordinal)
+            .Replace("gm = 2e-3", "gm = 3e-3", StringComparison.Ordinal);
         File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.0"), opp1);
         File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.1"), opp2);
 

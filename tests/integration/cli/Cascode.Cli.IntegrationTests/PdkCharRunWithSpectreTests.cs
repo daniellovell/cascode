@@ -16,14 +16,14 @@ public sealed class PdkCharRunWithSpectreTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkCharRunWithSpectreTests));
 
-        // 1) Scan fixture PDK (sky130) to build DB
+        // Scan fixture PDK (sky130) to build DB
         var scan = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk", "scan", "tests/fixtures/pdk/sky130");
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(scan, "PDK scan should succeed");
 
-        // 2) Run characterization with NMOS filter
+        // Run characterization with NMOS filter
         var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(3),
             cascodeHome,
@@ -37,7 +37,7 @@ public sealed class PdkCharRunWithSpectreTests
         // Verify the output mentions characterization completion
         Assert.Contains("Characterization batch complete", run.Stdout, StringComparison.OrdinalIgnoreCase);
 
-        // 3) Find the workspace and verify database has LUT data
+        // Find the workspace and verify database has LUT data
         var workRoot = Path.Combine(cascodeHome.Path, "workspaces");
         var workspaceDirs = Directory.GetDirectories(workRoot);
         Assert.NotEmpty(workspaceDirs);
@@ -45,7 +45,7 @@ public sealed class PdkCharRunWithSpectreTests
         var dbPath = Path.Combine(wdir, "pdk.db");
         Assert.True(File.Exists(dbPath), "PDK database should exist");
 
-        // 4) Verify LUTs were stored for each NMOS device
+        // Verify LUTs were stored for each NMOS device
         var devices = PdkDatabaseReader.LoadDevices(dbPath).Where(d => d.Class == DeviceClass.Nmos).ToList();
         Assert.Equal(7, devices.Count);
 
@@ -68,7 +68,7 @@ public sealed class PdkCharRunWithSpectreTests
             Assert.True(summary.VgsAtPeakGmId.HasValue, "Expected Vgs at peak gm/Id to be computed");
         }
 
-        // 8) Verify pdk char status command works
+        // Verify pdk char status command works
         var status = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(1),
             cascodeHome,

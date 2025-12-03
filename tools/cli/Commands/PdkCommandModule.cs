@@ -1078,7 +1078,7 @@ internal sealed class PdkCommandModule : ICommandModule
     /// <summary>
     /// Generate a testbench and supporting files for the specified device characterization plan.
     /// </summary>
-    private bool GenerateBenchForPlan(DeviceCharPlan plan, string harnessId, string backend, string jobDir)
+    private bool GenerateBenchForPlan(DeviceCharPlan plan, string harnessId, string backend, string jobDir, ILogger? logger = null)
     {
         try
         {
@@ -1090,7 +1090,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
             foreach (var inc in plan.IncludePathsWithSection)
             {
-                var normalized = PrepareCharacterizationInclude(inc, plan.Section, jobDir);
+                var normalized = PrepareCharacterizationInclude(inc, plan.Section, jobDir, logger);
                 if (!string.IsNullOrWhiteSpace(normalized))
                 {
                     resolvedIncludes.Add(normalized!);
@@ -1187,7 +1187,7 @@ internal sealed class PdkCommandModule : ICommandModule
         return basePart.Replace('.', '_');
     }
 
-    private static string PrepareCharacterizationInclude(string includePath, string? section, string jobDir)
+    private static string PrepareCharacterizationInclude(string includePath, string? section, string jobDir, ILogger? logger = null)
     {
         if (string.IsNullOrWhiteSpace(section) || !File.Exists(includePath))
         {
@@ -1235,8 +1235,16 @@ internal sealed class PdkCommandModule : ICommandModule
             File.WriteAllLines(materialized, captured);
             return materialized;
         }
-        catch
+        catch (Exception ex)
         {
+            if (logger is not null)
+            {
+                logger.LogWarning(ex, "Failed to extract section from include file '{IncludePath}'", includePath);
+            }
+            else
+            {
+                Console.Error.WriteLine($"Warning: Failed to extract section from include file '{includePath}': {ex.Message}");
+            }
             return includePath;
         }
     }
