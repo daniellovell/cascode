@@ -109,7 +109,7 @@ w_eff = 1e-6
         int idxIdPerW = Array.IndexOf(header, "id_per_w");
         int idxVstar = Array.IndexOf(header, "vstar");
         int idxFt = Array.IndexOf(header, "ft");
-        Assert.True(idxGmPerW > 0 && idxIdPerW > 0 && idxVstar > 0 && idxFt > 0, "Missing derived metrics in header.");
+        Assert.True(idxGmPerW >= 0 && idxIdPerW >= 0 && idxVstar >= 0 && idxFt >= 0, "Missing derived metrics in header.");
 
         var first = lines[1].Split(',', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(2000, double.Parse(first[idxGmPerW], CultureInfo.InvariantCulture), 3); // gm_per_w = gm / w_eff
