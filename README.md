@@ -91,22 +91,39 @@ In this example, the amplifier is defined by the specification and the **synthes
 package analog.amp; import lib.ota.*;
 
 module AmpAuto implements SingleEndedAmplifier {
-  supply VDD = 1.2V; ground GND;
-  port in_p vip, in_n vin; port out vout;
-  param CL = 2pF;
+  supply VDD; ground GND;
+  port in IN: Diff;
+  port out OUT: analog;
 
-  env  { icmr in [0.55V..0.75V]; load C = CL; }
-  spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB; OutputSwing(vout) in [0.2V..1.0V]; Power<=1mW; }
+  env {
+    vdd   = VDD;
+    icmr  in [0.55V..0.75V];
+    load  C = CL;     // mandatory bench load
+    source Z = 50;    // mandatory bench source impedance
+  }
 
-  slot Core : AmplifierStage;      // Choose a core
-  slot Comp : Compensator?;        // Optional compensation
+  spec {
+    GainBandwidth >= 100MHz;
+    PhaseMargin   >= 60deg;
+    PassbandGain  >= 70dB;
+    OutputSwing(OUT) in [0.2V..1.0V];
+    Power         <= 1mW;
+  }
+
+  // Stage placeholder; synthesis chooses the actual topology.
+  slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }
 
   synth {
-    from lib.ota.*;                // Search space
-    fill Core, Comp;               // Decide these slots
+    from lib.ota.*;
+    fill Core;
     prefer inputPolarity = NMOS;
-    objective minimize Power + 0.2*Area;
+    objective minimize Power;
   }
+
+  // Testbenches for this topology are inherited from
+  // the `SingleEndedAmplifier` trait, but they may 
+  // be overriden, as shown below.
+  bench { SEAmplifierACBench; UnityUGF; Step; }
 }
 ```
 
@@ -116,16 +133,22 @@ In this example, the amplifier is defined by the specification and the synthesis
 
 ```java
 module AmpGuided implements SingleEndedAmplifier {
-  supply VDD=1.2V; ground GND;
-  port in_p vip, in_n vin; port out vout; param CL=3pF;
+  supply VDD; ground GND;
+  port in IN: Diff;
+  port out OUT: analog;
 
-  env  { load C=CL; icmr in [0.5V..0.8V]; }
+  // ... Environment `env` defined same as `AmpAuto` example ...
+  // ... Specifications `spec` defined same as `AmpAuto` example ...
   spec { GainBandwidth>=120MHz; PhaseMargin>=60deg; PassbandGain>=72dB; Power<=1mW; }
 
-  slot Core : AmplifierStage; slot Comp : Compensator?;
+  slot Core : AmplifierStage; 
+  slot Comp : Compensator?;
 
   synth {
     from lib.ota.*;
+    fill Core;
+
+    // Constrain the search space
     allow Core in { TeleCascodeNMOS, FoldedCascodePMOS };
     prefer Comp in { MillerRC, MillerRz };
     forbid GainBoosting;
@@ -136,22 +159,36 @@ module AmpGuided implements SingleEndedAmplifier {
 
 ### Manual 5T OTA
 
-Here we manually structurally define the amplifier using the primitives available in Cascode's standard library.
+Here the topology is manually defined using reusable building blocks, called "motifs" from Cascode's standard library.
 
 ```java
 package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 module OTA5T implements SingleEndedAmplifier {
-  supply VDD=1.8V; ground GND;
-  port in IN: Diff; port out OUT; bias VTAIL;
+  supply VDD; ground GND;
+  port in IN: Diff;
+  port out OUT: analog;
+  bias VTAIL;
+
+  env {
+    vdd = VDD;
+    icmr in [0.55V..0.75V];
+    load C = 1pF;
+    source Z = 50;
+  }
 
   use {
+    // Differential pair with internal tail device
     dp = new DiffPair { p=NMOS; hasTail=true } {
       IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
     };
 
+    // PMOS current mirror as active load
     cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
+    attach cm to dp;   // Uses CurrentMirrorLike → DiffPairLike connector
+
+    // Single-ended output taken from the sensed branch
+    connect dp.OUT.N -> OUT;
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
@@ -175,36 +212,6 @@ motif WideSwingPMOSMirror {
 }
 ```
 
-#### Self-biased inverter OTA / TIA (feedback sugar)
-
-```java
-module InverterOTA implements SingleEndedAmplifier {
-  supply VDD=1.2V; ground GND; port in vin; port out vout;
-
-  use {
-    inv = new InverterGm(vdd=VDD, gnd=GND);
-    inv.in -> vin; inv.out -> vout;
-    fb R(vout -> vin, 20M) { type=Auto; }  // MOS pseudo-res if needed
-    C(vout, GND, 0.5pF);
-  }
-
-  spec { GainBandwidth>=50MHz; PhaseMargin>=60deg; PassbandGain>=35dB; Power<=500uW; }
-}
-```
-
-### Strong-arm latch (clocked comparator)
-
-```java
-module SALatch implements Comparator {
-  supply VDD=1.2V; ground GND; port in_p vip, in_n vin; diff out(vop, von); clock phi;
-
-  use { sa = new StrongArmLatch(vip, vin, phi, vop, von) { vdd=VDD; gnd=GND; }; }
-
-  spec { DecisionTime(phi@posedge, DeltaVin=5mV) <= 300ps; Offset <= 2mV; Kickback <= 30mV; Power <= 1mW; }
-  bench { LatchDecision; OffsetMC; Kickback; }
-  phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
-}
-```
 
 ### System-level sense chain
 
@@ -214,7 +221,9 @@ It will make these choices based on the specifications of each block, each of th
 
 ```java
 module SenseChainAuto {
-  supply VDD=1.2V; ground GND; port in vin; port out vout;
+  supply VDD; ground GND;
+  port in VIN;
+  port out VOUT;
 
   env {
     source { Z=10; range=[0V..1V]; }
