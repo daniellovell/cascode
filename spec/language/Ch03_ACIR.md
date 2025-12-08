@@ -2,7 +2,6 @@
 
 > This chapter defines ACIR as a data model and text-based format that carries circuit connectivity and analysis intent from Cascode ADL to synthesis, sizing, verification, and SPICE emission.
 
-
 ---
 
 ## 3.0 Summary
@@ -29,7 +28,7 @@ The ACIR design prioritizes **connectivity as the primary concern**, establishin
 
 **Deterministic text** output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (High Level, with open slots and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
 
-**Line-oriented format** ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. **Source attribution** via `@[file:line]` annotations enables precise error messages and debugging. Finally, the **extensible, non-leaky** architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
+**Line-oriented format** ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. **Compact inline connections** using `terminal->net` syntax within parentheses reduce verbosity while maintaining explicit keyword-argument clarity, avoiding the fragility of positional syntax. **Source attribution** via `@[file:line]` annotations enables precise error messages and debugging. Finally, the **extensible, non-leaky** architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
 
 ---
 
@@ -91,16 +90,18 @@ The SI prefix table:
 | pico   | p      | 10^-12 |
 | femto  | f      | 10^-15 |
 
-### 3.2.4 Source Attribution
+### 3.2.4 Source Attribution (Optional)
 
-All statements may include source attribution in the form `@[file:line]` or `@[file:line:column]`:
+Statements may optionally include source attribution in the form `@[file:line]` or `@[file:line:column]`. Source attribution is **not required** and should be omitted in most cases. It is primarily useful for debugging, error messages, and tracing elaborated designs back to their ADL source.
 
 ```
 port OUT : analog @[OTA.cas:7]
-nmos dp.M_N : W=1u L=100n @[DiffPair.cas:12]
+nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : W=1u L=100n @[DiffPair.cas:12]
+inst dp (IN.P->IN_P) : DiffPair @[OTA.cas:9]
+  param p = NMOS
 ```
 
-Source attribution enables error messages to reference original source locations and supports debugging of elaborated designs.
+When present, source attribution enables error messages to reference original source locations. However, canonical ACIR output omits source attribution by default to improve readability and reduce noise.
 
 ---
 
@@ -117,7 +118,7 @@ f: (instanceId, terminalPath) -> netId
 Nets represent electrical nodes in the circuit. Each net has a unique identifier within the circuit and a domain classification.
 
 ```
-net <id> : <domain> [<attributes>] @[<source>]
+net <id> : <domain> [<attributes>]
 ```
 
 The domain field specifies one of:
@@ -135,10 +136,10 @@ The domain field specifies one of:
 Examples:
 
 ```
-net VDD : supply @[OTA.cas:4]
-net GND : ground @[OTA.cas:5]
-net tnode : analog ; internal tail node
-net VTAIL : bias @[OTA.cas:7]
+net VDD : supply
+net GND : ground
+net tnode : analog  ; internal tail node
+net VTAIL : bias
 net EN : digital
 ```
 
@@ -152,17 +153,17 @@ net EN : digital
 Supplies and grounds are specialized net declarations that include voltage values and serve as power rails.
 
 ```
-supply <id> : <value> @[<source>]
-ground <id> @[<source>]
+supply <id> : <value>
+ground <id>
 ```
 
 Examples:
 
 ```
-supply VDD : 1.8V @[OTA.cas:4]
-supply VDDIO : 3.3V @[OTA.cas:5]
-ground GND @[OTA.cas:6]
-ground GNDA @[OTA.cas:7]  ; analog ground
+supply VDD : 1.8V
+supply VDDIO : 3.3V
+ground GND
+ground GNDA  ; analog ground
 ```
 
 Supply declarations implicitly create nets with domain `supply`. Ground declarations implicitly create nets with domain `ground`.
@@ -199,17 +200,17 @@ bundle QuadIQ:
 Ports declare the external interface of a circuit. Each port has a name, a domain or bundle type, and optional source attribution.
 
 ```
-port <name> : <domain|BundleType> @[<source>]
+port <name> : <domain|BundleType>
 ```
 
 Examples:
 
 ```
-port VIN : analog @[Amp.cas:5]
-port IN : Diff @[OTA.cas:6]
-port OUT : analog @[OTA.cas:7]
-port EN : digital @[OTA.cas:8]
-port VTAIL : bias @[OTA.cas:9]
+port VIN : analog
+port IN : Diff
+port OUT : analog
+port EN : digital
+port VTAIL : bias
 ```
 
 **Bundle port expansion:** A port declared with a bundle type expands to multiple underlying nets. For `port IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
@@ -218,20 +219,34 @@ port VTAIL : bias @[OTA.cas:9]
 
 At ML (Mid Level), instances represent motif instantiations with type, parameters, and terminal bindings.
 
+**Syntax:**
+
 ```
-inst <id> : <MotifType> @[<source>]
+inst <id> [(<connections>)] : <MotifType>
   param <key> = <value>
   ...
   <terminal> -> <net>
   ...
 ```
 
-The terminal bindings use arrow syntax to show the mapping from instance terminal to net. The arrow is read as "connects to."
+The terminal bindings use arrow syntax (`terminal -> net`) to show the mapping from instance terminal to net. Connections may be specified inline in parentheses immediately following the instance identifier, or in the indented body, or both.
 
-Example:
+**Inline Connections:**
+
+When an instance has few connections or they fit naturally on one line, use inline syntax:
 
 ```
-inst dp : DiffPair @[OTA.cas:9]
+inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
+  param p = PMOS
+  param taps = 1
+```
+
+**Multiline Connections:**
+
+For readability with many connections or when combined with parameters, break across lines:
+
+```
+inst dp : DiffPair
   param p = NMOS
   param hasTail = true
   IN.P -> IN_P
@@ -240,13 +255,19 @@ inst dp : DiffPair @[OTA.cas:9]
   OUT.N -> OUT
   BASE -> GND
   BIAS -> VTAIL
+```
 
-inst cm : CurrentMirror @[OTA.cas:14]
-  param p = PMOS
-  param taps = 1
-  RAIL -> VDD
-  SENSE -> mirror_gate
-  TAP[0] -> OUT
+**Bundle Connections:**
+
+When a terminal and a net both share the same bundle type, a single binding connects all constituent fields recursively:
+
+```
+net sig_in : Diff
+net sig_out : Diff
+
+; Implicitly connects IN.P->sig_in.P, IN.N->sig_in.N
+inst dp (IN->sig_in, OUT->sig_out) : DiffPair
+  param p = NMOS
 ```
 
 **Terminal path grammar:**
@@ -259,6 +280,8 @@ int = [0-9]+
 
 **Guidance:** External connectivity should prefer stable, named sub-terminals over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical terminal path; bracket segments are not array lookups but syntactic components of the path.
 
+**Inline vs. Multiline Guidance:** Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
+
 ### 3.3.6 Device Declarations (EL)
 
 At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections.
@@ -266,11 +289,11 @@ At EL (Electrical Level), primitive devices replace motif instances. Device decl
 **Transistors:**
 
 ```
-nmos <id> : <parameters> @[<source>]
+nmos <id> [(<connections>)] : <parameters>
   <terminal> -> <net>
   ...
 
-pmos <id> : <parameters> @[<source>]
+pmos <id> [(<connections>)] : <parameters>
   <terminal> -> <net>
   ...
 ```
@@ -280,30 +303,23 @@ Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and
 Example:
 
 ```
-nmos dp.M_N : W=1u L=100n M=1 @[DiffPair.cas:12]
-  G -> IN_P
-  D -> mirror_gate
-  S -> tnode
+nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode) : W=1u L=100n M=1
 
-pmos cm.M_SENSE : W=2u L=100n M=1 sky130_fd_pr__pfet_01v8 @[CurrentMirror.cas:10]
-  G -> mirror_gate
-  D -> mirror_gate
-  S -> VDD
-  B -> VDD
+pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 sky130_fd_pr__pfet_01v8
 ```
 
 **Passives:**
 
 ```
-resistor <id> : R=<value> @[<source>]
+resistor <id> [(<connections>)] : R=<value>
   P -> <net>
   N -> <net>
 
-capacitor <id> : C=<value> @[<source>]
+capacitor <id> [(<connections>)] : C=<value>
   P -> <net>
   N -> <net>
 
-inductor <id> : L=<value> @[<source>]
+inductor <id> [(<connections>)] : L=<value>
   P -> <net>
   N -> <net>
 ```
@@ -311,19 +327,15 @@ inductor <id> : L=<value> @[<source>]
 Example:
 
 ```
-capacitor Cc : C=1p @[Miller.cas:15]
-  P -> comp_out
-  N -> stage2_in
+capacitor Cc (P->comp_out, N->stage2_in) : C=1p
 
-resistor Rz : R=10k @[Miller.cas:16]
-  P -> comp_out
-  N -> stage2_in
+resistor Rz (P->comp_out, N->stage2_in) : R=10k
 ```
 
 **Diodes:**
 
 ```
-diode <id> : <model> @[<source>]
+diode <id> [(<connections>)] : <model>
   A -> <net>
   K -> <net>
 ```
@@ -333,13 +345,13 @@ diode <id> : <model> @[<source>]
 Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings.
 
 ```
-connect <source> -> <dest> @[<source>]
+connect <source> -> <dest>
 ```
 
 Example:
 
 ```
-connect dp.OUT.N -> OUT @[OTA.cas:16]
+connect dp.OUT.N -> OUT
 ```
 
 ### 3.3.8 Elaboration of Attach and Connectors
@@ -483,13 +495,10 @@ ACIR files declare a level in the circuit header: HL, ML, or EL. Pin coverage an
 Slots are represented as instances with type `__slot__` and required traits. All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ```
-circuit OTA : SingleEndedAmplifier @[OTA.cas:4]
+circuit OTA : SingleEndedAmplifier
   level HL
   ...
-  inst load : __slot__ [LoadDevice] @[OTA.cas:12]
-    node -> vout
-    bias -> vb1
-    vref -> VDD
+  inst load (node->vout, bias->vb1, vref->VDD) : __slot__ [LoadDevice]
 ```
 
 ### 3.7.2 ML - Mid Level
@@ -497,10 +506,10 @@ circuit OTA : SingleEndedAmplifier @[OTA.cas:4]
 Slots are replaced by concrete motif types. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic.
 
 ```
-circuit OTA : SingleEndedAmplifier @[OTA.cas:4]
+circuit OTA : SingleEndedAmplifier
   level ML
   ...
-  inst dp : DiffPair @[OTA.cas:9]
+  inst dp : DiffPair
     param p = NMOS
     param W = $Auto
     param L = $Auto
@@ -514,14 +523,10 @@ Symbolic parameters use the `$` prefix: `$Auto`, `$ratio`, `$W_input`.
 Parameters are numeric wherever required by this specification. All terminals are connected, PDK-specific device choices have been recorded, and the document is ready for SPICE emission.
 
 ```
-circuit OTA @[OTA.cas:4]
+circuit OTA
   level EL
   ...
-  nmos dp.M_N : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8 @[DiffPair.cas:12]
-    G -> IN_P
-    D -> mirror_gate
-    S -> tnode
-    B -> GND
+  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
 ```
 
 At EL, the selected PDK device appears inline with device parameters. Hierarchical device names (e.g., `dp.M_N`) preserve the origin of each device from the ML elaboration.
@@ -594,50 +599,39 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded : SingleEndedAmplifier @[lib/std/amp/ota/OTA5TSingleEnded.cas:4]
+circuit OTA5TSingleEnded : SingleEndedAmplifier
   level ML
   package analog.ota
 
-  supply VDD : 1.8V @[OTA5TSingleEnded.cas:5]
-  ground GND @[OTA5TSingleEnded.cas:6]
+  supply VDD : 1.8V
+  ground GND
 
-  port IN : Diff @[OTA5TSingleEnded.cas:7]
-  port OUT : analog @[OTA5TSingleEnded.cas:7]
-  port VTAIL : bias @[OTA5TSingleEnded.cas:7]
+  port IN : Diff
+  port OUT : analog
+  port VTAIL : bias
 
-  net IN_P : analog
-  net IN_N : analog
   net mirror_gate : analog  ; dp.OUT.P = cm.SENSE via attach
   net tnode : analog        ; internal tail node from dp
 
-  inst dp : DiffPair @[OTA5TSingleEnded.cas:9]
+  inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair
     param p = NMOS
     param hasTail = true
-    IN.P -> IN_P
-    IN.N -> IN_N
-    OUT.P -> mirror_gate
-    OUT.N -> OUT
-    BASE -> GND
-    BIAS -> VTAIL
 
-  inst cm : CurrentMirror @[OTA5TSingleEnded.cas:14]
+  inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
     param p = PMOS
     param taps = 1
-    RAIL -> VDD
-    SENSE -> mirror_gate
-    TAP[0] -> OUT
 
   ; attach cm -> dp elaborated into shared mirror_gate net
 
 
-circuit DiffPair : DiffPairLike @[lib/std/prim/DiffPair.cas:3]
+circuit DiffPair : DiffPairLike
   level ML
   package lib.std.prim
 
-  port IN : Diff @[DiffPair.cas:6]
-  port OUT : Diff @[DiffPair.cas:7]
-  port BASE : analog @[DiffPair.cas:8]
-  port BIAS : bias @[DiffPair.cas:9]
+  port IN : Diff
+  port OUT : Diff
+  port BASE : analog
+  port BIAS : bias
 
   net IN_P : analog
   net IN_N : analog
@@ -645,44 +639,29 @@ circuit DiffPair : DiffPairLike @[lib/std/prim/DiffPair.cas:3]
   net OUT_N : analog
   net tnode : analog
 
-  inst M_N : MOS @[DiffPair.cas:12]
+  inst M_N (G->IN_P, D->OUT_N, S->tnode) : MOS
     param p = $p
-    G -> IN_P
-    D -> OUT_N
-    S -> tnode
 
-  inst M_P : MOS @[DiffPair.cas:13]
+  inst M_P (G->IN_N, D->OUT_P, S->tnode) : MOS
     param p = $p
-    G -> IN_N
-    D -> OUT_P
-    S -> tnode
 
-  inst M_TAIL : MOS @[DiffPair.cas:18]
+  inst M_TAIL (G->BIAS, D->tnode, S->BASE) : MOS
     param p = $p
-    G -> BIAS
-    D -> tnode
-    S -> BASE
 
 
-circuit CurrentMirror : CurrentMirrorLike @[lib/std/prim/CurrentMirror.cas:3]
+circuit CurrentMirror : CurrentMirrorLike
   level ML
   package lib.std.prim
 
-  port RAIL : supply @[CurrentMirror.cas:5]
-  port SENSE : analog @[CurrentMirror.cas:6]
-  port TAP[0] : analog @[CurrentMirror.cas:7]
+  port RAIL : supply
+  port SENSE : analog
+  port TAP[0] : analog
 
-  inst M_SENSE : MOS @[CurrentMirror.cas:10]
+  inst M_SENSE (G->SENSE, D->SENSE, S->RAIL) : MOS
     param p = $p
-    G -> SENSE
-    D -> SENSE
-    S -> RAIL
 
-  inst M_TAP0 : MOS @[CurrentMirror.cas:14]
+  inst M_TAP0 (G->SENSE, D->TAP[0], S->RAIL) : MOS
     param p = $p
-    G -> SENSE
-    D -> TAP[0]
-    S -> RAIL
 ```
 
 ### 3.11.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
@@ -692,14 +671,14 @@ At EL, all motifs are expanded to primitive devices. The circuit is fully flatte
 ```
 ACIR 1
 
-circuit OTA5TSingleEnded @[lib/std/amp/ota/OTA5TSingleEnded.cas:4]
+circuit OTA5TSingleEnded
   level EL
 
   supply VDD : 1.8V
   ground GND
 
-  port IN_P : analog @[IN.P]
-  port IN_N : analog @[IN.N]
+  port IN_P : analog
+  port IN_N : analog
   port OUT : analog
   port VTAIL : bias
 
@@ -707,36 +686,13 @@ circuit OTA5TSingleEnded @[lib/std/amp/ota/OTA5TSingleEnded.cas:4]
   net mirror_gate : analog  ; dp.OUT.P = cm.SENSE
 
   ; DiffPair (dp) - NMOS differential pair with tail
-  nmos dp.M_N : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8 @[DiffPair.cas:12]
-    G -> IN_P
-    D -> mirror_gate
-    S -> tnode
-    B -> GND
-
-  nmos dp.M_P : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8 @[DiffPair.cas:13]
-    G -> IN_N
-    D -> OUT
-    S -> tnode
-    B -> GND
-
-  nmos dp.M_TAIL : W=4u L=180n M=1 sky130_fd_pr__nfet_01v8 @[DiffPair.cas:18]
-    G -> VTAIL
-    D -> tnode
-    S -> GND
-    B -> GND
+  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
+  nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
+  nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 sky130_fd_pr__nfet_01v8
 
   ; CurrentMirror (cm) - PMOS current mirror
-  pmos cm.M_SENSE : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8 @[CurrentMirror.cas:10]
-    G -> mirror_gate
-    D -> mirror_gate
-    S -> VDD
-    B -> VDD
-
-  pmos cm.M_TAP0 : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8 @[CurrentMirror.cas:14]
-    G -> mirror_gate
-    D -> OUT
-    S -> VDD
-    B -> VDD
+  pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
+  pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
 
   constraints:
     numeric:
@@ -760,14 +716,6 @@ circuit OTA5TSingleEnded @[lib/std/amp/ota/OTA5TSingleEnded.cas:4]
   benches:
     SEAmplifierACBench
     Step
-
-  provenance:
-    sources:
-      lib/std/amp/ota/OTA5TSingleEnded.cas [1:20]
-    transforms:
-      desugar.attach
-      elaborate.motifs
-      sizing.geometric
 ```
 
 ### 3.11.3 ML ACIR for Stdcell Buffer
@@ -777,7 +725,7 @@ This example demonstrates a stdcell inverter used as an output buffer, showing h
 ```
 ACIR 1
 
-circuit LatchPadBuffer @[Buffer.cas:4]
+circuit LatchPadBuffer
   level ML
 
   supply VDD : 1.8V
@@ -786,13 +734,7 @@ circuit LatchPadBuffer @[Buffer.cas:4]
   port COMP_OUT : digital
   port PAD : digital
 
-  inst Buf : sky130_fd_sc_hd__inv_4 [InverterLike] @[Buffer.cas:10]
-    IN -> COMP_OUT
-    OUT -> PAD
-    VDD -> VDD
-    GND -> GND
-    VPB -> VDD
-    VNB -> GND
+  inst Buf (IN->COMP_OUT, OUT->PAD, VDD->VDD, GND->GND, VPB->VDD, VNB->GND) : sky130_fd_sc_hd__inv_4 [InverterLike]
 
   constraints:
     numeric:
@@ -824,7 +766,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 ```
 ACIR 1
 
-circuit CSAmplifier @[CSAmplifier.cas:4]
+circuit CSAmplifier
   level EL
 
   supply VDD : 1.8V
@@ -834,17 +776,9 @@ circuit CSAmplifier @[CSAmplifier.cas:4]
   port vout : analog
   port vb1 : bias
 
-  nmos M_in : W=12u L=180n M=4 sky130_fd_pr__nfet_01v8 @[CSAmplifier.cas:8]
-    G -> vin
-    D -> vout
-    S -> GND
-    B -> GND
+  nmos M_in (G->vin, D->vout, S->GND, B->GND) : W=12u L=180n M=4 sky130_fd_pr__nfet_01v8
 
-  pmos load.M1 : W=4u L=180n M=2 sky130_fd_pr__pfet_01v8 @[ActiveLoad.cas:5]
-    G -> vb1
-    D -> vout
-    S -> VDD
-    B -> VDD
+  pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : W=4u L=180n M=2 sky130_fd_pr__pfet_01v8
 
   constraints:
     numeric:
@@ -868,10 +802,6 @@ circuit CSAmplifier @[CSAmplifier.cas:4]
   benches:
     SEAmplifierACBench
     Step
-
-  provenance:
-    sources:
-      examples/CSAmplifier.cas [1:25]
 ```
 
 ---
@@ -923,13 +853,15 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 - Order circuits by dependency (referenced circuits before referencing circuits).
 - Within a circuit, order sections: level, package, supplies, grounds, ports, nets, instances/devices, constraints, harness, benches, provenance.
 - Sort instances/devices by id lexicographically.
-- Sort terminal bindings within an instance alphabetically by terminal path.
+- Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
 - Use consistent indentation: two spaces per level.
 - Use plain numbers; forbid NaN and Infinity.
 - Always include units for physical quantities.
 - Use UTF-8, LF, and no trailing spaces.
-- Align terminal arrows within an instance for readability.
+- Prefer inline connection syntax when an instance has 4 or fewer simple connections and no complex terminal paths.
+- Use multiline indented format when connections are numerous, complex, or benefit from vertical alignment.
+- Within inline connections, maintain alphabetical order of terminal paths.
 
 ---
 
@@ -938,7 +870,7 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 Vendor or dialect additions live under extension blocks. Extensions must not redefine core keywords. If an extension affects connectivity semantics, it must include a versioned schema and a compatibility note.
 
 ```
-circuit MyCircuit @[source.cas:1]
+circuit MyCircuit
   level EL
   ...
   extensions:
@@ -1043,12 +975,14 @@ groundDecl   = "ground" IDENT source? ;
 portDecl     = "port" IDENT ":" (domain | IDENT) source? ;
 netDecl      = "net" IDENT ":" domain source? ;
 
-instDecl     = "inst" IDENT ":" IDENT traits? source? NL (INDENT instBody NL)* ;
+instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
 instBody     = paramDecl | binding ;
 paramDecl    = "param" IDENT "=" paramValue ;
 binding      = terminalPath "->" IDENT ;
+connectionList = "(" connection ("," connection)* ")" ;
+connection   = terminalPath "->" IDENT ;
 
-deviceDecl   = deviceType IDENT ":" deviceParams pdkDevice? source? NL (INDENT binding NL)* ;
+deviceDecl   = deviceType IDENT connectionList? ":" deviceParams pdkDevice? source? NL (INDENT binding NL)* ;
 deviceType   = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;
 deviceParams = (IDENT "=" value)+ ;
 pdkDevice    = IDENT ;
@@ -1072,4 +1006,3 @@ INDENT       = "  " ;
 ```
 
 This grammar is informative; the normative specification is the prose in this chapter.
-
