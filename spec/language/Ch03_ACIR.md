@@ -14,7 +14,7 @@ Most compilers follow a familiar arc: lex and parse source into an abstract synt
 
 ACIR is produced at three elaboration levels that describe how far the front end has progressed:
 
-- HL (High Level): design slots may remain open (instances with type `__slot__`), and many parameters can stay symbolic or null, but connectivity through nets and ports is already complete.
+- HL (High Level): design slots may remain open (declared with the `slot` keyword), and many parameters can stay symbolic or null, but connectivity through nets and ports is already complete.
 - ML (Mid Level): all slots have been bound to concrete motif types and all pins are connected; parameters may still be symbolic, and the representation remains PDK-agnostic.
 - EL (Electrical Level): parameters are numeric wherever required by the spec, all pins are connected, and PDK-specific device choices have been recorded so that the document is SPICE-ready.
 
@@ -24,9 +24,9 @@ Rules in the rest of this chapter tighten as you move from HL to ML to EL; §3.7
 
 ## 3.1 Design Principles
 
-The ACIR design prioritizes **connectivity as the primary concern**, establishing the terminal-to-net binding within each instance as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes instances with terminals and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
+The ACIR design prioritizes **connectivity as the primary concern**, establishing the terminal-to-net binding within each instance or slot as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes instances (or slots at HL) with terminals and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
 
-**Deterministic text** output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (High Level, with open slots and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
+**Deterministic text** output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (High Level, with `slot` declarations and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
 
 **Line-oriented format** ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. **Compact inline connections** using `terminal->net` syntax within parentheses reduce verbosity while maintaining explicit keyword-argument clarity, avoiding the fragility of positional syntax. **Source attribution** via `@[file:line]` annotations enables precise error messages and debugging. Finally, the **extensible, non-leaky** architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
 
@@ -150,23 +150,23 @@ net EN : digital
 
 ### 3.3.2 Supply and Ground Declarations
 
-Supplies and grounds are specialized net declarations that include voltage values and serve as power rails.
+Supplies and grounds are specialized net declarations that serve as power rails. Voltage values are specified in the harness, not in the circuit definition.
 
 ```
-supply <id> : <value>
+supply <id>
 ground <id>
 ```
 
 Examples:
 
 ```
-supply VDD : 1.8V
-supply VDDIO : 3.3V
+supply VDD
+supply VDDIO
 ground GND
 ground GNDA  ; analog ground
 ```
 
-Supply declarations implicitly create nets with domain `supply`. Ground declarations implicitly create nets with domain `ground`.
+Supply declarations implicitly create nets with domain `supply`. Ground declarations implicitly create nets with domain `ground`. The actual voltage values for supplies are specified in the harness section, allowing the same circuit to be tested under different supply conditions.
 
 ### 3.3.3 Bundle Type Definitions
 
@@ -215,7 +215,52 @@ port VTAIL : bias
 
 **Bundle port expansion:** A port declared with a bundle type expands to multiple underlying nets. For `port IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
 
-### 3.3.5 Instance Declarations (ML)
+### 3.3.5 Slot Declarations (HL)
+
+At HL (High Level), slots represent placeholders for circuit components that will be resolved during synthesis. A slot declares the interface contract (terminal connections) and the behavioral requirements (traits) without specifying a concrete implementation.
+
+**Syntax:**
+
+```
+slot <id> [(<connections>)] : <Trait>
+  param <key> = <value>
+  ...
+
+slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
+  param <key> = <value>
+  ...
+```
+
+When a single trait is required, it appears directly after the colon. When multiple traits are required, they are enclosed in square brackets as a comma-separated list.
+
+**Examples:**
+
+```
+slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
+
+slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedAmplifier
+  param maxPower = 1m
+
+slot driver (IN->sig, OUT->pad) : [BufferLike, HighDrive]
+```
+
+**Slot-to-Instance Resolution:**
+
+During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular `inst` declaration:
+
+```
+; HL
+slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedAmplifier
+
+; ML (after synthesis resolves the slot)
+inst amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : OTA5TSingleEnded
+  param p = NMOS
+  param W = $Auto
+```
+
+The identifier is preserved, maintaining traceability from the original slot to its concrete implementation.
+
+### 3.3.6 Instance Declarations (ML)
 
 At ML (Mid Level), instances represent motif instantiations with type, parameters, and terminal bindings.
 
@@ -282,7 +327,7 @@ int = [0-9]+
 
 **Inline vs. Multiline Guidance:** Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
 
-### 3.3.6 Device Declarations (EL)
+### 3.3.7 Device Declarations (EL)
 
 At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections.
 
@@ -340,7 +385,7 @@ diode <id> [(<connections>)] : <model>
   K -> <net>
 ```
 
-### 3.3.7 Connection Statements (ML)
+### 3.3.8 Connection Statements (ML)
 
 Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings.
 
@@ -354,19 +399,19 @@ Example:
 connect dp.OUT.N -> OUT
 ```
 
-### 3.3.8 Elaboration of Attach and Connectors
+### 3.3.9 Elaboration of Attach and Connectors
 
 ACIR does not serialize connectors or attach chains. The front-end elaborates all `attach …` and `attach … to … to …` chains by resolving connectors declared on interface traits (§2.8), then emitting explicit terminal bindings into instance declarations.
 
 **Normative:**
 
-- Connector resolution and attach chains are elaboration-time sugar. ACIR always contains explicit terminal→net bindings only.
+- Connector resolution and attach chains are elaboration-time sugar. ACIR always contains explicit terminal->net bindings only.
 - When a connector maps unnamed bundles, field-wise expansion uses identical field names (PascalCase; `Diff` uses `P`/`N`).
 - If no connector applies or multiple apply without explicit disambiguation, the front-end must reject the source before ACIR emission.
 
 **Example (after elaboration):**
 
-The ADL statement `attach cm to dp` with a `CurrentMirrorLike → DiffPairLike` connector elaborates to explicit terminal bindings where `cm.SENSE` connects to the same net as `dp.OUT.P`, and `cm.TAP[0]` connects to the same net as `dp.OUT.N`.
+The ADL statement `attach cm to dp` with a `CurrentMirrorLike -> DiffPairLike` connector elaborates to explicit terminal bindings where `cm.SENSE` connects to the same net as `dp.OUT.P`, and `cm.TAP[0]` connects to the same net as `dp.OUT.N`.
 
 ---
 
@@ -492,29 +537,48 @@ ACIR files declare a level in the circuit header: HL, ML, or EL. Pin coverage an
 
 ### 3.7.1 HL - High Level
 
-Slots are represented as instances with type `__slot__` and required traits. All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
+Slots are declared using the `slot` keyword followed by an identifier, connections, and required traits. When a slot requires a single trait, the trait name appears directly after the colon. When multiple traits are required, they are enclosed in square brackets.
+
+All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ```
 circuit OTA : SingleEndedAmplifier
   level HL
   ...
-  inst load (node->vout, bias->vb1, vref->VDD) : __slot__ [LoadDevice]
+  slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
+  slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : [SingleEndedAmplifier, LowPower]
 ```
+
+**Syntax:**
+
+```
+slot <id> [(<connections>)] : <Trait>
+slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
+```
+
+The slot declaration captures the interface contract (connections) and the behavioral requirements (traits) that any concrete implementation must satisfy. During synthesis, slots are resolved to concrete motif types that implement the required traits.
 
 ### 3.7.2 ML - Mid Level
 
-Slots are replaced by concrete motif types. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic.
+Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic.
 
 ```
 circuit OTA : SingleEndedAmplifier
   level ML
   ...
+  inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad
+    param p = PMOS
+    param W = $Auto
+    param L = $Auto
+
   inst dp : DiffPair
     param p = NMOS
     param W = $Auto
     param L = $Auto
     ...
 ```
+
+At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad` once the synthesis engine selects a concrete motif that satisfies the `LoadDevice` trait.
 
 Symbolic parameters use the `$` prefix: `$Auto`, `$ratio`, `$W_input`.
 
@@ -582,7 +646,7 @@ The synthesis and optimization engine modifies the graph through a constrained s
 - `replace_subgraph(patternId, binder)`
 - `set_param(inst, name, value)`
 
-High-level patterns and syntactic sugar in ADL—including attach, pair, and feedback constructs—lower to sequences of these primitive operations during the desugaring phase.
+High-level patterns and syntactic sugar in ADL-including attach, pair, and feedback constructs-lower to sequences of these primitive operations during the desugaring phase.
 
 ---
 
@@ -603,7 +667,7 @@ circuit OTA5TSingleEnded : SingleEndedAmplifier
   level ML
   package analog.ota
 
-  supply VDD : 1.8V
+  supply VDD
   ground GND
 
   port IN : Diff
@@ -674,7 +738,7 @@ ACIR 1
 circuit OTA5TSingleEnded
   level EL
 
-  supply VDD : 1.8V
+  supply VDD
   ground GND
 
   port IN_P : analog
@@ -728,7 +792,7 @@ ACIR 1
 circuit LatchPadBuffer
   level ML
 
-  supply VDD : 1.8V
+  supply VDD
   ground GND
 
   port COMP_OUT : digital
@@ -769,7 +833,7 @@ ACIR 1
 circuit CSAmplifier
   level EL
 
-  supply VDD : 1.8V
+  supply VDD
   ground GND
 
   port vin : analog
@@ -901,7 +965,7 @@ The testing strategy encompasses three complementary approaches:
 
 ---
 
-## 3.16 Cascode → ACIR → SPICE Pipeline
+## 3.16 Cascode -> ACIR -> SPICE Pipeline
 
 The transformation from ADL to SPICE follows a systematic progression through ACIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, and feedback into concrete motifs and connections. ACIR captures these connections uniformly within terminal bindings, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
 
@@ -964,16 +1028,20 @@ traits       = IDENT ("," IDENT)* ;
 circuitBody  = (INDENT statement NL)* ;
 
 statement    = levelDecl | packageDecl | supplyDecl | groundDecl
-             | portDecl | netDecl | instDecl | deviceDecl
+             | portDecl | netDecl | slotDecl | instDecl | deviceDecl
              | connectStmt | constraintsBlock | harnessBlock
              | benchesBlock | provenanceBlock | extensionsBlock ;
 
 levelDecl    = "level" ("HL" | "ML" | "EL") ;
 packageDecl  = "package" qualifiedName ;
-supplyDecl   = "supply" IDENT ":" value source? ;
+supplyDecl   = "supply" IDENT source? ;
 groundDecl   = "ground" IDENT source? ;
 portDecl     = "port" IDENT ":" (domain | IDENT) source? ;
 netDecl      = "net" IDENT ":" domain source? ;
+
+slotDecl     = "slot" IDENT connectionList? ":" (IDENT | traitList) source? NL (INDENT slotBody NL)* ;
+traitList    = "[" IDENT ("," IDENT)* "]" ;
+slotBody     = paramDecl ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
 instBody     = paramDecl | binding ;
