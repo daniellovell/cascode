@@ -1,14 +1,22 @@
 using Cascode.Bench.Yaml;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Cascode.Bench;
 
 public static class HarnessService
 {
-    public static HarnessRegistry CreateDefault(string workspaceRoot)
+    public static HarnessRegistry CreateDefault(string workspaceRoot, ILogger? logger = null)
     {
+        logger ??= NullLogger.Instance;
         var reg = new HarnessRegistry();
         foreach (var h in Discover(workspaceRoot))
         {
+            if (reg.TryGet(h.Id, out _))
+            {
+                logger.LogDebug("Skipping duplicate harness ID '{HarnessId}' (type: {HarnessType}, description: '{Description}')", h.Id, h.GetType().Name, h.Description);
+                continue; // keep built-in when IDs collide with discovered harnesses
+            }
             reg.Register(h);
         }
         return reg;

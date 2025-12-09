@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
 using Xunit;
@@ -19,7 +20,15 @@ public sealed class PdkScanInteractiveStreamingTests
     [Infrastructure.InteractiveCliFact]
     public async Task PdkScan_InteractiveMode_StreamsProgressDuringScan()
     {
-        await using var session = InteractiveCliSession.Start(_fixture.RepoRoot);
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(_fixture.RepoRoot, nameof(PdkScanInteractiveStreamingTests));
+        var env = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["CASCODE_HOME"] = cascodeHome.Path,
+            ["COLUMNS"] = "160",
+            ["LINES"] = "50"
+        };
+
+        await using var session = InteractiveCliSession.Start(_fixture.RepoRoot, additionalEnvironment: env);
 
         await session.WaitForOutputAsync(
             output => output.Contains("cascode", StringComparison.OrdinalIgnoreCase) && (output.Contains("/>") || output.Contains("> ")),
@@ -29,7 +38,7 @@ public sealed class PdkScanInteractiveStreamingTests
 
         // Verify that progress messages stream incrementally by polling
         // Count lines appearing over time to prove output isn't buffered until completion
-        var lineCountSnapshots = new System.Collections.Generic.List<int>();
+        var lineCountSnapshots = new List<int>();
         var pollInterval = TimeSpan.FromMilliseconds(200);
         var maxPolls = 50; // 50 * 200ms = 10 seconds max
 

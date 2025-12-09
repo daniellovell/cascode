@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Cascode.Workspace;
@@ -7,6 +8,15 @@ internal static class PathUtilities
 {
     private const string WorkDirToken = "$WORK_DIR";
     private const string WorkDirTokenBraced = "${WORK_DIR}";
+
+    private static readonly HashSet<string> ValidSpectreExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ".scs",
+        ".spice",
+        ".lib",
+        ".spi",
+        ".sp"
+    };
 
     public static string? NormalizeWorkspacePath(string rawPath, string workspaceRoot, string relativeBase)
     {
@@ -67,7 +77,7 @@ internal static class PathUtilities
 
     /// <summary>
     /// Validates that a file is a legal Spectre model deck.
-    /// Currently only .scs files are supported.
+    /// Supports .scs, .spice, .lib, .spi, and .sp extensions.
     /// </summary>
     public static bool IsValidSpectreModelDeck(string path)
     {
@@ -77,7 +87,7 @@ internal static class PathUtilities
         }
 
         var extension = Path.GetExtension(path);
-        return string.Equals(extension, ".scs", StringComparison.OrdinalIgnoreCase);
+        return ValidSpectreExtensions.Contains(extension);
     }
 
     private static string ExpandHome(string value)

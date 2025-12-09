@@ -15,7 +15,7 @@
 * SKY130 Spice File.
 .param
 + ndiodedefet_pb_mult = 2.7281
-.model diode_pw2nd_05v5__extended_drain d
+.model sky130_fd_pr__diode_pw2nd_05v5__extended_drain d
 + level = 3.0
 + tlevc = 1.0
 + scalm = 1.0e-6

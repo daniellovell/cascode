@@ -5,6 +5,7 @@ using System.Text.Json;
 using Cascode.CasIR;
 using Cascode.Compiler;
 using Cascode.Parser;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Compiler.Tests;
@@ -17,7 +18,7 @@ public class ImportResolutionTests
     [Fact]
     public void Compile_WithImports_IncludesDefinitionsForReferencedMotifs()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -50,7 +51,7 @@ public class ImportResolutionTests
     [Fact]
     public void Compile_DefinitionIncludesPorts()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -77,7 +78,7 @@ public class ImportResolutionTests
     [Fact]
     public void Compile_DefinitionIncludesInstances()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -126,23 +127,6 @@ motif Test {
 
         // Without library roots, definitions cannot be resolved
         Assert.Null(casir.Definitions);
-    }
-
-    private static string GetRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir) && !File.Exists(Path.Combine(dir, "Cascode.sln")))
-        {
-            var parent = Directory.GetParent(dir);
-            if (parent is null)
-            {
-                throw new InvalidOperationException("Unable to locate repository root (Cascode.sln).");
-            }
-
-            dir = parent.FullName;
-        }
-
-        return dir;
     }
 }
 

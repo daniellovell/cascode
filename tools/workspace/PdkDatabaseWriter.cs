@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using Microsoft.Data.Sqlite;
 
 namespace Cascode.Workspace;
@@ -13,24 +14,31 @@ namespace Cascode.Workspace;
 /// </summary>
 public static class PdkDatabaseWriter
 {
-    public static void Write(string dbPath, WorkspaceScanResult scan, IReadOnlyList<Device>? devices = null)
+    public static void Write(string dbPath, WorkspaceScanResult scan, IReadOnlyList<Device>? devices = null, CancellationToken cancellationToken = default)
     {
         if (scan is null) throw new ArgumentNullException(nameof(scan));
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
 
-        UpsertLibraries(db.Connection, tx, scan.Libraries);
-        UpsertModels(db.Connection, tx, scan.Models);
+        UpsertLibraries(db.Connection, tx, scan.Libraries, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        UpsertModels(db.Connection, tx, scan.Models, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         if (devices is not null)
         {
-            UpsertDevices(db.Connection, tx, devices);
+            UpsertDevices(db.Connection, tx, devices, cancellationToken);
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         tx.Commit();
     }
 
-    public static void UpsertMatches(string dbPath, IReadOnlyList<DeviceModelMatchRecord> matches)
+    public static void UpsertMatches(string dbPath, IReadOnlyList<DeviceModelMatchRecord> matches, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
         var deviceId = LoadIdMap(db.Connection, tx, "devices", "canonical_name");
@@ -53,22 +61,30 @@ public static class PdkDatabaseWriter
         var pr = insert.CreateParameter(); pr.ParameterName = "$r"; insert.Parameters.Add(pr);
         var pn = insert.CreateParameter(); pn.ParameterName = "$n"; insert.Parameters.Add(pn);
 
+        var count = 0;
         foreach (var rec in matches)
         {
+            if (++count % 100 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (!deviceId.TryGetValue(rec.DeviceCanonicalName, out var did)) continue;
             if (!modelId.TryGetValue(rec.ModelName, out var mid)) continue;
             pd.Value = did; pm.Value = mid; pq.Value = rec.Quality; pr.Value = rec.Rank; pn.Value = (object?)rec.Notes ?? DBNull.Value;
             insert.ExecuteNonQuery();
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         tx.Commit();
 
         // Rebuild summaries after matches change
-        RebuildDeviceClassSummary(dbPath);
+        RebuildDeviceClassSummary(dbPath, cancellationToken);
     }
 
-    public static void UpsertGeometry(string dbPath, IReadOnlyList<ModelGeometry> geometry)
+    public static void UpsertGeometry(string dbPath, IReadOnlyList<ModelGeometry> geometry, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
         var modelId = LoadIdMap(db.Connection, tx, "models", "name");
@@ -98,8 +114,14 @@ public static class PdkDatabaseWriter
         var psrc = insert.CreateParameter(); psrc.ParameterName = "$src"; insert.Parameters.Add(psrc);
         var pnotes = insert.CreateParameter(); pnotes.ParameterName = "$notes"; insert.Parameters.Add(pnotes);
 
+        var count = 0;
         foreach (var g in geometry)
         {
+            if (++count % 50 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             if (!modelId.TryGetValue(g.ModelName, out var mid)) continue;
             pid.Value = mid;
             pwmin.Value = (object?)g.WMin ?? DBNull.Value;
@@ -120,6 +142,82 @@ public static class PdkDatabaseWriter
             insert.ExecuteNonQuery();
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
+        tx.Commit();
+    }
+
+    public static void UpsertDeviceGeometry(string dbPath, IReadOnlyList<Device> devices, IReadOnlyList<DeviceModelMatchRecord> matches, IReadOnlyList<ModelGeometry> modelGeometry, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        using var db = PdkDatabase.Open(dbPath);
+        using var tx = db.Connection.BeginTransaction();
+
+        var deviceId = LoadIdMap(db.Connection, tx, "devices", "canonical_name");
+        var geomByModel = modelGeometry.ToDictionary(g => g.ModelName, StringComparer.OrdinalIgnoreCase);
+        var bestByDevice = new Dictionary<string, (int Rank, string ModelName)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var match in matches.OrderBy(m => m.Rank).ThenBy(m => m.ModelName, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!bestByDevice.TryGetValue(match.DeviceCanonicalName, out var current) || match.Rank < current.Rank)
+            {
+                bestByDevice[match.DeviceCanonicalName] = (match.Rank, match.ModelName);
+            }
+        }
+
+        using var insert = db.Connection.CreateCommand();
+        insert.Transaction = tx;
+        insert.CommandText = @"
+            INSERT INTO device_geometry(device_id, w_min, w_max, l_min, l_max, nf_min, nf_max, w_default, l_default, nf_default, source, notes)
+            VALUES ($id, $wmin, $wmax, $lmin, $lmax, $nfmin, $nfmax, $wdef, $ldef, $nfdef, $src, $notes)
+            ON CONFLICT(device_id) DO UPDATE SET
+                w_min=excluded.w_min,
+                w_max=excluded.w_max,
+                l_min=excluded.l_min,
+                l_max=excluded.l_max,
+                nf_min=excluded.nf_min,
+                nf_max=excluded.nf_max,
+                w_default=excluded.w_default,
+                l_default=excluded.l_default,
+                nf_default=excluded.nf_default,
+                source=excluded.source,
+                notes=excluded.notes;";
+        var pid = insert.CreateParameter(); pid.ParameterName = "$id"; insert.Parameters.Add(pid);
+        var pwmin = insert.CreateParameter(); pwmin.ParameterName = "$wmin"; insert.Parameters.Add(pwmin);
+        var pwmax = insert.CreateParameter(); pwmax.ParameterName = "$wmax"; insert.Parameters.Add(pwmax);
+        var plmin = insert.CreateParameter(); plmin.ParameterName = "$lmin"; insert.Parameters.Add(plmin);
+        var plmax = insert.CreateParameter(); plmax.ParameterName = "$lmax"; insert.Parameters.Add(plmax);
+        var pnfmin = insert.CreateParameter(); pnfmin.ParameterName = "$nfmin"; insert.Parameters.Add(pnfmin);
+        var pnfmax = insert.CreateParameter(); pnfmax.ParameterName = "$nfmax"; insert.Parameters.Add(pnfmax);
+        var pwdef = insert.CreateParameter(); pwdef.ParameterName = "$wdef"; insert.Parameters.Add(pwdef);
+        var pldef = insert.CreateParameter(); pldef.ParameterName = "$ldef"; insert.Parameters.Add(pldef);
+        var pnfdef = insert.CreateParameter(); pnfdef.ParameterName = "$nfdef"; insert.Parameters.Add(pnfdef);
+        var psrc = insert.CreateParameter(); psrc.ParameterName = "$src"; insert.Parameters.Add(psrc);
+        var pnotes = insert.CreateParameter(); pnotes.ParameterName = "$notes"; insert.Parameters.Add(pnotes);
+
+        var count = 0;
+        foreach (var device in devices)
+        {
+            if (++count % 50 == 0) cancellationToken.ThrowIfCancellationRequested();
+            if (!deviceId.TryGetValue(device.CanonicalName, out var did)) continue;
+            if (!bestByDevice.TryGetValue(device.CanonicalName, out var best)) continue;
+            if (!geomByModel.TryGetValue(best.ModelName, out var geom)) continue;
+
+            pid.Value = did;
+            pwmin.Value = (object?)geom.WMin ?? DBNull.Value;
+            pwmax.Value = (object?)geom.WMax ?? DBNull.Value;
+            plmin.Value = (object?)geom.LMin ?? DBNull.Value;
+            plmax.Value = (object?)geom.LMax ?? DBNull.Value;
+            pnfmin.Value = (object?)geom.NfMin ?? DBNull.Value;
+            pnfmax.Value = (object?)geom.NfMax ?? DBNull.Value;
+            pwdef.Value = (object?)geom.WDefault ?? DBNull.Value;
+            pldef.Value = (object?)geom.LDefault ?? DBNull.Value;
+            pnfdef.Value = (object?)geom.NfDefault ?? DBNull.Value;
+            var source = string.IsNullOrWhiteSpace(geom.Source) ? best.ModelName : $"{geom.Source}:{best.ModelName}";
+            psrc.Value = source;
+            pnotes.Value = (object?)geom.Notes ?? DBNull.Value;
+            insert.ExecuteNonQuery();
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
         tx.Commit();
     }
 
@@ -127,8 +225,10 @@ public static class PdkDatabaseWriter
     /// Recomputes and persists per-device-class rollup metrics into the database's <c>device_class_summary</c> table.
     /// </summary>
     /// <param name="dbPath">Filesystem path to the SQLite database file to update; existing summary rows are replaced or updated.</param>
-    public static void RebuildDeviceClassSummary(string dbPath)
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    public static void RebuildDeviceClassSummary(string dbPath, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         using var db = PdkDatabase.Open(dbPath);
         using var tx = db.Connection.BeginTransaction();
 
@@ -334,7 +434,7 @@ public static class PdkDatabaseWriter
         return map;
     }
 
-    private static void UpsertLibraries(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<WorkspaceLibrary> libs)
+    private static void UpsertLibraries(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<WorkspaceLibrary> libs, CancellationToken cancellationToken)
     {
         using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
@@ -345,8 +445,14 @@ public static class PdkDatabaseWriter
         var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; cmd.Parameters.Add(pName);
         var pPath = cmd.CreateParameter(); pPath.ParameterName = "$path"; cmd.Parameters.Add(pPath);
 
+        var count = 0;
         foreach (var lib in libs)
         {
+            if (++count % 50 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             pName.Value = lib.Name;
             pPath.Value = Path.GetFullPath(lib.Path);
             cmd.ExecuteNonQuery();
@@ -357,7 +463,8 @@ public static class PdkDatabaseWriter
     /// Upserts model records and their related metadata (sources, decks, and definition contexts) into the database using the provided transaction.
     /// </summary>
     /// <param name="models">The collection of SpectreModel entries to persist; for each model this writes or updates the core model row, inserts source files and decks, and, when present, creates or looks up corner/detail/section/include tokens and links them via model_contexts.</param>
-    private static void UpsertModels(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<SpectreModel> models)
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    private static void UpsertModels(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<SpectreModel> models, CancellationToken cancellationToken)
     {
         using var insertModel = conn.CreateCommand();
         insertModel.Transaction = tx;
@@ -426,8 +533,14 @@ public static class PdkDatabaseWriter
         var pIid = insContext.CreateParameter(); pIid.ParameterName = "$iid"; insContext.Parameters.Add(pIid);
 
         var matchingConfig = PdkMatchingConfigManager.Load();
+        var count = 0;
         foreach (var model in models)
         {
+            if (++count % 20 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             mName.Value = model.Name;
             mType.Value = model.ModelType ?? string.Empty;
             mClass.Value = (int)model.DeviceClass;
@@ -484,7 +597,8 @@ public static class PdkDatabaseWriter
     /// <param name="conn">Open SQLite connection used to persist device metadata.</param>
     /// <param name="tx">Active transaction that scopes the upsert operations.</param>
     /// <param name="devices">Devices to persist; each device's canonical name is used as the key and the device's properties (including vt/vdd/tag values and layout/symbol flags) are written or updated and its view entries are inserted into <c>device_views</c>.</param>
-    private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices)
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    private static void UpsertDevices(SqliteConnection conn, SqliteTransaction tx, IReadOnlyList<Device> devices, CancellationToken cancellationToken)
     {
         using var insertDevice = conn.CreateCommand();
         insertDevice.Transaction = tx;
@@ -534,8 +648,14 @@ public static class PdkDatabaseWriter
 
         // (no auxiliary device_vdds table; single REAL value per device)
 
+        var count = 0;
         foreach (var d in devices)
         {
+            if (++count % 50 == 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
             pKey.Value = d.CanonicalName;
             pDisplay.Value = d.DisplayName;
             pLib.Value = d.LibraryName;
