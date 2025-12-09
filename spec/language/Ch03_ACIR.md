@@ -53,13 +53,19 @@ ACIR <version>
 [bundle definitions]
 
 circuit <name> ...
-  [circuit body]
+  [level, package]
+  [supply/ground/port declarations]
+  fill:
+    [nets, instances/devices]
+  [constraints, harness, benches, provenance]
 
 circuit <name> ...
   [circuit body]
 ```
 
 A single ACIR file may contain multiple circuits, supporting compilation of related motifs together as a single unit.
+
+The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill:` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
 
 ### 3.2.3 Lexical Elements
 
@@ -132,6 +138,12 @@ The domain field specifies one of:
 | `digital` | Logic signal | Enable pins |
 | `clock` | Clock signal | Sampling clocks |
 | `rf` | Radio frequency signal | High-frequency paths |
+
+**Net placement:**
+
+- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not require explicit declaration.
+- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block at ML and EL levels.
+- At HL level, internal nets may appear at the circuit body level if needed for slot connectivity.
 
 Examples:
 
@@ -262,16 +274,17 @@ The identifier is preserved, maintaining traceability from the original slot to 
 
 ### 3.3.6 Instance Declarations (ML)
 
-At ML (Mid Level), instances represent motif instantiations with type, parameters, and terminal bindings.
+At ML (Mid Level), instances represent motif instantiations with type, parameters, and terminal bindings. Instance declarations appear within the `fill:` block.
 
 **Syntax:**
 
 ```
-inst <id> [(<connections>)] : <MotifType>
-  param <key> = <value>
-  ...
-  <terminal> -> <net>
-  ...
+fill:
+  inst <id> [(<connections>)] : <MotifType>
+    param <key> = <value>
+    ...
+    <terminal> -> <net>
+    ...
 ```
 
 The terminal bindings use arrow syntax (`terminal -> net`) to show the mapping from instance terminal to net. Connections may be specified inline in parentheses immediately following the instance identifier, or in the indented body, or both.
@@ -281,9 +294,10 @@ The terminal bindings use arrow syntax (`terminal -> net`) to show the mapping f
 When an instance has few connections or they fit naturally on one line, use inline syntax:
 
 ```
-inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
-  param p = PMOS
-  param taps = 1
+fill:
+  inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
+    param p = PMOS
+    param taps = 1
 ```
 
 **Multiline Connections:**
@@ -291,15 +305,16 @@ inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
 For readability with many connections or when combined with parameters, break across lines:
 
 ```
-inst dp : DiffPair
-  param p = NMOS
-  param hasTail = true
-  IN.P -> IN_P
-  IN.N -> IN_N
-  OUT.P -> mirror_gate
-  OUT.N -> OUT
-  BASE -> GND
-  BIAS -> VTAIL
+fill:
+  inst dp : DiffPair
+    param p = NMOS
+    param hasTail = true
+    IN.P -> IN_P
+    IN.N -> IN_N
+    OUT.P -> mirror_gate
+    OUT.N -> OUT
+    BASE -> GND
+    BIAS -> VTAIL
 ```
 
 **Bundle Connections:**
@@ -307,12 +322,13 @@ inst dp : DiffPair
 When a terminal and a net both share the same bundle type, a single binding connects all constituent fields recursively:
 
 ```
-net sig_in : Diff
-net sig_out : Diff
+fill:
+  net sig_in : Diff
+  net sig_out : Diff
 
-; Implicitly connects IN.P->sig_in.P, IN.N->sig_in.N
-inst dp (IN->sig_in, OUT->sig_out) : DiffPair
-  param p = NMOS
+  ; Implicitly connects IN.P->sig_in.P, IN.N->sig_in.N
+  inst dp (IN->sig_in, OUT->sig_out) : DiffPair
+    param p = NMOS
 ```
 
 **Terminal path grammar:**
@@ -329,18 +345,19 @@ int = [0-9]+
 
 ### 3.3.7 Device Declarations (EL)
 
-At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections.
+At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections. Device declarations appear within the `fill:` block.
 
 **Transistors:**
 
 ```
-nmos <id> [(<connections>)] : <parameters>
-  <terminal> -> <net>
-  ...
+fill:
+  nmos <id> [(<connections>)] : <parameters>
+    <terminal> -> <net>
+    ...
 
-pmos <id> [(<connections>)] : <parameters>
-  <terminal> -> <net>
-  ...
+  pmos <id> [(<connections>)] : <parameters>
+    <terminal> -> <net>
+    ...
 ```
 
 Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and optionally the PDK device name.
@@ -348,33 +365,36 @@ Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and
 Example:
 
 ```
-nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode) : W=1u L=100n M=1
+fill:
+  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode) : W=1u L=100n M=1
 
-pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 sky130_fd_pr__pfet_01v8
+  pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 sky130_fd_pr__pfet_01v8
 ```
 
 **Passives:**
 
 ```
-resistor <id> [(<connections>)] : R=<value>
-  P -> <net>
-  N -> <net>
+fill:
+  resistor <id> [(<connections>)] : R=<value>
+    P -> <net>
+    N -> <net>
 
-capacitor <id> [(<connections>)] : C=<value>
-  P -> <net>
-  N -> <net>
+  capacitor <id> [(<connections>)] : C=<value>
+    P -> <net>
+    N -> <net>
 
-inductor <id> [(<connections>)] : L=<value>
-  P -> <net>
-  N -> <net>
+  inductor <id> [(<connections>)] : L=<value>
+    P -> <net>
+    N -> <net>
 ```
 
 Example:
 
 ```
-capacitor Cc (P->comp_out, N->stage2_in) : C=1p
+fill:
+  capacitor Cc (P->comp_out, N->stage2_in) : C=1p
 
-resistor Rz (P->comp_out, N->stage2_in) : R=10k
+  resistor Rz (P->comp_out, N->stage2_in) : R=10k
 ```
 
 **Diodes:**
@@ -387,16 +407,18 @@ diode <id> [(<connections>)] : <model>
 
 ### 3.3.8 Connection Statements (ML)
 
-Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings.
+Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings. Connection statements appear within the `fill:` block.
 
 ```
-connect <source> -> <dest>
+fill:
+  connect <source> -> <dest>
 ```
 
 Example:
 
 ```
-connect dp.OUT.N -> OUT
+fill:
+  connect dp.OUT.N -> OUT
 ```
 
 ### 3.3.9 Elaboration of Attach and Connectors
@@ -412,6 +434,50 @@ ACIR does not serialize connectors or attach chains. The front-end elaborates al
 **Example (after elaboration):**
 
 The ADL statement `attach cm to dp` with a `CurrentMirrorLike -> DiffPairLike` connector elaborates to explicit terminal bindings where `cm.SENSE` connects to the same net as `dp.OUT.P`, and `cm.TAP[0]` connects to the same net as `dp.OUT.N`.
+
+### 3.3.10 The `fill:` Block
+
+The `fill:` block groups all synthesized and elaborated content, separating the circuit's **declared interface** (ports, supplies, grounds) from its **implementation** (instances, devices, internal nets).
+
+**Syntax:**
+
+```
+fill:
+  <net declarations>
+  <instance declarations>
+  <device declarations>
+  <connection statements>
+```
+
+**Semantics:**
+
+- At **ML level**: The `fill:` block contains internal `net` declarations and `inst` declarations that result from slot resolution and elaboration.
+- At **EL level**: The `fill:` block contains internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).
+- At **HL level**: The `fill:` block is not used. Slots remain at the circuit body level since they represent requirements/contracts, not synthesized implementations.
+
+**Net placement:**
+
+- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not appear in the `fill:` block.
+- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block.
+
+**Example:**
+
+```
+circuit SimpleAmp
+  level EL
+
+  supply VDD
+  ground VSS
+  port IN : analog
+  port OUT : analog
+
+  fill:
+    net tnode : analog
+    nmos M_in (G->IN, D->OUT, S->VSS, B->VSS) : W=8u L=180n M=2 sky130_fd_pr__nfet_01v8
+    pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=2 sky130_fd_pr__pfet_01v8
+```
+
+The `fill:` block creates a clear structural separation between what the circuit promises (its interface) and how it is implemented (the synthesized content).
 
 ---
 
@@ -560,22 +626,23 @@ The slot declaration captures the interface contract (connections) and the behav
 
 ### 3.7.2 ML - Mid Level
 
-Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic.
+Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
 
 ```
 circuit OTA : SingleEndedAmplifier
   level ML
   ...
-  inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad
-    param p = PMOS
-    param W = $Auto
-    param L = $Auto
+  fill:
+    inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad
+      param p = PMOS
+      param W = $Auto
+      param L = $Auto
 
-  inst dp : DiffPair
-    param p = NMOS
-    param W = $Auto
-    param L = $Auto
-    ...
+    inst dp : DiffPair
+      param p = NMOS
+      param W = $Auto
+      param L = $Auto
+      ...
 ```
 
 At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad` once the synthesis engine selects a concrete motif that satisfies the `LoadDevice` trait.
@@ -584,13 +651,14 @@ Symbolic parameters use the `$` prefix: `$Auto`, `$ratio`, `$W_input`.
 
 ### 3.7.3 EL - Electrical Level
 
-Parameters are numeric wherever required by this specification. All terminals are connected, PDK-specific device choices have been recorded, and the document is ready for SPICE emission.
+Parameters are numeric wherever required by this specification. All terminals are connected, PDK-specific device choices have been recorded, and the document is ready for SPICE emission. Devices and internal nets appear within the `fill:` block.
 
 ```
 circuit OTA
   level EL
   ...
-  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
+  fill:
+    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
 ```
 
 At EL, the selected PDK device appears inline with device parameters. Hierarchical device names (e.g., `dp.M_N`) preserve the origin of each device from the ML elaboration.
@@ -674,18 +742,19 @@ circuit OTA5TSingleEnded : SingleEndedAmplifier
   port OUT : analog
   port VTAIL : bias
 
-  net mirror_gate : analog  ; dp.OUT.P = cm.SENSE via attach
-  net tnode : analog        ; internal tail node from dp
+  fill:
+    net mirror_gate : analog  ; dp.OUT.P = cm.SENSE via attach
+    net tnode : analog        ; internal tail node from dp
 
-  inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair
-    param p = NMOS
-    param hasTail = true
+    inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair
+      param p = NMOS
+      param hasTail = true
 
-  inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
-    param p = PMOS
-    param taps = 1
+    inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
+      param p = PMOS
+      param taps = 1
 
-  ; attach cm -> dp elaborated into shared mirror_gate net
+    ; attach cm -> dp elaborated into shared mirror_gate net
 
 
 circuit DiffPair : DiffPairLike
@@ -697,20 +766,21 @@ circuit DiffPair : DiffPairLike
   port BASE : analog
   port BIAS : bias
 
-  net IN_P : analog
-  net IN_N : analog
-  net OUT_P : analog
-  net OUT_N : analog
-  net tnode : analog
+  fill:
+    net IN_P : analog
+    net IN_N : analog
+    net OUT_P : analog
+    net OUT_N : analog
+    net tnode : analog
 
-  inst M_N (G->IN_P, D->OUT_N, S->tnode) : MOS
-    param p = $p
+    inst M_N (G->IN_P, D->OUT_N, S->tnode) : MOS
+      param p = $p
 
-  inst M_P (G->IN_N, D->OUT_P, S->tnode) : MOS
-    param p = $p
+    inst M_P (G->IN_N, D->OUT_P, S->tnode) : MOS
+      param p = $p
 
-  inst M_TAIL (G->BIAS, D->tnode, S->BASE) : MOS
-    param p = $p
+    inst M_TAIL (G->BIAS, D->tnode, S->BASE) : MOS
+      param p = $p
 
 
 circuit CurrentMirror : CurrentMirrorLike
@@ -721,11 +791,12 @@ circuit CurrentMirror : CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
 
-  inst M_SENSE (G->SENSE, D->SENSE, S->RAIL) : MOS
-    param p = $p
+  fill:
+    inst M_SENSE (G->SENSE, D->SENSE, S->RAIL) : MOS
+      param p = $p
 
-  inst M_TAP0 (G->SENSE, D->TAP[0], S->RAIL) : MOS
-    param p = $p
+    inst M_TAP0 (G->SENSE, D->TAP[0], S->RAIL) : MOS
+      param p = $p
 ```
 
 ### 3.11.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
@@ -746,17 +817,18 @@ circuit OTA5TSingleEnded
   port OUT : analog
   port VTAIL : bias
 
-  net tnode : analog        ; from dp.tnode
-  net mirror_gate : analog  ; dp.OUT.P = cm.SENSE
+  fill:
+    net tnode : analog        ; from dp.tnode
+    net mirror_gate : analog  ; dp.OUT.P = cm.SENSE
 
-  ; DiffPair (dp) - NMOS differential pair with tail
-  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
-  nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
-  nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 sky130_fd_pr__nfet_01v8
+    ; DiffPair (dp) - NMOS differential pair with tail
+    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
+    nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
+    nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 sky130_fd_pr__nfet_01v8
 
-  ; CurrentMirror (cm) - PMOS current mirror
-  pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
-  pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
+    ; CurrentMirror (cm) - PMOS current mirror
+    pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
+    pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
 
   constraints:
     numeric:
@@ -798,7 +870,8 @@ circuit LatchPadBuffer
   port COMP_OUT : digital
   port PAD : digital
 
-  inst Buf (IN->COMP_OUT, OUT->PAD, VDD->VDD, GND->GND, VPB->VDD, VNB->GND) : sky130_fd_sc_hd__inv_4 [InverterLike]
+  fill:
+    inst Buf (IN->COMP_OUT, OUT->PAD, VDD->VDD, GND->GND, VPB->VDD, VNB->GND) : sky130_fd_sc_hd__inv_4 [InverterLike]
 
   constraints:
     numeric:
@@ -840,9 +913,10 @@ circuit CSAmplifier
   port vout : analog
   port vb1 : bias
 
-  nmos M_in (G->vin, D->vout, S->GND, B->GND) : W=12u L=180n M=4 sky130_fd_pr__nfet_01v8
+  fill:
+    nmos M_in (G->vin, D->vout, S->GND, B->GND) : W=12u L=180n M=4 sky130_fd_pr__nfet_01v8
 
-  pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : W=4u L=180n M=2 sky130_fd_pr__pfet_01v8
+    pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : W=4u L=180n M=2 sky130_fd_pr__pfet_01v8
 
   constraints:
     numeric:
@@ -915,8 +989,8 @@ M_cm.M_TAP0 OUT mirror_gate VDD VDD sky130_fd_pr__pfet_01v8 W=2u L=180n m=1
 To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 - Order circuits by dependency (referenced circuits before referencing circuits).
-- Within a circuit, order sections: level, package, supplies, grounds, ports, nets, instances/devices, constraints, harness, benches, provenance.
-- Sort instances/devices by id lexicographically.
+- Within a circuit, order sections: level, package, supplies, grounds, ports, fill (containing: nets, instances/devices), constraints, harness, benches, provenance.
+- Within the `fill:` block, order: nets first, then instances/devices sorted by id lexicographically.
 - Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
 - Use consistent indentation: two spaces per level.
@@ -1028,8 +1102,7 @@ traits       = IDENT ("," IDENT)* ;
 circuitBody  = (INDENT statement NL)* ;
 
 statement    = levelDecl | packageDecl | supplyDecl | groundDecl
-             | portDecl | netDecl | slotDecl | instDecl | deviceDecl
-             | connectStmt | constraintsBlock | harnessBlock
+             | portDecl | slotDecl | fillBlock | constraintsBlock | harnessBlock
              | benchesBlock | provenanceBlock | extensionsBlock ;
 
 levelDecl    = "level" ("HL" | "ML" | "EL") ;
@@ -1037,11 +1110,15 @@ packageDecl  = "package" qualifiedName ;
 supplyDecl   = "supply" IDENT source? ;
 groundDecl   = "ground" IDENT source? ;
 portDecl     = "port" IDENT ":" (domain | IDENT) source? ;
-netDecl      = "net" IDENT ":" domain source? ;
 
 slotDecl     = "slot" IDENT connectionList? ":" (IDENT | traitList) source? NL (INDENT slotBody NL)* ;
 traitList    = "[" IDENT ("," IDENT)* "]" ;
 slotBody     = paramDecl ;
+
+fillBlock    = "fill:" NL (INDENT INDENT fillContent NL)* ;
+fillContent  = netDecl | instDecl | deviceDecl | connectStmt ;
+
+netDecl      = "net" IDENT ":" domain source? ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
 instBody     = paramDecl | binding ;
