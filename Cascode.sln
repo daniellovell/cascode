@@ -11,7 +11,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Workspace", "tools\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Parser", "tools\parser\Cascode.Parser.csproj", "{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.CasIR", "tools\casir\Cascode.CasIR.csproj", "{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.ACIR", "tools\acir\Cascode.ACIR.csproj", "{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Compiler", "tools\compiler\Cascode.Compiler.csproj", "{7E5A9D4D-5C8B-4F94-9B0F-A87AC784B3A9}"
 EndProject

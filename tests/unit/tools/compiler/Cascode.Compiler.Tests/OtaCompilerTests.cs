@@ -1,8 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using Cascode.CasIR;
+using Cascode.ACIR;
 using Cascode.Compiler;
 using Cascode.Parser;
 using Xunit;
@@ -12,41 +11,43 @@ namespace Cascode.Compiler.Tests;
 public class OtaCompilerTests
 {
     [Fact]
-    public void Compile_SimpleOtaMotif_ProducesCasirWithDpAndOutNet()
+    public void Compile_SimpleOtaMotif_ProducesACIRWithDpAndOutNet()
     {
         var repoRoot = GetRepoRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", CasIRLevel.ML)
+            new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", ACIRLevel.ML)
             {
                 LibraryRoots = new[] { repoRoot }
             });
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        // Nets should include OUT and bundle nets for IN.
-        Assert.Contains(casir.Nets, n => n.Id == "OUT");
-        Assert.Contains(casir.Bundles, b => b.Id == "IN");
+        // Circuit should exist
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.Equal("OTA5TSingleEndedSimplified", circuit.Name);
+        Assert.Equal(ACIRLevel.ML, circuit.Level);
 
-        // Instances should include dp and cm, with OUT.N mapped to OUT on dp.
-        var dp = Assert.Single(casir.Motifs, m => m.Id == "dp");
-        Assert.True(dp.Ports.TryGetValue("OUT.N", out var net));
+        // Fill block should contain instances
+        Assert.NotNull(circuit.Fill);
+        var dp = Assert.Single(circuit.Fill.Instances, i => i.Id == "dp");
+        Assert.True(dp.Bindings.TryGetValue("OUT.N", out var net));
         Assert.Equal("OUT", net);
 
-        Assert.Contains(casir.Motifs, m => m.Id == "cm");
+        Assert.Contains(circuit.Fill.Instances, i => i.Id == "cm");
 
-        // Compare against the golden CasIR snapshot.
-        var actualJson = JsonSerializer.Serialize(
-            casir,
-            new JsonSerializerOptions { WriteIndented = true });
-        var expectedJson = File.ReadAllText(
-            Path.Combine(repoRoot, "tests/golden/casir/ota/OTA5TSingleEndedSimplified.ml.cir"));
-        Assert.Equal(Normalize(expectedJson), Normalize(actualJson));
+        // Compare against the golden ACIR snapshot.
+        using var writer = new StringWriter();
+        ACIRWriter.Write(acir, writer);
+        var actualAcir = writer.ToString();
+        var expectedAcir = File.ReadAllText(
+            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEndedSimplified.ml.cir"));
+        Assert.Equal(Normalize(expectedAcir), Normalize(actualAcir));
     }
 
     [Fact]
@@ -56,11 +57,11 @@ public class OtaCompilerTests
         var sourceText = "package test;\n";
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", CasIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML));
 
-        Assert.Null(result.CasIR);
+        Assert.Null(result.ACIR);
         var cas0001Diagnostic = Assert.Single(
             result.Diagnostics,
             d => d.Message.Contains("CAS0001: No motif declaration found"));
@@ -86,11 +87,11 @@ motif Test {
 }";
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", CasIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML));
 
-        Assert.Null(result.CasIR);
+        Assert.Null(result.ACIR);
         var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
         Assert.Equal(3, errors.Count);
         Assert.Contains(errors, d => d.Message.Contains("CAS0002"));
@@ -115,27 +116,31 @@ motif Test {
 }";
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", CasIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML));
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        // Instance should have all bindings elaborated as port connections
-        var dp = Assert.Single(casir.Motifs, m => m.Id == "dp");
+        // Circuit should exist
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.NotNull(circuit.Fill);
 
-        // Bindings should be expanded to port connections
-        Assert.True(dp.Ports.TryGetValue("IN.P", out var inP));
+        // Instance should have all bindings elaborated as terminal connections
+        var dp = Assert.Single(circuit.Fill.Instances, i => i.Id == "dp");
+
+        // Bindings should be expanded to terminal connections
+        Assert.True(dp.Bindings.TryGetValue("IN.P", out var inP));
         Assert.Equal("IN_P", inP); // IN.P maps to bundle net IN_P
 
-        Assert.True(dp.Ports.TryGetValue("IN.N", out var inN));
+        Assert.True(dp.Bindings.TryGetValue("IN.N", out var inN));
         Assert.Equal("IN_N", inN); // IN.N maps to bundle net IN_N
 
-        Assert.True(dp.Ports.TryGetValue("BASE", out var baseNet));
+        Assert.True(dp.Bindings.TryGetValue("BASE", out var baseNet));
         Assert.Equal("GND", baseNet);
 
-        Assert.True(dp.Ports.TryGetValue("BIAS", out var biasNet));
+        Assert.True(dp.Bindings.TryGetValue("BIAS", out var biasNet));
         Assert.Equal("VTAIL", biasNet);
     }
 
@@ -147,22 +152,26 @@ motif Test {
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML));
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML));
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
+
+        // Circuit should exist
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.NotNull(circuit.Fill);
 
         // dp instance should have inline bindings + explicit connect
-        var dp = Assert.Single(casir.Motifs, m => m.Id == "dp");
-        Assert.Equal(5, dp.Ports.Count); // 4 from bindings + 1 from connect dp.OUT.N -> OUT
+        var dp = Assert.Single(circuit.Fill.Instances, i => i.Id == "dp");
+        Assert.Equal(5, dp.Bindings.Count); // 4 from bindings + 1 from connect dp.OUT.N -> OUT
 
-        Assert.True(dp.Ports.ContainsKey("IN.P"));
-        Assert.True(dp.Ports.ContainsKey("IN.N"));
-        Assert.True(dp.Ports.ContainsKey("BASE"));
-        Assert.True(dp.Ports.ContainsKey("BIAS"));
-        Assert.True(dp.Ports.ContainsKey("OUT.N"));
+        Assert.True(dp.Bindings.ContainsKey("IN.P"));
+        Assert.True(dp.Bindings.ContainsKey("IN.N"));
+        Assert.True(dp.Bindings.ContainsKey("BASE"));
+        Assert.True(dp.Bindings.ContainsKey("BIAS"));
+        Assert.True(dp.Bindings.ContainsKey("OUT.N"));
     }
 
     [Fact]
@@ -173,23 +182,23 @@ motif Test {
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML)
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
                 LibraryRoots = new[] { repoRoot }
             });
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        // Compare against the golden CasIR snapshot.
-        var actualJson = JsonSerializer.Serialize(
-            casir,
-            new JsonSerializerOptions { WriteIndented = true });
-        var expectedJson = File.ReadAllText(
-            Path.Combine(repoRoot, "tests/golden/casir/ota/OTA5TSingleEnded.ml.cir"));
-        Assert.Equal(Normalize(expectedJson), Normalize(actualJson));
+        // Compare against the golden ACIR snapshot.
+        using var writer = new StringWriter();
+        ACIRWriter.Write(acir, writer);
+        var actualAcir = writer.ToString();
+        var expectedAcir = File.ReadAllText(
+            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.ml.cir"));
+        Assert.Equal(Normalize(expectedAcir), Normalize(actualAcir));
     }
 
     private static string GetRepoRoot()
