@@ -307,7 +307,10 @@
         "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
       },
       "cascode.acir": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "Cascode.Bench": "[1.0.0, )"
+        }
       },
       "cascode.bench": {
         "type": "Project",
@@ -320,6 +323,7 @@
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
+          "Cascode.ACIR": "[1.0.0, )",
           "Cascode.Bench": "[1.0.0, )",
           "Cascode.Compiler": "[1.0.0, )",
           "Cascode.Workspace": "[1.0.0, )",

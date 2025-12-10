@@ -4,12 +4,12 @@ global 0
 parameters L={{ params.l_m }} VSG={{ params.start }}
 
 // includes
-{% for inc in includes_with_section %}
-{% if section %}include "{{ inc }}" section={{ section }}{% else %}include "{{ inc }}"{% endif %}
-{% endfor %}
-{% for inc in includes_without_section %}
+{{ for inc in includes_with_section }}
+{{ if section }}include "{{ inc }}" section={{ section }}{{ else }}include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
 include "{{ inc }}"
-{% endfor %}
+{{ end }}
 
 // supply and sources
 VDD (vdd 0) vsource dc={{ params.vdd }}
@@ -20,11 +20,11 @@ VBS (b s) vsource dc=0
 // Gate bias: enforce V(S) - V(G) = VSG
 VSGSRC (s g) vsource dc=VSG
 // Drain bias: V(S) - V(D) = VSD
-{% if params.drain_bias_mode == 'scaled' %}
+{{ if params.drain_bias_mode == 'scaled' }}
 VSD (s d) vsource dc={{ params.drain_alpha }}*VSG
-{% else %}
+{{ else }}
 VSD (s d) vsource dc={{ params.vsd }}
-{% endif %}
+{{ end }}
 
 // DUT
 {{ params.inst_name }} (d g s b) {{ spec.model_name }} w={{ params.w_m }} l=L m={{ params.mult }} nf={{ params.nf }} \

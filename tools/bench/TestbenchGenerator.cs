@@ -93,22 +93,32 @@ public sealed class TestbenchGenerator
         }
 
         var tpl = templateText!;
-        // Build template model
-        var model = new
+
+        // Use template_model from plan if available (ACIR templates), otherwise build default model
+        object model;
+        if (plan.Data.TryGetValue("template_model", out var templateModel))
         {
-            spec = new
+            model = templateModel;
+        }
+        else
+        {
+            // Build template model for legacy harnesses
+            model = new
             {
-                temperature_c = ctx.Spec.TemperatureC,
-                model_name = ctx.Spec.ModelName,
-                results_csv = ctx.Spec.ResultsCsv,
-                is_subckt = ctx.Spec.IsSubckt
-            },
-            includes = ctx.DeckPaths,
-            includes_with_section = ctx.IncludePathsWithSection,
-            includes_without_section = ctx.IncludePathsWithoutSection,
-            section = ctx.Section,
-            @params = plan.Data.TryGetValue("params", out var p) ? p : new Dictionary<string, object?>()
-        };
+                spec = new
+                {
+                    temperature_c = ctx.Spec.TemperatureC,
+                    model_name = ctx.Spec.ModelName,
+                    results_csv = ctx.Spec.ResultsCsv,
+                    is_subckt = ctx.Spec.IsSubckt
+                },
+                includes = ctx.DeckPaths,
+                includes_with_section = ctx.IncludePathsWithSection,
+                includes_without_section = ctx.IncludePathsWithoutSection,
+                section = ctx.Section,
+                @params = plan.Data.TryGetValue("params", out var p) ? p : new Dictionary<string, object?>()
+            };
+        }
 
         return TemplateRenderer.Render(tpl, model);
     }

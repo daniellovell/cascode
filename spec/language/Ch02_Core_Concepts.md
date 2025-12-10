@@ -52,7 +52,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 * `digital` - discrete-valued signals (stdcell ports, logic nets); subtype of `signal`.
 * `mixed` - explicit domain boundary signals (comparator outputs, ADC/DAC interfaces); subtype of `signal`.
 * `diff` - differential bundle abstraction (has fields `.P`/`.N`).
-* `bias` - bias/control nets (typed for headroom/legality checks).
+* `bias` - bias/control nets (typed for headroom/legality checks); resolved to specific DC voltage values during ML→EL elaboration (see §3.6.1).
 * `rf`, `clock` - specialized kinds with additional contracts (impedance, phase/timing).
 
 #### Signal Type Hierarchy

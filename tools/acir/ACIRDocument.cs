@@ -311,6 +311,7 @@ public sealed class MeasureIntent
 public sealed class HarnessBlock
 {
     public List<SupplyValue> Supplies { get; init; } = new();
+    public List<BiasValue> Biases { get; init; } = new();
     public List<SourceValue> Sources { get; init; } = new();
     public List<LoadValue> Loads { get; init; } = new();
     public IcmrRange? Icmr { get; init; }
@@ -321,6 +322,15 @@ public sealed class HarnessBlock
 /// Supply value in harness.
 /// </summary>
 public sealed class SupplyValue
+{
+    public string Net { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Bias value in harness (DC voltage for bias ports).
+/// </summary>
+public sealed class BiasValue
 {
     public string Net { get; init; } = string.Empty;
     public string Value { get; init; } = string.Empty;

@@ -6,7 +6,7 @@ namespace Cascode.Bench.Tests;
 public class TemplateRendererTests
 {
     [Fact]
-    public void TemplateRenderer_PreprocessesLiquidBlocks()
+    public void TemplateRenderer_PreprocessesScribanBlocks()
     {
         var model = new
         {
@@ -14,8 +14,8 @@ public class TemplateRendererTests
             items = new[] { "alpha", "beta" },
         };
 
-        const string conditionalTemplate = "{% if true %}value{% endif %}";
-        const string loopTemplate = "{% for item in items %}{{ item }}{% endfor %}";
+        const string conditionalTemplate = "{{ if true }}value{{ end }}";
+        const string loopTemplate = "{{ for item in items }}{{ item }}{{ end }}";
 
         var conditionalRender = TemplateRenderer.Render(conditionalTemplate, model);
         var loopRender = TemplateRenderer.Render(loopTemplate, model);

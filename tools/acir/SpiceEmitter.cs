@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.Bench;
 
 namespace Cascode.ACIR;
 
@@ -107,16 +108,14 @@ public static class SpiceEmitter
     /// <param name="bench">The bench configuration.</param>
     /// <param name="designPath">Path to the design .sp file to include.</param>
     /// <param name="writer">Text writer for output.</param>
+    /// <param name="backend">Backend type for testbench generation.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
-    /// The testbench includes:
-    /// - Title and .include directive for the design
-    /// - Harness elements: voltage sources for supplies, load capacitors, source impedances
-    /// - DUT instantiation with proper port ordering
-    /// - Analysis commands based on bench type (AC, transient, DC)
-    /// - Control block with .control/.endc wrapper for ngspice
+    /// This method is deprecated. Use Emit() with backend parameter instead.
+    /// The testbench is now generated using templates via TestbenchGenerator.
     /// </remarks>
-    public static void EmitTestbench(Circuit circuit, BenchConfig bench, string designPath, TextWriter writer)
+    [Obsolete("Use Emit() method with backend parameter instead")]
+    public static void EmitTestbench(Circuit circuit, BenchConfig bench, string designPath, TextWriter writer, BenchBackendType backend = BenchBackendType.Ngspice)
     {
         if (circuit.Level != ACIRLevel.EL)
         {
@@ -167,15 +166,17 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
+    /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
+    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
     /// <returns>Result containing paths to generated files.</returns>
     /// <remarks>
     /// Processes all EL-level circuits in the document:
     /// - Generates {CircuitName}.sp for each circuit
-    /// - Generates {CircuitName}_{BenchName}.sp for each bench
+    /// - Generates {CircuitName}_{BenchName}.sp for each bench using templates
     /// Output directory is created if it doesn't exist.
     /// Non-EL circuits are silently skipped.
     /// </remarks>
-    public static SpiceEmitResult Emit(ACIRDocument doc, string outputDir)
+    public static SpiceEmitResult Emit(ACIRDocument doc, string outputDir, BenchBackendType backend = BenchBackendType.Ngspice, string? workspaceRoot = null)
     {
         var result = new SpiceEmitResult();
         Directory.CreateDirectory(outputDir);
@@ -195,15 +196,13 @@ public static class SpiceEmitter
             }
             result.DesignPaths.Add(designPath);
 
-            // Emit testbenches
+            // Emit testbenches using template-based generation
             if (circuit.Benches?.Benches.Count > 0)
             {
                 foreach (var bench in circuit.Benches.Benches)
                 {
-                    var tbPath = Path.Combine(outputDir, $"{circuit.Name}_{bench.Name}.sp");
-                    using var tbWriter = File.CreateText(tbPath);
-                    EmitTestbench(circuit, bench, $"{circuit.Name}.sp", tbWriter);
-                    result.TestbenchPaths.Add(tbPath);
+                    var files = ACIRBenchAdapter.GenerateTestbench(circuit, bench, backend, outputDir, workspaceRoot);
+                    result.TestbenchPaths.Add(files.NetlistPath);
                 }
             }
         }
@@ -234,36 +233,10 @@ public static class SpiceEmitter
         sb.Append(device.Id);
         sb.Append(' ');
 
-        // Terminal ordering depends on device type
+        // Terminal ordering and parameters depend on device type
         if (spiceType == "M")
         {
-            // MOSFET: D G S B
-            sb.Append(GetBinding(device, "D"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "G"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "S"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "B"));
-            sb.Append(' ');
-
-            // Model name (PDK device or generic)
-            sb.Append(device.PdkDevice ?? device.DeviceType);
-            sb.Append(' ');
-
-            // Parameters: W, L, m
-            if (device.Params.TryGetValue("W", out var w))
-            {
-                sb.Append($"W={w} ");
-            }
-            if (device.Params.TryGetValue("L", out var l))
-            {
-                sb.Append($"L={l} ");
-            }
-            if (device.Params.TryGetValue("M", out var m))
-            {
-                sb.Append($"m={m}");
-            }
+            EmitMosfetTerminalsAndParams(device, sb);
         }
         else if (spiceType is "R" or "C" or "L")
         {
@@ -300,6 +273,42 @@ public static class SpiceEmitter
     }
 
     /// <summary>
+    /// Emits MOSFET terminal connections and parameters.
+    /// </summary>
+    /// <param name="device">MOSFET device declaration.</param>
+    /// <param name="sb">StringBuilder to append to.</param>
+    private static void EmitMosfetTerminalsAndParams(DeviceDeclaration device, StringBuilder sb)
+    {
+        // MOSFET terminal ordering: D G S B
+        sb.Append(GetBinding(device, "D"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "G"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "S"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "B"));
+        sb.Append(' ');
+
+        // Model name (PDK device or generic)
+        sb.Append(device.PdkDevice ?? device.DeviceType);
+        sb.Append(' ');
+
+        // Parameters: W, L, m
+        if (device.Params.TryGetValue("W", out var w))
+        {
+            sb.Append($"W={w} ");
+        }
+        if (device.Params.TryGetValue("L", out var l))
+        {
+            sb.Append($"L={l} ");
+        }
+        if (device.Params.TryGetValue("M", out var m))
+        {
+            sb.Append($"m={m}");
+        }
+    }
+
+    /// <summary>
     /// Gets the net name bound to a device terminal.
     /// </summary>
     /// <param name="device">Device declaration.</param>
@@ -329,6 +338,12 @@ public static class SpiceEmitter
         foreach (var supply in harness.Supplies)
         {
             writer.WriteLine($"V{supply.Net} {supply.Net} 0 DC {supply.Value}");
+        }
+
+        // Bias voltage sources (DC only, no AC)
+        foreach (var bias in harness.Biases)
+        {
+            writer.WriteLine($"V{bias.Net} {bias.Net} 0 DC {bias.Value}");
         }
 
         // Input sources - simplified: DC bias with AC stimulus
