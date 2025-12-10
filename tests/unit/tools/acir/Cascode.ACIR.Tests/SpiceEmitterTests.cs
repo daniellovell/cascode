@@ -170,6 +170,7 @@ public class SpiceEmitterTests
     [Fact]
     public void EmitTestbench_IncludesHarnessAndDUT()
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         var circuit = new Circuit
         {
             Name = "TestAmp",
