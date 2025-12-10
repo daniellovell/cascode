@@ -9,7 +9,7 @@
 
 *Synthesized analog description language for rapid, portable analog/mixed-signal design*
 
-**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical IR (`.cir`) and a verified SPICE netlist.
+**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical ACIR (`.cir`) and a verified SPICE netlist.
 
 It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (modules, traits, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
 
@@ -22,7 +22,7 @@ New to Cascode? Start here to understand the core concepts through a practical O
 ## Language Specification
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
-- [Chapter 3 – CasIR: The Intermediate Representation](spec/language/Ch03_CasIR.md)
+- [Chapter 3 – ACIR: The Intermediate Representation](spec/language/Ch03_ACIR.md)
 
 
 
@@ -76,7 +76,7 @@ cascode --help
 * **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
 * **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
 * **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first-class; contracts (`req`/`ens`) capture headroom and validity.
-* **CasIR.** A canonical typed graph that downstream tools and LLMs can reason about far better than raw SPICE.
+* **ACIR.** A canonical typed graph that downstream tools and LLMs can reason about far better than raw SPICE.
 
 ---
 
@@ -262,9 +262,9 @@ module SenseChainAuto {
    * Read `.cas`, resolve packages, check units and types, expand sugar (`pair`, `mirror`, `fb`).
    * Canonicalize specs and environment into inequalities.
 
-2. **Lower to CasIR (`.cir`)**
+2. **Lower to ACIR (`.cir`)**
 
-   * Emit a **typed graph**: nets, ports, motif instances, edges, roles, constraints, benches, provenance.
+   * Emit a **typed graph**: circuits, nets, instances/devices, terminal bindings, constraints, harness, benches, provenance.
 
 3. **Feasibility Guards** (fast checks)
 
@@ -291,30 +291,31 @@ module SenseChainAuto {
 
 8. **Artifacts & Reports**
 
-   * Outputs: `.cir` (CasIR), synthesized SPICE netlist(s), bench results, constraints/margins report, and provenance (which library blocks, parameters, and fits were used).
+   * Outputs: `.cir` (ACIR), synthesized SPICE netlist(s), bench results, constraints/margins report, and provenance (which library blocks, parameters, and fits were used).
 
-> **Why CasIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (roles, traits, benches) and provenance.
+> **Why ACIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (traits, benches) and provenance in a line-oriented text format optimized for readability and diff stability.
 
-**CasIR snippet (for `OTA5T`, illustrative)**:
+**ACIR snippet (for `OTA5T`, illustrative)**:
 
-```json
-{
-  "nets":[{"id":"VDD","type":"supply"},{"id":"GND","type":"supply"},
-          {"id":"vinp"},{"id":"vinn"},{"id":"nL"},{"id":"nR"},{"id":"vout"}],
-  "motifs":[
-    {"id":"dp","type":"DiffPair",
-     "ports":{"IN.P":"vinp","IN.N":"vinn","OUT.N":"nN","OUT.P":"nP","BASE":"GND","BIAS":"vbias_n"}},
-    {"id":"cm","type":"CurrentMirror",
-     "ports":{"SENSE":"nN","TAP[0]":"nP"}},
-    {"id":"cl","type":"Cap","ports":{"p":"vout","n":"GND"}, "params":{"C":1e-12}}
-  ],
-  "constraints":{
-    "numeric":["GainBandwidth>=5.0e7","PhaseMargin>=60deg","PassbandGain>=55","Power<=2e-3",
-               "OutputSwing(vout) in [0.2,1.6]"]
-  },
-  "benches":["SEAmplifierACBench","UnityUGF","Step"],
-  "provenance":{"source":"examples/OTA5T.cas"}
-}
+```firrtl
+ACIR 1
+
+circuit OTA5T : SingleEndedAmplifier
+  level ML
+
+  supply VDD
+  ground GND
+  port IN : Diff
+  port OUT : analog
+
+  fill:
+    inst dp (IN->IN, OUT.N->OUT, BASE->GND) : DiffPair
+    inst cm (SENSE->dp.OUT.P, TAP[0]->OUT) : CurrentMirror
+
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 50M Hz
+      c_pm : PhaseMargin @ OUT >= 60 deg
 ```
 
 ---
@@ -327,9 +328,7 @@ cascode/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     └─ Ch03_CasIR.md
-├─ spec/casir-schema/
-│  └─ casir-json-1.schema.json
+│     └─ Ch03_ACIR.md
 ├─ lib/
 │  └─ std/
 │     ├─ prim/                 # Primitive motifs + interface traits
@@ -340,7 +339,7 @@ cascode/
 │  ├─ cli/
 │  └─ parser/
 ├─ tests/
-│  ├─ golden/              # Canonical Cascode/CasIR/SPICE fixtures (see below)
+│  ├─ golden/              # Canonical Cascode/ACIR/SPICE fixtures (see below)
 │  ├─ integration/
 │  └─ unit/
 ├─ editors/
@@ -352,14 +351,14 @@ cascode/
 ### Component Responsibilities
 
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
-- `tools/compiler`: Front end that turns ADL into CasIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
-- `tools/casir`: CasIR object model, canonical JSON writer (sorted keys/ids, explicit units), and JSON Schema validation.
+- `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
+- `tools/acir`: ACIR object model and canonical text writer following spec section 3.13.
 - `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
 - `tools/bench`: Testbench harness discovery, bench generation, and SPICE backend adapters (Ngspice, Spectre).
 
 ### Notes
 - Build artifacts go in `build/` (not committed).
-- CasIR on disk is JSON only with explicit units; the JSON Schema lives under `spec/casir-schema/`.
+- ACIR on disk is line-oriented text format with explicit units and deterministic ordering.
 
 ---
 
@@ -378,7 +377,7 @@ dotnet run --project tools/cli/Cascode.Cli.csproj
 ## ♻️ Golden fixtures
 
 `tests/golden/` is the canonical store for regression assets that tie Cascode
-sources to expected CasIR/SPICE outputs.
+sources to expected ACIR/SPICE outputs.
 
 ---
 
@@ -387,9 +386,9 @@ sources to expected CasIR/SPICE outputs.
 > Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
 
 ```bash
-# Compile ADL to CasIR
+# Compile ADL to ACIR
 cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
-# Output: build/OTA5TSingleEndedSimplified.cir
+# Output: build/OTA5TSingleEndedSimplified.ml.cir
 ```
 
 ---

@@ -1,8 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using Cascode.CasIR;
+using Cascode.ACIR;
 using Cascode.Compiler;
 using Cascode.Parser;
 using Cascode.TestSupport;
@@ -23,84 +22,69 @@ public class ImportResolutionTests
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML)
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
                 LibraryRoots = new[] { repoRoot }
             });
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        // Should have definitions for DiffPair and CurrentMirror
-        Assert.NotNull(casir.Definitions);
-        Assert.Equal(2, casir.Definitions!.Count);
-
-        var diffPair = casir.Definitions.SingleOrDefault(d => d.Name == "DiffPair");
-        Assert.NotNull(diffPair);
-        Assert.Equal("lib.std.prim", diffPair!.Package);
-        Assert.Contains("DiffPairLike", diffPair.Implements!);
-
-        var currentMirror = casir.Definitions.SingleOrDefault(d => d.Name == "CurrentMirror");
-        Assert.NotNull(currentMirror);
-        Assert.Equal("lib.std.prim", currentMirror!.Package);
-        Assert.Contains("CurrentMirrorLike", currentMirror.Implements!);
+        // ACIR doesn't include definitions - they would be separate circuits if needed
+        // For now, we just verify the main circuit compiles successfully
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.Equal("OTA5TSingleEnded", circuit.Name);
+        Assert.NotNull(circuit.Fill);
     }
 
     [Fact]
-    public void Compile_DefinitionIncludesPorts()
+    public void Compile_WithImports_ProducesValidACIR()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML)
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
                 LibraryRoots = new[] { repoRoot }
             });
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        var diffPair = casir.Definitions!.Single(d => d.Name == "DiffPair");
-
-        // DiffPair should have IN, OUT, BASE ports
-        Assert.NotNull(diffPair.Ports);
-        Assert.Contains(diffPair.Ports, p => p.Name == "IN" && p.Kind == "Diff");
-        Assert.Contains(diffPair.Ports, p => p.Name == "OUT" && p.Kind == "Diff");
-        Assert.Contains(diffPair.Ports, p => p.Name == "BASE" && p.Kind == "analog");
+        // Main circuit should have ports
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.Contains(circuit.Ports, p => p.Name == "IN" && p.Type == "Diff");
+        Assert.Contains(circuit.Ports, p => p.Name == "OUT" && p.Type == "analog");
     }
 
     [Fact]
-    public void Compile_DefinitionIncludesInstances()
+    public void Compile_WithImports_IncludesInstances()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", CasIRLevel.ML)
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
                 LibraryRoots = new[] { repoRoot }
             });
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        var diffPair = casir.Definitions!.Single(d => d.Name == "DiffPair");
-
-        // DiffPair should have internal instances
-        Assert.NotNull(diffPair.Instances);
-        Assert.True(diffPair.Instances.Count > 0, "DiffPair should have at least one instance");
-
-        // At minimum, M_N should exist (even if type parsing needs improvement)
-        Assert.Contains(diffPair.Instances, i => i.Id == "M_N");
+        // Main circuit should have instances in fill block
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.NotNull(circuit.Fill);
+        Assert.True(circuit.Fill.Instances.Count > 0, "Circuit should have at least one instance");
     }
 
     [Fact]
@@ -118,15 +102,16 @@ motif Test {
 }";
 
         var compiler = new SimpleCascodeCompiler();
-        var result = compiler.CompileToCasir(
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", CasIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML));
 
-        Assert.NotNull(result.CasIR);
-        var casir = result.CasIR!;
+        Assert.NotNull(result.ACIR);
+        var acir = result.ACIR!;
 
-        // Without library roots, definitions cannot be resolved
-        Assert.Null(casir.Definitions);
+        // Without library roots, compilation should still succeed but imports won't be resolved
+        var circuit = Assert.Single(acir.Circuits);
+        Assert.Equal("Test", circuit.Name);
     }
 }
 

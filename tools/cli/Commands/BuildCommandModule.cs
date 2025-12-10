@@ -1,7 +1,6 @@
 using System;
 using System.IO;
-using System.Text.Json;
-using Cascode.CasIR;
+using Cascode.ACIR;
 using Cascode.Compiler;
 
 namespace Cascode.Cli.Commands;
@@ -17,7 +16,7 @@ internal sealed class BuildCommandModule : ICommandModule
 
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("build", "Compile ADL to CasIR", BuildCommand));
+        registry.Register(new DelegateCliCommand("build", "Compile Cascode to ACIR", BuildCommand));
     }
 
     private CommandResult BuildCommand(string[] args)
@@ -46,9 +45,9 @@ internal sealed class BuildCommandModule : ICommandModule
         }
 
         var compiler = new SimpleCascodeCompiler();
-        // TODO: We need to intelligently detect which level of CasIR should be compiled to.
-        var options = new CompileOptions(string.Empty, CasIRLevel.ML);
-        var result = compiler.CompileToCasir(
+        // TODO: We need to intelligently detect which level of ACIR should be compiled to.
+        var options = new CompileOptions(string.Empty, ACIRLevel.ML);
+        var result = compiler.CompileToACIR(
             new[] { new SourceUnit(inputPath, text) },
             options);
 
@@ -59,32 +58,30 @@ internal sealed class BuildCommandModule : ICommandModule
             _state.AddMessage($"{path}:{diag.Line}:{diag.Column}: {severity}: {diag.Message}");
         }
 
-        if (result.CasIR is null)
+        if (result.ACIR is null)
         {
-            _state.AddMessage("Build failed; no CasIR produced.");
+            _state.AddMessage("Build failed; no ACIR produced.");
             return CommandResult.Failure;
         }
 
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "build");
         Directory.CreateDirectory(outputDir);
         var baseName = Path.GetFileNameWithoutExtension(inputPath);
-        var outputPath = Path.Combine(outputDir, baseName + ".cir");
+        var levelStr = options.Level.ToString().ToLowerInvariant();
+        var outputPath = Path.Combine(outputDir, $"{baseName}.{levelStr}.cir");
 
         try
         {
-            var json = JsonSerializer.Serialize(result.CasIR, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-            File.WriteAllText(outputPath, json);
+            using var writer = File.CreateText(outputPath);
+            ACIRWriter.Write(result.ACIR, writer);
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to write CasIR to '{outputPath}': {ex.Message}");
+            _state.AddMessage($"Failed to write ACIR to '{outputPath}': {ex.Message}");
             return CommandResult.Failure;
         }
 
-        _state.AddMessage($"CasIR written to '{outputPath}'.");
+        _state.AddMessage($"ACIR written to '{outputPath}'.");
         return CommandResult.Success;
     }
 }

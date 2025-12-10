@@ -1,0 +1,360 @@
+using System.Collections.Generic;
+
+namespace Cascode.ACIR;
+
+/// <summary>
+/// Root ACIR document representing one or more circuits at a specific elaboration level.
+/// </summary>
+public sealed class ACIRDocument
+{
+    /// <summary>
+    /// ACIR format version.
+    /// </summary>
+    public int Version { get; init; } = 1;
+
+    /// <summary>
+    /// Bundle type definitions declared at the file level.
+    /// </summary>
+    public List<BundleType> BundleTypes { get; init; } = new();
+
+    /// <summary>
+    /// Circuit definitions in this document.
+    /// </summary>
+    public List<Circuit> Circuits { get; init; } = new();
+}
+
+/// <summary>
+/// Defines a bundle type (e.g., Diff) with its fields and domains.
+/// </summary>
+public sealed class BundleType
+{
+    /// <summary>Bundle type name (e.g., "Diff").</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Field definitions mapping field names to domains.</summary>
+    public Dictionary<string, string> Fields { get; init; } = new();
+}
+
+/// <summary>
+/// Represents a circuit definition in ACIR.
+/// </summary>
+public sealed class Circuit
+{
+    /// <summary>Circuit name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Optional traits this circuit implements.</summary>
+    public List<string>? Traits { get; init; }
+
+    /// <summary>Elaboration level (HL, ML, or EL).</summary>
+    public ACIRLevel Level { get; init; } = ACIRLevel.ML;
+
+    /// <summary>Optional package path.</summary>
+    public string? Package { get; init; }
+
+    /// <summary>Supply declarations.</summary>
+    public List<string> Supplies { get; init; } = new();
+
+    /// <summary>Ground declarations.</summary>
+    public List<string> Grounds { get; init; } = new();
+
+    /// <summary>Port declarations.</summary>
+    public List<PortDeclaration> Ports { get; init; } = new();
+
+    /// <summary>Slot declarations (HL level only).</summary>
+    public List<SlotDeclaration> Slots { get; init; } = new();
+
+    /// <summary>Fill block content (ML and EL levels).</summary>
+    public FillBlock? Fill { get; init; }
+
+    /// <summary>Constraints block.</summary>
+    public ConstraintsBlock? Constraints { get; init; }
+
+    /// <summary>Harness block.</summary>
+    public HarnessBlock? Harness { get; init; }
+
+    /// <summary>Benches block.</summary>
+    public BenchesBlock? Benches { get; init; }
+
+    /// <summary>Provenance block.</summary>
+    public ProvenanceBlock? Provenance { get; init; }
+}
+
+/// <summary>
+/// Declares a port on a circuit.
+/// </summary>
+public sealed class PortDeclaration
+{
+    /// <summary>Port name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Port type (domain or bundle type name).</summary>
+    public string Type { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Declares a slot at HL level.
+/// </summary>
+public sealed class SlotDeclaration
+{
+    /// <summary>Slot identifier.</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Terminal bindings for this slot.</summary>
+    public Dictionary<string, string> Bindings { get; init; } = new();
+
+    /// <summary>Required traits (single trait or list).</summary>
+    public List<string> Traits { get; init; } = new();
+
+    /// <summary>Parameter values.</summary>
+    public Dictionary<string, ParamValue> Params { get; init; } = new();
+}
+
+/// <summary>
+/// Fill block containing nets, instances, and devices.
+/// </summary>
+public sealed class FillBlock
+{
+    /// <summary>Net declarations.</summary>
+    public List<NetDeclaration> Nets { get; init; } = new();
+
+    /// <summary>Instance declarations (ML level).</summary>
+    public List<InstanceDeclaration> Instances { get; init; } = new();
+
+    /// <summary>Device declarations (EL level).</summary>
+    public List<DeviceDeclaration> Devices { get; init; } = new();
+
+    /// <summary>Connection statements.</summary>
+    public List<ConnectionStatement> Connections { get; init; } = new();
+}
+
+/// <summary>
+/// Declares a net within a fill block.
+/// </summary>
+public sealed class NetDeclaration
+{
+    /// <summary>Net identifier.</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Net domain.</summary>
+    public string Domain { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Declares an instance at ML level.
+/// </summary>
+public sealed class InstanceDeclaration
+{
+    /// <summary>Instance identifier.</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Motif type name.</summary>
+    public string Type { get; init; } = string.Empty;
+
+    /// <summary>Terminal bindings.</summary>
+    public Dictionary<string, string> Bindings { get; init; } = new();
+
+    /// <summary>Parameter values.</summary>
+    public Dictionary<string, ParamValue> Params { get; init; } = new();
+}
+
+/// <summary>
+/// Declares a primitive device at EL level.
+/// </summary>
+public sealed class DeviceDeclaration
+{
+    /// <summary>Device type (nmos, pmos, resistor, capacitor, inductor, diode).</summary>
+    public string DeviceType { get; init; } = string.Empty;
+
+    /// <summary>Device identifier.</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Terminal bindings.</summary>
+    public Dictionary<string, string> Bindings { get; init; } = new();
+
+    /// <summary>Device parameters (e.g., W=1u L=100n M=1).</summary>
+    public Dictionary<string, string> Params { get; init; } = new();
+
+    /// <summary>PDK device name (required at EL).</summary>
+    public string? PdkDevice { get; init; }
+}
+
+/// <summary>
+/// Connection statement.
+/// </summary>
+public sealed class ConnectionStatement
+{
+    /// <summary>Source terminal path.</summary>
+    public string From { get; init; } = string.Empty;
+
+    /// <summary>Destination net.</summary>
+    public string To { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Represents a parameter value that may be symbolic or numeric.
+/// </summary>
+public sealed class ParamValue
+{
+    /// <summary>Symbolic expression (e.g., "$Auto", "$ratio").</summary>
+    public string? Symbolic { get; init; }
+
+    /// <summary>Numeric value with optional unit (e.g., "1u", "100n", "1.8V").</summary>
+    public string? Numeric { get; init; }
+
+    /// <summary>String literal value.</summary>
+    public string? Literal { get; init; }
+}
+
+/// <summary>
+/// Constraints block.
+/// </summary>
+public sealed class ConstraintsBlock
+{
+    /// <summary>Numeric constraints.</summary>
+    public List<NumericConstraint> Numeric { get; init; } = new();
+
+    /// <summary>Technology constraints.</summary>
+    public List<TechConstraint> Tech { get; init; } = new();
+
+    /// <summary>Graph constraints.</summary>
+    public List<GraphConstraint> Graph { get; init; } = new();
+
+    /// <summary>Measurement intents.</summary>
+    public List<MeasureIntent> Measure { get; init; } = new();
+}
+
+/// <summary>
+/// Numeric constraint.
+/// </summary>
+public sealed class NumericConstraint
+{
+    public string Id { get; init; } = string.Empty;
+    public string Metric { get; init; } = string.Empty;
+    public string? Node { get; init; }
+    public string Op { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+    public string Unit { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Technology constraint.
+/// </summary>
+public sealed class TechConstraint
+{
+    public string Id { get; init; } = string.Empty;
+    public string Param { get; init; } = string.Empty;
+    public string Op { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+    public string Unit { get; init; } = string.Empty;
+    public string Scope { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Graph constraint.
+/// </summary>
+public sealed class GraphConstraint
+{
+    public string Id { get; init; } = string.Empty;
+    public string Rule { get; init; } = string.Empty;
+    public Dictionary<string, string> Properties { get; init; } = new();
+}
+
+/// <summary>
+/// Measurement intent.
+/// </summary>
+public sealed class MeasureIntent
+{
+    public string Id { get; init; } = string.Empty;
+    public string Bench { get; init; } = string.Empty;
+    public string Metric { get; init; } = string.Empty;
+    public string? Node { get; init; }
+}
+
+/// <summary>
+/// Harness block.
+/// </summary>
+public sealed class HarnessBlock
+{
+    public List<SupplyValue> Supplies { get; init; } = new();
+    public List<SourceValue> Sources { get; init; } = new();
+    public List<LoadValue> Loads { get; init; } = new();
+    public IcmrRange? Icmr { get; init; }
+    public List<string> Pvt { get; init; } = new();
+}
+
+/// <summary>
+/// Supply value in harness.
+/// </summary>
+public sealed class SupplyValue
+{
+    public string Net { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Source value in harness.
+/// </summary>
+public sealed class SourceValue
+{
+    public string Net { get; init; } = string.Empty;
+    public string? Z { get; init; }
+    public string? Unit { get; init; }
+}
+
+/// <summary>
+/// Load value in harness.
+/// </summary>
+public sealed class LoadValue
+{
+    public string Net { get; init; } = string.Empty;
+    public string? C { get; init; }
+    public string? Unit { get; init; }
+}
+
+/// <summary>
+/// ICMR range.
+/// </summary>
+public sealed class IcmrRange
+{
+    public string Min { get; init; } = string.Empty;
+    public string Max { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Benches block.
+/// </summary>
+public sealed class BenchesBlock
+{
+    public List<BenchConfig> Benches { get; init; } = new();
+}
+
+/// <summary>
+/// Bench configuration.
+/// </summary>
+public sealed class BenchConfig
+{
+    public string Name { get; init; } = string.Empty;
+    public Dictionary<string, string> Config { get; init; } = new();
+}
+
+/// <summary>
+/// Provenance block.
+/// </summary>
+public sealed class ProvenanceBlock
+{
+    public List<SourceReference> Sources { get; init; } = new();
+    public List<string> Transforms { get; init; } = new();
+    public Dictionary<string, string> Aliases { get; init; } = new();
+}
+
+/// <summary>
+/// Source reference in provenance.
+/// </summary>
+public sealed class SourceReference
+{
+    public string File { get; init; } = string.Empty;
+    public int? FromLine { get; init; }
+    public int? ToLine { get; init; }
+}
+
