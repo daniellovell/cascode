@@ -395,6 +395,18 @@ public static class ACIRReader
                 });
             }
         }
+        else if (line.StartsWith("bias "))
+        {
+            var match = Regex.Match(line, @"^bias\s+(\w+)\s*=\s*(.+)$");
+            if (match.Success)
+            {
+                harness.Biases.Add(new BiasValue
+                {
+                    Net = match.Groups[1].Value,
+                    Value = match.Groups[2].Value.Trim()
+                });
+            }
+        }
     }
 
     /// <summary>

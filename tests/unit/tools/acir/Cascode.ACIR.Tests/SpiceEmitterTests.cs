@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Cascode.ACIR;
 using Cascode.TestSupport;
 using Xunit;
@@ -209,6 +210,138 @@ public class SpiceEmitterTests
         Assert.Contains(".control", output);
         Assert.Contains("ac dec 100 1 10G", output);
         Assert.Contains(".end", output);
+    }
+
+    [Fact]
+    public void EmitDesign_CommonSourceAmp_MatchesGolden()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+        var goldenSpicePath = Path.Combine(repoRoot, "tests/golden/spice/cs/CommonSourceAmp.sp");
+
+        // Read ACIR
+        using var acirReader = File.OpenText(acirPath);
+        var doc = ACIRReader.Read(acirReader);
+
+        Assert.Single(doc.Circuits);
+        var circuit = doc.Circuits[0];
+        Assert.Equal(ACIRLevel.EL, circuit.Level);
+
+        // Emit SPICE
+        using var spiceWriter = new StringWriter();
+        SpiceEmitter.EmitDesign(circuit, spiceWriter);
+        var actualSpice = spiceWriter.ToString();
+
+        // Compare to golden
+        var expectedSpice = File.ReadAllText(goldenSpicePath);
+        Assert.Equal(Normalize(expectedSpice), Normalize(actualSpice));
+    }
+
+    [Fact]
+    public void ACIRReader_ParsesCommonSourceAmpWithBias()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+
+        using var reader = File.OpenText(acirPath);
+        var doc = ACIRReader.Read(reader);
+
+        Assert.Single(doc.Circuits);
+        var circuit = doc.Circuits[0];
+        Assert.Equal("CommonSourceAmp", circuit.Name);
+        Assert.Equal(ACIRLevel.EL, circuit.Level);
+
+        // Ports
+        Assert.Equal(3, circuit.Ports.Count);
+        Assert.Contains(circuit.Ports, p => p.Name == "IN");
+        Assert.Contains(circuit.Ports, p => p.Name == "OUT");
+        Assert.Contains(circuit.Ports, p => p.Name == "VBIAS");
+
+        // Fill block with 2 devices
+        Assert.NotNull(circuit.Fill);
+        Assert.Equal(2, circuit.Fill.Devices.Count);
+
+        // Harness with bias
+        Assert.NotNull(circuit.Harness);
+        Assert.Single(circuit.Harness.Supplies);
+        Assert.Single(circuit.Harness.Biases);
+        Assert.Equal("VBIAS", circuit.Harness.Biases[0].Net);
+        Assert.Equal("0.7V", circuit.Harness.Biases[0].Value);
+
+        // Bench
+        Assert.NotNull(circuit.Benches);
+        Assert.Single(circuit.Benches.Benches);
+        Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
+    }
+
+    [Fact]
+    public void EmitDesign_CSAmpResistive_MatchesGolden()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+        var goldenSpicePath = Path.Combine(repoRoot, "tests/golden/spice/cs/CSAmpResistive.sp");
+
+        // Read ACIR
+        using var acirReader = File.OpenText(acirPath);
+        var doc = ACIRReader.Read(acirReader);
+
+        Assert.Single(doc.Circuits);
+        var circuit = doc.Circuits[0];
+        Assert.Equal(ACIRLevel.EL, circuit.Level);
+
+        // Emit SPICE
+        using var spiceWriter = new StringWriter();
+        SpiceEmitter.EmitDesign(circuit, spiceWriter);
+        var actualSpice = spiceWriter.ToString();
+
+        // Compare to golden
+        var expectedSpice = File.ReadAllText(goldenSpicePath);
+        Assert.Equal(Normalize(expectedSpice), Normalize(actualSpice));
+    }
+
+    [Fact]
+    public void ACIRReader_ParsesCSAmpResistiveWithResistor()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+
+        using var reader = File.OpenText(acirPath);
+        var doc = ACIRReader.Read(reader);
+
+        Assert.Single(doc.Circuits);
+        var circuit = doc.Circuits[0];
+        Assert.Equal("CSAmpResistive", circuit.Name);
+        Assert.Equal(ACIRLevel.EL, circuit.Level);
+
+        // Ports (no VBIAS - simpler than active load version)
+        Assert.Equal(2, circuit.Ports.Count);
+        Assert.Contains(circuit.Ports, p => p.Name == "IN");
+        Assert.Contains(circuit.Ports, p => p.Name == "OUT");
+
+        // Fill block with 2 devices: 1 NMOS + 1 resistor
+        Assert.NotNull(circuit.Fill);
+        Assert.Equal(2, circuit.Fill.Devices.Count);
+
+        // Verify we have both device types
+        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "nmos");
+        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "resistor");
+
+        // Verify resistor parameters
+        var resistor = circuit.Fill.Devices.First(d => d.DeviceType == "resistor");
+        Assert.Equal("R_load", resistor.Id);
+        Assert.Equal("VDD", resistor.Bindings["P"]);
+        Assert.Equal("OUT", resistor.Bindings["N"]);
+        Assert.Equal("10k", resistor.Params["R"]);
+
+        // Harness without bias (simpler)
+        Assert.NotNull(circuit.Harness);
+        Assert.Single(circuit.Harness.Supplies);
+        Assert.Empty(circuit.Harness.Biases);
+
+        // Bench
+        Assert.NotNull(circuit.Benches);
+        Assert.Single(circuit.Benches.Benches);
+        Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
     }
 
     private static string Normalize(string text)

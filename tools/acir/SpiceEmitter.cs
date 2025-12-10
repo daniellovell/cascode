@@ -331,6 +331,12 @@ public static class SpiceEmitter
             writer.WriteLine($"V{supply.Net} {supply.Net} 0 DC {supply.Value}");
         }
 
+        // Bias voltage sources (DC only, no AC)
+        foreach (var bias in harness.Biases)
+        {
+            writer.WriteLine($"V{bias.Net} {bias.Net} 0 DC {bias.Value}");
+        }
+
         // Input sources - simplified: DC bias with AC stimulus
         foreach (var source in harness.Sources)
         {

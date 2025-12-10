@@ -563,19 +563,26 @@ Measurement intents specify what metrics should be extracted from simulation.
 
 ## 3.6 Harness: Environment for Benches
 
-The harness holds bench-only elements derived from ADL env blocks: supply values, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS.
+The harness holds bench-only elements derived from ADL env blocks: supply values, bias voltages, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS.
 
 ```
 harness:
   supply VDD = 1.8V
   supply VDDIO = 3.3V
+  bias VBIAS = 0.7V
   source IN Z=50 Ohm
   load OUT C=1p F
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
 ```
 
-### 3.6.1 Bench Configuration
+### 3.6.1 Bias Resolution
+
+Ports declared with domain `bias` represent DC operating points that must be resolved to specific voltage values before simulation. During the ML→EL transition, the sizing and biasing engine determines appropriate bias voltages based on the circuit topology and performance requirements. These resolved values appear in the harness block as `bias NET = VALUE` entries.
+
+For example, a common-source amplifier with a PMOS active load requires a gate bias voltage to set the load device's operating point. The biasing engine selects a voltage that places the output near mid-rail while maintaining adequate headroom for signal swing. This value is recorded in the harness and emitted as an ideal DC voltage source during SPICE testbench generation.
+
+### 3.6.2 Bench Configuration
 
 ACIR lists selected benches and their configurations for reproducibility.
 
@@ -929,6 +936,7 @@ circuit CSAmplifier
 
   harness:
     supply VDD = 1.8V
+    bias vb1 = 0.7V
     load vout C=1p F
     source vin Z=50 Ohm
     pvt TT@27C
@@ -937,6 +945,8 @@ circuit CSAmplifier
     SEAmpACBench
     Step
 ```
+
+The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bias. This value was determined during ML→EL elaboration to place the output at approximately mid-rail (0.9V) under nominal operating conditions.
 
 ---
 
