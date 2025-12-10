@@ -1,5 +1,5 @@
-* OTA5TSingleEnded_SEAmplifierACBench - Generated from ACIR EL
-.title OTA5TSingleEnded_SEAmplifierACBench
+* OTA5TSingleEnded_SEOpAmpACBench - Generated from ACIR EL
+.title OTA5TSingleEnded_SEOpAmpACBench
 
 * Generic MOSFET models for simulation
 .model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04

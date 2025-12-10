@@ -295,7 +295,7 @@ public sealed class MeasureIntent
     /// <summary>Unique identifier for this measurement (e.g., "m_gbw").</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Benchmark to run for this measurement (e.g., "SEAmplifierACBench").</summary>
+    /// <summary>Benchmark to run for this measurement (e.g., "SEOpAmpACBench").</summary>
     public string Bench { get; init; } = string.Empty;
 
     /// <summary>The metric to measure (e.g., "GainBandwidth", "RiseTime").</summary>

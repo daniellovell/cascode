@@ -25,11 +25,11 @@ circuit OTA5TSingleEnded
     tech:
       t_lmin : L >= 180n m on *
     measure:
-      m_gbw : SEAmplifierACBench GainBandwidth @ OUT
-      m_gain : SEAmplifierACBench PassbandGain @ OUT
-      m_pm : SEAmplifierACBench PhaseMargin @ OUT
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
+      m_gain : SEOpAmpACBench PassbandGain @ OUT
+      m_pm : SEOpAmpACBench PhaseMargin @ OUT
   harness:
     supply VDD = 1.8V
     load OUT C=1p F
   benches:
-    SEAmplifierACBench
+    SEOpAmpACBench

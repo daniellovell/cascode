@@ -163,7 +163,7 @@ public class SpiceEmitterTests
         // Benches
         Assert.NotNull(circuit.Benches);
         Assert.Single(circuit.Benches.Benches);
-        Assert.Equal("SEAmplifierACBench", circuit.Benches.Benches[0].Name);
+        Assert.Equal("SEOpAmpACBench", circuit.Benches.Benches[0].Name);
     }
 
     [Fact]

@@ -92,7 +92,7 @@ motif Test {
 
 // Five-transistor OTA (single-ended) built from DiffPair + CurrentMirror.
 // Synthesizable structural motif (no spec/bench blocks here).
-motif OTA5TSingleEnded implements SingleEndedAmplifier {
+motif OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD = 1.8V; ground GND;
 
   // Public interface (ALL CAPS ports; Diff bundle fields are P/N).

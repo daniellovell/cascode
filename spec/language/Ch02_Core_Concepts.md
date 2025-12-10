@@ -18,7 +18,7 @@ The cascode type system distinguishes three fundamental entities. A **module** r
 1) a **spec-only trait** that declares canonical metric names and contains no port definitions, or
 2) an **interface trait** that extends a spec-only trait, adding ports and mapping metrics to concrete bench outputs (see §2.11.3).
 
-This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
+This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedOpAmp` becomes eligible to fill `slot Core: SingleEndedOpAmp` while sharing the same metric names as `Amplifier`.
 
 #### Normative Requirements
 
@@ -36,7 +36,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 #### Trait Extension
 
 * Use `extend` to define an interface trait from a spec-only trait:
-  `trait SingleEndedAmplifier extend Amplifier { … }`.
+  `trait SingleEndedOpAmp extend Amplifier { … }`.
 * Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
 * Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait's port family evaluated at the same parameter values.
 
@@ -445,17 +445,17 @@ Informal syntax:
 trait Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swing; Power; NoiseIn; } }
 
 // Interface traits refine Amplifier by adding ports and mapping metrics.
-trait SingleEndedAmplifier extend Amplifier {
+trait SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]; supply VDD; ground GND;
   metrics {
-    GainBandwidth from SEAmplifierACBench.GainBandwidth;
-    PassbandGain  from SEAmplifierACBench.PassbandGain;
-    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
+    GainBandwidth from SEOpAmpACBench.GainBandwidth;
+    PassbandGain  from SEOpAmpACBench.PassbandGain;
+    PhaseMargin   from SEOpAmpACBench.PhaseMargin;
   }
 }
 
-bench SEAmplifierACBench {
-  spectre_template = "SEAmplifierACBench.tpl";
+bench SEOpAmpACBench {
+  spectre_template = "SEOpAmpACBench.tpl";
   metrics [ GainBandwidth: Hz, PassbandGain: dB, PhaseMargin: deg ]
 }
 ```
@@ -706,7 +706,7 @@ Library entities intended for synthesis **MUST** declare a **`char {}`** manifes
 
 ```cas
 char {
-  benches { SEAmplifierACBench; NoiseIn; Step; }          // characterization benches
+  benches { SEOpAmpACBench; NoiseIn; Step; }          // characterization benches
   pvt     { TT@27C, SS@-40C, FF@125C; }
   sweep   { CL:[0.5pF..5pF]; VDD:[1.0V..1.3V]; gmId:[10..22]V^-1; }
   fit     { GainBandwidth~GP("fit/gbw.gp"); PassbandGain~PWL("fit/gain.pwl");

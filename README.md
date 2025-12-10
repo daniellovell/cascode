@@ -90,7 +90,7 @@ In this example, the amplifier is defined by the specification and the **synthes
 ```java
 package analog.amp; import lib.ota.*;
 
-module AmpAuto implements SingleEndedAmplifier {
+module AmpAuto implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -121,9 +121,9 @@ module AmpAuto implements SingleEndedAmplifier {
   }
 
   // Testbenches for this topology are inherited from
-  // the `SingleEndedAmplifier` trait, but they may 
+  // the `SingleEndedOpAmp` trait, but they may 
   // be overriden, as shown below.
-  bench { SEAmplifierACBench; UnityUGF; Step; }
+  bench { SEOpAmpACBench; UnityUGF; Step; }
 }
 ```
 
@@ -132,7 +132,7 @@ module AmpAuto implements SingleEndedAmplifier {
 In this example, the amplifier is defined by the specification and the synthesis will choose the topology **from the allowed topologies**.
 
 ```java
-module AmpGuided implements SingleEndedAmplifier {
+module AmpGuided implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -164,7 +164,7 @@ Here the topology is manually defined using reusable building blocks, called "mo
 ```java
 package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
-module OTA5T implements SingleEndedAmplifier {
+module OTA5T implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -192,7 +192,7 @@ module OTA5T implements SingleEndedAmplifier {
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
-  bench { SEAmplifierACBench; UnityUGF; Step; }
+  bench { SEOpAmpACBench; UnityUGF; Step; }
 }
 ```
 
@@ -300,7 +300,7 @@ module SenseChainAuto {
 ```firrtl
 ACIR 1
 
-circuit OTA5T : SingleEndedAmplifier
+circuit OTA5T : SingleEndedOpAmp
   level ML
 
   supply VDD

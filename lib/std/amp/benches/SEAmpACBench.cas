@@ -1,0 +1,15 @@
+package lib.std.amp.benches;
+
+// AC bench for single-ended amplifiers (single-ended input, single-ended output).
+bench SEAmpACBench {
+  spectre_template = "SEAmpACBench.tpl";
+  metrics [
+    GainBandwidth: Hz,
+    PassbandGain: dB,
+    PhaseMargin: deg,
+    LowpassBandwidth: Hz,
+    HighpassBandwidth: Hz,
+    BandpassBandwidth: Hz
+  ]
+}
+

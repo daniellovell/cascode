@@ -246,7 +246,7 @@ When a single trait is required, it appears directly after the colon. When multi
 ```
 slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
 
-slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedAmplifier
+slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
   param maxPower = 1m
 
 slot driver (IN->sig, OUT->pad) : [BufferLike, HighDrive]
@@ -258,7 +258,7 @@ During the HL->ML transition, the synthesis engine resolves each slot to a concr
 
 ```
 ; HL
-slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedAmplifier
+slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
 
 ; ML (after synthesis resolves the slot)
 inst amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : OTA5TSingleEnded
@@ -515,7 +515,7 @@ constraints:
     g_path : path_exists IN.P -> OUT through CurrentMirror
 
   measure:
-    m_gbw : SEAmplifierACBench GainBandwidth @ OUT
+    m_gbw : SEOpAmpACBench GainBandwidth @ OUT
     m_rise : StepToggle RiseTime @ PAD
 ```
 
@@ -581,7 +581,7 @@ ACIR lists selected benches and their configurations for reproducibility.
 
 ```
 benches:
-  SEAmplifierACBench
+  SEOpAmpACBench
   StepToggle:
     node = COMP_OUT
     freq = 50M Hz
@@ -604,11 +604,11 @@ Slots are declared using the `slot` keyword followed by an identifier, connectio
 All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ```
-circuit OTA : SingleEndedAmplifier
+circuit OTA : SingleEndedOpAmp
   level HL
   ...
   slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
-  slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : [SingleEndedAmplifier, LowPower]
+  slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : [SingleEndedOpAmp, LowPower]
 ```
 
 **Syntax:**
@@ -625,7 +625,7 @@ The slot declaration captures the interface contract (connections) and the behav
 Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
 
 ```
-circuit OTA : SingleEndedAmplifier
+circuit OTA : SingleEndedOpAmp
   level ML
   ...
   fill:
@@ -727,7 +727,7 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded : SingleEndedAmplifier
+circuit OTA5TSingleEnded : SingleEndedOpAmp
   level ML
   package analog.ota
 
@@ -837,7 +837,7 @@ circuit OTA5TSingleEnded
       t_lmin : L >= 180n m on *
 
     measure:
-      m_gbw : SEAmplifierACBench GainBandwidth @ OUT
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
 
   harness:
     supply VDD = 1.8V
@@ -846,7 +846,7 @@ circuit OTA5TSingleEnded
     pvt TT@27C
 
   benches:
-    SEAmplifierACBench
+    SEOpAmpACBench
     Step
 ```
 
@@ -925,7 +925,7 @@ circuit CSAmplifier
       t_lmin : L >= 180n m on *
 
     measure:
-      m_gbw : SEAmplifierACBench GainBandwidth @ vout
+      m_gbw : SEAmpACBench GainBandwidth @ vout
 
   harness:
     supply VDD = 1.8V
@@ -934,7 +934,7 @@ circuit CSAmplifier
     pvt TT@27C
 
   benches:
-    SEAmplifierACBench
+    SEAmpACBench
     Step
 ```
 

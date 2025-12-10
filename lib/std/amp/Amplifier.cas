@@ -2,7 +2,7 @@ package lib.std.amp;
 
 // Trait: Amplifier (spec-only)
 // Declares canonical metric names; no ports are defined here.
-// Interface traits (e.g., SingleEndedAmplifier, FullyDiffAmplifier)
+// Interface traits (e.g., SingleEndedOpAmp, SingleEndedAmp, FullyDiffAmplifier)
 // refine this trait by adding ports and mapping metrics to benches.
 trait Amplifier {
   metrics { 
