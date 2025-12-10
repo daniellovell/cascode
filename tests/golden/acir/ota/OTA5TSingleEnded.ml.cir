@@ -19,4 +19,15 @@ circuit OTA5TSingleEnded : SingleEndedAmplifier
       IN.N -> IN_N
       IN.P -> IN_P
       OUT.N -> OUT
-
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 100M Hz
+      c_gain : PassbandGain @ OUT >= 40 dB
+      c_pm : PhaseMargin @ OUT >= 60 deg
+      c_pwr : Power <= 500u W
+    tech:
+      t_lmin : L >= 180n m on *
+    measure:
+      m_gbw : SEAmplifierACBench GainBandwidth @ OUT
+      m_gain : SEAmplifierACBench PassbandGain @ OUT
+      m_pm : SEAmplifierACBench PhaseMargin @ OUT

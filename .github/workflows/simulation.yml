@@ -1,0 +1,39 @@
+name: simulation-ci
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'tests/golden/spice/**'
+      - 'tests/simulation/**'
+      - 'tools/acir/**'
+      - '.github/workflows/simulation.yml'
+  pull_request:
+    paths:
+      - 'tests/golden/spice/**'
+      - 'tests/simulation/**'
+      - 'tools/acir/**'
+      - '.github/workflows/simulation.yml'
+
+jobs:
+  ngspice-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: tests/simulation/environment.yml
+          environment-name: cascode-sim
+          cache-environment: true
+
+      - name: Verify ngspice installation
+        shell: bash -el {0}
+        run: ngspice --version
+
+      - name: Run simulation tests
+        shell: bash -el {0}
+        run: ./tests/simulation/verify_golden_spice.sh --verbose
+

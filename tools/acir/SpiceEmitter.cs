@@ -19,9 +19,17 @@ namespace Cascode.ACIR;
 /// - MOSFETs: D G S B (drain, gate, source, bulk)
 /// - Two-terminal devices (R, C, L): P N (positive, negative)
 /// - Diodes: A K (anode, cathode)
+/// 
+/// When devices use generic model names (nmos, pmos) without PDK-specific models,
+/// the emitter includes Level-1 MOSFET model definitions for ngspice simulation.
 /// </remarks>
 public static class SpiceEmitter
 {
+    private static readonly HashSet<string> GenericMosfetModels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "nmos", "pmos"
+    };
+
     /// <summary>
     /// Emits a SPICE subcircuit definition for an EL-level circuit.
     /// </summary>
@@ -122,6 +130,14 @@ public static class SpiceEmitter
         writer.WriteLine($"* {title} - Generated from ACIR EL");
         writer.WriteLine($".title {title}");
         writer.WriteLine();
+
+        // Emit generic model definitions if circuit uses generic devices
+        var genericModels = GetRequiredGenericModels(circuit);
+        if (genericModels.Count > 0)
+        {
+            EmitGenericModels(genericModels, writer);
+            writer.WriteLine();
+        }
 
         // Include design
         writer.WriteLine($".include \"{designPath}\"");
@@ -400,6 +416,55 @@ public static class SpiceEmitter
 
         writer.WriteLine("quit");
         writer.WriteLine(".endc");
+    }
+
+    /// <summary>
+    /// Determines which generic MOSFET models are needed based on device declarations.
+    /// </summary>
+    /// <param name="circuit">The circuit to analyze.</param>
+    /// <returns>Set of generic model names that need definitions.</returns>
+    private static HashSet<string> GetRequiredGenericModels(Circuit circuit)
+    {
+        var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (circuit.Fill?.Devices is null)
+        {
+            return required;
+        }
+
+        foreach (var device in circuit.Fill.Devices)
+        {
+            var modelName = device.PdkDevice ?? device.DeviceType;
+            if (GenericMosfetModels.Contains(modelName))
+            {
+                required.Add(modelName.ToLowerInvariant());
+            }
+        }
+
+        return required;
+    }
+
+    /// <summary>
+    /// Emits Level-1 MOSFET model definitions for ngspice simulation.
+    /// </summary>
+    /// <param name="models">Set of model names to emit (nmos, pmos).</param>
+    /// <param name="writer">Text writer for output.</param>
+    private static void EmitGenericModels(HashSet<string> models, TextWriter writer)
+    {
+        writer.WriteLine("* Generic MOSFET models for simulation");
+        foreach (var model in models.OrderBy(m => m, StringComparer.Ordinal))
+        {
+            var modelLine = model switch
+            {
+                "nmos" => ".model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
+                "pmos" => ".model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
+                _ => null
+            };
+            if (modelLine is not null)
+            {
+                writer.WriteLine(modelLine);
+            }
+        }
     }
 }
 
