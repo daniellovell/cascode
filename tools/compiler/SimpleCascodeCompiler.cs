@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cascode.CasIR;
+using Cascode.ACIR;
 using Cascode.Parser;
 
 namespace Cascode.Compiler;
@@ -15,12 +15,12 @@ namespace Cascode.Compiler;
 public sealed class SimpleCascodeCompiler : ICascodeCompiler
 {
     /// <summary>
-    /// Parses, elaborates, and lowers the provided sources into a CasIR document.
+    /// Parses, elaborates, and lowers the provided sources into an ACIR document.
     /// </summary>
     /// <param name="sources">Compilation units to process. Only the first unit is consumed in v0.</param>
-    /// <param name="options">Compilation options controlling the target CasIR level.</param>
-    /// <returns>Compilation result containing either CasIR output or error diagnostics.</returns>
-    public CompileResult CompileToCasir(
+    /// <param name="options">Compilation options controlling the target ACIR level.</param>
+    /// <returns>Compilation result containing either ACIR output or error diagnostics.</returns>
+    public CompileResult CompileToACIR(
         IReadOnlyList<SourceUnit> sources,
         CompileOptions options)
     {
@@ -41,7 +41,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             return new CompileResult
             {
-                CasIR = null,
+                ACIR = null,
                 Diagnostics = diagnostics
             };
         }
@@ -60,7 +60,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             };
             return new CompileResult
             {
-                CasIR = null,
+                ACIR = null,
                 Diagnostics = compilerDiagnostics
             };
         }
@@ -72,39 +72,16 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             return new CompileResult
             {
-                CasIR = null,
+                ACIR = null,
                 Diagnostics = elaborationDiagnostics
             };
         }
 
-        // Collect referenced motif types
-        var referencedTypes = design.Instances.Values
-            .Select(i => i.Type)
-            .ToHashSet(StringComparer.Ordinal);
-
-        // Resolve imports and collect definitions
-        List<MotifDefinition>? definitions = null;
-        if (options.LibraryRoots is { Count: > 0 })
-        {
-            var resolver = new ImportResolver(options.LibraryRoots);
-            var resolvedMotifs = resolver.ResolveImports(tree.Root, referencedTypes, elaborationDiagnostics);
-
-            if (resolvedMotifs.Count > 0)
-            {
-                definitions = resolvedMotifs
-                    .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
-                    .Select(kvp => ImportResolver.ToDefinition(
-                        kvp.Value,
-                        kvp.Value.FilePath.Contains("lib") ? ExtractPackage(kvp.Value.FilePath) : null))
-                    .ToList();
-            }
-        }
-
-        var casir = LowerToCasir(design, options, definitions);
+        var acir = LowerToACIR(design, options, motif, source.Path);
 
         return new CompileResult
         {
-            CasIR = casir,
+            ACIR = acir,
             Diagnostics = elaborationDiagnostics
         };
     }
@@ -229,10 +206,10 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     }
 
     /// <summary>
-    /// Maps a port kind token to the CasIR domain string used during lowering.
+    /// Maps a port kind token to the ACIR domain string used during lowering.
     /// </summary>
     /// <param name="kind">Case-sensitive kind value from the syntax tree.</param>
-    /// <returns>CasIR domain name.</returns>
+    /// <returns>ACIR domain name.</returns>
     private static string MapKindToDomain(string kind)
     {
         return kind switch
@@ -339,59 +316,107 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     }
 
     /// <summary>
-    /// Converts the elaborated structural design into a CasIR document.
+    /// Converts the elaborated structural design into an ACIR document.
     /// </summary>
     /// <param name="design">Structural design produced during elaboration.</param>
-    /// <param name="options">Compilation options that supply the target CasIR level.</param>
-    /// <param name="definitions">Optional motif definitions to include.</param>
-    /// <returns>CasIR document ready for serialization or further passes.</returns>
-    private static CasirDocument LowerToCasir(StructuralDesign design, CompileOptions options, List<MotifDefinition>? definitions)
+    /// <param name="options">Compilation options that supply the target ACIR level.</param>
+    /// <param name="motif">Original motif syntax for extracting package and traits.</param>
+    /// <param name="sourcePath">Source file path for package extraction.</param>
+    /// <returns>ACIR document ready for serialization or further passes.</returns>
+    private static ACIRDocument LowerToACIR(StructuralDesign design, CompileOptions options, MotifDeclarationSyntax motif, string sourcePath)
     {
-        var doc = new CasirDocument
+        var doc = new ACIRDocument
         {
-            Level = options.Level,
-            Definitions = definitions
+            Version = 1
         };
 
-        foreach (var net in design.Nets.Values.OrderBy(n => n.Id, StringComparer.Ordinal))
+        // Extract bundle types (Diff is built-in, but we can declare it explicitly)
+        var hasDiffBundle = design.Bundles.Values.Any(b => b.Id == "Diff" || design.Bundles.Count > 0);
+        if (hasDiffBundle)
         {
-            doc.Nets.Add(new Net
+            doc.BundleTypes.Add(new BundleType
             {
-                Id = net.Id,
-                Domain = net.Domain,
-                Rail = net.Rail
-            });
-        }
-
-        foreach (var bundle in design.Bundles.Values.OrderBy(b => b.Id, StringComparer.Ordinal))
-        {
-            doc.Bundles.Add(new Bundle
-            {
-                Id = bundle.Id,
-                Fields = new BundleFields
+                Name = "Diff",
+                Fields = new Dictionary<string, string>
                 {
-                    P = bundle.PNet,
-                    N = bundle.NNet
+                    { "P", "analog" },
+                    { "N", "analog" }
                 }
             });
         }
 
-        foreach (var instance in design.Instances.Values.OrderBy(i => i.Id, StringComparer.Ordinal))
+        var fill = BuildFillBlock(design, motif, options);
+
+        // Create circuit with all properties in initializer
+        var circuit = new Circuit
         {
-            var motif = new MotifInstance
-            {
-                Id = instance.Id,
-                Type = instance.Type
-            };
+            Name = motif.Name,
+            Level = options.Level,
+            Package = ExtractPackage(sourcePath),
+            Traits = motif.Implements.Count > 0 ? motif.Implements.ToList() : null,
+            Supplies = motif.Supplies.Select(s => s.Name).ToList(),
+            Grounds = motif.Grounds.Select(g => g.Name).ToList(),
+            Ports = motif.Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind }).ToList(),
+            Fill = fill
+        };
 
-            foreach (var kvp in instance.Ports.OrderBy(k => k.Key, StringComparer.Ordinal))
-            {
-                motif.Ports[kvp.Key] = kvp.Value;
-            }
+        doc.Circuits.Add(circuit);
+        return doc;
+    }
 
-            doc.Motifs.Add(motif);
+    /// <summary>
+    /// Constructs the fill block containing internal nets and instances for ML and EL ACIR levels.
+    /// </summary>
+    /// <param name="design">Structural design with nets, bundles, and instances.</param>
+    /// <param name="motif">Motif syntax for extracting port, supply, and ground declarations.</param>
+    /// <param name="options">Compilation options that determine the target ACIR level.</param>
+    /// <returns>Fill block with nets and instances, or null for HL level.</returns>
+    private static FillBlock? BuildFillBlock(StructuralDesign design, MotifDeclarationSyntax motif, CompileOptions options)
+    {
+        if (options.Level == ACIRLevel.HL)
+        {
+            return null;
         }
 
-        return doc;
+        // Internal nets (exclude ports, supplies, grounds which are implicit)
+        var portNets = new HashSet<string>();
+        foreach (var port in motif.Ports)
+        {
+            if (string.Equals(port.Kind, "Diff", StringComparison.OrdinalIgnoreCase))
+            {
+                portNets.Add(port.Name + "_P");
+                portNets.Add(port.Name + "_N");
+            }
+            else
+            {
+                portNets.Add(port.Name);
+            }
+        }
+        foreach (var supply in motif.Supplies)
+        {
+            portNets.Add(supply.Name);
+        }
+        foreach (var ground in motif.Grounds)
+        {
+            portNets.Add(ground.Name);
+        }
+
+        var nets = design.Nets.Values
+            .OrderBy(n => n.Id, StringComparer.Ordinal)
+            .Where(n => !portNets.Contains(n.Id))
+            .Select(n => new NetDeclaration { Id = n.Id, Domain = n.Domain })
+            .ToList();
+
+        var instances = design.Instances.Values
+            .OrderBy(i => i.Id, StringComparer.Ordinal)
+            .Select(i => new InstanceDeclaration
+            {
+                Id = i.Id,
+                Type = i.Type,
+                Bindings = new Dictionary<string, string>(i.Ports)
+            })
+            .ToList();
+
+        return new FillBlock { Nets = nets, Instances = instances };
     }
 }

@@ -306,6 +306,9 @@
         "resolved": "13.7.1",
         "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
       },
+      "cascode.acir": {
+        "type": "Project"
+      },
       "cascode.bench": {
         "type": "Project",
         "dependencies": {
@@ -313,9 +316,6 @@
           "Scriban": "[5.10.0, )",
           "YamlDotNet": "[13.7.1, )"
         }
-      },
-      "cascode.casir": {
-        "type": "Project"
       },
       "cascode.cli": {
         "type": "Project",
@@ -333,7 +333,7 @@
       "cascode.compiler": {
         "type": "Project",
         "dependencies": {
-          "Cascode.CasIR": "[1.0.0, )",
+          "Cascode.ACIR": "[1.0.0, )",
           "Cascode.Parser": "[1.0.0, )"
         }
       },

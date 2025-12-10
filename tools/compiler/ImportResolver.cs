@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Cascode.CasIR;
 using Cascode.Parser;
 
 namespace Cascode.Compiler;
@@ -160,71 +159,5 @@ internal sealed class ImportResolver
         }
     }
 
-    /// <summary>
-    /// Converts a motif syntax declaration to a CasIR definition.
-    /// </summary>
-    public static MotifDefinition ToDefinition(MotifDeclarationSyntax motif, string? package)
-    {
-        return new MotifDefinition
-        {
-            Name = motif.Name,
-            Package = package,
-            Implements = motif.Implements.Count > 0 ? motif.Implements.ToList() : null,
-            Params = ExtractParams(motif),
-            Ports = motif.Ports.Select(p => new PortDeclaration
-            {
-                Name = p.Name,
-                Kind = p.Kind
-            }).ToList(),
-            Supplies = motif.Supplies.Count > 0 ? motif.Supplies.Select(s => s.Name).ToList() : null,
-            Grounds = motif.Grounds.Count > 0 ? motif.Grounds.Select(g => g.Name).ToList() : null,
-            Instances = ExtractInstances(motif)
-        };
-    }
-
-    private static List<ParamDeclaration>? ExtractParams(MotifDeclarationSyntax motif)
-    {
-        // Parameters are captured in InstanceParameterSyntax format during parsing
-        // For definitions, we need to extract from the params block if present
-        // For now, we extract from instance parameters as a placeholder
-        // TODO: Add proper params block parsing to the grammar/AST
-        return null;
-    }
-
-    private static List<MotifInstance>? ExtractInstances(MotifDeclarationSyntax motif)
-    {
-        if (motif.UseBlock is null)
-        {
-            return null;
-        }
-
-        var instances = new List<MotifInstance>();
-        foreach (var stmt in motif.UseBlock.Statements)
-        {
-            if (stmt is InstanceDeclarationSyntax inst)
-            {
-                // Skip instances with empty type names (malformed due to parser limitations)
-                if (string.IsNullOrEmpty(inst.TypeName))
-                {
-                    continue;
-                }
-
-                var ports = new Dictionary<string, string>();
-                foreach (var binding in inst.Bindings)
-                {
-                    ports[binding.FromPin] = binding.ToPin;
-                }
-
-                instances.Add(new MotifInstance
-                {
-                    Id = inst.InstanceName,
-                    Type = inst.TypeName,
-                    Ports = ports
-                });
-            }
-        }
-
-        return instances.Count > 0 ? instances : null;
-    }
 }
 

@@ -4,7 +4,7 @@
 
 ### 1.1 Purpose and Scope
 
-**cascode** is a concise, object-oriented analog description language designed for **mixed structural-behavioral** circuit design. The language empowers designers to express both **intent** (specifications and operating environment) and **structure** (motifs and interconnect) within a unified source file (`.cas`), enabling seamless synthesis and verification through a canonical intermediate representation (**CasIR**, `.cir`) and standard **SPICE** netlists.
+**cascode** is a concise, object-oriented analog description language designed for **mixed structural-behavioral** circuit design. The language empowers designers to express both **intent** (specifications and operating environment) and **structure** (motifs and interconnect) within a unified source file (`.cas`), enabling seamless synthesis and verification through a canonical intermediate representation (**ACIR**, `.cir`) and standard **SPICE** netlists.
 
 The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit from the flexibility to work behaviorally with specification-driven design, structurally with schematic-style composition, or through hybrid approaches that combine both paradigms. Library authors can contribute **reusable, characterized motifs** - whether authored natively or wrapped from existing SPICE subcircuits - that integrate directly with the synthesis engine. Finally, automated tooling leverages cascode's structured representation to perform **topology selection**, **gm/Id sizing**, and comprehensive **SPICE verification**.
 
@@ -16,7 +16,7 @@ This specification defines the language surface, core semantics, and the artifac
 
 Analog and mixed-signal (A/MS) IP forms the foundation of high-performance systems, enabling critical functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance, analog design automation significantly lags behind RTL flows due to a fundamental issue: design **intent** is captured at inappropriate abstraction levels - through GUI schematics and raw SPICE netlists - that obscure essential **structure**, **roles**, and **constraints**. This **representation gap** systematically undermines **scalable synthesis** and optimization, prevents effective **reuse** of proven building blocks across different technologies, and inhibits **LLM-assisted** planning and diagnostics.
 
-**cascode** directly addresses these limitations through three architectural principles. First, the language elevates **intent to first-class status** by requiring explicit specifications, operating environments, and benchmark definitions. Second, it establishes **canonical structural representation** through named motifs, typed ports, well-defined roles, and recognizable patterns. Finally, it provides **CasIR**, a normalized graph representation designed for both automated tooling and machine learning applications.
+**cascode** directly addresses these limitations through three architectural principles. First, the language elevates **intent to first-class status** by requiring explicit specifications, operating environments, and benchmark definitions. Second, it establishes **canonical structural representation** through named motifs, typed ports, well-defined roles, and recognizable patterns. Finally, it provides **ACIR**, a normalized graph representation designed for both automated tooling and machine learning applications.
 
 ---
 
@@ -26,7 +26,7 @@ Analog and mixed-signal (A/MS) IP forms the foundation of high-performance syste
 
 The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
 
-Type safety extends to physical dimensions through **typed units** (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates **synthesis as a native construct** via `slot` and `synth` directives that automatically choose, size, and verify implementations. **Interoperability** with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, **traceability** ensures that CasIR preserves complete provenance, constraints, and benchmark intents.
+Type safety extends to physical dimensions through typed units (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates synthesis as a native construct via `slot` and `synth` directives that automatically choose, size, and verify implementations. Interoperability with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, traceability ensures that ACIR preserves complete provenance, constraints, and benchmark intents.
 
 #### Non-Goals
 
@@ -36,12 +36,12 @@ Several capabilities remain explicitly outside the language scope. cascode does 
 
 ### 1.4 Source Artifacts and File Types
 
-The cascode toolchain operates on three primary file types. **`.cas`** files contain cascode source code, encompassing modules, motifs, traits, specifications, and synthesis directives. **`.cir`** files represent the **CasIR** intermediate representation as typed graphs serialized in machine-readable formats (JSON, YAML, or CBOR) according to the schema defined in Chapter 7. Finally, **SPICE netlists** are generated for verification purposes, formatted according to simulator-specific requirements (such as Spectre).
+The cascode toolchain operates on three primary file types. **`.cas`** files contain cascode source code, encompassing modules, motifs, traits, specifications, and synthesis directives. **`.cir`** files represent the **ACIR** intermediate representation as line-oriented text format according to the specification in Chapter 3. Finally, **SPICE netlists** are generated for verification purposes, formatted according to simulator-specific requirements (such as Spectre).
 
 In summary:
 
 * **`.cas`** - *cascode* source (modules, motifs, traits, specs, synth directives).
-* **`.cir`** - **CasIR** intermediate representation (typed graph; machine-readable JSON/YAML/CBOR; schema in Chapter 7).
+* **`.cir`** - **ACIR** intermediate representation (line-oriented text format; see [Chapter 3](Ch03_ACIR.md)).
 * **SPICE netlists** - generated for verification (simulator-specific, e.g., Spectre).
 
 ---
@@ -230,25 +230,25 @@ motif WideSwingNMOSMirror implements CurrentMirror {
 
 ---
 
-### 1.6 CasIR and the Toolchain (Overview)
+### 1.6 ACIR and the Toolchain (Overview)
 
-The **compiler** transforms `.cas` source files into **CasIR** (`.cir`) intermediate representation, then orchestrates a comprehensive **synthesis and verification** pipeline. The compilation process encompasses seven distinct phases:
+The **compiler** transforms `.cas` source files into **ACIR** (`.cir`) intermediate representation, then orchestrates a comprehensive **synthesis and verification** pipeline. The compilation process encompasses seven distinct phases:
 
 1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`. Primitive transistors (`NMOS`, `PMOS`) are recognized and emit as topology-only motif instances.
-2. **CasIR Emission** generates a typed graph containing nets, ports, motif instances (including primitives), role tags, numeric and graph constraints, and benchmark intents. All representation remains process-agnostic.
+2. **ACIR Emission** generates a typed graph containing circuits, nets, instances/devices, terminal bindings, numeric and graph constraints, and benchmark intents. All representation remains process-agnostic.
 3. **Feasibility Guards** validate headroom stacks, input common-mode range (ICMR), gain-bandwidth versus power tradeoffs, and phase margin heuristics.
-4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of **Synthesizable** motifs and modules, guided by their **char** manifests.
+4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of Synthesizable motifs and modules, guided by their char manifests.
 5. **Sizing Initialization** leverages gm/Id lookup tables from the active PDK and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters. Primitive transistors are sized using the same methodology as structured motifs.
-6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics. By EL, primitives in CasIR carry the selected `impl.pdk_device`, which the SPICE emitter uses directly.
+6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics. By EL, primitive devices in ACIR carry PDK device names, which the SPICE emitter uses directly.
 7. **Optimization & Minimal Edits** performs sizing refinements and bounded structural modifications within the selected topology family.
 
-The pipeline produces three primary outputs: **CasIR** intermediate representation, **SPICE** netlists for simulation, and a **diagnostics report** that traces specification margins to responsible circuit blocks.
+The pipeline produces three primary outputs: **ACIR** intermediate representation, **SPICE** netlists for simulation, and a **diagnostics report** that traces specification margins to responsible circuit blocks.
 
 ---
 
 ### 1.7 Intended Audience
 
-This specification serves three primary audiences. **Designers** - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. **Library builders** encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. **Tool developers** focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
+This specification serves three primary audiences. Designers - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. Library builders encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. Tool developers focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
 
 ---
 
@@ -264,7 +264,7 @@ A *cascode* implementation is conformant if it:
 
 * accepts syntactically valid `.cas` programs (Chapter 11),
 * performs unit/type checks and emits diagnostic codes specified herein,
-* produces CasIR conforming to the Chapter 7 schema,
+* produces ACIR conforming to the Chapter 3 specification,
 * respects the semantics of `slot`/`synth`/`char` and bench intents,
 * and enforces contracts and structural typing rules in this specification.
 

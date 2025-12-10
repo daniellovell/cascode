@@ -1,12 +1,9 @@
-using System.Text.Json.Serialization;
-
-namespace Cascode.CasIR;
+namespace Cascode.ACIR;
 
 /// <summary>
-/// Defines the elaboration level of a CasIR document.
+/// Defines the elaboration level of an ACIR document.
 /// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum CasIRLevel
+public enum ACIRLevel
 {
     /// <summary>
     /// High Level: Slots are represented as instances; values/params may be symbolic.

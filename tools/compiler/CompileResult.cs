@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Cascode.CasIR;
+using Cascode.ACIR;
 using Cascode.Parser;
 
 namespace Cascode.Compiler;
@@ -10,9 +10,9 @@ namespace Cascode.Compiler;
 public sealed class CompileResult
 {
     /// <summary>
-    /// Lowered CasIR document when compilation succeeds; <c>null</c> if any fatal diagnostics were emitted.
+    /// Lowered ACIR document when compilation succeeds; <c>null</c> if any fatal diagnostics were emitted.
     /// </summary>
-    public CasirDocument? CasIR { get; init; }
+    public ACIRDocument? ACIR { get; init; }
 
     /// <summary>
     /// Diagnostics collected during parsing, elaboration, and lowering in source order.

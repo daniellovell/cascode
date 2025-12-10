@@ -210,7 +210,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 ## 2.8 Structural Composition Primitives
 
-#### Schematic-like sugar (all expand to primitives in CasIR)
+### Schematic-like sugar (all expand to primitives in ACIR)
 
 - `attach` - bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
 
@@ -227,7 +227,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 ### 2.8.1 Param‑Variants (sugar to avoid nested conditionals)
 
-Parameter‑driven structural choices are common (e.g., a device `p∈{NMOS,PMOS}` or a compensator style). To avoid verbose nested `if` blocks, the language introduces two pieces of sugar that desugar prior to CasIR emission:
+Parameter‑driven structural choices are common (e.g., a device `p∈{NMOS,PMOS}` or a compensator style). To avoid verbose nested `if` blocks, the language introduces two pieces of sugar that desugar prior to ACIR emission:
 
 1) Polarity‑polymorphic constructors (native type)
 
@@ -268,7 +268,7 @@ Normative
 
 - Declarations inside `ports { … }` are evaluated at elaboration time. Names declared in `ports[…]` are always present.
 - Conditional ports are compile‑time; call sites MUST bind all ports that exist after evaluation; names not declared MUST NOT be referenced.
-- CasIR contains only the realized port set.
+- ACIR contains only the realized port set.
 
 ### 2.8.3 Repeat Blocks and Indexed Ports
 
@@ -362,7 +362,7 @@ Syntax (informal)
 
 Semantics (normative)
 
-- Fan‑in: `TAP[family] -> SINK` (RHS single pin) expands to `connect TAP[i] -> SINK` for each index `i` selected on the LHS. Multiple identical connects to the same pair are deduplicated in CasIR.
+- Fan‑in: `TAP[family] -> SINK` (RHS single pin) expands to `connect TAP[i] -> SINK` for each index `i` selected on the LHS. Multiple identical connects to the same pair are deduplicated in ACIR.
 - Elementwise: `LHS family -> RHS family/field list` requires equal cardinality after evaluation. Expansion pairs items in order (first‑to‑first, second‑to‑second, …).
 - Family selectors are evaluated after parameter evaluation (for example, `taps`). Out‑of‑range indices and negative bounds are errors. Zero‑length families are errors.
 - Bundle field lists MUST reference existing fields and the count MUST match the LHS family size.
@@ -620,7 +620,7 @@ synth {
 
 ---
 
-## 2.14 Passive Devices: **Kinds** and **Scope**
+## 2.14 Passive Devices: Kinds and Scope
 
 The cascode language recognizes that not all passive elements serve equivalent purposes, distinguishing between **physical** and **notional** passives based on their role in the design flow.
 
@@ -675,21 +675,21 @@ M2 = new PMOS() {
 
 #### Process-agnostic semantics (normative)
 
-Primitive transistors are **topology-only constructs** in cascode source. They emit to CasIR as motif instances with type `"NMOS"` or `"PMOS"`, carrying port connectivity but **no dimensional parameters until synthesis**.
+Primitive transistors are **topology-only constructs** in cascode source. They emit to ACIR as device declarations at EL level, carrying terminal connectivity and sizing parameters.
 
 The synthesis engine:
 1. Consults the active **PDK database** to access gm/Id tables and technology rules
 2. Derives W, L, and `mult` from `spec{}` constraints (gain, bandwidth, power, etc.)
 3. Applies PDK-specific constraints (Lmin, discrete widths, finger limits)
-4. Emits sized parameters to CasIR at EL (Electrical Level)
+4. Emits sized parameters to ACIR at EL (Electrical Level)
 
-At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in CasIR as `impl.pdk_device` (e.g., `nfet_01v8`). SPICE emission uses this selected device directly.
+At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in ACIR device declarations (e.g., `sky130_fd_pr__nfet_01v8`). SPICE emission uses this selected device directly.
 
 #### Normative
 
 * Primitive transistors **MUST** have all four ports explicitly connected.
 * Dimensional parameters (W, L) **MUST NOT** be specified in ADL; they are synthesis outputs.
-* At EL, primitive transistors **MUST** carry `impl.pdk_device` in CasIR; earlier phases remain PDK‑agnostic.
+* At EL, primitive devices **MUST** carry PDK device names in ACIR; earlier phases remain PDK‑agnostic.
 * Primitives appearing in entities marked `Synthesizable` may be characterized with `char{}` manifests that are **process-qualified** (e.g., `char@sky130`).
 
 #### Use cases
@@ -818,4 +818,4 @@ clock phi; phase { phi: 500MHz, duty=50%, t_rise<=50ps; }
 
 Tools should report which constraints are **binding**, identify blocks that dominate **power**, **noise**, or **headroom** budgets, and suggest targeted edits such as "increase `L` on load" or "enable `MillerRz`" compensation.
 
-CasIR must record complete **provenance** information including the library entity chosen, parameter values, compensation style realized, and source `.cas` line ranges.
+ACIR must record complete **provenance** information including the library entity chosen, parameter values, compensation style realized, and source `.cas` line ranges.
