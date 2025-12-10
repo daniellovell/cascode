@@ -103,13 +103,19 @@ public static class ACIRBenchAdapter
 
         // Determine common-mode voltage (mid-supply default)
         var vcm = 0.9; // Default, can be overridden
-        if (circuit.Harness?.Supplies.Count > 0)
+        if (circuit.Harness?.Supplies?.Count > 0)
         {
             // Try to parse first supply value and use half
             var firstSupply = circuit.Harness.Supplies[0];
-            if (double.TryParse(firstSupply.Value.Replace("V", ""), out var supplyVal))
+            if (TryParseValue(firstSupply.Value, out var supplyVal))
             {
                 vcm = supplyVal / 2.0;
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Unable to parse supply value '{firstSupply.Value}' in harness for circuit '{circuit.Name}'. " +
+                    "Value must be a valid number (e.g. '1.8', '1.8V') to automatically determine common-mode voltage.");
             }
         }
 
@@ -305,63 +311,42 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Parses a constraint value string (e.g., "100M") into a double.
+    /// Only supports positive SI prefixes (T, G, M, K) since frequency constraints don't use sub-unity values.
     /// </summary>
-    private static bool TryParseConstraintValue(string valueStr, out double result)
-    {
-        result = 0;
-        if (string.IsNullOrWhiteSpace(valueStr))
-            return false;
-
-        valueStr = valueStr.Trim();
-        var multiplier = 1.0;
-
-        if (valueStr.Length > 0 && char.IsLetter(valueStr[^1]))
-        {
-            var lastChar = char.ToUpperInvariant(valueStr[^1]);
-            multiplier = lastChar switch
-            {
-                'T' => 1e12,
-                'G' => 1e9,
-                'M' => 1e6,
-                'K' => 1e3,
-                _ => 1.0
-            };
-            if (multiplier != 1.0)
-            {
-                valueStr = valueStr[..^1];
-            }
-        }
-
-        if (double.TryParse(valueStr, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var parsed))
-        {
-            result = parsed * multiplier;
-            return true;
-        }
-
-        return false;
-    }
+    private static bool TryParseConstraintValue(string valueStr, out double result) =>
+        TryParseSIValue(valueStr, out result, stripUnits: false, allowSubUnity: false);
 
     /// <summary>
     /// Tries to parse a value string with SI unit suffix into a double.
-    /// Supports k, M, G, m, u, n, p, f suffixes.
+    /// Supports full SI prefixes (k, M, G, T, m, u, n, p, f) and strips common unit suffixes.
     /// </summary>
-    private static bool TryParseValue(string valueStr, out double result)
+    private static bool TryParseValue(string valueStr, out double result) =>
+        TryParseSIValue(valueStr, out result, stripUnits: true, allowSubUnity: true);
+
+    /// <summary>
+    /// Core SI value parser with configurable behavior.
+    /// </summary>
+    /// <param name="valueStr">Input string to parse.</param>
+    /// <param name="result">Parsed numeric result.</param>
+    /// <param name="stripUnits">Whether to strip unit suffixes (V, F, ohm, Hz, etc.).</param>
+    /// <param name="allowSubUnity">Whether to recognize sub-unity prefixes (m, u, n, p, f).</param>
+    private static bool TryParseSIValue(string valueStr, out double result, bool stripUnits, bool allowSubUnity)
     {
         result = 0;
         if (string.IsNullOrWhiteSpace(valueStr))
             return false;
 
-        valueStr = valueStr.Trim();
+        var cleanedValue = valueStr.Trim();
 
-        // Remove common unit suffixes (V, F, ohm, Hz, etc.)
-        var cleanedValue = valueStr;
-        foreach (var suffix in new[] { "V", "F", "ohm", "Ohm", "Hz", "W", "A", "s", "S" })
+        if (stripUnits)
         {
-            if (cleanedValue.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            foreach (var suffix in new[] { "V", "F", "ohm", "Ohm", "Hz", "W", "A", "s", "S" })
             {
-                cleanedValue = cleanedValue[..^suffix.Length].Trim();
-                break;
+                if (cleanedValue.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanedValue = cleanedValue[..^suffix.Length].Trim();
+                    break;
+                }
             }
         }
 
@@ -369,35 +354,38 @@ public static class ACIRBenchAdapter
             return false;
 
         var multiplier = 1.0;
-        var lastChar = cleanedValue[^1];
-        if (char.IsLetter(lastChar))
+        if (char.IsLetter(cleanedValue[^1]))
         {
-            multiplier = char.ToUpperInvariant(lastChar) switch
+            var lastChar = cleanedValue[^1];
+            var upperChar = char.ToUpperInvariant(lastChar);
+
+            multiplier = upperChar switch
             {
                 'T' => 1e12,
                 'G' => 1e9,
                 'M' => 1e6,
                 'K' => 1e3,
-                'U' => 1e-6,
-                'N' => 1e-9,
-                'P' => 1e-12,
-                'F' => 1e-15,
+                'U' when allowSubUnity => 1e-6,
+                'N' when allowSubUnity => 1e-9,
+                'P' when allowSubUnity => 1e-12,
+                'F' when allowSubUnity => 1e-15,
                 _ => 1.0
             };
+
+            // Handle lowercase 'm' for milli separately (uppercase 'M' is mega)
+            if (allowSubUnity && lastChar == 'm')
+            {
+                multiplier = 1e-3;
+            }
+
             if (multiplier != 1.0)
             {
                 cleanedValue = cleanedValue[..^1];
             }
         }
 
-        // Handle lowercase 'm' for milli (after uppercase check)
-        if (cleanedValue.Length > 0 && cleanedValue[^1] == 'm')
-        {
-            multiplier = 1e-3;
-            cleanedValue = cleanedValue[..^1];
-        }
-
-        if (double.TryParse(cleanedValue, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        if (double.TryParse(cleanedValue, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var parsed))
         {
             result = parsed * multiplier;
             return true;
