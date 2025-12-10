@@ -620,7 +620,7 @@ synth {
 
 ---
 
-## 2.14 Passive Devices: **Kinds** and **Scope**
+## 2.14 Passive Devices: Kinds and Scope
 
 The cascode language recognizes that not all passive elements serve equivalent purposes, distinguishing between **physical** and **notional** passives based on their role in the design flow.
 

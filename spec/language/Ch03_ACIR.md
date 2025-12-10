@@ -24,11 +24,7 @@ Rules in the rest of this chapter tighten as you move from HL to ML to EL; §3.7
 
 ## 3.1 Design Principles
 
-The ACIR design prioritizes **connectivity as the primary concern**, establishing the terminal-to-net binding within each instance or slot as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The **uniform instance model** ensures that after desugaring, every ADL structure becomes instances (or slots at HL) with terminals and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded.
-
-**Deterministic text** output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. **Elaboration levels** provide flexibility through three distinct modes: HL (High Level, with `slot` declarations and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level.
-
-**Line-oriented format** ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. **Compact inline connections** using `terminal->net` syntax within parentheses reduce verbosity while maintaining explicit keyword-argument clarity, avoiding the fragility of positional syntax. **Source attribution** via `@[file:line]` annotations enables precise error messages and debugging. Finally, the **extensible, non-leaky** architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
+The ACIR design prioritizes connectivity as the primary concern, establishing the terminal-to-net binding within each instance or slot as the sole source of truth for edges, deliberately avoiding duplication in canonical form. The uniform instance model ensures that after desugaring, every ADL structure becomes instances (or slots at HL) with terminals and parameters, with syntactic sugar for constructs like attach, pair, and feedback already expanded. Deterministic text output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. Elaboration levels provide flexibility through three distinct modes: HL (High Level, with `slot` declarations and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level. Line-oriented format ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. Compact inline connections using `terminal->net` syntax within parentheses reduce verbosity while maintaining explicit keyword-argument clarity, avoiding the fragility of positional syntax. Source attribution via `@[file:line]` annotations enables precise error messages and debugging. Finally, the extensible non-leaky architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
 
 ---
 
@@ -451,9 +447,9 @@ fill:
 
 **Semantics:**
 
-- At **ML level**: The `fill:` block contains internal `net` declarations and `inst` declarations that result from slot resolution and elaboration.
-- At **EL level**: The `fill:` block contains internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).
-- At **HL level**: The `fill:` block is not used. Slots remain at the circuit body level since they represent requirements/contracts, not synthesized implementations.
+- At **ML level**, the `fill:` block contains internal `net` declarations and `inst` declarations resulting from slot resolution and elaboration.  
+- **EL level** uses the `fill:` block for internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).  
+- **HL level** does not use the `fill:` block; instead, slots remain at the circuit body level, representing requirements and contracts rather than synthesized implementations.
 
 **Net placement:**
 

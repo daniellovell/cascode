@@ -26,7 +26,7 @@ Analog and mixed-signal (A/MS) IP forms the foundation of high-performance syste
 
 The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
 
-Type safety extends to physical dimensions through **typed units** (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates **synthesis as a native construct** via `slot` and `synth` directives that automatically choose, size, and verify implementations. **Interoperability** with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, **traceability** ensures that ACIR preserves complete provenance, constraints, and benchmark intents.
+Type safety extends to physical dimensions through typed units (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates synthesis as a native construct via `slot` and `synth` directives that automatically choose, size, and verify implementations. Interoperability with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, traceability ensures that ACIR preserves complete provenance, constraints, and benchmark intents.
 
 #### Non-Goals
 
@@ -237,7 +237,7 @@ The **compiler** transforms `.cas` source files into **ACIR** (`.cir`) intermedi
 1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`. Primitive transistors (`NMOS`, `PMOS`) are recognized and emit as topology-only motif instances.
 2. **ACIR Emission** generates a typed graph containing circuits, nets, instances/devices, terminal bindings, numeric and graph constraints, and benchmark intents. All representation remains process-agnostic.
 3. **Feasibility Guards** validate headroom stacks, input common-mode range (ICMR), gain-bandwidth versus power tradeoffs, and phase margin heuristics.
-4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of **Synthesizable** motifs and modules, guided by their **char** manifests.
+4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of Synthesizable motifs and modules, guided by their char manifests.
 5. **Sizing Initialization** leverages gm/Id lookup tables from the active PDK and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters. Primitive transistors are sized using the same methodology as structured motifs.
 6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics. By EL, primitive devices in ACIR carry PDK device names, which the SPICE emitter uses directly.
 7. **Optimization & Minimal Edits** performs sizing refinements and bounded structural modifications within the selected topology family.
@@ -248,7 +248,7 @@ The pipeline produces three primary outputs: **ACIR** intermediate representatio
 
 ### 1.7 Intended Audience
 
-This specification serves three primary audiences. **Designers** - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. **Library builders** encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. **Tool developers** focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
+This specification serves three primary audiences. Designers - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. Library builders encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. Tool developers focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
 
 ---
 
