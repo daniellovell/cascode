@@ -115,11 +115,13 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 - `supply.value`: voltage value (e.g., `"1.8V"`)
 
 **harness.loads** (array of objects):
+
 ```scriban
 {{ for load in harness.loads }}
 C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
 {{ end }}
 ```
+
 - `load.net`: net name (e.g., `"OUT"`)
 - `load.c`: capacitance value (e.g., `"1p"`)
 

@@ -12,6 +12,16 @@ namespace Cascode.ACIR;
 public static class ACIRBenchAdapter
 {
     /// <summary>
+    /// Holds derived voltage and impedance parameters from harness.
+    /// </summary>
+    internal readonly record struct HarnessParameters(
+        double Vcm,
+        double BiasV,
+        double LoadC,
+        double SourceOhms,
+        double RloadOhms);
+
+    /// <summary>
     /// Converts an ACIR circuit and bench config to a TestbenchContext.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
@@ -30,145 +40,30 @@ public static class ACIRBenchAdapter
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bench);
 
-        // Build harness data structures (using List<object> for compatibility with ACIRTemplateHarness)
-        var harnessSupplies = new List<object>();
-        if (circuit.Harness?.Supplies != null)
-        {
-            foreach (var supply in circuit.Harness.Supplies)
-            {
-                harnessSupplies.Add(new Dictionary<string, object>
-                {
-                    ["net"] = supply.Net,
-                    ["value"] = supply.Value
-                });
-            }
-        }
-
-        // Also include biases as supplies
-        if (circuit.Harness?.Biases != null)
-        {
-            foreach (var bias in circuit.Harness.Biases)
-            {
-                harnessSupplies.Add(new Dictionary<string, object>
-                {
-                    ["net"] = bias.Net,
-                    ["value"] = bias.Value
-                });
-            }
-        }
-
-        var harnessLoads = new List<object>();
-        if (circuit.Harness?.Loads != null)
-        {
-            foreach (var load in circuit.Harness.Loads)
-            {
-                if (load.C != null)
-                {
-                    harnessLoads.Add(new Dictionary<string, object>
-                    {
-                        ["net"] = load.Net,
-                        ["c"] = load.C
-                    });
-                }
-            }
-        }
-
-        // Determine output node (first OUT port, or first port if no OUT)
-        var outNode = circuit.Ports.FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))?.Name
-            ?? circuit.Ports.FirstOrDefault()?.Name
-            ?? "OUT";
-
-        // Build port list for DUT instantiation
-        var portList = new List<string>();
-        foreach (var port in circuit.Ports)
-        {
-            portList.Add(port.Name);
-        }
-        foreach (var supply in circuit.Supplies)
-        {
-            portList.Add(supply);
-        }
-        foreach (var ground in circuit.Grounds)
-        {
-            portList.Add(ground);
-        }
-
-        // Check if circuit uses generic models
-        var genericModels = circuit.Fill?.Devices?.Any(d =>
-        {
-            var modelName = d.PdkDevice ?? d.DeviceType;
-            return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase) ||
-                   modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
-        }) ?? false;
-
-        // Determine common-mode voltage (mid-supply default)
-        var vcm = 0.9; // Default, can be overridden
-        if (circuit.Harness?.Supplies?.Count > 0)
-        {
-            // Try to parse first supply value and use half
-            var firstSupply = circuit.Harness.Supplies[0];
-            if (TryParseValue(firstSupply.Value, out var supplyVal))
-            {
-                vcm = supplyVal / 2.0;
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    $"Unable to parse supply value '{firstSupply.Value}' in harness for circuit '{circuit.Name}'. " +
-                    "Value must be a valid number (e.g. '1.8', '1.8V') to automatically determine common-mode voltage.");
-            }
-        }
-
-        var biasV = vcm; // Same for single-ended
-
-        // Extract load capacitance from harness (e.g., "load OUT C=1p F")
-        var loadC = 1e-12; // Default 1pF
-        if (circuit.Harness?.Loads?.Count > 0)
-        {
-            var firstLoad = circuit.Harness.Loads[0];
-            if (firstLoad.C != null && TryParseValue(firstLoad.C, out var parsedC))
-            {
-                loadC = parsedC;
-            }
-        }
-
-        // Extract source impedance from harness (e.g., "source IN Z=50 ohm")
-        var sourceOhms = 50.0; // Default 50 ohms
-        if (circuit.Harness?.Sources?.Count > 0)
-        {
-            var firstSource = circuit.Harness.Sources[0];
-            if (firstSource.Z != null && TryParseValue(firstSource.Z, out var parsedZ))
-            {
-                sourceOhms = parsedZ;
-            }
-        }
-
-        // Resistive load: use 1G ohm (essentially open) if not specified
-        var rloadOhms = 1e9;
-
-        // Derive AC sweep parameters from constraints
+        var harnessSupplies = BuildHarnessSuppliesAndBiases(circuit);
+        var harnessLoads = BuildHarnessLoads(circuit);
+        var outNode = DetermineOutNode(circuit);
+        var portList = BuildPortList(circuit);
+        var genericModels = UsesGenericModels(circuit);
+        var harnessParams = DeriveVoltageAndImpedance(circuit);
         var (acStartHz, acStopHz) = DeriveAcSweepFromConstraints(circuit);
 
-        // Design file is always .sp (from SpiceEmitter), regardless of simulator backend
         var designFile = $"{circuit.Name}.sp";
-
-        // Build args dictionary
         var args = new Dictionary<string, object?>
         {
-            ["harness"] = "acir_template", // Use ACIR template harness
+            ["harness"] = "acir_template",
             ["circuit_name"] = circuit.Name,
             ["design_file"] = designFile,
             ["port_list"] = string.Join(" ", portList),
             ["out_node"] = outNode,
             ["generic_models"] = genericModels,
-            ["vcm"] = vcm,
-            ["bias_v"] = biasV,
+            ["vcm"] = harnessParams.Vcm,
+            ["bias_v"] = harnessParams.BiasV,
             ["harness_supplies"] = harnessSupplies,
             ["harness_loads"] = harnessLoads,
-            // Spectre-specific env parameters derived from ACIR
-            ["source_ohms"] = sourceOhms,
-            ["cload_f"] = loadC,
-            ["rload_ohms"] = rloadOhms,
+            ["source_ohms"] = harnessParams.SourceOhms,
+            ["cload_f"] = harnessParams.LoadC,
+            ["rload_ohms"] = harnessParams.RloadOhms,
             ["ac_mag"] = 1.0,
             ["ac_start_hz"] = acStartHz,
             ["ac_stop_hz"] = acStopHz,
@@ -198,6 +93,170 @@ public static class ACIRBenchAdapter
             DeckPaths = Array.Empty<string>(),
             Args = args
         };
+    }
+
+    /// <summary>
+    /// Builds the combined list of harness supplies and biases for template rendering.
+    /// </summary>
+    internal static List<object> BuildHarnessSuppliesAndBiases(Circuit circuit)
+    {
+        var result = new List<object>();
+
+        if (circuit.Harness?.Supplies != null)
+        {
+            foreach (var supply in circuit.Harness.Supplies)
+            {
+                result.Add(new Dictionary<string, object>
+                {
+                    ["net"] = supply.Net,
+                    ["value"] = supply.Value
+                });
+            }
+        }
+
+        if (circuit.Harness?.Biases != null)
+        {
+            foreach (var bias in circuit.Harness.Biases)
+            {
+                result.Add(new Dictionary<string, object>
+                {
+                    ["net"] = bias.Net,
+                    ["value"] = bias.Value
+                });
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Builds the list of harness loads (capacitive loads) for template rendering.
+    /// </summary>
+    internal static List<object> BuildHarnessLoads(Circuit circuit)
+    {
+        var result = new List<object>();
+
+        if (circuit.Harness?.Loads == null)
+            return result;
+
+        foreach (var load in circuit.Harness.Loads)
+        {
+            if (load.C != null)
+            {
+                result.Add(new Dictionary<string, object>
+                {
+                    ["net"] = load.Net,
+                    ["c"] = load.C
+                });
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Determines the output node name from circuit ports.
+    /// Returns the first port named "OUT" (case-insensitive), or the first port, or "OUT" as fallback.
+    /// </summary>
+    internal static string DetermineOutNode(Circuit circuit)
+    {
+        return circuit.Ports
+            .FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))?.Name
+            ?? circuit.Ports.FirstOrDefault()?.Name
+            ?? "OUT";
+    }
+
+    /// <summary>
+    /// Builds the port list for DUT instantiation by combining ports, supplies, and grounds.
+    /// </summary>
+    internal static List<string> BuildPortList(Circuit circuit)
+    {
+        var result = new List<string>();
+
+        foreach (var port in circuit.Ports)
+            result.Add(port.Name);
+
+        foreach (var supply in circuit.Supplies)
+            result.Add(supply);
+
+        foreach (var ground in circuit.Grounds)
+            result.Add(ground);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Checks if the circuit uses generic device models (nmos/pmos without PDK binding).
+    /// </summary>
+    internal static bool UsesGenericModels(Circuit circuit)
+    {
+        return circuit.Fill?.Devices?.Any(d =>
+        {
+            var modelName = d.PdkDevice ?? d.DeviceType;
+            return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase) ||
+                   modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
+        }) ?? false;
+    }
+
+    /// <summary>
+    /// Derives voltage and impedance parameters from harness configuration.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when supply value cannot be parsed to determine common-mode voltage.
+    /// </exception>
+    internal static HarnessParameters DeriveVoltageAndImpedance(Circuit circuit)
+    {
+        var vcm = DeriveCommonModeVoltage(circuit);
+        var biasV = vcm;
+        var loadC = DeriveLoadCapacitance(circuit);
+        var sourceOhms = DeriveSourceImpedance(circuit);
+        const double rloadOhms = 1e9;
+
+        return new HarnessParameters(vcm, biasV, loadC, sourceOhms, rloadOhms);
+    }
+
+    private static double DeriveCommonModeVoltage(Circuit circuit)
+    {
+        const double defaultVcm = 0.9;
+
+        if (circuit.Harness?.Supplies == null || circuit.Harness.Supplies.Count == 0)
+            return defaultVcm;
+
+        var firstSupply = circuit.Harness.Supplies[0];
+        if (TryParseValue(firstSupply.Value, out var supplyVal))
+            return supplyVal / 2.0;
+
+        throw new InvalidOperationException(
+            $"Unable to parse supply value '{firstSupply.Value}' in harness for circuit '{circuit.Name}'. " +
+            "Value must be a valid number (e.g. '1.8', '1.8V') to automatically determine common-mode voltage.");
+    }
+
+    private static double DeriveLoadCapacitance(Circuit circuit)
+    {
+        const double defaultLoadC = 1e-12;
+
+        if (circuit.Harness?.Loads == null || circuit.Harness.Loads.Count == 0)
+            return defaultLoadC;
+
+        var firstLoad = circuit.Harness.Loads[0];
+        if (firstLoad.C != null && TryParseValue(firstLoad.C, out var parsedC))
+            return parsedC;
+
+        return defaultLoadC;
+    }
+
+    private static double DeriveSourceImpedance(Circuit circuit)
+    {
+        const double defaultSourceOhms = 50.0;
+
+        if (circuit.Harness?.Sources == null || circuit.Harness.Sources.Count == 0)
+            return defaultSourceOhms;
+
+        var firstSource = circuit.Harness.Sources[0];
+        if (firstSource.Z != null && TryParseValue(firstSource.Z, out var parsedZ))
+            return parsedZ;
+
+        return defaultSourceOhms;
     }
 
     /// <summary>

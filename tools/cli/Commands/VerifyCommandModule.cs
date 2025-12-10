@@ -47,24 +47,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        string? acirPath = null;
-        string? resultsPath = null;
-
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i] == "--acir" && i + 1 < args.Length)
-            {
-                acirPath = args[i + 1];
-                i++;
-            }
-            else if (args[i] == "--results" && i + 1 < args.Length)
-            {
-                resultsPath = args[i + 1];
-                i++;
-            }
-        }
-
-        if (acirPath == null || resultsPath == null)
+        if (!ParseArguments(args, out var acirPath, out var resultsPath))
         {
             _state.AddMessage("Error: Both --acir and --results are required.");
             return CommandResult.Failure;
@@ -123,7 +106,47 @@ internal sealed class VerifyCommandModule : ICommandModule
         // Check compliance
         var report = ComplianceChecker.Check(circuit, results);
 
-        // Display report
+        DisplayComplianceReport(circuit, report);
+
+        return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
+    }
+
+    /// <summary>
+    /// Parses command-line arguments to extract ACIR and results file paths.
+    /// </summary>
+    /// <param name="args">Command arguments array.</param>
+    /// <param name="acirPath">Output parameter for ACIR file path.</param>
+    /// <param name="resultsPath">Output parameter for results JSON file path.</param>
+    /// <returns>True if both arguments were found, false otherwise.</returns>
+    private static bool ParseArguments(string[] args, out string? acirPath, out string? resultsPath)
+    {
+        acirPath = null;
+        resultsPath = null;
+
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--acir" && i + 1 < args.Length)
+            {
+                acirPath = args[i + 1];
+                i++;
+            }
+            else if (args[i] == "--results" && i + 1 < args.Length)
+            {
+                resultsPath = args[i + 1];
+                i++;
+            }
+        }
+
+        return acirPath != null && resultsPath != null;
+    }
+
+    /// <summary>
+    /// Displays the compliance report for a circuit.
+    /// </summary>
+    /// <param name="circuit">The circuit being verified.</param>
+    /// <param name="report">The compliance report to display.</param>
+    private void DisplayComplianceReport(Circuit circuit, ComplianceReport report)
+    {
         _state.AddMessage($"Constraint Compliance Report for {circuit.Name}");
         _state.AddMessage(new string('-', 50));
 
@@ -144,8 +167,6 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         _state.AddMessage(new string('-', 50));
         _state.AddMessage($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
-
-        return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
     }
 
     private static string GetUnitFromConstraint(Circuit circuit, string constraintId)

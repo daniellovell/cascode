@@ -6,6 +6,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Cascode.ACIR.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="../bench/Cascode.Bench.csproj" />
   </ItemGroup>
 </Project>
