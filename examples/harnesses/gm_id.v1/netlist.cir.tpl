@@ -5,17 +5,17 @@
 
 .param L={{ params.l_m }} VGS={{ params.start }}
 
-{% for inc in includes %}
-{% if section %}.lib "{{ inc }}" {{ section }}{% else %}.include "{{ inc }}"{% endif %}
-{% endfor %}
+{{ for inc in includes }}
+{{ if section }}.lib "{{ inc }}" {{ section }}{{ else }}.include "{{ inc }}"{{ end }}
+{{ end }}
 
 * sources
 VGS g 0 VGS
-{% if params.drain_bias_mode == 'scaled' %}
+{{ if params.drain_bias_mode == 'scaled' }}
 VDR d 0 {{ params.drain_alpha }}*VGS
-{% else %}
+{{ else }}
 VDR d 0 {{ params.vds }}
-{% endif %}
+{{ end }}
 VBS b s {{ params.vsb }}
 
 * DUT (geometry params are supported where ngspice model accepts them)

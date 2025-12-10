@@ -3,12 +3,12 @@ simulator lang=spectre
 global 0
 
 // includes
-{% for inc in includes_with_section %}
-{% if section %}include "{{ inc }}" section={{ section }}{% else %}include "{{ inc }}"{% endif %}
-{% endfor %}
-{% for inc in includes_without_section %}
+{{ for inc in includes_with_section }}
+{{ if section }}include "{{ inc }}" section={{ section }}{{ else }}include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
 include "{{ inc }}"
-{% endfor %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Harness: unity-gain non-inverting with loop break at IN_N via iprobe
@@ -24,9 +24,9 @@ IPRB0 (OUT IN_N) iprobe
 
 // Nominal output load
 CLOAD (OUT vss) capacitor c={{ env.cload_f }}
-{% if env.rload_ohms is defined and env.rload_ohms > 0 %}
+{{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOAD (OUT vss) resistor r={{ env.rload_ohms }}
-{% endif %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Options and Analyses

@@ -3,12 +3,12 @@ simulator lang=spectre
 global 0
 
 // includes
-{% for inc in includes_with_section %}
-{% if section %}include "{{ inc }}" section={{ section }}{% else %}include "{{ inc }}"{% endif %}
-{% endfor %}
-{% for inc in includes_without_section %}
+{{ for inc in includes_with_section }}
+{{ if section }}include "{{ inc }}" section={{ section }}{{ else }}include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
 include "{{ inc }}"
-{% endfor %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Harness: differential sources via balun, source impedance, differential load
@@ -35,10 +35,10 @@ RINN (IN_N in_n_drv) resistor r={{ env.source_ohms/2 }}
 // Differential output loading
 CLOADP (OUT_P vss) capacitor c={{ env.cload_f }}
 CLOADN (OUT_N vss) capacitor c={{ env.cload_f }}
-{% if env.rload_ohms is defined and env.rload_ohms > 0 %}
+{{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP (OUT_P vss) resistor r={{ env.rload_ohms }}
 RLOADN (OUT_N vss) resistor r={{ env.rload_ohms }}
-{% endif %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Options and Analyses

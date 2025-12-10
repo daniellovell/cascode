@@ -3,12 +3,12 @@ simulator lang=spectre
 global 0
 
 // includes
-{% for inc in includes_with_section %}
-{% if section %}include "{{ inc }}" section={{ section }}{% else %}include "{{ inc }}"{% endif %}
-{% endfor %}
-{% for inc in includes_without_section %}
+{{ for inc in includes_with_section }}
+{{ if section }}include "{{ inc }}" section={{ section }}{{ else }}include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
 include "{{ inc }}"
-{% endfor %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Harness: large step via balun, source impedance, output load
@@ -31,9 +31,9 @@ RINP (IN_P in_p_drv) resistor r={{ env.source_ohms/2 }}
 RINN (IN_N in_n_drv) resistor r={{ env.source_ohms/2 }}
 
 CLOAD (OUT vss) capacitor c={{ env.cload_f }}
-{% if env.rload_ohms is defined and env.rload_ohms > 0 %}
+{{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOAD (OUT vss) resistor r={{ env.rload_ohms }}
-{% endif %}
+{{ end }}
 
 // ----------------------------------------------------------------------------
 // Options and Analyses
@@ -43,7 +43,7 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 dcOp dc write="spectre.dc" maxiters=150 maxsteps=10000 annotate=status
 
-tran tran stop={{ tran_stop_s }} errpreset=conservative {% if tran_maxstep_s is defined %}maxstep={{ tran_maxstep_s }}{% endif %} annotate=status
+tran tran stop={{ tran_stop_s }} errpreset=conservative {{ if tran_maxstep_s }}maxstep={{ tran_maxstep_s }}{{ end }} annotate=status
 
 saveOptions options save=allpub
 save IN_P IN_N OUT
