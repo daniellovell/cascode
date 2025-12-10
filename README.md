@@ -297,7 +297,7 @@ module SenseChainAuto {
 
 **ACIR snippet (for `OTA5T`, illustrative)**:
 
-```
+```firrtl
 ACIR 1
 
 circuit OTA5T : SingleEndedAmplifier

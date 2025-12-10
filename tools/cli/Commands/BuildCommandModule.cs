@@ -72,9 +72,8 @@ internal sealed class BuildCommandModule : ICommandModule
 
         try
         {
-            using var writer = new StringWriter();
+            using var writer = File.CreateText(outputPath);
             ACIRWriter.Write(result.ACIR, writer);
-            File.WriteAllText(outputPath, writer.ToString());
         }
         catch (Exception ex)
         {

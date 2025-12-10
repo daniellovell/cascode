@@ -257,7 +257,7 @@ public sealed class GraphConstraint
 {
     public string Id { get; init; } = string.Empty;
     public string Rule { get; init; } = string.Empty;
-    public Dictionary<string, object> Properties { get; init; } = new();
+    public Dictionary<string, string> Properties { get; init; } = new();
 }
 
 /// <summary>
