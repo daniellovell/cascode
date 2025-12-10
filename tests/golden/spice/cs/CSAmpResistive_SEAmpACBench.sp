@@ -20,7 +20,7 @@ COUT_load OUT 0 1p
 
 
 * DUT
-XDUT IN OUT VDD GND CSAmpResistive
+XDUT IN OUT VDD 0 CSAmpResistive
 
 .control
 op

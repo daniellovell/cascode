@@ -64,9 +64,6 @@ public static class ComplianceChecker
         var actual = measurement.Value;
         var passed = EvaluateOperator(constraint.Op, actual, expected);
 
-        var expectedStr = FormatValue(expected, constraint.Unit);
-        var actualStr = FormatValue(actual, measurement.Unit);
-
         return new ConstraintResult
         {
             Id = constraint.Id,
@@ -134,20 +131,21 @@ public static class ComplianceChecker
 
         if (valueStr.Length > 0 && char.IsLetter(valueStr[^1]))
         {
-            var lastChar = char.ToUpperInvariant(valueStr[^1]);
+            var suffix = valueStr[^1];
             numericPart = valueStr[..^1];
 
-            multiplier = lastChar switch
+            multiplier = suffix switch
             {
-                'K' => 1e3,
+                'k' or 'K' => 1e3,
                 'M' => 1e6,
-                'G' => 1e9,
-                'T' => 1e12,
-                'U' => 1e-6,
-                'N' => 1e-9,
-                'P' => 1e-12,
-                'F' => 1e-15,
-                _ => 1.0
+                'm' => 1e-3,
+                'G' or 'g' => 1e9,
+                'T' or 't' => 1e12,
+                'u' or 'U' => 1e-6,
+                'n' or 'N' => 1e-9,
+                'p' or 'P' => 1e-12,
+                'f' or 'F' => 1e-15,
+                _ => throw new FormatException($"Unrecognized unit suffix '{suffix}' in value: {valueStr}")
             };
         }
 
@@ -157,40 +155,6 @@ public static class ComplianceChecker
         }
 
         return value * multiplier;
-    }
-
-    private static string FormatValue(double value, string unit)
-    {
-        // Format value with appropriate unit prefix
-        if (Math.Abs(value) >= 1e9)
-        {
-            return $"{value / 1e9:G3}G {unit}";
-        }
-        if (Math.Abs(value) >= 1e6)
-        {
-            return $"{value / 1e6:G3}M {unit}";
-        }
-        if (Math.Abs(value) >= 1e3)
-        {
-            return $"{value / 1e3:G3}k {unit}";
-        }
-        if (Math.Abs(value) >= 1.0)
-        {
-            return $"{value:G3} {unit}";
-        }
-        if (Math.Abs(value) >= 1e-3)
-        {
-            return $"{value * 1e3:G3}m {unit}";
-        }
-        if (Math.Abs(value) >= 1e-6)
-        {
-            return $"{value * 1e6:G3}u {unit}";
-        }
-        if (Math.Abs(value) >= 1e-9)
-        {
-            return $"{value * 1e9:G3}n {unit}";
-        }
-        return $"{value:G3} {unit}";
     }
 }
 

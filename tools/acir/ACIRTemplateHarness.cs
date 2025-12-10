@@ -60,7 +60,6 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
     {
         // Extract circuit info from args
         var circuitName = ctx.Args.TryGetValue("circuit_name", out var cn) ? cn?.ToString() ?? "" : "";
-        var benchName = ctx.Spec.Name;
         var designFile = ctx.Args.TryGetValue("design_file", out var df) ? df?.ToString() ?? "" : "";
         var portList = ctx.Args.TryGetValue("port_list", out var pl) ? pl?.ToString() ?? "" : "";
         var outNode = ctx.Args.TryGetValue("out_node", out var on) ? on?.ToString() ?? "" : "";
@@ -68,7 +67,40 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         var vcm = ctx.Args.TryGetValue("vcm", out var vcmObj) ? Convert.ToDouble(vcmObj) : 0.9;
         var biasV = ctx.Args.TryGetValue("bias_v", out var bvObj) ? Convert.ToDouble(bvObj) : 0.9;
 
-        // Extract harness data
+        var harness = ExtractHarnessData(ctx);
+        var env = ExtractEnvironmentDefaults(ctx);
+        var (acMag, acStartHz, acStopHz) = ExtractAcSweepParams(ctx);
+
+        var spec = new { temperature_c = ctx.Spec.TemperatureC };
+
+        var includesWithSection = ctx.Args.TryGetValue("includes_with_section", out var iws)
+            && iws is IEnumerable<string> iwsL ? iwsL.ToList() : new List<string>();
+        var includesWithoutSection = ctx.Args.TryGetValue("includes_without_section", out var iwos)
+            && iwos is IEnumerable<string> iwosL ? iwosL.ToList() : new List<string>();
+
+        return new
+        {
+            circuit_name = circuitName,
+            bench_name = ctx.Spec.Name,
+            design_file = designFile,
+            port_list = portList,
+            out_node = outNode,
+            generic_models = genericModels,
+            vcm = vcm,
+            bias_v = biasV,
+            harness = harness,
+            env = env,
+            spec = spec,
+            ac_mag = acMag,
+            ac_start_hz = acStartHz,
+            ac_stop_hz = acStopHz,
+            includes_with_section = includesWithSection,
+            includes_without_section = includesWithoutSection
+        };
+    }
+
+    private static object ExtractHarnessData(TestbenchContext ctx)
+    {
         var supplies = new List<object>();
         if (ctx.Args.TryGetValue("harness_supplies", out var hs) && hs is IEnumerable<object> suppliesList)
         {
@@ -101,57 +133,30 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             }
         }
 
-        var harness = new
-        {
-            supplies = supplies,
-            loads = loads
-        };
+        return new { supplies = supplies, loads = loads };
+    }
 
-        // Build Spectre-specific env object with defaults
+    private static object ExtractEnvironmentDefaults(TestbenchContext ctx)
+    {
         var sourceOhms = ctx.Args.TryGetValue("source_ohms", out var so) ? Convert.ToDouble(so) : 50.0;
         var cloadF = ctx.Args.TryGetValue("cload_f", out var cl) ? Convert.ToDouble(cl) : 1e-12;
         var rloadOhms = ctx.Args.TryGetValue("rload_ohms", out var rl) ? Convert.ToDouble(rl) : 0.0;
-        var env = new
+
+        return new
         {
             source_ohms = sourceOhms,
             cload_f = cloadF,
             rload_ohms = rloadOhms
         };
+    }
 
-        // Build spec object for Spectre templates
-        var spec = new
-        {
-            temperature_c = ctx.Spec.TemperatureC
-        };
-
-        // Extract AC sweep parameters
+    private static (double AcMag, double AcStartHz, double AcStopHz) ExtractAcSweepParams(TestbenchContext ctx)
+    {
         var acMag = ctx.Args.TryGetValue("ac_mag", out var am) ? Convert.ToDouble(am) : 1.0;
         var acStartHz = ctx.Args.TryGetValue("ac_start_hz", out var ash) ? Convert.ToDouble(ash) : 1.0;
         var acStopHz = ctx.Args.TryGetValue("ac_stop_hz", out var astop) ? Convert.ToDouble(astop) : 10e9;
 
-        // Extract includes
-        var includesWithSection = ctx.Args.TryGetValue("includes_with_section", out var iws) && iws is IEnumerable<string> iwsL ? iwsL.ToList() : new List<string>();
-        var includesWithoutSection = ctx.Args.TryGetValue("includes_without_section", out var iwos) && iwos is IEnumerable<string> iwosL ? iwosL.ToList() : new List<string>();
-
-        return new
-        {
-            circuit_name = circuitName,
-            bench_name = benchName,
-            design_file = designFile,
-            port_list = portList,
-            out_node = outNode,
-            generic_models = genericModels,
-            vcm = vcm,
-            bias_v = biasV,
-            harness = harness,
-            env = env,
-            spec = spec,
-            ac_mag = acMag,
-            ac_start_hz = acStartHz,
-            ac_stop_hz = acStopHz,
-            includes_with_section = includesWithSection,
-            includes_without_section = includesWithoutSection
-        };
+        return (acMag, acStartHz, acStopHz);
     }
 }
 

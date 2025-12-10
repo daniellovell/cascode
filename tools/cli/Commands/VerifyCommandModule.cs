@@ -136,8 +136,8 @@ internal sealed class VerifyCommandModule : ICommandModule
         {
             var status = result.Passed ? "PASS" : "FAIL";
             var nodeStr = result.Node != null ? $" @ {result.Node}" : "";
-            var expectedStr = FormatValue(result.Expected, GetUnitFromConstraint(circuit, result.Id));
-            var actualStr = result.Actual.HasValue ? $" (measured: {FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})" : " (not measured)";
+            var expectedStr = ValueFormatter.FormatValue(result.Expected, GetUnitFromConstraint(circuit, result.Id));
+            var actualStr = result.Actual.HasValue ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})" : " (not measured)";
 
             _state.AddMessage($"{result.Id,-8} {result.Metric}{nodeStr} {result.Operator} {expectedStr,-12} {status}{actualStr}");
         }
@@ -146,24 +146,6 @@ internal sealed class VerifyCommandModule : ICommandModule
         _state.AddMessage($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
 
         return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
-    }
-
-    private static string FormatValue(double value, string unit)
-    {
-        // Simple formatting - use ComplianceChecker's logic if available, otherwise basic
-        if (Math.Abs(value) >= 1e9)
-            return $"{value / 1e9:G3}G {unit}";
-        if (Math.Abs(value) >= 1e6)
-            return $"{value / 1e6:G3}M {unit}";
-        if (Math.Abs(value) >= 1e3)
-            return $"{value / 1e3:G3}k {unit}";
-        if (Math.Abs(value) >= 1.0)
-            return $"{value:G3} {unit}";
-        if (Math.Abs(value) >= 1e-3)
-            return $"{value * 1e3:G3}m {unit}";
-        if (Math.Abs(value) >= 1e-6)
-            return $"{value * 1e6:G3}u {unit}";
-        return $"{value:G3} {unit}";
     }
 
     private static string GetUnitFromConstraint(Circuit circuit, string constraintId)

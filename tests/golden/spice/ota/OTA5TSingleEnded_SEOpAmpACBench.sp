@@ -21,7 +21,7 @@ COUT_load OUT 0 1p
 
 
 * DUT
-XDUT IN_P IN_N OUT VTAIL VDD GND OTA5TSingleEnded
+XDUT IN_P IN_N OUT VTAIL VDD 0 OTA5TSingleEnded
 
 .control
 op

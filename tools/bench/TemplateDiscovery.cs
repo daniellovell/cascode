@@ -25,9 +25,12 @@ public static class TemplateDiscovery
         var current = Path.GetFullPath(startDir);
 
         // Determine template filename based on backend
-        var templateName = backend == BenchBackendType.Ngspice
-            ? $"{benchName}.ngspice.tpl"
-            : $"{benchName}.spectre.tpl";
+        var templateName = backend switch
+        {
+            BenchBackendType.Ngspice => $"{benchName}.ngspice.tpl",
+            BenchBackendType.Spectre => $"{benchName}.spectre.tpl",
+            _ => throw new ArgumentOutOfRangeException(nameof(backend), backend, $"Unknown backend type: {backend}")
+        };
 
         // Traverse upward looking for benches/ folders
         var dir = new DirectoryInfo(current);

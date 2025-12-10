@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using Cascode.ACIR;
 using Cascode.Bench;
 using Cascode.TestSupport;
@@ -41,6 +43,8 @@ public class ComplianceCheckerTests
     [InlineData("1p", 1e-12)]
     [InlineData("2.5G", 2.5e9)]
     [InlineData("45", 45)]
+    [InlineData("5m", 5e-3)]
+    [InlineData("2.5m", 2.5e-3)]
     public void Check_Units_ParseCorrectly(string valueStr, double expectedValue)
     {
         var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, ">=", valueStr, "Hz");
@@ -50,6 +54,36 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.True(report.Results[0].Passed, $"Expected {valueStr} to parse to {expectedValue}");
+    }
+
+    [Theory]
+    [InlineData("100X")]
+    [InlineData("50Z")]
+    [InlineData("1a")]
+    public void Check_InvalidSuffix_ThrowsFormatException(string valueStr)
+    {
+        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, ">=", valueStr, "Hz");
+        var results = CreateResultsWithMeasurement("TestMetric", 100.0, "Hz", null);
+
+        var ex = Assert.Throws<FormatException>(() => ComplianceChecker.Check(circuit, results));
+        Assert.Contains("Unrecognized unit suffix", ex.Message);
+        Assert.Contains(valueStr, ex.Message);
+    }
+
+    [Fact]
+    public void Check_MilliAndMegaAreCaseSensitive()
+    {
+        var circuitMilli = CreateCircuitWithConstraint("c_milli", "TestMetric", null, "==", "1m", "");
+        var circuitMega = CreateCircuitWithConstraint("c_mega", "TestMetric", null, "==", "1M", "");
+
+        var resultsMilli = CreateResultsWithMeasurement("TestMetric", 1e-3, "", null);
+        var resultsMega = CreateResultsWithMeasurement("TestMetric", 1e6, "", null);
+
+        var reportMilli = ComplianceChecker.Check(circuitMilli, resultsMilli);
+        var reportMega = ComplianceChecker.Check(circuitMega, resultsMega);
+
+        Assert.True(reportMilli.Results[0].Passed, "1m should equal 1e-3 (milli)");
+        Assert.True(reportMega.Results[0].Passed, "1M should equal 1e6 (mega)");
     }
 
     [Fact]
@@ -155,7 +189,7 @@ public class ComplianceCheckerTests
         Assert.Equal(4, circuit.Constraints.Numeric.Count);
 
         var resultsJson = File.ReadAllText(resultsPath);
-        var results = System.Text.Json.JsonSerializer.Deserialize<BenchResult>(resultsJson);
+        var results = JsonSerializer.Deserialize<BenchResult>(resultsJson);
         Assert.NotNull(results);
 
         var report = ComplianceChecker.Check(circuit, results);
