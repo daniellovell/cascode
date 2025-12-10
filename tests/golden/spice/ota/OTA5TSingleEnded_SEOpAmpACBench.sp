@@ -12,6 +12,7 @@
 * Harness
 
 VVDD VDD 0 DC 1.8V
+VTAIL VTAIL 0 DC 0.6V
 
 * Differential input: common-mode bias with AC on positive input
 VIN_P IN_P 0 DC 0.9 AC 1

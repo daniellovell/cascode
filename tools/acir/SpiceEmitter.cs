@@ -233,36 +233,10 @@ public static class SpiceEmitter
         sb.Append(device.Id);
         sb.Append(' ');
 
-        // Terminal ordering depends on device type
+        // Terminal ordering and parameters depend on device type
         if (spiceType == "M")
         {
-            // MOSFET: D G S B
-            sb.Append(GetBinding(device, "D"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "G"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "S"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "B"));
-            sb.Append(' ');
-
-            // Model name (PDK device or generic)
-            sb.Append(device.PdkDevice ?? device.DeviceType);
-            sb.Append(' ');
-
-            // Parameters: W, L, m
-            if (device.Params.TryGetValue("W", out var w))
-            {
-                sb.Append($"W={w} ");
-            }
-            if (device.Params.TryGetValue("L", out var l))
-            {
-                sb.Append($"L={l} ");
-            }
-            if (device.Params.TryGetValue("M", out var m))
-            {
-                sb.Append($"m={m}");
-            }
+            EmitMosfetTerminalsAndParams(device, sb);
         }
         else if (spiceType is "R" or "C" or "L")
         {
@@ -296,6 +270,42 @@ public static class SpiceEmitter
         }
 
         writer.WriteLine(sb.ToString().TrimEnd());
+    }
+
+    /// <summary>
+    /// Emits MOSFET terminal connections and parameters.
+    /// </summary>
+    /// <param name="device">MOSFET device declaration.</param>
+    /// <param name="sb">StringBuilder to append to.</param>
+    private static void EmitMosfetTerminalsAndParams(DeviceDeclaration device, StringBuilder sb)
+    {
+        // MOSFET terminal ordering: D G S B
+        sb.Append(GetBinding(device, "D"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "G"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "S"));
+        sb.Append(' ');
+        sb.Append(GetBinding(device, "B"));
+        sb.Append(' ');
+
+        // Model name (PDK device or generic)
+        sb.Append(device.PdkDevice ?? device.DeviceType);
+        sb.Append(' ');
+
+        // Parameters: W, L, m
+        if (device.Params.TryGetValue("W", out var w))
+        {
+            sb.Append($"W={w} ");
+        }
+        if (device.Params.TryGetValue("L", out var l))
+        {
+            sb.Append($"L={l} ");
+        }
+        if (device.Params.TryGetValue("M", out var m))
+        {
+            sb.Append($"m={m}");
+        }
     }
 
     /// <summary>
