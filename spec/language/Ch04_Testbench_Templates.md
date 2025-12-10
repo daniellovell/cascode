@@ -104,11 +104,13 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 The `harness` object contains lists extracted from ACIR `harness:` blocks:
 
 **harness.supplies** (array of objects):
+
 ```scriban
 {{ for supply in harness.supplies }}
 V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 {{ end }}
 ```
+
 - `supply.net`: net name (e.g., `"VDD"`)
 - `supply.value`: voltage value (e.g., `"1.8V"`)
 
@@ -331,7 +333,7 @@ cascode emit <acir_file> --out <output_dir> --backend {ngspice|spectre}
 
 For an ACIR file `OTA5TSingleEnded.el.cir` with bench `SEOpAmpACBench`:
 
-```
+```bash
 <output_dir>/
   OTA5TSingleEnded.sp                    # Design subcircuit
   OTA5TSingleEnded_SEOpAmpACBench.sp     # Ngspice testbench
@@ -340,7 +342,7 @@ For an ACIR file `OTA5TSingleEnded.el.cir` with bench `SEOpAmpACBench`:
 
 Or with `--backend spectre`:
 
-```
+```bash
 <output_dir>/
   OTA5TSingleEnded.sp                    # Design subcircuit
   OTA5TSingleEnded_SEOpAmpACBench.scs    # Spectre testbench
@@ -788,7 +790,7 @@ The testbench template system comprises several C# components in the Cascode too
 - **`EmitCommandModule`** (`tools/cli/Commands/EmitCommandModule.cs`): CLI command for netlist generation
 - **`VerifyCommandModule`** (`tools/cli/Commands/VerifyCommandModule.cs`): CLI command for constraint verification
 
-Template rendering uses the Scriban library (https://github.com/scriban/scriban), a .NET-based template engine with Liquid-compatible syntax. Scriban provides safe sandboxed execution, preventing templates from accessing the filesystem or executing arbitrary code.
+Template rendering uses the Scriban library ([Scriban](https://github.com/scriban/scriban)), a .NET-based template engine with Liquid-compatible syntax.  Scriban provides safe sandboxed execution, preventing templates from accessing the filesystem or executing arbitrary code.
 
 ---
 
