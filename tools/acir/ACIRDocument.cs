@@ -225,49 +225,83 @@ public sealed class ConstraintsBlock
 }
 
 /// <summary>
-/// Numeric constraint.
+/// Numeric constraint expressing an inequality over a circuit metric with explicit units.
 /// </summary>
 public sealed class NumericConstraint
 {
+    /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
+
+    /// <summary>The metric being constrained (e.g., "GainBandwidth", "PhaseMargin").</summary>
     public string Metric { get; init; } = string.Empty;
+
+    /// <summary>Optional node where the metric is measured (e.g., "OUT").</summary>
     public string? Node { get; init; }
+
+    /// <summary>Comparison operator: &gt;=, &lt;=, ==, &gt;, or &lt;.</summary>
     public string Op { get; init; } = string.Empty;
+
+    /// <summary>Numeric bound for the constraint (e.g., "100M", "55").</summary>
     public string Value { get; init; } = string.Empty;
+
+    /// <summary>Physical unit for the value (e.g., "Hz", "dB", "deg").</summary>
     public string Unit { get; init; } = string.Empty;
 }
 
 /// <summary>
-/// Technology constraint.
+/// Technology constraint expressing limits on device parameters.
 /// </summary>
 public sealed class TechConstraint
 {
+    /// <summary>Unique identifier for this constraint (e.g., "t_lmin").</summary>
     public string Id { get; init; } = string.Empty;
+
+    /// <summary>Device parameter being constrained (e.g., "L", "W").</summary>
     public string Param { get; init; } = string.Empty;
+
+    /// <summary>Comparison operator: &gt;=, &lt;=, ==, &gt;, or &lt;.</summary>
     public string Op { get; init; } = string.Empty;
+
+    /// <summary>Numeric bound for the constraint (e.g., "180n").</summary>
     public string Value { get; init; } = string.Empty;
+
+    /// <summary>Physical unit for the value (e.g., "m" for meters).</summary>
     public string Unit { get; init; } = string.Empty;
+
+    /// <summary>Scope of the constraint: "*" for all devices, a type selector, or an instance id.</summary>
     public string Scope { get; init; } = string.Empty;
 }
 
 /// <summary>
-/// Graph constraint.
+/// Graph constraint expressing structural properties of the circuit graph.
 /// </summary>
 public sealed class GraphConstraint
 {
+    /// <summary>Unique identifier for this constraint (e.g., "g_card_tail").</summary>
     public string Id { get; init; } = string.Empty;
+
+    /// <summary>Constraint rule expression (e.g., "cardinality", "path_exists", "fanout").</summary>
     public string Rule { get; init; } = string.Empty;
+
+    /// <summary>Additional key-value properties for the rule (e.g., selector, bounds, endpoints).</summary>
     public Dictionary<string, string> Properties { get; init; } = new();
 }
 
 /// <summary>
-/// Measurement intent.
+/// Measurement intent specifying a metric to extract from simulation.
 /// </summary>
 public sealed class MeasureIntent
 {
+    /// <summary>Unique identifier for this measurement (e.g., "m_gbw").</summary>
     public string Id { get; init; } = string.Empty;
+
+    /// <summary>Benchmark to run for this measurement (e.g., "SEAmplifierACBench").</summary>
     public string Bench { get; init; } = string.Empty;
+
+    /// <summary>The metric to measure (e.g., "GainBandwidth", "RiseTime").</summary>
     public string Metric { get; init; } = string.Empty;
+
+    /// <summary>Optional node where the metric is measured (e.g., "OUT", "PAD").</summary>
     public string? Node { get; init; }
 }
 

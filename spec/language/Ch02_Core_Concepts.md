@@ -210,7 +210,7 @@ The `alias` construct may expose internal nets as top-level ports to improve des
 
 ## 2.8 Structural Composition Primitives
 
-#### Schematic-like sugar (all expand to primitives in ACIR)
+### Schematic-like sugar (all expand to primitives in ACIR)
 
 - `attach` - bind one instance to another using either a connector or an explicit mapping block. Chains are allowed via `attach A to B to C`.
 

@@ -34,7 +34,7 @@ The ACIR design prioritizes connectivity as the primary concern, establishing th
 
 ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line, with continuation indicated by indentation for nested content. Comments begin with `;` and extend to end of line.
 
-```
+```text
 ; This is a comment
 ACIR 1  ; Version declaration with inline comment
 ```
@@ -43,7 +43,7 @@ ACIR 1  ; Version declaration with inline comment
 
 An ACIR document begins with a version declaration, followed by optional bundle type definitions, then one or more circuit blocks.
 
-```
+```text
 ACIR <version>
 
 [bundle definitions]
@@ -69,7 +69,7 @@ Identifiers follow the pattern `[A-Za-z_][A-Za-z0-9_]*`. Pin paths extend identi
 
 Numeric literals support integer and floating-point forms with optional SI unit suffixes:
 
-```
+```acir
 42          ; integer
 3.14        ; float
 1.8V        ; voltage

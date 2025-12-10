@@ -345,51 +345,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             });
         }
 
-        // Build fill block for ML and EL levels
-        FillBlock? fill = null;
-        if (options.Level != ACIRLevel.HL)
-        {
-            // Internal nets (exclude ports, supplies, grounds which are implicit)
-            var portNets = new HashSet<string>();
-            foreach (var port in motif.Ports)
-            {
-                if (string.Equals(port.Kind, "Diff", StringComparison.OrdinalIgnoreCase))
-                {
-                    portNets.Add(port.Name + "_P");
-                    portNets.Add(port.Name + "_N");
-                }
-                else
-                {
-                    portNets.Add(port.Name);
-                }
-            }
-            foreach (var supply in motif.Supplies)
-            {
-                portNets.Add(supply.Name);
-            }
-            foreach (var ground in motif.Grounds)
-            {
-                portNets.Add(ground.Name);
-            }
-
-            var nets = design.Nets.Values
-                .OrderBy(n => n.Id, StringComparer.Ordinal)
-                .Where(n => !portNets.Contains(n.Id))
-                .Select(n => new NetDeclaration { Id = n.Id, Domain = n.Domain })
-                .ToList();
-
-            var instances = design.Instances.Values
-                .OrderBy(i => i.Id, StringComparer.Ordinal)
-                .Select(i => new InstanceDeclaration
-                {
-                    Id = i.Id,
-                    Type = i.Type,
-                    Bindings = new Dictionary<string, string>(i.Ports)
-                })
-                .ToList();
-
-            fill = new FillBlock { Nets = nets, Instances = instances };
-        }
+        var fill = BuildFillBlock(design, motif, options);
 
         // Create circuit with all properties in initializer
         var circuit = new Circuit
@@ -406,5 +362,61 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
 
         doc.Circuits.Add(circuit);
         return doc;
+    }
+
+    /// <summary>
+    /// Constructs the fill block containing internal nets and instances for ML and EL ACIR levels.
+    /// </summary>
+    /// <param name="design">Structural design with nets, bundles, and instances.</param>
+    /// <param name="motif">Motif syntax for extracting port, supply, and ground declarations.</param>
+    /// <param name="options">Compilation options that determine the target ACIR level.</param>
+    /// <returns>Fill block with nets and instances, or null for HL level.</returns>
+    private static FillBlock? BuildFillBlock(StructuralDesign design, MotifDeclarationSyntax motif, CompileOptions options)
+    {
+        if (options.Level == ACIRLevel.HL)
+        {
+            return null;
+        }
+
+        // Internal nets (exclude ports, supplies, grounds which are implicit)
+        var portNets = new HashSet<string>();
+        foreach (var port in motif.Ports)
+        {
+            if (string.Equals(port.Kind, "Diff", StringComparison.OrdinalIgnoreCase))
+            {
+                portNets.Add(port.Name + "_P");
+                portNets.Add(port.Name + "_N");
+            }
+            else
+            {
+                portNets.Add(port.Name);
+            }
+        }
+        foreach (var supply in motif.Supplies)
+        {
+            portNets.Add(supply.Name);
+        }
+        foreach (var ground in motif.Grounds)
+        {
+            portNets.Add(ground.Name);
+        }
+
+        var nets = design.Nets.Values
+            .OrderBy(n => n.Id, StringComparer.Ordinal)
+            .Where(n => !portNets.Contains(n.Id))
+            .Select(n => new NetDeclaration { Id = n.Id, Domain = n.Domain })
+            .ToList();
+
+        var instances = design.Instances.Values
+            .OrderBy(i => i.Id, StringComparer.Ordinal)
+            .Select(i => new InstanceDeclaration
+            {
+                Id = i.Id,
+                Type = i.Type,
+                Bindings = new Dictionary<string, string>(i.Ports)
+            })
+            .ToList();
+
+        return new FillBlock { Nets = nets, Instances = instances };
     }
 }
