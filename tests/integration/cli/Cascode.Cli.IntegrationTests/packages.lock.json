@@ -323,6 +323,7 @@
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
+          "Cascode.ACIR": "[1.0.0, )",
           "Cascode.Bench": "[1.0.0, )",
           "Cascode.Compiler": "[1.0.0, )",
           "Cascode.Workspace": "[1.0.0, )",

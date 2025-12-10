@@ -1,0 +1,31 @@
+{
+  "circuit": "OTA5TSingleEnded",
+  "bench": "SEOpAmpACBench",
+  "measurements": {
+    "gain": {
+      "metric": "PassbandGain",
+      "value": 45.2,
+      "unit": "dB",
+      "node": "OUT"
+    },
+    "gbw": {
+      "metric": "GainBandwidth",
+      "value": 150000000,
+      "unit": "Hz",
+      "node": "OUT"
+    },
+    "pm": {
+      "metric": "PhaseMargin",
+      "value": 65.3,
+      "unit": "deg",
+      "node": "OUT"
+    },
+    "power": {
+      "metric": "Power",
+      "value": 0.00035,
+      "unit": "W",
+      "node": null
+    }
+  }
+}
+
