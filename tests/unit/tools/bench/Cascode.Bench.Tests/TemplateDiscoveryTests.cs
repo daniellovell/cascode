@@ -139,7 +139,7 @@ public class TemplateDiscoveryTests
         try
         {
             var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", null, null, repoRoot);
-            
+
             // If we got here, auto-detection succeeded
             Assert.NotNull(templatePath);
             Assert.True(File.Exists(templatePath));
