@@ -4,6 +4,7 @@ using System.Linq;
 using Cascode.ACIR;
 using Cascode.Compiler;
 using Cascode.Parser;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Compiler.Tests;
@@ -13,7 +14,7 @@ public class OtaCompilerTests
     [Fact]
     public void Compile_SimpleOtaMotif_ProducesACIRWithDpAndOutNet()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -147,7 +148,7 @@ motif Test {
     [Fact]
     public void Compile_FullOTA5TSingleEnded_IncludesAllBindings()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "lib/std/amp/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -177,7 +178,7 @@ motif Test {
     [Fact]
     public void Compile_GoldenOTA5TSingleEnded_MatchesSnapshot()
     {
-        var repoRoot = GetRepoRoot();
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.cas");
         var sourceText = File.ReadAllText(sourcePath);
 
@@ -199,23 +200,6 @@ motif Test {
         var expectedAcir = File.ReadAllText(
             Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.ml.cir"));
         Assert.Equal(Normalize(expectedAcir), Normalize(actualAcir));
-    }
-
-    private static string GetRepoRoot()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (!string.IsNullOrEmpty(dir) && !File.Exists(Path.Combine(dir, "Cascode.sln")))
-        {
-            var parent = Directory.GetParent(dir);
-            if (parent is null)
-            {
-                throw new InvalidOperationException("Unable to locate repository root (Cascode.sln).");
-            }
-
-            dir = parent.FullName;
-        }
-
-        return dir;
     }
 
     private static string Normalize(string text)
