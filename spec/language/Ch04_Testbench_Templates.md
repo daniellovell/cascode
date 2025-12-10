@@ -398,7 +398,7 @@ cascode verify --acir <acir_file> --results <results_json>
 
 **Output Format:**
 
-```
+```text
 Constraint Compliance Report for OTA5TSingleEnded
 --------------------------------------------------
 c_gbw    GainBandwidth @ OUT >= 100M Hz      PASS (measured: 150M Hz)
@@ -462,7 +462,7 @@ The compliance checker matches this constraint to a measurement result by:
 
 If a constraint references a metric not present in the results JSON, the checker reports:
 
-```
+```text
 c_gain   PassbandGain @ OUT >= 40 dB        FAIL (not measured)
 ```
 
@@ -615,7 +615,8 @@ benches:
 **Arithmetic:** Scriban supports basic arithmetic in expressions. Example: `{{ env.source_ohms/2 }}` divides source impedance across differential legs.
 
 **Result Format:** The results parser expects measurement output in the format:
-```
+
+```text
 RESULT: MetricName = <value> <unit>
 ```
 

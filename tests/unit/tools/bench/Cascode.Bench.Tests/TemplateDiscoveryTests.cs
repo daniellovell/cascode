@@ -128,5 +128,28 @@ public class TemplateDiscoveryTests
             Assert.True(File.Exists(spectrePath), $"Spectre template for {benchName} not found");
         }
     }
+
+    [Fact]
+    public void FindTemplate_NullBackend_AutoDetectsOrThrows()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+
+        // When backend is null, it should either auto-detect successfully or throw InvalidOperationException
+        // if neither spectre nor ngspice is on PATH
+        try
+        {
+            var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", null, null, repoRoot);
+            
+            // If we got here, auto-detection succeeded
+            Assert.NotNull(templatePath);
+            Assert.True(File.Exists(templatePath));
+            Assert.True(templatePath.EndsWith(".ngspice.tpl") || templatePath.EndsWith(".spectre.tpl"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            // This is expected if neither spectre nor ngspice is on PATH
+            Assert.Contains("No supported SPICE backend found", ex.Message);
+        }
+    }
 }
 
