@@ -129,7 +129,7 @@ public static class ACIRReader
     }
 
     /// <summary>
-    /// Parses a circuit definition including all sections (fill, harness, benches).
+    /// Parses a circuit definition including all sections (fill, constraints, harness, benches).
     /// </summary>
     /// <param name="lines">All lines in the document.</param>
     /// <param name="start">Starting line index.</param>
@@ -152,12 +152,15 @@ public static class ACIRReader
         var grounds = new List<string>();
         var ports = new List<PortDeclaration>();
         FillBlock? fillBlock = null;
+        ConstraintsBlock? constraintsBlock = null;
         HarnessBlock? harnessBlock = null;
         BenchesBlock? benchesBlock = null;
 
         FillBlock? currentFill = null;
+        ConstraintsBlock? currentConstraints = null;
         HarnessBlock? currentHarness = null;
         BenchesBlock? currentBenches = null;
+        string? constraintSubSection = null; // Tracks "numeric:", "tech:", "measure:" within constraints
 
         while (i < lines.Count)
         {
@@ -172,8 +175,42 @@ public static class ACIRReader
                 continue;
             }
 
-            // Check for section content first (4 spaces = inside a section block)
-            if (currentLine.StartsWith("    "))
+            // Check for constraint subsection headers (4 spaces, within constraints)
+            if (currentLine.StartsWith("    ") && !currentLine.StartsWith("      ") && currentConstraints is not null)
+            {
+                if (trimmed == "numeric:")
+                {
+                    constraintSubSection = "numeric";
+                    i++;
+                    continue;
+                }
+                else if (trimmed == "tech:")
+                {
+                    constraintSubSection = "tech";
+                    i++;
+                    continue;
+                }
+                else if (trimmed == "measure:")
+                {
+                    constraintSubSection = "measure";
+                    i++;
+                    continue;
+                }
+                else if (trimmed == "graph:")
+                {
+                    constraintSubSection = "graph";
+                    i++;
+                    continue;
+                }
+            }
+
+            // Check for constraint content (6 spaces = inside a constraint subsection)
+            if (currentLine.StartsWith("      ") && currentConstraints is not null && constraintSubSection is not null)
+            {
+                ParseConstraintContent(trimmed, currentConstraints, constraintSubSection);
+            }
+            // Check for section content (4 spaces = inside a section block)
+            else if (currentLine.StartsWith("    "))
             {
                 if (currentFill is not null)
                 {
@@ -191,27 +228,43 @@ public static class ACIRReader
             // Section headers (2 spaces) - preserve previous section before starting new one
             else if (trimmed == "fill:")
             {
-                if (currentHarness is not null) harnessBlock = currentHarness;
-                if (currentBenches is not null) benchesBlock = currentBenches;
+                SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
+                    currentFill, currentConstraints, currentHarness, currentBenches);
                 currentFill = new FillBlock();
+                currentConstraints = null;
                 currentHarness = null;
                 currentBenches = null;
+                constraintSubSection = null;
+            }
+            else if (trimmed == "constraints:")
+            {
+                SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
+                    currentFill, currentConstraints, currentHarness, currentBenches);
+                currentConstraints = new ConstraintsBlock();
+                currentFill = null;
+                currentHarness = null;
+                currentBenches = null;
+                constraintSubSection = null;
             }
             else if (trimmed == "harness:")
             {
-                if (currentFill is not null) fillBlock = currentFill;
-                if (currentBenches is not null) benchesBlock = currentBenches;
+                SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
+                    currentFill, currentConstraints, currentHarness, currentBenches);
                 currentHarness = new HarnessBlock();
                 currentFill = null;
+                currentConstraints = null;
                 currentBenches = null;
+                constraintSubSection = null;
             }
             else if (trimmed == "benches:")
             {
-                if (currentFill is not null) fillBlock = currentFill;
-                if (currentHarness is not null) harnessBlock = currentHarness;
+                SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
+                    currentFill, currentConstraints, currentHarness, currentBenches);
                 currentBenches = new BenchesBlock();
                 currentFill = null;
+                currentConstraints = null;
                 currentHarness = null;
+                constraintSubSection = null;
             }
             // Top-level declarations (2 spaces, not inside a section)
             else if (trimmed.StartsWith("level "))
@@ -243,12 +296,8 @@ public static class ACIRReader
             i++;
         }
 
-        if (currentFill is not null)
-            fillBlock = currentFill;
-        if (currentHarness is not null)
-            harnessBlock = currentHarness;
-        if (currentBenches is not null)
-            benchesBlock = currentBenches;
+        SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
+            currentFill, currentConstraints, currentHarness, currentBenches);
 
         var circuit = new Circuit
         {
@@ -259,12 +308,121 @@ public static class ACIRReader
             Grounds = grounds,
             Ports = ports,
             Fill = fillBlock,
+            Constraints = constraintsBlock,
             Harness = harnessBlock,
             Benches = benchesBlock
         };
 
         circuits.Add(circuit);
         return i;
+    }
+
+    /// <summary>
+    /// Saves current section to the appropriate block variable if not null.
+    /// </summary>
+    private static void SaveCurrentSection(
+        ref FillBlock? fillBlock,
+        ref ConstraintsBlock? constraintsBlock,
+        ref HarnessBlock? harnessBlock,
+        ref BenchesBlock? benchesBlock,
+        FillBlock? currentFill,
+        ConstraintsBlock? currentConstraints,
+        HarnessBlock? currentHarness,
+        BenchesBlock? currentBenches)
+    {
+        if (currentFill is not null) fillBlock = currentFill;
+        if (currentConstraints is not null) constraintsBlock = currentConstraints;
+        if (currentHarness is not null) harnessBlock = currentHarness;
+        if (currentBenches is not null) benchesBlock = currentBenches;
+    }
+
+    /// <summary>
+    /// Parses a constraint line within a constraints subsection.
+    /// </summary>
+    /// <param name="line">Trimmed line content.</param>
+    /// <param name="constraints">ConstraintsBlock to populate.</param>
+    /// <param name="subSection">Current subsection: "numeric", "tech", "measure", or "graph".</param>
+    private static void ParseConstraintContent(string line, ConstraintsBlock constraints, string subSection)
+    {
+        switch (subSection)
+        {
+            case "numeric":
+                ParseNumericConstraint(line, constraints);
+                break;
+            case "tech":
+                ParseTechConstraint(line, constraints);
+                break;
+            case "measure":
+                ParseMeasureIntent(line, constraints);
+                break;
+            case "graph":
+                // Graph constraints not yet implemented
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Parses a numeric constraint line.
+    /// Format: id : Metric @ Node op value unit
+    /// Example: c_gbw : GainBandwidth @ OUT >= 100M Hz
+    /// </summary>
+    private static void ParseNumericConstraint(string line, ConstraintsBlock constraints)
+    {
+        // Pattern: id : Metric @ Node op value unit  OR  id : Metric op value unit (no node)
+        var match = Regex.Match(line, @"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$");
+        if (!match.Success) return;
+
+        constraints.Numeric.Add(new NumericConstraint
+        {
+            Id = match.Groups[1].Value,
+            Metric = match.Groups[2].Value,
+            Node = match.Groups[3].Success ? match.Groups[3].Value : null,
+            Op = match.Groups[4].Value,
+            Value = match.Groups[5].Value,
+            Unit = match.Groups[6].Value
+        });
+    }
+
+    /// <summary>
+    /// Parses a tech constraint line.
+    /// Format: id : Param op value unit on scope
+    /// Example: t_lmin : L >= 180n m on *
+    /// </summary>
+    private static void ParseTechConstraint(string line, ConstraintsBlock constraints)
+    {
+        // Pattern: id : Param op value unit on scope
+        var match = Regex.Match(line, @"^(\w+)\s*:\s*(\w+)\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)\s+on\s+(\S+)$");
+        if (!match.Success) return;
+
+        constraints.Tech.Add(new TechConstraint
+        {
+            Id = match.Groups[1].Value,
+            Param = match.Groups[2].Value,
+            Op = match.Groups[3].Value,
+            Value = match.Groups[4].Value,
+            Unit = match.Groups[5].Value,
+            Scope = match.Groups[6].Value
+        });
+    }
+
+    /// <summary>
+    /// Parses a measure intent line.
+    /// Format: id : BenchName Metric @ Node
+    /// Example: m_gbw : SEOpAmpACBench GainBandwidth @ OUT
+    /// </summary>
+    private static void ParseMeasureIntent(string line, ConstraintsBlock constraints)
+    {
+        // Pattern: id : BenchName Metric @ Node  OR  id : BenchName Metric (no node)
+        var match = Regex.Match(line, @"^(\w+)\s*:\s*(\w+)\s+(\w+)(?:\s*@\s*(\w+))?$");
+        if (!match.Success) return;
+
+        constraints.Measure.Add(new MeasureIntent
+        {
+            Id = match.Groups[1].Value,
+            Bench = match.Groups[2].Value,
+            Metric = match.Groups[3].Value,
+            Node = match.Groups[4].Success ? match.Groups[4].Value : null
+        });
     }
 
     /// <summary>

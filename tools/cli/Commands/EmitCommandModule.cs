@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Cascode.ACIR;
+using Cascode.Bench;
 
 namespace Cascode.Cli.Commands;
 
@@ -37,16 +38,17 @@ internal sealed class EmitCommandModule : ICommandModule
     /// <summary>
     /// Executes the emit command to generate SPICE netlists.
     /// </summary>
-    /// <param name="args">Command arguments: [acir_file] [--out output_dir].</param>
+    /// <param name="args">Command arguments: [acir_file] [--out output_dir] [--backend ngspice|spectre].</param>
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult EmitCommand(string[] args)
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: emit <acir_file> [--out <dir>]");
+            _state.AddMessage("Usage: emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>]");
             _state.AddMessage("");
             _state.AddMessage("Emits SPICE netlists from an ACIR EL document.");
             _state.AddMessage("Generates both design subcircuit and testbench files.");
+            _state.AddMessage("Default backend is ngspice.");
             return CommandResult.Success;
         }
 
@@ -59,14 +61,27 @@ internal sealed class EmitCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse output directory from args
+        // Parse output directory and backend from args
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "build");
-        for (var i = 1; i < args.Length - 1; i++)
+        var backend = BenchBackendType.Ngspice;
+
+        for (var i = 1; i < args.Length; i++)
         {
-            if (args[i] == "--out" || args[i] == "-o")
+            if ((args[i] == "--out" || args[i] == "-o") && i + 1 < args.Length)
             {
                 outputDir = args[i + 1];
-                break;
+                i++;
+            }
+            else if (args[i] == "--backend" && i + 1 < args.Length)
+            {
+                var backendStr = args[i + 1].ToLowerInvariant();
+                backend = backendStr switch
+                {
+                    "ngspice" => BenchBackendType.Ngspice,
+                    "spectre" => BenchBackendType.Spectre,
+                    _ => throw new InvalidOperationException($"Unknown backend: {args[i + 1]}. Use 'ngspice' or 'spectre'.")
+                };
+                i++;
             }
         }
 
@@ -94,7 +109,9 @@ internal sealed class EmitCommandModule : ICommandModule
         // Emit SPICE
         try
         {
-            var result = SpiceEmitter.Emit(doc, outputDir);
+            // Determine workspace root - traverse up to find the root with lib/ directory
+            var workspaceRoot = FindWorkspaceRoot(inputPath) ?? Directory.GetCurrentDirectory();
+            var result = SpiceEmitter.Emit(doc, outputDir, backend, workspaceRoot);
 
             foreach (var path in result.DesignPaths)
             {
@@ -113,5 +130,19 @@ internal sealed class EmitCommandModule : ICommandModule
             _state.AddMessage($"SPICE emission failed: {ex.Message}");
             return CommandResult.Failure;
         }
+    }
+
+    private static string? FindWorkspaceRoot(string filePath)
+    {
+        var dir = Path.GetDirectoryName(Path.GetFullPath(filePath));
+        while (dir != null)
+        {
+            if (Directory.Exists(Path.Combine(dir, "lib")))
+            {
+                return dir;
+            }
+            dir = Directory.GetParent(dir)?.FullName;
+        }
+        return null;
     }
 }

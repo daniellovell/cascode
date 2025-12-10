@@ -170,6 +170,7 @@ public class SpiceEmitterTests
     [Fact]
     public void EmitTestbench_IncludesHarnessAndDUT()
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         var circuit = new Circuit
         {
             Name = "TestAmp",
@@ -211,6 +212,7 @@ public class SpiceEmitterTests
         Assert.Contains("ac dec 100 1 10G", output);
         Assert.Contains(".end", output);
     }
+#pragma warning restore CS0618 // Type or member is obsolete
 
     [Fact]
     public void EmitDesign_CommonSourceAmp_MatchesGolden()

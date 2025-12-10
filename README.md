@@ -23,6 +23,7 @@ New to Cascode? Start here to understand the core concepts through a practical O
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
 - [Chapter 3 – ACIR: The Intermediate Representation](spec/language/Ch03_ACIR.md)
+- [Chapter 4 – Testbench Templates](spec/language/Ch04_Testbench_Templates.md)
 
 
 
@@ -328,12 +329,14 @@ cascode/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     └─ Ch03_ACIR.md
+│     ├─ Ch03_ACIR.md
+│     └─ Ch04_Testbench_Templates.md
 ├─ lib/
 │  └─ std/
 │     ├─ prim/                 # Primitive motifs + interface traits
 │     ├─ amp/                  # Amplifier traits and topologies
-│     │  └─ ota/
+│     │  ├─ ota/
+│     │  └─ benches/           # Standard testbench templates
 │     └─ refs/                 # Reference circuits (current/voltage references)
 ├─ tools/
 │  ├─ cli/
@@ -352,9 +355,9 @@ cascode/
 
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
 - `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
-- `tools/acir`: ACIR object model and canonical text writer following spec section 3.13.
+- `tools/acir`: ACIR object model, canonical text reader/writer, SPICE emission, and constraint compliance checking.
 - `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
-- `tools/bench`: Testbench harness discovery, bench generation, and SPICE backend adapters (Ngspice, Spectre).
+- `tools/bench`: Template discovery and rendering (Scriban-based), testbench generation, and SPICE backend adapters (Ngspice, Spectre).
 
 ### Notes
 - Build artifacts go in `build/` (not committed).

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.Bench;
 
 namespace Cascode.ACIR;
 
@@ -107,16 +108,14 @@ public static class SpiceEmitter
     /// <param name="bench">The bench configuration.</param>
     /// <param name="designPath">Path to the design .sp file to include.</param>
     /// <param name="writer">Text writer for output.</param>
+    /// <param name="backend">Backend type for testbench generation.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
-    /// The testbench includes:
-    /// - Title and .include directive for the design
-    /// - Harness elements: voltage sources for supplies, load capacitors, source impedances
-    /// - DUT instantiation with proper port ordering
-    /// - Analysis commands based on bench type (AC, transient, DC)
-    /// - Control block with .control/.endc wrapper for ngspice
+    /// This method is deprecated. Use Emit() with backend parameter instead.
+    /// The testbench is now generated using templates via TestbenchGenerator.
     /// </remarks>
-    public static void EmitTestbench(Circuit circuit, BenchConfig bench, string designPath, TextWriter writer)
+    [Obsolete("Use Emit() method with backend parameter instead")]
+    public static void EmitTestbench(Circuit circuit, BenchConfig bench, string designPath, TextWriter writer, BenchBackendType backend = BenchBackendType.Ngspice)
     {
         if (circuit.Level != ACIRLevel.EL)
         {
@@ -167,15 +166,17 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
+    /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
+    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
     /// <returns>Result containing paths to generated files.</returns>
     /// <remarks>
     /// Processes all EL-level circuits in the document:
     /// - Generates {CircuitName}.sp for each circuit
-    /// - Generates {CircuitName}_{BenchName}.sp for each bench
+    /// - Generates {CircuitName}_{BenchName}.sp for each bench using templates
     /// Output directory is created if it doesn't exist.
     /// Non-EL circuits are silently skipped.
     /// </remarks>
-    public static SpiceEmitResult Emit(ACIRDocument doc, string outputDir)
+    public static SpiceEmitResult Emit(ACIRDocument doc, string outputDir, BenchBackendType backend = BenchBackendType.Ngspice, string? workspaceRoot = null)
     {
         var result = new SpiceEmitResult();
         Directory.CreateDirectory(outputDir);
@@ -195,15 +196,13 @@ public static class SpiceEmitter
             }
             result.DesignPaths.Add(designPath);
 
-            // Emit testbenches
+            // Emit testbenches using template-based generation
             if (circuit.Benches?.Benches.Count > 0)
             {
                 foreach (var bench in circuit.Benches.Benches)
                 {
-                    var tbPath = Path.Combine(outputDir, $"{circuit.Name}_{bench.Name}.sp");
-                    using var tbWriter = File.CreateText(tbPath);
-                    EmitTestbench(circuit, bench, $"{circuit.Name}.sp", tbWriter);
-                    result.TestbenchPaths.Add(tbPath);
+                    var files = ACIRBenchAdapter.GenerateTestbench(circuit, bench, backend, outputDir, workspaceRoot);
+                    result.TestbenchPaths.Add(files.NetlistPath);
                 }
             }
         }
