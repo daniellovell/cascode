@@ -17,30 +17,47 @@ namespace Cascode.ACIR;
 public static class ACIRReader
 {
     /// <summary>
-    /// Reads an ACIR document from a text reader.
+    /// Reads an ACIR document from a text reader. Throws on parse errors.
     /// </summary>
     /// <param name="reader">Text reader containing ACIR content.</param>
+    /// <param name="filePath">Optional file path for error messages.</param>
     /// <returns>Parsed ACIR document.</returns>
-    public static ACIRDocument Read(TextReader reader)
+    /// <exception cref="ACIRParseException">Thrown when parsing fails.</exception>
+    /// <remarks>
+    /// For structured error handling, use <see cref="TryRead"/> instead.
+    /// </remarks>
+    public static ACIRDocument Read(TextReader reader, string filePath = "<unknown>")
     {
-        var lines = new List<string>();
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
+        var result = TryRead(reader, filePath);
+        if (!result.Success)
         {
-            lines.Add(line);
+            var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            var message = errors.Count > 0 ? errors[0].Message : "Unknown parse error";
+            throw new ACIRParseException(message, result.Diagnostics);
         }
-        return Parse(lines);
+        return result.Document!;
     }
 
     /// <summary>
-    /// Parses ACIR text content from a string.
+    /// Parses ACIR text content from a string. Throws on parse errors.
     /// </summary>
     /// <param name="content">ACIR text content.</param>
+    /// <param name="filePath">Optional file path for error messages.</param>
     /// <returns>Parsed ACIR document.</returns>
-    public static ACIRDocument Parse(string content)
+    /// <exception cref="ACIRParseException">Thrown when parsing fails.</exception>
+    /// <remarks>
+    /// For structured error handling, use <see cref="TryParse"/> instead.
+    /// </remarks>
+    public static ACIRDocument Parse(string content, string filePath = "<unknown>")
     {
-        var lines = content.Split('\n');
-        return Parse(lines);
+        var result = TryParse(content, filePath);
+        if (!result.Success)
+        {
+            var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            var message = errors.Count > 0 ? errors[0].Message : "Unknown parse error";
+            throw new ACIRParseException(message, result.Diagnostics);
+        }
+        return result.Document!;
     }
 
     /// <summary>

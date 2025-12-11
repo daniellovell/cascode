@@ -1097,6 +1097,39 @@ The text-based format was chosen to maximize:
 
 The following EBNF-style grammar summarizes ACIR syntax:
 
+## 3.12 Diagnostics
+
+The ACIR reader emits structured diagnostics when parsing fails or encounters malformed input. Each diagnostic includes a code, severity, message, file path, and line/column location. Diagnostics follow the same pattern as the Cascode compiler's `Diagnostic` type.
+
+### Diagnostic Codes
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| ACIR0001 | Error | General parse failure (e.g., I/O error, unexpected exception) |
+| ACIR0002 | Error/Warning | Invalid or missing version declaration; expects `ACIR <number>` |
+| ACIR0003 | Error | Malformed circuit or bundle declaration |
+| ACIR0004 | Error | Invalid device declaration syntax |
+| ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
+
+### Programmatic Access
+
+Use `ACIRReader.TryRead()` or `ACIRReader.TryParse()` to obtain an `ACIRReadResult` containing the parsed document and any diagnostics:
+
+```csharp
+var result = ACIRReader.TryRead(reader, "path/to/file.cir");
+if (!result.Success)
+{
+    foreach (var diag in result.Diagnostics)
+        Console.WriteLine($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+}
+```
+
+`ACIRReader.Read()` throws `ACIRParseException` on fatal errors. For structured error handling in tooling, use the `TryRead` variants which return diagnostics without throwing.
+
+---
+
+## 3.13 Grammar Summary
+
 ```ebnf
 document     = "ACIR" version NL (bundleDef)* (circuit)+ ;
 

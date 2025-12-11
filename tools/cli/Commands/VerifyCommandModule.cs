@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using Cascode.ACIR;
 using Cascode.Bench;
+using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;
 
@@ -66,17 +67,22 @@ internal sealed class VerifyCommandModule : ICommandModule
         }
 
         // Read ACIR document
-        ACIRDocument doc;
-        try
+        ACIRReadResult readResult;
+        using (var reader = File.OpenText(acirPath))
         {
-            using var reader = File.OpenText(acirPath);
-            doc = ACIRReader.Read(reader);
+            readResult = ACIRReader.TryRead(reader, acirPath);
         }
-        catch (Exception ex)
+
+        if (!readResult.Success)
         {
-            _state.AddMessage($"Failed to read ACIR file: {ex.Message}");
+            foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+            }
             return CommandResult.Failure;
         }
+
+        var doc = readResult.Document!;
 
         // Find EL-level circuit (use first one, or match by name from results)
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();

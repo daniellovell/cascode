@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.ACIR;
 using Cascode.ACIR.Validation;
 using Cascode.Bench;
+using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;
 
@@ -224,24 +226,34 @@ internal sealed class EmitCommandModule : ICommandModule
 
     private ACIRDocument? TryReadAcirDocument(string inputPath, bool jsonOutput = false)
     {
-        try
+        ACIRReadResult readResult;
+        using (var reader = File.OpenText(inputPath))
         {
-            using var reader = File.OpenText(inputPath);
-            return ACIRReader.Read(reader);
+            readResult = ACIRReader.TryRead(reader, inputPath);
         }
-        catch (Exception ex)
+
+        if (!readResult.Success)
         {
             if (jsonOutput)
             {
-                OutputEmitJson(false, 2, new ValidationResult(), new List<string>(), new List<string>(),
-                    $"Failed to read ACIR file: {ex.Message}");
+                var errorResult = new ValidationResult();
+                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    errorResult.AddError(diag.Message.Split(':')[0], diag.Message, $"{diag.FilePath}:{diag.Line}");
+                }
+                OutputEmitJson(false, 2, errorResult, new List<string>(), new List<string>());
             }
             else
             {
-                _state.AddMessage($"Failed to read ACIR file: {ex.Message}");
+                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                }
             }
             return null;
         }
+
+        return readResult.Document;
     }
 
     private static string? FindWorkspaceRoot(string filePath)

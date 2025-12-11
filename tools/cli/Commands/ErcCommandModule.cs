@@ -1,8 +1,8 @@
-using System;
 using System.IO;
 using System.Linq;
 using Cascode.ACIR;
 using Cascode.ACIR.Validation;
+using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;
 
@@ -63,26 +63,34 @@ internal sealed class ErcCommandModule : ICommandModule
         inputPath = Path.GetFullPath(inputPath);
 
         // Parse ACIR document
-        ACIRDocument doc;
-        try
+        ACIRReadResult readResult;
+        using (var reader = File.OpenText(inputPath))
         {
-            using var reader = File.OpenText(inputPath);
-            doc = ACIRReader.Read(reader);
+            readResult = ACIRReader.TryRead(reader, inputPath);
         }
-        catch (Exception ex)
+
+        if (!readResult.Success)
         {
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
-                errorResult.AddError("ERC-PARSE", $"Failed to parse ACIR file: {ex.Message}");
+                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    errorResult.AddError(diag.Message.Split(':')[0], diag.Message, $"{diag.FilePath}:{diag.Line}");
+                }
                 _state.AddMessage(errorResult.ToJson(2));
             }
             else
             {
-                _state.AddMessage($"Failed to parse ACIR file: {ex.Message}");
+                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                {
+                    _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                }
             }
             return new CommandResult(2, false);
         }
+
+        var doc = readResult.Document!;
 
         // Find EL circuits
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
