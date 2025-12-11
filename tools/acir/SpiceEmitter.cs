@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.ACIR.Validation;
 using Cascode.Bench;
 
 namespace Cascode.ACIR;
@@ -208,6 +209,50 @@ public static class SpiceEmitter
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Validates and emits all outputs for an ACIR document with pre-flight validation.
+    /// </summary>
+    /// <param name="doc">The ACIR document.</param>
+    /// <param name="outputDir">Output directory for generated files.</param>
+    /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
+    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <returns>Result containing paths to generated files and validation result.</returns>
+    /// <remarks>
+    /// Runs emission validation before attempting SPICE generation.
+    /// If validation fails, no files are written and the validation errors are returned.
+    /// </remarks>
+    public static ValidatedEmitResult ValidateAndEmit(ACIRDocument doc, string outputDir, BenchBackendType backend = BenchBackendType.Ngspice, string? workspaceRoot = null)
+    {
+        var validationResult = new ValidationResult();
+
+        // Validate all EL circuits first
+        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        foreach (var circuit in elCircuits)
+        {
+            var circuitValidation = EmissionValidator.Validate(circuit);
+            validationResult.Merge(circuitValidation);
+        }
+
+        // If validation failed, return early without emitting
+        if (!validationResult.IsValid)
+        {
+            return new ValidatedEmitResult
+            {
+                Validation = validationResult,
+                Emit = new SpiceEmitResult()
+            };
+        }
+
+        // Validation passed, proceed with emission
+        var emitResult = Emit(doc, outputDir, backend, workspaceRoot);
+
+        return new ValidatedEmitResult
+        {
+            Validation = validationResult,
+            Emit = emitResult
+        };
     }
 
     /// <summary>
@@ -497,4 +542,25 @@ public sealed class SpiceEmitResult
     /// Paths to generated testbench files.
     /// </summary>
     public List<string> TestbenchPaths { get; } = new();
+}
+
+/// <summary>
+/// Result of validated SPICE emission containing validation result and generated files.
+/// </summary>
+public sealed class ValidatedEmitResult
+{
+    /// <summary>
+    /// Validation result containing any errors or warnings.
+    /// </summary>
+    public required ValidationResult Validation { get; init; }
+
+    /// <summary>
+    /// Emission result containing paths to generated files (empty if validation failed).
+    /// </summary>
+    public required SpiceEmitResult Emit { get; init; }
+
+    /// <summary>
+    /// True if validation passed and files were emitted.
+    /// </summary>
+    public bool Success => Validation.IsValid;
 }

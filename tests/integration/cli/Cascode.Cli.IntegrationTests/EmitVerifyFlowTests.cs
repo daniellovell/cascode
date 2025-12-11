@@ -216,5 +216,160 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("not found", result.Stdout);
     }
+
+    [Fact]
+    public async Task Emit_InvalidCircuit_MissingTerminal_ReturnsExitCode2()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EMIT-001", result.Stdout);
+        Assert.Contains("missing required terminal", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_InvalidCircuit_UndefinedNet_ReturnsExitCode2()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/undefined_net.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EMIT-002", result.Stdout);
+        Assert.Contains("undefined net", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_InvalidCircuit_MissingParam_ReturnsExitCode2()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_param.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EMIT-003", result.Stdout);
+        Assert.Contains("missing required parameter", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_InvalidCircuit_MLLevel_ReturnsExitCode2()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/ml_level.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EL-level", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_ValidCircuit_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "erc command failed on valid circuit");
+        Assert.Contains("ERC passed", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_FloatingGate_ReturnsExitCode1()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-001", result.Stdout);
+        Assert.Contains("Floating gate", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_VddGndShort_ReturnsExitCode1()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-002", result.Stdout);
+        Assert.Contains("VDD-GND short", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_StructurallyInvalid_ReturnsExitCode2()
+    {
+        // ERC on a structurally invalid file (missing terminal) should return exit code 2
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        // ERC includes emission validation, so structural errors cause ERC failure
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("EMIT-001", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_RequirePdk_WarningBecomesError()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+
+        // Without --require-pdk, should pass with warning
+        var resultWithoutFlag = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        CliIntegrationTestHelper.AssertSuccess(resultWithoutFlag, "erc should pass without --require-pdk");
+
+        // With --require-pdk, should fail because CSAmpResistive uses generic nmos/pmos
+        var resultWithFlag = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath, "--require-pdk");
+
+        Assert.NotEqual(0, resultWithFlag.ExitCode);
+        Assert.Contains("ERC-005", resultWithFlag.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_Usage_ShowsHelp()
+    {
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "erc without args should show usage");
+        Assert.Contains("Usage: erc", result.Stdout);
+        Assert.Contains("--require-pdk", result.Stdout);
+    }
 }
 

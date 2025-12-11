@@ -1,0 +1,129 @@
+using System;
+using System.IO;
+using System.Linq;
+using Cascode.ACIR;
+using Cascode.ACIR.Validation;
+
+namespace Cascode.Cli.Commands;
+
+/// <summary>
+/// Command module for electrical rule checking (ERC) on ACIR documents.
+/// </summary>
+/// <remarks>
+/// The ERC command validates that an ACIR EL document represents a legal circuit
+/// that can be simulated. It checks for electrical issues such as floating gates,
+/// VDD-GND shorts, and dangling nets.
+///
+/// Exit codes:
+///   0 = ERC passed
+///   1 = ERC failed (errors in stderr)
+///   2 = Parse error / invalid input
+/// </remarks>
+internal sealed class ErcCommandModule : ICommandModule
+{
+    private readonly ShellState _state;
+
+    public ErcCommandModule(ShellState state)
+    {
+        _state = state;
+    }
+
+    public void Register(CommandRegistry registry)
+    {
+        registry.Register(new DelegateCliCommand("erc", "Run electrical rule check on ACIR file", ErcCommand));
+    }
+
+    private CommandResult ErcCommand(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            ShowUsage();
+            return CommandResult.Success;
+        }
+
+        var inputPath = args[0];
+        if (!File.Exists(inputPath))
+        {
+            _state.AddMessage($"Input file '{inputPath}' not found.");
+            return new CommandResult(2, false);
+        }
+
+        inputPath = Path.GetFullPath(inputPath);
+
+        var requirePdk = args.Contains("--require-pdk");
+
+        // Parse ACIR document
+        ACIRDocument doc;
+        try
+        {
+            using var reader = File.OpenText(inputPath);
+            doc = ACIRReader.Read(reader);
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"Failed to parse ACIR file: {ex.Message}");
+            return new CommandResult(2, false);
+        }
+
+        // Find EL circuits
+        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        if (elCircuits.Count == 0)
+        {
+            _state.AddMessage("No EL-level circuits found. ERC requires EL-level ACIR.");
+            return new CommandResult(2, false);
+        }
+
+        // Run ERC on all EL circuits
+        var combinedResult = new ValidationResult();
+        foreach (var circuit in elCircuits)
+        {
+            var circuitResult = ElectricalRuleChecker.Check(circuit, requirePdk);
+            combinedResult.Merge(circuitResult);
+        }
+
+        // Display errors
+        foreach (var error in combinedResult.GetErrors())
+        {
+            _state.AddMessage(error.ToString());
+        }
+
+        // Display warnings
+        foreach (var warning in combinedResult.GetWarnings())
+        {
+            _state.AddMessage(warning.ToString());
+        }
+
+        // Summary
+        if (combinedResult.HasErrors)
+        {
+            _state.AddMessage($"ERC failed: {combinedResult.ErrorCount} error(s), {combinedResult.WarningCount} warning(s).");
+            return new CommandResult(1, false);
+        }
+
+        if (combinedResult.HasWarnings)
+        {
+            _state.AddMessage($"ERC passed with {combinedResult.WarningCount} warning(s).");
+        }
+        else
+        {
+            _state.AddMessage($"ERC passed: {elCircuits.Count} circuit(s) validated.");
+        }
+
+        return CommandResult.Success;
+    }
+
+    private void ShowUsage()
+    {
+        _state.AddMessage("Usage: erc <acir_file> [--require-pdk]");
+        _state.AddMessage("");
+        _state.AddMessage("Runs electrical rule checking on an ACIR EL document.");
+        _state.AddMessage("");
+        _state.AddMessage("Options:");
+        _state.AddMessage("  --require-pdk    Treat missing PDK device names as errors (default: warnings)");
+        _state.AddMessage("");
+        _state.AddMessage("Exit codes:");
+        _state.AddMessage("  0 = ERC passed");
+        _state.AddMessage("  1 = ERC failed (errors found)");
+        _state.AddMessage("  2 = Parse error / invalid input");
+    }
+}

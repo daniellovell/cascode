@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Cascode.ACIR;
+using Cascode.ACIR.Validation;
 using Cascode.Bench;
 
 namespace Cascode.Cli.Commands;
@@ -63,31 +64,49 @@ internal sealed class EmitCommandModule : ICommandModule
         var doc = TryReadAcirDocument(inputPath);
         if (doc == null)
         {
-            return CommandResult.Failure;
+            return new CommandResult(2, false); // Parse error
         }
 
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
             _state.AddMessage("No EL-level circuits found. SPICE emission requires EL-level ACIR.");
-            return CommandResult.Failure;
+            return new CommandResult(2, false); // Invalid input
         }
 
         try
         {
             var workspaceRoot = FindWorkspaceRoot(inputPath) ?? Directory.GetCurrentDirectory();
-            var result = SpiceEmitter.Emit(doc, outputDir, backend, workspaceRoot);
+            var result = SpiceEmitter.ValidateAndEmit(doc, outputDir, backend, workspaceRoot);
 
-            foreach (var path in result.DesignPaths)
+            // Display validation errors if any
+            if (!result.Validation.IsValid)
+            {
+                foreach (var error in result.Validation.GetErrors())
+                {
+                    _state.AddMessage(error.ToString());
+                }
+                _state.AddMessage($"Emission failed: {result.Validation.ErrorCount} error(s) found.");
+                return new CommandResult(2, false); // Structural error
+            }
+
+            // Display warnings if any
+            foreach (var warning in result.Validation.GetWarnings())
+            {
+                _state.AddMessage(warning.ToString());
+            }
+
+            // Success - display output paths
+            foreach (var path in result.Emit.DesignPaths)
             {
                 _state.AddMessage($"Design netlist: {path}");
             }
-            foreach (var path in result.TestbenchPaths)
+            foreach (var path in result.Emit.TestbenchPaths)
             {
                 _state.AddMessage($"Testbench: {path}");
             }
 
-            _state.AddMessage($"Emitted {result.DesignPaths.Count} design(s) and {result.TestbenchPaths.Count} testbench(es).");
+            _state.AddMessage($"Emitted {result.Emit.DesignPaths.Count} design(s) and {result.Emit.TestbenchPaths.Count} testbench(es).");
             return CommandResult.Success;
         }
         catch (Exception ex)
