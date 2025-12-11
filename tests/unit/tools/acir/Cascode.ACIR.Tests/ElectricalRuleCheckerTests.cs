@@ -526,6 +526,171 @@ public class ElectricalRuleCheckerTests
         Assert.Contains(result.Errors, e => e.Code.StartsWith("EMIT-")); // Emission errors
     }
 
+    [Fact]
+    public void Check_ResistorBridgingRails_ReturnsERC007()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "resistor",
+                        Id = "R_short",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "GND" }
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "R", "1k" }
+                        }
+                    }
+                }
+            }
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("R_short"));
+    }
+
+    [Fact]
+    public void Check_CapacitorBridgingRails_ReturnsERC007()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "capacitor",
+                        Id = "C_short",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "GND" },
+                            { "N", "VDD" } // Reversed order, still a short
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "C", "1p" }
+                        }
+                    }
+                }
+            }
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("C_short"));
+    }
+
+    [Fact]
+    public void Check_InductorBridgingRails_ReturnsERC007()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "inductor",
+                        Id = "L_short",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "GND" }
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "L", "1n" }
+                        }
+                    }
+                }
+            }
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("L_short"));
+    }
+
+    [Fact]
+    public void Check_ResistorNotBridgingRails_IsValid()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+                new() { Name = "OUT", Type = "analog" }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "resistor",
+                        Id = "R_load",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "OUT" } // Not GND, so not a short
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "R", "10k" }
+                        }
+                    },
+                    CreateValidNmos("M1", "OUT", "IN", "GND", "GND")
+                }
+            }
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.DoesNotContain(result.Errors, e => e.Code == "ERC-007");
+    }
+
     private static Circuit CreateValidCircuit()
     {
         return new Circuit

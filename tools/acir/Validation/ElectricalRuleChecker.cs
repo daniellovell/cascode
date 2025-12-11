@@ -11,11 +11,11 @@ namespace Cascode.ACIR.Validation;
 /// ERC rules detect electrically invalid circuits that can technically be emitted
 /// but will fail simulation or produce meaningless results:
 /// - ERC-001: Floating gate (MOSFET gate not driven)
-/// - ERC-002: VDD-GND short (device spanning supply rails)
+/// - ERC-002: VDD-GND short (MOSFET spanning supply rails)
 /// - ERC-003: Rail conflict (supply/ground mapped to multiple nets)
 /// - ERC-004: Dangling net (internal net with no connections)
 /// - ERC-005: Missing PDK device (EL device without PDK model - warning)
-/// - ERC-006: Terminal coverage (instance missing required terminals)
+/// - ERC-007: Passive rail bridge (R/L/C directly between VDD and GND)
 /// </remarks>
 public static class ElectricalRuleChecker
 {
@@ -45,6 +45,7 @@ public static class ElectricalRuleChecker
         // Run ERC checks
         CheckFloatingGates(circuit, analysis, result);
         CheckVddGndShorts(circuit, analysis, result);
+        CheckPassiveShorts(circuit, analysis, result);
         CheckRailUniqueness(circuit, result);
         CheckDanglingNets(circuit, analysis, result);
         CheckPdkDevice(circuit, result, requirePdkDevice);
@@ -106,6 +107,47 @@ public static class ElectricalRuleChecker
                     $"VDD-GND short through device {device.Id}",
                     $"{device.Id} (D->{drain}, S->{source})",
                     "Check device connectivity - drain and source cannot span supply rails directly");
+            }
+        }
+    }
+
+    /// <summary>
+    /// ERC-007: Check for passive devices bridging supply rails (R/L/C between VDD and GND).
+    /// </summary>
+    private static void CheckPassiveShorts(Circuit circuit, CircuitAnalysis analysis, ValidationResult result)
+    {
+        if (circuit.Fill?.Devices == null) return;
+
+        foreach (var device in circuit.Fill.Devices)
+        {
+            var deviceType = device.DeviceType.ToLowerInvariant();
+            if (deviceType is not ("resistor" or "inductor" or "capacitor")) continue;
+
+            var p = device.Bindings.GetValueOrDefault("P");
+            var n = device.Bindings.GetValueOrDefault("N");
+
+            if (p == null || n == null) continue;
+
+            var pIsSupply = analysis.IsSupply(p);
+            var pIsGround = analysis.IsGround(p);
+            var nIsSupply = analysis.IsSupply(n);
+            var nIsGround = analysis.IsGround(n);
+
+            if ((pIsSupply && nIsGround) || (pIsGround && nIsSupply))
+            {
+                var deviceTypeName = deviceType switch
+                {
+                    "resistor" => "Resistor",
+                    "inductor" => "Inductor",
+                    "capacitor" => "Capacitor",
+                    _ => "Passive device"
+                };
+
+                result.AddError(
+                    "ERC-007",
+                    $"{deviceTypeName} '{device.Id}' bridges supply rails",
+                    $"{device.Id} (P->{p}, N->{n})",
+                    "This creates a direct path between VDD and GND");
             }
         }
     }

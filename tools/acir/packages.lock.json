@@ -2,6 +2,11 @@
   "version": 1,
   "dependencies": {
     "net8.0": {
+      "Antlr4.Runtime.Standard": {
+        "type": "Transitive",
+        "resolved": "4.13.1",
+        "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "8.0.0",
@@ -31,6 +36,12 @@
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
           "Scriban": "[5.10.0, )",
           "YamlDotNet": "[13.7.1, )"
+        }
+      },
+      "cascode.parser": {
+        "type": "Project",
+        "dependencies": {
+          "Antlr4.Runtime.Standard": "[4.13.1, )"
         }
       }
     }

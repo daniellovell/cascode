@@ -146,7 +146,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[1.0.0, )"
+          "Cascode.Bench": "[1.0.0, )",
+          "Cascode.Parser": "[1.0.0, )"
         }
       },
       "cascode.bench": {

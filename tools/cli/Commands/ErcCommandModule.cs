@@ -42,15 +42,25 @@ internal sealed class ErcCommandModule : ICommandModule
         }
 
         var inputPath = args[0];
+        var requirePdk = args.Contains("--require-pdk");
+        var jsonOutput = args.Contains("--json");
+
         if (!File.Exists(inputPath))
         {
-            _state.AddMessage($"Input file '{inputPath}' not found.");
+            if (jsonOutput)
+            {
+                var errorResult = new ValidationResult();
+                errorResult.AddError("ERC-PARSE", $"Input file '{inputPath}' not found");
+                _state.AddMessage(errorResult.ToJson(2));
+            }
+            else
+            {
+                _state.AddMessage($"Input file '{inputPath}' not found.");
+            }
             return new CommandResult(2, false);
         }
 
         inputPath = Path.GetFullPath(inputPath);
-
-        var requirePdk = args.Contains("--require-pdk");
 
         // Parse ACIR document
         ACIRDocument doc;
@@ -61,7 +71,16 @@ internal sealed class ErcCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to parse ACIR file: {ex.Message}");
+            if (jsonOutput)
+            {
+                var errorResult = new ValidationResult();
+                errorResult.AddError("ERC-PARSE", $"Failed to parse ACIR file: {ex.Message}");
+                _state.AddMessage(errorResult.ToJson(2));
+            }
+            else
+            {
+                _state.AddMessage($"Failed to parse ACIR file: {ex.Message}");
+            }
             return new CommandResult(2, false);
         }
 
@@ -69,7 +88,16 @@ internal sealed class ErcCommandModule : ICommandModule
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
-            _state.AddMessage("No EL-level circuits found. ERC requires EL-level ACIR.");
+            if (jsonOutput)
+            {
+                var errorResult = new ValidationResult();
+                errorResult.AddError("ERC-PARSE", "No EL-level circuits found. ERC requires EL-level ACIR.");
+                _state.AddMessage(errorResult.ToJson(2));
+            }
+            else
+            {
+                _state.AddMessage("No EL-level circuits found. ERC requires EL-level ACIR.");
+            }
             return new CommandResult(2, false);
         }
 
@@ -81,45 +109,54 @@ internal sealed class ErcCommandModule : ICommandModule
             combinedResult.Merge(circuitResult);
         }
 
-        // Display errors
-        foreach (var error in combinedResult.GetErrors())
-        {
-            _state.AddMessage(error.ToString());
-        }
+        // Determine exit code
+        var exitCode = combinedResult.HasErrors ? 1 : 0;
 
-        // Display warnings
-        foreach (var warning in combinedResult.GetWarnings())
+        if (jsonOutput)
         {
-            _state.AddMessage(warning.ToString());
-        }
-
-        // Summary
-        if (combinedResult.HasErrors)
-        {
-            _state.AddMessage($"ERC failed: {combinedResult.ErrorCount} error(s), {combinedResult.WarningCount} warning(s).");
-            return new CommandResult(1, false);
-        }
-
-        if (combinedResult.HasWarnings)
-        {
-            _state.AddMessage($"ERC passed with {combinedResult.WarningCount} warning(s).");
+            _state.AddMessage(combinedResult.ToJson(exitCode));
         }
         else
         {
-            _state.AddMessage($"ERC passed: {elCircuits.Count} circuit(s) validated.");
+            // Display errors
+            foreach (var error in combinedResult.GetErrors())
+            {
+                _state.AddMessage(error.ToString());
+            }
+
+            // Display warnings
+            foreach (var warning in combinedResult.GetWarnings())
+            {
+                _state.AddMessage(warning.ToString());
+            }
+
+            // Summary
+            if (combinedResult.HasErrors)
+            {
+                _state.AddMessage($"ERC failed: {combinedResult.ErrorCount} error(s), {combinedResult.WarningCount} warning(s).");
+            }
+            else if (combinedResult.HasWarnings)
+            {
+                _state.AddMessage($"ERC passed with {combinedResult.WarningCount} warning(s).");
+            }
+            else
+            {
+                _state.AddMessage($"ERC passed: {elCircuits.Count} circuit(s) validated.");
+            }
         }
 
-        return CommandResult.Success;
+        return new CommandResult(exitCode, false);
     }
 
     private void ShowUsage()
     {
-        _state.AddMessage("Usage: erc <acir_file> [--require-pdk]");
+        _state.AddMessage("Usage: erc <acir_file> [--require-pdk] [--json]");
         _state.AddMessage("");
         _state.AddMessage("Runs electrical rule checking on an ACIR EL document.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
         _state.AddMessage("  --require-pdk    Treat missing PDK device names as errors (default: warnings)");
+        _state.AddMessage("  --json           Output results as JSON for machine processing");
         _state.AddMessage("");
         _state.AddMessage("Exit codes:");
         _state.AddMessage("  0 = ERC passed");

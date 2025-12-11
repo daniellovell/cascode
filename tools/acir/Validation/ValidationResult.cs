@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Cascode.ACIR.Validation;
 
@@ -118,4 +120,102 @@ public sealed class ValidationResult
     /// </summary>
     public IEnumerable<ValidationError> GetWarnings()
         => Errors.Where(e => e.Severity == ValidationSeverity.Warning);
+
+    /// <summary>
+    /// Converts the validation result to a JSON string for machine-readable output.
+    /// </summary>
+    /// <param name="exitCode">The exit code that will be returned by the command.</param>
+    /// <returns>JSON string representation of the validation result.</returns>
+    public string ToJson(int exitCode)
+    {
+        var output = new ValidationJsonOutput
+        {
+            Success = IsValid,
+            ExitCode = exitCode,
+            Errors = GetErrors().Select(e => new ValidationErrorJson
+            {
+                Code = e.Code,
+                Severity = "error",
+                Message = e.Message,
+                Location = e.Location,
+                Suggestion = e.Suggestion
+            }).ToList(),
+            Warnings = GetWarnings().Select(e => new ValidationErrorJson
+            {
+                Code = e.Code,
+                Severity = "warning",
+                Message = e.Message,
+                Location = e.Location,
+                Suggestion = e.Suggestion
+            }).ToList(),
+            Summary = new ValidationSummaryJson
+            {
+                ErrorCount = ErrorCount,
+                WarningCount = WarningCount
+            }
+        };
+
+        return JsonSerializer.Serialize(output, ValidationJsonOutput.SerializerOptions);
+    }
+}
+
+/// <summary>
+/// JSON output model for validation results.
+/// </summary>
+internal sealed class ValidationJsonOutput
+{
+    internal static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    [JsonPropertyName("success")]
+    public bool Success { get; init; }
+
+    [JsonPropertyName("exitCode")]
+    public int ExitCode { get; init; }
+
+    [JsonPropertyName("errors")]
+    public List<ValidationErrorJson> Errors { get; init; } = new();
+
+    [JsonPropertyName("warnings")]
+    public List<ValidationErrorJson> Warnings { get; init; } = new();
+
+    [JsonPropertyName("summary")]
+    public ValidationSummaryJson Summary { get; init; } = new();
+}
+
+/// <summary>
+/// JSON model for a single validation error or warning.
+/// </summary>
+internal sealed class ValidationErrorJson
+{
+    [JsonPropertyName("code")]
+    public string Code { get; init; } = string.Empty;
+
+    [JsonPropertyName("severity")]
+    public string Severity { get; init; } = string.Empty;
+
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = string.Empty;
+
+    [JsonPropertyName("location")]
+    public string? Location { get; init; }
+
+    [JsonPropertyName("suggestion")]
+    public string? Suggestion { get; init; }
+}
+
+/// <summary>
+/// JSON model for validation summary counts.
+/// </summary>
+internal sealed class ValidationSummaryJson
+{
+    [JsonPropertyName("errorCount")]
+    public int ErrorCount { get; init; }
+
+    [JsonPropertyName("warningCount")]
+    public int WarningCount { get; init; }
 }

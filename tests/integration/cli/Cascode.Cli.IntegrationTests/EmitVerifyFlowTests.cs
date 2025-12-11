@@ -370,6 +370,112 @@ public class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "erc without args should show usage");
         Assert.Contains("Usage: erc", result.Stdout);
         Assert.Contains("--require-pdk", result.Stdout);
+        Assert.Contains("--json", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_JsonOutput_ReturnsValidJson()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath, "--json");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "erc --json should succeed");
+
+        // Extract JSON from output (skip prompt line)
+        var jsonStart = result.Stdout.IndexOf('{');
+        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
+        var jsonText = result.Stdout[jsonStart..];
+
+        var json = JsonDocument.Parse(jsonText);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(0, json.RootElement.GetProperty("exitCode").GetInt32());
+    }
+
+    [Fact]
+    public async Task Erc_JsonOutput_WithErrors_ReturnsValidJson()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath, "--json");
+
+        Assert.Equal(1, result.ExitCode);
+
+        // Extract JSON from output (skip prompt line)
+        var jsonStart = result.Stdout.IndexOf('{');
+        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
+        var jsonText = result.Stdout[jsonStart..];
+
+        var json = JsonDocument.Parse(jsonText);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(1, json.RootElement.GetProperty("exitCode").GetInt32());
+
+        var errors = json.RootElement.GetProperty("errors").EnumerateArray().ToList();
+        Assert.Contains(errors, e => e.GetProperty("code").GetString() == "ERC-001");
+    }
+
+    [Fact]
+    public async Task Erc_PassiveShort_ReturnsERC007()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc", acirPath);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-007", result.Stdout);
+        Assert.Contains("bridges supply rails", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_JsonOutput_ReturnsValidJson()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--json");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit --json should succeed");
+
+        // Extract JSON from output (skip prompt line)
+        var jsonStart = result.Stdout.IndexOf('{');
+        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
+        var jsonText = result.Stdout[jsonStart..];
+
+        var json = JsonDocument.Parse(jsonText);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.NotEmpty(json.RootElement.GetProperty("designPaths").EnumerateArray());
+    }
+
+    [Fact]
+    public async Task Emit_JsonOutput_WithErrors_ReturnsValidJson()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--json");
+
+        Assert.Equal(2, result.ExitCode);
+
+        // Extract JSON from output (skip prompt line)
+        var jsonStart = result.Stdout.IndexOf('{');
+        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
+        var jsonText = result.Stdout[jsonStart..];
+
+        var json = JsonDocument.Parse(jsonText);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
     }
 }
 
