@@ -12,7 +12,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.True(result.IsValid);
-        Assert.Empty(result.Errors);
+        Assert.Empty(result.Diagnostics);
     }
 
     [Fact]
@@ -27,9 +27,9 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Single(result.Errors);
-        Assert.Equal("EMIT-005", result.Errors[0].Code);
-        Assert.Contains("ML", result.Errors[0].Message);
+        Assert.Single(result.Diagnostics);
+        Assert.Equal("EMIT-005", result.Diagnostics[0].Code);
+        Assert.Contains("ML", result.Diagnostics[0].Message);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-001" && e.Message.Contains("'G'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-001" && e.Message.Contains("'G'"));
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-001" && e.Message.Contains("'B'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-001" && e.Message.Contains("'B'"));
     }
 
     [Fact]
@@ -164,7 +164,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-002" && e.Message.Contains("NONEXISTENT_NET"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-002" && e.Message.Contains("NONEXISTENT_NET"));
     }
 
     [Fact]
@@ -209,7 +209,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-003" && e.Message.Contains("'W'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'W'"));
     }
 
     [Fact]
@@ -254,7 +254,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-003" && e.Message.Contains("'L'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'L'"));
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-004" && e.Message.Contains("unknown_device"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-004" && e.Message.Contains("unknown_device"));
     }
 
     [Fact]
@@ -334,7 +334,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-001" && e.Message.Contains("'N'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-001" && e.Message.Contains("'N'"));
     }
 
     [Fact]
@@ -373,7 +373,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "EMIT-003" && e.Message.Contains("'R'"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'R'"));
     }
 
     [Fact]

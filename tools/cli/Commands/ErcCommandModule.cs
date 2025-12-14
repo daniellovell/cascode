@@ -41,9 +41,47 @@ internal sealed class ErcCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
+        if (!ValidateAndReadInput(args, out var doc, out var earlyResult, out var requirePdk, out var jsonOutput))
+        {
+            return earlyResult!;
+        }
+
+        // Run ERC on all EL circuits
+        var elCircuits = doc!.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var combinedResult = new ValidationResult();
+        foreach (var circuit in elCircuits)
+        {
+            var circuitResult = ElectricalRuleChecker.Check(circuit, requirePdk);
+            combinedResult.Merge(circuitResult);
+        }
+
+        var exitCode = combinedResult.HasErrors ? 1 : 0;
+
+        if (jsonOutput)
+        {
+            BuildJsonOutput(combinedResult, exitCode);
+        }
+        else
+        {
+            BuildHumanOutput(combinedResult, elCircuits.Count);
+        }
+
+        return new CommandResult(exitCode, false);
+    }
+
+    private bool ValidateAndReadInput(
+        string[] args,
+        out ACIRDocument? doc,
+        out CommandResult? earlyResult,
+        out bool requirePdk,
+        out bool jsonOutput)
+    {
+        doc = null;
+        earlyResult = null;
+
         var inputPath = args[0];
-        var requirePdk = args.Contains("--require-pdk");
-        var jsonOutput = args.Contains("--json");
+        requirePdk = args.Contains("--require-pdk");
+        jsonOutput = args.Contains("--json");
 
         if (!File.Exists(inputPath))
         {
@@ -57,7 +95,8 @@ internal sealed class ErcCommandModule : ICommandModule
             {
                 _state.AddMessage($"Input file '{inputPath}' not found.");
             }
-            return new CommandResult(2, false);
+            earlyResult = new CommandResult(2, false);
+            return false;
         }
 
         inputPath = Path.GetFullPath(inputPath);
@@ -76,7 +115,7 @@ internal sealed class ErcCommandModule : ICommandModule
                 var errorResult = new ValidationResult();
                 foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
-                    errorResult.AddError(diag.Message.Split(':')[0], diag.Message, $"{diag.FilePath}:{diag.Line}");
+                    errorResult.AddError("ERC-PARSE", diag.Message, $"{diag.FilePath}:{diag.Line}");
                 }
                 _state.AddMessage(errorResult.ToJson(2));
             }
@@ -87,10 +126,11 @@ internal sealed class ErcCommandModule : ICommandModule
                     _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
             }
-            return new CommandResult(2, false);
+            earlyResult = new CommandResult(2, false);
+            return false;
         }
 
-        var doc = readResult.Document!;
+        doc = readResult.Document!;
 
         // Find EL circuits
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
@@ -106,54 +146,45 @@ internal sealed class ErcCommandModule : ICommandModule
             {
                 _state.AddMessage("No EL-level circuits found. ERC requires EL-level ACIR.");
             }
-            return new CommandResult(2, false);
+            earlyResult = new CommandResult(2, false);
+            return false;
         }
 
-        // Run ERC on all EL circuits
-        var combinedResult = new ValidationResult();
-        foreach (var circuit in elCircuits)
+        return true;
+    }
+
+    private void BuildJsonOutput(ValidationResult result, int exitCode)
+    {
+        _state.AddMessage(result.ToJson(exitCode));
+    }
+
+    private void BuildHumanOutput(ValidationResult result, int elCircuitCount)
+    {
+        // Display errors
+        foreach (var error in result.GetErrors())
         {
-            var circuitResult = ElectricalRuleChecker.Check(circuit, requirePdk);
-            combinedResult.Merge(circuitResult);
+            _state.AddMessage(error.ToString());
         }
 
-        // Determine exit code
-        var exitCode = combinedResult.HasErrors ? 1 : 0;
-
-        if (jsonOutput)
+        // Display warnings
+        foreach (var warning in result.GetWarnings())
         {
-            _state.AddMessage(combinedResult.ToJson(exitCode));
+            _state.AddMessage(warning.ToString());
+        }
+
+        // Summary
+        if (result.HasErrors)
+        {
+            _state.AddMessage($"ERC failed: {result.ErrorCount} error(s), {result.WarningCount} warning(s).");
+        }
+        else if (result.HasWarnings)
+        {
+            _state.AddMessage($"ERC passed with {result.WarningCount} warning(s).");
         }
         else
         {
-            // Display errors
-            foreach (var error in combinedResult.GetErrors())
-            {
-                _state.AddMessage(error.ToString());
-            }
-
-            // Display warnings
-            foreach (var warning in combinedResult.GetWarnings())
-            {
-                _state.AddMessage(warning.ToString());
-            }
-
-            // Summary
-            if (combinedResult.HasErrors)
-            {
-                _state.AddMessage($"ERC failed: {combinedResult.ErrorCount} error(s), {combinedResult.WarningCount} warning(s).");
-            }
-            else if (combinedResult.HasWarnings)
-            {
-                _state.AddMessage($"ERC passed with {combinedResult.WarningCount} warning(s).");
-            }
-            else
-            {
-                _state.AddMessage($"ERC passed: {elCircuits.Count} circuit(s) validated.");
-            }
+            _state.AddMessage($"ERC passed: {elCircuitCount} circuit(s) validated.");
         }
-
-        return new CommandResult(exitCode, false);
     }
 
     private void ShowUsage()

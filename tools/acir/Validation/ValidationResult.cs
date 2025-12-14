@@ -6,39 +6,46 @@ using System.Text.Json.Serialization;
 namespace Cascode.ACIR.Validation;
 
 /// <summary>
-/// Result of validating an ACIR circuit, containing all errors and warnings.
+/// Result of validating an ACIR circuit, containing validation diagnostics.
 /// </summary>
 public sealed class ValidationResult
 {
+    private readonly List<ValidationError> _diagnostics = new();
+
     /// <summary>
     /// All validation diagnostics (errors, warnings, info).
     /// </summary>
-    public List<ValidationError> Errors { get; } = new();
+    public IReadOnlyList<ValidationError> Diagnostics { get; }
+
+    public ValidationResult()
+    {
+        Diagnostics = _diagnostics.AsReadOnly();
+    }
 
     /// <summary>
     /// True if validation passed (no errors, warnings are allowed).
     /// </summary>
-    public bool IsValid => !Errors.Any(e => e.Severity == ValidationSeverity.Error);
+    public bool IsValid => !_diagnostics.Any(e => e.Severity == ValidationSeverity.Error);
 
     /// <summary>
     /// True if there are any errors.
     /// </summary>
-    public bool HasErrors => Errors.Any(e => e.Severity == ValidationSeverity.Error);
+    public bool HasErrors => _diagnostics.Any(e => e.Severity == ValidationSeverity.Error);
 
     /// <summary>
     /// True if there are any warnings.
     /// </summary>
-    public bool HasWarnings => Errors.Any(e => e.Severity == ValidationSeverity.Warning);
+    public bool HasWarnings => _diagnostics.Any(e => e.Severity == ValidationSeverity.Warning);
 
     /// <summary>
     /// Count of errors only.
     /// </summary>
-    public int ErrorCount => Errors.Count(e => e.Severity == ValidationSeverity.Error);
+    public int ErrorCount => _diagnostics.Count(e => e.Severity == ValidationSeverity.Error);
 
     /// <summary>
     /// Count of warnings only.
     /// </summary>
-    public int WarningCount => Errors.Count(e => e.Severity == ValidationSeverity.Warning);
+    public int WarningCount => _diagnostics.Count(e => e.Severity == ValidationSeverity.Warning);
 
     /// <summary>
     /// Creates a successful validation result with no errors.
@@ -54,13 +61,16 @@ public sealed class ValidationResult
     /// <param name="suggestion">Optional suggestion for fixing.</param>
     public void AddError(string code, string message, string? location = null, string? suggestion = null)
     {
-        Errors.Add(new ValidationError
+        ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
+        ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
+
+        _diagnostics.Add(new ValidationError
         {
             Code = code,
             Severity = ValidationSeverity.Error,
             Message = message,
-            Location = location,
-            Suggestion = suggestion
+            Location = NormalizeOptional(location),
+            Suggestion = NormalizeOptional(suggestion)
         });
     }
 
@@ -73,13 +83,16 @@ public sealed class ValidationResult
     /// <param name="suggestion">Optional suggestion for fixing.</param>
     public void AddWarning(string code, string message, string? location = null, string? suggestion = null)
     {
-        Errors.Add(new ValidationError
+        ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
+        ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
+
+        _diagnostics.Add(new ValidationError
         {
             Code = code,
             Severity = ValidationSeverity.Warning,
             Message = message,
-            Location = location,
-            Suggestion = suggestion
+            Location = NormalizeOptional(location),
+            Suggestion = NormalizeOptional(suggestion)
         });
     }
 
@@ -91,12 +104,15 @@ public sealed class ValidationResult
     /// <param name="location">Optional location string.</param>
     public void AddInfo(string code, string message, string? location = null)
     {
-        Errors.Add(new ValidationError
+        ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
+        ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
+
+        _diagnostics.Add(new ValidationError
         {
             Code = code,
             Severity = ValidationSeverity.Info,
             Message = message,
-            Location = location
+            Location = NormalizeOptional(location)
         });
     }
 
@@ -106,20 +122,23 @@ public sealed class ValidationResult
     /// <param name="other">Result to merge.</param>
     public void Merge(ValidationResult other)
     {
-        Errors.AddRange(other.Errors);
+        ArgumentNullException.ThrowIfNull(other);
+        _diagnostics.AddRange(other._diagnostics);
     }
 
     /// <summary>
     /// Gets only the errors (excludes warnings and info).
     /// </summary>
     public IEnumerable<ValidationError> GetErrors()
-        => Errors.Where(e => e.Severity == ValidationSeverity.Error);
+        => _diagnostics.Where(e => e.Severity == ValidationSeverity.Error);
 
     /// <summary>
     /// Gets only the warnings.
     /// </summary>
     public IEnumerable<ValidationError> GetWarnings()
-        => Errors.Where(e => e.Severity == ValidationSeverity.Warning);
+        => _diagnostics.Where(e => e.Severity == ValidationSeverity.Warning);
+
+    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     /// Converts the validation result to a JSON string for machine-readable output.

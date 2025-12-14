@@ -5,6 +5,66 @@ namespace Cascode.ACIR.Tests;
 
 public class ValidationResultTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddError_Throws_WhenCodeNullOrWhitespace(string? invalidCode)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddError(invalidCode!, "message"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddError_Throws_WhenMessageNullOrWhitespace(string? invalidMessage)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddError("ERC-001", invalidMessage!));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddWarning_Throws_WhenCodeNullOrWhitespace(string? invalidCode)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddWarning(invalidCode!, "message"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddWarning_Throws_WhenMessageNullOrWhitespace(string? invalidMessage)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddWarning("ERC-005", invalidMessage!));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddInfo_Throws_WhenCodeNullOrWhitespace(string? invalidCode)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddInfo(invalidCode!, "message"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AddInfo_Throws_WhenMessageNullOrWhitespace(string? invalidMessage)
+    {
+        var result = new ValidationResult();
+        Assert.ThrowsAny<ArgumentException>(() => result.AddInfo("INFO-001", invalidMessage!));
+    }
+
     [Fact]
     public void ToJson_EmptyResult_ReturnsValidJson()
     {

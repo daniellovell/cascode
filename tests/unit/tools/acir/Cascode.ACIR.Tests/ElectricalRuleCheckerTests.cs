@@ -59,7 +59,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-001" && e.Message.Contains("M1"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-001" && e.Message.Contains("M1"));
     }
 
     [Fact]
@@ -212,7 +212,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-002" && e.Message.Contains("M_short"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-002" && e.Message.Contains("M_short"));
     }
 
     [Fact]
@@ -257,7 +257,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-002");
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-002");
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public class ElectricalRuleCheckerTests
 
         var result = ElectricalRuleChecker.Check(circuit);
 
-        Assert.Contains(result.Errors, e => e.Code == "ERC-003" && e.Message.Contains("VDD"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-003" && e.Message.Contains("VDD"));
     }
 
     [Fact]
@@ -313,7 +313,7 @@ public class ElectricalRuleCheckerTests
 
         var result = ElectricalRuleChecker.Check(circuit);
 
-        Assert.Contains(result.Errors, e => e.Code == "ERC-003" && e.Message.Contains("both supply and ground"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-003" && e.Message.Contains("both supply and ground"));
     }
 
     [Fact]
@@ -387,7 +387,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         // Should not report ERC-004 for harness_net
-        Assert.DoesNotContain(result.Errors, e => e.Code == "ERC-004" && e.Message.Contains("harness_net"));
+        Assert.DoesNotContain(result.Diagnostics, e => e.Code == "ERC-004" && e.Message.Contains("harness_net"));
     }
 
     [Fact]
@@ -523,7 +523,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code.StartsWith("EMIT-")); // Emission errors
+        Assert.Contains(result.Diagnostics, e => e.Code.StartsWith("EMIT-")); // Emission errors
     }
 
     [Fact]
@@ -564,7 +564,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("R_short"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-007" && e.Message.Contains("R_short"));
     }
 
     [Fact]
@@ -605,7 +605,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("C_short"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-007" && e.Message.Contains("C_short"));
     }
 
     [Fact]
@@ -646,7 +646,7 @@ public class ElectricalRuleCheckerTests
         var result = ElectricalRuleChecker.Check(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Code == "ERC-007" && e.Message.Contains("L_short"));
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-007" && e.Message.Contains("L_short"));
     }
 
     [Fact]
@@ -688,7 +688,7 @@ public class ElectricalRuleCheckerTests
 
         var result = ElectricalRuleChecker.Check(circuit);
 
-        Assert.DoesNotContain(result.Errors, e => e.Code == "ERC-007");
+        Assert.DoesNotContain(result.Diagnostics, e => e.Code == "ERC-007");
     }
 
     private static Circuit CreateValidCircuit()

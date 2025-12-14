@@ -239,7 +239,8 @@ internal sealed class EmitCommandModule : ICommandModule
                 var errorResult = new ValidationResult();
                 foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
-                    errorResult.AddError(diag.Message.Split(':')[0], diag.Message, $"{diag.FilePath}:{diag.Line}");
+                    var code = string.IsNullOrWhiteSpace(diag.Code) ? "EMIT-PARSE" : diag.Code;
+                    errorResult.AddError(code, diag.Message, $"{diag.FilePath}:{diag.Line}");
                 }
                 OutputEmitJson(false, 2, errorResult, new List<string>(), new List<string>());
             }
