@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Cascode.ACIR;
@@ -43,7 +44,7 @@ internal sealed class ErcCommandModule : ICommandModule
 
         if (!ValidateAndReadInput(args, out var doc, out var earlyResult, out var requirePdk, out var jsonOutput))
         {
-            return earlyResult!;
+            return earlyResult.Value;
         }
 
         // Run ERC on all EL circuits
@@ -72,7 +73,7 @@ internal sealed class ErcCommandModule : ICommandModule
     private bool ValidateAndReadInput(
         string[] args,
         out ACIRDocument? doc,
-        out CommandResult? earlyResult,
+        [NotNullWhen(false)] out CommandResult? earlyResult,
         out bool requirePdk,
         out bool jsonOutput)
     {
