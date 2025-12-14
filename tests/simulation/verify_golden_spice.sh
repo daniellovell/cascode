@@ -30,15 +30,22 @@ while IFS= read -r -d '' spfile; do
         echo "Testing: $relative"
     fi
     
-    # Run ngspice in batch mode
-    if ngspice -b "$spfile" > /dev/null 2>&1; then
+    # Run ngspice in batch mode and capture output
+    output=$(ngspice -b "$spfile" 2>&1)
+    exit_code=$?
+    
+    # Check for measure failures or error messages (ngspice returns 0 even on measure failures)
+    if [[ $exit_code -ne 0 ]] || echo "$output" | grep -qiE "measure.*failed|^Error:|no such function"; then
+        ((FAILED++)) || true
+        echo "FAIL: $relative"
+        if [[ $VERBOSE -eq 1 ]]; then
+            echo "$output" | grep -iE "measure.*failed|^Error:|no such function" || true
+        fi
+    else
         ((PASSED++)) || true
         if [[ $VERBOSE -eq 1 ]]; then
             echo "  PASS"
         fi
-    else
-        ((FAILED++)) || true
-        echo "FAIL: $relative"
     fi
 done < <(find "$GOLDEN_SPICE_DIR" -name "*Bench.sp" -type f -print0) || true
 

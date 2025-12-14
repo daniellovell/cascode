@@ -39,18 +39,18 @@ dc VIN_P 0.4 1.4 0.1 VIN_N 0.4 1.4 0.1
 meas dc out_dc_min min v(OUT)
 meas dc out_dc_max max v(OUT)
 
-meas dc pwr_VDD param='v(VDD)*(-i(VVDD))'
+let pwr_VDD = v(VDD)*(-i(VVDD))
 
-meas dc pwr_VTAIL param='v(VTAIL)*(-i(VVTAIL))'
+let pwr_VTAIL = v(VTAIL)*(-i(VVTAIL))
 
 
 * Results output
 echo "RESULT: OutputDCBias_min = " out_dc_min " V"
 echo "RESULT: OutputDCBias_max = " out_dc_max " V"
 
-echo "RESULT: QuiescentPower = " pwr_VDD " W"
+echo "RESULT: QuiescentPower = " $&pwr_VDD " W"
 
-echo "RESULT: QuiescentPower = " pwr_VTAIL " W"
+echo "RESULT: QuiescentPower = " $&pwr_VTAIL " W"
 
 
 

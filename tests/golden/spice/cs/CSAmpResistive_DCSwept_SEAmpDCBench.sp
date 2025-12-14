@@ -15,7 +15,7 @@ VVDD VDD 0 DC 1.8V
 
 
 
-* Input DC bias sweep
+* Single-ended input: DC bias sweep
 VIN IN 0 DC 0.3
 
 
@@ -29,21 +29,21 @@ XDUT IN OUT VDD GND CSAmpResistive_DCSwept
 
 .control
 
-* DC sweep analysis
+* InputDCBias sweep analysis
 dc VIN 0.3 1.5 0.1
 
 * Measurements across sweep
 meas dc out_dc_min min v(OUT)
 meas dc out_dc_max max v(OUT)
 
-meas dc pwr_VDD param='v(VDD)*(-i(VVDD))'
+let pwr_VDD = v(VDD)*(-i(VVDD))
 
 
 * Results output
 echo "RESULT: OutputDCBias_min = " out_dc_min " V"
 echo "RESULT: OutputDCBias_max = " out_dc_max " V"
 
-echo "RESULT: QuiescentPower = " pwr_VDD " W"
+echo "RESULT: QuiescentPower = " $&pwr_VDD " W"
 
 
 

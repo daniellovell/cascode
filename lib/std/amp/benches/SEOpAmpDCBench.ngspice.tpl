@@ -41,14 +41,14 @@ dc VIN_P {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} 
 meas dc out_dc_min min v(OUT)
 meas dc out_dc_max max v(OUT)
 {{ for supply in harness.supplies }}
-meas dc pwr_{{ supply.net }} param='v({{ supply.net }})*(-i(V{{ supply.net }}))'
+let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
 echo "RESULT: OutputDCBias_min = " out_dc_min " V"
 echo "RESULT: OutputDCBias_max = " out_dc_max " V"
 {{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " pwr_{{ supply.net }} " W"
+echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
 {{ else }}
 * Single operating point
@@ -57,13 +57,13 @@ op
 * Measurements
 meas dc out_dc find v(OUT)
 {{ for supply in harness.supplies }}
-meas dc pwr_{{ supply.net }} param='v({{ supply.net }})*(-i(V{{ supply.net }}))'
+let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
 echo "RESULT: OutputDCBias = " out_dc " V"
 {{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " pwr_{{ supply.net }} " W"
+echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
 {{ end }}
 

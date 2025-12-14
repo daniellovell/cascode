@@ -14,37 +14,43 @@
 V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 {{ end }}
 
-{{ if sweep.InputDCBias }}
-* Single-ended input: DC bias sweep
-VIN IN 0 DC {{ sweep.InputDCBias.start }}
+{{ if sweep.InputDCCommonMode }}
+* Common-mode bias sweep for differential inputs
+VIN_P IN_P 0 DC {{ sweep.InputDCCommonMode.start }}
+VIN_N IN_N 0 DC {{ sweep.InputDCCommonMode.start }}
 {{ else }}
-* Single-ended input: DC bias (single point)
-VIN IN 0 DC {{ bias_v }}
+* Common-mode bias (single point) for differential inputs
+VIN_P IN_P 0 DC {{ vcm }}
+VIN_N IN_N 0 DC {{ vcm }}
 {{ end }}
 
-* Output load
+* Differential output loads
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+C{{ load.net }}_P_load {{ load.net }}_P 0 {{ load.c }}
+C{{ load.net }}_N_load {{ load.net }}_N 0 {{ load.c }}
 {{ end }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}
 
 .control
-{{ if sweep.InputDCBias }}
-* InputDCBias sweep analysis
-dc VIN {{ sweep.InputDCBias.start }} {{ sweep.InputDCBias.stop }} {{ sweep.InputDCBias.step }}
+{{ if sweep.InputDCCommonMode }}
+* ICMR sweep analysis
+dc VIN_P {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }} VIN_N {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
+
+* Output common-mode calculation
+let out_cm = (v(OUT_P) + v(OUT_N)) / 2
 
 * Measurements across sweep
-meas dc out_dc_min min v({{ out_node }})
-meas dc out_dc_max max v({{ out_node }})
+meas dc out_cm_min min out_cm
+meas dc out_cm_max max out_cm
 {{ for supply in harness.supplies }}
 let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCBias_min = " out_dc_min " V"
-echo "RESULT: OutputDCBias_max = " out_dc_max " V"
+echo "RESULT: OutputDCCommonMode_min = " out_cm_min " V"
+echo "RESULT: OutputDCCommonMode_max = " out_cm_max " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
@@ -52,14 +58,17 @@ echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 * Single operating point
 op
 
+* Output common-mode calculation
+let out_cm = (v(OUT_P) + v(OUT_N)) / 2
+
 * Measurements
-meas dc out_dc find v({{ out_node }})
+meas dc out_cm_val find out_cm
 {{ for supply in harness.supplies }}
 let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCBias = " out_dc " V"
+echo "RESULT: OutputDCCommonMode = " out_cm_val " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
