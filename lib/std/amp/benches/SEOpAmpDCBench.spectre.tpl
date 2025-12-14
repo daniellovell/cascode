@@ -1,4 +1,5 @@
-// cascode SEOpAmpACBench (Spectre)
+// cascode SEOpAmpDCBench (Spectre)
+// DC characterization for single-ended output operational amplifiers (differential input)
 simulator lang=spectre
 global 0
 
@@ -11,35 +12,31 @@ include "{{ inc }}"
 {{ end }}
 
 // ----------------------------------------------------------------------------
-// Harness: sources, balun, source impedance, and output load
+// Harness: differential inputs with common-mode bias, output load
 // ----------------------------------------------------------------------------
-// Local ground reference
 VSS (vss 0) vsource dc=0
 
-// Common-mode bias at inputs (provided upstream; default passed as {{ vcm }})
+{{ for supply in harness.supplies }}
+V{{ supply.net }} ({{ supply.net }} vss) vsource dc={{ supply.value }}
+{{ end }}
+
+// Common-mode bias for differential input
 VCM (vcm vss) vsource dc={{ vcm }}
 
-// Small-signal stimulus: single-ended AC source; differentialized via ideal balun
-VIN (vin_src vss) vsource dc=0 ac={{ ac_mag }}
+// Differential inputs biased at common-mode
+VINP_BIAS (IN_P vss) vsource dc={{ vcm }}
+VINN_BIAS (IN_N vss) vsource dc={{ vcm }}
 
-// Ideal balun to create differential inputs around VCM, following the example pattern
-// Primary: (d 0) = (vin_src 0); Center tap = vcm; Secondary: outputs to in_p_drv/in_n_drv
-subckt ideal_balun d c p n
-    K0 (d 0 p c) transformer n1=2
-    K1 (d 0 c n) transformer n1=2
-ends ideal_balun
-
-IBAL_IN (vin_src vcm in_p_drv in_n_drv) ideal_balun
-
-// Source impedance split across each leg
-RINP (IN_P in_p_drv) resistor r={{ env.source_ohms/2 }}
-RINN (IN_N in_n_drv) resistor r={{ env.source_ohms/2 }}
-
-// Output load on single-ended OUT
+// Output load
 CLOAD (OUT vss) capacitor c={{ env.cload_f }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOAD (OUT vss) resistor r={{ env.rload_ohms }}
 {{ end }}
+
+// ----------------------------------------------------------------------------
+// Device Under Test
+// ----------------------------------------------------------------------------
+XDUT {{ port_list }} {{ circuit_name }}
 
 // ----------------------------------------------------------------------------
 // Options and Analyses
@@ -48,15 +45,18 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
     gmin=1e-12 maxnotes=5 maxwarns=5 digits=5 cols=80 pivrel=1e-3
 
 {{ if sweep.InputDCCommonMode }}
-// ICMR sweep with AC analysis at each common-mode point
-sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
-    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
-  dcOp dc annotate=status
-  ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
+// ICMR sweep analysis: vary common-mode on both inputs
+dcSweep dc param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
+    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} \
+    annotate=status {
+  alter VINP_BIAS.dc=VCM.dc
+  alter VINN_BIAS.dc=VCM.dc
 }
 {{ else }}
-// Bias first
+// Single operating point
 dcOp dc write="spectre.dc" maxiters=150 maxsteps=10000 annotate=status
+{{ end }}
+
 dcOpInfo info what=oppoint where=rawfile
 modelParameter info what=models where=rawfile
 element info what=inst where=rawfile
@@ -65,10 +65,5 @@ designParamVals info what=parameters where=rawfile
 primitives info what=primitives where=rawfile
 subckts info what=subckts where=rawfile
 
-// Small-signal AC sweep (ranges inferred upstream from spec)
-ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
-{{ end }}
-
 saveOptions options save=allpub
-save IN_P IN_N OUT
-
+save IN_P IN_N OUT {{ for supply in harness.supplies }}{{ supply.net }}:p {{ end }}

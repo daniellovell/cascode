@@ -11,6 +11,9 @@ trait SingleEndedOpAmp extend Amplifier {
     GainBandwidth from SEOpAmpACBench.GainBandwidth;
     PassbandGain  from SEOpAmpACBench.PassbandGain;
     PhaseMargin   from SEOpAmpStability.PhaseMargin;
+    InputDCCommonMode from SEOpAmpDCBench.InputDCCommonMode;
+    OutputDCBias      from SEOpAmpDCBench.OutputDCBias;
+    QuiescentPower    from SEOpAmpDCBench.QuiescentPower;
     // ICMR and Swing are handled by dedicated benches; left unspecified here.
   }
 }

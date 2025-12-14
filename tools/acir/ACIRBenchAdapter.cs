@@ -47,6 +47,7 @@ public static class ACIRBenchAdapter
         var genericModels = UsesGenericModels(circuit);
         var harnessParams = DeriveVoltageAndImpedance(circuit);
         var (acStartHz, acStopHz) = DeriveAcSweepFromConstraints(circuit);
+        var sweepDict = BuildSweepDictionary(circuit);
 
         var designFile = $"{circuit.Name}.sp";
         var args = new Dictionary<string, object?>
@@ -70,6 +71,12 @@ public static class ACIRBenchAdapter
             ["includes_with_section"] = new List<string>(),
             ["includes_without_section"] = new List<string> { designFile }
         };
+
+        // Add sweep conditions - templates access them as sweep.ConditionName
+        foreach (var kvp in sweepDict)
+        {
+            args[$"sweep.{kvp.Key}"] = kvp.Value;
+        }
 
         if (!string.IsNullOrWhiteSpace(outputDir))
         {
@@ -149,6 +156,54 @@ public static class ACIRBenchAdapter
                     ["c"] = load.C
                 });
             }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Builds a dictionary of sweep conditions for template rendering.
+    /// Keys are condition names (e.g., "InputDCBias"), values are dictionaries with start/stop/step.
+    /// </summary>
+    internal static Dictionary<string, object?> BuildSweepDictionary(Circuit circuit)
+    {
+        var result = new Dictionary<string, object?>();
+
+        if (circuit.Harness?.Sweeps == null)
+            return result;
+
+        foreach (var sweep in circuit.Harness.Sweeps)
+        {
+            if (sweep.IsAuto)
+            {
+                // At EL level, Auto should have been resolved, but handle gracefully
+                continue;
+            }
+
+            var sweepData = new Dictionary<string, object>
+            {
+                ["start"] = TryParseValue(sweep.Start, out var startVal) ? startVal : 0.0,
+                ["stop"] = TryParseValue(sweep.Stop, out var stopVal) ? stopVal : 0.0
+            };
+
+            if (sweep.Step != null)
+            {
+                if (TryParseValue(sweep.Step, out var stepVal))
+                {
+                    sweepData["step"] = stepVal;
+                }
+            }
+            else
+            {
+                // Auto-step: compute as (stop - start) / 20, clamped between 10mV and 100mV
+                var range = sweepData["stop"] is double stop && sweepData["start"] is double start
+                    ? Math.Abs(stop - start)
+                    : 0.0;
+                var autoStep = Math.Max(0.01, Math.Min(0.1, range / 20.0));
+                sweepData["step"] = autoStep;
+            }
+
+            result[sweep.Name] = sweepData;
         }
 
         return result;
@@ -291,6 +346,12 @@ public static class ACIRBenchAdapter
 
         // Load template
         var templateText = File.ReadAllText(templatePath);
+        if (string.IsNullOrWhiteSpace(templateText))
+        {
+            throw new InvalidOperationException(
+                $"Template file is empty: {templatePath}. " +
+                $"Bench '{bench.Name}' requires a valid template with content.");
+        }
 
         // Get template model from plan
         var templateModel = plan.Data.TryGetValue("template_model", out var tm) ? tm : null;
@@ -301,6 +362,12 @@ public static class ACIRBenchAdapter
 
         // Render template
         var netlistText = TemplateRenderer.Render(templateText, templateModel);
+        if (string.IsNullOrWhiteSpace(netlistText))
+        {
+            throw new InvalidOperationException(
+                $"Template rendering produced empty output for bench '{bench.Name}'. " +
+                $"Template: {templatePath}");
+        }
 
         // Write files
         Directory.CreateDirectory(outputDir);

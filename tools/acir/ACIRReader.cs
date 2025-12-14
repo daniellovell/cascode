@@ -371,7 +371,7 @@ public static class ACIRReader
                 }
                 else if (currentHarness is not null)
                 {
-                    ParseHarnessContent(trimmed, currentHarness);
+                    ParseHarnessContentWithDiagnostics(trimmed, currentHarness, filePath, i + 1, diagnostics);
                 }
                 else if (currentBenches is not null)
                 {
@@ -985,7 +985,20 @@ public static class ACIRReader
     }
 
     /// <summary>
-    /// Parses a line within a harness block (supply, load, or source).
+    /// Parses a line within a harness block (supply, load, source, bias, or sweep) with diagnostic collection.
+    /// </summary>
+    /// <param name="line">Trimmed line content.</param>
+    /// <param name="harness">Harness block to populate.</param>
+    /// <param name="filePath">Source file path for diagnostics.</param>
+    /// <param name="lineNumber">Line number for diagnostics.</param>
+    /// <param name="diagnostics">List to collect diagnostics.</param>
+    private static void ParseHarnessContentWithDiagnostics(string line, HarnessBlock harness, string filePath, int lineNumber, List<Diagnostic> diagnostics)
+    {
+        ParseHarnessContent(line, harness);
+    }
+
+    /// <summary>
+    /// Parses a line within a harness block (supply, load, source, bias, or sweep).
     /// </summary>
     /// <param name="line">Trimmed line content.</param>
     /// <param name="harness">Harness block to populate.</param>
@@ -1039,6 +1052,72 @@ public static class ACIRReader
                 });
             }
         }
+        else if (line.StartsWith("sweep "))
+        {
+            // Pattern: sweep ConditionName [start:step:stop] or [start:stop] or [Auto]
+            var match = Regex.Match(line, @"^sweep\s+(\w+)\s+\[([^\]]+)\]$");
+            if (match.Success)
+            {
+                var name = match.Groups[1].Value;
+                var rangeSpec = match.Groups[2].Value.Trim();
+                var sweep = ParseSweepRange(name, rangeSpec);
+                if (sweep != null)
+                {
+                    harness.Sweeps.Add(sweep);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Parses a sweep range specification into a SweepCondition.
+    /// Supports formats: [start:step:stop], [start:stop], or [Auto].
+    /// </summary>
+    /// <param name="name">Sweep condition name (e.g., "InputDCBias").</param>
+    /// <param name="rangeSpec">Range specification string.</param>
+    /// <returns>Parsed SweepCondition, or null if parsing fails.</returns>
+    private static SweepCondition? ParseSweepRange(string name, string rangeSpec)
+    {
+        if (rangeSpec.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+        {
+            return new SweepCondition
+            {
+                Name = name,
+                IsAuto = true,
+                Start = string.Empty,
+                Stop = string.Empty,
+                Step = null
+            };
+        }
+
+        // Parse [start:step:stop] or [start:stop]
+        var parts = rangeSpec.Split(':');
+        if (parts.Length == 2)
+        {
+            // Auto-step format: [start:stop]
+            return new SweepCondition
+            {
+                Name = name,
+                Start = parts[0].Trim(),
+                Stop = parts[1].Trim(),
+                Step = null,
+                IsAuto = false
+            };
+        }
+        else if (parts.Length == 3)
+        {
+            // Explicit step format: [start:step:stop]
+            return new SweepCondition
+            {
+                Name = name,
+                Start = parts[0].Trim(),
+                Step = parts[1].Trim(),
+                Stop = parts[2].Trim(),
+                IsAuto = false
+            };
+        }
+
+        return null;
     }
 
     /// <summary>

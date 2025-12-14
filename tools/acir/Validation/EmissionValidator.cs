@@ -14,6 +14,7 @@ namespace Cascode.ACIR.Validation;
 /// - EMIT-003: Missing required parameter (W, L for transistors; R for resistors)
 /// - EMIT-004: Unknown device type
 /// - EMIT-005: Non-EL level circuit
+/// - EMIT-006: Unresolved [Auto] sweep at EL level
 /// </remarks>
 public static class EmissionValidator
 {
@@ -61,6 +62,22 @@ public static class EmissionValidator
                 $"circuit {circuit.Name}",
                 "Elaborate the circuit to EL level before emission");
             return result; // Cannot validate further if not EL
+        }
+
+        // EMIT-006: Unresolved Auto sweep at EL level
+        if (circuit.Harness?.Sweeps != null)
+        {
+            foreach (var sweep in circuit.Harness.Sweeps)
+            {
+                if (sweep.IsAuto)
+                {
+                    result.AddError(
+                        "EMIT-006",
+                        $"Sweep condition '{sweep.Name}' contains unresolved [Auto] at EL level",
+                        "harness",
+                        "Resolve [Auto] to concrete numeric values during elaboration");
+                }
+            }
         }
 
         // Build set of valid nets from all sources

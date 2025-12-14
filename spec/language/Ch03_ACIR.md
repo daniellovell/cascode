@@ -570,10 +570,59 @@ harness:
   supply VDD = 1.8V
   supply VDDIO = 3.3V
   bias VBIAS = 0.7V
+  sweep InputDCCommonMode [0.3V:100mV:1.5V]
   source IN Z=50 Ohm
   load OUT C=1p F
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
+```
+
+### Sweep Conditions
+
+The `sweep` directive specifies DC bias conditions that vary across a range during bench execution. When present, all benches execute their analyses at each sweep point and report worst-case values.
+
+**Syntax:**
+
+```
+sweep <ConditionName> [<start>:<step>:<stop>]     ; explicit step
+sweep <ConditionName> [<start>:<stop>]            ; automatic step
+sweep <ConditionName> [Auto]                      ; synthesis chooses range (HL/ML only)
+```
+
+**Examples:**
+
+```
+sweep InputDCBias [0.3V:100mV:1.5V]           ; SEAmp: sweep input bias with explicit step
+sweep InputDCCommonMode [0.3V:1.5V]           ; SEOpAmp: sweep ICMR with auto step
+sweep OutputDCCommonMode [0.5V:50mV:1.3V]     ; FDOpAmp: sweep OCMR with explicit step
+```
+
+**Automatic step sizing:** When the step parameter is omitted, the toolchain computes `step = (stop - start) / 20` clamped to the range [10mV, 100mV].
+
+**Semantics:**
+
+- The condition name (`InputDCBias`, `InputDCCommonMode`, `OutputDCCommonMode`) is topology-specific and must match the swept condition declared in the design's specification
+- All benches listed in the `benches:` block must respect the sweep and execute analyses at each point
+- Benches report worst-case values according to constraint directionality (minimum for `>=` constraints, maximum for `<=` constraints)
+- For range constraints `in [X..Y]`, benches report both `_min` and `_max` metric values
+
+**Resolution level (normative):**
+
+- At EL, sweep ranges must be fully concrete (numeric start/stop/step). `sweep <ConditionName> [Auto]` must not appear in ACIR-EL.
+- At HL (and optionally ML), `sweep <ConditionName> [Auto]` is permitted only as an explicit request for synthesis to choose an execution envelope. During lowering to EL, synthesis must resolve `[Auto]` to a concrete range and record that range in the EL harness for reproducibility.
+
+**Example (underconstrained but explicit):**
+
+```acir
+; HL or ML: author requests that synthesis choose a sweep envelope
+harness:
+  sweep InputDCBias [Auto]
+```
+
+```acir
+; EL: synthesis materializes the chosen envelope (example values)
+harness:
+  sweep InputDCBias [0.42V:50mV:1.07V]
 ```
 
 ### 3.6.1 Bias Resolution
@@ -1170,6 +1219,21 @@ deviceParams = (IDENT "=" value)+ ;
 pdkDevice    = IDENT ;
 
 connectStmt  = "connect" terminalPath "->" IDENT source? ;
+
+harnessBlock = "harness:" NL (INDENT harnessEntry NL)* ;
+harnessEntry = supplyAssign | biasAssign | sweepDecl | loadDecl | sourceDecl | icmrDecl | pvtDecl ;
+supplyAssign = "supply" IDENT "=" value ;
+biasAssign   = "bias" IDENT "=" value ;
+sweepDecl    = "sweep" IDENT sweepRange ;
+sweepRange   = "[" value ":" value ":" value "]"    ; start:step:stop (explicit step)
+             | "[" value ":" value "]" ;             ; start:stop (auto step)
+             | "[" "Auto" "]" ;                      ; synthesis-chosen (HL/ML only)
+loadDecl     = "load" IDENT "C=" value UNIT? ;
+sourceDecl   = "source" IDENT "Z=" value UNIT? ;
+icmrDecl     = "icmr" "min=" value "max=" value ;
+pvtDecl      = "pvt" cornerList ;
+cornerList   = corner ("," corner)* ;
+corner       = IDENT "@" value ;
 
 terminalPath = IDENT ("." IDENT | "[" INT "]")* ;
 qualifiedName= IDENT ("." IDENT)* ;

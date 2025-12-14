@@ -508,6 +508,106 @@ public class EmissionValidatorTests
         Assert.True(result.ErrorCount >= 4); // G, B, W, L, INVALID_NET
     }
 
+    [Fact]
+    public void Validate_ELWithAutoSweep_ReturnsEMIT006()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+                new() { Name = "OUT", Type = "analog" }
+            },
+            Harness = new HarnessBlock
+            {
+                Sweeps = new List<SweepCondition>
+                {
+                    new() { Name = "InputDCBias", IsAuto = true }
+                }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            { "G", "IN" },
+                            { "S", "GND" },
+                            { "B", "GND" }
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "W", "1u" },
+                            { "L", "180n" }
+                        }
+                    }
+                }
+            }
+        };
+        var result = EmissionValidator.Validate(circuit);
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-006");
+    }
+
+    [Fact]
+    public void Validate_ELWithConcreteSweep_Passes()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+                new() { Name = "OUT", Type = "analog" }
+            },
+            Harness = new HarnessBlock
+            {
+                Sweeps = new List<SweepCondition>
+                {
+                    new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV", IsAuto = false }
+                }
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            { "G", "IN" },
+                            { "S", "GND" },
+                            { "B", "GND" }
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "W", "1u" },
+                            { "L", "180n" }
+                        }
+                    }
+                }
+            }
+        };
+        var result = EmissionValidator.Validate(circuit);
+        // Should not contain EMIT-006 (may have other errors if fill is missing, but not EMIT-006)
+        Assert.DoesNotContain(result.Diagnostics, e => e.Code == "EMIT-006");
+    }
+
     private static Circuit CreateValidCircuit()
     {
         return new Circuit

@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
 using Cascode.TestSupport;
@@ -456,5 +458,199 @@ public class EmitVerifyFlowTests : IDisposable
 
         using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Emit_CSAmp_DCSwept_GeneratesTestbenchWithSweep()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+        Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
+
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Contains("dc VIN", content);  // DC sweep command present
+        Assert.Contains("meas dc out_dc_min", content);  // Min measurement
+        Assert.Contains("meas dc out_dc_max", content);  // Max measurement
+    }
+
+    [Fact]
+    public async Task Emit_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Contains("dc VIN_P", content);  // ICMR sweep
+    }
+
+    [Fact]
+    public async Task Verify_CSAmp_DCSwept_WithPassingResults_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/cs/CSAmpResistive_SEAmpDCBench_results.json");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "verify", "--acir", acirPath, "--results", resultsPath);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
+        Assert.Contains("constraints satisfied", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_InvalidAutoAtEL_ReturnsExitCode2()
+    {
+        // Test that [Auto] at EL level is rejected
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/auto_sweep_el.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EMIT-006", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_CSAmp_DCSwept_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+    }
+
+    [Fact]
+    public async Task Emit_OTA_DCSwept_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+    }
+
+    /// <summary>
+    /// Runs ngspice in batch mode on a SPICE netlist file.
+    /// </summary>
+    /// <param name="spiceFile">Path to the SPICE netlist file.</param>
+    /// <returns>Result indicating success or failure with error message.</returns>
+    private static async Task<(bool Success, string ErrorMessage)> RunNgspiceAsync(string spiceFile)
+    {
+        if (!File.Exists(spiceFile))
+        {
+            return (false, $"SPICE file not found: {spiceFile}");
+        }
+
+        // Check if ngspice is available
+        try
+        {
+            using var checkProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ngspice",
+                    Arguments = "--version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            checkProcess.Start();
+            await checkProcess.WaitForExitAsync();
+
+            if (checkProcess.ExitCode != 0)
+            {
+                return (false, "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml");
+            }
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is FileNotFoundException)
+        {
+            return (false, $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml");
+        }
+
+        // Run ngspice in batch mode (-b flag)
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ngspice",
+                    Arguments = $"-b \"{spiceFile}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory()
+                }
+            };
+
+            process.Start();
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+                return (false, "ngspice simulation timed out after 30 seconds");
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (process.ExitCode == 0)
+            {
+                return (true, string.Empty);
+            }
+
+            return (false, $"ngspice exited with code {process.ExitCode}. Stderr: {stderr}");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Failed to run ngspice: {ex.Message}");
+        }
     }
 }

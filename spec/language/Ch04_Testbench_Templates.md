@@ -145,6 +145,37 @@ Spectre templates receive additional environment parameters in the `env` object,
 
 The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : GainBandwidth @ OUT >= 100M Hz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
 
+**DC Bias Sweep Parameters**:
+
+|| Variable | Type | Description | Example |
+||----------|------|-------------|---------|
+|| `sweep.<ConditionName>` | object or null | Sweep condition if present in harness | `sweep.InputDCCommonMode` |
+|| `sweep.<ConditionName>.start` | double | Sweep start value | `0.3` (for 0.3V) |
+|| `sweep.<ConditionName>.stop` | double | Sweep stop value | `1.5` (for 1.5V) |
+|| `sweep.<ConditionName>.step` | double | Sweep step value | `0.1` (for 100mV) |
+
+Templates should check for the presence of sweep conditions using `{{ if sweep.<ConditionName> }}` and adapt their analysis accordingly. When a sweep is present, benches must execute analyses at each sweep point and report worst-case values.
+
+Templates do not interpret `Auto`. When a design requests `sweep <ConditionName> [Auto]` at earlier elaboration levels, the synthesis/lowering pipeline must resolve it to a concrete numeric sweep in ACIR-EL before template rendering.
+
+**Example usage in templates:**
+
+```spectre
+{{ if sweep.InputDCCommonMode }}
+VCM (vcm vss) vsource dc={{ sweep.InputDCCommonMode.start }}
+
+sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
+    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
+  dcOp dc
+  ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
+}
+{{ else }}
+VCM (vcm vss) vsource dc={{ vcm }}
+dcOp dc
+ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
+{{ end }}
+```
+
 **Spectre-Specific Objects**:
 
 | Variable | Type | Description |
@@ -526,6 +557,50 @@ The ngspice template applies a common-mode bias at both inputs and superimposes 
 
 **Harness Configuration:**
 Input receives DC bias (mid-supply by default) with AC stimulus. Simpler than `SEOpAmpACBench` as it requires no differential drive or balun structures.
+
+### 4.8.3 SEOpAmpDCBench
+
+**Purpose:** DC characterization for single-ended output operational amplifiers with differential inputs, measuring output DC bias and quiescent power across the input common-mode range (ICMR).
+
+**Metrics:**
+- `InputDCCommonMode` (V): ICMR sweep condition (echoed for traceability)
+- `OutputDCBias` (V): Output DC level at each ICMR point
+- `OutputDCBias_min` (V): Minimum output bias across ICMR sweep
+- `OutputDCBias_max` (V): Maximum output bias across ICMR sweep
+- `QuiescentPower` (W): Maximum static power consumption across ICMR sweep
+
+**Circuit Requirements:**
+- Differential inputs (`IN_P`, `IN_N`)
+- Single-ended output (`OUT`)
+- Power supplies and grounds as declared in ACIR
+
+**Harness Configuration:**
+Applies common-mode voltage to both inputs while sweeping across the ICMR range specified in the harness. Measures DC operating points and supply current at each sweep point. When no sweep is specified, performs single-point DC analysis at mid-supply.
+
+**Sweep Support:**
+This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. When present, executes DC analysis at each ICMR point and reports worst-case values (max power, output bias range).
+
+### 4.8.4 SEAmpDCBench
+
+**Purpose:** DC characterization for single-ended amplifiers (single input, single output), measuring output DC bias and quiescent power across the input bias range.
+
+**Metrics:**
+- `InputDCBias` (V): Input bias sweep condition (echoed for traceability)
+- `OutputDCBias` (V): Output DC level at each input bias point
+- `OutputDCBias_min` (V): Minimum output bias across input bias sweep
+- `OutputDCBias_max` (V): Maximum output bias across input bias sweep
+- `QuiescentPower` (W): Maximum static power consumption across input bias sweep
+
+**Circuit Requirements:**
+- Single input (`IN`)
+- Single-ended output (`OUT`)
+- Power supplies and grounds as declared in ACIR
+
+**Harness Configuration:**
+Sweeps the input DC bias voltage across the specified range. Measures DC operating points and supply current at each sweep point. Simpler than `SEOpAmpDCBench` as it requires no differential input structure.
+
+**Sweep Support:**
+This bench respects `sweep InputDCBias [start:step:stop]` in the harness. When present, executes DC analysis at each bias point and reports worst-case values (max power, output bias range).
 
 ---
 

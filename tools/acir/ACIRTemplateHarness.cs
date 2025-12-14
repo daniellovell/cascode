@@ -70,6 +70,7 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         var harness = ExtractHarnessData(ctx);
         var env = ExtractEnvironmentDefaults(ctx);
         var (acMag, acStartHz, acStopHz) = ExtractAcSweepParams(ctx);
+        var sweep = ExtractSweepData(ctx);
 
         var spec = new { temperature_c = ctx.Spec.TemperatureC };
 
@@ -94,6 +95,7 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             ac_mag = acMag,
             ac_start_hz = acStartHz,
             ac_stop_hz = acStopHz,
+            sweep = sweep,
             includes_with_section = includesWithSection,
             includes_without_section = includesWithoutSection
         };
@@ -157,6 +159,37 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         var acStopHz = ctx.Args.TryGetValue("ac_stop_hz", out var astop) ? Convert.ToDouble(astop) : 10e9;
 
         return (acMag, acStartHz, acStopHz);
+    }
+
+    private static object ExtractSweepData(TestbenchContext ctx)
+    {
+        var sweepDict = new Dictionary<string, object?>();
+
+        // Extract all sweep.* keys from args
+        foreach (var kvp in ctx.Args)
+        {
+            if (kvp.Key.StartsWith("sweep.", StringComparison.Ordinal))
+            {
+                var conditionName = kvp.Key.Substring(6); // Remove "sweep." prefix
+                if (kvp.Value is Dictionary<string, object> sweepData)
+                {
+                    sweepDict[conditionName] = new
+                    {
+                        start = sweepData.TryGetValue("start", out var s) ? Convert.ToDouble(s) : 0.0,
+                        stop = sweepData.TryGetValue("stop", out var st) ? Convert.ToDouble(st) : 0.0,
+                        step = sweepData.TryGetValue("step", out var step) ? Convert.ToDouble(step) : (double?)null
+                    };
+                }
+            }
+        }
+
+        // Convert dictionary to ScriptObject for proper Scriban member access
+        var scriptObj = new Scriban.Runtime.ScriptObject();
+        foreach (var kvp in sweepDict)
+        {
+            scriptObj[kvp.Key] = kvp.Value;
+        }
+        return scriptObj;
     }
 }
 

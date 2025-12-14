@@ -314,6 +314,7 @@ public sealed class HarnessBlock
     public List<BiasValue> Biases { get; init; } = new();
     public List<SourceValue> Sources { get; init; } = new();
     public List<LoadValue> Loads { get; init; } = new();
+    public List<SweepCondition> Sweeps { get; init; } = new();
     public IcmrRange? Icmr { get; init; }
     public List<string> Pvt { get; init; } = new();
 }
@@ -363,6 +364,27 @@ public sealed class IcmrRange
 {
     public string Min { get; init; } = string.Empty;
     public string Max { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Sweep condition in harness (DC bias sweep range).
+/// </summary>
+public sealed class SweepCondition
+{
+    /// <summary>Sweep condition name (e.g., "InputDCBias", "InputDCCommonMode").</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Sweep start value (e.g., "0.3V").</summary>
+    public string Start { get; init; } = string.Empty;
+
+    /// <summary>Sweep stop value (e.g., "1.5V").</summary>
+    public string Stop { get; init; } = string.Empty;
+
+    /// <summary>Sweep step value (e.g., "100mV"). Null if auto-step or [Auto] was specified.</summary>
+    public string? Step { get; init; }
+
+    /// <summary>True if [Auto] was specified (must be resolved at EL level).</summary>
+    public bool IsAuto { get; init; }
 }
 
 /// <summary>
