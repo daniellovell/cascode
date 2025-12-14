@@ -483,8 +483,8 @@ The standard library at `lib/std/amp/benches/` provides canonical bench definiti
 |-------|---------|---------|-------------|
 | `SEOpAmpACBench` | Yes | Yes | Single-ended output operational amplifier AC analysis (differential inputs) |
 | `SEAmpACBench` | Yes | Yes | Single-ended amplifier AC analysis (single input, single output) |
-| `FDAmplifierACBench` | No | No | Fully-differential amplifier AC analysis |
-| `FDAmplifierStability` | No | No | Stability analysis for fully-differential amplifiers |
+| `FDOpAmpACBench` | No | No | Fully-differential operational amplifier AC analysis |
+| `FDOpAmpStability` | No | No | Stability analysis for fully-differential operational amplifiers |
 | `SEOpAmpSettle` | No | No | Settling time analysis for operational amplifiers |
 | `SEOpAmpSlew` | No | No | Slew rate measurement for operational amplifiers |
 | `SEOpAmpStability` | No | No | Stability analysis (gain/phase margins) for op-amps |

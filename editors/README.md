@@ -82,13 +82,13 @@ The TextMate grammar recognizes:
 
 ### Built-in Functions & Benches
 - **Spec functions**: `GainBandwidth`, `PassbandGain`, `PhaseMargin`, `OutputSwing`, `NoiseIn`, `SlewRate`, `Settle`, `ZeroTau`, `Power`, `DynamicPower`, `TogglePower`, `Headroom`, `ICMR`, `RiseTime`, `FallTime`, `VOH`, `VOL`, `Area`
-- **Bench names**: `SEOpAmpACBench`, `SEAmpACBench`, `FDAmplifierACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
+- **Bench names**: `SEOpAmpACBench`, `SEAmpACBench`, `FDOpAmpACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
 - **Port types**: `signal`, `analog`, `digital`, `mixed`, `supply`, `ground`, `bias`, `rf`, `clock`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
-- **Common traits**: `Amplifier`, `SingleEndedOpAmp`, `SingleEndedAmp`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
+- **Common traits**: `Amplifier`, `SingleEndedOpAmp`, `SingleEndedAmp`, `FullyDiffOpAmp`, `Comparator`, `CurrentMirror`, `InverterLike`
 - **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`
 
 ## 🔧 Extending the Grammar

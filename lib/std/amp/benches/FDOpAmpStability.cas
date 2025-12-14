@@ -1,0 +1,10 @@
+package lib.std.amp.benches;
+
+// Stability bench for fully differential operational amplifiers (unity-gain non-inverting, loop break on negative leg).
+bench FDOpAmpStability {
+  spectre_template = "FDOpAmpStability.tpl";
+  metrics [
+    PhaseMargin: deg
+  ]
+}
+
