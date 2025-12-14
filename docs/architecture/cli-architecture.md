@@ -68,6 +68,7 @@ JSON output mode
 - Commands supporting `--json` emit machine-readable JSON instead of human-readable text.
 - Currently supported: `emit`, `erc`.
 - Output schema for validation commands:
+
 ```json
 {
   "success": true,
@@ -77,6 +78,7 @@ JSON output mode
   "summary": { "errorCount": 0, "warningCount": 2 }
 }
 ```
+
 - The `emit` command extends this with `designPaths` and `testbenchPaths` arrays on success.
 - Exit codes remain unchanged: 0 = success, 1 = validation failure, 2 = parse/structural error.
 

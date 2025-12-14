@@ -385,12 +385,7 @@ public class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "erc --json should succeed");
 
-        // Extract JSON from output (skip prompt line)
-        var jsonStart = result.Stdout.IndexOf('{');
-        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
-        var jsonText = result.Stdout[jsonStart..];
-
-        var json = JsonDocument.Parse(jsonText);
+        using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(0, json.RootElement.GetProperty("exitCode").GetInt32());
     }
@@ -407,12 +402,7 @@ public class EmitVerifyFlowTests : IDisposable
 
         Assert.Equal(1, result.ExitCode);
 
-        // Extract JSON from output (skip prompt line)
-        var jsonStart = result.Stdout.IndexOf('{');
-        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
-        var jsonText = result.Stdout[jsonStart..];
-
-        var json = JsonDocument.Parse(jsonText);
+        using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(1, json.RootElement.GetProperty("exitCode").GetInt32());
 
@@ -447,12 +437,7 @@ public class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit --json should succeed");
 
-        // Extract JSON from output (skip prompt line)
-        var jsonStart = result.Stdout.IndexOf('{');
-        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
-        var jsonText = result.Stdout[jsonStart..];
-
-        var json = JsonDocument.Parse(jsonText);
+        using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.NotEmpty(json.RootElement.GetProperty("designPaths").EnumerateArray());
     }
@@ -469,13 +454,7 @@ public class EmitVerifyFlowTests : IDisposable
 
         Assert.Equal(2, result.ExitCode);
 
-        // Extract JSON from output (skip prompt line)
-        var jsonStart = result.Stdout.IndexOf('{');
-        Assert.True(jsonStart >= 0, "JSON output should contain '{'");
-        var jsonText = result.Stdout[jsonStart..];
-
-        var json = JsonDocument.Parse(jsonText);
+        using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
     }
 }
-

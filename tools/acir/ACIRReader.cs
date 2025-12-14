@@ -78,11 +78,9 @@ public static class ACIRReader
         {
             var lines = new List<string>();
             string? line;
-            var lineNumber = 0;
             while ((line = reader.ReadLine()) is not null)
             {
                 lines.Add(line);
-                lineNumber++;
             }
 
             var doc = ParseWithDiagnostics(lines, filePath, diagnostics);
