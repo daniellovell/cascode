@@ -11,7 +11,7 @@ public class ValidationResultTests
         var result = ValidationResult.Success();
         var json = result.ToJson(0);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(0, doc.RootElement.GetProperty("exitCode").GetInt32());
         Assert.Empty(doc.RootElement.GetProperty("errors").EnumerateArray());
@@ -26,7 +26,7 @@ public class ValidationResultTests
 
         var json = result.ToJson(1);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(1, doc.RootElement.GetProperty("exitCode").GetInt32());
 
@@ -47,7 +47,7 @@ public class ValidationResultTests
 
         var json = result.ToJson(0);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         Assert.True(doc.RootElement.GetProperty("success").GetBoolean());
 
         var warnings = doc.RootElement.GetProperty("warnings").EnumerateArray().ToList();
@@ -66,7 +66,7 @@ public class ValidationResultTests
 
         var json = result.ToJson(1);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var summary = doc.RootElement.GetProperty("summary");
         Assert.Equal(2, summary.GetProperty("errorCount").GetInt32());
         Assert.Equal(1, summary.GetProperty("warningCount").GetInt32());
@@ -80,7 +80,7 @@ public class ValidationResultTests
 
         var json = result.ToJson(1);
 
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         var errors = doc.RootElement.GetProperty("errors").EnumerateArray().ToList();
         var error = errors[0];
 
@@ -98,8 +98,8 @@ public class ValidationResultTests
         var jsonExitCode1 = result.ToJson(1);
         var jsonExitCode2 = result.ToJson(2);
 
-        var doc1 = JsonDocument.Parse(jsonExitCode1);
-        var doc2 = JsonDocument.Parse(jsonExitCode2);
+        using var doc1 = JsonDocument.Parse(jsonExitCode1);
+        using var doc2 = JsonDocument.Parse(jsonExitCode2);
 
         Assert.Equal(1, doc1.RootElement.GetProperty("exitCode").GetInt32());
         Assert.Equal(2, doc2.RootElement.GetProperty("exitCode").GetInt32());
@@ -115,7 +115,7 @@ public class ValidationResultTests
         var json = result.ToJson(1);
 
         // Should not throw
-        var doc = JsonDocument.Parse(json);
+        using var doc = JsonDocument.Parse(json);
         Assert.NotNull(doc);
     }
 }
