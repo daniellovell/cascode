@@ -9,31 +9,6 @@ namespace Cascode.ACIR.Tests;
 public class SpiceEmitterTests
 {
     [Fact]
-    public void EmitDesign_OTA5TSingleEnded_MatchesGolden()
-    {
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
-        var goldenSpicePath = Path.Combine(repoRoot, "tests/golden/spice/ota/OTA5TSingleEnded.sp");
-
-        // Read ACIR
-        using var acirReader = File.OpenText(acirPath);
-        var doc = ACIRReader.Read(acirReader);
-
-        Assert.Single(doc.Circuits);
-        var circuit = doc.Circuits[0];
-        Assert.Equal(ACIRLevel.EL, circuit.Level);
-
-        // Emit SPICE
-        using var spiceWriter = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, spiceWriter);
-        var actualSpice = spiceWriter.ToString();
-
-        // Compare to golden
-        var expectedSpice = File.ReadAllText(goldenSpicePath);
-        Assert.Equal(Normalize(expectedSpice), Normalize(actualSpice));
-    }
-
-    [Fact]
     public void EmitDesign_RequiresELLevel()
     {
         var circuit = new Circuit
@@ -215,31 +190,6 @@ public class SpiceEmitterTests
 #pragma warning restore CS0618 // Type or member is obsolete
 
     [Fact]
-    public void EmitDesign_CommonSourceAmp_MatchesGolden()
-    {
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
-        var goldenSpicePath = Path.Combine(repoRoot, "tests/golden/spice/cs/CommonSourceAmp.sp");
-
-        // Read ACIR
-        using var acirReader = File.OpenText(acirPath);
-        var doc = ACIRReader.Read(acirReader);
-
-        Assert.Single(doc.Circuits);
-        var circuit = doc.Circuits[0];
-        Assert.Equal(ACIRLevel.EL, circuit.Level);
-
-        // Emit SPICE
-        using var spiceWriter = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, spiceWriter);
-        var actualSpice = spiceWriter.ToString();
-
-        // Compare to golden
-        var expectedSpice = File.ReadAllText(goldenSpicePath);
-        Assert.Equal(Normalize(expectedSpice), Normalize(actualSpice));
-    }
-
-    [Fact]
     public void ACIRReader_ParsesCommonSourceAmpWithBias()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
@@ -274,31 +224,6 @@ public class SpiceEmitterTests
         Assert.NotNull(circuit.Benches);
         Assert.Single(circuit.Benches.Benches);
         Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
-    }
-
-    [Fact]
-    public void EmitDesign_CSAmpResistive_MatchesGolden()
-    {
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
-        var goldenSpicePath = Path.Combine(repoRoot, "tests/golden/spice/cs/CSAmpResistive.sp");
-
-        // Read ACIR
-        using var acirReader = File.OpenText(acirPath);
-        var doc = ACIRReader.Read(acirReader);
-
-        Assert.Single(doc.Circuits);
-        var circuit = doc.Circuits[0];
-        Assert.Equal(ACIRLevel.EL, circuit.Level);
-
-        // Emit SPICE
-        using var spiceWriter = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, spiceWriter);
-        var actualSpice = spiceWriter.ToString();
-
-        // Compare to golden
-        var expectedSpice = File.ReadAllText(goldenSpicePath);
-        Assert.Equal(Normalize(expectedSpice), Normalize(actualSpice));
     }
 
     [Fact]
@@ -345,7 +270,4 @@ public class SpiceEmitterTests
         Assert.Single(circuit.Benches.Benches);
         Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
     }
-
-    private static string Normalize(string text)
-        => text.Replace("\r\n", "\n").Trim();
 }

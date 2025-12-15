@@ -632,12 +632,7 @@ module FDOpAmp implements FullyDiffOpAmp {
 
 #### Bench Responsibilities (normative)
 
-Benches that support swept conditions must:
-
-* Check for `sweep.<ConditionName>` in the harness template variables.
-* Configure the simulator to iterate across the sweep range.
-* Aggregate results and report worst-case values according to metric directionality.
-* For range-constrained metrics, report both `_min` and `_max` suffixes.
+Benches that support swept conditions must detect `sweep.<ConditionName>` in harness template variables, configure the simulator to iterate across the sweep range, aggregate results and report worst‑case values according to metric directionality, and for range‑constrained metrics report both `_min` and `_max` suffixes.
 
 ---
 

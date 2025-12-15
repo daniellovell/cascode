@@ -58,7 +58,7 @@ public class TemplateDiscoveryTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
 
         // Start from a directory that doesn't have a local benches/ folder
-        var startDir = Path.Combine(repoRoot, "tests/golden/spice");
+        var startDir = Path.Combine(repoRoot, "tests/golden/acir");
 
         var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", BenchBackendType.Ngspice, startDir, repoRoot);
 

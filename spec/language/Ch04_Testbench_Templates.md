@@ -508,19 +508,9 @@ This situation indicates either:
 
 ## 4.8 Standard Library Benches
 
-The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests. The following table shows current backend support status:
+The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests. To see which benches are currently available and which backends they support, inspect the directory contents directly: each bench with complete backend support will have a `.cas` definition file plus `.ngspice.tpl` and/or `.spectre.tpl` template files.
 
-| Bench | Ngspice | Spectre | Description |
-|-------|---------|---------|-------------|
-| `SEOpAmpACBench` | Yes | Yes | Single-ended output operational amplifier AC analysis (differential inputs) |
-| `SEAmpACBench` | Yes | Yes | Single-ended amplifier AC analysis (single input, single output) |
-| `FDOpAmpACBench` | No | No | Fully-differential operational amplifier AC analysis |
-| `FDOpAmpStability` | No | No | Stability analysis for fully-differential operational amplifiers |
-| `SEOpAmpSettle` | No | No | Settling time analysis for operational amplifiers |
-| `SEOpAmpSlew` | No | No | Slew rate measurement for operational amplifiers |
-| `SEOpAmpStability` | No | No | Stability analysis (gain/phase margins) for op-amps |
-
-Benches marked "No" have `.cas` definitions and may have legacy `.tpl` files but lack complete `.ngspice.tpl` and `.spectre.tpl` implementations. Contributions to expand backend coverage are welcome.
+Current benches include AC analysis (`SEOpAmpACBench`, `SEAmpACBench`, `FDOpAmpACBench`, `FDAmplifierACBench`), DC characterization (`SEOpAmpDCBench`, `SEAmpDCBench`, `FDOpAmpDCBench`), stability analysis (`SEOpAmpStability`, `FDOpAmpStability`, `FDAmplifierStability`), and transient tests (`SEOpAmpSettle`, `SEOpAmpSlew`). The specific metrics, circuit requirements, and harness configurations for key benches are documented in the subsections below.
 
 ### 4.8.1 SEOpAmpACBench
 

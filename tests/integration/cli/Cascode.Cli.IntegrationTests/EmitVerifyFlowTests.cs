@@ -494,7 +494,8 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
-        Assert.Contains("dc VIN_P", content);  // ICMR sweep
+        Assert.Contains("dc VIN_CM", content);  // ICMR sweep using single common-mode source
+        Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
     }
 
     [Fact]
@@ -558,6 +559,26 @@ public class EmitVerifyFlowTests : IDisposable
 
         var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+    }
+
+    [Fact]
+    public async Task Emit_CommonSourceAmp_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "CommonSourceAmp_SEAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
