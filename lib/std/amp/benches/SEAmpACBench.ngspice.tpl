@@ -37,20 +37,23 @@ let num_points = floor((bias_stop - bias_start) / bias_step) + 1
 let gbw_min = 1e12
 let gain_min = 1000
 
-foreach bias_val $&bias_start $&bias_stop $&bias_step
-  alter VIN DC=$bias_val
+let bias_val = bias_start
+while bias_val <= bias_stop
+  alter VIN DC=$&bias_val
   op
   ac dec 100 1 10G
-  
+
   meas ac gain_pt find vdb({{ out_node }}) at=1
   meas ac gbw_pt when vdb({{ out_node }})=0 cross=1
-  
+
   if gain_pt < gain_min
     let gain_min = gain_pt
   end
   if gbw_pt < gbw_min
     let gbw_min = gbw_pt
   end
+
+  let bias_val = bias_val + bias_step
 end
 
 * Results output (worst-case across sweep)
@@ -65,11 +68,10 @@ meas ac gain_dc find vdb({{ out_node }}) at=1
 meas ac gbw when vdb({{ out_node }})=0 cross=1
 
 * Results output
-echo "RESULT: PassbandGain = " gain_dc " dB"
-echo "RESULT: GainBandwidth = " gbw " Hz"
+echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: GainBandwidth = " $&gbw " Hz"
 {{ end }}
 
 quit
 .endc
 .end
-

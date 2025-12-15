@@ -543,7 +543,8 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
     }
 
     [Fact]
@@ -564,7 +565,8 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
     }
 
     [Fact]
@@ -585,7 +587,32 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success, $"ngspice simulation failed: {ngspiceResult.ErrorMessage}");
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_OTA_ACBench_PrintsNumericResultValues()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+
+        Assert.Matches(@"RESULT:\s*PassbandGain\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*GainBandwidth\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*PhaseMargin\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
     }
 
     /// <summary>
@@ -593,11 +620,11 @@ public class EmitVerifyFlowTests : IDisposable
     /// </summary>
     /// <param name="spiceFile">Path to the SPICE netlist file.</param>
     /// <returns>Result indicating success or failure with error message.</returns>
-    private static async Task<(bool Success, string ErrorMessage)> RunNgspiceAsync(string spiceFile)
+    private static async Task<(bool Success, string Stdout, string Stderr, string ErrorMessage)> RunNgspiceAsync(string spiceFile)
     {
         if (!File.Exists(spiceFile))
         {
-            return (false, $"SPICE file not found: {spiceFile}");
+            return (false, string.Empty, string.Empty, $"SPICE file not found: {spiceFile}");
         }
 
         // Check if ngspice is available
@@ -620,12 +647,14 @@ public class EmitVerifyFlowTests : IDisposable
 
             if (checkProcess.ExitCode != 0)
             {
-                return (false, "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml");
+                return (false, string.Empty, string.Empty,
+                    "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml");
             }
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is FileNotFoundException)
         {
-            return (false, $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml");
+            return (false, string.Empty, string.Empty,
+                $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml");
         }
 
         // Run ngspice in batch mode (-b flag)
@@ -659,7 +688,9 @@ public class EmitVerifyFlowTests : IDisposable
             {
                 process.Kill(entireProcessTree: true);
                 await process.WaitForExitAsync();
-                return (false, "ngspice simulation timed out after 30 seconds");
+                var stdoutTimedOut = await stdoutTask;
+                var stderrTimedOut = await stderrTask;
+                return (false, stdoutTimedOut, stderrTimedOut, "ngspice simulation timed out after 30 seconds");
             }
 
             var stdout = await stdoutTask;
@@ -667,14 +698,14 @@ public class EmitVerifyFlowTests : IDisposable
 
             if (process.ExitCode == 0)
             {
-                return (true, string.Empty);
+                return (true, stdout, stderr, string.Empty);
             }
 
-            return (false, $"ngspice exited with code {process.ExitCode}. Stderr: {stderr}");
+            return (false, stdout, stderr, $"ngspice exited with code {process.ExitCode}.");
         }
         catch (Exception ex)
         {
-            return (false, $"Failed to run ngspice: {ex.Message}");
+            return (false, string.Empty, string.Empty, $"Failed to run ngspice: {ex.Message}");
         }
     }
 }

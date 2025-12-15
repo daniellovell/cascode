@@ -68,29 +68,50 @@ public class NgspiceTemplateSyntaxTests
     }
 
     [Fact]
-    public void NgspiceTemplates_EchoStatements_UseShellVariableSyntax()
+    public void NgspiceTemplates_ResultEchoStatements_UseShellVariableSyntax()
     {
-        // Verify that echo statements use $& syntax for shell variables created by let
-        // instead of trying to directly reference measurement names
+        // Verify that RESULT echo statements use $& syntax for ngspice variables.
+        // Without $&, ngspice prints literal tokens like "gain_dc" instead of the value.
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
-        // Pattern matches: echo "RESULT: QuiescentPower = " $&pwr_... " W"
-        // Accounts for Scriban template syntax like {{ supply.net }}
-        var validEchoPattern = new Regex(@"echo\s+""RESULT:\s*QuiescentPower\s*=\s*""\s+\$&pwr_[\w{}.]+",
-            RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-        var dcBenchTemplates = ngspiceTemplates.Where(t => t.Contains("DCBench")).ToArray();
-
-        foreach (var templatePath in dcBenchTemplates)
+        foreach (var templatePath in ngspiceTemplates)
         {
             var content = File.ReadAllText(templatePath);
-            var matches = validEchoPattern.Matches(content);
+            var lines = content.Split('\n');
 
-            // DC bench templates should have at least one echo using $& syntax for power
-            Assert.NotEmpty(matches);
+            foreach (var line in lines)
+            {
+                var trimmed = line.TrimStart();
+                if (!trimmed.StartsWith("echo \"RESULT:", System.StringComparison.Ordinal))
+                    continue;
+
+                Assert.Contains("$&", trimmed);
+            }
+        }
+    }
+
+    [Fact]
+    public void NgspiceTemplates_ShouldNotUse_ForeachForStartStopStepRanges()
+    {
+        // ngspice foreach iterates literal tokens; it does not expand start:stop:step ranges.
+        // Range sweeps must be implemented using while loops that increment a variable.
+
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
+
+        var invalidForeachRangePattern = new Regex(
+            @"^\s*foreach\s+\w+\s+\$&\w+_start\s+\$&\w+_stop\s+\$&\w+_step\b",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+        foreach (var templatePath in ngspiceTemplates)
+        {
+            var content = File.ReadAllText(templatePath);
+            var matches = invalidForeachRangePattern.Matches(content);
+            Assert.Empty(matches);
         }
     }
 }

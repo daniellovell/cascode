@@ -48,16 +48,17 @@ let gbw_min = 1e12
 let gain_min = 1000
 let pm_min = 360
 
-foreach cm_val $&cm_start $&cm_stop $&cm_step
-  alter VCM_SRC DC=$cm_val
+let cm_val = cm_start
+while cm_val <= cm_stop
+  alter VCM_SRC DC=$&cm_val
   op
   ac dec 100 1 10G
-  
+
   meas ac gain_pt find vdb({{ out_node }}) at=1
   meas ac gbw_pt when vdb({{ out_node }})=0 cross=1
   meas ac pm_raw_pt find vp({{ out_node }}) at=gbw_pt
   let pm_pt = 180 + pm_raw_pt
-  
+
   if gain_pt < gain_min
     let gain_min = gain_pt
   end
@@ -67,6 +68,8 @@ foreach cm_val $&cm_start $&cm_stop $&cm_step
   if pm_pt < pm_min
     let pm_min = pm_pt
   end
+
+  let cm_val = cm_val + cm_step
 end
 
 * Results output (worst-case across sweep)
@@ -84,12 +87,11 @@ meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
 
 * Results output
-echo "RESULT: PassbandGain = " gain_dc " dB"
-echo "RESULT: GainBandwidth = " gbw " Hz"
-echo "RESULT: PhaseMargin = " pm " deg"
+echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: GainBandwidth = " $&gbw " Hz"
+echo "RESULT: PhaseMargin = " $&pm " deg"
 {{ end }}
 
 quit
 .endc
 .end
-

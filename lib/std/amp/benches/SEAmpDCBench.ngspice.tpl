@@ -43,8 +43,8 @@ let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCBias_min = " out_dc_min " V"
-echo "RESULT: OutputDCBias_max = " out_dc_max " V"
+echo "RESULT: OutputDCBias_min = " $&out_dc_min " V"
+echo "RESULT: OutputDCBias_max = " $&out_dc_max " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
@@ -59,7 +59,7 @@ let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCBias = " out_dc " V"
+echo "RESULT: OutputDCBias = " $&out_dc " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}

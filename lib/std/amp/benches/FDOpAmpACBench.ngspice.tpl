@@ -55,11 +55,10 @@ meas ac gbw when vdb(OUT_P, OUT_N)=0 cross=1
 meas ac pm_raw find vp(OUT_P, OUT_N) at=gbw
 let pm = 180 + pm_raw
 
-echo "RESULT: PassbandGain = " gain_dc " dB"
-echo "RESULT: GainBandwidth = " gbw " Hz"
-echo "RESULT: PhaseMargin = " pm " deg"
+echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: GainBandwidth = " $&gbw " Hz"
+echo "RESULT: PhaseMargin = " $&pm " deg"
 
 quit
 .endc
 .end
-

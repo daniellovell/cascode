@@ -556,6 +556,7 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
         Assert.False(result.IsValid);
         Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-006");
+        Assert.Single(result.Diagnostics);
     }
 
     [Fact]

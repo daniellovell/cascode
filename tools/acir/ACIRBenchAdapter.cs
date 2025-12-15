@@ -180,10 +180,26 @@ public static class ACIRBenchAdapter
                 continue;
             }
 
+            if (!TryParseValue(sweep.Start, out var startVal))
+            {
+                throw new ArgumentException(
+                    $"Unable to parse sweep start value '{sweep.Start}' for sweep '{sweep.Name}'. " +
+                    "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
+                    paramName: null);
+            }
+
+            if (!TryParseValue(sweep.Stop, out var stopVal))
+            {
+                throw new ArgumentException(
+                    $"Unable to parse sweep stop value '{sweep.Stop}' for sweep '{sweep.Name}'. " +
+                    "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
+                    paramName: null);
+            }
+
             var sweepData = new Dictionary<string, object>
             {
-                ["start"] = TryParseValue(sweep.Start, out var startVal) ? startVal : 0.0,
-                ["stop"] = TryParseValue(sweep.Stop, out var stopVal) ? stopVal : 0.0
+                ["start"] = startVal,
+                ["stop"] = stopVal
             };
 
             if (sweep.Step != null)

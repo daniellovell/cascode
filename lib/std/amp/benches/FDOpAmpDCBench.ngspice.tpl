@@ -49,8 +49,8 @@ let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCCommonMode_min = " out_cm_min " V"
-echo "RESULT: OutputDCCommonMode_max = " out_cm_max " V"
+echo "RESULT: OutputDCCommonMode_min = " $&out_cm_min " V"
+echo "RESULT: OutputDCCommonMode_max = " $&out_cm_max " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
@@ -68,7 +68,7 @@ let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
 {{ end }}
 
 * Results output
-echo "RESULT: OutputDCCommonMode = " out_cm_val " V"
+echo "RESULT: OutputDCCommonMode = " $&out_cm_val " V"
 {{ for supply in harness.supplies }}
 echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
 {{ end }}
