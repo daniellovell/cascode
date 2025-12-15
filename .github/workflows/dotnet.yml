@@ -29,6 +29,17 @@ jobs:
           cache-dependency-path: |
             **/packages.lock.json
 
+      - name: Setup micromamba
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-file: tests/simulation/environment.yml
+          environment-name: cascode-sim
+          cache-environment: true
+
+      - name: Verify ngspice installation
+        shell: bash -el {0}
+        run: ngspice --version
+
       - name: Restore (locked)
         run: dotnet restore Cascode.sln --locked-mode
 
@@ -39,6 +50,7 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test with Coverage
+        shell: bash -el {0}
         run: dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
 
       - name: Upload Test Results
