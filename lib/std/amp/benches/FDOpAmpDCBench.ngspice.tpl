@@ -16,12 +16,12 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 
 {{ if sweep.InputDCCommonMode }}
 * Common-mode bias sweep for differential inputs
-VIN_P IN_P 0 DC {{ sweep.InputDCCommonMode.start }}
-VIN_N IN_N 0 DC {{ sweep.InputDCCommonMode.start }}
+VIN_CM IN_P 0 DC {{ sweep.InputDCCommonMode.start }}
+EIN_N IN_N 0 IN_P 0 1
 {{ else }}
 * Common-mode bias (single point) for differential inputs
-VIN_P IN_P 0 DC {{ vcm }}
-VIN_N IN_N 0 DC {{ vcm }}
+VIN_CM IN_P 0 DC {{ vcm }}
+EIN_N IN_N 0 IN_P 0 1
 {{ end }}
 
 * Differential output loads
@@ -36,7 +36,7 @@ XDUT {{ port_list }} {{ circuit_name }}
 .control
 {{ if sweep.InputDCCommonMode }}
 * InputDCCommonMode sweep analysis
-dc VIN_P {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }} VIN_N {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
+dc VIN_CM {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
 
 * Output common-mode calculation
 let out_cm = (v(OUT_P) + v(OUT_N)) / 2

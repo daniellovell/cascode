@@ -13,15 +13,24 @@
 {{ for supply in harness.supplies }}
 V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 {{ end }}
+
+* Common-mode bias
 {{ if sweep.InputDCCommonMode }}
-* Differential input: common-mode bias (swept) with AC on positive input
-VIN_P IN_P 0 DC {{ sweep.InputDCCommonMode.start }} AC 1
-VIN_N IN_N 0 DC {{ sweep.InputDCCommonMode.start }}
+VCM_SRC vcm 0 DC {{ sweep.InputDCCommonMode.start }}
 {{ else }}
-* Differential input: common-mode bias with AC on positive input
-VIN_P IN_P 0 DC {{ vcm }} AC 1
-VIN_N IN_N 0 DC {{ vcm }}
+VCM_SRC vcm 0 DC {{ vcm }}
 {{ end }}
+
+* Differential Drive
+* Inputs driven differentially around VCM
+* IN_P = VCM + 0.5 * AC
+* IN_N = VCM - 0.5 * AC
+VAC_P IN_P_drv vcm AC 0.5 0
+VAC_N IN_N_drv vcm AC 0.5 180
+
+RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
+RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
+
 {{ for load in harness.loads }}
 C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
 {{ end }}
@@ -40,8 +49,7 @@ let gain_min = 1000
 let pm_min = 360
 
 foreach cm_val $&cm_start $&cm_stop $&cm_step
-  alter VIN_P DC=$cm_val
-  alter VIN_N DC=$cm_val
+  alter VCM_SRC DC=$cm_val
   op
   ac dec 100 1 10G
   
