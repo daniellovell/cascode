@@ -31,8 +31,10 @@ while IFS= read -r -d '' spfile; do
     fi
     
     # Run ngspice in batch mode and capture output
+    set +e
     output=$(ngspice -b "$spfile" 2>&1)
     exit_code=$?
+    set -e
     
     # Check for measure failures or error messages (ngspice returns 0 even on measure failures)
     if [[ $exit_code -ne 0 ]] || echo "$output" | grep -qiE "measure.*failed|^Error:|no such function"; then

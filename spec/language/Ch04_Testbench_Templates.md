@@ -147,12 +147,12 @@ The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth,
 
 **DC Bias Sweep Parameters**:
 
-|| Variable | Type | Description | Example |
-||----------|------|-------------|---------|
-|| `sweep.<ConditionName>` | object or null | Sweep condition if present in harness | `sweep.InputDCCommonMode` |
-|| `sweep.<ConditionName>.start` | double | Sweep start value | `0.3` (for 0.3V) |
-|| `sweep.<ConditionName>.stop` | double | Sweep stop value | `1.5` (for 1.5V) |
-|| `sweep.<ConditionName>.step` | double | Sweep step value | `0.1` (for 100mV) |
+| Variable | Type | Description | Example |
+|----------|------|-------------|---------|
+| `sweep.<ConditionName>` | object or null | Sweep condition if present in harness | `sweep.InputDCCommonMode` |
+| `sweep.<ConditionName>.start` | double | Sweep start value | `0.3` (for 0.3V) |
+| `sweep.<ConditionName>.stop` | double | Sweep stop value | `1.5` (for 1.5V) |
+| `sweep.<ConditionName>.step` | double | Sweep step value | `0.1` (for 100mV) |
 
 Templates should check for the presence of sweep conditions using `{{ if sweep.<ConditionName> }}` and adapt their analysis accordingly. When a sweep is present, benches must execute analyses at each sweep point and report worst-case values.
 

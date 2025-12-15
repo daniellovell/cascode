@@ -2,7 +2,7 @@ package lib.std.amp.benches;
 
 // AC bench for fully differential operational amplifiers.
 bench FDOpAmpACBench {
-  spectre_template = "FDOpAmpACBench.tpl";
+  spectre_template = "FDOpAmpACBench.spectre.tpl";
   ngspice_template = "FDOpAmpACBench.ngspice.tpl";
   metrics [
     GainBandwidth: Hz,

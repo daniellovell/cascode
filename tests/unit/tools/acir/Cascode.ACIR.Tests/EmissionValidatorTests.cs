@@ -604,8 +604,8 @@ public class EmissionValidatorTests
             }
         };
         var result = EmissionValidator.Validate(circuit);
-        // Should not contain EMIT-006 (may have other errors if fill is missing, but not EMIT-006)
-        Assert.DoesNotContain(result.Diagnostics, e => e.Code == "EMIT-006");
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Diagnostics);
     }
 
     private static Circuit CreateValidCircuit()
