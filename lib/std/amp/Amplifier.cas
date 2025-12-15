@@ -9,9 +9,8 @@ trait Amplifier {
     GainBandwidth; 
     PassbandGain; 
     PhaseMargin; 
-    ICMR; 
     InputDCBias;           // Swept condition for SEAmp topology
-    InputDCCommonMode;     // Swept condition for SEOpAmp/FDOpAmp (ICMR)
+    InputDCCommonMode;     // Swept condition for SEOpAmp/FDOpAmp
     OutputDCBias;          // Measured output DC level
     OutputDCCommonMode;    // Swept condition for FDOpAmp (OCMR)
     OutputSwing; 

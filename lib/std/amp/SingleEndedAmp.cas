@@ -14,7 +14,7 @@ trait SingleEndedAmp extend Amplifier {
     InputDCBias   from SEAmpDCBench.InputDCBias;
     OutputDCBias  from SEAmpDCBench.OutputDCBias;
     QuiescentPower from SEAmpDCBench.QuiescentPower;
-    // ICMR and Swing are handled by dedicated benches; left unspecified here.
+    // OutputSwing is handled by dedicated benches; left unspecified here.
   }
 }
 

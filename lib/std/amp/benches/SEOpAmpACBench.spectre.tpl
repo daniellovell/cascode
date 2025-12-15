@@ -48,7 +48,7 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
     gmin=1e-12 maxnotes=5 maxwarns=5 digits=5 cols=80 pivrel=1e-3
 
 {{ if sweep.InputDCCommonMode }}
-// ICMR sweep with AC analysis at each common-mode point
+// InputDCCommonMode sweep with AC analysis at each common-mode point
 sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
     stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
   dcOp dc annotate=status

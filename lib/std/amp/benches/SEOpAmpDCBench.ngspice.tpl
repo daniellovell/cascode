@@ -34,7 +34,7 @@ XDUT {{ port_list }} {{ circuit_name }}
 
 .control
 {{ if sweep.InputDCCommonMode }}
-* ICMR sweep analysis
+* InputDCCommonMode sweep analysis
 dc VIN_P {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }} VIN_N {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
 
 * Measurements across sweep

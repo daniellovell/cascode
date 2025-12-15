@@ -31,7 +31,7 @@ XDUT {{ port_list }} {{ circuit_name }}
 
 .control
 {{ if sweep.InputDCCommonMode }}
-* ICMR sweep: iterate over common-mode points with AC at each
+* InputDCCommonMode sweep: iterate over common-mode points with AC at each
 let cm_start = {{ sweep.InputDCCommonMode.start }}
 let cm_stop = {{ sweep.InputDCCommonMode.stop }}
 let cm_step = {{ sweep.InputDCCommonMode.step }}

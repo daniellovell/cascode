@@ -14,7 +14,7 @@ trait SingleEndedOpAmp extend Amplifier {
     InputDCCommonMode from SEOpAmpDCBench.InputDCCommonMode;
     OutputDCBias      from SEOpAmpDCBench.OutputDCBias;
     QuiescentPower    from SEOpAmpDCBench.QuiescentPower;
-    // ICMR and Swing are handled by dedicated benches; left unspecified here.
+    // OutputSwing is handled by dedicated benches; left unspecified here.
   }
 }
 

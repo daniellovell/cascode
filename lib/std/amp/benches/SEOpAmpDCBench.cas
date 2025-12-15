@@ -1,7 +1,7 @@
 package lib.std.amp.benches;
 
 // DC characterization bench for single-ended output operational amplifiers (differential input).
-// Measures output DC bias and quiescent power, optionally across an ICMR sweep.
+// Measures output DC bias and quiescent power, optionally across an InputDCCommonMode sweep.
 bench SEOpAmpDCBench {
   spectre_template = "SEOpAmpDCBench.spectre.tpl";
   ngspice_template = "SEOpAmpDCBench.ngspice.tpl";
