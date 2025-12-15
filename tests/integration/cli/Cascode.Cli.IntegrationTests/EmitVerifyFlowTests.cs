@@ -526,6 +526,7 @@ public class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task Emit_CSAmp_DCSwept_SpiceSimulatesSuccessfully()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
@@ -546,6 +547,7 @@ public class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task Emit_OTA_DCSwept_SpiceSimulatesSuccessfully()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
@@ -566,6 +568,7 @@ public class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task Emit_CommonSourceAmp_SpiceSimulatesSuccessfully()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");

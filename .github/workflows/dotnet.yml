@@ -52,7 +52,12 @@ jobs:
 
       - name: Test with Coverage
         shell: bash -el {0}
-        run: dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage" --filter "Category!=Simulation"
+          else
+            dotnet test Cascode.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --collect "XPlat Code Coverage"
+          fi
 
       - name: Upload Test Results
         if: always()
