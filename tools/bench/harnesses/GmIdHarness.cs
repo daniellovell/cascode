@@ -54,15 +54,8 @@ public sealed class GmIdHarness : ITestbenchHarness
 
     private static string FindTemplatePath(string templateFile)
     {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "templates", templateFile),
-            Path.Combine(Path.GetDirectoryName(typeof(GmIdHarness).Assembly.Location) ?? string.Empty, "templates", templateFile)
-        };
-        foreach (var c in candidates)
-        {
-            if (!string.IsNullOrWhiteSpace(c) && File.Exists(c)) return c;
-        }
+        var candidate = Path.Combine(AppContext.BaseDirectory, "templates", templateFile);
+        if (File.Exists(candidate)) return candidate;
         return templateFile; // allow TryRenderTemplate to fall back to embedded resource lookup
     }
 
