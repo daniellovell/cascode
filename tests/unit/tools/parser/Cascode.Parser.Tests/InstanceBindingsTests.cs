@@ -95,7 +95,7 @@ motif Test {
     {
         const string text = @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
-motif OTA5TSingleEnded implements SingleEndedAmplifier {
+motif OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD = 1.8V; ground GND;
   ports [ IN: Diff, OUT: analog, VTAIL: bias ]
 

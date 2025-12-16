@@ -1,0 +1,36 @@
+ACIR 1
+
+circuit OTA5TSingleEnded
+  level EL
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT : analog
+  port VTAIL : bias
+  fill:
+    net mirror_gate : analog
+    net tnode : analog
+    nmos dp.M_N (B->GND, D->mirror_gate, G->IN_P, S->tnode) : L=180n M=1 W=2u nmos
+    nmos dp.M_P (B->GND, D->OUT, G->IN_N, S->tnode) : L=180n M=1 W=2u nmos
+    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : L=180n M=1 W=4u nmos
+    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
+    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 100M Hz
+      c_gain : PassbandGain @ OUT >= 40 dB
+      c_pm : PhaseMargin @ OUT >= 60 deg
+      c_pwr : Power <= 500u W
+    tech:
+      t_lmin : L >= 180n m on *
+    measure:
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
+      m_gain : SEOpAmpACBench PassbandGain @ OUT
+      m_pm : SEOpAmpACBench PhaseMargin @ OUT
+  harness:
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1p F
+  benches:
+    SEOpAmpACBench

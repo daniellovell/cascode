@@ -57,7 +57,7 @@ package analog.amp; import lib.ota.*;
 
 bundle Diff { P: analog; N: analog; }
 
-module AmpAuto implements SingleEndedAmplifier {
+module AmpAuto implements SingleEndedOpAmp {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: analog;
   param CL=2pF;
@@ -87,7 +87,7 @@ module AmpAuto implements SingleEndedAmplifier {
     objective minimize Power;
   }
 
-  bench { SEAmplifierACBench; UnityUGF; Step; }
+  bench { SEOpAmpACBench; UnityUGF; Step; }
 }
 ```
 
@@ -98,7 +98,7 @@ package analog.ota; import lib.motifs.*;
 
 bundle Diff { P: analog; N: analog; }
 
-module OTA5T implements SingleEndedAmplifier {
+module OTA5T implements SingleEndedOpAmp {
   supply VDD=1.8V; ground GND;
   port in IN: Diff; port out OUT: analog;
 
@@ -124,7 +124,7 @@ module OTA5T implements SingleEndedAmplifier {
 ```java
 package analog.ota; import lib.motifs.*;
 
-module CommonSourceAmp implements SingleEndedAmplifier {
+module CommonSourceAmp implements SingleEndedAmp {
   supply VDD=1.8V; ground GND;
   ports [ VIN: analog, VOUT: analog ]
   bias VB1;
@@ -153,7 +153,7 @@ module CommonSourceAmp implements SingleEndedAmplifier {
 Option 1: Synthesis fills both slots
 
 ```java
-module TwoStageAmp implements SingleEndedAmplifier {
+module TwoStageAmp implements SingleEndedOpAmp {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: analog;
   net N1: analog;
@@ -174,7 +174,7 @@ module TwoStageAmp implements SingleEndedAmplifier {
 Option 2: Structural fill (no `synth` needed)
 
 ```java
-module TwoStageAmp_Manual implements SingleEndedAmplifier {
+module TwoStageAmp_Manual implements SingleEndedOpAmp {
   supply VDD=1.2V; ground GND;
   port in IN: Diff; port out OUT: analog;
   net N1: analog;

@@ -1,0 +1,11 @@
+# Conda environment for ngspice circuit simulation testing.
+# Usage: conda env create -f tests/simulation/environment.yml
+# Activate: conda activate cascode-sim
+name: cascode-sim
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ngspice>=41
+  - python>=3.11
+

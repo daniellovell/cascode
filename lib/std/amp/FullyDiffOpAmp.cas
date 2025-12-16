@@ -1,0 +1,15 @@
+package lib.std.amp;
+
+// Interface trait: Fully differential operational amplifier.
+trait FullyDiffOpAmp extend Amplifier {
+  ports [ IN: Diff, OUT: Diff ]
+  supply VDD; ground GND;
+
+  metrics {
+    GainBandwidth from FDOpAmpACBench.GainBandwidth;
+    PassbandGain  from FDOpAmpACBench.PassbandGain;
+    PhaseMargin   from FDOpAmpStability.PhaseMargin;
+    OutputDCCommonMode from FDOpAmpDCBench.OutputDCCommonMode;
+    QuiescentPower from FDOpAmpDCBench.QuiescentPower;
+  }
+}

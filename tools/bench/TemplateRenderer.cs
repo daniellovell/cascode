@@ -7,8 +7,7 @@ public static class TemplateRenderer
 {
     public static string Render(string templateText, object model)
     {
-        // Convert simple Jinja/Liquid control blocks to Scriban script blocks
-        templateText = Preprocess(templateText);
+        // Templates use pure Scriban syntax: {{ for }}...{{ end }}, {{ if }}...{{ end }}
         var template = Template.Parse(templateText);
         if (template.HasErrors)
         {
@@ -25,18 +24,5 @@ public static class TemplateRenderer
         scriptObj.Import(model, renamer: member => member.Name);
         ctx.PushGlobal(scriptObj);
         return template.Render(ctx);
-    }
-
-    private static string Preprocess(string text)
-    {
-        // Convert a subset of {% ... %} blocks to {{ ... }}
-        // Specific end/else replacements first, then generic block closers
-        return text
-            .Replace("{% endif %}", "{{ end }}", StringComparison.Ordinal)
-            .Replace("{% endfor %}", "{{ end }}", StringComparison.Ordinal)
-            .Replace("{% else %}", "{{ else }}", StringComparison.Ordinal)
-            .Replace("{% for", "{{ for", StringComparison.Ordinal)
-            .Replace("{% if", "{{ if", StringComparison.Ordinal)
-            .Replace("%}", "}}", StringComparison.Ordinal);
     }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Cascode.TestSupport;
@@ -242,5 +243,17 @@ internal static class CliIntegrationTestHelper
         {
             Assert.True(result.ExitCode == 0, $"Command '{result.CommandLine}' exited with {result.ExitCode}. Stdout: {result.Stdout}\nStderr: {result.Stderr}");
         }
+    }
+
+    internal static JsonDocument ParseJsonFromOutput(string stdout)
+    {
+        var jsonStart = stdout.IndexOf('{');
+        if (jsonStart < 0)
+        {
+            throw new InvalidOperationException("JSON output should contain '{'");
+        }
+
+        var jsonText = stdout[jsonStart..];
+        return JsonDocument.Parse(jsonText);
     }
 }

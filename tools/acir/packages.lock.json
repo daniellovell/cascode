@@ -1,6 +1,49 @@
 {
   "version": 1,
   "dependencies": {
-    "net8.0": {}
+    "net8.0": {
+      "Antlr4.Runtime.Standard": {
+        "type": "Transitive",
+        "resolved": "4.13.1",
+        "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "cjWrLkJXK0rs4zofsK4bSdg+jhDLTaxrkXu4gS6Y7MAlCvRyNNgwY/lJi5RDlQOnSZweHqoyvgvbdvQsRIW+hg=="
+      },
+      "Microsoft.Extensions.Logging.Abstractions": {
+        "type": "Transitive",
+        "resolved": "8.0.0",
+        "contentHash": "arDBqTgFCyS0EvRV7O3MZturChstm50OJ0y9bDJvAcmEPJm0FFpFyjU/JLYyStNGGey081DvnQYlncNX5SJJGA==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.0"
+        }
+      },
+      "Scriban": {
+        "type": "Transitive",
+        "resolved": "6.5.2",
+        "contentHash": "JXli/Sh1WVZs/pqnPPRJTlwEsZHPJtndzxiaPnrteXDpAqVqHxh4ifhx4puTaYKVMPJUMOp9bnCpEVBpYlt/eQ=="
+      },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "13.7.1",
+        "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
+      },
+      "cascode.bench": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
+          "Scriban": "[6.5.2, )",
+          "YamlDotNet": "[13.7.1, )"
+        }
+      },
+      "cascode.parser": {
+        "type": "Project",
+        "dependencies": {
+          "Antlr4.Runtime.Standard": "[4.13.1, )"
+        }
+      }
+    }
   }
 }
