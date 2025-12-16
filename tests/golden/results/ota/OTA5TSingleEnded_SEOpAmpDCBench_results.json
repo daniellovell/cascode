@@ -1,0 +1,18 @@
+{
+  "circuit": "OTA5TSingleEnded_DCSwept",
+  "bench": "SEOpAmpDCBench",
+  "measurements": {
+    "out_bias": {
+      "metric": "OutputDCBias",
+      "value": 0.72,
+      "unit": "V",
+      "node": "OUT"
+    },
+    "power": {
+      "metric": "QuiescentPower",
+      "value": 0.00028,
+      "unit": "W",
+      "node": null
+    }
+  }
+}

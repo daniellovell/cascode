@@ -18,7 +18,7 @@ The cascode type system distinguishes three fundamental entities. A **module** r
 1) a **spec-only trait** that declares canonical metric names and contains no port definitions, or
 2) an **interface trait** that extends a spec-only trait, adding ports and mapping metrics to concrete bench outputs (see §2.11.3).
 
-This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedAmplifier` becomes eligible to fill `slot Core: SingleEndedAmplifier` while sharing the same metric names as `Amplifier`.
+This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedOpAmp` becomes eligible to fill `slot Core: SingleEndedOpAmp` while sharing the same metric names as `Amplifier`.
 
 #### Normative Requirements
 
@@ -36,7 +36,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 #### Trait Extension
 
 * Use `extend` to define an interface trait from a spec-only trait:
-  `trait SingleEndedAmplifier extend Amplifier { … }`.
+  `trait SingleEndedOpAmp extend Amplifier { … }`.
 * Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
 * Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait's port family evaluated at the same parameter values.
 
@@ -52,7 +52,7 @@ The standard primitive interface traits used by connectors - such as `DiffPairLi
 * `digital` - discrete-valued signals (stdcell ports, logic nets); subtype of `signal`.
 * `mixed` - explicit domain boundary signals (comparator outputs, ADC/DAC interfaces); subtype of `signal`.
 * `diff` - differential bundle abstraction (has fields `.P`/`.N`).
-* `bias` - bias/control nets (typed for headroom/legality checks).
+* `bias` - bias/control nets (typed for headroom/legality checks); resolved to specific DC voltage values during ML→EL elaboration (see §3.6.1).
 * `rf`, `clock` - specialized kinds with additional contracts (impedance, phase/timing).
 
 #### Signal Type Hierarchy
@@ -445,17 +445,17 @@ Informal syntax:
 trait Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swing; Power; NoiseIn; } }
 
 // Interface traits refine Amplifier by adding ports and mapping metrics.
-trait SingleEndedAmplifier extend Amplifier {
+trait SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]; supply VDD; ground GND;
   metrics {
-    GainBandwidth from SEAmplifierACBench.GainBandwidth;
-    PassbandGain  from SEAmplifierACBench.PassbandGain;
-    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
+    GainBandwidth from SEOpAmpACBench.GainBandwidth;
+    PassbandGain  from SEOpAmpACBench.PassbandGain;
+    PhaseMargin   from SEOpAmpACBench.PhaseMargin;
   }
 }
 
-bench SEAmplifierACBench {
-  spectre_template = "SEAmplifierACBench.tpl";
+bench SEOpAmpACBench {
+  spectre_template = "SEOpAmpACBench.tpl";
   metrics [ GainBandwidth: Hz, PassbandGain: dB, PhaseMargin: deg ]
 }
 ```
@@ -505,6 +505,134 @@ Semantics (normative)
 * The bench injects a rail‑to‑rail pulse at `node` (or at the unique upstream driver input if resolvable) with `freq`/`duty` and optional finite `slew`. If `slew=Auto`, the source transitions are ideal.
 * `cycles` selects the number of toggles before measurement; default `3` with measurements on the last cycle.
 * Measurements permitted: `RiseTime`, `FallTime`, `VOH`, `VOL`, `TogglePower`.
+
+### 2.11.4 Swept Conditions and DC Bias Characterization
+
+Amplifier topologies require DC bias characterization across operating ranges. A requirement envelope declared in `spec {}` establishes that all specifications must hold throughout the stated range. An execution envelope declared in `env {}` defines the set of operating points at which benches run. These two envelopes serve different purposes: requirement envelopes define the user's contract (analogous to datasheet ICMR/OCMR), while execution envelopes control what gets simulated.
+
+When a requirement envelope such as `InputDCBias in [a..b]` or `InputDCCommonMode in [a..b]` appears in `spec {}`, numeric constraints (GainBandwidth, PassbandGain, PhaseMargin, OutputDCBias, QuiescentPower) must be interpreted as holding across the full envelope. The execution envelope must be a subset of or equal to the requirement envelope. When a requirement envelope is omitted, the toolchain must not invent one. If multi-point characterization is still desired, the author opts in via `env {}` (either an explicit range or `[Auto]`). Constraints are then evaluated over the executed sweep points, and the chosen range is recorded for reproducibility but does not become a requirement.
+
+The topology determines which DC conditions are swept:
+
+| Topology | Input Structure | Output Structure | Swept Conditions |
+|----------|----------------|------------------|------------------|
+| SEAmp | Single-ended | Single-ended | `InputDCBias` |
+| SEOpAmp | Differential | Single-ended | `InputDCCommonMode` |
+| FDOpAmp | Differential | Differential | `InputDCCommonMode`, `OutputDCCommonMode` |
+
+When no sweep or requirement envelope is present, benches run a single-point characterization at mid-supply. Mid-supply is defined topology-specifically: for `SEAmp`, `InputDCBias = VDD/2`; for `SEOpAmp`, `InputDCCommonMode = VDD/2`; for `FDOpAmp`, `InputDCCommonMode = VDD/2` and `OutputDCCommonMode = VDD/2`.
+
+#### Sweep Semantics (normative)
+
+When a `sweep <ConditionName>` directive appears in the harness, all benches must execute their analyses at each sweep point and report worst-case values:
+
+* Metrics with `>= X` constraints report the minimum value across the sweep.
+* Metrics with `<= X` constraints report the maximum value across the sweep.
+* Metrics with range constraints `in [X..Y]` report both `_min` and `_max` values.
+
+If `spec.<ConditionName>` is specified but `env.sweep <ConditionName>` is omitted, the sweep defaults to the specification range with automatic step sizing `(stop - start)/20` clamped to `[10mV, 100mV]`.
+
+#### Explicit `Auto` Sweeps (normative)
+
+A design may request that the toolchain choose a sweep range by writing `[Auto]` in `env {}`:
+
+```cas
+env {
+  sweep InputDCBias [Auto];
+}
+```
+
+`[Auto]` requests that synthesis select a concrete execution envelope during lowering and record it in the ACIR-EL artifact. It does not declare a requirement envelope. The toolchain must treat the resolved sweep range as part of the generated harness; repeated runs of `cascode emit` and `cascode verify` must use the resolved range from ACIR-EL.
+
+#### Examples
+
+SEAmp with requirement envelope:
+
+```cas
+module CSAmp implements SingleEndedAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: analog, OUT: analog ]
+  bias VB1;
+
+  spec {
+    InputDCBias in [0.3V..1.5V];     // All specs must hold across this range
+    GainBandwidth >= 100MHz;
+    PassbandGain >= 40dB;
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 500uW;
+  }
+
+  env {
+    sweep InputDCBias [0.3V:1.5V];   // Auto step: (1.5-0.3)/20 = 60mV
+    load OUT C=2pF;
+  }
+}
+```
+
+SEAmp with execution envelope only:
+
+```cas
+module CSAmp implements SingleEndedAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: analog, OUT: analog ]
+
+  spec {
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 500uW;
+  }
+
+  env {
+    sweep InputDCBias [Auto];        // Synthesis chooses range; recorded in ACIR-EL
+    load OUT C=2pF;
+  }
+}
+```
+
+SEOpAmp with ICMR requirement:
+
+```cas
+module OTA implements SingleEndedOpAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: Diff, OUT: analog ]
+
+  spec {
+    InputDCCommonMode in [0.3V..1.5V];
+    GainBandwidth >= 100MHz;
+    PassbandGain >= 55dB;
+    PhaseMargin >= 60deg;
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 1mW;
+  }
+
+  env {
+    sweep InputDCCommonMode [0.3V:1.5V];
+    load OUT C=1pF;
+  }
+}
+```
+
+FDOpAmp with ICMR and OCMR (future):
+
+```cas
+module FDOpAmp implements FullyDiffOpAmp {
+  ports [ IN: Diff, OUT: Diff ]
+  
+  spec {
+    InputDCCommonMode in [0.3V..1.5V];
+    OutputDCCommonMode in [0.5V..1.3V];
+    GainBandwidth >= 200MHz;
+  }
+  
+  env {
+    sweep InputDCCommonMode [0.3V:1.5V];
+    sweep OutputDCCommonMode [0.5V:1.3V];  // 2D sweep (implementation-dependent)
+  }
+}
+```
+
+#### Bench Responsibilities (normative)
+
+Benches that support swept conditions must detect `sweep.<ConditionName>` in harness template variables, configure the simulator to iterate across the sweep range, aggregate results and report worst‑case values according to metric directionality, and for range‑constrained metrics report both `_min` and `_max` suffixes.
 
 ---
 
@@ -706,7 +834,7 @@ Library entities intended for synthesis **MUST** declare a **`char {}`** manifes
 
 ```cas
 char {
-  benches { SEAmplifierACBench; NoiseIn; Step; }          // characterization benches
+  benches { SEOpAmpACBench; NoiseIn; Step; }          // characterization benches
   pvt     { TT@27C, SS@-40C, FF@125C; }
   sweep   { CL:[0.5pF..5pF]; VDD:[1.0V..1.3V]; gmId:[10..22]V^-1; }
   fit     { GainBandwidth~GP("fit/gbw.gp"); PassbandGain~PWL("fit/gain.pwl");

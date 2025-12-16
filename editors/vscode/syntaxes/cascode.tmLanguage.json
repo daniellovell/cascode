@@ -259,7 +259,7 @@
         },
         {
           "name": "support.function.bench.cascode",
-          "match": "\\b(SEAmplifierACBench|FDAmplifierACBench|UnityUGF|Step|NoiseIn|StepToggle)\\b"
+          "match": "\\b(SEOpAmpACBench|SEAmpACBench|FDOpAmpACBench|UnityUGF|Step|NoiseIn|StepToggle)\\b"
         },
         {
           "name": "support.function.component.cascode",
@@ -275,7 +275,7 @@
       "patterns": [
         {
           "name": "support.type.trait.cascode",
-          "match": "\\b(Amplifier|SingleEndedAmplifier|FullyDiffAmplifier|AmplifierStage|DiffPairLike|CascodePairLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
+          "match": "\\b(Amplifier|SingleEndedOpAmp|SingleEndedAmp|FullyDiffOpAmp|AmplifierStage|DiffPairLike|CascodePairLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
           "name": "support.type.motif.cascode",

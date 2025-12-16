@@ -1,4 +1,5 @@
 using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +29,13 @@ internal sealed class ShellState
     public string WorkspaceRoot { get; private set; }
 
     public string? PdkRoot { get; private set; }
+
+    public ILoggerFactory? LoggerFactory { get; private set; }
+
+    public void SetLoggerFactory(ILoggerFactory factory)
+    {
+        LoggerFactory = factory;
+    }
 
     public WorkspaceScanResult? Scan { get; set; }
 

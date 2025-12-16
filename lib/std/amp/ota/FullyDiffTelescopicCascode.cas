@@ -3,7 +3,7 @@ package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 // Fully differential telescopic cascode OTA with double-cascode PMOS load.
 // Stack: DiffPair -> NMOS CascodePair -> PMOS CascodePair (lower) -> PMOS CascodePair (upper).
 // Synthesizable structural motif (no spec/bench blocks here).
-motif FullyDiffTelescopicCascode implements FullyDiffAmplifier {
+motif FullyDiffTelescopicCascode implements FullyDiffOpAmp {
   supply VDD = 1.8V; ground GND;
 
   // Public interface (ALL CAPS ports; Diff bundle fields are P/N).

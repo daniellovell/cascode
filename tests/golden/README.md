@@ -13,8 +13,7 @@ Layout (intended)
 - `tests/golden/acir/…` — ACIR text snapshots (`*.cir`) emitted by the
   compiler for those sources (HL/ML/EL where applicable).
   - Files are named `{circuit}.{level}.cir` (e.g., `OTA5TSingleEnded.ml.cir`).
-- `tests/golden/spice/…` — SPICE netlists and bench harness netlists generated
-  from ACIR for back-end regression and cross-simulator checks.
+- `tests/golden/results/…` — simulation results (JSON) used to verify constraint compliance.
 
 For the v0 OTA slice the ACIR "golden" already lives under
 `tests/golden/acir/ota/OTA5TSingleEndedSimplified.ml.cir`, and the compiler

@@ -2,7 +2,7 @@
 
 Scope: repo‑wide (subtree AGENTS.md may further restrict).
 
-BEFORE MAKING ANY CHANGE, ASK: "How can I maximize long-term maintainability and reduce complexity?"
+BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maximize long-term maintainability and reduce complexity?"
  - Can I achieve a reduction in total lines of code with this feature?
  - Can existing code be reused to avoid duplication?
  - Is there an opportunity to extract a common interface or function to unify the implementation?

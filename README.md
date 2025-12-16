@@ -23,6 +23,7 @@ New to Cascode? Start here to understand the core concepts through a practical O
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
 - [Chapter 3 – ACIR: The Intermediate Representation](spec/language/Ch03_ACIR.md)
+- [Chapter 4 – Testbench Templates](spec/language/Ch04_Testbench_Templates.md)
 
 
 
@@ -90,7 +91,7 @@ In this example, the amplifier is defined by the specification and the **synthes
 ```java
 package analog.amp; import lib.ota.*;
 
-module AmpAuto implements SingleEndedAmplifier {
+module AmpAuto implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -121,9 +122,9 @@ module AmpAuto implements SingleEndedAmplifier {
   }
 
   // Testbenches for this topology are inherited from
-  // the `SingleEndedAmplifier` trait, but they may 
+  // the `SingleEndedOpAmp` trait, but they may 
   // be overriden, as shown below.
-  bench { SEAmplifierACBench; UnityUGF; Step; }
+  bench { SEOpAmpACBench; UnityUGF; Step; }
 }
 ```
 
@@ -132,7 +133,7 @@ module AmpAuto implements SingleEndedAmplifier {
 In this example, the amplifier is defined by the specification and the synthesis will choose the topology **from the allowed topologies**.
 
 ```java
-module AmpGuided implements SingleEndedAmplifier {
+module AmpGuided implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -164,7 +165,7 @@ Here the topology is manually defined using reusable building blocks, called "mo
 ```java
 package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
-module OTA5T implements SingleEndedAmplifier {
+module OTA5T implements SingleEndedOpAmp {
   supply VDD; ground GND;
   port in IN: Diff;
   port out OUT: analog;
@@ -192,7 +193,7 @@ module OTA5T implements SingleEndedAmplifier {
   }
 
   spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
-  bench { SEAmplifierACBench; UnityUGF; Step; }
+  bench { SEOpAmpACBench; UnityUGF; Step; }
 }
 ```
 
@@ -300,7 +301,7 @@ module SenseChainAuto {
 ```firrtl
 ACIR 1
 
-circuit OTA5T : SingleEndedAmplifier
+circuit OTA5T : SingleEndedOpAmp
   level ML
 
   supply VDD
@@ -328,12 +329,14 @@ cascode/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     └─ Ch03_ACIR.md
+│     ├─ Ch03_ACIR.md
+│     └─ Ch04_Testbench_Templates.md
 ├─ lib/
 │  └─ std/
 │     ├─ prim/                 # Primitive motifs + interface traits
 │     ├─ amp/                  # Amplifier traits and topologies
-│     │  └─ ota/
+│     │  ├─ ota/
+│     │  └─ benches/           # Standard testbench templates
 │     └─ refs/                 # Reference circuits (current/voltage references)
 ├─ tools/
 │  ├─ cli/
@@ -352,9 +355,9 @@ cascode/
 
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
 - `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
-- `tools/acir`: ACIR object model and canonical text writer following spec section 3.13.
+- `tools/acir`: ACIR object model, canonical text reader/writer, SPICE emission, and constraint compliance checking.
 - `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
-- `tools/bench`: Testbench harness discovery, bench generation, and SPICE backend adapters (Ngspice, Spectre).
+- `tools/bench`: Template discovery and rendering (Scriban-based), testbench generation, and SPICE backend adapters (Ngspice, Spectre).
 
 ### Notes
 - Build artifacts go in `build/` (not committed).
@@ -364,14 +367,33 @@ cascode/
 
 ## 🧪 Quick Start (build & test)
 
-CLI / compiler build
+### Building from source
 
 ```bash
 # Build everything (compiler, CLI, tests)
 dotnet build
 
-# Run the CLI
+# Run the CLI directly
 dotnet run --project tools/cli/Cascode.Cli.csproj
+```
+
+### Install as a global tool (for development)
+
+If you want to build the repo and install it as a global tool on your shell (so you can run `cascode` directly from anywhere):
+
+```bash
+./install-dev-tool.sh
+```
+
+This script will:
+1. Pack the CLI project into a NuGet package
+2. Uninstall any existing global installation of `Cascode.Cli`
+3. Install the newly built version as a global .NET tool
+
+After installation, ensure `~/.dotnet/tools` is on your PATH, then verify:
+
+```bash
+cascode --version
 ```
 
 ## ♻️ Golden fixtures
@@ -389,6 +411,16 @@ sources to expected ACIR/SPICE outputs.
 # Compile ADL to ACIR
 cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
 # Output: build/OTA5TSingleEndedSimplified.ml.cir
+
+# Emit simulator netlists from an ACIR EL circuit
+cascode emit tests/golden/acir/ota/OTA5TSingleEnded.el.cir --backend ngspice --out build/ota-emit
+
+# Run benches and write consolidated results plus a per-point trace for each bench.
+# If a bench name is omitted, all benches declared by the circuit are executed.
+cascode bench run tests/golden/acir/ota/OTA5TSingleEnded.el.cir -o build/ota-run
+
+# Verify constraints from either results.json or trace.jsonl
+cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir build/ota-run/OTA5TSingleEnded_SEOpAmpACBench_trace.jsonl
 ```
 
 ---

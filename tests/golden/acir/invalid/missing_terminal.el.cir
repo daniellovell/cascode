@@ -1,0 +1,16 @@
+ACIR 1
+
+; Circuit with missing terminal - EMIT-001 violation
+; Device M1 is missing the bulk (B) terminal
+
+circuit MissingTerminalExample
+  level EL
+
+  supply VDD
+  ground GND
+
+  port IN : analog
+  port OUT : analog
+
+  fill:
+    nmos M1 (G->IN, D->OUT, S->GND) : W=1u L=180n nmos
