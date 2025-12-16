@@ -14,8 +14,8 @@ fi
 mkdir -p "$nupkg_dir"
 rm -f "$nupkg_dir"/*.nupkg
 
-echo "Packing Cascode CLI..."
-dotnet pack "$csproj" -c Release -o "$nupkg_dir"
+echo "Packing Cascode CLI (dev)..."
+dotnet pack "$csproj" -c Release -o "$nupkg_dir" -p:Version=0.0.0-dev -p:InformationalVersion=dev
 nupkg=$(ls "$nupkg_dir"/Cascode.Cli.*.nupkg 2>/dev/null | head -n 1 || true)
 if [[ -z "${nupkg:-}" ]]; then
   echo "Pack did not produce Cascode.Cli nupkg in $nupkg_dir" >&2
