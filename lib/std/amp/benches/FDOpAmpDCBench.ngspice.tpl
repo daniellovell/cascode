@@ -35,43 +35,60 @@ XDUT {{ port_list }} {{ circuit_name }}
 
 .control
 {{ if sweep.InputDCCommonMode }}
-* InputDCCommonMode sweep analysis
-dc VIN_CM {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
+* InputDCCommonMode sweep analysis (looped for per-point tracing)
+let cm_start = {{ sweep.InputDCCommonMode.start }}
+let cm_stop = {{ sweep.InputDCCommonMode.stop }}
+let cm_step = {{ sweep.InputDCCommonMode.step }}
 
-* Output common-mode calculation
-let out_cm = (v(OUT_P) + v(OUT_N)) / 2
+let out_cm_min = 1e12
+let pwr_max = -1
+let point_index = 0
 
-* Measurements across sweep
-meas dc out_cm_min min out_cm
-meas dc out_cm_max max out_cm
-{{ for supply in harness.supplies }}
-let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
-{{ end }}
+let cm_val = cm_start
+while cm_val <= cm_stop
+  alter VIN_CM DC=$&cm_val
+  op
 
-* Results output
-echo "RESULT: OutputDCCommonMode_min = " $&out_cm_min " V"
-echo "RESULT: OutputDCCommonMode_max = " $&out_cm_max " V"
-{{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
-{{ end }}
+  let out_cm_val = (v(OUT_P) + v(OUT_N)) / 2
+  let pwr_total = 0
+  {{ for supply in harness.supplies }}
+  let pwr_src = v({{ supply.net }})*(-i(V{{ supply.net }}))
+  let pwr_total = pwr_total + pwr_src
+  {{ end }}
+
+  echo CASCODE_POINT point_index=$&point_index InputDCCommonMode_V=$&cm_val OutputDCCommonMode_V=$&out_cm_val QuiescentPower_W=$&pwr_total
+
+  if out_cm_val < out_cm_min
+    let out_cm_min = out_cm_val
+  end
+  if pwr_total > pwr_max
+    let pwr_max = pwr_total
+  end
+
+  let point_index = point_index + 1
+  let cm_val = cm_val + cm_step
+end
+
+* Results output (reduced across sweep)
+echo "RESULT: OutputDCCommonMode = " $&out_cm_min " V"
+echo "RESULT: QuiescentPower = " $&pwr_max " W"
 {{ else }}
 * Single operating point
 op
 
-* Output common-mode calculation
-let out_cm = (v(OUT_P) + v(OUT_N)) / 2
-
 * Measurements
-meas dc out_cm_val find out_cm
+let out_cm_val = (v(OUT_P) + v(OUT_N)) / 2
+let pwr_total = 0
 {{ for supply in harness.supplies }}
-let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
+let pwr_src = v({{ supply.net }})*(-i(V{{ supply.net }}))
+let pwr_total = pwr_total + pwr_src
 {{ end }}
+
+echo CASCODE_POINT point_index=0 OutputDCCommonMode_V=$&out_cm_val QuiescentPower_W=$&pwr_total
 
 * Results output
 echo "RESULT: OutputDCCommonMode = " $&out_cm_val " V"
-{{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
-{{ end }}
+echo "RESULT: QuiescentPower = " $&pwr_total " W"
 {{ end }}
 
 quit

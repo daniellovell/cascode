@@ -475,9 +475,10 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
-        Assert.Contains("dc VIN", content);  // DC sweep command present
-        Assert.Contains("meas dc out_dc_min", content);  // Min measurement
-        Assert.Contains("meas dc out_dc_max", content);  // Max measurement
+        Assert.Contains("while bias_val <= bias_stop", content);
+        Assert.Contains("alter VIN DC=$&bias_val", content);
+        Assert.Contains("let out_dc = v(", content);
+        Assert.Contains("echo CASCODE_POINT", content);
     }
 
     [Fact]
@@ -494,7 +495,8 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
-        Assert.Contains("dc VIN_CM", content);  // ICMR sweep using single common-mode source
+        Assert.Contains("while cm_val <= cm_stop", content);
+        Assert.Contains("alter VIN_CM DC=$&cm_val", content);
         Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
     }
 

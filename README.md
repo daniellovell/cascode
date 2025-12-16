@@ -411,6 +411,16 @@ sources to expected ACIR/SPICE outputs.
 # Compile ADL to ACIR
 cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
 # Output: build/OTA5TSingleEndedSimplified.ml.cir
+
+# Emit simulator netlists from an ACIR EL circuit
+cascode emit tests/golden/acir/ota/OTA5TSingleEnded.el.cir --backend ngspice --out build/ota-emit
+
+# Run benches and write consolidated results plus a per-point trace for each bench.
+# If a bench name is omitted, all benches declared by the circuit are executed.
+cascode bench run tests/golden/acir/ota/OTA5TSingleEnded.el.cir -o build/ota-run
+
+# Verify constraints from either results.json or trace.jsonl
+cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir build/ota-run/OTA5TSingleEnded_SEOpAmpACBench_trace.jsonl
 ```
 
 ---

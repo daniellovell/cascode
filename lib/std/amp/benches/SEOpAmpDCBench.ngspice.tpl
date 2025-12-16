@@ -34,37 +34,60 @@ XDUT {{ port_list }} {{ circuit_name }}
 
 .control
 {{ if sweep.InputDCCommonMode }}
-* InputDCCommonMode sweep analysis
-dc VIN_CM {{ sweep.InputDCCommonMode.start }} {{ sweep.InputDCCommonMode.stop }} {{ sweep.InputDCCommonMode.step }}
+* InputDCCommonMode sweep analysis (looped for per-point tracing)
+let cm_start = {{ sweep.InputDCCommonMode.start }}
+let cm_stop = {{ sweep.InputDCCommonMode.stop }}
+let cm_step = {{ sweep.InputDCCommonMode.step }}
 
-* Measurements across sweep
-meas dc out_dc_min min v(OUT)
-meas dc out_dc_max max v(OUT)
-{{ for supply in harness.supplies }}
-let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
-{{ end }}
+let out_dc_min = 1e12
+let pwr_max = -1
+let point_index = 0
 
-* Results output
-echo "RESULT: OutputDCBias_min = " $&out_dc_min " V"
-echo "RESULT: OutputDCBias_max = " $&out_dc_max " V"
-{{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
-{{ end }}
+let cm_val = cm_start
+while cm_val <= cm_stop
+  alter VIN_CM DC=$&cm_val
+  op
+
+  let out_dc = v(OUT)
+  let pwr_total = 0
+  {{ for supply in harness.supplies }}
+  let pwr_src = v({{ supply.net }})*(-i(V{{ supply.net }}))
+  let pwr_total = pwr_total + pwr_src
+  {{ end }}
+
+  echo CASCODE_POINT point_index=$&point_index InputDCCommonMode_V=$&cm_val OutputDCBias_V=$&out_dc QuiescentPower_W=$&pwr_total
+
+  if out_dc < out_dc_min
+    let out_dc_min = out_dc
+  end
+  if pwr_total > pwr_max
+    let pwr_max = pwr_total
+  end
+
+  let point_index = point_index + 1
+  let cm_val = cm_val + cm_step
+end
+
+* Results output (reduced across sweep)
+echo "RESULT: OutputDCBias = " $&out_dc_min " V"
+echo "RESULT: QuiescentPower = " $&pwr_max " W"
 {{ else }}
 * Single operating point
 op
 
 * Measurements
-meas dc out_dc find v(OUT)
+let out_dc = v(OUT)
+let pwr_total = 0
 {{ for supply in harness.supplies }}
-let pwr_{{ supply.net }} = v({{ supply.net }})*(-i(V{{ supply.net }}))
+let pwr_src = v({{ supply.net }})*(-i(V{{ supply.net }}))
+let pwr_total = pwr_total + pwr_src
 {{ end }}
+
+echo CASCODE_POINT point_index=0 OutputDCBias_V=$&out_dc QuiescentPower_W=$&pwr_total
 
 * Results output
 echo "RESULT: OutputDCBias = " $&out_dc " V"
-{{ for supply in harness.supplies }}
-echo "RESULT: QuiescentPower = " $&pwr_{{ supply.net }} " W"
-{{ end }}
+echo "RESULT: QuiescentPower = " $&pwr_total " W"
 {{ end }}
 
 quit

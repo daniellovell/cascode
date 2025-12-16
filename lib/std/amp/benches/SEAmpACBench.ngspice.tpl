@@ -36,6 +36,7 @@ let bias_step = {{ sweep.InputDCBias.step }}
 let num_points = floor((bias_stop - bias_start) / bias_step) + 1
 let gbw_min = 1e12
 let gain_min = 1000
+let point_index = 0
 
 let bias_val = bias_start
 while bias_val <= bias_stop
@@ -46,6 +47,8 @@ while bias_val <= bias_stop
   meas ac gain_pt find vdb({{ out_node }}) at=1
   meas ac gbw_pt when vdb({{ out_node }})=0 cross=1
 
+  echo CASCODE_POINT point_index=$&point_index InputDCBias_V=$&bias_val PassbandGain_dB=$&gain_pt GainBandwidth_Hz=$&gbw_pt
+
   if gain_pt < gain_min
     let gain_min = gain_pt
   end
@@ -53,6 +56,7 @@ while bias_val <= bias_stop
     let gbw_min = gbw_pt
   end
 
+  let point_index = point_index + 1
   let bias_val = bias_val + bias_step
 end
 
@@ -66,6 +70,8 @@ ac dec 100 1 10G
 * Measurements
 meas ac gain_dc find vdb({{ out_node }}) at=1
 meas ac gbw when vdb({{ out_node }})=0 cross=1
+
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw
 
 * Results output
 echo "RESULT: PassbandGain = " $&gain_dc " dB"

@@ -1,5 +1,6 @@
 using Cascode.Cli.Services;
 using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using System;
 using System.Collections.Generic;
@@ -49,6 +50,13 @@ internal sealed class CliHost
     public int RunInteractive()
     {
         _isInteractive = true;
+        var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            builder.SetMinimumLevel(LogLevel.Information);
+            builder.AddProvider(new Logging.ShellLoggerProvider(_state));
+        });
+        _state.SetLoggerFactory(loggerFactory);
+
         while (true)
         {
             Render();
@@ -86,13 +94,21 @@ internal sealed class CliHost
     public int RunOnce(string[] tokens)
     {
         _isInteractive = false;
+        var loggerFactory = LoggerFactory.Create(builder =>
+        {
+            // In non-interactive mode, prefer concise, user-focused output via ShellState messages.
+            // Keep the console logger for warnings/errors only.
+            builder.SetMinimumLevel(LogLevel.Warning);
+            builder.AddSimpleConsole(o => { o.SingleLine = true; });
+        });
+        _state.SetLoggerFactory(loggerFactory);
+
         if (tokens.Length == 0)
         {
             return 0;
         }
 
         _state.ResetStreamedOutput();
-        _state.RecordCommand(string.Join(' ', tokens));
         var result = Execute(tokens);
         if (!tokens[0].Equals("log", StringComparison.OrdinalIgnoreCase))
         {
