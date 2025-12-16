@@ -49,8 +49,8 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 {{ if sweep.InputDCCommonMode }}
 // InputDCCommonMode sweep with AC analysis at each common-mode point
-sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
-    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
+sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.Start }} \
+    stop={{ sweep.InputDCCommonMode.Stop }} step={{ sweep.InputDCCommonMode.Step }} {
   dcOp dc annotate=status
   ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
 }

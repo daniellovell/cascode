@@ -26,13 +26,9 @@ L_FB OUT_P IN_N 1T
 C_INJ IN_N_src IN_N 1T
 V_INJ IN_N_src 0 AC 1
 
-{{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
-{{ end }}
-
-* Differential Load
-CLOADP OUT_P 0 {{ env.cload_f }}
-CLOADN OUT_N 0 {{ env.cload_f }}
+* Differential Load (split capacitance equally)
+CLOADP OUT_P 0 {{ env.cload_f/2 }}
+CLOADN OUT_N 0 {{ env.cload_f/2 }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP OUT_P 0 {{ env.rload_ohms }}
 RLOADN OUT_N 0 {{ env.rload_ohms }}

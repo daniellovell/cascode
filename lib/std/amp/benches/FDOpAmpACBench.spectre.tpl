@@ -32,9 +32,9 @@ IBAL_IN (vin_src vcm in_p_drv in_n_drv) ideal_balun
 RINP (IN_P in_p_drv) resistor r={{ env.source_ohms/2 }}
 RINN (IN_N in_n_drv) resistor r={{ env.source_ohms/2 }}
 
-// Differential output loading
-CLOADP (OUT_P vss) capacitor c={{ env.cload_f }}
-CLOADN (OUT_N vss) capacitor c={{ env.cload_f }}
+// Differential output loading (split capacitance equally)
+CLOADP (OUT_P vss) capacitor c={{ env.cload_f/2 }}
+CLOADN (OUT_N vss) capacitor c={{ env.cload_f/2 }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP (OUT_P vss) resistor r={{ env.rload_ohms }}
 RLOADN (OUT_N vss) resistor r={{ env.rload_ohms }}

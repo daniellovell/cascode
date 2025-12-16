@@ -16,7 +16,7 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 
 {{ if sweep.InputDCCommonMode }}
 * Common-mode bias sweep for differential inputs
-VIN_CM IN_P 0 DC {{ sweep.InputDCCommonMode.start }}
+VIN_CM IN_P 0 DC {{ sweep.InputDCCommonMode.Start }}
 EIN_N IN_N 0 IN_P 0 1
 {{ else }}
 * Common-mode bias (single point) for differential inputs
@@ -35,9 +35,9 @@ XDUT {{ port_list }} {{ circuit_name }}
 .control
 {{ if sweep.InputDCCommonMode }}
 * InputDCCommonMode sweep analysis (looped for per-point tracing)
-let cm_start = {{ sweep.InputDCCommonMode.start }}
-let cm_stop = {{ sweep.InputDCCommonMode.stop }}
-let cm_step = {{ sweep.InputDCCommonMode.step }}
+let cm_start = {{ sweep.InputDCCommonMode.Start }}
+let cm_stop = {{ sweep.InputDCCommonMode.Stop }}
+let cm_step = {{ sweep.InputDCCommonMode.Step }}
 
 let out_dc_min = 1e12
 let out_dc_max = -1e12

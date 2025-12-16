@@ -38,4 +38,5 @@ circuit OTA5TFullyDiff
     load OUT C=1p F
   benches:
     FDOpAmpACBench
+    FDOpAmpDCBench
 

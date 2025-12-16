@@ -46,8 +46,8 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 {{ if sweep.InputDCCommonMode }}
 // InputDCCommonMode sweep analysis: vary common-mode on both inputs
-dcSweep dc param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
-    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} \
+dcSweep dc param=VCM.dc start={{ sweep.InputDCCommonMode.Start }} \
+    stop={{ sweep.InputDCCommonMode.Stop }} step={{ sweep.InputDCCommonMode.Step }} \
     annotate=status {
   alter VINP_BIAS.dc=VCM.dc
   alter VINN_BIAS.dc=VCM.dc

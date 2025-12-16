@@ -22,9 +22,9 @@ VINP_BIAS (IN_P vss) vsource dc={{ vcm }}
 // Close loop from OUT_P to IN_N via iprobe (approximate per-leg loop)
 IPRB0 (OUT_P IN_N) iprobe
 
-// Differential output loading
-CLOADP (OUT_P vss) capacitor c={{ env.cload_f }}
-CLOADN (OUT_N vss) capacitor c={{ env.cload_f }}
+// Differential output loading (split capacitance equally)
+CLOADP (OUT_P vss) capacitor c={{ env.cload_f/2 }}
+CLOADN (OUT_N vss) capacitor c={{ env.cload_f/2 }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP (OUT_P vss) resistor r={{ env.rload_ohms }}
 RLOADN (OUT_N vss) resistor r={{ env.rload_ohms }}

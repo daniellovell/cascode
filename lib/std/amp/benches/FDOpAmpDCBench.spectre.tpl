@@ -27,9 +27,9 @@ VCM (vcm vss) vsource dc={{ vcm }}
 VINP_BIAS (IN_P vss) vsource dc={{ vcm }}
 VINN_BIAS (IN_N vss) vsource dc={{ vcm }}
 
-// Differential output loads
-CLOADP (OUT_P vss) capacitor c={{ env.cload_f }}
-CLOADN (OUT_N vss) capacitor c={{ env.cload_f }}
+// Differential output loads (split capacitance equally)
+CLOADP (OUT_P vss) capacitor c={{ env.cload_f/2 }}
+CLOADN (OUT_N vss) capacitor c={{ env.cload_f/2 }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP (OUT_P vss) resistor r={{ env.rload_ohms }}
 RLOADN (OUT_N vss) resistor r={{ env.rload_ohms }}
@@ -48,8 +48,8 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 {{ if sweep.InputDCCommonMode }}
 // InputDCCommonMode sweep analysis: vary common-mode on both inputs
-dcSweep dc param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
-    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} \
+dcSweep dc param=VCM.dc start={{ sweep.InputDCCommonMode.Start }} \
+    stop={{ sweep.InputDCCommonMode.Stop }} step={{ sweep.InputDCCommonMode.Step }} \
     annotate=status {
   alter VINP_BIAS.dc=VCM.dc
   alter VINN_BIAS.dc=VCM.dc

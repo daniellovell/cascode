@@ -16,7 +16,7 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 
 {{ if sweep.InputDCBias }}
 * Single-ended input: DC bias sweep
-VIN IN 0 DC {{ sweep.InputDCBias.start }}
+VIN IN 0 DC {{ sweep.InputDCBias.Start }}
 {{ else }}
 * Single-ended input: DC bias (single point)
 VIN IN 0 DC {{ bias_v }}
@@ -33,9 +33,9 @@ XDUT {{ port_list }} {{ circuit_name }}
 .control
 {{ if sweep.InputDCBias }}
 * InputDCBias sweep analysis (looped for per-point tracing)
-let bias_start = {{ sweep.InputDCBias.start }}
-let bias_stop = {{ sweep.InputDCBias.stop }}
-let bias_step = {{ sweep.InputDCBias.step }}
+let bias_start = {{ sweep.InputDCBias.Start }}
+let bias_stop = {{ sweep.InputDCBias.Stop }}
+let bias_step = {{ sweep.InputDCBias.Step }}
 
 let out_dc_min = 1e12
 let out_dc_max = -1e12

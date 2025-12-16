@@ -42,8 +42,8 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 {{ if sweep.InputDCBias }}
 // InputDCBias sweep analysis
-dcSweep dc param=VIN.dc start={{ sweep.InputDCBias.start }} \
-    stop={{ sweep.InputDCBias.stop }} step={{ sweep.InputDCBias.step }} \
+dcSweep dc param=VIN.dc start={{ sweep.InputDCBias.Start }} \
+    stop={{ sweep.InputDCBias.Stop }} step={{ sweep.InputDCBias.Step }} \
     annotate=status
 {{ else }}
 // Single operating point

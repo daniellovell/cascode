@@ -18,7 +18,7 @@ VSS (vss 0) vsource dc=0
 
 {{ if sweep.InputDCBias }}
 // Input DC bias (swept)
-VIN (IN vss) vsource dc={{ sweep.InputDCBias.start }} ac={{ ac_mag }}
+VIN (IN vss) vsource dc={{ sweep.InputDCBias.Start }} ac={{ ac_mag }}
 {{ else }}
 // DC bias at input (provided upstream; default passed as {{ vcm }})
 VCM (vcm vss) vsource dc={{ vcm }}
@@ -44,8 +44,8 @@ simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.tem
 
 {{ if sweep.InputDCBias }}
 // InputDCBias sweep with AC analysis at each bias point
-sweepDC sweep param=VIN.dc start={{ sweep.InputDCBias.start }} \
-    stop={{ sweep.InputDCBias.stop }} step={{ sweep.InputDCBias.step }} {
+sweepDC sweep param=VIN.dc start={{ sweep.InputDCBias.Start }} \
+    stop={{ sweep.InputDCBias.Stop }} step={{ sweep.InputDCBias.Step }} {
   dcOp dc annotate=status
   ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
 }

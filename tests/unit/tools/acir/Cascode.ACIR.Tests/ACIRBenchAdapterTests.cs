@@ -403,6 +403,145 @@ namespace Cascode.ACIR.Tests
         }
     }
 
+    public class BuildSweepDictionaryTests
+    {
+        [Fact]
+        public void BuildSweepDictionary_ReturnsEmptyDictionary_WhenNoHarness()
+        {
+            var circuit = new Circuit { Name = "Test" };
+
+            var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void BuildSweepDictionary_ReturnsEmptyDictionary_WhenNoSweeps()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock { Sweeps = new List<SweepCondition>() }
+            };
+
+            var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
+
+            Assert.Empty(result);
+        }
+
+        [Fact]
+        public void BuildSweepDictionary_ParsesSweepWithExplicitStep()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Sweeps = new List<SweepCondition>
+                    {
+                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV" }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
+
+            Assert.Single(result);
+            Assert.True(result.ContainsKey("InputDCBias"));
+            var sweepData = (Dictionary<string, object>)result["InputDCBias"]!;
+            Assert.Equal(0.3, sweepData["start"]);
+            Assert.Equal(1.5, sweepData["stop"]);
+            Assert.Equal(0.1, sweepData["step"]);
+        }
+
+        [Fact]
+        public void BuildSweepDictionary_ComputesAutoStep_WhenStepIsNull()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Sweeps = new List<SweepCondition>
+                    {
+                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = null }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
+
+            var sweepData = (Dictionary<string, object>)result["InputDCBias"]!;
+            // Auto step: (1.5 - 0.3) / 20 = 0.06, clamped to [0.01, 0.1]
+            Assert.Equal(0.06, sweepData["step"]);
+        }
+    }
+
+    public class SweepTemplateRenderingTests
+    {
+        [Fact]
+        public void TemplateRendering_UsesPascalCaseSweepProperties()
+        {
+            // This test verifies that templates using PascalCase sweep properties
+            // (e.g., sweep.InputDCBias.Start) render correctly.
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Harness = new HarnessBlock
+                {
+                    Supplies = new List<SupplyValue>
+                    {
+                        new() { Net = "VDD", Value = "1.8V" }
+                    },
+                    Sweeps = new List<SweepCondition>
+                    {
+                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV" }
+                    }
+                }
+            };
+
+            // Build context and extract sweep data through the same pipeline as real templates
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                new BenchConfig { Name = "TestBench" },
+                BenchBackendType.Spectre,
+                "out");
+
+            // Extract sweep data as ACIRTemplateHarness does
+            var sweepDict = new Dictionary<string, object?>();
+            foreach (var kvp in context.Args)
+            {
+                if (kvp.Key.StartsWith("sweep.", StringComparison.Ordinal))
+                {
+                    var conditionName = kvp.Key.Substring(6);
+                    if (kvp.Value is Dictionary<string, object> sweepData)
+                    {
+                        sweepDict[conditionName] = new
+                        {
+                            Start = sweepData.TryGetValue("start", out var s) ? Convert.ToDouble(s) : 0.0,
+                            Stop = sweepData.TryGetValue("stop", out var st) ? Convert.ToDouble(st) : 0.0,
+                            Step = sweepData.TryGetValue("step", out var step) ? Convert.ToDouble(step) : (double?)null
+                        };
+                    }
+                }
+            }
+
+            var scriptObj = new Scriban.Runtime.ScriptObject();
+            foreach (var kvp in sweepDict)
+            {
+                scriptObj[kvp.Key] = kvp.Value;
+            }
+
+            // Create a test template using PascalCase properties
+            var template = "start={{ sweep.InputDCBias.Start }} stop={{ sweep.InputDCBias.Stop }} step={{ sweep.InputDCBias.Step }}";
+            var model = new { sweep = scriptObj };
+
+            var rendered = Bench.TemplateRenderer.Render(template, model);
+
+            Assert.Equal("start=0.3 stop=1.5 step=0.1", rendered);
+        }
+    }
+
     public class DeriveVoltageAndImpedanceTests
     {
         [Fact]

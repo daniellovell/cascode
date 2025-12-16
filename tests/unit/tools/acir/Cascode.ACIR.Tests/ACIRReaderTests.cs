@@ -312,11 +312,13 @@ circuit Test : SingleEndedAmp
         var result = ACIRReader.TryParse(content, "test.cir");
 
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, d =>
+        var errorDiag = result.Diagnostics.FirstOrDefault(d =>
             d.Severity == DiagnosticSeverity.Error &&
             d.Message.Contains("ACIR0006") &&
             d.Message.Contains("sweep InputDCBias []") &&
             d.Message.Contains("''"));
+        Assert.NotNull(errorDiag);
+        Assert.Equal(10, errorDiag.Line);
     }
 
     [Fact]

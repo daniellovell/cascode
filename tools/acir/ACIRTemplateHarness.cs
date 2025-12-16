@@ -175,9 +175,9 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
                 {
                     sweepDict[conditionName] = new
                     {
-                        start = sweepData.TryGetValue("start", out var s) ? Convert.ToDouble(s) : 0.0,
-                        stop = sweepData.TryGetValue("stop", out var st) ? Convert.ToDouble(st) : 0.0,
-                        step = sweepData.TryGetValue("step", out var step) ? Convert.ToDouble(step) : (double?)null
+                        Start = sweepData.TryGetValue("start", out var s) ? Convert.ToDouble(s) : 0.0,
+                        Stop = sweepData.TryGetValue("stop", out var st) ? Convert.ToDouble(st) : 0.0,
+                        Step = sweepData.TryGetValue("step", out var step) ? Convert.ToDouble(step) : (double?)null
                     };
                 }
             }

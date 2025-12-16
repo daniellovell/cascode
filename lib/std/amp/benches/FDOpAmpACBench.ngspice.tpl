@@ -31,11 +31,9 @@ VAC_N IN_N_drv vcm AC 0.5 180
 RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
 RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
 
-{{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
-{{ end }}
-
-* Differential Load
+* Differential Load (split capacitance equally)
+CLOADP OUT_P 0 {{ env.cload_f/2 }}
+CLOADN OUT_N 0 {{ env.cload_f/2 }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
 RLOADP OUT_P 0 {{ env.rload_ohms }}
 RLOADN OUT_N 0 {{ env.rload_ohms }}

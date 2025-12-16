@@ -16,7 +16,7 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 
 * Common-mode bias
 {{ if sweep.InputDCCommonMode }}
-VCM_SRC vcm 0 DC {{ sweep.InputDCCommonMode.start }}
+VCM_SRC vcm 0 DC {{ sweep.InputDCCommonMode.Start }}
 {{ else }}
 VCM_SRC vcm 0 DC {{ vcm }}
 {{ end }}
@@ -41,9 +41,9 @@ XDUT {{ port_list }} {{ circuit_name }}
 .control
 {{ if sweep.InputDCCommonMode }}
 * InputDCCommonMode sweep: iterate over common-mode points with AC at each
-let cm_start = {{ sweep.InputDCCommonMode.start }}
-let cm_stop = {{ sweep.InputDCCommonMode.stop }}
-let cm_step = {{ sweep.InputDCCommonMode.step }}
+let cm_start = {{ sweep.InputDCCommonMode.Start }}
+let cm_stop = {{ sweep.InputDCCommonMode.Stop }}
+let cm_step = {{ sweep.InputDCCommonMode.Step }}
 let gbw_min = 1e12
 let gain_min = 1000
 let pm_min = 360

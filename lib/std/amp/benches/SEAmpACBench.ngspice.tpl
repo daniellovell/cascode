@@ -15,7 +15,7 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 {{ end }}
 {{ if sweep.InputDCBias }}
 * Single-ended input: DC bias (swept) with AC stimulus
-VIN IN 0 DC {{ sweep.InputDCBias.start }} AC 1
+VIN IN 0 DC {{ sweep.InputDCBias.Start }} AC 1
 {{ else }}
 * Single-ended input: DC bias with AC stimulus
 VIN IN 0 DC {{ bias_v }} AC 1
@@ -30,9 +30,9 @@ XDUT {{ port_list }} {{ circuit_name }}
 .control
 {{ if sweep.InputDCBias }}
 * InputDCBias sweep: iterate over bias points with AC at each
-let bias_start = {{ sweep.InputDCBias.start }}
-let bias_stop = {{ sweep.InputDCBias.stop }}
-let bias_step = {{ sweep.InputDCBias.step }}
+let bias_start = {{ sweep.InputDCBias.Start }}
+let bias_stop = {{ sweep.InputDCBias.Stop }}
+let bias_step = {{ sweep.InputDCBias.Step }}
 let num_points = floor((bias_stop - bias_start) / bias_step) + 1
 let gbw_min = 1e12
 let gain_min = 1000
