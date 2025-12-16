@@ -42,7 +42,8 @@ internal sealed class VerifyCommandModule : ICommandModule
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)");
+            _state.AddMessage("Usage: verify <acir_file> <results_json|trace_jsonl>");
+            _state.AddMessage("       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)");
             _state.AddMessage("");
             _state.AddMessage("Verifies numeric constraints from ACIR against bench measurement results.");
             return CommandResult.Success;
@@ -50,7 +51,7 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
         {
-            _state.AddMessage("Error: --acir is required, plus either --results or --trace.");
+            _state.AddMessage("Error: provide an ACIR path plus either a results.json or trace.jsonl path.");
             return CommandResult.Failure;
         }
 
@@ -141,6 +142,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         acirPath = null;
         resultsPath = null;
         tracePath = null;
+        var positionals = new System.Collections.Generic.List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -158,6 +160,28 @@ internal sealed class VerifyCommandModule : ICommandModule
             {
                 tracePath = args[i + 1];
                 i++;
+            }
+            else if (!args[i].StartsWith("-", StringComparison.Ordinal))
+            {
+                positionals.Add(args[i]);
+            }
+        }
+
+        if (acirPath == null && positionals.Count >= 1)
+        {
+            acirPath = positionals[0];
+        }
+
+        if (resultsPath == null && tracePath == null && positionals.Count >= 2)
+        {
+            var path = positionals[1];
+            if (path.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase))
+            {
+                tracePath = path;
+            }
+            else
+            {
+                resultsPath = path;
             }
         }
 

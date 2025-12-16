@@ -39,7 +39,7 @@ internal sealed class BenchCommandModule : ICommandModule
         if (!BenchRunService.TryParseArgs(args, out var parsed, out var error))
         {
             _state.AddMessage(error);
-            _state.AddMessage("Usage: bench run --acir <file> --bench <name> [--out <dir>] [--backend <ngspice>]");
+            _state.AddMessage("Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-o|--out <dir>] [--backend <ngspice>]");
             return CommandResult.Failure;
         }
 

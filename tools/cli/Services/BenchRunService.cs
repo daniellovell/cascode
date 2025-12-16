@@ -16,8 +16,8 @@ public static class BenchRunService
 {
     public sealed record BenchRunArgs(
         string AcirPath,
-        string BenchName,
-        string OutputDir,
+        string? BenchName,
+        string? OutputDir,
         BenchBackendType Backend);
 
     public sealed record BenchRunResult(
@@ -26,13 +26,14 @@ public static class BenchRunService
 
     public static bool TryParseArgs(string[] args, out BenchRunArgs parsed, out string error)
     {
-        parsed = new BenchRunArgs(string.Empty, string.Empty, Path.Combine(Directory.GetCurrentDirectory(), "build"), BenchBackendType.Ngspice);
+        parsed = new BenchRunArgs(string.Empty, null, null, BenchBackendType.Ngspice);
         error = string.Empty;
 
         string? acirPath = null;
         string? benchName = null;
-        var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "build");
+        string? outputDir = null;
         var backend = BenchBackendType.Ngspice;
+        var positionals = new List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -40,11 +41,11 @@ public static class BenchRunService
             {
                 acirPath = args[++i];
             }
-            else if (args[i] == "--bench" && i + 1 < args.Length)
+            else if ((args[i] == "--bench" || args[i] == "-b") && i + 1 < args.Length)
             {
                 benchName = args[++i];
             }
-            else if (args[i] == "--out" && i + 1 < args.Length)
+            else if ((args[i] == "--out" || args[i] == "-o") && i + 1 < args.Length)
             {
                 outputDir = args[++i];
             }
@@ -58,11 +59,30 @@ public static class BenchRunService
                 }
                 backend = BenchBackendType.Ngspice;
             }
+            else if (args[i].StartsWith("-", StringComparison.Ordinal))
+            {
+                error = $"Error: unknown option '{args[i]}'.";
+                return false;
+            }
+            else
+            {
+                positionals.Add(args[i]);
+            }
         }
 
-        if (string.IsNullOrWhiteSpace(acirPath) || string.IsNullOrWhiteSpace(benchName))
+        if (string.IsNullOrWhiteSpace(acirPath) && positionals.Count >= 1)
         {
-            error = "Error: --acir and --bench are required.";
+            acirPath = positionals[0];
+        }
+
+        if (string.IsNullOrWhiteSpace(benchName) && positionals.Count >= 2)
+        {
+            benchName = positionals[1];
+        }
+
+        if (string.IsNullOrWhiteSpace(acirPath))
+        {
+            error = "Error: ACIR file path is required.";
             return false;
         }
 
@@ -72,19 +92,37 @@ public static class BenchRunService
             return false;
         }
 
-        parsed = new BenchRunArgs(Path.GetFullPath(acirPath), benchName, outputDir, backend);
+        parsed = new BenchRunArgs(Path.GetFullPath(acirPath), string.IsNullOrWhiteSpace(benchName) ? null : benchName, outputDir, backend);
         return true;
     }
 
     public static BenchRunResult Run(string workspaceRoot, BenchRunArgs args)
     {
         var messages = new List<string>();
-        var outputDir = Path.GetFullPath(args.OutputDir);
-        Directory.CreateDirectory(outputDir);
 
         var doc = ReadAcir(args.AcirPath);
         var circuit = doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL)
             ?? throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+
+        var benchName = ResolveBenchName(circuit, args.BenchName);
+        if (benchName == null)
+        {
+            var available = GetAvailableBenchNames(circuit);
+            var list = available.Length == 0 ? "(none)" : string.Join(", ", available);
+            return new BenchRunResult(2, new[] { $"Multiple benches available; specify one with --bench/-b. Available: {list}" });
+        }
+
+        if (!BenchExistsInDocument(circuit, benchName))
+        {
+            var available = GetAvailableBenchNames(circuit);
+            var list = available.Length == 0 ? "(none)" : string.Join(", ", available);
+            return new BenchRunResult(2, new[] { $"Bench '{benchName}' not declared in ACIR benches block. Available: {list}" });
+        }
+
+        var outputDir = args.OutputDir == null
+            ? Path.Combine(Directory.GetCurrentDirectory(), "build", "bench", $"{circuit.Name}_{benchName}")
+            : Path.GetFullPath(args.OutputDir);
+        Directory.CreateDirectory(outputDir);
 
         var resolvedWorkspaceRoot = FindWorkspaceRoot(args.AcirPath) ?? workspaceRoot;
         if (string.IsNullOrWhiteSpace(resolvedWorkspaceRoot))
@@ -99,7 +137,7 @@ public static class BenchRunService
             return new BenchRunResult(2, new[] { first });
         }
 
-        var testbenchPath = FindTestbenchPath(emit.Emit.TestbenchPaths, circuit.Name, args.BenchName);
+        var testbenchPath = FindTestbenchPath(emit.Emit.TestbenchPaths, circuit.Name, benchName);
         NgspiceRun run;
         try
         {
@@ -120,13 +158,13 @@ public static class BenchRunService
         var sweepNames = circuit.Harness?.Sweeps?.Select(s => s.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
             ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var points = ParsePoints(run.Stdout, sweepNames);
-        var results = ParseResults(run.Stdout, circuit, args.BenchName);
+        var results = ParseResults(run.Stdout, circuit, benchName);
 
-        var resultsPath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{args.BenchName}_results.json");
+        var resultsPath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_results.json");
         File.WriteAllText(resultsPath, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
 
-        var tracePath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{args.BenchName}_trace.jsonl");
-        WriteTraceJsonl(tracePath, args, circuit, testbenchPath, points, results);
+        var tracePath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_trace.jsonl");
+        WriteTraceJsonl(tracePath, args with { BenchName = benchName }, circuit, testbenchPath, points, results);
 
         var report = ComplianceChecker.Check(circuit, results);
         messages.Add($"Testbench: {testbenchPath}");
@@ -135,6 +173,32 @@ public static class BenchRunService
         messages.Add($"Compliance: {report.PassedCount}/{report.TotalCount} constraints satisfied");
 
         return new BenchRunResult(report.FailedCount == 0 ? 0 : 1, messages);
+    }
+
+    private static string? ResolveBenchName(Circuit circuit, string? explicitBench)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitBench))
+        {
+            return explicitBench;
+        }
+
+        var available = GetAvailableBenchNames(circuit);
+        return available.Length == 1 ? available[0] : null;
+    }
+
+    private static bool BenchExistsInDocument(Circuit circuit, string benchName)
+    {
+        return circuit.Benches?.Benches.Any(b => b.Name.Equals(benchName, StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    private static string[] GetAvailableBenchNames(Circuit circuit)
+    {
+        return circuit.Benches?.Benches.Select(b => b.Name)
+                   .Where(b => !string.IsNullOrWhiteSpace(b))
+                   .Distinct(StringComparer.OrdinalIgnoreCase)
+                   .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)
+                   .ToArray()
+               ?? Array.Empty<string>();
     }
 
     private static string? FindWorkspaceRoot(string inputPath)
@@ -403,7 +467,7 @@ public static class BenchRunService
             run_id = runId,
             ts_utc = DateTimeOffset.UtcNow,
             circuit = new { name = circuit.Name },
-            bench = new { name = args.BenchName },
+            bench = new { name = args.BenchName ?? string.Empty },
             backend = new { name = args.Backend.ToString().ToLowerInvariant() },
             testbench = new { path = testbenchPath }
         });

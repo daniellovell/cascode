@@ -43,10 +43,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
             TimeSpan.FromSeconds(60),
             _cascodeHome,
             "bench", "run",
-            "--acir", acirPath,
-            "--bench", "SEOpAmpDCBench",
-            "--backend", "ngspice",
-            "--out", _outputDir);
+            acirPath,
+            "-o", _outputDir);
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
@@ -67,6 +65,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.Contains("\"type\":\"point\"", traceText);
         Assert.Contains("\"type\":\"summary\"", traceText);
         Assert.Contains("QuiescentPower", traceText);
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify", acirPath, tracePath);
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify with positional args failed");
     }
 }
-
