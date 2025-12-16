@@ -168,57 +168,19 @@ public class BenchRunService
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(args.AcirPath, workspaceRoot);
         var emit = SpiceEmitter.ValidateAndEmit(doc, outputDir, args.Backend, resolvedWorkspaceRoot);
-        if (!emit.Validation.IsValid)
+        var validationResult = ValidateEmissionOrReturnResult(emit, circuit.Name, args, outputDir);
+        if (validationResult != null)
         {
-            var first = emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
-            _logger.LogError("ACIR emission validation failed: {Error}", first);
-            var summary = new BenchRunSummary(
-                circuit.Name,
-                args.Backend,
-                outputDir,
-                new[]
-                {
-                    new BenchRunBenchSummary(
-                        Name: args.BenchName ?? string.Empty,
-                        Succeeded: false,
-                        ExitCode: 2,
-                        Error: first,
-                        Stderr: null,
-                        TestbenchPath: null,
-                        TracePath: null,
-                        ResultsPath: null)
-                },
-                CombinedResultsPath: null,
-                Compliance: new ComplianceReport());
-            return new BenchRunResult(2, summary);
+            return validationResult;
         }
 
         var sweepNames = BenchRunHelpers.GetSweepNames(circuit);
         var allMeasurements = new Dictionary<string, MeasurementResult>(StringComparer.OrdinalIgnoreCase);
         var benchSummaries = RunBenches(circuit, args, sweepNames, emit.Emit.TestbenchPaths, benchesToRun, allMeasurements);
-        if (allMeasurements.Count == 0)
+        var noMeasurementsResult = HandleNoMeasurementsOrReturnResult(circuit.Name, args, outputDir, benchSummaries, allMeasurements);
+        if (noMeasurementsResult != null)
         {
-            var summary = new BenchRunSummary(
-                circuit.Name,
-                args.Backend,
-                outputDir,
-                benchSummaries.Count == 0
-                    ? new[]
-                    {
-                        new BenchRunBenchSummary(
-                            Name: args.BenchName ?? string.Empty,
-                            Succeeded: false,
-                            ExitCode: 1,
-                            Error: "No benches completed successfully.",
-                            Stderr: null,
-                            TestbenchPath: null,
-                            TracePath: null,
-                            ResultsPath: null)
-                    }
-                    : benchSummaries,
-                CombinedResultsPath: null,
-                Compliance: new ComplianceReport());
-            return new BenchRunResult(1, summary);
+            return noMeasurementsResult;
         }
 
         var combinedResults = BenchResultParser.CreateCombinedResults(circuit.Name, benchesToRun, allMeasurements);
@@ -241,6 +203,75 @@ public class BenchRunService
                 benchSummaries,
                 combinedResultsPath,
                 report));
+    }
+
+    private BenchRunResult? ValidateEmissionOrReturnResult(
+        (EmissionValidationResult Validation, SpiceEmission Emit) emit,
+        string circuitName,
+        BenchRunArgs args,
+        string outputDir)
+    {
+        if (!emit.Validation.IsValid)
+        {
+            var first = emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
+            _logger.LogError("ACIR emission validation failed: {Error}", first);
+            var summary = new BenchRunSummary(
+                circuitName,
+                args.Backend,
+                outputDir,
+                new[]
+                {
+                    new BenchRunBenchSummary(
+                        Name: args.BenchName ?? string.Empty,
+                        Succeeded: false,
+                        ExitCode: 2,
+                        Error: first,
+                        Stderr: null,
+                        TestbenchPath: null,
+                        TracePath: null,
+                        ResultsPath: null)
+                },
+                CombinedResultsPath: null,
+                Compliance: new ComplianceReport());
+            return new BenchRunResult(2, summary);
+        }
+
+        return null;
+    }
+
+    private BenchRunResult? HandleNoMeasurementsOrReturnResult(
+        string circuitName,
+        BenchRunArgs args,
+        string outputDir,
+        List<BenchRunBenchSummary> benchSummaries,
+        Dictionary<string, MeasurementResult> allMeasurements)
+    {
+        if (allMeasurements.Count == 0)
+        {
+            var summary = new BenchRunSummary(
+                circuitName,
+                args.Backend,
+                outputDir,
+                benchSummaries.Count == 0
+                    ? new[]
+                    {
+                        new BenchRunBenchSummary(
+                            Name: args.BenchName ?? string.Empty,
+                            Succeeded: false,
+                            ExitCode: 1,
+                            Error: "No benches completed successfully.",
+                            Stderr: null,
+                            TestbenchPath: null,
+                            TracePath: null,
+                            ResultsPath: null)
+                    }
+                    : benchSummaries,
+                CombinedResultsPath: null,
+                Compliance: new ComplianceReport());
+            return new BenchRunResult(1, summary);
+        }
+
+        return null;
     }
 
     private IReadOnlyList<string>? ResolveBenchesToRunOrError(string? explicitBench, string[] availableBenches, out string? error)

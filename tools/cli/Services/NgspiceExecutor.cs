@@ -12,13 +12,14 @@ internal static class NgspiceExecutor
         var startInfo = new ProcessStartInfo
         {
             FileName = "ngspice",
-            Arguments = $"-b \"{spiceFile}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory()
         };
+        startInfo.ArgumentList.Add("-b");
+        startInfo.ArgumentList.Add(spiceFile);
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();
