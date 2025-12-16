@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Cascode.Cli.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
 
@@ -40,12 +41,19 @@ internal sealed class BenchCommandModule : ICommandModule
         {
             _state.AddMessage(error);
             _state.AddMessage("Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-o|--out <dir>] [--backend <ngspice>]");
+            _state.AddMessage("If <bench> is omitted, runs all benches declared by the circuit.");
             return CommandResult.Failure;
         }
 
         try
         {
-            var result = BenchRunService.Run(_state.WorkspaceRoot, parsed);
+            using var loggerFactory = _state.LoggerFactory ?? LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Information);
+                builder.AddSimpleConsole(o => { o.SingleLine = true; });
+            });
+            var service = new BenchRunService(loggerFactory.CreateLogger<BenchRunService>());
+            var result = service.Run(_state.WorkspaceRoot, parsed);
             foreach (var line in result.Messages)
             {
                 _state.AddMessage(line);

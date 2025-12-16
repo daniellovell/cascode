@@ -72,4 +72,34 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "verify", acirPath, tracePath);
         CliIntegrationTestHelper.AssertSuccess(verify, "verify with positional args failed");
     }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_MultiBench_DefaultRunsAllAndWritesCombinedResults()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp_MultiBench.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench", "run",
+            acirPath,
+            "-o", _outputDir);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
+
+        Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_results.json")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_trace.jsonl")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpDCBench_results.json")));
+        Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpDCBench_trace.jsonl")));
+
+        var combinedResults = Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_results.json");
+        Assert.True(File.Exists(combinedResults));
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify", acirPath, combinedResults);
+        CliIntegrationTestHelper.AssertSuccess(verify, "verify with combined results failed");
+    }
 }

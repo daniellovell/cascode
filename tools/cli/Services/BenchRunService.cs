@@ -9,11 +9,19 @@ using System.Text.RegularExpressions;
 using Cascode.ACIR;
 using Cascode.Bench;
 using Cascode.Parser;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Services;
 
-public static class BenchRunService
+public class BenchRunService
 {
+    private readonly ILogger<BenchRunService> _logger;
+
+    public BenchRunService(ILogger<BenchRunService> logger)
+    {
+        _logger = logger;
+    }
+
     public sealed record BenchRunArgs(
         string AcirPath,
         string? BenchName,
@@ -96,48 +104,139 @@ public static class BenchRunService
         return true;
     }
 
-    public static BenchRunResult Run(string workspaceRoot, BenchRunArgs args)
+    public BenchRunResult Run(string workspaceRoot, BenchRunArgs args)
     {
         var messages = new List<string>();
 
         var doc = ReadAcir(args.AcirPath);
-        var circuit = doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL)
-            ?? throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+        var circuit = GetSingleElCircuit(doc);
 
-        var benchName = ResolveBenchName(circuit, args.BenchName);
-        if (benchName == null)
+        var availableBenches = GetAvailableBenchNames(circuit);
+        var benchesToRun = ResolveBenchesToRunOrError(args.BenchName, availableBenches, messages);
+        if (benchesToRun == null)
         {
-            var available = GetAvailableBenchNames(circuit);
-            var list = available.Length == 0 ? "(none)" : string.Join(", ", available);
-            return new BenchRunResult(2, new[] { $"Multiple benches available; specify one with --bench/-b. Available: {list}" });
+            return new BenchRunResult(2, messages);
         }
 
-        if (!BenchExistsInDocument(circuit, benchName))
-        {
-            var available = GetAvailableBenchNames(circuit);
-            var list = available.Length == 0 ? "(none)" : string.Join(", ", available);
-            return new BenchRunResult(2, new[] { $"Bench '{benchName}' not declared in ACIR benches block. Available: {list}" });
-        }
-
-        var outputDir = args.OutputDir == null
-            ? Path.Combine(Directory.GetCurrentDirectory(), "build", "bench", $"{circuit.Name}_{benchName}")
-            : Path.GetFullPath(args.OutputDir);
+        var outputDir = ResolveOutputDir(args.OutputDir, circuit.Name, benchesToRun);
         Directory.CreateDirectory(outputDir);
 
-        var resolvedWorkspaceRoot = FindWorkspaceRoot(args.AcirPath) ?? workspaceRoot;
-        if (string.IsNullOrWhiteSpace(resolvedWorkspaceRoot))
-        {
-            resolvedWorkspaceRoot = Directory.GetCurrentDirectory();
-        }
-
+        var resolvedWorkspaceRoot = ResolveWorkspaceRoot(args.AcirPath, workspaceRoot);
         var emit = SpiceEmitter.ValidateAndEmit(doc, outputDir, args.Backend, resolvedWorkspaceRoot);
         if (!emit.Validation.IsValid)
         {
             var first = emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
+            _logger.LogError("ACIR emission validation failed: {Error}", first);
             return new BenchRunResult(2, new[] { first });
         }
 
-        var testbenchPath = FindTestbenchPath(emit.Emit.TestbenchPaths, circuit.Name, benchName);
+        var sweepNames = GetSweepNames(circuit);
+        var allMeasurements = new Dictionary<string, MeasurementResult>(StringComparer.OrdinalIgnoreCase);
+        var hadSimulationFailure = RunBenches(circuit, args, sweepNames, emit.Emit.TestbenchPaths, benchesToRun, allMeasurements, messages);
+        if (allMeasurements.Count == 0)
+        {
+            return new BenchRunResult(1, messages.Count == 0 ? new[] { "No benches completed successfully." } : messages);
+        }
+
+        var combinedResults = CreateCombinedResults(circuit.Name, benchesToRun, allMeasurements);
+        if (benchesToRun.Count > 1)
+        {
+            WriteCombinedResults(outputDir, circuit.Name, combinedResults, messages);
+        }
+
+        var report = ComplianceChecker.Check(circuit, combinedResults);
+        _logger.LogInformation("Compliance check: {PassedCount}/{TotalCount} constraints satisfied", report.PassedCount, report.TotalCount);
+        messages.Add($"Compliance: {report.PassedCount}/{report.TotalCount} constraints satisfied");
+
+        var exit = hadSimulationFailure || report.FailedCount != 0 ? 1 : 0;
+        return new BenchRunResult(exit, messages);
+    }
+
+    private static Circuit GetSingleElCircuit(ACIRDocument doc)
+    {
+        return doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL)
+            ?? throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+    }
+
+    private IReadOnlyList<string>? ResolveBenchesToRunOrError(string? explicitBench, string[] availableBenches, List<string> messages)
+    {
+        if (availableBenches.Length == 0)
+        {
+            const string msg = "No benches declared in ACIR benches block.";
+            _logger.LogError(msg);
+            messages.Add(msg);
+            return null;
+        }
+
+        var benches = ResolveBenchesToRun(availableBenches, explicitBench);
+        if (benches == null)
+        {
+            var list = string.Join(", ", availableBenches);
+            var msg = $"Bench '{explicitBench}' not declared in ACIR benches block. Available: {list}";
+            _logger.LogError("Bench '{BenchName}' not declared in ACIR benches block. Available: {Available}", explicitBench, list);
+            messages.Add(msg);
+            return null;
+        }
+
+        return benches;
+    }
+
+    private static string ResolveOutputDir(string? outputDir, string circuitName, IReadOnlyList<string> benchesToRun)
+    {
+        if (!string.IsNullOrWhiteSpace(outputDir))
+        {
+            return Path.GetFullPath(outputDir);
+        }
+
+        var leaf = benchesToRun.Count == 1 ? $"{circuitName}_{benchesToRun[0]}" : circuitName;
+        return Path.Combine(Directory.GetCurrentDirectory(), "build", "bench", leaf);
+    }
+
+    private static string ResolveWorkspaceRoot(string acirPath, string workspaceRoot)
+    {
+        var resolved = FindWorkspaceRoot(acirPath) ?? workspaceRoot;
+        return string.IsNullOrWhiteSpace(resolved) ? Directory.GetCurrentDirectory() : resolved;
+    }
+
+    private static HashSet<string> GetSweepNames(Circuit circuit)
+    {
+        return circuit.Harness?.Sweeps?.Select(s => s.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+               ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool RunBenches(
+        Circuit circuit,
+        BenchRunArgs args,
+        HashSet<string> sweepNames,
+        IReadOnlyList<string> testbenchPaths,
+        IReadOnlyList<string> benchesToRun,
+        Dictionary<string, MeasurementResult> allMeasurements,
+        List<string> messages)
+    {
+        var hadSimulationFailure = false;
+
+        foreach (var benchName in benchesToRun)
+        {
+            if (!TryRunBench(circuit, args, sweepNames, testbenchPaths, benchName, allMeasurements, messages))
+            {
+                hadSimulationFailure = true;
+            }
+        }
+
+        return hadSimulationFailure;
+    }
+
+    private bool TryRunBench(
+        Circuit circuit,
+        BenchRunArgs args,
+        HashSet<string> sweepNames,
+        IReadOnlyList<string> testbenchPaths,
+        string benchName,
+        Dictionary<string, MeasurementResult> allMeasurements,
+        List<string> messages)
+    {
+        var testbenchPath = FindTestbenchPath(testbenchPaths, circuit.Name, benchName);
+
         NgspiceRun run;
         try
         {
@@ -145,20 +244,23 @@ public static class BenchRunService
         }
         catch (Exception ex)
         {
-            messages.Add($"Failed to run ngspice: {ex.Message}");
-            return new BenchRunResult(1, messages);
-        }
-        if (run.ExitCode != 0)
-        {
-            messages.Add($"Simulation failed (exit {run.ExitCode}).");
-            messages.Add(run.Stderr);
-            return new BenchRunResult(1, messages);
+            var msg = $"Failed to run ngspice for '{benchName}': {ex.Message}";
+            _logger.LogError(ex, "Failed to run ngspice for '{BenchName}': {Message}", benchName, ex.Message);
+            messages.Add(msg);
+            return false;
         }
 
-        var sweepNames = circuit.Harness?.Sweeps?.Select(s => s.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
-            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (run.ExitCode != 0)
+        {
+            _logger.LogError("Simulation '{BenchName}' failed with exit code {ExitCode}. Stderr: {Stderr}", benchName, run.ExitCode, run.Stderr);
+            messages.Add($"Simulation '{benchName}' failed (exit {run.ExitCode}).");
+            messages.Add(run.Stderr);
+            return false;
+        }
+
         var points = ParsePoints(run.Stdout, sweepNames);
         var results = ParseResults(run.Stdout, circuit, benchName);
+        MergeMeasurements(allMeasurements, results.Measurements.Values);
 
         var resultsPath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_results.json");
         File.WriteAllText(resultsPath, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
@@ -166,29 +268,52 @@ public static class BenchRunService
         var tracePath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_trace.jsonl");
         WriteTraceJsonl(tracePath, args with { BenchName = benchName }, circuit, testbenchPath, points, results);
 
-        var report = ComplianceChecker.Check(circuit, results);
-        messages.Add($"Testbench: {testbenchPath}");
-        messages.Add($"Trace: {tracePath}");
-        messages.Add($"Results: {resultsPath}");
-        messages.Add($"Compliance: {report.PassedCount}/{report.TotalCount} constraints satisfied");
+        _logger.LogInformation("Bench '{BenchName}' testbench: {TestbenchPath}", benchName, testbenchPath);
+        messages.Add($"Bench '{benchName}' testbench: {testbenchPath}");
+        _logger.LogInformation("Bench '{BenchName}' trace: {TracePath}", benchName, tracePath);
+        messages.Add($"Bench '{benchName}' trace: {tracePath}");
+        _logger.LogInformation("Bench '{BenchName}' results: {ResultsPath}", benchName, resultsPath);
+        messages.Add($"Bench '{benchName}' results: {resultsPath}");
 
-        return new BenchRunResult(report.FailedCount == 0 ? 0 : 1, messages);
+        return true;
     }
 
-    private static string? ResolveBenchName(Circuit circuit, string? explicitBench)
+    private static BenchResult CreateCombinedResults(string circuitName, IReadOnlyList<string> benchesToRun, Dictionary<string, MeasurementResult> measurements)
+    {
+        return new BenchResult
+        {
+            Circuit = circuitName,
+            Bench = benchesToRun.Count == 1 ? benchesToRun[0] : "all",
+            Measurements = measurements.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase)
+        };
+    }
+
+    private void WriteCombinedResults(string outputDir, string circuitName, BenchResult combinedResults, List<string> messages)
+    {
+        var combinedResultsPath = Path.Combine(outputDir, $"{circuitName}_results.json");
+        File.WriteAllText(combinedResultsPath, JsonSerializer.Serialize(combinedResults, new JsonSerializerOptions { WriteIndented = true }));
+        _logger.LogInformation("Combined results: {ResultsPath}", combinedResultsPath);
+        messages.Add($"Combined results: {combinedResultsPath}");
+    }
+
+    private static IReadOnlyList<string>? ResolveBenchesToRun(string[] availableBenches, string? explicitBench)
     {
         if (!string.IsNullOrWhiteSpace(explicitBench))
         {
-            return explicitBench;
+            var match = availableBenches.FirstOrDefault(b => b.Equals(explicitBench, StringComparison.OrdinalIgnoreCase));
+            return match == null ? null : new[] { match };
         }
 
-        var available = GetAvailableBenchNames(circuit);
-        return available.Length == 1 ? available[0] : null;
+        return availableBenches;
     }
 
-    private static bool BenchExistsInDocument(Circuit circuit, string benchName)
+    private static void MergeMeasurements(Dictionary<string, MeasurementResult> target, IEnumerable<MeasurementResult> source)
     {
-        return circuit.Benches?.Benches.Any(b => b.Name.Equals(benchName, StringComparison.OrdinalIgnoreCase)) == true;
+        foreach (var measurement in source)
+        {
+            var key = measurement.Node == null ? measurement.Metric : $"{measurement.Metric}@{measurement.Node}";
+            target[key] = measurement;
+        }
     }
 
     private static string[] GetAvailableBenchNames(Circuit circuit)

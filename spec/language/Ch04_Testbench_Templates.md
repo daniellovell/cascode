@@ -237,10 +237,22 @@ quit
 
 ### 4.3.7 Simulation Trace Output (JSONL)
 
-`cascode bench run` runs a simulator for a single bench and writes two artifacts into the job directory:
+`cascode bench run` runs the simulator for the benches declared by the design and writes artifacts into the job directory. When a bench name is provided, it runs only that bench.
+
+For each executed bench, it writes:
 
 - `{Circuit}_{Bench}_trace.jsonl`: append-only trace capturing per-point sweep data and the final summary.
 - `{Circuit}_{Bench}_results.json`: consolidated measurement values intended for constraint verification.
+
+When multiple benches are executed in one run, it also writes `{Circuit}_results.json`, which merges consolidated measurements across benches so that `verify` can evaluate the full constraint set from a single file.
+
+The intended CLI shape is concise:
+
+```bash
+cascode bench run <acir_file> [<bench>] [-o <output_dir>] [-b <bench>] [--backend ngspice]
+```
+
+If `<bench>` is omitted, `cascode bench run` executes all benches listed in the ACIR `benches:` block. To run a single bench (for faster iteration and debugging), pass the bench name as either the second positional argument or `-b/--bench`.
 
 Templates must emit two kinds of lines to stdout when running under ngspice:
 
@@ -416,12 +428,10 @@ Or with `--backend spectre`:
 Check simulation results against ACIR constraints:
 
 ```bash
-cascode verify --acir <acir_file> --results <results_json>
+cascode verify <acir_file> <results_json|trace_jsonl>
 ```
 
-**Arguments:**
-- `--acir <acir_file>`: ACIR file containing constraints
-- `--results <results_json>`: Simulation results in JSON format
+`trace_jsonl` is the output produced by `cascode bench run`. When a trace is supplied, `verify` reads the `summary` record and evaluates constraints against the consolidated measurement values.
 
 **Results JSON Schema:**
 
@@ -855,9 +865,7 @@ After running ngspice and post-processing:
 ### 4.10.5 Verify Command
 
 ```bash
-$ cascode verify \
-    --acir tests/golden/acir/ota/OTA5TSingleEnded.el.cir \
-    --results /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench_results.json
+$ cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench_results.json
 
 Constraint Compliance Report for OTA5TSingleEnded
 --------------------------------------------------
@@ -893,7 +901,7 @@ Template rendering uses the Scriban library ([Scriban](https://github.com/scriba
 
 Potential enhancements to the template system include:
 
-- **Automated results extraction**: Post-processing scripts to parse raw simulator output and generate JSON results automatically
+- **Richer bench execution support**: Extend `cascode bench run` across more benches/backends and capture additional intermediate artifacts for debugging
 - **Monte Carlo support**: Template extensions for statistical analysis with multiple runs
 - **Corner analysis**: Systematic PVT corner sweeps with aggregated results
 - **Batch execution**: Parallel simulation of multiple benches or circuits
