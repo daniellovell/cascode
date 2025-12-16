@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../bench/Cascode.Bench.csproj" />
+    <ProjectReference Include="../parser/Cascode.Parser.csproj" />
   </ItemGroup>
 </Project>
 

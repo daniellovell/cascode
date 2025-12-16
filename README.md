@@ -367,14 +367,33 @@ cascode/
 
 ## 🧪 Quick Start (build & test)
 
-CLI / compiler build
+### Building from source
 
 ```bash
 # Build everything (compiler, CLI, tests)
 dotnet build
 
-# Run the CLI
+# Run the CLI directly
 dotnet run --project tools/cli/Cascode.Cli.csproj
+```
+
+### Install as a global tool (for development)
+
+If you want to build the repo and install it as a global tool on your shell (so you can run `cascode` directly from anywhere):
+
+```bash
+./install-dev-tool.sh
+```
+
+This script will:
+1. Pack the CLI project into a NuGet package
+2. Uninstall any existing global installation of `Cascode.Cli`
+3. Install the newly built version as a global .NET tool
+
+After installation, ensure `~/.dotnet/tools` is on your PATH, then verify:
+
+```bash
+cascode --version
 ```
 
 ## ♻️ Golden fixtures
@@ -392,6 +411,16 @@ sources to expected ACIR/SPICE outputs.
 # Compile ADL to ACIR
 cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
 # Output: build/OTA5TSingleEndedSimplified.ml.cir
+
+# Emit simulator netlists from an ACIR EL circuit
+cascode emit tests/golden/acir/ota/OTA5TSingleEnded.el.cir --backend ngspice --out build/ota-emit
+
+# Run benches and write consolidated results plus a per-point trace for each bench.
+# If a bench name is omitted, all benches declared by the circuit are executed.
+cascode bench run tests/golden/acir/ota/OTA5TSingleEnded.el.cir -o build/ota-run
+
+# Verify constraints from either results.json or trace.jsonl
+cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir build/ota-run/OTA5TSingleEnded_SEOpAmpACBench_trace.jsonl
 ```
 
 ---

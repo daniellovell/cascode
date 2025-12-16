@@ -2,7 +2,8 @@ package lib.std.amp.benches;
 
 // AC bench for fully differential amplifiers.
 bench FDAmplifierACBench {
-  spectre_template = "FDAmplifierACBench.tpl";
+  spectre_template = "FDAmplifierACBench.spectre.tpl";
+  ngspice_template = "FDAmplifierACBench.ngspice.tpl";
   metrics [
     GainBandwidth: Hz,
     PassbandGain: dB,

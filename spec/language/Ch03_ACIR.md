@@ -570,10 +570,59 @@ harness:
   supply VDD = 1.8V
   supply VDDIO = 3.3V
   bias VBIAS = 0.7V
+  sweep InputDCCommonMode [0.3V:100mV:1.5V]
   source IN Z=50 Ohm
   load OUT C=1p F
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
+```
+
+### Sweep Conditions
+
+The `sweep` directive specifies DC bias conditions that vary across a range during bench execution. When present, all benches execute their analyses at each sweep point and report worst-case values.
+
+**Syntax:**
+
+```
+sweep <ConditionName> [<start>:<step>:<stop>]     ; explicit step
+sweep <ConditionName> [<start>:<stop>]            ; automatic step
+sweep <ConditionName> [Auto]                      ; synthesis chooses range (HL/ML only)
+```
+
+**Examples:**
+
+```
+sweep InputDCBias [0.3V:100mV:1.5V]           ; SEAmp: sweep input bias with explicit step
+sweep InputDCCommonMode [0.3V:1.5V]           ; SEOpAmp: sweep ICMR with auto step
+sweep OutputDCCommonMode [0.5V:50mV:1.3V]     ; FDOpAmp: sweep OCMR with explicit step
+```
+
+**Automatic step sizing:** When the step parameter is omitted, the toolchain computes `step = (stop - start) / 20` clamped to the range [10mV, 100mV].
+
+**Semantics:**
+
+- The condition name (`InputDCBias`, `InputDCCommonMode`, `OutputDCCommonMode`) is topology-specific and must match the swept condition declared in the design's specification
+- All benches listed in the `benches:` block must respect the sweep and execute analyses at each point
+- Benches report worst-case values according to constraint directionality (minimum for `>=` constraints, maximum for `<=` constraints)
+- For range constraints `in [X..Y]`, benches report both `_min` and `_max` metric values
+
+**Resolution level (normative):**
+
+- At EL, sweep ranges must be fully concrete (numeric start/stop/step). `sweep <ConditionName> [Auto]` must not appear in ACIR-EL.
+- At HL (and optionally ML), `sweep <ConditionName> [Auto]` is permitted only as an explicit request for synthesis to choose an execution envelope. During lowering to EL, synthesis must resolve `[Auto]` to a concrete range and record that range in the EL harness for reproducibility.
+
+**Example (underconstrained but explicit):**
+
+```acir
+; HL or ML: author requests that synthesis choose a sweep envelope
+harness:
+  sweep InputDCBias [Auto]
+```
+
+```acir
+; EL: synthesis materializes the chosen envelope (example values)
+harness:
+  sweep InputDCBias [0.42V:50mV:1.07V]
 ```
 
 ### 3.6.1 Bias Resolution
@@ -704,7 +753,38 @@ Diagnostics leverage source attribution via `@[file:line]` annotations, ensuring
 
 ---
 
-## 3.10 Core IR Operations
+## 3.10 Diagnostics
+
+The ACIR reader emits structured diagnostics when parsing fails or encounters malformed input. Each diagnostic includes a code, severity, message, file path, and line/column location. Diagnostics follow the same pattern as the Cascode compiler's `Diagnostic` type.
+
+### Diagnostic Codes
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| ACIR0001 | Error | General parse failure (e.g., I/O error, unexpected exception) |
+| ACIR0002 | Error/Warning | Invalid or missing version declaration; expects `ACIR <number>` |
+| ACIR0003 | Error | Malformed circuit or bundle declaration |
+| ACIR0004 | Error | Invalid device declaration syntax |
+| ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
+
+### Programmatic Access
+
+Use `ACIRReader.TryRead()` or `ACIRReader.TryParse()` to obtain an `ACIRReadResult` containing the parsed document and any diagnostics:
+
+```csharp
+var result = ACIRReader.TryRead(reader, "path/to/file.cir");
+if (!result.Success)
+{
+    foreach (var diag in result.Diagnostics)
+        Console.WriteLine($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+}
+```
+
+`ACIRReader.Read()` throws `ACIRParseException` on fatal errors. For structured error handling in tooling, use the `TryRead` variants which return diagnostics without throwing.
+
+---
+
+## 3.11 Core IR Operations
 
 The synthesis and optimization engine modifies the graph through a constrained set of operations that update terminal bindings and mark indices dirty:
 
@@ -721,9 +801,9 @@ High-level patterns and syntactic sugar in ADL-including attach, pair, and feedb
 
 ---
 
-## 3.11 Complete Examples
+## 3.12 Complete Examples
 
-### 3.11.1 ML ACIR for OTA5TSingleEnded
+### 3.12.1 ML ACIR for OTA5TSingleEnded
 
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output.
 
@@ -802,7 +882,7 @@ circuit CurrentMirror : CurrentMirrorLike
       param p = $p
 ```
 
-### 3.11.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
+### 3.12.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
 
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
@@ -857,7 +937,7 @@ circuit OTA5TSingleEnded
     Step
 ```
 
-### 3.11.3 ML ACIR for Stdcell Buffer
+### 3.12.3 ML ACIR for Stdcell Buffer
 
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
@@ -899,7 +979,7 @@ circuit LatchPadBuffer
       cycles = 3
 ```
 
-### 3.11.4 EL ACIR for CS Amplifier with Primitive Transistor
+### 3.12.4 EL ACIR for CS Amplifier with Primitive Transistor
 
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
@@ -950,7 +1030,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 
 ---
 
-## 3.12 SPICE Emission
+## 3.13 SPICE Emission
 
 SPICE emission is a direct traversal over device declarations. No connectivity inference is required.
 
@@ -990,7 +1070,7 @@ M_cm.M_TAP0 OUT mirror_gate VDD VDD sky130_fd_pr__pfet_01v8 W=2u L=180n m=1
 
 ---
 
-## 3.13 Canonical Writer Rules
+## 3.14 Canonical Writer Rules
 
 To keep diffs and golden tests stable, the canonical writer follows these rules:
 
@@ -1009,7 +1089,7 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 ---
 
-## 3.14 Extensibility
+## 3.15 Extensibility
 
 Vendor or dialect additions live under extension blocks. Extensions must not redefine core keywords. If an extension affects connectivity semantics, it must include a versioned schema and a compatibility note.
 
@@ -1027,7 +1107,7 @@ circuit MyCircuit
 
 ---
 
-## 3.15 Conformance and Testing
+## 3.16 Conformance and Testing
 
 A conformant ACIR producer must satisfy the following requirements:
 
@@ -1045,7 +1125,7 @@ The testing strategy encompasses three complementary approaches:
 
 ---
 
-## 3.16 Cascode -> ACIR -> SPICE Pipeline
+## 3.17 Cascode -> ACIR -> SPICE Pipeline
 
 The transformation from ADL to SPICE follows a systematic progression through ACIR. Parsing and desugaring map ADL constructs to instances and nets, expanding high-level constructs like attach, pair, and feedback into concrete motifs and connections. ACIR captures these connections uniformly within terminal bindings, enabling the synthesis engine to perform path queries and edits directly without inferring wiring relationships.
 
@@ -1069,7 +1149,7 @@ This architectural separation maintains focus on structure and semantics in the 
 
 ---
 
-## 3.17 Comparison with JSON-based CasIR
+## 3.18 Comparison with JSON-based CasIR
 
 ACIR replaces the previous JSON-based CasIR format. The following table summarizes the key differences:
 
@@ -1093,7 +1173,7 @@ The text-based format was chosen to maximize:
 
 ---
 
-## 3.18 Grammar Summary
+## 3.19 Grammar Summary
 
 The following EBNF-style grammar summarizes ACIR syntax:
 
@@ -1139,6 +1219,21 @@ deviceParams = (IDENT "=" value)+ ;
 pdkDevice    = IDENT ;
 
 connectStmt  = "connect" terminalPath "->" IDENT source? ;
+
+harnessBlock = "harness:" NL (INDENT harnessEntry NL)* ;
+harnessEntry = supplyAssign | biasAssign | sweepDecl | loadDecl | sourceDecl | icmrDecl | pvtDecl ;
+supplyAssign = "supply" IDENT "=" value ;
+biasAssign   = "bias" IDENT "=" value ;
+sweepDecl    = "sweep" IDENT sweepRange ;
+sweepRange   = "[" value ":" value ":" value "]"    ; start:step:stop (explicit step)
+             | "[" value ":" value "]" ;             ; start:stop (auto step)
+             | "[" "Auto" "]" ;                      ; synthesis-chosen (HL/ML only)
+loadDecl     = "load" IDENT "C=" value UNIT? ;
+sourceDecl   = "source" IDENT "Z=" value UNIT? ;
+icmrDecl     = "icmr" "min=" value "max=" value ;
+pvtDecl      = "pvt" cornerList ;
+cornerList   = corner ("," corner)* ;
+corner       = IDENT "@" value ;
 
 terminalPath = IDENT ("." IDENT | "[" INT "]")* ;
 qualifiedName= IDENT ("." IDENT)* ;

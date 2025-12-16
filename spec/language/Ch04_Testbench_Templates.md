@@ -145,6 +145,37 @@ Spectre templates receive additional environment parameters in the `env` object,
 
 The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : GainBandwidth @ OUT >= 100M Hz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
 
+**DC Bias Sweep Parameters**:
+
+| Variable | Type | Description | Example |
+|----------|------|-------------|---------|
+| `sweep.<ConditionName>` | object or null | Sweep condition if present in harness | `sweep.InputDCCommonMode` |
+| `sweep.<ConditionName>.start` | double | Sweep start value | `0.3` (for 0.3V) |
+| `sweep.<ConditionName>.stop` | double | Sweep stop value | `1.5` (for 1.5V) |
+| `sweep.<ConditionName>.step` | double | Sweep step value | `0.1` (for 100mV) |
+
+Templates should check for the presence of sweep conditions using `{{ if sweep.<ConditionName> }}` and adapt their analysis accordingly. When a sweep is present, benches must execute analyses at each sweep point and report worst-case values.
+
+Templates do not interpret `Auto`. When a design requests `sweep <ConditionName> [Auto]` at earlier elaboration levels, the synthesis/lowering pipeline must resolve it to a concrete numeric sweep in ACIR-EL before template rendering.
+
+**Example usage in templates:**
+
+```spectre
+{{ if sweep.InputDCCommonMode }}
+VCM (vcm vss) vsource dc={{ sweep.InputDCCommonMode.start }}
+
+sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
+    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
+  dcOp dc
+  ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
+}
+{{ else }}
+VCM (vcm vss) vsource dc={{ vcm }}
+dcOp dc
+ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
+{{ end }}
+```
+
 **Spectre-Specific Objects**:
 
 | Variable | Type | Description |
@@ -191,17 +222,56 @@ meas ac gbw when vdb({{ out_node }})=0 cross=1
 meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
 
+* Per-point report for cascode bench runner
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
+
 * Results output
-echo "RESULT: PassbandGain = " gain_dc " dB"
-echo "RESULT: GainBandwidth = " gbw " Hz"
-echo "RESULT: PhaseMargin = " pm " deg"
+echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: GainBandwidth = " $&gbw " Hz"
+echo "RESULT: PhaseMargin = " $&pm " deg"
 
 quit
 .endc
 .end
 ```
 
-### 4.3.7 Example: Spectre Template Fragment
+### 4.3.7 Simulation Trace Output (JSONL)
+
+`cascode bench run` runs the simulator for the benches declared by the design and writes artifacts into the job directory. When a bench name is provided, it runs only that bench.
+
+For each executed bench, it writes:
+
+- `{Circuit}_{Bench}_trace.jsonl`: append-only trace capturing per-point sweep data and the final summary.
+- `{Circuit}_{Bench}_results.json`: consolidated measurement values intended for constraint verification.
+
+When multiple benches are executed in one run, it also writes `{Circuit}_results.json`, which merges consolidated measurements across benches so that `verify` can evaluate the full constraint set from a single file.
+
+The intended CLI shape is concise:
+
+```bash
+cascode bench run <acir_file> [<bench>] [-o <output_dir>] [-b <bench>] [--backend ngspice]
+```
+
+If `<bench>` is omitted, `cascode bench run` executes all benches listed in the ACIR `benches:` block. To run a single bench (for faster iteration and debugging), pass the bench name as either the second positional argument or `-b/--bench`.
+
+Templates must emit two kinds of lines to stdout when running under ngspice:
+
+1) One `CASCODE_POINT` line per executed sweep point. Each line is a flat set of `key=value` tokens. Keys should include `point_index` and may include sweep axes (e.g., `InputDCCommonMode_V=...`) and measured metrics (e.g., `GainBandwidth_Hz=...`). These lines are parsed into per-point records in the JSONL trace.
+
+2) One or more `RESULT:` lines that contain the bench-level spec-compliance values (scalar or vector). Values printed under `RESULT:` must be reduced across the sweep (for example, QuiescentPower must be the worst-case scalar across points), because `verify` evaluates constraints against these consolidated values.
+
+The JSONL file is a sequence of independent JSON objects with a stable envelope:
+
+| Record `type` | Purpose | Required fields |
+|--------------|---------|-----------------|
+| `meta` | Run context | `schema`, `version`, `type`, `run_id`, `ts_utc`, `circuit`, `bench`, `backend` |
+| `axes` | Declared sweep axes | `schema`, `version`, `type`, `run_id`, `ts_utc`, `axes[]` |
+| `point` | One executed point | `schema`, `version`, `type`, `run_id`, `ts_utc`, `point.index`, `point.axis_values`, `measurements[]` |
+| `summary` | Consolidated outputs | `schema`, `version`, `type`, `run_id`, `ts_utc`, `results` |
+
+The `summary.results` object is the canonical bridge to `verify`; it matches the `BenchResult` JSON shape used by `verify --results`.
+
+### 4.3.8 Example: Spectre Template Fragment
 
 ```spectre
 // Source impedance split across each leg
@@ -358,12 +428,10 @@ Or with `--backend spectre`:
 Check simulation results against ACIR constraints:
 
 ```bash
-cascode verify --acir <acir_file> --results <results_json>
+cascode verify <acir_file> <results_json|trace_jsonl>
 ```
 
-**Arguments:**
-- `--acir <acir_file>`: ACIR file containing constraints
-- `--results <results_json>`: Simulation results in JSON format
+`trace_jsonl` is the output produced by `cascode bench run`. When a trace is supplied, `verify` reads the `summary` record and evaluates constraints against the consolidated measurement values.
 
 **Results JSON Schema:**
 
@@ -477,19 +545,9 @@ This situation indicates either:
 
 ## 4.8 Standard Library Benches
 
-The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests. The following table shows current backend support status:
+The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests. To see which benches are currently available and which backends they support, inspect the directory contents directly: each bench with complete backend support will have a `.cas` definition file plus `.ngspice.tpl` and/or `.spectre.tpl` template files.
 
-| Bench | Ngspice | Spectre | Description |
-|-------|---------|---------|-------------|
-| `SEOpAmpACBench` | Yes | Yes | Single-ended output operational amplifier AC analysis (differential inputs) |
-| `SEAmpACBench` | Yes | Yes | Single-ended amplifier AC analysis (single input, single output) |
-| `FDAmplifierACBench` | No | No | Fully-differential amplifier AC analysis |
-| `FDAmplifierStability` | No | No | Stability analysis for fully-differential amplifiers |
-| `SEOpAmpSettle` | No | No | Settling time analysis for operational amplifiers |
-| `SEOpAmpSlew` | No | No | Slew rate measurement for operational amplifiers |
-| `SEOpAmpStability` | No | No | Stability analysis (gain/phase margins) for op-amps |
-
-Benches marked "No" have `.cas` definitions and may have legacy `.tpl` files but lack complete `.ngspice.tpl` and `.spectre.tpl` implementations. Contributions to expand backend coverage are welcome.
+Current benches include AC analysis (`SEOpAmpACBench`, `SEAmpACBench`, `FDOpAmpACBench`, `FDAmplifierACBench`), DC characterization (`SEOpAmpDCBench`, `SEAmpDCBench`, `FDOpAmpDCBench`), stability analysis (`SEOpAmpStability`, `FDOpAmpStability`, `FDAmplifierStability`), and transient tests (`SEOpAmpSettle`, `SEOpAmpSlew`). The specific metrics, circuit requirements, and harness configurations for key benches are documented in the subsections below.
 
 ### 4.8.1 SEOpAmpACBench
 
@@ -526,6 +584,50 @@ The ngspice template applies a common-mode bias at both inputs and superimposes 
 
 **Harness Configuration:**
 Input receives DC bias (mid-supply by default) with AC stimulus. Simpler than `SEOpAmpACBench` as it requires no differential drive or balun structures.
+
+### 4.8.3 SEOpAmpDCBench
+
+**Purpose:** DC characterization for single-ended output operational amplifiers with differential inputs, measuring output DC bias and quiescent power across the input common-mode range (ICMR).
+
+**Metrics:**
+- `InputDCCommonMode` (V): ICMR sweep condition (echoed for traceability)
+- `OutputDCBias` (V): Output DC level at each ICMR point
+- `OutputDCBias_min` (V): Minimum output bias across ICMR sweep
+- `OutputDCBias_max` (V): Maximum output bias across ICMR sweep
+- `QuiescentPower` (W): Maximum static power consumption across ICMR sweep
+
+**Circuit Requirements:**
+- Differential inputs (`IN_P`, `IN_N`)
+- Single-ended output (`OUT`)
+- Power supplies and grounds as declared in ACIR
+
+**Harness Configuration:**
+Applies common-mode voltage to both inputs while sweeping across the ICMR range specified in the harness. Measures DC operating points and supply current at each sweep point. When no sweep is specified, performs single-point DC analysis at mid-supply.
+
+**Sweep Support:**
+This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. When present, executes DC analysis at each ICMR point and reports worst-case values (max power, output bias range).
+
+### 4.8.4 SEAmpDCBench
+
+**Purpose:** DC characterization for single-ended amplifiers (single input, single output), measuring output DC bias and quiescent power across the input bias range.
+
+**Metrics:**
+- `InputDCBias` (V): Input bias sweep condition (echoed for traceability)
+- `OutputDCBias` (V): Output DC level at each input bias point
+- `OutputDCBias_min` (V): Minimum output bias across input bias sweep
+- `OutputDCBias_max` (V): Maximum output bias across input bias sweep
+- `QuiescentPower` (W): Maximum static power consumption across input bias sweep
+
+**Circuit Requirements:**
+- Single input (`IN`)
+- Single-ended output (`OUT`)
+- Power supplies and grounds as declared in ACIR
+
+**Harness Configuration:**
+Sweeps the input DC bias voltage across the specified range. Measures DC operating points and supply current at each sweep point. Simpler than `SEOpAmpDCBench` as it requires no differential input structure.
+
+**Sweep Support:**
+This bench respects `sweep InputDCBias [start:step:stop]` in the harness. When present, executes DC analysis at each bias point and reports worst-case values (max power, output bias range).
 
 ---
 
@@ -763,9 +865,7 @@ After running ngspice and post-processing:
 ### 4.10.5 Verify Command
 
 ```bash
-$ cascode verify \
-    --acir tests/golden/acir/ota/OTA5TSingleEnded.el.cir \
-    --results /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench_results.json
+$ cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench_results.json
 
 Constraint Compliance Report for OTA5TSingleEnded
 --------------------------------------------------
@@ -801,10 +901,9 @@ Template rendering uses the Scriban library ([Scriban](https://github.com/scriba
 
 Potential enhancements to the template system include:
 
-- **Automated results extraction**: Post-processing scripts to parse raw simulator output and generate JSON results automatically
+- **Richer bench execution support**: Extend `cascode bench run` across more benches/backends and capture additional intermediate artifacts for debugging
 - **Monte Carlo support**: Template extensions for statistical analysis with multiple runs
 - **Corner analysis**: Systematic PVT corner sweeps with aggregated results
 - **Batch execution**: Parallel simulation of multiple benches or circuits
 - **Custom measurement calculators**: Extensible metric computation beyond basic `.meas` statements
 - **Template inheritance**: Shared base templates with bench-specific overrides to reduce duplication
-

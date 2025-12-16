@@ -506,6 +506,134 @@ Semantics (normative)
 * `cycles` selects the number of toggles before measurement; default `3` with measurements on the last cycle.
 * Measurements permitted: `RiseTime`, `FallTime`, `VOH`, `VOL`, `TogglePower`.
 
+### 2.11.4 Swept Conditions and DC Bias Characterization
+
+Amplifier topologies require DC bias characterization across operating ranges. A requirement envelope declared in `spec {}` establishes that all specifications must hold throughout the stated range. An execution envelope declared in `env {}` defines the set of operating points at which benches run. These two envelopes serve different purposes: requirement envelopes define the user's contract (analogous to datasheet ICMR/OCMR), while execution envelopes control what gets simulated.
+
+When a requirement envelope such as `InputDCBias in [a..b]` or `InputDCCommonMode in [a..b]` appears in `spec {}`, numeric constraints (GainBandwidth, PassbandGain, PhaseMargin, OutputDCBias, QuiescentPower) must be interpreted as holding across the full envelope. The execution envelope must be a subset of or equal to the requirement envelope. When a requirement envelope is omitted, the toolchain must not invent one. If multi-point characterization is still desired, the author opts in via `env {}` (either an explicit range or `[Auto]`). Constraints are then evaluated over the executed sweep points, and the chosen range is recorded for reproducibility but does not become a requirement.
+
+The topology determines which DC conditions are swept:
+
+| Topology | Input Structure | Output Structure | Swept Conditions |
+|----------|----------------|------------------|------------------|
+| SEAmp | Single-ended | Single-ended | `InputDCBias` |
+| SEOpAmp | Differential | Single-ended | `InputDCCommonMode` |
+| FDOpAmp | Differential | Differential | `InputDCCommonMode`, `OutputDCCommonMode` |
+
+When no sweep or requirement envelope is present, benches run a single-point characterization at mid-supply. Mid-supply is defined topology-specifically: for `SEAmp`, `InputDCBias = VDD/2`; for `SEOpAmp`, `InputDCCommonMode = VDD/2`; for `FDOpAmp`, `InputDCCommonMode = VDD/2` and `OutputDCCommonMode = VDD/2`.
+
+#### Sweep Semantics (normative)
+
+When a `sweep <ConditionName>` directive appears in the harness, all benches must execute their analyses at each sweep point and report worst-case values:
+
+* Metrics with `>= X` constraints report the minimum value across the sweep.
+* Metrics with `<= X` constraints report the maximum value across the sweep.
+* Metrics with range constraints `in [X..Y]` report both `_min` and `_max` values.
+
+If `spec.<ConditionName>` is specified but `env.sweep <ConditionName>` is omitted, the sweep defaults to the specification range with automatic step sizing `(stop - start)/20` clamped to `[10mV, 100mV]`.
+
+#### Explicit `Auto` Sweeps (normative)
+
+A design may request that the toolchain choose a sweep range by writing `[Auto]` in `env {}`:
+
+```cas
+env {
+  sweep InputDCBias [Auto];
+}
+```
+
+`[Auto]` requests that synthesis select a concrete execution envelope during lowering and record it in the ACIR-EL artifact. It does not declare a requirement envelope. The toolchain must treat the resolved sweep range as part of the generated harness; repeated runs of `cascode emit` and `cascode verify` must use the resolved range from ACIR-EL.
+
+#### Examples
+
+SEAmp with requirement envelope:
+
+```cas
+module CSAmp implements SingleEndedAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: analog, OUT: analog ]
+  bias VB1;
+
+  spec {
+    InputDCBias in [0.3V..1.5V];     // All specs must hold across this range
+    GainBandwidth >= 100MHz;
+    PassbandGain >= 40dB;
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 500uW;
+  }
+
+  env {
+    sweep InputDCBias [0.3V:1.5V];   // Auto step: (1.5-0.3)/20 = 60mV
+    load OUT C=2pF;
+  }
+}
+```
+
+SEAmp with execution envelope only:
+
+```cas
+module CSAmp implements SingleEndedAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: analog, OUT: analog ]
+
+  spec {
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 500uW;
+  }
+
+  env {
+    sweep InputDCBias [Auto];        // Synthesis chooses range; recorded in ACIR-EL
+    load OUT C=2pF;
+  }
+}
+```
+
+SEOpAmp with ICMR requirement:
+
+```cas
+module OTA implements SingleEndedOpAmp {
+  supply VDD=1.8V; ground GND;
+  ports [ IN: Diff, OUT: analog ]
+
+  spec {
+    InputDCCommonMode in [0.3V..1.5V];
+    GainBandwidth >= 100MHz;
+    PassbandGain >= 55dB;
+    PhaseMargin >= 60deg;
+    OutputDCBias in [0.4V..1.4V];
+    QuiescentPower <= 1mW;
+  }
+
+  env {
+    sweep InputDCCommonMode [0.3V:1.5V];
+    load OUT C=1pF;
+  }
+}
+```
+
+FDOpAmp with ICMR and OCMR (future):
+
+```cas
+module FDOpAmp implements FullyDiffOpAmp {
+  ports [ IN: Diff, OUT: Diff ]
+  
+  spec {
+    InputDCCommonMode in [0.3V..1.5V];
+    OutputDCCommonMode in [0.5V..1.3V];
+    GainBandwidth >= 200MHz;
+  }
+  
+  env {
+    sweep InputDCCommonMode [0.3V:1.5V];
+    sweep OutputDCCommonMode [0.5V:1.3V];  // 2D sweep (implementation-dependent)
+  }
+}
+```
+
+#### Bench Responsibilities (normative)
+
+Benches that support swept conditions must detect `sweep.<ConditionName>` in harness template variables, configure the simulator to iterate across the sweep range, aggregate results and report worst‑case values according to metric directionality, and for range‑constrained metrics report both `_min` and `_max` suffixes.
+
 ---
 
 ## 2.12 Synthesis: `slot` and `synth` (Mandatory Fill)

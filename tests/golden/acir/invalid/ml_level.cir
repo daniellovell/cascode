@@ -1,0 +1,19 @@
+ACIR 1
+
+; Circuit at ML level - EMIT-005 violation
+; Cannot emit SPICE from non-EL level circuit
+
+circuit MLLevelExample
+  level ML
+
+  supply VDD
+  ground GND
+
+  port IN : analog
+  port OUT : analog
+
+  fill:
+    net tnode : analog
+
+    inst dp (IN->IN, OUT->OUT, BIAS->tnode) : DiffPair
+      param p = NMOS

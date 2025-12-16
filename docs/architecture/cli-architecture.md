@@ -1,6 +1,6 @@
 ## Cascode CLI Architecture
 
-Status: current as of 2025-10-08. Scope: `tools/cli` only.
+Status: current as of 2025-12-10. Scope: `tools/cli` only.
 
 Goal
 - Provide an interactive and non-interactive CLI that delegates to domain libraries without embedding domain logic.
@@ -35,6 +35,7 @@ Primary flow
 Command surface (stable entry points)
 - System: `help`, `version`, `log`, `exit|quit`.
 - PDK: `pdk scan`, `pdk devices`, `pdk device <name>`, `pdk set-dir <path>|--clear`, and characterization entry points `pdk char …` (delegates).
+- Emit/ERC: `emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]`, `erc <acir_file> [--require-pdk] [--json]`.
 - Bench/Build modules may add `bench …`, `build …` commands (thin orchestration only).
 
 Error handling & diagnostics
@@ -62,7 +63,24 @@ Extensibility
 
 Open items
 - Background jobs/async progress in interactive mode.
-- Stable, machine-readable JSON output mode across commands.
+
+JSON output mode
+- Commands supporting `--json` emit machine-readable JSON instead of human-readable text.
+- Currently supported: `emit`, `erc`.
+- Output schema for validation commands:
+
+```json
+{
+  "success": true,
+  "exitCode": 0,
+  "errors": [{ "code": "ERC-001", "severity": "error", "message": "...", "location": "...", "suggestion": "..." }],
+  "warnings": [...],
+  "summary": { "errorCount": 0, "warningCount": 2 }
+}
+```
+
+- The `emit` command extends this with `designPaths` and `testbenchPaths` arrays on success.
+- Exit codes remain unchanged: 0 = success, 1 = validation failure, 2 = parse/structural error.
 
 Live rendering and event model
 - Interactive mode renders a single persistent Spectre.Console Layout inside `AnsiConsole.Live`. The layout instance is not recreated and the console is never cleared during a command.

@@ -1,0 +1,30 @@
+ACIR 1
+
+circuit CommonSourceAmp_MultiBench : SingleEndedAmp
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  port VBIAS : bias
+  fill:
+    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : W=10u L=180n M=1 nmos
+    pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : W=20u L=180n M=1 pmos
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 1k Hz
+      c_gain : PassbandGain @ OUT >= 0 dB
+      c_out_bias : OutputDCBias @ OUT >= 0 V
+      c_power : QuiescentPower <= 1 W
+    measure:
+      m_gbw : SEAmpACBench GainBandwidth @ OUT
+      m_gain : SEAmpACBench PassbandGain @ OUT
+      m_out_bias : SEAmpDCBench OutputDCBias @ OUT
+      m_power : SEAmpDCBench QuiescentPower
+  harness:
+    supply VDD = 1.8V
+    bias VBIAS = 0.7V
+    load OUT C=1p F
+  benches:
+    SEAmpACBench
+    SEAmpDCBench

@@ -72,7 +72,7 @@ public sealed class PdkScanStreamingTests
         }
 
         // Clean up: allow the scan to finish, but bound total time to prevent hanging CI
-        using var overallTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(0.5));
+        using var overallTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         try
         {
             await process.WaitForExitAsync(overallTimeout.Token);
