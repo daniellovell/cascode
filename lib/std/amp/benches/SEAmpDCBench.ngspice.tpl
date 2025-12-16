@@ -38,6 +38,7 @@ let bias_stop = {{ sweep.InputDCBias.stop }}
 let bias_step = {{ sweep.InputDCBias.step }}
 
 let out_dc_min = 1e12
+let out_dc_max = -1e12
 let pwr_max = -1
 let point_index = 0
 
@@ -58,6 +59,9 @@ while bias_val <= bias_stop
   if out_dc < out_dc_min
     let out_dc_min = out_dc
   end
+  if out_dc > out_dc_max
+    let out_dc_max = out_dc
+  end
   if pwr_total > pwr_max
     let pwr_max = pwr_total
   end
@@ -67,7 +71,8 @@ while bias_val <= bias_stop
 end
 
 * Results output (reduced across sweep)
-echo "RESULT: OutputDCBias = " $&out_dc_min " V"
+echo "RESULT: OutputDCBias_min = " $&out_dc_min " V"
+echo "RESULT: OutputDCBias_max = " $&out_dc_max " V"
 echo "RESULT: QuiescentPower = " $&pwr_max " W"
 {{ else }}
 * Single operating point

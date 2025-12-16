@@ -41,6 +41,7 @@ let cm_stop = {{ sweep.InputDCCommonMode.stop }}
 let cm_step = {{ sweep.InputDCCommonMode.step }}
 
 let out_cm_min = 1e12
+let out_cm_max = -1e12
 let pwr_max = -1
 let point_index = 0
 
@@ -61,6 +62,9 @@ while cm_val <= cm_stop
   if out_cm_val < out_cm_min
     let out_cm_min = out_cm_val
   end
+  if out_cm_val > out_cm_max
+    let out_cm_max = out_cm_val
+  end
   if pwr_total > pwr_max
     let pwr_max = pwr_total
   end
@@ -70,7 +74,8 @@ while cm_val <= cm_stop
 end
 
 * Results output (reduced across sweep)
-echo "RESULT: OutputDCCommonMode = " $&out_cm_min " V"
+echo "RESULT: OutputDCCommonMode_min = " $&out_cm_min " V"
+echo "RESULT: OutputDCCommonMode_max = " $&out_cm_max " V"
 echo "RESULT: QuiescentPower = " $&pwr_max " W"
 {{ else }}
 * Single operating point
