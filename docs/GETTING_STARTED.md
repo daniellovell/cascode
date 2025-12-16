@@ -46,19 +46,19 @@ trait Amplifier {
 }
 ```
 
-The `SingleEndedAmplifier` trait extends that surface with the single-ended port definitions and bench bindings:
+The `SingleEndedOpAmp` trait extends that surface with the differential input, single-ended output port definitions and bench bindings:
 
 ```java
 package lib.std.amp;
 
-trait SingleEndedAmplifier extend Amplifier {
+trait SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]
   supply VDD; ground GND;
 
   metrics {
-    GainBandwidth from SEAmplifierACBench.GainBandwidth;
-    PassbandGain  from SEAmplifierACBench.PassbandGain;
-    PhaseMargin   from SEAmplifierACBench.PhaseMargin;
+    GainBandwidth from SEOpAmpACBench.GainBandwidth;
+    PassbandGain  from SEOpAmpACBench.PassbandGain;
+    PhaseMargin   from SEOpAmpACBench.PhaseMargin;
   }
 }
 ```
@@ -68,8 +68,8 @@ This binding establishes how abstract performance requirements translate to conc
 ```java
 package lib.std.amp.benches;
 
-bench SEAmplifierACBench {
-  spectre_template = "SEAmplifierACBench.tpl";
+bench SEOpAmpACBench {
+  spectre_template = "SEOpAmpACBench.tpl";
   metrics [
     GainBandwidth: Hz,
     PassbandGain: dB,
@@ -88,7 +88,7 @@ package analog.ota;
 import lib.std.amp.*; 
 import lib.std.prim.*;
 
-motif OTA5TSingleEnded implements SingleEndedAmplifier {
+motif OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD = 1.8V; ground GND;
   ports [ IN: Diff, OUT: analog, VTAIL: bias ]
 
@@ -147,6 +147,6 @@ What we have constructed is captured in the diagram below.
 
 ## What We've Accomplished
 
-This example demonstrates the core separation of concerns in Cascode. Behavioral specification (`Amplifier` trait) is independent of interface details. Interface contracts (`SingleEndedAmplifier`) connect behavior to measurement. Structural implementation (`OTA5TSingleEnded` motif) is topology-only. Performance requirements (`MyOTA` module) drive synthesis without prescribing topology. Measurements (benches) are reusable across different implementations.
+This example demonstrates the core separation of concerns in Cascode. Behavioral specification (`Amplifier` trait) is independent of interface details. Interface contracts (`SingleEndedOpAmp`) connect behavior to measurement. Structural implementation (`OTA5TSingleEnded` motif) is topology-only. Performance requirements (`MyOTA` module) drive synthesis without prescribing topology. Measurements (benches) are reusable across different implementations.
 
 During synthesis, the toolchain can validate that the motif provides all required ports and metrics, size the transistors to meet the specifications, consider alternative motifs that implement the same trait, and verify performance through the mapped benches

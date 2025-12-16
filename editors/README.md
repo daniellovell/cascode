@@ -5,16 +5,19 @@ This directory contains syntax highlighting support for the Cascode language (`.
 ## 🎨 What's Included
 
 ### VS Code / VS Codium / Cursor
+
 - **Location**: `vscode/`
 - **Installation**: See [vscode/README.md](vscode/README.md)
 - **Features**: Full syntax highlighting, auto-closing pairs, smart indentation
 
 ### GitHub & GitHub Linguist
+
 - **Configuration**: `.gitattributes` in repo root + `linguist/cascode.yml`
 - **Status**: The `.gitattributes` file marks `.cas` files for Linguist, but **full GitHub highlighting requires the grammar to be added to the [github/linguist](https://github.com/github/linguist) repository**
 - **See**: [How to Add GitHub Support](#github-support) below
 
 ### Other Editors
+
 - **Sublime Text, TextMate, Atom**: Can use the TextMate grammar at `vscode/syntaxes/cascode.tmLanguage.json`
 - **Vim/Neovim**: See [vim/README.md](vim/README.md) (if created)
 - **Emacs**: See [emacs/README.md](emacs/README.md) (if created)
@@ -55,6 +58,7 @@ Until then, GitHub will recognize `.cas` files as "Cascode" language (via `.gita
 The TextMate grammar recognizes:
 
 ### Keywords
+
 - **Package/Import**: `package`, `import`
 - **Declarations**: `module`, `motif`, `trait`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
@@ -63,6 +67,7 @@ The TextMate grammar recognizes:
 - **Port Roles**: `in`, `out`, `diff`, `clock`, `bias`
 
 ### Typed Units
+
 - **Voltage**: `1.8V`, `0.9*VDD`, `mV`, `µV`
 - **Current**: `1mA`, `500µA`, `nA`
 - **Capacitance**: `15pF`, `2pF`, `nF`
@@ -75,20 +80,23 @@ The TextMate grammar recognizes:
 - **Percentage**: `10%`, `50%`
 
 ### Operators
+
 - **Connection**: `->` (bind/connect; preferred), `<->` (bidirectional). `<-` is still recognized by the language, but the house style uses `->`.
 - **Range**: `..` (e.g., `[0.5V..0.8V]`)
 - **Comparison**: `==`, `!=`, `<=`, `>=`, `<`, `>`
 - **Arithmetic**: `+`, `-`, `*`, `/`, `%`
 
 ### Built-in Functions & Benches
+
 - **Spec functions**: `GainBandwidth`, `PassbandGain`, `PhaseMargin`, `OutputSwing`, `NoiseIn`, `SlewRate`, `Settle`, `ZeroTau`, `Power`, `DynamicPower`, `TogglePower`, `Headroom`, `ICMR`, `RiseTime`, `FallTime`, `VOH`, `VOL`, `Area`
-- **Bench names**: `SEAmplifierACBench`, `FDAmplifierACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
+- **Bench names**: `SEOpAmpACBench`, `SEAmpACBench`, `FDOpAmpACBench`, `UnityUGF`, `Step`, `NoiseIn`, `StepToggle`
 - **Components**: `C(...)`, `R(...)`
 
 ### Types & Traits
+
 - **Port types**: `signal`, `analog`, `digital`, `mixed`, `supply`, `ground`, `bias`, `rf`, `clock`
 - **Primitives**: `int`, `float`, `double`, `bool`, `string`
-- **Common traits**: `Amplifier`, `SingleEndedAmplifier`, `FullyDiffAmplifier`, `Comparator`, `CurrentMirror`, `InverterLike`
+- **Common traits**: `Amplifier`, `SingleEndedOpAmp`, `SingleEndedAmp`, `FullyDiffOpAmp`, `Comparator`, `CurrentMirror`, `InverterLike`
 - **Common motifs**: `DiffPair`, `CascodePair`, `CurrentMirror`, `StrongArmLatch`, `MillerRC`, `PadDriver`
 
 ## 🔧 Extending the Grammar
@@ -115,6 +123,7 @@ To add new keywords or patterns:
 ## 🌐 GitHub Support
 
 ### Current Status
+
 - ✅ `.gitattributes` configured to mark `.cas` as Cascode
 - ⚠️ GitHub won't highlight syntax until Linguist is updated
 - 📋 Manual highlighting works in markdown with ` ```cas ` code fences
@@ -162,7 +171,7 @@ Until linguist is updated, use markdown code fences with manual syntax specifica
 
 ````markdown
 ```cascode
-module AmpAuto implements SingleEndedAmplifier {
+module AmpAuto implements SingleEndedOpAmp {
   supply VDD = 1.2V; ground GND;
   spec { GainBandwidth>=100MHz; PhaseMargin>=60deg; }
 }
@@ -190,5 +199,6 @@ Improvements to syntax highlighting are welcome! Please:
 ## 📄 License
 
 BSD-3 (matches main cascode repository)
+
 
 
