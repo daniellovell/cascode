@@ -22,12 +22,11 @@ jobs:
           echo "Tag version: $TAG"
 
           # Verify npm wrapper version matches tag
-          NPM_VER="$(python3 - <<'PY'
-import json
-with open('tools/npm/cascode-cli/package.json', 'r', encoding='utf-8') as f:
-    print(json.load(f)['version'])
-PY
-)"
+          NPM_VER="$(python3 -c "
+          import json
+          with open('tools/npm/cascode-cli/package.json', 'r', encoding='utf-8') as f:
+              print(json.load(f)['version'])
+          ")"
           echo "npm version: $NPM_VER"
           if [[ "$NPM_VER" != "$TAG" ]]; then
             echo "ERROR: tools/npm/cascode-cli/package.json version ($NPM_VER) does not match tag ($TAG)" >&2
@@ -35,19 +34,18 @@ PY
           fi
 
           # Verify Directory.Build.props CascodeVersion matches tag
-          PROPS_VER="$(python3 - <<'PY'
-import xml.etree.ElementTree as ET
-root = ET.parse('Directory.Build.props').getroot()
-ns = {'msb': root.tag.split('}')[0].strip('{')} if root.tag.startswith('{') else {}
-def find_text(tag):
-    if ns:
-        el = root.find(f".//msb:{tag}", ns)
-    else:
-        el = root.find(f".//{tag}")
-    return (el.text or '').strip() if el is not None else ''
-print(find_text('CascodeVersion'))
-PY
-)"
+          PROPS_VER="$(python3 -c "
+          import xml.etree.ElementTree as ET
+          root = ET.parse('Directory.Build.props').getroot()
+          ns = {'msb': root.tag.split('}')[0].strip('{')} if root.tag.startswith('{') else {}
+          def find_text(tag):
+              if ns:
+                  el = root.find(f\".//msb:{tag}\", ns)
+              else:
+                  el = root.find(f\".//{tag}\")
+              return (el.text or '').strip() if el is not None else ''
+          print(find_text('CascodeVersion'))
+          ")"
           echo "CascodeVersion: $PROPS_VER"
           if [[ "$PROPS_VER" != "$TAG" ]]; then
             echo "ERROR: Directory.Build.props CascodeVersion ($PROPS_VER) does not match tag ($TAG)" >&2
