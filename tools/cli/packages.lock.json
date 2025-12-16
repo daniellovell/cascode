@@ -36,6 +36,12 @@
           "System.Text.Json": "8.0.0"
         }
       },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[8.0.15, )",
+        "resolved": "8.0.15",
+        "contentHash": "s4eXlcRGyHeCgFUGQnhq0e/SCHBPp0jOHgMqZg3fQ2OCHJSm1aOUhI6RFWuVIcEb9ig2WgI2kWukk8wu72EbUQ=="
+      },
       "Spectre.Console": {
         "type": "Direct",
         "requested": "[0.47.0, )",
@@ -200,8 +206,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[1.0.0, )",
-          "Cascode.Parser": "[1.0.0, )"
+          "Cascode.Bench": "[0.2.0, )",
+          "Cascode.Parser": "[0.2.0, )"
         }
       },
       "cascode.bench": {
@@ -215,8 +221,8 @@
       "cascode.compiler": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[1.0.0, )",
-          "Cascode.Parser": "[1.0.0, )"
+          "Cascode.ACIR": "[0.2.0, )",
+          "Cascode.Parser": "[0.2.0, )"
         }
       },
       "cascode.parser": {
@@ -233,6 +239,13 @@
           "SQLitePCLRaw.bundle_e_sqlite3": "[2.1.8, )",
           "YamlDotNet": "[13.7.1, )"
         }
+      }
+    },
+    "net8.0/linux-x64": {
+      "SQLitePCLRaw.lib.e_sqlite3": {
+        "type": "Transitive",
+        "resolved": "2.1.8",
+        "contentHash": "YQnIGZiMskhTogTiZfNe8Y1SK3Tke0JKnLHyPMQjDCa0I/MNsDoEE2fb4g/MZ1MKAn/A66wNxcLvwAC2dr6XPQ=="
       }
     }
   }
