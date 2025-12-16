@@ -47,13 +47,13 @@ op
 ac dec 100 {{ stb_start_hz }} {{ stb_stop_hz }}
 
 * Stability Measurements
-* Loop Gain T = V(OUT) / V(IN_N) ?
-* With injection at IN_N:
-* V(IN_N) is error signal. V(OUT) is return signal.
-* T = - V(OUT) / V(IN_N)
-meas ac pm_raw find vp(OUT) at=0
-* This measurement logic depends on exact T def.
-* Placeholder for manual inspection.
+* Approximate loop gain T ~= -V(OUT) / V(IN_N)
+let loop = -v(OUT)/v(IN_N)
+meas ac ugf when db(loop)=0 cross=1
+meas ac pm_raw find ph(loop) at=ugf
+let pm = 180 + pm_raw
+
+echo "RESULT: PhaseMargin = " $&pm " deg"
 
 quit
 .endc

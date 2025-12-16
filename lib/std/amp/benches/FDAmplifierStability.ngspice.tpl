@@ -45,7 +45,14 @@ XDUT {{ port_list }} {{ circuit_name }}
 op
 ac dec 100 {{ stb_start_hz }} {{ stb_stop_hz }}
 
-* Stability Measurements (Placeholder)
+* Approximate loop-gain measurement using injection at IN_N.
+* Loop gain T ~= -V(OUT_P) / V(IN_N)
+let loop = -v(OUT_P)/v(IN_N)
+meas ac ugf when db(loop)=0 cross=1
+meas ac pm_raw find ph(loop) at=ugf
+let pm = 180 + pm_raw
+
+echo "RESULT: PhaseMargin = " $&pm " deg"
 quit
 .endc
 .end

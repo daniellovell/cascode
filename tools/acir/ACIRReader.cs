@@ -994,7 +994,31 @@ public static class ACIRReader
     /// <param name="diagnostics">List to collect diagnostics.</param>
     private static void ParseHarnessContentWithDiagnostics(string line, HarnessBlock harness, string filePath, int lineNumber, List<Diagnostic> diagnostics)
     {
+        // Preserve existing parsing behavior, but emit diagnostics for malformed constructs.
         ParseHarnessContent(line, harness);
+
+        // Specifically: sweep lines previously silently ignored unrecognized range specs.
+        if (line.StartsWith("sweep "))
+        {
+            // Allow empty brackets here so we can report [] as invalid rather than silently ignoring it.
+            // Pattern: sweep ConditionName [start:step:stop] or [start:stop] or [Auto]
+            var match = Regex.Match(line, @"^sweep\s+(\w+)\s+\[([^\]]*)\]$");
+            if (match.Success)
+            {
+                var name = match.Groups[1].Value;
+                var rangeSpec = match.Groups[2].Value.Trim();
+                var sweep = ParseSweepRange(name, rangeSpec);
+                if (sweep == null)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        $"ACIR0006: Invalid sweep range specification '{rangeSpec}' in line '{line}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1));
+                }
+            }
+        }
     }
 
     /// <summary>

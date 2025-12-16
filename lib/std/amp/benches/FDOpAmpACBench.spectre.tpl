@@ -41,6 +41,11 @@ RLOADN (OUT_N vss) resistor r={{ env.rload_ohms }}
 {{ end }}
 
 // ----------------------------------------------------------------------------
+// Device Under Test
+// ----------------------------------------------------------------------------
+XDUT {{ port_list }} {{ circuit_name }}
+
+// ----------------------------------------------------------------------------
 // Options and Analyses
 // ----------------------------------------------------------------------------
 simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.temperature_c }} tnom={{ spec.temperature_c }} \

@@ -55,9 +55,26 @@ meas ac gbw when vdb(OUT_P, OUT_N)=0 cross=1
 meas ac pm_raw find vp(OUT_P, OUT_N) at=gbw
 let pm = 180 + pm_raw
 
+let gain_3db = gain_dc - 3
+meas ac f3db_1 when vdb(OUT_P, OUT_N)=gain_3db cross=1
+meas ac f3db_2 when vdb(OUT_P, OUT_N)=gain_3db cross=2
+let hp_bw = f3db_1
+let lp_bw = f3db_2
+if lp_bw <= 0
+  let lp_bw = f3db_1
+  let hp_bw = 0
+end
+let bp_bw = lp_bw - hp_bw
+if bp_bw < 0
+  let bp_bw = -bp_bw
+end
+
 echo "RESULT: PassbandGain = " $&gain_dc " dB"
 echo "RESULT: GainBandwidth = " $&gbw " Hz"
 echo "RESULT: PhaseMargin = " $&pm " deg"
+echo "RESULT: LowpassBandwidth = " $&lp_bw " Hz"
+echo "RESULT: HighpassBandwidth = " $&hp_bw " Hz"
+echo "RESULT: BandpassBandwidth = " $&bp_bw " Hz"
 
 quit
 .endc

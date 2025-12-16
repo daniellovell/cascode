@@ -114,9 +114,19 @@ public class BenchTemplateMetricTests
         }
 
         var metricsBlock = metricsBlockMatch.Groups[1].Value;
-        
+
+        var strippedMetricsBlock = string.Join(
+            "\n",
+            metricsBlock
+                .Split('\n')
+                .Select(line =>
+                {
+                    var commentStart = line.IndexOf("//", StringComparison.Ordinal);
+                    return commentStart >= 0 ? line[..commentStart] : line;
+                }));
+
         // Match metric declarations: MetricName: Unit
-        var metricMatches = Regex.Matches(metricsBlock, @"(\w+)\s*:\s*\w+");
+        var metricMatches = Regex.Matches(strippedMetricsBlock, @"(\w+)\s*:\s*\w+");
         foreach (Match match in metricMatches)
         {
             metrics.Add(match.Groups[1].Value);
@@ -192,7 +202,7 @@ public class BenchTemplateMetricTests
             {
                 // Standalone metrics (no variants) should be emitted unless they look like sweep inputs
                 // Heuristic: metrics starting with "Input" are typically sweep parameters
-                if (!metric.StartsWith("Input", StringComparison.OrdinalIgnoreCase) && 
+                if (!metric.StartsWith("Input", StringComparison.OrdinalIgnoreCase) &&
                     !metric.Equals("Examples", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!emittedMetrics.Contains(metric))
@@ -211,4 +221,3 @@ public class BenchTemplateMetricTests
         }
     }
 }
-

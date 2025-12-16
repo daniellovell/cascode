@@ -73,6 +73,7 @@ while cm_val <= cm_stop
 end
 
 * Results output (reduced across sweep)
+echo "RESULT: OutputDCBias = " $&out_dc_min " V"
 echo "RESULT: OutputDCBias_min = " $&out_dc_min " V"
 echo "RESULT: OutputDCBias_max = " $&out_dc_max " V"
 echo "RESULT: QuiescentPower = " $&pwr_max " W"

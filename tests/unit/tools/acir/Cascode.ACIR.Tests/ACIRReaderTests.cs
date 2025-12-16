@@ -297,6 +297,29 @@ circuit Test : SingleEndedAmp
     }
 
     [Fact]
+    public void TryParse_HarnessWithInvalidSweepRange_EmitsDiagnosticErrorIncludingLineAndRangeSpec()
+    {
+        var content = @"ACIR 1
+circuit Test : SingleEndedAmp
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  harness:
+    sweep InputDCBias []
+";
+        var result = ACIRReader.TryParse(content, "test.cir");
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d =>
+            d.Severity == DiagnosticSeverity.Error &&
+            d.Message.Contains("ACIR0006") &&
+            d.Message.Contains("sweep InputDCBias []") &&
+            d.Message.Contains("''"));
+    }
+
+    [Fact]
     public void TryParse_HarnessWithMultipleSweeps_ParsesAll()
     {
         var content = @"ACIR 1

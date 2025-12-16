@@ -17,7 +17,7 @@ public sealed class NgspiceExecutorTests
         {
             var spiceFileName = "test file with spaces.sp";
             var spiceFilePath = Path.Combine(tempDir.FullName, spiceFileName);
-            
+
             // Create a minimal valid SPICE file
             File.WriteAllText(spiceFilePath, "* Test SPICE file\n.END\n");
 

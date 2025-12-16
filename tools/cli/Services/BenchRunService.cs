@@ -206,7 +206,7 @@ public class BenchRunService
     }
 
     private BenchRunResult? ValidateEmissionOrReturnResult(
-        (EmissionValidationResult Validation, SpiceEmission Emit) emit,
+        ValidatedEmitResult emit,
         string circuitName,
         BenchRunArgs args,
         string outputDir)
