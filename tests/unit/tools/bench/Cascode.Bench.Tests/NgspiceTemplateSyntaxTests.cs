@@ -77,6 +77,8 @@ public class NgspiceTemplateSyntaxTests
         var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
+        var resultEchoLineCount = 0;
+
         foreach (var templatePath in ngspiceTemplates)
         {
             var content = File.ReadAllText(templatePath);
@@ -89,8 +91,13 @@ public class NgspiceTemplateSyntaxTests
                     continue;
 
                 Assert.Contains("$&", trimmed);
+                resultEchoLineCount++;
             }
         }
+
+        Assert.True(
+            resultEchoLineCount > 0,
+            "No RESULT echo statements were found in the ngspice templates; test did not validate anything.");
     }
 
     [Fact]
