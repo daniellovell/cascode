@@ -202,8 +202,8 @@
       },
       "Scriban": {
         "type": "Transitive",
-        "resolved": "5.10.0",
-        "contentHash": "qk2W8wQpm7mykWrEi9fhjC7uVapT2bkweMuMqebrF7gaVMt0WjmZzyVVTpom5cUsc3ddMDpo95SkNcTWGo+L6Q=="
+        "resolved": "6.5.2",
+        "contentHash": "JXli/Sh1WVZs/pqnPPRJTlwEsZHPJtndzxiaPnrteXDpAqVqHxh4ifhx4puTaYKVMPJUMOp9bnCpEVBpYlt/eQ=="
       },
       "Spectre.Console": {
         "type": "Transitive",
@@ -317,7 +317,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
-          "Scriban": "[5.10.0, )",
+          "Scriban": "[6.5.2, )",
           "YamlDotNet": "[13.7.1, )"
         }
       },
