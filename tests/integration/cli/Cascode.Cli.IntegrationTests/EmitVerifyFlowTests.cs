@@ -630,10 +630,11 @@ public class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
-        Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff.sp")), "Design netlist not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")), "Testbench not found");
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")), "AC testbench not found");
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp")), "DC testbench not found");
     }
 
     [Fact]
