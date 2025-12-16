@@ -30,6 +30,7 @@ jobs:
             **/packages.lock.json
 
       - name: Setup micromamba
+        if: runner.os != 'Windows'
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: tests/simulation/environment.yml

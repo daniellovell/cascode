@@ -9,6 +9,7 @@ namespace Cascode.Cli.Tests;
 public sealed class NgspiceExecutorTests
 {
     [Fact]
+    [Trait("Category", "Simulation")]
     public void Run_WithSpaceInFileName_HandlesCorrectly()
     {
         // Create a temporary directory and SPICE file with a space in the name
