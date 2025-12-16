@@ -2,6 +2,13 @@
   <!-- Enable NuGet lock files repo-wide so CI can cache deterministically -->
   <PropertyGroup>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!--
+      Default version for local/dev builds.
+      Release CI overrides this from the git tag (see .github/workflows/release.yml).
+    -->
+    <CascodeVersion>0.2.0</CascodeVersion>
+    <Version>$(CascodeVersion)</Version>
+    <PackageVersion>$(CascodeVersion)</PackageVersion>
   </PropertyGroup>
 
   <!-- Apply stricter settings only to projects under tools/* -->

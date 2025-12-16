@@ -451,4 +451,4 @@ Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `1
 
 ## 📄 License
 
-BSD-3
+BSD-3-Clause
