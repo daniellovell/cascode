@@ -12,6 +12,10 @@ internal static class BenchResultParser
 {
     public sealed record TracePoint(int Index, Dictionary<string, double> AxisValues, List<MeasurementResult> Measurements);
 
+    private static readonly Regex _resultRegex = new(
+        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     public static List<TracePoint> ParsePoints(string stdout, HashSet<string> sweepNames)
     {
         var points = new List<TracePoint>();
@@ -163,9 +167,7 @@ internal static class BenchResultParser
             return false;
         }
 
-        var match = Regex.Match(trimmed,
-            @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
-            RegexOptions.CultureInvariant);
+        var match = _resultRegex.Match(trimmed);
 
         if (!match.Success)
         {

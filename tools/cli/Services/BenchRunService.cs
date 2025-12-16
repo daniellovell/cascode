@@ -11,6 +11,8 @@ namespace Cascode.Cli.Services;
 
 public class BenchRunService
 {
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+
     private readonly ILogger<BenchRunService> _logger;
 
     public BenchRunService(ILogger<BenchRunService> logger)
@@ -331,7 +333,7 @@ public class BenchRunService
         BenchResultParser.MergeMeasurements(allMeasurements, results.Measurements.Values);
 
         var resultsPath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_results.json");
-        File.WriteAllText(resultsPath, JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(resultsPath, JsonSerializer.Serialize(results, _jsonSerializerOptions));
 
         var tracePath = Path.Combine(Path.GetDirectoryName(testbenchPath)!, $"{circuit.Name}_{benchName}_trace.jsonl");
         BenchTraceWriter.WriteTraceJsonl(tracePath, args with { BenchName = benchName }, circuit, testbenchPath, points, results);

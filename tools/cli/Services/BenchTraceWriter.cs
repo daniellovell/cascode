@@ -10,6 +10,12 @@ namespace Cascode.Cli.Services;
 
 internal static class BenchTraceWriter
 {
+    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions CompactOptions = new()
+    {
+        PropertyNamingPolicy = null,
+        WriteIndented = false
+    };
     public static void WriteTraceJsonl(
         string tracePath,
         BenchRunService.BenchRunArgs args,
@@ -76,17 +82,13 @@ internal static class BenchTraceWriter
     public static string WriteCombinedResults(string outputDir, string circuitName, BenchResult combinedResults)
     {
         var combinedResultsPath = Path.Combine(outputDir, $"{circuitName}_results.json");
-        File.WriteAllText(combinedResultsPath, JsonSerializer.Serialize(combinedResults, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(combinedResultsPath, JsonSerializer.Serialize(combinedResults, IndentedOptions));
         return combinedResultsPath;
     }
 
     private static void WriteJsonl(StreamWriter writer, object record)
     {
-        var json = JsonSerializer.Serialize(record, new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = null,
-            WriteIndented = false
-        });
+        var json = JsonSerializer.Serialize(record, CompactOptions);
         writer.WriteLine(json);
     }
 }
