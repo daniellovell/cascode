@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Reflection;
 
 namespace Cascode.Cli.Commands;
 
@@ -66,7 +67,11 @@ internal sealed class SystemCommandModule : ICommandModule
 
     private CommandResult ShowVersion(string[] args)
     {
-        var version = typeof(SystemCommandModule).Assembly.GetName().Version?.ToString() ?? "0.0.0";
+        var asm = typeof(SystemCommandModule).Assembly;
+        var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var version = string.IsNullOrWhiteSpace(info)
+            ? (asm.GetName().Version?.ToString() ?? "0.0.0")
+            : info.Split('+', 2)[0]; // strip build metadata if present
         _state.AddMessage(version);
         return CommandResult.Success;
     }

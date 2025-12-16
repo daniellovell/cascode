@@ -15,7 +15,7 @@
     <RepositoryUrl>https://github.com/daniellovell/cascode</RepositoryUrl>
     <PackageProjectUrl>https://github.com/daniellovell/cascode</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <Version>0.1.0</Version>
+    <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>

@@ -9,9 +9,55 @@ permissions:
   contents: write
 
 jobs:
+  version-check:
+    name: verify versions match tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: verify repo versions match tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "Tag version: $TAG"
+
+          # Verify npm wrapper version matches tag
+          NPM_VER="$(python3 - <<'PY'
+import json
+with open('tools/npm/cascode-cli/package.json', 'r', encoding='utf-8') as f:
+    print(json.load(f)['version'])
+PY
+)"
+          echo "npm version: $NPM_VER"
+          if [[ "$NPM_VER" != "$TAG" ]]; then
+            echo "ERROR: tools/npm/cascode-cli/package.json version ($NPM_VER) does not match tag ($TAG)" >&2
+            exit 1
+          fi
+
+          # Verify Directory.Build.props CascodeVersion matches tag
+          PROPS_VER="$(python3 - <<'PY'
+import xml.etree.ElementTree as ET
+root = ET.parse('Directory.Build.props').getroot()
+ns = {'msb': root.tag.split('}')[0].strip('{')} if root.tag.startswith('{') else {}
+def find_text(tag):
+    if ns:
+        el = root.find(f".//msb:{tag}", ns)
+    else:
+        el = root.find(f".//{tag}")
+    return (el.text or '').strip() if el is not None else ''
+print(find_text('CascodeVersion'))
+PY
+)"
+          echo "CascodeVersion: $PROPS_VER"
+          if [[ "$PROPS_VER" != "$TAG" ]]; then
+            echo "ERROR: Directory.Build.props CascodeVersion ($PROPS_VER) does not match tag ($TAG)" >&2
+            exit 1
+          fi
+
   build:
     name: build ${{ matrix.rid }}
     runs-on: ${{ matrix.os }}
+    needs: version-check
     strategy:
       fail-fast: false
       matrix:
@@ -33,9 +79,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: set version from tag
+        shell: bash
+        run: |
+          echo "TAG=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
       - name: publish
         run: |
-          dotnet publish tools/cli/Cascode.Cli.csproj -c Release -r ${{ matrix.rid }} -p:PublishSingleFile=true -p:SelfContained=true -p:PublishTrimmed=false -o build/out/${{ matrix.rid }}
+          dotnet publish tools/cli/Cascode.Cli.csproj -c Release -r ${{ matrix.rid }} -p:Version=${{ env.TAG }} -p:PublishSingleFile=true -p:SelfContained=true -p:PublishTrimmed=false -o build/out/${{ matrix.rid }}
       - name: normalize binary name (unix)
         if: startsWith(matrix.rid, 'linux-') || startsWith(matrix.rid, 'osx-')
         shell: bash
@@ -127,7 +177,7 @@ jobs:
       - name: set version from tag
         run: |
           TAG=${GITHUB_REF_NAME#v}
-          dotnet pack tools/cli/Cascode.Cli.csproj -c Release -p:PackageVersion=$TAG -o build/nuget
+          dotnet pack tools/cli/Cascode.Cli.csproj -c Release -p:Version=$TAG -p:PackageVersion=$TAG -o build/nuget
       - name: publish to nuget
         run: dotnet nuget push build/nuget/*.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key $NUGET_API_KEY
         env:
