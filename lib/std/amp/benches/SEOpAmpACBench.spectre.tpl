@@ -47,6 +47,14 @@ RLOAD (OUT vss) resistor r={{ env.rload_ohms }}
 simulatorOptions options reltol=1e-3 vabstol=1e-6 iabstol=1e-12 temp={{ spec.temperature_c }} tnom={{ spec.temperature_c }} \
     gmin=1e-12 maxnotes=5 maxwarns=5 digits=5 cols=80 pivrel=1e-3
 
+{{ if sweep.InputDCCommonMode }}
+// InputDCCommonMode sweep with AC analysis at each common-mode point
+sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
+    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
+  dcOp dc annotate=status
+  ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
+}
+{{ else }}
 // Bias first
 dcOp dc write="spectre.dc" maxiters=150 maxsteps=10000 annotate=status
 dcOpInfo info what=oppoint where=rawfile
@@ -59,6 +67,7 @@ subckts info what=subckts where=rawfile
 
 // Small-signal AC sweep (ranges inferred upstream from spec)
 ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
+{{ end }}
 
 saveOptions options save=allpub
 save IN_P IN_N OUT

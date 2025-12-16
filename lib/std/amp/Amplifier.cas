@@ -2,16 +2,20 @@ package lib.std.amp;
 
 // Trait: Amplifier (spec-only)
 // Declares canonical metric names; no ports are defined here.
-// Interface traits (e.g., SingleEndedOpAmp, SingleEndedAmp, FullyDiffAmplifier)
+// Interface traits (e.g., SingleEndedOpAmp, SingleEndedAmp, FullyDiffOpAmp)
 // refine this trait by adding ports and mapping metrics to benches.
 trait Amplifier {
   metrics { 
     GainBandwidth; 
     PassbandGain; 
     PhaseMargin; 
-    ICMR; 
+    InputDCBias;           // Swept condition for SEAmp topology
+    InputDCCommonMode;     // Swept condition for SEOpAmp/FDOpAmp
+    OutputDCBias;          // Measured output DC level
+    OutputDCCommonMode;    // Swept condition for FDOpAmp (OCMR)
     OutputSwing; 
     Power; 
+    QuiescentPower;        // Static power consumption
     NoiseIn; 
     NoiseOut;
     Distortion;

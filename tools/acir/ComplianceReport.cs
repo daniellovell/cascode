@@ -36,8 +36,14 @@ public sealed class ConstraintResult
     /// <summary>Optional node where constraint applies.</summary>
     public string? Node { get; init; }
 
+    /// <summary>Physical unit for expected/actual values (e.g., "Hz", "dB", "deg").</summary>
+    public string Unit { get; init; } = string.Empty;
+
     /// <summary>Comparison operator (>=, <=, ==, >, <).</summary>
     public string Operator { get; init; } = string.Empty;
+
+    /// <summary>Original expected value string from the constraint (e.g., "100M").</summary>
+    public string ExpectedRaw { get; init; } = string.Empty;
 
     /// <summary>Expected value (constraint bound).</summary>
     public double Expected { get; init; }
@@ -45,10 +51,12 @@ public sealed class ConstraintResult
     /// <summary>Actual measured value.</summary>
     public double? Actual { get; init; }
 
+    /// <summary>Unit reported by the measurement, if available.</summary>
+    public string? ActualUnit { get; init; }
+
     /// <summary>Whether the constraint passed.</summary>
     public bool Passed { get; init; }
 
     /// <summary>Human-readable message describing the result.</summary>
     public string Message { get; init; } = string.Empty;
 }
-

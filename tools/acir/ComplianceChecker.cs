@@ -50,9 +50,12 @@ public static class ComplianceChecker
                 Id = constraint.Id,
                 Metric = constraint.Metric,
                 Node = constraint.Node,
+                Unit = constraint.Unit,
                 Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
                 Expected = ParseValue(constraint.Value, constraint.Unit),
                 Actual = null,
+                ActualUnit = null,
                 Passed = false,
                 Message = $"No measurement found for {constraint.Metric}" +
                     (constraint.Node != null ? $" @ {constraint.Node}" : "")
@@ -69,9 +72,12 @@ public static class ComplianceChecker
             Id = constraint.Id,
             Metric = constraint.Metric,
             Node = constraint.Node,
+            Unit = constraint.Unit,
             Operator = constraint.Op,
+            ExpectedRaw = constraint.Value,
             Expected = expected,
             Actual = actual,
+            ActualUnit = measurement.Unit,
             Passed = passed,
             Message = passed ? "PASS" : "FAIL"
         };
@@ -157,4 +163,3 @@ public static class ComplianceChecker
         return value * multiplier;
     }
 }
-

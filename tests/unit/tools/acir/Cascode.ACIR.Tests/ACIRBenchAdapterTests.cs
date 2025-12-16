@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using Xunit;
 using Cascode.ACIR;
 using Cascode.Bench;
@@ -499,6 +500,50 @@ namespace Cascode.ACIR.Tests
 
             Assert.Contains("Unable to parse supply value", ex.Message);
             Assert.Contains("TestCircuit", ex.Message);
+        }
+
+        [Fact]
+        public void GenerateTestbench_ThrowsOnEmptyTemplate()
+        {
+            using var tempDir = Cascode.TestSupport.CascodeHome.CreateInTemp();
+            var workspaceRoot = Path.Combine(tempDir.Path, "workspace");
+            var benchesDir = Path.Combine(workspaceRoot, "lib", "std", "amp", "benches");
+            Directory.CreateDirectory(benchesDir);
+
+            // Create an empty template file
+            var emptyTemplatePath = Path.Combine(benchesDir, "EmptyBench.ngspice.tpl");
+            File.WriteAllText(emptyTemplatePath, "");
+
+            var outputDir = Path.Combine(tempDir.Path, "output");
+            Directory.CreateDirectory(outputDir);
+
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Level = ACIRLevel.EL,
+                Supplies = new List<string> { "VDD" },
+                Grounds = new List<string> { "GND" },
+                Ports = new List<PortDeclaration>
+                {
+                    new() { Name = "IN", Type = "analog" },
+                    new() { Name = "OUT", Type = "analog" }
+                },
+                Harness = new HarnessBlock
+                {
+                    Supplies = new List<SupplyValue>
+                    {
+                        new() { Net = "VDD", Value = "1.8V" }
+                    }
+                }
+            };
+
+            var bench = new BenchConfig { Name = "EmptyBench" };
+
+            var ex = Assert.Throws<InvalidOperationException>(() =>
+                ACIRBenchAdapter.GenerateTestbench(circuit, bench, BenchBackendType.Ngspice, outputDir, workspaceRoot));
+
+            Assert.Contains("Template file is empty", ex.Message);
+            Assert.Contains("EmptyBench", ex.Message);
         }
     }
 }

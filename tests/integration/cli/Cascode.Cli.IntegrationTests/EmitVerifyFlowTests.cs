@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
 using Cascode.TestSupport;
@@ -456,5 +458,354 @@ public class EmitVerifyFlowTests : IDisposable
 
         using var json = CliIntegrationTestHelper.ParseJsonFromOutput(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Emit_CSAmp_DCSwept_GeneratesTestbenchWithSweep()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+        Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
+
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Contains("while bias_val <= bias_stop", content);
+        Assert.Contains("alter VIN DC=$&bias_val", content);
+        Assert.Contains("let out_dc = v(", content);
+        Assert.Contains("echo CASCODE_POINT", content);
+    }
+
+    [Fact]
+    public async Task Emit_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Contains("while cm_val <= cm_stop", content);
+        Assert.Contains("alter VIN_CM DC=$&cm_val", content);
+        Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
+    }
+
+    [Fact]
+    public async Task Verify_CSAmp_DCSwept_WithPassingResults_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/cs/CSAmpResistive_SEAmpDCBench_results.json");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "verify", "--acir", acirPath, "--results", resultsPath);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
+        Assert.Contains("constraints satisfied", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_InvalidAutoAtEL_ReturnsExitCode2()
+    {
+        // Test that [Auto] at EL level is rejected
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/auto_sweep_el.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir);
+
+        Assert.Equal(2, result.ExitCode);
+        Assert.Contains("EMIT-006", result.Stdout);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_CSAmp_DCSwept_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_OTA_DCSwept_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_CommonSourceAmp_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "CommonSourceAmp_SEAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_OTA_ACBench_PrintsNumericResultValues()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+
+        Assert.Matches(@"RESULT:\s*PassbandGain\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*GainBandwidth\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*PhaseMargin\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_FD_OTA_GeneratesDesignAndTestbench()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+        Assert.Contains("Design netlist:", result.Stdout);
+        Assert.Contains("Testbench:", result.Stdout);
+        Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
+
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff.sp")), "Design netlist not found");
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")), "Testbench not found");
+    }
+
+    [Fact]
+    public async Task Emit_FD_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir");
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Contains("while cm_val <= cm_stop", content);
+        Assert.Contains("alter VIN_CM DC=$&cm_val", content);
+        Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
+    }
+
+    [Fact]
+    public async Task Verify_FD_OTA_WithPassingResults_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/ota/OTA5TFullyDiff_FDOpAmpACBench_results.json");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify", "--acir", acirPath, "--results", resultsPath);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
+        Assert.Contains("Constraint Compliance Report", result.Stdout);
+        Assert.Contains("4/4 constraints satisfied", result.Stdout);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_FD_OTA_ACBench_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_FD_OTA_DCSwept_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir");
+
+        // Emit SPICE files
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30), _cascodeHome,
+            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench.sp");
+        Assert.True(File.Exists(benchPath), "DC testbench not found");
+
+        // Verify ngspice can simulate the generated SPICE file
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    /// <summary>
+    /// Runs ngspice in batch mode on a SPICE netlist file.
+    /// </summary>
+    /// <param name="spiceFile">Path to the SPICE netlist file.</param>
+    /// <returns>Result indicating success or failure with error message.</returns>
+    private static async Task<(bool Success, string Stdout, string Stderr, string ErrorMessage)> RunNgspiceAsync(string spiceFile)
+    {
+        if (!File.Exists(spiceFile))
+        {
+            return (false, string.Empty, string.Empty, $"SPICE file not found: {spiceFile}");
+        }
+
+        // Check if ngspice is available
+        try
+        {
+            using var checkProcess = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ngspice",
+                    Arguments = "--version",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+            checkProcess.Start();
+            await checkProcess.WaitForExitAsync();
+
+            if (checkProcess.ExitCode != 0)
+            {
+                return (false, string.Empty, string.Empty,
+                    "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml");
+            }
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is FileNotFoundException)
+        {
+            return (false, string.Empty, string.Empty,
+                $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml");
+        }
+
+        // Run ngspice in batch mode (-b flag)
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ngspice",
+                    Arguments = $"-b \"{spiceFile}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory()
+                }
+            };
+
+            process.Start();
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try
+            {
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+                var stdoutTimedOut = await stdoutTask;
+                var stderrTimedOut = await stderrTask;
+                return (false, stdoutTimedOut, stderrTimedOut, "ngspice simulation timed out after 30 seconds");
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            if (process.ExitCode == 0)
+            {
+                return (true, stdout, stderr, string.Empty);
+            }
+
+            return (false, stdout, stderr, $"ngspice exited with code {process.ExitCode}.");
+        }
+        catch (Exception ex)
+        {
+            return (false, string.Empty, string.Empty, $"Failed to run ngspice: {ex.Message}");
+        }
     }
 }

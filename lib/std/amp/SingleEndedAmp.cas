@@ -11,7 +11,10 @@ trait SingleEndedAmp extend Amplifier {
     GainBandwidth from SEAmpACBench.GainBandwidth;
     PassbandGain  from SEAmpACBench.PassbandGain;
     PhaseMargin   from SEAmpACBench.PhaseMargin;
-    // ICMR and Swing are handled by dedicated benches; left unspecified here.
+    InputDCBias   from SEAmpDCBench.InputDCBias;
+    OutputDCBias  from SEAmpDCBench.OutputDCBias;
+    QuiescentPower from SEAmpDCBench.QuiescentPower;
+    // OutputSwing is handled by dedicated benches; left unspecified here.
   }
 }
 

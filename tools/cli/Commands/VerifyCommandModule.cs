@@ -42,15 +42,16 @@ internal sealed class VerifyCommandModule : ICommandModule
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: verify --acir <acir_file> --results <results_json>");
+            _state.AddMessage("Usage: verify <acir_file> <results_json|trace_jsonl>");
+            _state.AddMessage("       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)");
             _state.AddMessage("");
             _state.AddMessage("Verifies numeric constraints from ACIR against bench measurement results.");
             return CommandResult.Success;
         }
 
-        if (!ParseArguments(args, out var acirPath, out var resultsPath))
+        if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
         {
-            _state.AddMessage("Error: Both --acir and --results are required.");
+            _state.AddMessage("Error: provide an ACIR path plus either a results.json or trace.jsonl path.");
             return CommandResult.Failure;
         }
 
@@ -60,9 +61,15 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        if (!File.Exists(resultsPath))
+        if (resultsPath != null && !File.Exists(resultsPath))
         {
             _state.AddMessage($"Results file '{resultsPath}' not found.");
+            return CommandResult.Failure;
+        }
+
+        if (tracePath != null && !File.Exists(tracePath))
+        {
+            _state.AddMessage($"Trace file '{tracePath}' not found.");
             return CommandResult.Failure;
         }
 
@@ -92,12 +99,18 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        // Read results JSON
         BenchResult results;
         try
         {
-            var jsonText = File.ReadAllText(resultsPath);
-            results = JsonSerializer.Deserialize<BenchResult>(jsonText) ?? throw new InvalidOperationException("Failed to deserialize results JSON");
+            if (resultsPath != null)
+            {
+                var jsonText = File.ReadAllText(resultsPath);
+                results = JsonSerializer.Deserialize<BenchResult>(jsonText) ?? throw new InvalidOperationException("Failed to deserialize results JSON");
+            }
+            else
+            {
+                results = ReadResultsFromTrace(tracePath!);
+            }
         }
         catch (Exception ex)
         {
@@ -124,10 +137,12 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <param name="acirPath">Output parameter for ACIR file path.</param>
     /// <param name="resultsPath">Output parameter for results JSON file path.</param>
     /// <returns>True if both arguments were found, false otherwise.</returns>
-    private static bool ParseArguments(string[] args, out string? acirPath, out string? resultsPath)
+    private static bool ParseArguments(string[] args, out string? acirPath, out string? resultsPath, out string? tracePath)
     {
         acirPath = null;
         resultsPath = null;
+        tracePath = null;
+        var positionals = new System.Collections.Generic.List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -141,9 +156,64 @@ internal sealed class VerifyCommandModule : ICommandModule
                 resultsPath = args[i + 1];
                 i++;
             }
+            else if (args[i] == "--trace" && i + 1 < args.Length)
+            {
+                tracePath = args[i + 1];
+                i++;
+            }
+            else if (!args[i].StartsWith("-", StringComparison.Ordinal))
+            {
+                positionals.Add(args[i]);
+            }
         }
 
-        return acirPath != null && resultsPath != null;
+        if (acirPath == null && positionals.Count >= 1)
+        {
+            acirPath = positionals[0];
+        }
+
+        if (resultsPath == null && tracePath == null && positionals.Count >= 2)
+        {
+            var path = positionals[1];
+            if (path.EndsWith(".jsonl", StringComparison.OrdinalIgnoreCase))
+            {
+                tracePath = path;
+            }
+            else
+            {
+                resultsPath = path;
+            }
+        }
+
+        return acirPath != null && (resultsPath != null || tracePath != null);
+    }
+
+    private static BenchResult ReadResultsFromTrace(string tracePath)
+    {
+        BenchResult? last = null;
+
+        foreach (var line in File.ReadLines(tracePath))
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            using var doc = JsonDocument.Parse(line);
+            if (!doc.RootElement.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "summary")
+            {
+                continue;
+            }
+
+            if (!doc.RootElement.TryGetProperty("results", out var resultsEl))
+            {
+                continue;
+            }
+
+            last = JsonSerializer.Deserialize<BenchResult>(resultsEl.GetRawText());
+        }
+
+        return last ?? throw new InvalidOperationException("No summary record with results found in trace.jsonl.");
     }
 
     /// <summary>
@@ -181,4 +251,3 @@ internal sealed class VerifyCommandModule : ICommandModule
         return constraint?.Unit ?? "";
     }
 }
-
