@@ -87,6 +87,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "-o", _outputDir);
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
+        Assert.DoesNotContain("info:", result.Stdout, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("> bench run", result.Stdout, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Circuit:", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("Artifacts:", result.Stdout, StringComparison.Ordinal);
+        Assert.Contains("Compliance:", result.Stdout, StringComparison.Ordinal);
 
         Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_results.json")));
         Assert.True(File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_trace.jsonl")));

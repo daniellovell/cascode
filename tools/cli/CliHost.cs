@@ -96,7 +96,9 @@ internal sealed class CliHost
         _isInteractive = false;
         var loggerFactory = LoggerFactory.Create(builder =>
         {
-            builder.SetMinimumLevel(LogLevel.Information);
+            // In non-interactive mode, prefer concise, user-focused output via ShellState messages.
+            // Keep the console logger for warnings/errors only.
+            builder.SetMinimumLevel(LogLevel.Warning);
             builder.AddSimpleConsole(o => { o.SingleLine = true; });
         });
         _state.SetLoggerFactory(loggerFactory);
@@ -107,7 +109,6 @@ internal sealed class CliHost
         }
 
         _state.ResetStreamedOutput();
-        _state.RecordCommand(string.Join(' ', tokens));
         var result = Execute(tokens);
         if (!tokens[0].Equals("log", StringComparison.OrdinalIgnoreCase))
         {
