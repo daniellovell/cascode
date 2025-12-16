@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Cascode.Cli.Services;
 
 namespace Cascode.Cli.Commands;
 
@@ -18,6 +19,7 @@ internal sealed class BenchCommandModule : ICommandModule
         registry.Register(new DelegateCliCommand("bench harness", "Harness helpers", ShowBenchHarnessUsage));
         registry.Register(new DelegateCliCommand("bench harness list", "List available harnesses", BenchHarnessListCommand));
         registry.Register(new DelegateCliCommand("bench harness show", "Show harness details", BenchHarnessShowCommand));
+        registry.Register(new DelegateCliCommand("bench run", "Run a bench simulation and emit trace/results", BenchRunCommand));
     }
 
     private CommandResult ShowBenchUsage(string[] args)
@@ -30,6 +32,31 @@ internal sealed class BenchCommandModule : ICommandModule
     {
         _state.AddMessage("Usage: bench harness <list|show>");
         return CommandResult.Success;
+    }
+
+    private CommandResult BenchRunCommand(string[] args)
+    {
+        if (!BenchRunService.TryParseArgs(args, out var parsed, out var error))
+        {
+            _state.AddMessage(error);
+            _state.AddMessage("Usage: bench run --acir <file> --bench <name> [--out <dir>] [--backend <ngspice>]");
+            return CommandResult.Failure;
+        }
+
+        try
+        {
+            var result = BenchRunService.Run(_state.WorkspaceRoot, parsed);
+            foreach (var line in result.Messages)
+            {
+                _state.AddMessage(line);
+            }
+            return result.ExitCode == 0 ? CommandResult.Success : new CommandResult(result.ExitCode, false);
+        }
+        catch (Exception ex)
+        {
+            _state.AddMessage($"bench run failed: {ex.Message}");
+            return CommandResult.Failure;
+        }
     }
 
     private CommandResult BenchHarnessListCommand(string[] args)
@@ -100,4 +127,3 @@ internal sealed class BenchCommandModule : ICommandModule
         }
     }
 }
-

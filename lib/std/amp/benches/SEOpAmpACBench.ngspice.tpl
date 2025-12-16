@@ -47,6 +47,7 @@ let cm_step = {{ sweep.InputDCCommonMode.step }}
 let gbw_min = 1e12
 let gain_min = 1000
 let pm_min = 360
+let point_index = 0
 
 let cm_val = cm_start
 while cm_val <= cm_stop
@@ -59,6 +60,8 @@ while cm_val <= cm_stop
   meas ac pm_raw_pt find vp({{ out_node }}) at=gbw_pt
   let pm_pt = 180 + pm_raw_pt
 
+  echo CASCODE_POINT point_index=$&point_index InputDCCommonMode_V=$&cm_val PassbandGain_dB=$&gain_pt GainBandwidth_Hz=$&gbw_pt PhaseMargin_deg=$&pm_pt
+
   if gain_pt < gain_min
     let gain_min = gain_pt
   end
@@ -69,6 +72,7 @@ while cm_val <= cm_stop
     let pm_min = pm_pt
   end
 
+  let point_index = point_index + 1
   let cm_val = cm_val + cm_step
 end
 
@@ -85,6 +89,8 @@ meas ac gain_dc find vdb({{ out_node }}) at=1
 meas ac gbw when vdb({{ out_node }})=0 cross=1
 meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
+
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
 
 * Results output
 echo "RESULT: PassbandGain = " $&gain_dc " dB"

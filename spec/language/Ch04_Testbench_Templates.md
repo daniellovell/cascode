@@ -222,17 +222,44 @@ meas ac gbw when vdb({{ out_node }})=0 cross=1
 meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
 
+* Per-point report for cascode bench runner
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
+
 * Results output
-echo "RESULT: PassbandGain = " gain_dc " dB"
-echo "RESULT: GainBandwidth = " gbw " Hz"
-echo "RESULT: PhaseMargin = " pm " deg"
+echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: GainBandwidth = " $&gbw " Hz"
+echo "RESULT: PhaseMargin = " $&pm " deg"
 
 quit
 .endc
 .end
 ```
 
-### 4.3.7 Example: Spectre Template Fragment
+### 4.3.7 Simulation Trace Output (JSONL)
+
+`cascode bench run` runs a simulator for a single bench and writes two artifacts into the job directory:
+
+- `{Circuit}_{Bench}_trace.jsonl`: append-only trace capturing per-point sweep data and the final summary.
+- `{Circuit}_{Bench}_results.json`: consolidated measurement values intended for constraint verification.
+
+Templates must emit two kinds of lines to stdout when running under ngspice:
+
+1) One `CASCODE_POINT` line per executed sweep point. Each line is a flat set of `key=value` tokens. Keys should include `point_index` and may include sweep axes (e.g., `InputDCCommonMode_V=...`) and measured metrics (e.g., `GainBandwidth_Hz=...`). These lines are parsed into per-point records in the JSONL trace.
+
+2) One or more `RESULT:` lines that contain the bench-level spec-compliance values (scalar or vector). Values printed under `RESULT:` must be reduced across the sweep (for example, QuiescentPower must be the worst-case scalar across points), because `verify` evaluates constraints against these consolidated values.
+
+The JSONL file is a sequence of independent JSON objects with a stable envelope:
+
+| Record `type` | Purpose | Required fields |
+|--------------|---------|-----------------|
+| `meta` | Run context | `schema`, `version`, `type`, `run_id`, `ts_utc`, `circuit`, `bench`, `backend` |
+| `axes` | Declared sweep axes | `schema`, `version`, `type`, `run_id`, `ts_utc`, `axes[]` |
+| `point` | One executed point | `schema`, `version`, `type`, `run_id`, `ts_utc`, `point.index`, `point.axis_values`, `measurements[]` |
+| `summary` | Consolidated outputs | `schema`, `version`, `type`, `run_id`, `ts_utc`, `results` |
+
+The `summary.results` object is the canonical bridge to `verify`; it matches the `BenchResult` JSON shape used by `verify --results`.
+
+### 4.3.8 Example: Spectre Template Fragment
 
 ```spectre
 // Source impedance split across each leg
@@ -872,4 +899,3 @@ Potential enhancements to the template system include:
 - **Batch execution**: Parallel simulation of multiple benches or circuits
 - **Custom measurement calculators**: Extensible metric computation beyond basic `.meas` statements
 - **Template inheritance**: Shared base templates with bench-specific overrides to reduce duplication
-
