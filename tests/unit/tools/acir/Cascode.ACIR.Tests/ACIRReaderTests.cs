@@ -318,7 +318,7 @@ circuit Test : SingleEndedAmp
             d.Message.Contains("sweep InputDCBias []") &&
             d.Message.Contains("''"));
         Assert.NotNull(errorDiag);
-        Assert.Equal(10, errorDiag.Line);
+        Assert.Equal(9, errorDiag.Line);
     }
 
     [Fact]
