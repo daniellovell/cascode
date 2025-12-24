@@ -10,7 +10,7 @@ The testbench template system bridges ACIR circuits to simulator execution throu
 
 The flow proceeds deterministically: ACIR circuits at EL level contain `harness:` blocks specifying supply values, loads, and source impedances, plus `benches:` blocks naming which tests to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
 
-Template discovery follows upward traversal from the ACIR file location, checking for local `benches/` folders before falling back to the standard library at `lib/std/amp/benches/`. This resolution strategy supports both project-specific custom benches and shared canonical definitions, with backend selection determined by file extension (`.ngspice.tpl` vs `.spectre.tpl`).
+Template discovery follows upward traversal from the ACIR file location, checking for local `benches/` folders before falling back to the standard library at `lib/std/amp/benches/`. This resolution strategy supports both project-specific custom benches and shared canonical definitions, with backend selection determined by file extension (`.ngspice.tpl` vs `.spectre.tpl`). When a scanned PDK workspace is available, emit/bench also populate include lists so templates can pull model decks without extra command-line arguments.
 
 ---
 
@@ -98,6 +98,11 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 | `generic_models` | boolean | True if circuit uses generic nmos/pmos | `true` |
 | `vcm` | double | Common-mode voltage (mid-supply) | `0.9` |
 | `bias_v` | double | Input bias voltage | `0.9` |
+| `includes_with_section` | array | Include files that should be paired with `section` | `["/path/models/sky130.lib.spice"]` |
+| `includes_without_section` | array | Include files emitted with `.include` (includes the design file) | `["OTA5TSingleEnded.sp"]` |
+| `section` | string or null | Preferred section for `includes_with_section` | `"tt"` |
+
+Templates should iterate over the include lists rather than manually including `design_file`, since the design file is appended to `includes_without_section` and PDK model decks may be present in `includes_with_section` when a workspace database is available.
 
 ### 4.3.4 Harness Data Structures
 
@@ -181,8 +186,8 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
 | Variable | Type | Description |
 |----------|------|-------------|
 | `spec.temperature_c` | double | Simulation temperature (°C) |
-| `includes_with_section` | array | Include files with section parameter |
-| `includes_without_section` | array | Simple include files (e.g., design .sp) |
+
+Include lists are provided for all backends; see the common template variables for details.
 
 ### 4.3.6 Example: Ngspice Template
 
@@ -196,7 +201,12 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
 .model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 {{ end }}
 
-.include "{{ design_file }}"
+{{ for inc in includes_with_section }}
+{{ if section }}.lib "{{ inc }}" {{ section }}{{ else }}.include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
+.include "{{ inc }}"
+{{ end }}
 
 * Harness
 {{ for supply in harness.supplies }}
@@ -666,7 +676,12 @@ Create `{BenchName}.ngspice.tpl` in the same directory:
 .model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 {{ end }}
 
-.include "{{ design_file }}"
+{{ for inc in includes_with_section }}
+{{ if section }}.lib "{{ inc }}" {{ section }}{{ else }}.include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
+.include "{{ inc }}"
+{{ end }}
 
 * Harness elements
 {{ for supply in harness.supplies }}

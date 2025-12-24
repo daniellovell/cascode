@@ -19,6 +19,14 @@ How it is used
   - Uses behavior.* for scoring thresholds, ambiguity margin, and infra penalties.
   - Writes results into the PDK database (device_model_matches) during pdk scan.
 
+Emit/bench integration
+
+Emission and bench generation reuse the per-workspace pdk.db produced by pdk scan. When ACIR devices specify a PdkDevice name, the CLI resolves model include paths and the preferred section for the current corner, injects those includes into template variables, and maps the device to the resolved model or subckt name in the emitted design netlist. This flow never triggers a scan; if the database is missing, the CLI logs a warning and proceeds without PDK includes. For shared cluster runs, perform a single scan in a shared CASCODE_HOME and point jobs at the same workspace path (via --workspace or pdk set-dir) so they reuse the database. Corner selection comes from CASCODE_PDK_CORNER and defaults to tt.
+
+Recommended flow
+
+Set the PDK root (`pdk set-dir` or `--workspace`), run `pdk scan` once for that workspace, then run `emit`, `bench`, or `verify` as needed. Subsequent commands reuse the existing pdk.db and do not rescan.
+
 YAML schema
 
 version: integer (reserved)
