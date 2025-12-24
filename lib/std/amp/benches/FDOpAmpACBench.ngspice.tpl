@@ -7,7 +7,12 @@
 .model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 {{ end }}
 
-.include "{{ design_file }}"
+{{ for inc in includes_with_section }}
+{{ if section }}.lib "{{ inc }}" {{ section }}{{ else }}.include "{{ inc }}"{{ end }}
+{{ end }}
+{{ for inc in includes_without_section }}
+.include "{{ inc }}"
+{{ end }}
 
 * Harness
 {{ for supply in harness.supplies }}

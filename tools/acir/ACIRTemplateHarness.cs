@@ -78,6 +78,7 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             && iws is IEnumerable<string> iwsL ? iwsL.ToList() : new List<string>();
         var includesWithoutSection = ctx.Args.TryGetValue("includes_without_section", out var iwos)
             && iwos is IEnumerable<string> iwosL ? iwosL.ToList() : new List<string>();
+        var section = ctx.Args.TryGetValue("section", out var sec) ? sec?.ToString() : null;
 
         return new
         {
@@ -97,7 +98,8 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             ac_stop_hz = acStopHz,
             sweep = sweep,
             includes_with_section = includesWithSection,
-            includes_without_section = includesWithoutSection
+            includes_without_section = includesWithoutSection,
+            section = section
         };
     }
 
@@ -192,4 +194,3 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         return scriptObj;
     }
 }
-

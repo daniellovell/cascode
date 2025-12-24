@@ -33,8 +33,6 @@ public sealed record DeviceCharPlan(
 
 public static class DeviceCharPlanner
 {
-    private static readonly Regex LibraryRegex = new(@"^library\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     public static IReadOnlyList<DeviceCharPlan> Plan(string dbPath, DeviceCharPlannerOptions options)
     {
         if (options is null) throw new ArgumentNullException(nameof(options));
@@ -68,7 +66,7 @@ public static class DeviceCharPlanner
             var model = ResolveModelForDevice(device, bestMatch, models);
             if (model is null) continue;
 
-            var includes = ResolveIncludes(dbPath, model, options.Corner);
+            var includes = PdkIncludeResolver.ResolveModelIncludes(dbPath, model, options.Corner);
             var geometry = ResolveGeometry(dbPath, device.CanonicalName);
             var voltages = ResolveVoltages(model.VoltageDomain);
 
@@ -95,79 +93,6 @@ public static class DeviceCharPlanner
         return plans;
     }
 
-    private static IncludeResolution ResolveIncludes(string dbPath, SpectreModel model, string? corner)
-    {
-        var resolvedIncludes = new List<string>();
-        var withSection = new List<string>();
-        var extraIncludes = new List<string>();
-        string? resolvedSection = corner;
-
-        var contexts = PdkDatabaseReader.GetContextsForModelAndCorner(dbPath, model.Name, corner);
-        if (contexts.Count == 0)
-        {
-            contexts = PdkDatabaseReader.GetAllContextsForModel(dbPath, model.Name);
-        }
-
-        if (contexts.Count > 0)
-        {
-            var chosen = contexts[0];
-            var inc = TryNormalizeInclude(chosen.IncludePath);
-            if (!string.IsNullOrWhiteSpace(inc))
-            {
-                resolvedIncludes.Add(inc);
-                // Raw SPICE files (e.g., .pm3.spice) don't have .lib sections;
-                // only add to withSection if the file has library blocks.
-                if (FileHasLibrarySections(inc))
-                {
-                    withSection.Add(inc);
-                    resolvedSection = string.IsNullOrWhiteSpace(chosen.Section) ? corner : chosen.Section;
-                }
-                else
-                {
-                    extraIncludes.Add(inc);
-                    resolvedSection = null;
-                }
-            }
-        }
-        else
-        {
-            var decks = (model.Decks ?? Array.Empty<string>())
-                .Select(TryNormalizeInclude)
-                .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
-                .Select(p => p!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (decks.Count > 0)
-            {
-                resolvedIncludes.AddRange(decks);
-                withSection.AddRange(decks);
-            }
-            else
-            {
-                var sources = (model.SourceFiles ?? Array.Empty<string>())
-                    .Select(TryNormalizeInclude)
-                    .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
-                    .Select(p => p!)
-                    .ToList();
-
-                if (!string.IsNullOrWhiteSpace(corner))
-                {
-                    var key = corner.Trim();
-                    sources = sources.Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
-                }
-
-                extraIncludes.AddRange(sources);
-                resolvedIncludes.AddRange(sources);
-            }
-        }
-
-        return new IncludeResolution(
-            resolvedIncludes.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            withSection.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            extraIncludes.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            resolvedSection);
-    }
 
     private static SpectreModel? ResolveModelForDevice(
         Device device,
@@ -263,54 +188,6 @@ public static class DeviceCharPlanner
 
         return new Voltages(vdsVal, vgsStop);
     }
-
-    private static string? TryNormalizeInclude(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path)) return null;
-        try { return Path.GetFullPath(path); }
-        catch { return File.Exists(path) ? Path.GetFullPath(path) : null; }
-    }
-
-    /// <summary>
-    /// Checks if a file contains .lib/.endl or section/endsection blocks.
-    /// Raw SPICE files (e.g., .pm3.spice) don't have these and should be included without a section filter.
-    /// </summary>
-    private static bool FileHasLibrarySections(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
-
-        try
-        {
-            using var reader = new StreamReader(path);
-            string? line;
-            var lineCount = 0;
-            const int maxLinesToCheck = 200;
-
-            while ((line = reader.ReadLine()) != null && lineCount < maxLinesToCheck)
-            {
-                lineCount++;
-                var trimmed = line.TrimStart();
-                if (trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase) ||
-                    LibraryRegex.IsMatch(trimmed))
-                {
-                    return true;
-                }
-            }
-        }
-        catch
-        {
-            // If we can't read the file, assume it doesn't have sections
-        }
-
-        return false;
-    }
-
-    private sealed record IncludeResolution(
-        IReadOnlyList<string> IncludePaths,
-        IReadOnlyList<string> IncludePathsWithSection,
-        IReadOnlyList<string> IncludePathsWithoutSection,
-        string? Section);
 
     private sealed record Geometry(double Width, double Length, int Nf);
 

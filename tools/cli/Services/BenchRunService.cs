@@ -167,7 +167,8 @@ public class BenchRunService
         Directory.CreateDirectory(outputDir);
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(args.AcirPath, workspaceRoot);
-        var emit = SpiceEmitter.ValidateAndEmit(doc, outputDir, args.Backend, resolvedWorkspaceRoot);
+        var includeResolver = PdkBenchIncludeResolver.Create(workspaceRoot, _logger);
+        var emit = SpiceEmitter.ValidateAndEmit(doc, outputDir, args.Backend, resolvedWorkspaceRoot, includeResolver);
         var validationResult = ValidateEmissionOrReturnResult(emit, circuit.Name, args, outputDir);
         if (validationResult != null)
         {

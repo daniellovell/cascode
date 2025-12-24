@@ -29,13 +29,15 @@ public static class ACIRBenchAdapter
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <returns>TestbenchContext ready for TestbenchGenerator.</returns>
     public static TestbenchContext ToTestbenchContext(
         Circuit circuit,
         BenchConfig bench,
         BenchBackendType backend,
         string outputDir,
-        string? workspaceRoot = null)
+        string? workspaceRoot = null,
+        BenchIncludeResolution? includeResolution = null)
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bench);
@@ -50,6 +52,23 @@ public static class ACIRBenchAdapter
         var sweepDict = BuildSweepDictionary(circuit);
 
         var designFile = $"{circuit.Name}.sp";
+        var includesWithSection = includeResolution?.WithSection?
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        var includesWithoutSection = includeResolution?.WithoutSection?
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList()
+            ?? new List<string>();
+
+        if (!includesWithoutSection.Contains(designFile, StringComparer.OrdinalIgnoreCase))
+        {
+            includesWithoutSection.Add(designFile);
+        }
+
         var args = new Dictionary<string, object?>
         {
             ["harness"] = "acir_template",
@@ -68,8 +87,9 @@ public static class ACIRBenchAdapter
             ["ac_mag"] = 1.0,
             ["ac_start_hz"] = acStartHz,
             ["ac_stop_hz"] = acStopHz,
-            ["includes_with_section"] = new List<string>(),
-            ["includes_without_section"] = new List<string> { designFile }
+            ["includes_with_section"] = includesWithSection,
+            ["includes_without_section"] = includesWithoutSection,
+            ["section"] = includeResolution?.Section
         };
 
         // Add sweep conditions - templates access them as sweep.ConditionName
@@ -338,19 +358,21 @@ public static class ACIRBenchAdapter
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <returns>TestbenchFiles with path to generated netlist.</returns>
     public static TestbenchFiles GenerateTestbench(
         Circuit circuit,
         BenchConfig bench,
         BenchBackendType backend,
         string outputDir,
-        string? workspaceRoot = null)
+        string? workspaceRoot = null,
+        BenchIncludeResolution? includeResolution = null)
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bench);
 
         var harness = new ACIRTemplateHarness();
-        var context = ToTestbenchContext(circuit, bench, backend, outputDir, workspaceRoot);
+        var context = ToTestbenchContext(circuit, bench, backend, outputDir, workspaceRoot, includeResolution);
         var plan = harness.BuildPlan(context);
 
         // Find template
@@ -536,4 +558,3 @@ public static class ACIRBenchAdapter
         return false;
     }
 }
-

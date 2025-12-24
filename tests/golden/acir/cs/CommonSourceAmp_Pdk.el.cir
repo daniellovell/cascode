@@ -1,0 +1,25 @@
+ACIR 1
+
+circuit CommonSourceAmp_Pdk : SingleEndedAmp
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  port VBIAS : bias
+  fill:
+    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : W=10u L=180n M=1 nfet_01v8
+    pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : W=20u L=180n M=1 pfet_01v8
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 50M Hz
+      c_gain : PassbandGain @ OUT >= 30 dB
+    measure:
+      m_gbw : SEAmpACBench GainBandwidth @ OUT
+      m_gain : SEAmpACBench PassbandGain @ OUT
+  harness:
+    supply VDD = 1.8V
+    bias VBIAS = 0.7V
+    load OUT C=1p F
+  benches:
+    SEAmpACBench

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Cascode.Cli.IntegrationTests.Infrastructure;
@@ -591,6 +592,49 @@ public class EmitVerifyFlowTests : IDisposable
         var ngspiceResult = await RunNgspiceAsync(benchPath);
         Assert.True(ngspiceResult.Success,
             $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_PdkVariants_UseSky130ModelsAndSimulate()
+    {
+        var scanResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            _cascodeHome,
+            "pdk", "scan", "tests/fixtures/pdk/sky130");
+        CliIntegrationTestHelper.AssertSuccess(scanResult, "pdk scan failed");
+
+        var cases = new (string AcirRel, string BenchFile)[]
+        {
+            ("tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir", "CommonSourceAmp_Pdk_SEAmpACBench.sp"),
+            ("tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir", "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp")
+        };
+
+        var libPattern = new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase);
+
+        foreach (var (acirRel, benchFile) in cases)
+        {
+            var outputDir = Path.Combine(_outputDir, "pdk-" + Guid.NewGuid().ToString("N")[..8]);
+            Directory.CreateDirectory(outputDir);
+            var acirPath = Path.Combine(_repoRoot, acirRel);
+
+            var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+                TimeSpan.FromSeconds(30), _cascodeHome,
+                "--workspace", "tests/fixtures/pdk/sky130",
+                "emit", acirPath, "--out", outputDir, "--backend", "ngspice");
+
+            CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+            var benchPath = Path.Combine(outputDir, benchFile);
+            Assert.True(File.Exists(benchPath), "PDK testbench not found");
+
+            var content = await File.ReadAllTextAsync(benchPath);
+            Assert.Matches(libPattern, content);
+
+            var ngspiceResult = await RunNgspiceAsync(benchPath);
+            Assert.True(ngspiceResult.Success,
+                $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        }
     }
 
     [Fact]
