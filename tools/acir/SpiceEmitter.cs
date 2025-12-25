@@ -38,7 +38,6 @@ public static class SpiceEmitter
     /// <param name="circuit">The circuit to emit (must be EL level).</param>
     /// <param name="writer">Text writer for output.</param>
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
-    /// <param name="useSubckt">True when the resolved model should be emitted as a subcircuit instance.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
     /// Output format:
@@ -114,7 +113,6 @@ public static class SpiceEmitter
     /// <param name="bench">The bench configuration.</param>
     /// <param name="designPath">Path to the design .sp file to include.</param>
     /// <param name="writer">Text writer for output.</param>
-    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
     /// <param name="backend">Backend type for testbench generation.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
@@ -190,6 +188,9 @@ public static class SpiceEmitter
         string? workspaceRoot = null,
         IBenchIncludeResolver? includeResolver = null)
     {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(outputDir);
+
         var result = new SpiceEmitResult();
         Directory.CreateDirectory(outputDir);
 
@@ -249,6 +250,9 @@ public static class SpiceEmitter
         string? workspaceRoot = null,
         IBenchIncludeResolver? includeResolver = null)
     {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(outputDir);
+
         var validationResult = new ValidationResult();
 
         // Validate all EL circuits first

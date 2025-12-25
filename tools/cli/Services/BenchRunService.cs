@@ -131,7 +131,7 @@ public class BenchRunService
         return true;
     }
 
-    public BenchRunResult Run(string workspaceRoot, BenchRunArgs args)
+    public BenchRunResult Run(string workspaceRoot, string? pdkRoot, BenchRunArgs args)
     {
         var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
         var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
@@ -167,7 +167,8 @@ public class BenchRunService
         Directory.CreateDirectory(outputDir);
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(args.AcirPath, workspaceRoot);
-        var includeResolver = PdkBenchIncludeResolver.Create(workspaceRoot, _logger);
+        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
+        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
         var emit = SpiceEmitter.ValidateAndEmit(doc, outputDir, args.Backend, resolvedWorkspaceRoot, includeResolver);
         var validationResult = ValidateEmissionOrReturnResult(emit, circuit.Name, args, outputDir);
         if (validationResult != null)

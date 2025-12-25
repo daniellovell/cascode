@@ -59,8 +59,23 @@ public static class PdkIncludeResolver
 
             if (decks.Count > 0)
             {
-                resolvedIncludes.AddRange(decks);
-                withSection.AddRange(decks);
+                foreach (var deck in decks)
+                {
+                    resolvedIncludes.Add(deck);
+                    if (FileHasLibrarySections(deck))
+                    {
+                        withSection.Add(deck);
+                    }
+                    else
+                    {
+                        extraIncludes.Add(deck);
+                    }
+                }
+
+                if (withSection.Count == 0)
+                {
+                    resolvedSection = null;
+                }
             }
             else
             {
@@ -92,7 +107,7 @@ public static class PdkIncludeResolver
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         try { return Path.GetFullPath(path); }
-        catch { return File.Exists(path) ? Path.GetFullPath(path) : null; }
+        catch { return null; }
     }
 
     private static bool FileHasLibrarySections(string path)
