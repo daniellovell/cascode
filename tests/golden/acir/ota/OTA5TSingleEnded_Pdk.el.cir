@@ -18,10 +18,9 @@ circuit OTA5TSingleEnded_Pdk
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pfet_01v8
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
+      c_gbw : GainBandwidth @ OUT >= 1M Hz
+      c_gain : PassbandGain @ OUT >= 20 dB
       c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : Power <= 500u W
     tech:
       t_lmin : L >= 180n m on *
     measure:

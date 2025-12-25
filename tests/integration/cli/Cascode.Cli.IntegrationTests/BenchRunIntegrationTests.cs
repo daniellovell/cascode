@@ -176,10 +176,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "bench", "run",
             acirPath,
             "-o", outputDir);
-        Assert.NotEqual(2, benchResult.ExitCode);
-        Assert.Contains("Ran: SEOpAmpACBench", benchResult.Stdout, StringComparison.Ordinal);
-        Assert.DoesNotContain("Simulation: FAIL", benchResult.Stdout, StringComparison.Ordinal);
-        Assert.DoesNotContain("Simulation failed", benchResult.Stdout, StringComparison.OrdinalIgnoreCase);
+        CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
 
         var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
@@ -213,10 +210,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             "bench", "run",
             acirPath,
             "-o", outputDir);
-        Assert.NotEqual(2, benchResult.ExitCode);
-        Assert.Contains("Ran: SEOpAmpACBench", benchResult.Stdout, StringComparison.Ordinal);
-        Assert.DoesNotContain("Simulation: FAIL", benchResult.Stdout, StringComparison.Ordinal);
-        Assert.DoesNotContain("Simulation failed", benchResult.Stdout, StringComparison.OrdinalIgnoreCase);
+        CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
 
         var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");

@@ -88,7 +88,9 @@ public static class PdkIncludeResolver
                 if (!string.IsNullOrWhiteSpace(corner))
                 {
                     var key = corner.Trim();
-                    sources = sources.Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                    var pattern = "_" + Regex.Escape(key) + "(?:\\.|$)";
+                    sources = sources.Where(p =>
+                        Regex.IsMatch(Path.GetFileName(p) ?? string.Empty, pattern, RegexOptions.IgnoreCase)).ToList();
                 }
 
                 extraIncludes.AddRange(sources);

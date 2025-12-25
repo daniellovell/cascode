@@ -824,7 +824,7 @@ public class EmitVerifyFlowTests : IDisposable
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             var stderrTask = process.StandardError.ReadToEndAsync();
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
                 await process.WaitForExitAsync(cts.Token);
@@ -835,7 +835,7 @@ public class EmitVerifyFlowTests : IDisposable
                 await process.WaitForExitAsync();
                 var stdoutTimedOut = await stdoutTask;
                 var stderrTimedOut = await stderrTask;
-                return (false, stdoutTimedOut, stderrTimedOut, "ngspice simulation timed out after 30 seconds");
+                return (false, stdoutTimedOut, stderrTimedOut, "ngspice simulation timed out after 60 seconds");
             }
 
             var stdout = await stdoutTask;

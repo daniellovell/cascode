@@ -75,4 +75,31 @@ public sealed class PdkIncludeResolverTests
         Assert.Equal("tt", includes.Section);
         Assert.Empty(includes.IncludePathsWithoutSection);
     }
+
+    [Fact]
+    public void ResolveModelIncludes_UsesCornerSuffixMatchingForSourceFiles()
+    {
+        using var tempDb = TestUtilities.TempPdkDatabase.Create();
+        var dbPath = tempDb.DatabasePath;
+        var directory = Path.GetDirectoryName(dbPath)!;
+
+        var match = Path.Combine(directory, "model__tt.spice");
+        var falseMatchSuffix = Path.Combine(directory, "model__tt_extra.spice");
+        var falseMatchPrefix = Path.Combine(directory, "model__ttest.spice");
+        File.WriteAllText(match, "*");
+        File.WriteAllText(falseMatchSuffix, "*");
+        File.WriteAllText(falseMatchPrefix, "*");
+
+        var model = new SpectreModel
+        {
+            Name = "dummy",
+            SourceFiles = new[] { match, falseMatchSuffix, falseMatchPrefix }
+        };
+
+        var includes = PdkIncludeResolver.ResolveModelIncludes(dbPath, model, "tt");
+
+        Assert.Single(includes.IncludePaths, match);
+        Assert.Empty(includes.IncludePathsWithSection);
+        Assert.Single(includes.IncludePathsWithoutSection, match);
+    }
 }
