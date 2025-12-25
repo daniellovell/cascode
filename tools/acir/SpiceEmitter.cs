@@ -37,6 +37,7 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="circuit">The circuit to emit (must be EL level).</param>
     /// <param name="writer">Text writer for output.</param>
+    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
     /// Output format:
@@ -49,7 +50,10 @@ public static class SpiceEmitter
     /// </code>
     /// Port ordering: declared ports, then supplies, then grounds.
     /// </remarks>
-    public static void EmitDesign(Circuit circuit, TextWriter writer)
+    public static void EmitDesign(
+        Circuit circuit,
+        TextWriter writer,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null)
     {
         if (circuit.Level != ACIRLevel.EL)
         {
@@ -94,7 +98,7 @@ public static class SpiceEmitter
         {
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
-                EmitDevice(device, writer);
+                EmitDevice(device, writer, deviceModelMap);
             }
         }
 
@@ -177,8 +181,16 @@ public static class SpiceEmitter
     /// Output directory is created if it doesn't exist.
     /// Non-EL circuits are silently skipped.
     /// </remarks>
-    public static SpiceEmitResult Emit(ACIRDocument doc, string outputDir, BenchBackendType backend = BenchBackendType.Ngspice, string? workspaceRoot = null)
+    public static SpiceEmitResult Emit(
+        ACIRDocument doc,
+        string outputDir,
+        BenchBackendType backend = BenchBackendType.Ngspice,
+        string? workspaceRoot = null,
+        IBenchIncludeResolver? includeResolver = null)
     {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(outputDir);
+
         var result = new SpiceEmitResult();
         Directory.CreateDirectory(outputDir);
 
@@ -189,11 +201,13 @@ public static class SpiceEmitter
                 continue;
             }
 
+            var includeResolution = includeResolver?.Resolve(circuit, backend);
+
             // Emit design netlist
             var designPath = Path.Combine(outputDir, $"{circuit.Name}.sp");
             using (var writer = File.CreateText(designPath))
             {
-                EmitDesign(circuit, writer);
+                EmitDesign(circuit, writer, includeResolution?.DeviceModelMap);
             }
             result.DesignPaths.Add(designPath);
 
@@ -202,7 +216,13 @@ public static class SpiceEmitter
             {
                 foreach (var bench in circuit.Benches.Benches)
                 {
-                    var files = ACIRBenchAdapter.GenerateTestbench(circuit, bench, backend, outputDir, workspaceRoot);
+                    var files = ACIRBenchAdapter.GenerateTestbench(
+                        circuit,
+                        bench,
+                        backend,
+                        outputDir,
+                        workspaceRoot,
+                        includeResolution);
                     result.TestbenchPaths.Add(files.NetlistPath);
                 }
             }
@@ -223,8 +243,16 @@ public static class SpiceEmitter
     /// Runs emission validation before attempting SPICE generation.
     /// If validation fails, no files are written and the validation errors are returned.
     /// </remarks>
-    public static ValidatedEmitResult ValidateAndEmit(ACIRDocument doc, string outputDir, BenchBackendType backend = BenchBackendType.Ngspice, string? workspaceRoot = null)
+    public static ValidatedEmitResult ValidateAndEmit(
+        ACIRDocument doc,
+        string outputDir,
+        BenchBackendType backend = BenchBackendType.Ngspice,
+        string? workspaceRoot = null,
+        IBenchIncludeResolver? includeResolver = null)
     {
+        ArgumentNullException.ThrowIfNull(doc);
+        ArgumentNullException.ThrowIfNull(outputDir);
+
         var validationResult = new ValidationResult();
 
         // Validate all EL circuits first
@@ -246,7 +274,7 @@ public static class SpiceEmitter
         }
 
         // Validation passed, proceed with emission
-        var emitResult = Emit(doc, outputDir, backend, workspaceRoot);
+        var emitResult = Emit(doc, outputDir, backend, workspaceRoot, includeResolver);
 
         return new ValidatedEmitResult
         {
@@ -261,11 +289,17 @@ public static class SpiceEmitter
     /// <param name="device">Device to emit.</param>
     /// <param name="writer">Text writer for output.</param>
     /// <exception cref="InvalidOperationException">Thrown if device type is unknown or required terminals are missing.</exception>
-    private static void EmitDevice(DeviceDeclaration device, TextWriter writer)
+    private static void EmitDevice(
+        DeviceDeclaration device,
+        TextWriter writer,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap)
     {
+        var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
+        var useSubckt = resolvedModel?.IsSubckt ?? false;
+
         var spiceType = device.DeviceType.ToLowerInvariant() switch
         {
-            "nmos" or "pmos" => "M",
+            "nmos" or "pmos" => useSubckt ? "X" : "M",
             "resistor" => "R",
             "capacitor" => "C",
             "inductor" => "L",
@@ -279,9 +313,9 @@ public static class SpiceEmitter
         sb.Append(' ');
 
         // Terminal ordering and parameters depend on device type
-        if (spiceType == "M")
+        if (spiceType is "M" or "X")
         {
-            EmitMosfetTerminalsAndParams(device, sb);
+            EmitMosfetTerminalsAndParams(device, sb, deviceModelMap, useSubckt);
         }
         else if (spiceType is "R" or "C" or "L")
         {
@@ -311,7 +345,7 @@ public static class SpiceEmitter
             sb.Append(' ');
             sb.Append(GetBinding(device, "K"));
             sb.Append(' ');
-            sb.Append(device.PdkDevice ?? "D");
+            sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: "D"));
         }
 
         writer.WriteLine(sb.ToString().TrimEnd());
@@ -322,7 +356,12 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="device">MOSFET device declaration.</param>
     /// <param name="sb">StringBuilder to append to.</param>
-    private static void EmitMosfetTerminalsAndParams(DeviceDeclaration device, StringBuilder sb)
+    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model names.</param>
+    private static void EmitMosfetTerminalsAndParams(
+        DeviceDeclaration device,
+        StringBuilder sb,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        bool useSubckt)
     {
         // MOSFET terminal ordering: D G S B
         sb.Append(GetBinding(device, "D"));
@@ -334,23 +373,54 @@ public static class SpiceEmitter
         sb.Append(GetBinding(device, "B"));
         sb.Append(' ');
 
-        // Model name (PDK device or generic)
-        sb.Append(device.PdkDevice ?? device.DeviceType);
+        // Model name (resolved PDK model or generic)
+        sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
         // Parameters: W, L, m
         if (device.Params.TryGetValue("W", out var w))
         {
-            sb.Append($"W={w} ");
+            sb.Append(useSubckt ? $"w={w} " : $"W={w} ");
         }
         if (device.Params.TryGetValue("L", out var l))
         {
-            sb.Append($"L={l} ");
+            sb.Append(useSubckt ? $"l={l} " : $"L={l} ");
         }
         if (device.Params.TryGetValue("M", out var m))
         {
-            sb.Append($"m={m}");
+            sb.Append(useSubckt ? $"mult={m}" : $"m={m}");
         }
+    }
+
+    private static DeviceModelResolution? ResolveDeviceModel(
+        DeviceDeclaration device,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap)
+    {
+        if (string.IsNullOrWhiteSpace(device.PdkDevice) || deviceModelMap is null)
+        {
+            return null;
+        }
+
+        return deviceModelMap.TryGetValue(device.PdkDevice, out var resolution) ? resolution : null;
+    }
+
+    private static string ResolveDeviceModelName(
+        DeviceDeclaration device,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        string defaultModel)
+    {
+        var resolved = ResolveDeviceModel(device, deviceModelMap);
+        if (resolved is not null && !string.IsNullOrWhiteSpace(resolved.ModelName))
+        {
+            return resolved.ModelName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(device.PdkDevice))
+        {
+            return device.PdkDevice;
+        }
+
+        return defaultModel;
     }
 
     /// <summary>

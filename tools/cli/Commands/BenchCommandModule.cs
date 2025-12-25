@@ -56,7 +56,7 @@ internal sealed class BenchCommandModule : ICommandModule
             }));
 
             var service = new BenchRunService(loggerFactory.CreateLogger<BenchRunService>());
-            var result = service.Run(_state.WorkspaceRoot, parsed);
+            var result = service.Run(_state.WorkspaceRoot, _state.PdkRoot, parsed);
             WriteBenchRunSummary(result.Summary, parsed.Verbose);
             localFactory?.Dispose();
             return result.ExitCode == 0 ? CommandResult.Success : new CommandResult(result.ExitCode, false);

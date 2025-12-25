@@ -7,7 +7,10 @@ using System.Text.Json.Serialization;
 using Cascode.ACIR;
 using Cascode.ACIR.Validation;
 using Cascode.Bench;
+using Cascode.Cli.Services;
 using Cascode.Parser;
+using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
 
@@ -95,10 +98,28 @@ internal sealed class EmitCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
+        var usesPdkDevices = elCircuits.Any(c => c.Fill?.Devices.Any(d => !string.IsNullOrWhiteSpace(d.PdkDevice)) == true);
+
+        ILoggerFactory? localFactory = null;
         try
         {
             var workspaceRoot = FindWorkspaceRoot(inputPath) ?? Directory.GetCurrentDirectory();
-            var result = SpiceEmitter.ValidateAndEmit(doc, outputDir, backend, workspaceRoot);
+            var pdkRoot = _state.PdkRoot ?? _state.WorkspaceRoot;
+            if (usesPdkDevices && !jsonOutput)
+            {
+                var dbPath = WorkspacePaths.GetDatabasePath(pdkRoot);
+                var status = File.Exists(dbPath) ? string.Empty : " (no pdk.db; run 'pdk scan')";
+                _state.AddMessage($"PDK workspace: {pdkRoot}{status}");
+            }
+            var loggerFactory = _state.LoggerFactory ?? (localFactory = LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Warning);
+                builder.AddSimpleConsole(o => { o.SingleLine = true; });
+            }));
+            var includeResolver = PdkBenchIncludeResolver.Create(
+                pdkRoot,
+                loggerFactory.CreateLogger<PdkBenchIncludeResolver>());
+            var result = SpiceEmitter.ValidateAndEmit(doc, outputDir, backend, workspaceRoot, includeResolver);
 
             if (!result.Validation.IsValid)
             {
@@ -152,6 +173,10 @@ internal sealed class EmitCommandModule : ICommandModule
                 _state.AddMessage($"SPICE emission failed: {ex.Message}");
             }
             return CommandResult.Failure;
+        }
+        finally
+        {
+            localFactory?.Dispose();
         }
     }
 

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
@@ -146,5 +147,78 @@ public sealed class BenchRunIntegrationTests : IDisposable
             _cascodeHome,
             "verify", acirPath, tracePath);
         CliIntegrationTestHelper.AssertSuccess(verify, "verify with positional args failed");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_PdkSetDir_UsesPdkIncludesAndSimulates()
+    {
+        var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir");
+        var outputDir = Path.Combine(_outputDir, "pdk-setdir-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(outputDir);
+
+        var setDirResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "pdk", "set-dir", pdkRoot);
+        CliIntegrationTestHelper.AssertSuccess(setDirResult, "pdk set-dir failed");
+
+        var scanResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            _cascodeHome,
+            "pdk", "scan");
+        CliIntegrationTestHelper.AssertSuccess(scanResult, "pdk scan failed");
+
+        var benchResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(90),
+            _cascodeHome,
+            "bench", "run",
+            acirPath,
+            "-o", outputDir);
+        CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
+
+        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Matches(new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase), content);
+
+        var resultsPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench_results.json");
+        Assert.True(File.Exists(resultsPath), "PDK results.json not found");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_PdkWorkspaceFlag_UsesPdkIncludesAndSimulates()
+    {
+        var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir");
+        var outputDir = Path.Combine(_outputDir, "pdk-workspace-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(outputDir);
+
+        var scanResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            _cascodeHome,
+            "pdk", "scan", pdkRoot);
+        CliIntegrationTestHelper.AssertSuccess(scanResult, "pdk scan failed");
+
+        var benchResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(90),
+            _cascodeHome,
+            "--workspace", pdkRoot,
+            "bench", "run",
+            acirPath,
+            "-o", outputDir);
+        CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
+
+        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
+
+        var content = await File.ReadAllTextAsync(benchPath);
+        Assert.Matches(new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase), content);
+
+        var resultsPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench_results.json");
+        Assert.True(File.Exists(resultsPath), "PDK results.json not found");
     }
 }
