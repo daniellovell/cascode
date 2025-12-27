@@ -1004,13 +1004,13 @@ public static class ACIRReader
                 if (!line.Contains("(") || !line.Contains(")"))
                 {
                     diagnostics.Add(new Diagnostic(
-                        $"ACIR0014: Parallel load specification missing parentheses: '{line}'",
+                        $"ACIR0010: Parallel load specification missing parentheses: '{line}'",
                         DiagnosticSeverity.Error, filePath, lineNumber, 1));
                 }
                 else if (!line.Contains("||"))
                 {
                     diagnostics.Add(new Diagnostic(
-                        $"ACIR0013: Parallel load specification missing '||' operator: '{line}'",
+                        $"ACIR0011: Parallel load specification missing '||' operator: '{line}'",
                         DiagnosticSeverity.Error, filePath, lineNumber, 1));
                 }
                 else
@@ -1025,11 +1025,11 @@ public static class ACIRReader
                             $"ACIR0012: Parallel load specification missing first element: '{line}'",
                             DiagnosticSeverity.Error, filePath, lineNumber, 1));
                     }
-                    
+
                     if (parts.Length >= 2 && string.IsNullOrWhiteSpace(parts[1]))
                     {
                         diagnostics.Add(new Diagnostic(
-                            $"ACIR0010: Parallel load specification missing second element: '{line}'",
+                            $"ACIR0013: Parallel load specification missing second element: '{line}'",
                             DiagnosticSeverity.Error, filePath, lineNumber, 1));
                     }
 
@@ -1039,7 +1039,7 @@ public static class ACIRReader
                         if (!string.IsNullOrWhiteSpace(trimmed) && (trimmed == "C=" || trimmed == "R="))
                         {
                             diagnostics.Add(new Diagnostic(
-                                $"ACIR0011: Parallel load element missing value: '{line}'",
+                                $"ACIR0014: Parallel load element missing value: '{line}'",
                                 DiagnosticSeverity.Error, filePath, lineNumber, 1));
                         }
                     }

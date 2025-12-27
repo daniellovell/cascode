@@ -364,11 +364,11 @@ circuit Test
 ";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0010")); // Missing second
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0010")); // Missing parens
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0011")); // Missing ||
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0012")); // Missing first
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0013")); // Missing ||
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0014")); // Missing parens
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0011")); // Missing value
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0013")); // Missing second
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0014")); // Missing value
     }
 
     [Fact]

@@ -518,7 +518,8 @@ public static class ACIRBenchAdapter
 
         if (stripUnits)
         {
-            foreach (var suffix in new[] { "V", "A", "F", "Ohm", "ohm", "H", "Hz", "W", "s", "S" })
+            // Check longer suffixes first to avoid partial matches (e.g., "Hz" before "H")
+            foreach (var suffix in new[] { "Ohm", "ohm", "Hz", "V", "A", "F", "H", "W", "s", "S" })
             {
                 if (cleanedValue.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {

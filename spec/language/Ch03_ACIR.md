@@ -766,6 +766,12 @@ The ACIR reader emits structured diagnostics when parsing fails or encounters ma
 | ACIR0003 | Error | Malformed circuit or bundle declaration |
 | ACIR0004 | Error | Invalid device declaration syntax |
 | ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
+| ACIR0006 | Error | Invalid sweep range specification; expects `[start:stop]` or `[start:step:stop]` |
+| ACIR0010 | Error | Parallel load specification missing parentheses; expects `(C=... \|\| R=...)` |
+| ACIR0011 | Error | Parallel load specification missing `\|\|` operator between elements |
+| ACIR0012 | Error | Parallel load specification missing first element (before `\|\|`) |
+| ACIR0013 | Error | Parallel load specification missing second element (after `\|\|`) |
+| ACIR0014 | Error | Parallel load element missing value; expects `C=<value>` or `R=<value>` |
 
 ### Programmatic Access
 
