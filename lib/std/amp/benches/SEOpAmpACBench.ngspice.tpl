@@ -37,7 +37,8 @@ RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
 RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
 
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+{{ if load.c }}C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}{{ end }}
+{{ if load.r }}R{{ load.net }}_load {{ load.net }} 0 {{ load.r }}{{ end }}
 {{ end }}
 
 * DUT

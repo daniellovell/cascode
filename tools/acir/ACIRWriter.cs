@@ -278,14 +278,22 @@ public static class ACIRWriter
         foreach (var source in harness.Sources.OrderBy(s => s.Net, StringComparer.Ordinal))
         {
             var z = source.Z is not null ? $" Z={source.Z}" : "";
-            var unit = source.Unit is not null ? $" {source.Unit}" : "";
-            writer.WriteLine($"    source {source.Net}{z}{unit}");
+            writer.WriteLine($"    source {source.Net}{z}");
         }
         foreach (var load in harness.Loads.OrderBy(l => l.Net, StringComparer.Ordinal))
         {
-            var c = load.C is not null ? $" C={load.C}" : "";
-            var unit = load.Unit is not null ? $" {load.Unit}" : "";
-            writer.WriteLine($"    load {load.Net}{c}{unit}");
+            if (load.R != null && load.C != null)
+            {
+                writer.WriteLine($"    load {load.Net} (C={load.C} || R={load.R})");
+            }
+            else if (load.C != null)
+            {
+                writer.WriteLine($"    load {load.Net} C={load.C}");
+            }
+            else if (load.R != null)
+            {
+                writer.WriteLine($"    load {load.Net} R={load.R}");
+            }
         }
         if (harness.Icmr is not null)
         {

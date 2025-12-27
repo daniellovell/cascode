@@ -26,7 +26,8 @@ VIN IN 0 DC {{ sweep.InputDCBias.Start }} AC 1
 VIN IN 0 DC {{ bias_v }} AC 1
 {{ end }}
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+{{ if load.c }}C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}{{ end }}
+{{ if load.r }}R{{ load.net }}_load {{ load.net }} 0 {{ load.r }}{{ end }}
 {{ end }}
 
 * DUT

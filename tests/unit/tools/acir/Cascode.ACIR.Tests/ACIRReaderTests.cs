@@ -235,9 +235,9 @@ circuit Test : SingleEndedAmp
   port IN : analog
   port OUT : analog
   harness:
-    supply VDD = 1.8V
-    sweep InputDCBias [0.3V:100mV:1.5V]
-    load OUT C=1p F
+    supply VDD = 1.8 V
+    sweep InputDCBias [0.3 V:100 mV:1.5 V]
+    load OUT C=1 pF
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -253,6 +253,27 @@ circuit Test : SingleEndedAmp
     }
 
     [Fact]
+    public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
+    {
+        var content = @"ACIR 1
+circuit Test
+  level EL
+  harness:
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1p F
+    source IN Z=50
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        var harness = result.Document!.Circuits[0].Harness!;
+        Assert.Equal("1.8V", harness.Supplies[0].Value);
+        Assert.Equal("0.6V", harness.Biases[0].Value);
+        Assert.Equal("1pF", harness.Loads[0].C);
+        Assert.Equal("50Ohm", harness.Sources[0].Z);
+    }
+
+    [Fact]
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
         var content = @"ACIR 1
@@ -263,7 +284,7 @@ circuit Test : SingleEndedAmp
   port IN : analog
   port OUT : analog
   harness:
-    supply VDD = 1.8V
+    supply VDD = 1.8 V
     sweep InputDCBias [Auto]
 ";
         var result = ACIRReader.TryParse(content);
@@ -284,7 +305,7 @@ circuit Test : SingleEndedAmp
   port IN : analog
   port OUT : analog
   harness:
-    sweep InputDCBias [0.3V:1.5V]
+    sweep InputDCBias [0.3 V:1.5 V]
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -294,6 +315,83 @@ circuit Test : SingleEndedAmp
         Assert.Equal("1.5V", sweep.Stop);
         Assert.Null(sweep.Step);
         Assert.False(sweep.IsAuto);
+    }
+
+    [Fact]
+    public void TryParse_HarnessWithParallelLoad_ParsesBothComponents()
+    {
+        var content = @"ACIR 1
+circuit Test
+  level EL
+  harness:
+    load OUT (C=1 pF || R=1 MOhm)
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        var load = result.Document!.Circuits[0].Harness!.Loads[0];
+        Assert.Equal("1pF", load.C);
+        Assert.Equal("1MOhm", load.R);
+    }
+
+    [Fact]
+    public void TryParse_HarnessWithParallelLoadReverseOrder_ParsesBothComponents()
+    {
+        var content = @"ACIR 1
+circuit Test
+  level EL
+  harness:
+    load OUT (R=10 kOhm || C=10 pF)
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        var load = result.Document!.Circuits[0].Harness!.Loads[0];
+        Assert.Equal("10pF", load.C);
+        Assert.Equal("10kOhm", load.R);
+    }
+
+    [Fact]
+    public void TryParse_MalformedParallelLoad_EmitsDiagnostics()
+    {
+        var content = @"ACIR 1
+circuit Test
+  level EL
+  harness:
+    load OUT (C=1 pF || )
+    load OUT (|| R=1 MOhm)
+    load OUT (C=1 pF R=1 MOhm)
+    load OUT C=1 pF || R=1 MOhm
+    load OUT (C= || R=1 MOhm)
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.False(result.Success);
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0010")); // Missing second
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0012")); // Missing first
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0013")); // Missing ||
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0014")); // Missing parens
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0011")); // Missing value
+    }
+
+    [Fact]
+    public void ACIRWriter_ParallelLoad_EmitsCanonicalFormat()
+    {
+        var circuit = new Circuit
+        {
+            Name = "Test",
+            Level = ACIRLevel.EL,
+            Harness = new HarnessBlock
+            {
+                Loads = new List<LoadValue>
+                {
+                    new() { Net = "OUT", C = "1pF", R = "1MOhm" }
+                }
+            }
+        };
+        var doc = new ACIRDocument { Circuits = new List<Circuit> { circuit } };
+        using var writer = new StringWriter();
+        ACIRWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("load OUT (C=1pF || R=1MOhm)", output);
     }
 
     [Fact]

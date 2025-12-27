@@ -29,7 +29,8 @@ VIN IN 0 DC {{ bias_v }}
 
 * Output load
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+{{ if load.c }}C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}{{ end }}
+{{ if load.r }}R{{ load.net }}_load {{ load.net }} 0 {{ load.r }}{{ end }}
 {{ end }}
 
 * DUT
