@@ -11,6 +11,6 @@ circuit InvalidAutoSweep : SingleEndedAmp
   harness:
     supply VDD = 1.8V
     sweep InputDCBias [Auto]
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     SEAmpDCBench

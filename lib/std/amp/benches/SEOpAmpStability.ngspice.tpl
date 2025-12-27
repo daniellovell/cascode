@@ -36,7 +36,8 @@ C_INJ IN_N_src IN_N 1T
 V_INJ IN_N_src 0 AC 1
 
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+{{ if load.c }}C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}{{ end }}
+{{ if load.r }}R{{ load.net }}_load {{ load.net }} 0 {{ load.r }}{{ end }}
 {{ end }}
 
 CLOAD OUT 0 {{ env.cload_f }}

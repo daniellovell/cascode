@@ -157,7 +157,7 @@ public static class ACIRBenchAdapter
     }
 
     /// <summary>
-    /// Builds the list of harness loads (capacitive loads) for template rendering.
+    /// Builds the list of harness loads (capacitive and resistive loads) for template rendering.
     /// </summary>
     internal static List<object> BuildHarnessLoads(Circuit circuit)
     {
@@ -168,13 +168,13 @@ public static class ACIRBenchAdapter
 
         foreach (var load in circuit.Harness.Loads)
         {
-            if (load.C != null)
+            var data = new Dictionary<string, object> { ["net"] = load.Net };
+            if (load.C != null) data["c"] = load.C;
+            if (load.R != null) data["r"] = load.R;
+
+            if (data.Count > 1) // net plus at least one component
             {
-                result.Add(new Dictionary<string, object>
-                {
-                    ["net"] = load.Net,
-                    ["c"] = load.C
-                });
+                result.Add(data);
             }
         }
 
@@ -301,7 +301,7 @@ public static class ACIRBenchAdapter
         var biasV = vcm;
         var loadC = DeriveLoadCapacitance(circuit);
         var sourceOhms = DeriveSourceImpedance(circuit);
-        const double rloadOhms = 1e9;
+        var rloadOhms = DeriveLoadResistance(circuit);
 
         return new HarnessParameters(vcm, biasV, loadC, sourceOhms, rloadOhms);
     }
@@ -334,6 +334,20 @@ public static class ACIRBenchAdapter
             return parsedC;
 
         return defaultLoadC;
+    }
+
+    private static double DeriveLoadResistance(Circuit circuit)
+    {
+        const double defaultLoadR = 1e9; // 1 GOhm default
+
+        if (circuit.Harness?.Loads == null || circuit.Harness.Loads.Count == 0)
+            return defaultLoadR;
+
+        var firstLoad = circuit.Harness.Loads[0];
+        if (firstLoad.R != null && TryParseValue(firstLoad.R, out var parsedR))
+            return parsedR;
+
+        return defaultLoadR;
     }
 
     private static double DeriveSourceImpedance(Circuit circuit)
@@ -504,7 +518,8 @@ public static class ACIRBenchAdapter
 
         if (stripUnits)
         {
-            foreach (var suffix in new[] { "V", "F", "ohm", "Ohm", "Hz", "W", "A", "s", "S" })
+            // Check longer suffixes first to avoid partial matches (e.g., "Hz" before "H")
+            foreach (var suffix in new[] { "Ohm", "ohm", "Hz", "V", "A", "F", "H", "W", "s", "S" })
             {
                 if (cleanedValue.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 {

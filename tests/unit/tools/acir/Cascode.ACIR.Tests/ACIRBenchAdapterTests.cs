@@ -196,7 +196,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "1p" }
+                        new() { Net = "OUT", C = "1pF" }
                     }
                 }
             };
@@ -206,7 +206,7 @@ namespace Cascode.ACIR.Tests
             Assert.Single(result);
             var first = (Dictionary<string, object>)result[0];
             Assert.Equal("OUT", first["net"]);
-            Assert.Equal("1p", first["c"]);
+            Assert.Equal("1pF", first["c"]);
         }
 
         [Fact]
@@ -439,7 +439,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV" }
+                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = "100 mV" }
                     }
                 }
             };
@@ -464,7 +464,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = null }
+                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = null }
                     }
                 }
             };
@@ -495,7 +495,7 @@ namespace Cascode.ACIR.Tests
                     },
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV" }
+                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = "100 mV" }
                     }
                 }
             };
@@ -580,7 +580,7 @@ namespace Cascode.ACIR.Tests
         }
 
         [Fact]
-        public void DerivesLoadCapacitance()
+        public void DerivesLoadResistance()
         {
             var circuit = new Circuit
             {
@@ -589,14 +589,58 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "10p" }
+                        new() { Net = "OUT", C = "1pF", R = "10MOhm" }
                     }
                 }
             };
 
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
 
-            Assert.Equal(10e-12, result.LoadC);
+            Assert.Equal(10e6, result.RloadOhms);
+        }
+
+        [Fact]
+        public void DerivesDefaultLoadResistance_WhenNotSpecified()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new() { Net = "OUT", C = "1pF" }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
+
+            Assert.Equal(1e9, result.RloadOhms); // Default 1 GOhm
+        }
+
+        [Fact]
+        public void IncludesParallelLoadInHarnessLoads()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new() { Net = "OUT", C = "1pF", R = "1MOhm" }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+            Assert.Equal("OUT", first["net"]);
+            Assert.Equal("1pF", first["c"]);
+            Assert.Equal("1MOhm", first["r"]);
         }
 
         [Fact]

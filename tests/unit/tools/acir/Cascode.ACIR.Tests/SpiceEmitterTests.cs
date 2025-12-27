@@ -166,7 +166,7 @@ public class SpiceEmitterTests
                 },
                 Loads = new List<LoadValue>
                 {
-                    new() { Net = "OUT", C = "1p" }
+                    new() { Net = "OUT", C = "1pF" }
                 }
             }
         };
@@ -181,7 +181,7 @@ public class SpiceEmitterTests
         Assert.Contains(".title TestAmp_ACBench", output);
         Assert.Contains(".include \"TestAmp.sp\"", output);
         Assert.Contains("VVDD VDD 0 DC 1.8V", output);
-        Assert.Contains("COUT_load OUT 0 1p", output);
+        Assert.Contains("COUT_load OUT 0 1pF", output);
         Assert.Contains("XDUT IN OUT VDD GND TestAmp", output);
         Assert.Contains(".control", output);
         Assert.Contains("ac dec 100 1 10G", output);

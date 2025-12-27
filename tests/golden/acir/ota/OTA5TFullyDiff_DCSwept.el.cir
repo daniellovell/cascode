@@ -32,7 +32,7 @@ circuit OTA5TFullyDiff_DCSwept
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     FDOpAmpDCBench
 

@@ -344,7 +344,6 @@ public sealed class SourceValue
 {
     public string Net { get; init; } = string.Empty;
     public string? Z { get; init; }
-    public string? Unit { get; init; }
 }
 
 /// <summary>
@@ -354,7 +353,7 @@ public sealed class LoadValue
 {
     public string Net { get; init; } = string.Empty;
     public string? C { get; init; }
-    public string? Unit { get; init; }
+    public string? R { get; init; }
 }
 
 /// <summary>

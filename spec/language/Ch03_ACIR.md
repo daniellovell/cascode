@@ -571,8 +571,8 @@ harness:
   supply VDDIO = 3.3V
   bias VBIAS = 0.7V
   sweep InputDCCommonMode [0.3V:100mV:1.5V]
-  source IN Z=50 Ohm
-  load OUT C=1p F
+  source IN Z=50Ohm
+  load OUT C=1pF
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
 ```
@@ -766,6 +766,12 @@ The ACIR reader emits structured diagnostics when parsing fails or encounters ma
 | ACIR0003 | Error | Malformed circuit or bundle declaration |
 | ACIR0004 | Error | Invalid device declaration syntax |
 | ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
+| ACIR0006 | Error | Invalid sweep range specification; expects `[start:stop]` or `[start:step:stop]` |
+| ACIR0010 | Error | Parallel load specification missing parentheses; expects `(C=... \|\| R=...)` |
+| ACIR0011 | Error | Parallel load specification missing `\|\|` operator between elements |
+| ACIR0012 | Error | Parallel load specification missing first element (before `\|\|`) |
+| ACIR0013 | Error | Parallel load specification missing second element (after `\|\|`) |
+| ACIR0014 | Error | Parallel load element missing value; expects `C=<value>` or `R=<value>` |
 
 ### Programmatic Access
 
@@ -928,7 +934,7 @@ circuit OTA5TSingleEnded
 
   harness:
     supply VDD = 1.8V
-    load OUT C=1p F
+    load OUT C=1pF
     icmr min=0.55V max=0.75V
     pvt TT@27C
 
@@ -969,7 +975,7 @@ circuit LatchPadBuffer
 
   harness:
     supply VDD = 1.8V
-    load PAD C=15p F
+    load PAD C=15pF
 
   benches:
     StepToggle:
@@ -1017,8 +1023,8 @@ circuit CSAmplifier
   harness:
     supply VDD = 1.8V
     bias vb1 = 0.7V
-    load vout C=1p F
-    source vin Z=50 Ohm
+    load vout C=1pF
+    source vin Z=50Ohm
     pvt TT@27C
 
   benches:
@@ -1228,8 +1234,11 @@ sweepDecl    = "sweep" IDENT sweepRange ;
 sweepRange   = "[" value ":" value ":" value "]"    ; start:step:stop (explicit step)
              | "[" value ":" value "]" ;             ; start:stop (auto step)
              | "[" "Auto" "]" ;                      ; synthesis-chosen (HL/ML only)
-loadDecl     = "load" IDENT "C=" value UNIT? ;
-sourceDecl   = "source" IDENT "Z=" value UNIT? ;
+loadDecl     = "load" IDENT loadSpec ;
+loadSpec     = "C=" value
+             | "(" loadElement "||" loadElement ")" ;
+loadElement  = "C=" value | "R=" value ;
+sourceDecl   = "source" IDENT "Z=" value ;
 icmrDecl     = "icmr" "min=" value "max=" value ;
 pvtDecl      = "pvt" cornerList ;
 cornerList   = corner ("," corner)* ;
@@ -1238,7 +1247,10 @@ corner       = IDENT "@" value ;
 terminalPath = IDENT ("." IDENT | "[" INT "]")* ;
 qualifiedName= IDENT ("." IDENT)* ;
 domain       = "supply" | "ground" | "analog" | "bias" | "digital" | "clock" | "rf" ;
-value        = NUMBER UNIT? ;
+value        = NUMBER SIUNIT ;
+SIUNIT       = SIPREFIX? BASEUNIT ;
+SIPREFIX     = "f" | "p" | "n" | "u" | "m" | "k" | "M" | "G" | "T" ;
+BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" ;
 paramValue   = value | "$" IDENT | IDENT ;
 source       = "@[" STRING "]" ;
 

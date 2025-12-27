@@ -20,7 +20,7 @@ circuit CommonSourceAmp : SingleEndedAmp
   harness:
     supply VDD = 1.8V
     bias VBIAS = 0.7V
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     SEAmpACBench
 

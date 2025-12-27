@@ -19,6 +19,6 @@ circuit CSAmpResistive_DCSwept : SingleEndedAmp
   harness:
     supply VDD = 1.8V
     sweep InputDCBias [0.3V:100mV:1.5V]
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     SEAmpDCBench

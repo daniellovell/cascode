@@ -31,7 +31,8 @@ EIN_N IN_N 0 IN_P 0 1
 
 * Output load
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
+{{ if load.c }}C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}{{ end }}
+{{ if load.r }}R{{ load.net }}_load {{ load.net }} 0 {{ load.r }}{{ end }}
 {{ end }}
 
 * DUT

@@ -31,6 +31,6 @@ circuit OTA5TSingleEnded
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     SEOpAmpACBench

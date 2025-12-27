@@ -997,6 +997,60 @@ public static class ACIRReader
         // Preserve existing parsing behavior, but emit diagnostics for malformed constructs.
         ParseHarnessContent(line, harness);
 
+        if (line.StartsWith("load "))
+        {
+            bool hasOpenParen = line.Contains("(");
+            bool hasCloseParen = line.Contains(")");
+            bool hasPipe = line.Contains("||");
+
+            if (hasOpenParen || hasCloseParen || hasPipe)
+            {
+                if (!hasOpenParen || !hasCloseParen)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        $"ACIR0010: Parallel load specification missing parentheses: '{line}'",
+                        DiagnosticSeverity.Error, filePath, lineNumber, 1));
+                }
+                else if (!hasPipe)
+                {
+                    diagnostics.Add(new Diagnostic(
+                        $"ACIR0011: Parallel load specification missing '||' operator: '{line}'",
+                        DiagnosticSeverity.Error, filePath, lineNumber, 1));
+                }
+                else
+                {
+                    var contentMatch = Regex.Match(line, @"\(([^)]*)\)");
+                    var content = contentMatch.Groups[1].Value;
+                    var parts = content.Split("||");
+
+                    if (parts.Length >= 1 && string.IsNullOrWhiteSpace(parts[0]))
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            $"ACIR0012: Parallel load specification missing first element: '{line}'",
+                            DiagnosticSeverity.Error, filePath, lineNumber, 1));
+                    }
+
+                    if (parts.Length >= 2 && string.IsNullOrWhiteSpace(parts[1]))
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            $"ACIR0013: Parallel load specification missing second element: '{line}'",
+                            DiagnosticSeverity.Error, filePath, lineNumber, 1));
+                    }
+
+                    foreach (var part in parts)
+                    {
+                        var trimmed = part.Trim();
+                        if (!string.IsNullOrWhiteSpace(trimmed) && (trimmed == "C=" || trimmed == "R="))
+                        {
+                            diagnostics.Add(new Diagnostic(
+                                $"ACIR0014: Parallel load element missing value: '{line}'",
+                                DiagnosticSeverity.Error, filePath, lineNumber, 1));
+                        }
+                    }
+                }
+            }
+        }
+
         // Specifically: sweep lines previously silently ignored unrecognized range specs.
         if (line.StartsWith("sweep "))
         {
@@ -1036,31 +1090,57 @@ public static class ACIRReader
                 harness.Supplies.Add(new SupplyValue
                 {
                     Net = match.Groups[1].Value,
-                    Value = match.Groups[2].Value.Trim()
+                    Value = NormalizeQuantity(match.Groups[2].Value.Trim(), "V")
                 });
             }
         }
         else if (line.StartsWith("load "))
         {
-            var match = Regex.Match(line, @"^load\s+(\w+)\s+C=([^\s]+)");
-            if (match.Success)
+            // Try parallel syntax first: load NET (C=... || R=...) or (R=... || C=...)
+            var parallelMatch = Regex.Match(line, @"^load\s+(\w+)\s+\(([^)]+)\)$");
+            if (parallelMatch.Success)
             {
-                harness.Loads.Add(new LoadValue
+                var net = parallelMatch.Groups[1].Value;
+                var content = parallelMatch.Groups[2].Value;
+                var parts = content.Split("||", StringSplitOptions.RemoveEmptyEntries);
+
+                string? c = null;
+                string? r = null;
+
+                foreach (var part in parts)
                 {
-                    Net = match.Groups[1].Value,
-                    C = match.Groups[2].Value
-                });
+                    var trimmedPart = part.Trim();
+                    if (trimmedPart.StartsWith("C="))
+                        c = NormalizeQuantity(trimmedPart[2..].Trim(), "F");
+                    else if (trimmedPart.StartsWith("R="))
+                        r = NormalizeQuantity(trimmedPart[2..].Trim(), "Ohm");
+                }
+
+                harness.Loads.Add(new LoadValue { Net = net, C = c, R = r });
+            }
+            else
+            {
+                // Single-element syntax
+                var match = Regex.Match(line, @"^load\s+(\w+)\s+C=([^;]+)");
+                if (match.Success)
+                {
+                    harness.Loads.Add(new LoadValue
+                    {
+                        Net = match.Groups[1].Value,
+                        C = NormalizeQuantity(match.Groups[2].Value.Trim(), "F")
+                    });
+                }
             }
         }
         else if (line.StartsWith("source "))
         {
-            var match = Regex.Match(line, @"^source\s+(\w+)\s+Z=([^\s]+)");
+            var match = Regex.Match(line, @"^source\s+(\w+)\s+Z=([^;]+)");
             if (match.Success)
             {
                 harness.Sources.Add(new SourceValue
                 {
                     Net = match.Groups[1].Value,
-                    Z = match.Groups[2].Value
+                    Z = NormalizeQuantity(match.Groups[2].Value.Trim(), "Ohm")
                 });
             }
         }
@@ -1072,7 +1152,7 @@ public static class ACIRReader
                 harness.Biases.Add(new BiasValue
                 {
                     Net = match.Groups[1].Value,
-                    Value = match.Groups[2].Value.Trim()
+                    Value = NormalizeQuantity(match.Groups[2].Value.Trim(), "V")
                 });
             }
         }
@@ -1094,12 +1174,35 @@ public static class ACIRReader
     }
 
     /// <summary>
+    /// Normalizes a quantity string to compact SPICE-compatible format: "valuePrefixUnit".
+    /// Examples: "1.8V", "1pF", "1MOhm", "100mV"
+    /// </summary>
+    private static string NormalizeQuantity(string value, string defaultUnit = "")
+    {
+        // Regex pattern for quantity: (\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?
+        var match = Regex.Match(value.Trim(), @"^(\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?$");
+        if (!match.Success) return value;
+
+        var numeric = match.Groups[1].Value;
+        var prefix = match.Groups[2].Value;
+        var unit = match.Groups[3].Value;
+
+        if (string.IsNullOrEmpty(unit)) unit = defaultUnit;
+
+        // Normalize Ohm
+        if (unit.Equals("ohm", StringComparison.OrdinalIgnoreCase)) unit = "Ohm";
+
+        if (string.IsNullOrEmpty(prefix) && string.IsNullOrEmpty(unit))
+            return numeric;
+
+        // Compact format: no spaces (consistent with device params like L=180n, W=2u)
+        return $"{numeric}{prefix}{unit}";
+    }
+
+    /// <summary>
     /// Parses a sweep range specification into a SweepCondition.
     /// Supports formats: [start:step:stop], [start:stop], or [Auto].
     /// </summary>
-    /// <param name="name">Sweep condition name (e.g., "InputDCBias").</param>
-    /// <param name="rangeSpec">Range specification string.</param>
-    /// <returns>Parsed SweepCondition, or null if parsing fails.</returns>
     private static SweepCondition? ParseSweepRange(string name, string rangeSpec)
     {
         if (rangeSpec.Equals("Auto", StringComparison.OrdinalIgnoreCase))
@@ -1122,8 +1225,8 @@ public static class ACIRReader
             return new SweepCondition
             {
                 Name = name,
-                Start = parts[0].Trim(),
-                Stop = parts[1].Trim(),
+                Start = NormalizeQuantity(parts[0].Trim(), "V"),
+                Stop = NormalizeQuantity(parts[1].Trim(), "V"),
                 Step = null,
                 IsAuto = false
             };
@@ -1134,9 +1237,9 @@ public static class ACIRReader
             return new SweepCondition
             {
                 Name = name,
-                Start = parts[0].Trim(),
-                Step = parts[1].Trim(),
-                Stop = parts[2].Trim(),
+                Start = NormalizeQuantity(parts[0].Trim(), "V"),
+                Step = NormalizeQuantity(parts[1].Trim(), "V"),
+                Stop = NormalizeQuantity(parts[2].Trim(), "V"),
                 IsAuto = false
             };
         }
