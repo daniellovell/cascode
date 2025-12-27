@@ -999,15 +999,19 @@ public static class ACIRReader
 
         if (line.StartsWith("load "))
         {
-            if (line.Contains("||") || line.Contains("(") || line.Contains(")"))
+            bool hasOpenParen = line.Contains("(");
+            bool hasCloseParen = line.Contains(")");
+            bool hasPipe = line.Contains("||");
+
+            if (hasOpenParen || hasCloseParen || hasPipe)
             {
-                if (!line.Contains("(") || !line.Contains(")"))
+                if (!hasOpenParen || !hasCloseParen)
                 {
                     diagnostics.Add(new Diagnostic(
                         $"ACIR0010: Parallel load specification missing parentheses: '{line}'",
                         DiagnosticSeverity.Error, filePath, lineNumber, 1));
                 }
-                else if (!line.Contains("||"))
+                else if (!hasPipe)
                 {
                     diagnostics.Add(new Diagnostic(
                         $"ACIR0011: Parallel load specification missing '||' operator: '{line}'",
