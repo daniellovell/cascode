@@ -50,7 +50,7 @@ public class ACIRVersionTests
         var content = "ACIR 2.0\ncircuit Test\n  level EL";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0001"));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0007"));
     }
 
     private static string FindRepoRoot()

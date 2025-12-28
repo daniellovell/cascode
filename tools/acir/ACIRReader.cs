@@ -201,7 +201,7 @@ public static class ACIRReader
                     if (major != ACIRVersion.Major)
                     {
                         diagnostics.Add(new Diagnostic(
-                            $"ACIR0001: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
+                            $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
                             DiagnosticSeverity.Error,
                             filePath,
                             i + 1,
@@ -669,7 +669,7 @@ public static class ACIRReader
                 break;
 
             var trimmed = currentLine.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";") || trimmed.StartsWith("//"))
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
             {
                 i++;
                 continue;
@@ -677,8 +677,6 @@ public static class ACIRReader
 
             var contentLine = currentLine;
             var commentIndex = contentLine.IndexOf("//");
-            if (commentIndex >= 0) contentLine = contentLine[..commentIndex];
-            commentIndex = contentLine.IndexOf(";");
             if (commentIndex >= 0) contentLine = contentLine[..commentIndex];
             var contentTrimmed = contentLine.Trim();
 
@@ -733,7 +731,7 @@ public static class ACIRReader
                 }
             }
             // Section headers (2 spaces) - preserve previous section before starting new one
-            else if (trimmed == "fill:")
+            else if (contentTrimmed == "fill:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -743,7 +741,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "constraints:")
+            else if (contentTrimmed == "constraints:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -753,7 +751,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "harness:")
+            else if (contentTrimmed == "harness:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -763,7 +761,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "benches:")
+            else if (contentTrimmed == "benches:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -774,22 +772,22 @@ public static class ACIRReader
                 constraintSubSection = null;
             }
             // Top-level declarations (2 spaces, not inside a section)
-            else if (trimmed.StartsWith("level "))
+            else if (contentTrimmed.StartsWith("level "))
             {
-                var levelStr = trimmed[6..].Trim();
+                var levelStr = contentTrimmed[6..].Trim();
                 level = ParseLevel(levelStr);
             }
-            else if (trimmed.StartsWith("supply "))
+            else if (contentTrimmed.StartsWith("supply "))
             {
-                supplies.Add(trimmed[7..].Trim());
+                supplies.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("ground "))
+            else if (contentTrimmed.StartsWith("ground "))
             {
-                grounds.Add(trimmed[7..].Trim());
+                grounds.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("port "))
+            else if (contentTrimmed.StartsWith("port "))
             {
-                var portMatch = Regex.Match(trimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
+                var portMatch = Regex.Match(contentTrimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
                 if (portMatch.Success)
                 {
                     ports.Add(new PortDeclaration

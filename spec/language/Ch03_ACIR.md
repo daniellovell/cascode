@@ -32,11 +32,11 @@ The ACIR design prioritizes connectivity as the primary concern, establishing th
 
 ### 3.2.1 Character Encoding and Line Structure
 
-ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line, with continuation indicated by indentation for nested content. Comments begin with `;` and extend to end of line.
+ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line, with continuation indicated by indentation for nested content. Comments begin with `//` and extend to end of line.
 
 ```text
-; This is a comment
-ACIR 1.0  ; Version declaration with inline comment
+// This is a comment
+ACIR 1.0  // Version declaration with inline comment
 ```
 
 ### 3.2.2 Document Structure
@@ -65,12 +65,7 @@ The circuit body structure separates the declared interface (supplies, grounds, 
 
 ### 3.2.3 Version Semantics
 
-ACIR uses MAJOR.MINOR versioning:
-
-- **MAJOR**: Incremented for breaking changes. Readers MUST reject files with different major versions.
-- **MINOR**: Incremented for additive changes. Readers MUST accept any minor version within the same major.
-
-Minor version changes add optional fields or syntax that older readers can safely ignore. Readers MUST NOT contain conditional logic based on minor version - unknown constructs are silently skipped.
+ACIR uses MAJOR.MINOR versioning semantics. Major version increments indicate breaking changes to the format, and readers must reject files with a different major version. Minor version increments indicate additive, backward-compatible additions such as optional fields or new syntax constructs. Readers must accept any minor version within the same major version and silently ignore unknown minor-level constructs. Readers must not contain conditional logic based on minor version.
 
 Current version: `1.0`
 
@@ -81,12 +76,12 @@ Identifiers follow the pattern `[A-Za-z_][A-Za-z0-9_]*`. Pin paths extend identi
 Numeric literals support integer and floating-point forms with optional SI unit suffixes:
 
 ```acir
-42          ; integer
-3.14        ; float
-1.8V        ; voltage
-100n        ; 100 nano (100e-9)
-2.5u        ; 2.5 micro (2.5e-6)
-1.2e-5m     ; explicit scientific with unit
+42          // integer
+3.14        // float
+1.8V        // voltage
+100n        // 100 nano (100e-9)
+2.5u        // 2.5 micro (2.5e-6)
+1.2e-5m     // explicit scientific with unit
 ```
 
 The SI prefix table:
@@ -103,7 +98,7 @@ The SI prefix table:
 | pico   | p      | 10^-12 |
 | femto  | f      | 10^-15 |
 
-### 3.2.4 Source Attribution (Optional)
+### 3.2.5 Source Attribution (Optional)
 
 Statements may optionally include source attribution in the form `@[file:line]` or `@[file:line:column]`. Source attribution is **not required** and should be omitted in most cases. It is primarily useful for debugging, error messages, and tracing elaborated designs back to their ADL source.
 
@@ -157,7 +152,7 @@ Examples:
 ```
 net VDD : supply
 net GND : ground
-net tnode : analog  ; internal tail node
+net tnode : analog  // internal tail node
 net VTAIL : bias
 net EN : digital
 ```
@@ -182,7 +177,7 @@ Examples:
 supply VDD
 supply VDDIO
 ground GND
-ground GNDA  ; analog ground
+ground GNDA  // analog ground
 ```
 
 Supply declarations implicitly create nets with domain `supply`. Ground declarations implicitly create nets with domain `ground`. The actual voltage values for supplies are specified in the harness section, allowing the same circuit to be tested under different supply conditions.
@@ -268,10 +263,10 @@ slot driver (IN->sig, OUT->pad) : [BufferLike, HighDrive]
 During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular `inst` declaration:
 
 ```
-; HL
+// HL
 slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
 
-; ML (after synthesis resolves the slot)
+// ML (after synthesis resolves the slot)
 inst amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : OTA5TSingleEnded
   param p = NMOS
   param W = $Auto
@@ -333,7 +328,7 @@ fill:
   net sig_in : Diff
   net sig_out : Diff
 
-  ; Implicitly connects IN.P->sig_in.P, IN.N->sig_in.N
+  // Implicitly connects IN.P->sig_in.P, IN.N->sig_in.N
   inst dp (IN->sig_in, OUT->sig_out) : DiffPair
     param p = NMOS
 ```
@@ -595,17 +590,17 @@ The `sweep` directive specifies DC bias conditions that vary across a range duri
 **Syntax:**
 
 ```
-sweep <ConditionName> [<start>:<step>:<stop>]     ; explicit step
-sweep <ConditionName> [<start>:<stop>]            ; automatic step
-sweep <ConditionName> [Auto]                      ; synthesis chooses range (HL/ML only)
+sweep <ConditionName> [<start>:<step>:<stop>]     // explicit step
+sweep <ConditionName> [<start>:<stop>]            // automatic step
+sweep <ConditionName> [Auto]                      // synthesis chooses range (HL/ML only)
 ```
 
 **Examples:**
 
 ```
-sweep InputDCBias [0.3V:100mV:1.5V]           ; SEAmp: sweep input bias with explicit step
-sweep InputDCCommonMode [0.3V:1.5V]           ; SEOpAmp: sweep ICMR with auto step
-sweep OutputDCCommonMode [0.5V:50mV:1.3V]     ; FDOpAmp: sweep OCMR with explicit step
+sweep InputDCBias [0.3V:100mV:1.5V]           // SEAmp: sweep input bias with explicit step
+sweep InputDCCommonMode [0.3V:1.5V]           // SEOpAmp: sweep ICMR with auto step
+sweep OutputDCCommonMode [0.5V:50mV:1.3V]     // FDOpAmp: sweep OCMR with explicit step
 ```
 
 **Automatic step sizing:** When the step parameter is omitted, the toolchain computes `step = (stop - start) / 20` clamped to the range [10mV, 100mV].
@@ -625,13 +620,13 @@ sweep OutputDCCommonMode [0.5V:50mV:1.3V]     ; FDOpAmp: sweep OCMR with explici
 **Example (underconstrained but explicit):**
 
 ```acir
-; HL or ML: author requests that synthesis choose a sweep envelope
+// HL or ML: author requests that synthesis choose a sweep envelope
 harness:
   sweep InputDCBias [Auto]
 ```
 
 ```acir
-; EL: synthesis materializes the chosen envelope (example values)
+// EL: synthesis materializes the chosen envelope (example values)
 harness:
   sweep InputDCBias [0.42V:50mV:1.07V]
 ```
@@ -778,6 +773,7 @@ The ACIR reader emits structured diagnostics when parsing fails or encounters ma
 | ACIR0004 | Error | Invalid device declaration syntax |
 | ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
 | ACIR0006 | Error | Invalid sweep range specification; expects `[start:stop]` or `[start:step:stop]` |
+| ACIR0007 | Error | ACIR major version mismatch; reader rejects different major versions |
 | ACIR0010 | Error | Parallel load specification missing parentheses; expects `(C=... \|\| R=...)` |
 | ACIR0011 | Error | Parallel load specification missing `\|\|` operator between elements |
 | ACIR0012 | Error | Parallel load specification missing first element (before `\|\|`) |
@@ -843,8 +839,8 @@ circuit OTA5TSingleEnded : SingleEndedOpAmp
   port VTAIL : bias
 
   fill:
-    net mirror_gate : analog  ; dp.OUT.P = cm.SENSE via attach
-    net tnode : analog        ; internal tail node from dp
+    net mirror_gate : analog  // dp.OUT.P = cm.SENSE via attach
+    net tnode : analog        // internal tail node from dp
 
     inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair
       param p = NMOS
@@ -854,7 +850,7 @@ circuit OTA5TSingleEnded : SingleEndedOpAmp
       param p = PMOS
       param taps = 1
 
-    ; attach cm -> dp elaborated into shared mirror_gate net
+    // attach cm -> dp elaborated into shared mirror_gate net
 
 
 circuit DiffPair : DiffPairLike
@@ -918,15 +914,15 @@ circuit OTA5TSingleEnded
   port VTAIL : bias
 
   fill:
-    net tnode : analog        ; from dp.tnode
-    net mirror_gate : analog  ; dp.OUT.P = cm.SENSE
+    net tnode : analog        // from dp.tnode
+    net mirror_gate : analog  // dp.OUT.P = cm.SENSE
 
-    ; DiffPair (dp) - NMOS differential pair with tail
+    // DiffPair (dp) - NMOS differential pair with tail
     nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
     nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
     nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 sky130_fd_pr__nfet_01v8
 
-    ; CurrentMirror (cm) - PMOS current mirror
+    // CurrentMirror (cm) - PMOS current mirror
     pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
     pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 sky130_fd_pr__pfet_01v8
 
