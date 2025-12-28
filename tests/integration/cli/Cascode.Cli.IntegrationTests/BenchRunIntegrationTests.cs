@@ -17,6 +17,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
     private readonly string _outputDir;
     private readonly CascodeHomeScope _cascodeHome;
 
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
+
     public BenchRunIntegrationTests()
     {
         _repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
@@ -106,8 +111,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var combinedResults = Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_results.json");
         Assert.True(File.Exists(combinedResults));
 
-        var opts = new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
-        var combinedBenchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(combinedResults), opts);
+        var combinedBenchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(combinedResults), s_jsonOptions);
         Assert.NotNull(combinedBenchResults);
 
         // Verify key measurements are not NaN
@@ -257,9 +261,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var resultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench_results.json");
         Assert.True(File.Exists(resultsPath), "AC results.json not found");
 
-        var opts = new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
         var benchResults = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath), opts);
+            await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         // Core assertions - these would have caught the vdb(OUT_P, OUT_N) bug
@@ -284,9 +287,8 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench_results.json");
         Assert.True(File.Exists(resultsPath), "AC results.json not found");
 
-        var opts = new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
         var benchResults = JsonSerializer.Deserialize<BenchResult>(
-            await File.ReadAllTextAsync(resultsPath), opts);
+            await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         // Core assertions - validates SE template produces valid measurements
