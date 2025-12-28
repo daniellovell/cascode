@@ -65,12 +65,7 @@ The circuit body structure separates the declared interface (supplies, grounds, 
 
 ### 3.2.3 Version Semantics
 
-ACIR uses MAJOR.MINOR versioning:
-
-- **MAJOR**: Incremented for breaking changes. Readers MUST reject files with different major versions.
-- **MINOR**: Incremented for additive changes. Readers MUST accept any minor version within the same major.
-
-Minor version changes add optional fields or syntax that older readers can safely ignore. Readers MUST NOT contain conditional logic based on minor version - unknown constructs are silently skipped.
+ACIR uses MAJOR.MINOR versioning semantics. Major version increments indicate breaking changes to the format, and readers must reject files with a different major version. Minor version increments indicate additive, backward-compatible additions such as optional fields or new syntax constructs. Readers must accept any minor version within the same major version and silently ignore unknown minor-level constructs. Readers must not contain conditional logic based on minor version.
 
 Current version: `1.0`
 
@@ -778,6 +773,7 @@ The ACIR reader emits structured diagnostics when parsing fails or encounters ma
 | ACIR0004 | Error | Invalid device declaration syntax |
 | ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
 | ACIR0006 | Error | Invalid sweep range specification; expects `[start:stop]` or `[start:step:stop]` |
+| ACIR0007 | Error | ACIR major version mismatch; reader rejects different major versions |
 | ACIR0010 | Error | Parallel load specification missing parentheses; expects `(C=... \|\| R=...)` |
 | ACIR0011 | Error | Parallel load specification missing `\|\|` operator between elements |
 | ACIR0012 | Error | Parallel load specification missing first element (before `\|\|`) |

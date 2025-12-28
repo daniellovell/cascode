@@ -8,6 +8,7 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
  - Is there an opportunity to extract a common interface or function to unify the implementation?
 
 ## Purpose & Map
+
 - Purpose: bootstrap the Cascode toolchain while keeping the root lean.
 - Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries in `lib/`; runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
 - Where to read first: `docs/architecture/README.md` plus relevant component docs, e.g. `docs/architecture/cli-architecture.md` and `docs/architecture/pdk-scan-architecture.md`.
@@ -93,6 +94,7 @@ Use professional prose and use precisely the level of verbosity that is required
 - Ban "temporary transition code"; if present, it must fail fast outside that window
 
 ## ACIR Versioning
+
 - Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
 - **Major bump**: breaking changes - reader rejects different majors
 - **Minor bump**: additive-only changes - reader accepts any minor within same major

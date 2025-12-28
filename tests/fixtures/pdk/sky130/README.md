@@ -18,6 +18,7 @@ sky130/
 ```
 
 ### `.cdsinit`
+
 - Uses `envSetVal("spectre.envOpts" "modelFiles" ...)` to seed the Spectre model
   search path with `./stdcells.scs`. Cascode should parse this line to locate the
   entry point for model discovery.
@@ -26,6 +27,7 @@ sky130/
   Virtuoso-style workspace.
 
 ### `cds.lib`
+
 - Declares OpenAccess libraries such as `sky130_fd_pr_main` as well as the
   digital standard-cell bundles (`sky130_scl_*`).
 - Provides canonical names the CLI can surface when listing available PDK
@@ -33,6 +35,7 @@ sky130/
   `CASCODE_PDK_ROOT` (or using `pdk set-dir`) is required before scanning.
 
 ### `stdcells.scs`
+
 - Aggregates Spectre-ready model decks via `include` statements that reference
   the digital libraries’ Spectre netlists under `libs/sky130_scl_* /spectre`.
 - The `$WORK_DIR` token matches Cadence’s expectation; the CLI should substitute
@@ -40,6 +43,7 @@ sky130/
   static analysis.
 
 ### `libs/`
+
 - Contains the full OpenAccess library trees shipped by Cadence (`sky130_fd_pr`
   for primitive devices and several `sky130_scl_*` libraries for standard
   cells). Each library carries technology files (`techfile.tf`, `tech.db`),

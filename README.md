@@ -20,6 +20,7 @@ New to Cascode? Start here to understand the core concepts through a practical O
 - **[Getting Started Guide](docs/GETTING_STARTED.md)**
 
 ## Language Specification
+
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
 - [Chapter 3 – ACIR: The Intermediate Representation](spec/language/Ch03_ACIR.md)
@@ -360,6 +361,7 @@ cascode/
 - `tools/bench`: Template discovery and rendering (Scriban-based), testbench generation, and SPICE backend adapters (Ngspice, Spectre).
 
 ### Notes
+
 - Build artifacts go in `build/` (not committed).
 - ACIR on disk is line-oriented text format with explicit units and deterministic ordering.
 
