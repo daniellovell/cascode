@@ -14,10 +14,8 @@
 .include "{{ inc }}"
 {{ end }}
 
-* Harness
-{{ for supply in harness.supplies }}
-V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
-{{ end }}
+* Harness supplies and biases
+{{ supply_elements }}
 
 * Common-mode bias
 {{ if sweep.InputDCCommonMode }}
@@ -36,10 +34,8 @@ VAC_N IN_N_drv vcm AC 0.5 180
 RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
 RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
 
-{{ for load in harness.loads }}
-{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
-{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
-{{ end }}{{ end }}
+* Output loads
+{{ load_elements }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}
@@ -62,9 +58,9 @@ let cm_val = cm_start
 while cm_val <= cm_stop
   alter VCM_SRC DC=$&cm_val
   op
-  ac dec 100 1 10G
+  ac dec 100 {{ ac_start_hz }} {{ ac_stop_hz }}
 
-  meas ac gain_pt find vdb({{ out_node }}) at=1
+  meas ac gain_pt find vdb({{ out_node }}) at={{ passband_freq_hz }}
   meas ac gbw_pt when vdb({{ out_node }})=0 cross=1
   meas ac pm_raw_pt find vp({{ out_node }}) at=gbw_pt
   let pm_pt = 180 + pm_raw_pt
@@ -117,15 +113,16 @@ echo "RESULT: HighpassBandwidth = " $&hp_max " Hz"
 echo "RESULT: BandpassBandwidth = " $&bp_min " Hz"
 {{ else }}
 op
-ac dec 100 1 10G
+ac dec 100 {{ ac_start_hz }} {{ ac_stop_hz }}
 
 * Measurements
-meas ac gain_dc find vdb({{ out_node }}) at=1
+* Passband gain measured at optimal frequency (computed in C#)
+meas ac gain_passband find vdb({{ out_node }}) at={{ passband_freq_hz }}
 meas ac gbw when vdb({{ out_node }})=0 cross=1
 meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
 
-let gain_3db = gain_dc - 3
+let gain_3db = gain_passband - 3
 meas ac f3db_1 when vdb({{ out_node }})=gain_3db cross=1
 meas ac f3db_2 when vdb({{ out_node }})=gain_3db cross=2
 let hp_bw = f3db_1
@@ -139,10 +136,10 @@ if bp_bw < 0
   let bp_bw = -bp_bw
 end
 
-echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm LowpassBandwidth_Hz=$&lp_bw HighpassBandwidth_Hz=$&hp_bw BandpassBandwidth_Hz=$&bp_bw
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_passband GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm LowpassBandwidth_Hz=$&lp_bw HighpassBandwidth_Hz=$&hp_bw BandpassBandwidth_Hz=$&bp_bw
 
 * Results output
-echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: PassbandGain = " $&gain_passband " dB"
 echo "RESULT: GainBandwidth = " $&gbw " Hz"
 echo "RESULT: PhaseMargin = " $&pm " deg"
 echo "RESULT: LowpassBandwidth = " $&lp_bw " Hz"

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Cascode.ACIR;
 using Cascode.Bench;
 using Cascode.Parser;
@@ -102,14 +103,19 @@ internal sealed class VerifyCommandModule : ICommandModule
         BenchResult results;
         try
         {
+            var jsonOptions = new JsonSerializerOptions
+            {
+                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+            };
+
             if (resultsPath != null)
             {
                 var jsonText = File.ReadAllText(resultsPath);
-                results = JsonSerializer.Deserialize<BenchResult>(jsonText) ?? throw new InvalidOperationException("Failed to deserialize results JSON");
+                results = JsonSerializer.Deserialize<BenchResult>(jsonText, jsonOptions) ?? throw new InvalidOperationException("Failed to deserialize results JSON");
             }
             else
             {
-                results = ReadResultsFromTrace(tracePath!);
+                results = ReadResultsFromTrace(tracePath!, jsonOptions);
             }
         }
         catch (Exception ex)
@@ -188,7 +194,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         return acirPath != null && (resultsPath != null || tracePath != null);
     }
 
-    private static BenchResult ReadResultsFromTrace(string tracePath)
+    private static BenchResult ReadResultsFromTrace(string tracePath, JsonSerializerOptions jsonOptions)
     {
         BenchResult? last = null;
 
@@ -210,7 +216,7 @@ internal sealed class VerifyCommandModule : ICommandModule
                 continue;
             }
 
-            last = JsonSerializer.Deserialize<BenchResult>(resultsEl.GetRawText());
+            last = JsonSerializer.Deserialize<BenchResult>(resultsEl.GetRawText(), jsonOptions);
         }
 
         return last ?? throw new InvalidOperationException("No summary record with results found in trace.jsonl.");

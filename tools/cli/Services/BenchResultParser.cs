@@ -16,6 +16,10 @@ internal static class BenchResultParser
         @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+    private static readonly Regex _failedResultRegex = new(
+        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s+(?<unit>\w+)?$",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     public static List<TracePoint> ParsePoints(string stdout, HashSet<string> sweepNames)
     {
         var points = new List<TracePoint>();
@@ -167,16 +171,26 @@ internal static class BenchResultParser
             return false;
         }
 
+        // Try normal result pattern first
         var match = _resultRegex.Match(trimmed);
-
-        if (!match.Success)
+        if (match.Success)
         {
-            return false;
+            metric = match.Groups["metric"].Value.Trim();
+            unit = match.Groups["unit"].Value.Trim();
+            return double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
-        metric = match.Groups["metric"].Value.Trim();
-        unit = match.Groups["unit"].Value.Trim();
-        return double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        // Check for failed measurement pattern: "RESULT: Metric =   unit" (empty value)
+        var failedMatch = _failedResultRegex.Match(trimmed);
+        if (failedMatch.Success)
+        {
+            metric = failedMatch.Groups["metric"].Value.Trim();
+            unit = failedMatch.Groups["unit"].Value.Trim();
+            value = double.NaN;
+            return true;
+        }
+
+        return false;
     }
 
     private static string MakeMeasurementKey(Dictionary<string, MeasurementResult> existing, string metric, string? node)

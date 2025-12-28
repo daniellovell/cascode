@@ -70,6 +70,11 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         var harness = ExtractHarnessData(ctx);
         var env = ExtractEnvironmentDefaults(ctx);
         var (acMag, acStartHz, acStopHz) = ExtractAcSweepParams(ctx);
+        var passbandFreqHz = ctx.Args.TryGetValue("passband_freq_hz", out var pbf) ? Convert.ToDouble(pbf) : acStartHz;
+        var stbStartHz = ctx.Args.TryGetValue("stb_start_hz", out var stbS) ? Convert.ToDouble(stbS) : acStartHz;
+        var stbStopHz = ctx.Args.TryGetValue("stb_stop_hz", out var stbE) ? Convert.ToDouble(stbE) : acStopHz;
+        var loadElements = ctx.Args.TryGetValue("load_elements", out var le) ? le?.ToString() ?? "" : "";
+        var supplyElements = ctx.Args.TryGetValue("supply_elements", out var se) ? se?.ToString() ?? "" : "";
         var sweep = ExtractSweepData(ctx);
 
         var spec = new { temperature_c = ctx.Spec.TemperatureC };
@@ -96,6 +101,11 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             ac_mag = acMag,
             ac_start_hz = acStartHz,
             ac_stop_hz = acStopHz,
+            passband_freq_hz = passbandFreqHz,
+            stb_start_hz = stbStartHz,
+            stb_stop_hz = stbStopHz,
+            load_elements = loadElements,
+            supply_elements = supplyElements,
             sweep = sweep,
             includes_with_section = includesWithSection,
             includes_without_section = includesWithoutSection,

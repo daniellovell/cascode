@@ -736,6 +736,11 @@ public class EmitVerifyFlowTests : IDisposable
         var ngspiceResult = await RunNgspiceAsync(benchPath);
         Assert.True(ngspiceResult.Success,
             $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+
+        // Verify RESULT lines contain valid numeric values (not empty)
+        Assert.Matches(@"RESULT:\s*PassbandGain\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*GainBandwidth\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(@"RESULT:\s*PhaseMargin\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
     }
 
     [Fact]

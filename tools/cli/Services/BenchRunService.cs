@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Cascode.ACIR;
 using Cascode.Bench;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,11 @@ namespace Cascode.Cli.Services;
 
 public class BenchRunService
 {
-    private static readonly JsonSerializerOptions _jsonSerializerOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        WriteIndented = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
 
     private readonly ILogger<BenchRunService> _logger;
 

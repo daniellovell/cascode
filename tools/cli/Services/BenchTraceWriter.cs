@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Cascode.ACIR;
 using Cascode.Bench;
 
@@ -10,11 +11,16 @@ namespace Cascode.Cli.Services;
 
 internal static class BenchTraceWriter
 {
-    private static readonly JsonSerializerOptions IndentedOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions IndentedOptions = new()
+    {
+        WriteIndented = true,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
     private static readonly JsonSerializerOptions CompactOptions = new()
     {
         PropertyNamingPolicy = null,
-        WriteIndented = false
+        WriteIndented = false,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
     };
     public static void WriteTraceJsonl(
         string tracePath,

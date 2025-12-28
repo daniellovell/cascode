@@ -49,7 +49,13 @@ public static class ACIRBenchAdapter
         var genericModels = UsesGenericModels(circuit);
         var harnessParams = DeriveVoltageAndImpedance(circuit);
         var (acStartHz, acStopHz) = DeriveAcSweepFromConstraints(circuit);
+        var passbandFreqHz = DerivePassbandMeasurementFrequency(circuit, acStartHz, acStopHz);
         var sweepDict = BuildSweepDictionary(circuit);
+
+        // Determine if bench is differential based on name
+        var isDifferential = bench.Name.StartsWith("FD", StringComparison.OrdinalIgnoreCase);
+        var loadElements = GenerateLoadElements(circuit, isDifferential);
+        var supplyElements = GenerateSupplyElements(circuit);
 
         var designFile = $"{circuit.Name}.sp";
         var includesWithSection = includeResolution?.WithSection?
@@ -87,6 +93,11 @@ public static class ACIRBenchAdapter
             ["ac_mag"] = 1.0,
             ["ac_start_hz"] = acStartHz,
             ["ac_stop_hz"] = acStopHz,
+            ["passband_freq_hz"] = passbandFreqHz,
+            ["stb_start_hz"] = acStartHz,
+            ["stb_stop_hz"] = acStopHz,
+            ["load_elements"] = loadElements,
+            ["supply_elements"] = supplyElements,
             ["includes_with_section"] = includesWithSection,
             ["includes_without_section"] = includesWithoutSection,
             ["section"] = includeResolution?.Section
@@ -221,6 +232,112 @@ public static class ACIRBenchAdapter
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Generates pre-formatted SPICE netlist strings for load elements.
+    /// Handles both single-ended and differential configurations.
+    /// </summary>
+    internal static string GenerateLoadElements(Circuit circuit, bool differential)
+    {
+        var lines = new List<string>();
+
+        if (circuit.Harness?.Loads == null)
+            return string.Empty;
+
+        foreach (var load in circuit.Harness.Loads)
+        {
+            if (load.Elements.Count == 0)
+                continue;
+
+            var cs = load.Elements.Where(e => e.Type == "C").Select(e => e.Value).ToList();
+            var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
+
+            // Check if load is already split (ends with _P or _N)
+            var isAlreadySplit = load.Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase) ||
+                                load.Net.EndsWith("_N", StringComparison.OrdinalIgnoreCase);
+
+            if (differential && !isAlreadySplit)
+            {
+                // Split load across differential outputs
+                for (int i = 0; i < cs.Count; i++)
+                {
+                    if (TryParseValue(cs[i], out var cValue))
+                    {
+                        var halfValue = FormatSIValue(cValue / 2.0);
+                        var suffix = cs.Count > 1 ? $"_{i}" : "";
+                        lines.Add($"C{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
+                        lines.Add($"C{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
+                    }
+                    else
+                    {
+                        var suffix = cs.Count > 1 ? $"_{i}" : "";
+                        lines.Add($"C{load.Net}_P_load{suffix} {load.Net}_P 0 {cs[i]}");
+                        lines.Add($"C{load.Net}_N_load{suffix} {load.Net}_N 0 {cs[i]}");
+                    }
+                }
+
+                for (int i = 0; i < rs.Count; i++)
+                {
+                    if (TryParseValue(rs[i], out var rValue))
+                    {
+                        var halfValue = FormatSIValue(rValue / 2.0);
+                        var suffix = rs.Count > 1 ? $"_{i}" : "";
+                        lines.Add($"R{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
+                        lines.Add($"R{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
+                    }
+                    else
+                    {
+                        var suffix = rs.Count > 1 ? $"_{i}" : "";
+                        lines.Add($"R{load.Net}_P_load{suffix} {load.Net}_P 0 {rs[i]}");
+                        lines.Add($"R{load.Net}_N_load{suffix} {load.Net}_N 0 {rs[i]}");
+                    }
+                }
+            }
+            else
+            {
+                // Single-ended or already-split differential
+                for (int i = 0; i < cs.Count; i++)
+                {
+                    var suffix = cs.Count > 1 ? $"_{i}" : "";
+                    lines.Add($"C{load.Net}_load{suffix} {load.Net} 0 {cs[i]}");
+                }
+
+                for (int i = 0; i < rs.Count; i++)
+                {
+                    var suffix = rs.Count > 1 ? $"_{i}" : "";
+                    lines.Add($"R{load.Net}_load{suffix} {load.Net} 0 {rs[i]}");
+                }
+            }
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// Generates pre-formatted SPICE netlist strings for supply and bias elements.
+    /// </summary>
+    internal static string GenerateSupplyElements(Circuit circuit)
+    {
+        var lines = new List<string>();
+
+        if (circuit.Harness?.Supplies != null)
+        {
+            foreach (var supply in circuit.Harness.Supplies)
+            {
+                lines.Add($"V{supply.Net} {supply.Net} 0 DC {supply.Value}");
+            }
+        }
+
+        if (circuit.Harness?.Biases != null)
+        {
+            foreach (var bias in circuit.Harness.Biases)
+            {
+                lines.Add($"V{bias.Net} {bias.Net} 0 DC {bias.Value}");
+            }
+        }
+
+        return string.Join("\n", lines);
     }
 
     /// <summary>
@@ -485,7 +602,8 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Derives AC sweep start/stop frequencies from circuit constraints.
-    /// Uses GainBandwidth constraint if present, otherwise defaults to 1Hz-10GHz.
+    /// For DC-coupled amps (no HP constraint): starts at 1Hz.
+    /// For AC-coupled amps (with HP constraint): starts 3 decades below HP corner.
     /// </summary>
     private static (double acStartHz, double acStopHz) DeriveAcSweepFromConstraints(Circuit circuit)
     {
@@ -497,7 +615,23 @@ public static class ACIRBenchAdapter
             return (DefaultStartHz, DefaultStopHz);
         }
 
-        // Look for GainBandwidth or similar frequency-related constraints
+        // Check for highpass constraint (AC-coupled amplifier)
+        var hpConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
+            c.Metric.Equals("HighpassBandwidth", StringComparison.OrdinalIgnoreCase));
+
+        double acStartHz;
+        if (hpConstraint != null && TryParseConstraintValue(hpConstraint.Value, out var hpHz))
+        {
+            // AC-coupled: start 3 decades below HP corner to see rolloff
+            acStartHz = Math.Max(0.001, hpHz / 1000.0);
+        }
+        else
+        {
+            // DC-coupled: always start at 1Hz to measure DC gain
+            acStartHz = DefaultStartHz;
+        }
+
+        // Determine stop frequency from GBW or bandwidth constraints
         var gbwConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
             c.Metric.Equals("GainBandwidth", StringComparison.OrdinalIgnoreCase) ||
             c.Metric.Equals("GBW", StringComparison.OrdinalIgnoreCase) ||
@@ -506,29 +640,106 @@ public static class ACIRBenchAdapter
 
         if (gbwConstraint != null && TryParseConstraintValue(gbwConstraint.Value, out var gbwHz))
         {
-            // Sweep should cover well beyond the expected GBW
-            // Start at 1Hz (or 1/1000 of GBW if GBW is very high)
-            // Stop at 10x the constrained GBW value
-            var acStartHz = Math.Max(1.0, gbwHz / 1000.0);
-            var acStopHz = Math.Max(gbwHz * 10.0, 1e9); // At least 1GHz
-
+            // Stop at 10x the constrained GBW value, at least 1GHz
+            var acStopHz = Math.Max(gbwHz * 10.0, 1e9);
             return (acStartHz, acStopHz);
         }
 
         // Look for bandwidth-related constraints
         var bwConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
             c.Metric.Equals("Bandwidth", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("3dBBandwidth", StringComparison.OrdinalIgnoreCase));
+            c.Metric.Equals("3dBBandwidth", StringComparison.OrdinalIgnoreCase) ||
+            c.Metric.Equals("LowpassBandwidth", StringComparison.OrdinalIgnoreCase));
 
         if (bwConstraint != null && TryParseConstraintValue(bwConstraint.Value, out var bwHz))
         {
-            var acStartHz = Math.Max(1.0, bwHz / 100.0);
             var acStopHz = Math.Max(bwHz * 100.0, 1e9);
-
             return (acStartHz, acStopHz);
         }
 
-        return (DefaultStartHz, DefaultStopHz);
+        return (acStartHz, DefaultStopHz);
+    }
+
+    /// <summary>
+    /// Derives the optimal passband measurement frequency from circuit constraints.
+    /// Uses HP/LP corner constraints or infers from GBW and gain constraints.
+    /// </summary>
+    private static double DerivePassbandMeasurementFrequency(Circuit circuit, double acStartHz, double acStopHz)
+    {
+        const double DcCoupledHpCorner = 1.0; // DC-coupled amps: passband starts at ~1Hz
+        var constraints = circuit.Constraints?.Numeric ?? new List<NumericConstraint>();
+
+        // 1. Determine HP corner (low-frequency bound of passband)
+        // For DC-coupled amps (no HP constraint), use 1Hz as the effective HP corner
+        var hpCorner = GetConstraintHz(constraints, "HighpassBandwidth") ?? DcCoupledHpCorner;
+
+        // 2. Determine LP corner (high-frequency bound of passband)
+        var lpCorner = GetConstraintHz(constraints, "LowpassBandwidth");
+
+        if (lpCorner == null)
+        {
+            // Infer from GBW and PassbandGain
+            var gbwHz = GetConstraintHz(constraints, "GainBandwidth", "GBW", "UGF", "UnityGainFrequency");
+            var gainDb = GetConstraintValue(constraints, "PassbandGain", "Gain");
+
+            if (gbwHz != null && gainDb != null)
+            {
+                // f_3dB = GBW / 10^(gain_dB/20)
+                var gainLinear = Math.Pow(10, gainDb.Value / 20.0);
+                lpCorner = gbwHz.Value / gainLinear;
+            }
+            else if (gbwHz != null)
+            {
+                // Assume typical 40dB gain (100x linear)
+                lpCorner = gbwHz.Value / 100.0;
+            }
+            else
+            {
+                lpCorner = acStopHz;
+            }
+        }
+
+        // 3. Passband measurement = geometric mean of corners
+        var passbandFreq = Math.Sqrt(hpCorner * lpCorner.Value);
+
+        // 4. Clamp to sweep range
+        return Math.Max(acStartHz, Math.Min(acStopHz, passbandFreq));
+    }
+
+    /// <summary>
+    /// Gets constraint value in Hz by searching for metric names (case-insensitive).
+    /// </summary>
+    private static double? GetConstraintHz(IEnumerable<NumericConstraint> constraints, params string[] metricNames)
+    {
+        foreach (var name in metricNames)
+        {
+            var constraint = constraints.FirstOrDefault(c =>
+                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            if (constraint != null && TryParseConstraintValue(constraint.Value, out var value))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets constraint value (unitless) by searching for metric names.
+    /// </summary>
+    private static double? GetConstraintValue(IEnumerable<NumericConstraint> constraints, params string[] metricNames)
+    {
+        foreach (var name in metricNames)
+        {
+            var constraint = constraints.FirstOrDefault(c =>
+                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+            if (constraint != null && TryParseConstraintValue(constraint.Value, out var value))
+            {
+                return value;
+            }
+        }
+        return null;
     }
 
     /// <summary>
