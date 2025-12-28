@@ -109,7 +109,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var opts = new System.Text.Json.JsonSerializerOptions { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals };
         var combinedBenchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(combinedResults), opts);
         Assert.NotNull(combinedBenchResults);
-        
+
         // Verify key measurements are not NaN
         foreach (var measurement in combinedBenchResults!.Measurements.Values)
         {

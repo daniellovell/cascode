@@ -122,8 +122,8 @@ internal sealed class BenchCommandModule : ICommandModule
         }
 
         var compliance = summary.Compliance;
-        var passPercentage = compliance.TotalCount > 0 
-            ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount) 
+        var passPercentage = compliance.TotalCount > 0
+            ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
             : 0;
         _state.AddMessage($"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)");
 
