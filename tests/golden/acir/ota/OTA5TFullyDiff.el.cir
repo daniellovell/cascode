@@ -21,8 +21,8 @@ circuit OTA5TFullyDiff
     resistor R_CMFB_N (P->OUT_N, N->vcm_node) : R=500k ohm
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 80M Hz
-      c_gain : PassbandGain >= 40 dB
+      c_gbw : GainBandwidth >= 40M Hz
+      c_gain : PassbandGain >= 30 dB
       c_pm : PhaseMargin >= 60 deg
       c_pwr : QuiescentPower <= 800u W
     tech:

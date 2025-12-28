@@ -254,7 +254,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
             _cascodeHome,
-            "bench", "run", acirPath, "-o", _outputDir, "--bench", "FDOpAmpACBench");
+            "bench", "run", acirPath, "-o", _outputDir);
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
@@ -280,7 +280,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
             _cascodeHome,
-            "bench", "run", acirPath, "-o", _outputDir, "--bench", "SEOpAmpACBench");
+            "bench", "run", acirPath, "-o", _outputDir);
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
@@ -292,9 +292,9 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.NotNull(benchResults);
 
         // Core assertions - validates SE template produces valid measurements
-        AssertMeasurementValid(benchResults!, "PassbandGain", minValue: 0, maxValue: 200);
-        AssertMeasurementValid(benchResults!, "GainBandwidth", minValue: 1e3, maxValue: 1e12);
-        AssertMeasurementValid(benchResults!, "PhaseMargin", minValue: 0, maxValue: 360);
+        AssertMeasurementValid(benchResults!, "PassbandGain@OUT", minValue: 0, maxValue: 200);
+        AssertMeasurementValid(benchResults!, "GainBandwidth@OUT", minValue: 1e3, maxValue: 1e12);
+        AssertMeasurementValid(benchResults!, "PhaseMargin@OUT", minValue: 0, maxValue: 360);
     }
 
     private static void AssertMeasurementValid(BenchResult results, string metric, double minValue, double maxValue)
