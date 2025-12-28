@@ -128,10 +128,16 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             {
                 if (item is Dictionary<string, object> loadDict)
                 {
+                    var cs = loadDict.TryGetValue("cs", out var csObj) && csObj is List<string> csList
+                        ? csList : new List<string>();
+                    var rs = loadDict.TryGetValue("rs", out var rsObj) && rsObj is List<string> rsList
+                        ? rsList : new List<string>();
+
                     loads.Add(new
                     {
                         net = loadDict.TryGetValue("net", out var net) ? net?.ToString() ?? "" : "",
-                        c = loadDict.TryGetValue("c", out var c) ? c?.ToString() ?? "" : ""
+                        cs = cs,
+                        rs = rs
                     });
                 }
             }

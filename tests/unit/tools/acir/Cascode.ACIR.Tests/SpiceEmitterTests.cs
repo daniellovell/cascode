@@ -106,7 +106,8 @@ public class SpiceEmitterTests
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);
 
-        Assert.Equal(1, doc.Version);
+        Assert.Equal(1, doc.VersionMajor);
+        Assert.Equal(0, doc.VersionMinor);
         Assert.Single(doc.Circuits);
 
         var circuit = doc.Circuits[0];
@@ -166,7 +167,7 @@ public class SpiceEmitterTests
                 },
                 Loads = new List<LoadValue>
                 {
-                    new() { Net = "OUT", C = "1pF" }
+                    new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
                 }
             }
         };

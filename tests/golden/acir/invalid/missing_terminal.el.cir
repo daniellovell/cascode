@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.0
 
 ; Circuit with missing terminal - EMIT-001 violation
 ; Device M1 is missing the bulk (B) terminal

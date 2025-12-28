@@ -90,7 +90,15 @@ Use professional prose and use precisely the level of verbosity that is required
 - Update all in-repo references (grep before merge) to the new paths.
 - If external links exist, add a tiny redirect file only with an issue to remove it in ≤30 days.
 - Document the move in the PR body (“Replaces X with Y”).
-- Ban “temporary transition code”; if present, it must fail fast outside that window
+- Ban "temporary transition code"; if present, it must fail fast outside that window
+
+## ACIR Versioning
+- Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
+- **Major bump**: breaking changes - reader rejects different majors
+- **Minor bump**: additive-only changes - reader accepts any minor within same major
+- YOU MUST bump version when changing: `ACIRDocument.cs`, `ACIRReader.cs`, `ACIRWriter.cs`, `ACIRBenchAdapter.cs`, `ACIRTemplateHarness.cs`, or template data contracts
+- On bump: update all `tests/golden/acir/**/*.cir` headers to latest MAJOR.MINOR
+- NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
 
 ## Anti‑Patterns
 - Cross‑layer deps; IO in parser; UI outside CLI.

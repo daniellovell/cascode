@@ -36,7 +36,7 @@ ACIR files use UTF-8 encoding with LF line endings. Each logical statement occup
 
 ```text
 ; This is a comment
-ACIR 1  ; Version declaration with inline comment
+ACIR 1.0  ; Version declaration with inline comment
 ```
 
 ### 3.2.2 Document Structure
@@ -44,7 +44,7 @@ ACIR 1  ; Version declaration with inline comment
 An ACIR document begins with a version declaration, followed by optional bundle type definitions, then one or more circuit blocks.
 
 ```text
-ACIR <version>
+ACIR <major>.<minor>
 
 [bundle definitions]
 
@@ -63,7 +63,18 @@ A single ACIR file may contain multiple circuits, supporting compilation of rela
 
 The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill:` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
 
-### 3.2.3 Lexical Elements
+### 3.2.3 Version Semantics
+
+ACIR uses MAJOR.MINOR versioning:
+
+- **MAJOR**: Incremented for breaking changes. Readers MUST reject files with different major versions.
+- **MINOR**: Incremented for additive changes. Readers MUST accept any minor version within the same major.
+
+Minor version changes add optional fields or syntax that older readers can safely ignore. Readers MUST NOT contain conditional logic based on minor version - unknown constructs are silently skipped.
+
+Current version: `1.0`
+
+### 3.2.4 Lexical Elements
 
 Identifiers follow the pattern `[A-Za-z_][A-Za-z0-9_]*`. Pin paths extend identifiers with dot notation and array indexing: `ident ( "." ident | "[" int "]" )*`.
 
@@ -814,7 +825,7 @@ High-level patterns and syntactic sugar in ADL-including attach, pair, and feedb
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output.
 
 ```
-ACIR 1
+ACIR 1.0
 
 bundle Diff:
   P : analog
@@ -893,7 +904,7 @@ circuit CurrentMirror : CurrentMirrorLike
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
 ```
-ACIR 1
+ACIR 1.0
 
 circuit OTA5TSingleEnded
   level EL
@@ -948,7 +959,7 @@ circuit OTA5TSingleEnded
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
 ```
-ACIR 1
+ACIR 1.0
 
 circuit LatchPadBuffer
   level ML
@@ -990,7 +1001,7 @@ circuit LatchPadBuffer
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
 ```
-ACIR 1
+ACIR 1.0
 
 circuit CSAmplifier
   level EL
@@ -1184,7 +1195,9 @@ The text-based format was chosen to maximize:
 The following EBNF-style grammar summarizes ACIR syntax:
 
 ```ebnf
-document     = "ACIR" version NL (bundleDef)* (circuit)+ ;
+document     = "ACIR" MAJOR "." MINOR NL (bundleDef)* (circuit)+ ;
+MAJOR        = [0-9]+ ;
+MINOR        = [0-9]+ ;
 
 bundleDef    = "bundle" IDENT ":" NL (INDENT field NL)+ ;
 field        = IDENT ":" domain ;

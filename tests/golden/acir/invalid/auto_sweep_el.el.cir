@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.0
 
 circuit InvalidAutoSweep : SingleEndedAmp
   level EL

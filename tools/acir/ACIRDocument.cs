@@ -8,9 +8,14 @@ namespace Cascode.ACIR;
 public sealed class ACIRDocument
 {
     /// <summary>
-    /// ACIR format version.
+    /// ACIR format major version.
     /// </summary>
-    public int Version { get; init; } = 1;
+    public int VersionMajor { get; init; } = 1;
+
+    /// <summary>
+    /// ACIR format minor version.
+    /// </summary>
+    public int VersionMinor { get; init; } = 0;
 
     /// <summary>
     /// Bundle type definitions declared at the file level.
@@ -347,13 +352,17 @@ public sealed class SourceValue
 }
 
 /// <summary>
+/// A single load element (capacitor or resistor).
+/// </summary>
+public sealed record LoadElement(string Type, string Value);
+
+/// <summary>
 /// Load value in harness.
 /// </summary>
 public sealed class LoadValue
 {
     public string Net { get; init; } = string.Empty;
-    public string? C { get; init; }
-    public string? R { get; init; }
+    public List<LoadElement> Elements { get; init; } = new();
 }
 
 /// <summary>

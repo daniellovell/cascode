@@ -196,7 +196,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "1pF" }
+                        new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
                     }
                 }
             };
@@ -206,7 +206,9 @@ namespace Cascode.ACIR.Tests
             Assert.Single(result);
             var first = (Dictionary<string, object>)result[0];
             Assert.Equal("OUT", first["net"]);
-            Assert.Equal("1pF", first["c"]);
+            var cs = (List<string>)first["cs"];
+            Assert.Single(cs);
+            Assert.Equal("1pF", cs[0]);
         }
 
         [Fact]
@@ -219,7 +221,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = null }
+                        new() { Net = "OUT", Elements = new List<LoadElement>() }
                     }
                 }
             };
@@ -589,7 +591,15 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "1pF", R = "10MOhm" }
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("R", "10MOhm")
+                            }
+                        }
                     }
                 }
             };
@@ -609,7 +619,7 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "1pF" }
+                        new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
                     }
                 }
             };
@@ -629,7 +639,15 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", C = "1pF", R = "1MOhm" }
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("R", "1MOhm")
+                            }
+                        }
                     }
                 }
             };
@@ -639,8 +657,12 @@ namespace Cascode.ACIR.Tests
             Assert.Single(result);
             var first = (Dictionary<string, object>)result[0];
             Assert.Equal("OUT", first["net"]);
-            Assert.Equal("1pF", first["c"]);
-            Assert.Equal("1MOhm", first["r"]);
+            var cs = (List<string>)first["cs"];
+            Assert.Single(cs);
+            Assert.Equal("1pF", cs[0]);
+            var rs = (List<string>)first["rs"];
+            Assert.Single(rs);
+            Assert.Equal("1MOhm", rs[0]);
         }
 
         [Fact]

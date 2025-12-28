@@ -168,9 +168,16 @@ public static class ACIRBenchAdapter
 
         foreach (var load in circuit.Harness.Loads)
         {
+            if (load.Elements.Count == 0)
+                continue;
+
             var data = new Dictionary<string, object> { ["net"] = load.Net };
-            if (load.C != null) data["c"] = load.C;
-            if (load.R != null) data["r"] = load.R;
+
+            var cs = load.Elements.Where(e => e.Type == "C").Select(e => e.Value).ToList();
+            var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
+
+            if (cs.Count > 0) data["cs"] = cs;
+            if (rs.Count > 0) data["rs"] = rs;
 
             if (data.Count > 1) // net plus at least one component
             {
@@ -330,7 +337,8 @@ public static class ACIRBenchAdapter
             return defaultLoadC;
 
         var firstLoad = circuit.Harness.Loads[0];
-        if (firstLoad.C != null && TryParseValue(firstLoad.C, out var parsedC))
+        var firstC = firstLoad.Elements.FirstOrDefault(e => e.Type == "C");
+        if (firstC != null && TryParseValue(firstC.Value, out var parsedC))
             return parsedC;
 
         return defaultLoadC;
@@ -344,7 +352,8 @@ public static class ACIRBenchAdapter
             return defaultLoadR;
 
         var firstLoad = circuit.Harness.Loads[0];
-        if (firstLoad.R != null && TryParseValue(firstLoad.R, out var parsedR))
+        var firstR = firstLoad.Elements.FirstOrDefault(e => e.Type == "R");
+        if (firstR != null && TryParseValue(firstR.Value, out var parsedR))
             return parsedR;
 
         return defaultLoadR;

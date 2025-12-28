@@ -17,7 +17,7 @@ public static class ACIRWriter
     public static void Write(ACIRDocument document, TextWriter writer)
     {
         // Version declaration
-        writer.WriteLine($"ACIR {document.Version}");
+        writer.WriteLine($"ACIR {ACIRVersion.Current}");
         writer.WriteLine();
 
         // Bundle type definitions
@@ -282,17 +282,20 @@ public static class ACIRWriter
         }
         foreach (var load in harness.Loads.OrderBy(l => l.Net, StringComparer.Ordinal))
         {
-            if (load.R != null && load.C != null)
+            if (load.Elements.Count == 0)
             {
-                writer.WriteLine($"    load {load.Net} (C={load.C} || R={load.R})");
+                continue;
             }
-            else if (load.C != null)
+            else if (load.Elements.Count == 1)
             {
-                writer.WriteLine($"    load {load.Net} C={load.C}");
+                var element = load.Elements[0];
+                writer.WriteLine($"    load {load.Net} {element.Type}={element.Value}");
             }
-            else if (load.R != null)
+            else
             {
-                writer.WriteLine($"    load {load.Net} R={load.R}");
+                var elementStrings = load.Elements.Select(e => $"{e.Type}={e.Value}");
+                var joined = string.Join(" || ", elementStrings);
+                writer.WriteLine($"    load {load.Net} ({joined})");
             }
         }
         if (harness.Icmr is not null)

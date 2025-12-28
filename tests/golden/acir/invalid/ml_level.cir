@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.0
 
 ; Circuit at ML level - EMIT-005 violation
 ; Cannot emit SPICE from non-EL level circuit

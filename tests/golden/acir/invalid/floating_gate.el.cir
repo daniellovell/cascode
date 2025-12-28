@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.0
 
 ; Circuit with a floating gate - ERC-001 violation
 ; The gate of M1 connects to 'floating_net' which has no driver
