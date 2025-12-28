@@ -12,7 +12,7 @@ public class ACIRVersionTests
     {
         var repoRoot = FindRepoRoot();
         var goldenDir = Path.Combine(repoRoot, "tests", "golden", "acir");
-        
+
         if (!Directory.Exists(goldenDir))
         {
             // If golden directory doesn't exist, skip test
@@ -20,12 +20,12 @@ public class ACIRVersionTests
         }
 
         var cirFiles = Directory.GetFiles(goldenDir, "*.cir", SearchOption.AllDirectories);
-        
+
         foreach (var file in cirFiles)
         {
             var firstLine = File.ReadLines(file).FirstOrDefault();
             Assert.NotNull(firstLine);
-            
+
             var expected = $"ACIR {ACIRVersion.Current}";  // "ACIR 1.0"
             Assert.True(
                 firstLine.StartsWith(expected),

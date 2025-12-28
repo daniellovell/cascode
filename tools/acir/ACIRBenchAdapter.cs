@@ -179,6 +179,41 @@ public static class ACIRBenchAdapter
             if (cs.Count > 0) data["cs"] = cs;
             if (rs.Count > 0) data["rs"] = rs;
 
+            // Compute halved values for FD templates (split load across differential outputs)
+            if (cs.Count > 0)
+            {
+                var csHalf = new List<string>();
+                foreach (var c in cs)
+                {
+                    if (TryParseValue(c, out var cValue))
+                    {
+                        csHalf.Add(FormatSIValue(cValue / 2.0));
+                    }
+                    else
+                    {
+                        csHalf.Add(c); // Fallback: use original if parsing fails
+                    }
+                }
+                data["cs_half"] = csHalf;
+            }
+
+            if (rs.Count > 0)
+            {
+                var rsHalf = new List<string>();
+                foreach (var r in rs)
+                {
+                    if (TryParseValue(r, out var rValue))
+                    {
+                        rsHalf.Add(FormatSIValue(rValue / 2.0));
+                    }
+                    else
+                    {
+                        rsHalf.Add(r); // Fallback: use original if parsing fails
+                    }
+                }
+                data["rs_half"] = rsHalf;
+            }
+
             if (data.Count > 1) // net plus at least one component
             {
                 result.Add(data);
@@ -509,6 +544,43 @@ public static class ACIRBenchAdapter
     /// </summary>
     private static bool TryParseValue(string valueStr, out double result) =>
         TryParseSIValue(valueStr, out result, stripUnits: true, allowSubUnity: true);
+
+    /// <summary>
+    /// Formats a numeric value using an appropriate SI prefix for compact SPICE representation.
+    /// </summary>
+    /// <param name="value">The numeric value to format.</param>
+    /// <returns>A compact SPICE-compatible string (e.g., "1.5p", "10M", "500f").</returns>
+    internal static string FormatSIValue(double value)
+    {
+        if (value == 0)
+            return "0";
+
+        var absValue = Math.Abs(value);
+        var sign = value < 0 ? "-" : "";
+
+        // Select SI prefix based on magnitude
+        var (divisor, suffix) = absValue switch
+        {
+            >= 1e12 => (1e12, "T"),
+            >= 1e9 => (1e9, "G"),
+            >= 1e6 => (1e6, "M"),
+            >= 1e3 => (1e3, "K"),
+            >= 1 => (1.0, ""),
+            >= 1e-3 => (1e-3, "m"),
+            >= 1e-6 => (1e-6, "u"),
+            >= 1e-9 => (1e-9, "n"),
+            >= 1e-12 => (1e-12, "p"),
+            _ => (1e-15, "f")
+        };
+
+        var scaled = absValue / divisor;
+
+        // Format with appropriate precision to avoid floating-point artifacts
+        // Use up to 6 significant figures, removing trailing zeros
+        var formatted = scaled.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+
+        return $"{sign}{formatted}{suffix}";
+    }
 
     /// <summary>
     /// Core SI value parser with configurable behavior.

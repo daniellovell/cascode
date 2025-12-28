@@ -107,7 +107,7 @@ public class SpiceEmitterTests
         var doc = ACIRReader.Read(reader);
 
         Assert.Equal(1, doc.VersionMajor);
-        Assert.Equal(0, doc.VersionMinor);
+        Assert.Equal(1, doc.VersionMinor);
         Assert.Single(doc.Circuits);
 
         var circuit = doc.Circuits[0];

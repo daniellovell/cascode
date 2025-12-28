@@ -1,4 +1,4 @@
-ACIR 1.0
+ACIR 1.1
 
 ; Circuit with passive device bridging supply rails - ERC-007 violation
 ; Resistor R_short directly connects VDD to GND

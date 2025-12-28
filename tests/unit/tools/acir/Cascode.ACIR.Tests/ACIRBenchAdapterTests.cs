@@ -750,5 +750,203 @@ namespace Cascode.ACIR.Tests
             Assert.Contains("Template file is empty", ex.Message);
             Assert.Contains("EmptyBench", ex.Message);
         }
+
+        [Theory]
+        [InlineData(0, "0")]
+        [InlineData(1.0, "1")]
+        [InlineData(1.5, "1.5")]
+        [InlineData(1e-15, "1f")]
+        [InlineData(500e-15, "500f")]
+        [InlineData(1e-12, "1p")]
+        [InlineData(10e-12, "10p")]
+        [InlineData(1e-9, "1n")]
+        [InlineData(10e-9, "10n")]
+        [InlineData(1e-6, "1u")]
+        [InlineData(10e-6, "10u")]
+        [InlineData(1e-3, "1m")]
+        [InlineData(10e-3, "10m")]
+        [InlineData(1000, "1K")]
+        [InlineData(1e6, "1M")]
+        [InlineData(10e6, "10M")]
+        [InlineData(1e9, "1G")]
+        [InlineData(1e12, "1T")]
+        [InlineData(2.5e-12, "2.5p")]
+        [InlineData(3.3e6, "3.3M")]
+        public void FormatSIValue_FormatsCorrectly(double input, string expected)
+        {
+            var result = ACIRBenchAdapter.FormatSIValue(input);
+            Assert.Equal(expected, result);
+        }
+
+        [Fact]
+        public void BuildHarnessLoads_IncludesHalvedValues()
+        {
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("R", "10MOhm")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+            Assert.Equal("OUT", first["net"]);
+
+            var cs = (List<string>)first["cs"];
+            Assert.Single(cs);
+            Assert.Equal("1pF", cs[0]);
+
+            var rs = (List<string>)first["rs"];
+            Assert.Single(rs);
+            Assert.Equal("10MOhm", rs[0]);
+
+            var csHalf = (List<string>)first["cs_half"];
+            Assert.Single(csHalf);
+            Assert.Equal("500f", csHalf[0]);
+
+            var rsHalf = (List<string>)first["rs_half"];
+            Assert.Single(rsHalf);
+            Assert.Equal("5M", rsHalf[0]);
+        }
+
+        [Fact]
+        public void BuildHarnessLoads_HandlesMultipleElements()
+        {
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("C", "500fF"),
+                                new LoadElement("R", "1MOhm"),
+                                new LoadElement("R", "10MOhm")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+
+            var cs = (List<string>)first["cs"];
+            Assert.Equal(2, cs.Count);
+            Assert.Equal("1pF", cs[0]);
+            Assert.Equal("500fF", cs[1]);
+
+            var rs = (List<string>)first["rs"];
+            Assert.Equal(2, rs.Count);
+            Assert.Equal("1MOhm", rs[0]);
+            Assert.Equal("10MOhm", rs[1]);
+
+            var csHalf = (List<string>)first["cs_half"];
+            Assert.Equal(2, csHalf.Count);
+            Assert.Equal("500f", csHalf[0]);
+            Assert.Equal("250f", csHalf[1]);
+
+            var rsHalf = (List<string>)first["rs_half"];
+            Assert.Equal(2, rsHalf.Count);
+            Assert.Equal("500K", rsHalf[0]);
+            Assert.Equal("5M", rsHalf[1]);
+        }
+
+        [Fact]
+        public void BuildHarnessLoads_HandlesCapacitorOnly()
+        {
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "2pF")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+
+            Assert.True(first.ContainsKey("cs"));
+            Assert.True(first.ContainsKey("cs_half"));
+            Assert.False(first.ContainsKey("rs"));
+            Assert.False(first.ContainsKey("rs_half"));
+
+            var csHalf = (List<string>)first["cs_half"];
+            Assert.Single(csHalf);
+            Assert.Equal("1p", csHalf[0]);
+        }
+
+        [Fact]
+        public void BuildHarnessLoads_HandlesResistorOnly()
+        {
+            var circuit = new Circuit
+            {
+                Name = "TestCircuit",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("R", "100Ohm")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+
+            Assert.False(first.ContainsKey("cs"));
+            Assert.False(first.ContainsKey("cs_half"));
+            Assert.True(first.ContainsKey("rs"));
+            Assert.True(first.ContainsKey("rs_half"));
+
+            var rsHalf = (List<string>)first["rs_half"];
+            Assert.Single(rsHalf);
+            Assert.Equal("50", rsHalf[0]);
+        }
     }
 }
