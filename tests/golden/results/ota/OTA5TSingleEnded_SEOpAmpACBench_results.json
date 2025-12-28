@@ -20,8 +20,8 @@
       "unit": "deg",
       "node": "OUT"
     },
-    "power": {
-      "metric": "Power",
+    "QuiescentPower": {
+      "metric": "QuiescentPower",
       "value": 0.00035,
       "unit": "W",
       "node": null

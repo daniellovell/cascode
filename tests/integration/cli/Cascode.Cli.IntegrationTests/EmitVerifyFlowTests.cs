@@ -51,10 +51,11 @@ public class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
-        Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded.sp")), "Design netlist not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp")), "Testbench not found");
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp")), "AC testbench not found");
+        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpDCBench.sp")), "DC testbench not found");
     }
 
     [Fact]
@@ -175,7 +176,7 @@ public class EmitVerifyFlowTests : IDisposable
                 gain = new { metric = "PassbandGain", value = 45.2, unit = "dB", node = "OUT" },
                 gbw = new { metric = "GainBandwidth", value = 150e6, unit = "Hz", node = "OUT" },
                 pm = new { metric = "PhaseMargin", value = 65.3, unit = "deg", node = "OUT" },
-                power = new { metric = "Power", value = 0.00035, unit = "W", node = (string?)null }
+                QuiescentPower = new { metric = "QuiescentPower", value = 0.00035, unit = "W", node = (string?)null }
             }
         };
         await File.WriteAllTextAsync(resultsPath, JsonSerializer.Serialize(mockResults, new JsonSerializerOptions { WriteIndented = true }));
