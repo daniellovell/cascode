@@ -8,7 +8,7 @@
       "unit": "V",
       "node": "OUT"
     },
-    "power": {
+    "QuiescentPower": {
       "metric": "QuiescentPower",
       "value": 0.00032,
       "unit": "W",

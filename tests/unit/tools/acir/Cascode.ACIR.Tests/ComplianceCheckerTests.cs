@@ -174,11 +174,10 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
-    public void Check_WithGoldenACIR_ParsesAndEvaluates()
+    public void Check_WithGoldenACIR_ParsesAndHas4Constraints()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
-        var resultsPath = Path.Combine(repoRoot, "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json");
 
         using var acirReader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(acirReader);
@@ -187,16 +186,7 @@ public class ComplianceCheckerTests
         var circuit = doc.Circuits[0];
         Assert.NotNull(circuit.Constraints);
         Assert.Equal(4, circuit.Constraints.Numeric.Count);
-
-        var resultsJson = File.ReadAllText(resultsPath);
-        var results = JsonSerializer.Deserialize<BenchResult>(resultsJson);
-        Assert.NotNull(results);
-
-        var report = ComplianceChecker.Check(circuit, results);
-
-        Assert.Equal(4, report.TotalCount);
-        Assert.Equal(4, report.PassedCount);
-        Assert.Equal(0, report.FailedCount);
+        Assert.Equal(4, circuit.Constraints.Measure.Count);
     }
 
     [Fact]
@@ -261,6 +251,155 @@ public class ComplianceCheckerTests
                 ["m_test"] = new() { Metric = metric, Value = value, Unit = unit, Node = node }
             }
         };
+    }
+
+    [Fact]
+    public void Check_BenchAwareFiltering_OnlyChecksConstraintsForMatchingBench()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
+                    new() { Id = "c_gain", Metric = "PassbandGain", Node = "OUT", Op = ">=", Value = "40", Unit = "dB" },
+                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                },
+                Measure = new List<MeasureIntent>
+                {
+                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
+                    new() { Id = "m_gain", Bench = "SEOpAmpACBench", Metric = "PassbandGain", Node = "OUT" },
+                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
+                }
+            }
+        };
+
+        var acResults = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "SEOpAmpACBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["gbw"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz", Node = "OUT" },
+                ["gain"] = new() { Metric = "PassbandGain", Value = 45.0, Unit = "dB", Node = "OUT" }
+            }
+        };
+
+        var report = ComplianceChecker.Check(circuit, acResults);
+
+        Assert.Equal(2, report.TotalCount);
+        Assert.Equal(2, report.PassedCount);
+        Assert.Equal(0, report.FailedCount);
+        Assert.Single(report.UncheckedByBench);
+        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpDCBench"));
+        Assert.Single(report.UncheckedByBench["SEOpAmpDCBench"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["SEOpAmpDCBench"][0].Id);
+    }
+
+    [Fact]
+    public void Check_BenchAwareFiltering_DCBenchOnlyChecksPowerConstraint()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
+                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                },
+                Measure = new List<MeasureIntent>
+                {
+                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
+                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
+                }
+            }
+        };
+
+        var dcResults = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "SEOpAmpDCBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["pwr"] = new() { Metric = "QuiescentPower", Value = 0.0003, Unit = "W" }
+            }
+        };
+
+        var report = ComplianceChecker.Check(circuit, dcResults);
+
+        Assert.Equal(1, report.TotalCount);
+        Assert.Equal(1, report.PassedCount);
+        Assert.Single(report.UncheckedByBench);
+        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpACBench"));
+    }
+
+    [Fact]
+    public void Check_NoMeasureSection_FallsBackToCheckingAllConstraints()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new() { Id = "c_gbw", Metric = "GainBandwidth", Op = ">=", Value = "100M", Unit = "Hz" },
+                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                }
+                // No Measure section
+            }
+        };
+
+        var results = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "SomeBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["gbw"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz" }
+            }
+        };
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        // Both constraints should be checked (no filtering)
+        Assert.Equal(2, report.TotalCount);
+        Assert.Equal(1, report.PassedCount);  // GainBandwidth passes
+        Assert.Equal(1, report.FailedCount);  // QuiescentPower not measured = fail
+        Assert.Empty(report.UncheckedByBench);
+    }
+
+    [Fact]
+    public void Check_WithGoldenACIR_BenchAwareFiltering_ACBenchReturns3of3()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var resultsPath = Path.Combine(repoRoot, "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json");
+
+        using var acirReader = File.OpenText(acirPath);
+        var doc = ACIRReader.Read(acirReader);
+        var circuit = doc.Circuits[0];
+
+        var resultsJson = File.ReadAllText(resultsPath);
+        var results = JsonSerializer.Deserialize<BenchResult>(resultsJson);
+        Assert.NotNull(results);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        // AC bench should only check 3 constraints (gain, gbw, pm)
+        Assert.Equal(3, report.TotalCount);
+        Assert.Equal(3, report.PassedCount);
+        Assert.Equal(0, report.FailedCount);
+
+        // Power constraint should be tracked as unchecked
+        Assert.Single(report.UncheckedByBench);
+        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpDCBench"));
+        Assert.Single(report.UncheckedByBench["SEOpAmpDCBench"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["SEOpAmpDCBench"][0].Id);
     }
 }
 

@@ -100,7 +100,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        BenchResult results;
+        BenchResult? results;
         try
         {
             var jsonOptions = new JsonSerializerOptions
@@ -131,7 +131,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         // Check compliance
         var report = ComplianceChecker.Check(circuit, results);
 
-        DisplayComplianceReport(circuit, report);
+        DisplayComplianceReport(circuit, results.Bench, report);
 
         return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
     }
@@ -226,13 +226,17 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// Displays the compliance report for a circuit.
     /// </summary>
     /// <param name="circuit">The circuit being verified.</param>
+    /// <param name="benchName">Name of the bench that produced the results.</param>
     /// <param name="report">The compliance report to display.</param>
-    private void DisplayComplianceReport(Circuit circuit, ComplianceReport report)
+    private void DisplayComplianceReport(Circuit circuit, string benchName, ComplianceReport report)
     {
-        _state.AddMessage($"Constraint Compliance Report for {circuit.Name}");
+        var header = string.IsNullOrEmpty(benchName)
+            ? $"Constraint Compliance Report for {circuit.Name}"
+            : $"Constraint Compliance Report for {circuit.Name} ({benchName})";
+        _state.AddMessage(header);
         _state.AddMessage(new string('-', 50));
 
-        if (circuit.Constraints?.Numeric == null || circuit.Constraints.Numeric.Count == 0)
+        if (report.TotalCount == 0 && report.UncheckedCount == 0)
         {
             _state.AddMessage("No numeric constraints found in circuit.");
         }
@@ -249,6 +253,21 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         _state.AddMessage(new string('-', 50));
         _state.AddMessage($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
+
+        // Show hint about unchecked constraints from other benches
+        if (report.UncheckedByBench.Count > 0)
+        {
+            _state.AddMessage("");
+            var totalUnchecked = report.UncheckedCount;
+            var constraintWord = totalUnchecked == 1 ? "constraint" : "constraints";
+
+            foreach (var kvp in report.UncheckedByBench)
+            {
+                var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
+                _state.AddMessage($"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}.");
+            }
+            _state.AddMessage("Run `verify` with combined results to check all constraints.");
+        }
     }
 
     private static string GetUnitFromConstraint(Circuit circuit, string constraintId)

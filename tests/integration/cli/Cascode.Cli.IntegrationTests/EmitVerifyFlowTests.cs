@@ -17,6 +17,8 @@ namespace Cascode.Cli.IntegrationTests;
 /// </summary>
 public class EmitVerifyFlowTests : IDisposable
 {
+    private const string FloatingPointPattern = @"[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?";
+
     private readonly string _repoRoot;
     private readonly string _outputDir;
     private readonly CascodeHomeScope _cascodeHome;
@@ -88,7 +90,8 @@ public class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
-        Assert.Contains("4/4 constraints satisfied", result.Stdout);
+        Assert.Contains("3/3 constraints satisfied", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.", result.Stdout);
     }
 
     [Fact]
@@ -106,8 +109,7 @@ public class EmitVerifyFlowTests : IDisposable
             {
                 gain = new { metric = "PassbandGain", value = 30.0, unit = "dB", node = "OUT" },
                 gbw = new { metric = "GainBandwidth", value = 50e6, unit = "Hz", node = "OUT" },
-                pm = new { metric = "PhaseMargin", value = 45.0, unit = "deg", node = "OUT" },
-                power = new { metric = "Power", value = 0.001, unit = "W", node = (string?)null }
+                pm = new { metric = "PhaseMargin", value = 45.0, unit = "deg", node = "OUT" }
             }
         };
         await File.WriteAllTextAsync(failingResultsPath, JsonSerializer.Serialize(failingResults, new JsonSerializerOptions { WriteIndented = true }));
@@ -166,6 +168,7 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.Contains(".control", benchContent);
 
         // Step 2: Create mock results (as if simulation ran)
+        // AC bench only measures AC metrics - no power measurement
         var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench_results.json");
         var mockResults = new
         {
@@ -175,8 +178,7 @@ public class EmitVerifyFlowTests : IDisposable
             {
                 gain = new { metric = "PassbandGain", value = 45.2, unit = "dB", node = "OUT" },
                 gbw = new { metric = "GainBandwidth", value = 150e6, unit = "Hz", node = "OUT" },
-                pm = new { metric = "PhaseMargin", value = 65.3, unit = "deg", node = "OUT" },
-                QuiescentPower = new { metric = "QuiescentPower", value = 0.00035, unit = "W", node = (string?)null }
+                pm = new { metric = "PhaseMargin", value = 65.3, unit = "deg", node = "OUT" }
             }
         };
         await File.WriteAllTextAsync(resultsPath, JsonSerializer.Serialize(mockResults, new JsonSerializerOptions { WriteIndented = true }));
@@ -188,7 +190,8 @@ public class EmitVerifyFlowTests : IDisposable
             "verify", "--acir", acirPath, "--results", resultsPath);
 
         CliIntegrationTestHelper.AssertSuccess(verifyResult, "verify command failed");
-        Assert.Contains("4/4 constraints satisfied", verifyResult.Stdout);
+        Assert.Contains("3/3 constraints satisfied", verifyResult.Stdout);
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.", verifyResult.Stdout);
     }
 
     [Fact]
@@ -657,9 +660,9 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.True(ngspiceResult.Success,
             $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
 
-        Assert.Matches(@"RESULT:\s*PassbandGain\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
-        Assert.Matches(@"RESULT:\s*GainBandwidth\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
-        Assert.Matches(@"RESULT:\s*PhaseMargin\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("GainBandwidth"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PhaseMargin"), ngspiceResult.Stdout);
     }
 
     [Fact]
@@ -714,7 +717,8 @@ public class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
-        Assert.Contains("4/4 constraints satisfied", result.Stdout);
+        Assert.Contains("3/3 constraints satisfied", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by FDOpAmpDCBench.", result.Stdout);
     }
 
     [Fact]
@@ -739,9 +743,9 @@ public class EmitVerifyFlowTests : IDisposable
             $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
 
         // Verify RESULT lines contain valid numeric values (not empty)
-        Assert.Matches(@"RESULT:\s*PassbandGain\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
-        Assert.Matches(@"RESULT:\s*GainBandwidth\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
-        Assert.Matches(@"RESULT:\s*PhaseMargin\s*=\s*[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?", ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("GainBandwidth"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PhaseMargin"), ngspiceResult.Stdout);
     }
 
     [Fact]
@@ -764,6 +768,16 @@ public class EmitVerifyFlowTests : IDisposable
         var ngspiceResult = await RunNgspiceAsync(benchPath);
         Assert.True(ngspiceResult.Success,
             $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+    }
+
+    /// <summary>
+    /// Creates a regex pattern for matching RESULT lines with numeric values.
+    /// </summary>
+    /// <param name="metricName">The metric name (e.g., "PassbandGain", "GainBandwidth").</param>
+    /// <returns>A Regex pattern that matches RESULT lines for the specified metric with a floating-point value.</returns>
+    private static Regex CreateNumericResultRegex(string metricName)
+    {
+        return new Regex($@"RESULT:\s*{Regex.Escape(metricName)}\s*=\s*{FloatingPointPattern}", RegexOptions.Compiled);
     }
 
     /// <summary>

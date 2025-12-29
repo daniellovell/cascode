@@ -13,6 +13,7 @@ public static class ComplianceChecker
 {
     /// <summary>
     /// Checks numeric constraints from a circuit against measurement results.
+    /// Only evaluates constraints whose metrics are measured by the bench that produced the results.
     /// </summary>
     /// <param name="circuit">Circuit containing constraints.</param>
     /// <param name="results">Bench measurement results.</param>
@@ -29,13 +30,87 @@ public static class ComplianceChecker
             return report;
         }
 
+        // Build mapping from metric (with optional node) to bench name
+        var metricToBench = BuildMetricToBenchMapping(circuit);
+
         foreach (var constraint in circuit.Constraints.Numeric)
         {
+            var benchForConstraint = FindBenchForConstraint(constraint, metricToBench);
+
+            // If we can determine the bench for this constraint, check if it matches the results' bench
+            if (benchForConstraint != null &&
+                !string.Equals(benchForConstraint, results.Bench, StringComparison.OrdinalIgnoreCase))
+            {
+                // This constraint belongs to a different bench - track as unchecked
+                if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
+                {
+                    uncheckedList = new List<UncheckedConstraint>();
+                    report.UncheckedByBench[benchForConstraint] = uncheckedList;
+                }
+                uncheckedList.Add(new UncheckedConstraint
+                {
+                    Id = constraint.Id,
+                    Metric = constraint.Metric
+                });
+                continue;
+            }
+
+            // Evaluate constraint against results
             var result = EvaluateConstraint(constraint, results);
             report.Results.Add(result);
         }
 
         return report;
+    }
+
+    /// <summary>
+    /// Builds a mapping from metric key (Metric or Metric@Node) to bench name.
+    /// </summary>
+    private static Dictionary<string, string> BuildMetricToBenchMapping(Circuit circuit)
+    {
+        var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (circuit.Constraints?.Measure == null)
+        {
+            return mapping;
+        }
+
+        foreach (var measure in circuit.Constraints.Measure)
+        {
+            var key = measure.Node != null
+                ? $"{measure.Metric}@{measure.Node}"
+                : measure.Metric;
+            mapping[key] = measure.Bench;
+        }
+
+        return mapping;
+    }
+
+    /// <summary>
+    /// Finds the bench that measures the metric for a given constraint.
+    /// </summary>
+    private static string? FindBenchForConstraint(
+        NumericConstraint constraint,
+        Dictionary<string, string> metricToBench)
+    {
+        // Try with node first if specified
+        if (constraint.Node != null)
+        {
+            var keyWithNode = $"{constraint.Metric}@{constraint.Node}";
+            if (metricToBench.TryGetValue(keyWithNode, out var benchWithNode))
+            {
+                return benchWithNode;
+            }
+        }
+
+        // Try without node
+        if (metricToBench.TryGetValue(constraint.Metric, out var bench))
+        {
+            return bench;
+        }
+
+        // No mapping found - constraint will be evaluated against current results
+        return null;
     }
 
     private static ConstraintResult EvaluateConstraint(NumericConstraint constraint, BenchResult results)
