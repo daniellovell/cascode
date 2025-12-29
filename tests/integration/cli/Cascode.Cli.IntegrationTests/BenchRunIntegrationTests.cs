@@ -60,7 +60,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
 
-        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath));
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         var power = benchResults!.Measurements.Values.Where(m => m.Metric == "QuiescentPower").ToList();
@@ -149,7 +149,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
 
-        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath));
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         var power = benchResults!.Measurements.Values.Where(m => m.Metric == "QuiescentPower").ToList();

@@ -230,6 +230,42 @@ namespace Cascode.ACIR.Tests
 
             Assert.Empty(result);
         }
+
+        [Fact]
+        public void IncludesParallelLoadInHarnessLoads()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("R", "1MOhm")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+            Assert.Equal("OUT", first["net"]);
+            var cs = (List<string>)first["cs"];
+            Assert.Single(cs);
+            Assert.Equal("1pF", cs[0]);
+            var rs = (List<string>)first["rs"];
+            Assert.Single(rs);
+            Assert.Equal("1MOhm", rs[0]);
+        }
     }
 
     public class DetermineOutNodeTests
@@ -627,42 +663,6 @@ namespace Cascode.ACIR.Tests
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
 
             Assert.Equal(1e9, result.RloadOhms); // Default 1 GOhm
-        }
-
-        [Fact]
-        public void IncludesParallelLoadInHarnessLoads()
-        {
-            var circuit = new Circuit
-            {
-                Name = "Test",
-                Harness = new HarnessBlock
-                {
-                    Loads = new List<LoadValue>
-                    {
-                        new()
-                        {
-                            Net = "OUT",
-                            Elements = new List<LoadElement>
-                            {
-                                new LoadElement("C", "1pF"),
-                                new LoadElement("R", "1MOhm")
-                            }
-                        }
-                    }
-                }
-            };
-
-            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
-
-            Assert.Single(result);
-            var first = (Dictionary<string, object>)result[0];
-            Assert.Equal("OUT", first["net"]);
-            var cs = (List<string>)first["cs"];
-            Assert.Single(cs);
-            Assert.Equal("1pF", cs[0]);
-            var rs = (List<string>)first["rs"];
-            Assert.Single(rs);
-            Assert.Equal("1MOhm", rs[0]);
         }
 
         [Fact]
