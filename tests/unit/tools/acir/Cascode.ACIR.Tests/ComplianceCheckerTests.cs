@@ -338,6 +338,53 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
+    public void Check_CombinedResults_ChecksAllConstraints()
+    {
+        // When bench="all" (combined results from multiple benches), all constraints should be checked
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Constraints = new ConstraintsBlock
+            {
+                Numeric = new List<NumericConstraint>
+                {
+                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
+                    new() { Id = "c_gain", Metric = "PassbandGain", Node = "OUT", Op = ">=", Value = "40", Unit = "dB" },
+                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                },
+                Measure = new List<MeasureIntent>
+                {
+                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
+                    new() { Id = "m_gain", Bench = "SEOpAmpACBench", Metric = "PassbandGain", Node = "OUT" },
+                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
+                }
+            }
+        };
+
+        // Combined results with bench="all" containing measurements from both AC and DC benches
+        var combinedResults = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "all",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["GainBandwidth@OUT"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz", Node = "OUT" },
+                ["PassbandGain@OUT"] = new() { Metric = "PassbandGain", Value = 45.0, Unit = "dB", Node = "OUT" },
+                ["QuiescentPower"] = new() { Metric = "QuiescentPower", Value = 0.0003, Unit = "W" }
+            }
+        };
+
+        var report = ComplianceChecker.Check(circuit, combinedResults);
+
+        // All 3 constraints should be checked (no filtering for combined results)
+        Assert.Equal(3, report.TotalCount);
+        Assert.Equal(3, report.PassedCount);
+        Assert.Equal(0, report.FailedCount);
+        // No unchecked constraints since we're checking all
+        Assert.Empty(report.UncheckedByBench);
+    }
+
+    [Fact]
     public void Check_NoMeasureSection_FallsBackToCheckingAllConstraints()
     {
         var circuit = new Circuit

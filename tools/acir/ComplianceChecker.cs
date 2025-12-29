@@ -33,12 +33,17 @@ public static class ComplianceChecker
         // Build mapping from metric (with optional node) to bench name
         var metricToBench = BuildMetricToBenchMapping(circuit);
 
+        // "all" indicates combined results from multiple benches - check all constraints
+        var isCombinedResults = string.Equals(results.Bench, "all", StringComparison.OrdinalIgnoreCase);
+
         foreach (var constraint in circuit.Constraints.Numeric)
         {
             var benchForConstraint = FindBenchForConstraint(constraint, metricToBench);
 
             // If we can determine the bench for this constraint, check if it matches the results' bench
-            if (benchForConstraint != null &&
+            // Skip filtering for combined results ("all") which should check all constraints
+            if (!isCombinedResults &&
+                benchForConstraint != null &&
                 !string.Equals(benchForConstraint, results.Bench, StringComparison.OrdinalIgnoreCase))
             {
                 // This constraint belongs to a different bench - track as unchecked
