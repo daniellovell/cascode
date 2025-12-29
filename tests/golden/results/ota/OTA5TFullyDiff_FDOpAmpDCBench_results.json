@@ -14,7 +14,7 @@
       "unit": "V",
       "node": null
     },
-    "power": {
+    "QuiescentPower": {
       "metric": "QuiescentPower",
       "value": 0.00042,
       "unit": "W",

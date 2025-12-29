@@ -230,6 +230,42 @@ namespace Cascode.ACIR.Tests
 
             Assert.Empty(result);
         }
+
+        [Fact]
+        public void IncludesParallelLoadInHarnessLoads()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF"),
+                                new LoadElement("R", "1MOhm")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
+
+            Assert.Single(result);
+            var first = (Dictionary<string, object>)result[0];
+            Assert.Equal("OUT", first["net"]);
+            var cs = (List<string>)first["cs"];
+            Assert.Single(cs);
+            Assert.Equal("1pF", cs[0]);
+            var rs = (List<string>)first["rs"];
+            Assert.Single(rs);
+            Assert.Equal("1MOhm", rs[0]);
+        }
     }
 
     public class DetermineOutNodeTests
@@ -630,42 +666,6 @@ namespace Cascode.ACIR.Tests
         }
 
         [Fact]
-        public void IncludesParallelLoadInHarnessLoads()
-        {
-            var circuit = new Circuit
-            {
-                Name = "Test",
-                Harness = new HarnessBlock
-                {
-                    Loads = new List<LoadValue>
-                    {
-                        new()
-                        {
-                            Net = "OUT",
-                            Elements = new List<LoadElement>
-                            {
-                                new LoadElement("C", "1pF"),
-                                new LoadElement("R", "1MOhm")
-                            }
-                        }
-                    }
-                }
-            };
-
-            var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
-
-            Assert.Single(result);
-            var first = (Dictionary<string, object>)result[0];
-            Assert.Equal("OUT", first["net"]);
-            var cs = (List<string>)first["cs"];
-            Assert.Single(cs);
-            Assert.Equal("1pF", cs[0]);
-            var rs = (List<string>)first["rs"];
-            Assert.Single(rs);
-            Assert.Equal("1MOhm", rs[0]);
-        }
-
-        [Fact]
         public void DerivesSourceImpedance()
         {
             var circuit = new Circuit
@@ -749,6 +749,140 @@ namespace Cascode.ACIR.Tests
 
             Assert.Contains("Template file is empty", ex.Message);
             Assert.Contains("EmptyBench", ex.Message);
+        }
+    }
+
+    public class DerivePassbandMeasurementFrequencyTests
+    {
+        [Fact]
+        public void DerivePassbandFreq_GbwAndGain_InfersLpCorner()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Constraints = new ConstraintsBlock
+                {
+                    Numeric = new List<NumericConstraint>
+                    {
+                        new() { Metric = "GainBandwidth", Value = "100M", Unit = "Hz" },
+                        new() { Metric = "PassbandGain", Value = "40", Unit = "dB" }
+                    }
+                }
+            };
+
+            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+
+            // GBW=100M, Gain=40dB (100x linear) => LP corner = 100M/100 = 1MHz
+            // HP corner = 1Hz (DC-coupled, no HP constraint)
+            // Passband freq = sqrt(1 * 1M) = 1kHz
+            Assert.True(context.Args.ContainsKey("passband_freq_hz"));
+            var passbandFreq = Convert.ToDouble(context.Args["passband_freq_hz"]);
+            Assert.InRange(passbandFreq, 900, 1100); // ~1kHz with some tolerance
+        }
+
+        [Fact]
+        public void DerivePassbandFreq_WithHpConstraint_UsesGeometricMean()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Constraints = new ConstraintsBlock
+                {
+                    Numeric = new List<NumericConstraint>
+                    {
+                        new() { Metric = "HighpassBandwidth", Value = "1k", Unit = "Hz" },
+                        new() { Metric = "LowpassBandwidth", Value = "100k", Unit = "Hz" }
+                    }
+                }
+            };
+
+            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+
+            // HP=1kHz, LP=100kHz => geometric mean = sqrt(1k * 100k) = 10kHz
+            Assert.True(context.Args.ContainsKey("passband_freq_hz"));
+            var passbandFreq = Convert.ToDouble(context.Args["passband_freq_hz"]);
+            Assert.InRange(passbandFreq, 9000, 11000); // ~10kHz
+        }
+
+        [Fact]
+        public void DerivePassbandFreq_NoConstraints_UsesDefaultGeometricMean()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test"
+            };
+
+            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+
+            // Default sweep: 1Hz to 10GHz => geometric mean = sqrt(1 * 10G) = 100kHz
+            Assert.True(context.Args.ContainsKey("passband_freq_hz"));
+            var passbandFreq = Convert.ToDouble(context.Args["passband_freq_hz"]);
+            Assert.InRange(passbandFreq, 90000, 110000); // ~100kHz
+        }
+    }
+
+    public class GenerateLoadElementsTests
+    {
+        [Fact]
+        public void GenerateLoadElements_Differential_SplitsLoadsCorrectly()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "2pF"),
+                                new LoadElement("R", "10k")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var loadElements = ACIRBenchAdapter.GenerateLoadElements(circuit, differential: true);
+
+            // Should split 2pF into 1pF on each side (note: no _0 suffix for single element, uses 'p' not 'pF')
+            Assert.Contains("COUT_P_load OUT_P 0 1p", loadElements);
+            Assert.Contains("COUT_N_load OUT_N 0 1p", loadElements);
+            // Should split 10k into 5k on each side (uses 'K' for kilo)
+            Assert.Contains("ROUT_P_load OUT_P 0 5K", loadElements);
+            Assert.Contains("ROUT_N_load OUT_N 0 5K", loadElements);
+        }
+
+        [Fact]
+        public void GenerateLoadElements_SingleEnded_DoesNotSplit()
+        {
+            var circuit = new Circuit
+            {
+                Name = "Test",
+                Harness = new HarnessBlock
+                {
+                    Loads = new List<LoadValue>
+                    {
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement>
+                            {
+                                new LoadElement("C", "1pF")
+                            }
+                        }
+                    }
+                }
+            };
+
+            var loadElements = ACIRBenchAdapter.GenerateLoadElements(circuit, differential: false);
+
+            Assert.Contains("COUT_load OUT 0 1p", loadElements);
+            Assert.DoesNotContain("OUT_P", loadElements);
+            Assert.DoesNotContain("OUT_N", loadElements);
         }
     }
 }

@@ -15,7 +15,7 @@ public static class ACIRVersion
     /// ACIR minor version. Increment for additive changes.
     /// Reader accepts any minor version within same major.
     /// </summary>
-    public const int Minor = 0;
+    public const int Minor = 1;
 
     /// <summary>
     /// Current ACIR version string (MAJOR.MINOR format).

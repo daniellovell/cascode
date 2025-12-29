@@ -29,10 +29,20 @@ VIN_CM IN_P 0 DC {{ vcm }}
 EIN_N IN_N 0 IN_P 0 1
 {{ end }}
 
-* Differential output loads (split capacitance equally)
+* Differential output loads
 {{ for load in harness.loads }}
-C{{ load.net }}_P_load {{ load.net }}_P 0 {{ env.cload_f/2 }}
-C{{ load.net }}_N_load {{ load.net }}_N 0 {{ env.cload_f/2 }}
+{{ if load.net | string.ends_with "_P" }}
+{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
+{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
+{{ end }}{{ else if load.net | string.ends_with "_N" }}
+{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
+{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
+{{ end }}{{ else }}
+{{ for c in load.cs_half }}C{{ load.net }}_P_load{{ if load.cs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_P 0 {{ c }}
+C{{ load.net }}_N_load{{ if load.cs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_N 0 {{ c }}
+{{ end }}{{ for r in load.rs_half }}R{{ load.net }}_P_load{{ if load.rs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_P 0 {{ r }}
+R{{ load.net }}_N_load{{ if load.rs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_N 0 {{ r }}
+{{ end }}{{ end }}
 {{ end }}
 
 * DUT

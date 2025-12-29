@@ -1,4 +1,4 @@
-ACIR 1.0
+ACIR 1.1
 
 ; Circuit with missing required parameter - EMIT-003 violation
 ; Device M1 is missing the W (width) parameter

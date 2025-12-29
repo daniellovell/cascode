@@ -107,7 +107,7 @@ public class SpiceEmitterTests
         var doc = ACIRReader.Read(reader);
 
         Assert.Equal(1, doc.VersionMajor);
-        Assert.Equal(0, doc.VersionMinor);
+        Assert.Equal(1, doc.VersionMinor);
         Assert.Single(doc.Circuits);
 
         var circuit = doc.Circuits[0];
@@ -139,8 +139,9 @@ public class SpiceEmitterTests
 
         // Benches
         Assert.NotNull(circuit.Benches);
-        Assert.Single(circuit.Benches.Benches);
+        Assert.Equal(2, circuit.Benches.Benches.Count);
         Assert.Equal("SEOpAmpACBench", circuit.Benches.Benches[0].Name);
+        Assert.Equal("SEOpAmpDCBench", circuit.Benches.Benches[1].Name);
     }
 
     [Fact]

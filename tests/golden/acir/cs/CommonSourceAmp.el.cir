@@ -1,4 +1,4 @@
-ACIR 1.0
+ACIR 1.1
 
 circuit CommonSourceAmp : SingleEndedAmp
   level EL

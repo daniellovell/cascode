@@ -31,12 +31,20 @@ L_FB OUT_P IN_N 1T
 C_INJ IN_N_src IN_N 1T
 V_INJ IN_N_src 0 AC 1
 
-* Differential Load (split capacitance equally)
-CLOADP OUT_P 0 {{ env.cload_f/2 }}
-CLOADN OUT_N 0 {{ env.cload_f/2 }}
-{{ if env.rload_ohms && env.rload_ohms > 0 }}
-RLOADP OUT_P 0 {{ env.rload_ohms }}
-RLOADN OUT_N 0 {{ env.rload_ohms }}
+* Differential output loads
+{{ for load in harness.loads }}
+{{ if load.net | string.ends_with "_P" }}
+{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
+{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
+{{ end }}{{ else if load.net | string.ends_with "_N" }}
+{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
+{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
+{{ end }}{{ else }}
+{{ for c in load.cs_half }}C{{ load.net }}_P_load{{ if load.cs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_P 0 {{ c }}
+C{{ load.net }}_N_load{{ if load.cs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_N 0 {{ c }}
+{{ end }}{{ for r in load.rs_half }}R{{ load.net }}_P_load{{ if load.rs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_P 0 {{ r }}
+R{{ load.net }}_N_load{{ if load.rs_half.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }}_N 0 {{ r }}
+{{ end }}{{ end }}
 {{ end }}
 
 * DUT

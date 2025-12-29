@@ -19,12 +19,6 @@
       "value": 68.2,
       "unit": "deg",
       "node": null
-    },
-    "power": {
-      "metric": "QuiescentPower",
-      "value": 0.00042,
-      "unit": "W",
-      "node": null
     }
   }
 }

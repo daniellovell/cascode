@@ -20,6 +20,27 @@ public sealed class ComplianceReport
 
     /// <summary>Total number of constraints checked.</summary>
     public int TotalCount => Results.Count;
+
+    /// <summary>
+    /// Constraints that were not checked because they belong to a different bench.
+    /// Grouped by bench name.
+    /// </summary>
+    public Dictionary<string, List<UncheckedConstraint>> UncheckedByBench { get; init; } = new();
+
+    /// <summary>Total number of unchecked constraints across all benches.</summary>
+    public int UncheckedCount => UncheckedByBench.Values.Sum(list => list.Count);
+}
+
+/// <summary>
+/// A constraint that was not checked because it belongs to a different bench.
+/// </summary>
+public sealed class UncheckedConstraint
+{
+    /// <summary>Constraint ID (e.g., "c_pwr").</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Metric name (e.g., "QuiescentPower").</summary>
+    public string Metric { get; init; } = string.Empty;
 }
 
 /// <summary>

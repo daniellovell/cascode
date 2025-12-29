@@ -19,12 +19,6 @@
       "value": 65.3,
       "unit": "deg",
       "node": "OUT"
-    },
-    "power": {
-      "metric": "Power",
-      "value": 0.00035,
-      "unit": "W",
-      "node": null
     }
   }
 }

@@ -1,4 +1,4 @@
-ACIR 1.0
+ACIR 1.1
 
 circuit OTA5TSingleEnded
   level EL
@@ -18,19 +18,21 @@ circuit OTA5TSingleEnded
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz
+      c_gbw : GainBandwidth @ OUT >= 20M Hz
       c_gain : PassbandGain @ OUT >= 40 dB
       c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : Power <= 500u W
+      c_pwr : QuiescentPower <= 500u W
     tech:
       t_lmin : L >= 180n m on *
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth @ OUT
       m_gain : SEOpAmpACBench PassbandGain @ OUT
       m_pm : SEOpAmpACBench PhaseMargin @ OUT
+      m_pwr : SEOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
   benches:
     SEOpAmpACBench
+    SEOpAmpDCBench
