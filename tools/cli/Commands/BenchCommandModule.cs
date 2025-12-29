@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Cascode.ACIR;
 using Cascode.Cli.Services;
 using Microsoft.Extensions.Logging;
 
@@ -121,17 +122,38 @@ internal sealed class BenchCommandModule : ICommandModule
         }
 
         var compliance = summary.Compliance;
-        var status = compliance.FailedCount == 0 ? "PASS" : "FAIL";
-        _state.AddMessage($"Compliance: {status} ({compliance.PassedCount}/{compliance.TotalCount})");
+        var passPercentage = compliance.TotalCount > 0
+            ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
+            : 0;
+        _state.AddMessage($"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)");
 
-        if (compliance.FailedCount > 0)
+        // Helper to format a constraint result
+        string FormatConstraint(ConstraintResult result)
         {
-            foreach (var failure in compliance.Results.Where(r => !r.Passed))
+            var where = string.IsNullOrWhiteSpace(result.Node) ? result.Metric : $"{result.Metric}@{result.Node}";
+            var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
+            var actual = result.Actual is null ? "missing" : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
+            return $"  {result.Id}: {where} {expected} (actual {actual})";
+        }
+
+        var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
+        var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
+
+        if (passedConstraints.Length > 0)
+        {
+            _state.AddMessage("PASS:");
+            foreach (var pass in passedConstraints)
             {
-                var where = string.IsNullOrWhiteSpace(failure.Node) ? failure.Metric : $"{failure.Metric}@{failure.Node}";
-                var expected = $"{failure.Operator} {FormatNumber(failure.Expected)} {failure.Unit}".TrimEnd();
-                var actual = failure.Actual is null ? "missing" : $"{FormatNumber(failure.Actual.Value)} {failure.ActualUnit ?? failure.Unit}".TrimEnd();
-                _state.AddMessage($"  {failure.Id}: {where} {expected} (actual {actual})");
+                _state.AddMessage(FormatConstraint(pass));
+            }
+        }
+
+        if (failedConstraints.Length > 0)
+        {
+            _state.AddMessage("FAIL:");
+            foreach (var failure in failedConstraints)
+            {
+                _state.AddMessage(FormatConstraint(failure));
             }
         }
     }

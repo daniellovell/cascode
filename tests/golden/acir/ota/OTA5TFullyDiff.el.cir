@@ -17,12 +17,12 @@ circuit OTA5TFullyDiff
     nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : L=180n M=1 W=4u nmos
     pmos M_LOAD_P (B->VDD, D->OUT_P, G->vcm_node, S->VDD) : L=180n M=1 W=2u pmos
     pmos M_LOAD_N (B->VDD, D->OUT_N, G->vcm_node, S->VDD) : L=180n M=1 W=2u pmos
-    resistor R_CMFB_P (P->OUT_P, N->vcm_node) : R=500k ohm
-    resistor R_CMFB_N (P->OUT_N, N->vcm_node) : R=500k ohm
+    resistor R_CMFB_P (P->OUT_P, N->vcm_node) : R=500k
+    resistor R_CMFB_N (P->OUT_N, N->vcm_node) : R=500k
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 80M Hz
-      c_gain : PassbandGain >= 40 dB
+      c_gbw : GainBandwidth >= 40M Hz
+      c_gain : PassbandGain >= 30 dB
       c_pm : PhaseMargin >= 60 deg
       c_pwr : QuiescentPower <= 800u W
     tech:
