@@ -202,7 +202,10 @@ public static class ACIRBenchAdapter
                     }
                     else
                     {
-                        csHalf.Add(c); // Fallback: use original if parsing fails
+                        throw new ArgumentException(
+                            $"Unable to parse capacitance load value '{c}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
+                            "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
+                            paramName: null);
                     }
                 }
                 data["cs_half"] = csHalf;
@@ -219,7 +222,10 @@ public static class ACIRBenchAdapter
                     }
                     else
                     {
-                        rsHalf.Add(r); // Fallback: use original if parsing fails
+                        throw new ArgumentException(
+                            $"Unable to parse resistance load value '{r}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
+                            "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
+                            paramName: null);
                     }
                 }
                 data["rs_half"] = rsHalf;
@@ -271,9 +277,10 @@ public static class ACIRBenchAdapter
                     }
                     else
                     {
-                        var suffix = cs.Count > 1 ? $"_{i}" : "";
-                        lines.Add($"C{load.Net}_P_load{suffix} {load.Net}_P 0 {cs[i]}");
-                        lines.Add($"C{load.Net}_N_load{suffix} {load.Net}_N 0 {cs[i]}");
+                        throw new ArgumentException(
+                            $"Unable to parse capacitance load value '{cs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
+                            "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
+                            paramName: null);
                     }
                 }
 
@@ -288,9 +295,10 @@ public static class ACIRBenchAdapter
                     }
                     else
                     {
-                        var suffix = rs.Count > 1 ? $"_{i}" : "";
-                        lines.Add($"R{load.Net}_P_load{suffix} {load.Net}_P 0 {rs[i]}");
-                        lines.Add($"R{load.Net}_N_load{suffix} {load.Net}_N 0 {rs[i]}");
+                        throw new ArgumentException(
+                            $"Unable to parse resistance load value '{rs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
+                            "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
+                            paramName: null);
                     }
                 }
             }
