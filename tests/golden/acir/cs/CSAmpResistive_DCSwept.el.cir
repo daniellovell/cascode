@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.1
 
 circuit CSAmpResistive_DCSwept : SingleEndedAmp
   level EL

@@ -327,7 +327,8 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     {
         var doc = new ACIRDocument
         {
-            Version = 1
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor
         };
 
         // Extract bundle types (Diff is built-in, but we can declare it explicitly)

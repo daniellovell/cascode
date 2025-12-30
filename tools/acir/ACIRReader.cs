@@ -121,16 +121,23 @@ public static class ACIRReader
         var i = 0;
 
         // Skip empty lines and comments
-        while (i < lines.Count && IsEmptyOrComment(lines[i]))
+        while (i < lines.Count && IsEmptyOrCommentLine(lines[i]))
             i++;
 
         // Version line
         if (i < lines.Count && lines[i].StartsWith("ACIR"))
         {
             var parts = lines[i].Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2 && int.TryParse(parts[1], out var ver))
+            if (parts.Length >= 2)
             {
-                doc = new ACIRDocument { Version = ver };
+                var versionStr = parts[1];
+                var versionParts = versionStr.Split('.');
+                if (versionParts.Length == 2
+                    && int.TryParse(versionParts[0], out var major)
+                    && int.TryParse(versionParts[1], out var minor))
+                {
+                    doc = new ACIRDocument { VersionMajor = major, VersionMinor = minor };
+                }
             }
             i++;
         }
@@ -139,7 +146,7 @@ public static class ACIRReader
         while (i < lines.Count)
         {
             var line = lines[i].TrimEnd();
-            if (IsEmptyOrComment(line))
+            if (IsEmptyOrCommentLine(line))
             {
                 i++;
                 continue;
@@ -175,7 +182,7 @@ public static class ACIRReader
         var i = 0;
 
         // Skip empty lines and comments
-        while (i < lines.Count && IsEmptyOrComment(lines[i]))
+        while (i < lines.Count && IsEmptyOrCommentLine(lines[i]))
             i++;
 
         // Version line
@@ -184,14 +191,28 @@ public static class ACIRReader
             var parts = lines[i].Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length >= 2)
             {
-                if (int.TryParse(parts[1], out var ver))
+                var versionStr = parts[1];
+                var versionParts = versionStr.Split('.');
+                if (versionParts.Length == 2
+                    && int.TryParse(versionParts[0], out var major)
+                    && int.TryParse(versionParts[1], out var minor))
                 {
-                    doc = new ACIRDocument { Version = ver };
+                    doc = new ACIRDocument { VersionMajor = major, VersionMinor = minor };
+                    if (major != ACIRVersion.Major)
+                    {
+                        diagnostics.Add(new Diagnostic(
+                            $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1));
+                    }
+                    // Minor version mismatch is OK - no error
                 }
                 else
                 {
                     diagnostics.Add(new Diagnostic(
-                        $"ACIR0002: Invalid version declaration '{lines[i].Trim()}' - expected 'ACIR <number>'",
+                        $"ACIR0002: Invalid version declaration '{lines[i].Trim()}' - expected 'ACIR MAJOR.MINOR'",
                         DiagnosticSeverity.Error,
                         filePath,
                         i + 1,
@@ -203,7 +224,7 @@ public static class ACIRReader
         else if (i < lines.Count && !string.IsNullOrWhiteSpace(lines[i]))
         {
             diagnostics.Add(new Diagnostic(
-                "ACIR0002: Missing version declaration - expected 'ACIR 1' at start of file",
+                $"ACIR0002: Missing version declaration - expected 'ACIR {ACIRVersion.Current}' at start of file",
                 DiagnosticSeverity.Warning,
                 filePath,
                 1,
@@ -214,7 +235,7 @@ public static class ACIRReader
         while (i < lines.Count)
         {
             var line = lines[i].TrimEnd();
-            if (IsEmptyOrComment(line))
+            if (IsEmptyOrCommentLine(line))
             {
                 i++;
                 continue;
@@ -322,34 +343,39 @@ public static class ACIRReader
                 break;
 
             var trimmed = currentLine.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";"))
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
             {
                 i++;
                 continue;
             }
 
+            var contentLine = currentLine;
+            var commentIndex = contentLine.IndexOf("//");
+            if (commentIndex >= 0) contentLine = contentLine[..commentIndex];
+            var contentTrimmed = contentLine.Trim();
+
             // Check for constraint subsection headers
             if (currentLine.StartsWith("    ") && !currentLine.StartsWith("      ") && currentConstraints is not null)
             {
-                if (trimmed == "numeric:")
+                if (contentTrimmed == "numeric:")
                 {
                     constraintSubSection = "numeric";
                     i++;
                     continue;
                 }
-                else if (trimmed == "tech:")
+                else if (contentTrimmed == "tech:")
                 {
                     constraintSubSection = "tech";
                     i++;
                     continue;
                 }
-                else if (trimmed == "measure:")
+                else if (contentTrimmed == "measure:")
                 {
                     constraintSubSection = "measure";
                     i++;
                     continue;
                 }
-                else if (trimmed == "graph:")
+                else if (contentTrimmed == "graph:")
                 {
                     constraintSubSection = "graph";
                     i++;
@@ -360,26 +386,26 @@ public static class ACIRReader
             // Check for constraint content
             if (currentLine.StartsWith("      ") && currentConstraints is not null && constraintSubSection is not null)
             {
-                ParseConstraintContent(trimmed, currentConstraints, constraintSubSection);
+                ParseConstraintContent(contentTrimmed, currentConstraints, constraintSubSection);
             }
             // Check for section content
             else if (currentLine.StartsWith("    "))
             {
                 if (currentFill is not null)
                 {
-                    ParseFillContentWithDiagnostics(trimmed, currentFill, filePath, i + 1, diagnostics);
+                    ParseFillContentWithDiagnostics(contentTrimmed, currentFill, filePath, i + 1, diagnostics);
                 }
                 else if (currentHarness is not null)
                 {
-                    ParseHarnessContentWithDiagnostics(trimmed, currentHarness, filePath, i + 1, diagnostics);
+                    ParseHarnessContentWithDiagnostics(contentTrimmed, currentHarness, filePath, i + 1, diagnostics);
                 }
                 else if (currentBenches is not null)
                 {
-                    ParseBenchContent(trimmed, currentBenches);
+                    ParseBenchContent(contentTrimmed, currentBenches);
                 }
             }
             // Section headers
-            else if (trimmed == "fill:")
+            else if (contentTrimmed == "fill:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -389,7 +415,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "constraints:")
+            else if (contentTrimmed == "constraints:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -399,7 +425,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "harness:")
+            else if (contentTrimmed == "harness:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -409,7 +435,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "benches:")
+            else if (contentTrimmed == "benches:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -420,22 +446,22 @@ public static class ACIRReader
                 constraintSubSection = null;
             }
             // Top-level declarations
-            else if (trimmed.StartsWith("level "))
+            else if (contentTrimmed.StartsWith("level "))
             {
-                var levelStr = trimmed[6..].Trim();
+                var levelStr = contentTrimmed[6..].Trim();
                 level = ParseLevel(levelStr);
             }
-            else if (trimmed.StartsWith("supply "))
+            else if (contentTrimmed.StartsWith("supply "))
             {
-                supplies.Add(trimmed[7..].Trim());
+                supplies.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("ground "))
+            else if (contentTrimmed.StartsWith("ground "))
             {
-                grounds.Add(trimmed[7..].Trim());
+                grounds.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("port "))
+            else if (contentTrimmed.StartsWith("port "))
             {
-                var portMatch = Regex.Match(trimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
+                var portMatch = Regex.Match(contentTrimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
                 if (portMatch.Success)
                 {
                     ports.Add(new PortDeclaration
@@ -643,34 +669,39 @@ public static class ACIRReader
                 break;
 
             var trimmed = currentLine.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";"))
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
             {
                 i++;
                 continue;
             }
 
+            var contentLine = currentLine;
+            var commentIndex = contentLine.IndexOf("//");
+            if (commentIndex >= 0) contentLine = contentLine[..commentIndex];
+            var contentTrimmed = contentLine.Trim();
+
             // Check for constraint subsection headers (4 spaces, within constraints)
             if (currentLine.StartsWith("    ") && !currentLine.StartsWith("      ") && currentConstraints is not null)
             {
-                if (trimmed == "numeric:")
+                if (contentTrimmed == "numeric:")
                 {
                     constraintSubSection = "numeric";
                     i++;
                     continue;
                 }
-                else if (trimmed == "tech:")
+                else if (contentTrimmed == "tech:")
                 {
                     constraintSubSection = "tech";
                     i++;
                     continue;
                 }
-                else if (trimmed == "measure:")
+                else if (contentTrimmed == "measure:")
                 {
                     constraintSubSection = "measure";
                     i++;
                     continue;
                 }
-                else if (trimmed == "graph:")
+                else if (contentTrimmed == "graph:")
                 {
                     constraintSubSection = "graph";
                     i++;
@@ -681,26 +712,26 @@ public static class ACIRReader
             // Check for constraint content (6 spaces = inside a constraint subsection)
             if (currentLine.StartsWith("      ") && currentConstraints is not null && constraintSubSection is not null)
             {
-                ParseConstraintContent(trimmed, currentConstraints, constraintSubSection);
+                ParseConstraintContent(contentTrimmed, currentConstraints, constraintSubSection);
             }
             // Check for section content (4 spaces = inside a section block)
             else if (currentLine.StartsWith("    "))
             {
                 if (currentFill is not null)
                 {
-                    ParseFillContent(trimmed, currentFill);
+                    ParseFillContent(contentTrimmed, currentFill);
                 }
                 else if (currentHarness is not null)
                 {
-                    ParseHarnessContent(trimmed, currentHarness);
+                    ParseHarnessContent(contentTrimmed, currentHarness);
                 }
                 else if (currentBenches is not null)
                 {
-                    ParseBenchContent(trimmed, currentBenches);
+                    ParseBenchContent(contentTrimmed, currentBenches);
                 }
             }
             // Section headers (2 spaces) - preserve previous section before starting new one
-            else if (trimmed == "fill:")
+            else if (contentTrimmed == "fill:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -710,7 +741,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "constraints:")
+            else if (contentTrimmed == "constraints:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -720,7 +751,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "harness:")
+            else if (contentTrimmed == "harness:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -730,7 +761,7 @@ public static class ACIRReader
                 currentBenches = null;
                 constraintSubSection = null;
             }
-            else if (trimmed == "benches:")
+            else if (contentTrimmed == "benches:")
             {
                 SaveCurrentSection(ref fillBlock, ref constraintsBlock, ref harnessBlock, ref benchesBlock,
                     currentFill, currentConstraints, currentHarness, currentBenches);
@@ -741,22 +772,22 @@ public static class ACIRReader
                 constraintSubSection = null;
             }
             // Top-level declarations (2 spaces, not inside a section)
-            else if (trimmed.StartsWith("level "))
+            else if (contentTrimmed.StartsWith("level "))
             {
-                var levelStr = trimmed[6..].Trim();
+                var levelStr = contentTrimmed[6..].Trim();
                 level = ParseLevel(levelStr);
             }
-            else if (trimmed.StartsWith("supply "))
+            else if (contentTrimmed.StartsWith("supply "))
             {
-                supplies.Add(trimmed[7..].Trim());
+                supplies.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("ground "))
+            else if (contentTrimmed.StartsWith("ground "))
             {
-                grounds.Add(trimmed[7..].Trim());
+                grounds.Add(contentTrimmed[7..].Trim());
             }
-            else if (trimmed.StartsWith("port "))
+            else if (contentTrimmed.StartsWith("port "))
             {
-                var portMatch = Regex.Match(trimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
+                var portMatch = Regex.Match(contentTrimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
                 if (portMatch.Success)
                 {
                     ports.Add(new PortDeclaration
@@ -1104,30 +1135,46 @@ public static class ACIRReader
                 var content = parallelMatch.Groups[2].Value;
                 var parts = content.Split("||", StringSplitOptions.RemoveEmptyEntries);
 
-                string? c = null;
-                string? r = null;
+                var elements = new List<LoadElement>();
 
                 foreach (var part in parts)
                 {
                     var trimmedPart = part.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmedPart))
+                        continue;
+
                     if (trimmedPart.StartsWith("C="))
-                        c = NormalizeQuantity(trimmedPart[2..].Trim(), "F");
+                    {
+                        var value = NormalizeQuantity(trimmedPart[2..].Trim(), "F");
+                        elements.Add(new LoadElement("C", value));
+                    }
                     else if (trimmedPart.StartsWith("R="))
-                        r = NormalizeQuantity(trimmedPart[2..].Trim(), "Ohm");
+                    {
+                        var value = NormalizeQuantity(trimmedPart[2..].Trim(), "Ohm");
+                        elements.Add(new LoadElement("R", value));
+                    }
                 }
 
-                harness.Loads.Add(new LoadValue { Net = net, C = c, R = r });
+                harness.Loads.Add(new LoadValue { Net = net, Elements = elements });
             }
             else
             {
                 // Single-element syntax
-                var match = Regex.Match(line, @"^load\s+(\w+)\s+C=([^;]+)");
+                var match = Regex.Match(line, @"^load\s+(\w+)\s+(C|R)=([^;]+)");
                 if (match.Success)
                 {
+                    var net = match.Groups[1].Value;
+                    var elementType = match.Groups[2].Value;
+                    var value = match.Groups[3].Value.Trim();
+
+                    var normalizedValue = elementType == "C"
+                        ? NormalizeQuantity(value, "F")
+                        : NormalizeQuantity(value, "Ohm");
+
                     harness.Loads.Add(new LoadValue
                     {
-                        Net = match.Groups[1].Value,
-                        C = NormalizeQuantity(match.Groups[2].Value.Trim(), "F")
+                        Net = net,
+                        Elements = new List<LoadElement> { new LoadElement(elementType, normalizedValue) }
                     });
                 }
             }
@@ -1278,13 +1325,13 @@ public static class ACIRReader
     }
 
     /// <summary>
-    /// Determines if a line is empty or a comment (starts with ';').
+    /// Determines if a line is empty or a comment (starts with '//').
     /// </summary>
     /// <param name="line">Line to check.</param>
     /// <returns>True if the line should be skipped.</returns>
-    private static bool IsEmptyOrComment(string line)
+    private static bool IsEmptyOrCommentLine(string line)
     {
         var trimmed = line.Trim();
-        return string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";");
+        return string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//");
     }
 }

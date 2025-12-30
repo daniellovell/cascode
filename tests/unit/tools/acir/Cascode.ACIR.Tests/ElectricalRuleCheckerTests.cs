@@ -379,7 +379,7 @@ public class ElectricalRuleCheckerTests
             {
                 Loads = new List<LoadValue>
                 {
-                    new() { Net = "harness_net", C = "1p" } // Referenced in harness
+                    new() { Net = "harness_net", Elements = new List<LoadElement> { new LoadElement("C", "1p") } }
                 }
             }
         };

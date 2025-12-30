@@ -14,10 +14,8 @@
 .include "{{ inc }}"
 {{ end }}
 
-* Harness
-{{ for supply in harness.supplies }}
-V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
-{{ end }}
+* Harness supplies and biases
+{{ supply_elements }}
 
 * Common-mode bias
 VCM_SRC vcm 0 DC {{ vcm }}
@@ -36,13 +34,8 @@ VAC_N IN_N_drv vcm AC 0.5 180
 RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
 RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
 
-* Differential Load (split capacitance equally)
-CLOADP OUT_P 0 {{ env.cload_f/2 }}
-CLOADN OUT_N 0 {{ env.cload_f/2 }}
-{{ if env.rload_ohms && env.rload_ohms > 0 }}
-RLOADP OUT_P 0 {{ env.rload_ohms }}
-RLOADN OUT_N 0 {{ env.rload_ohms }}
-{{ end }}
+* Differential output loads
+{{ load_elements }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}
@@ -51,28 +44,41 @@ XDUT {{ port_list }} {{ circuit_name }}
 op
 ac dec 100 {{ ac_start_hz }} {{ ac_stop_hz }}
 
+* Define differential output vectors for ngspice meas compatibility
+let vout_diff_db = vdb(OUT_P, OUT_N)
+let vout_diff_ph = vp(OUT_P, OUT_N)
+
 * Measurements
-* Gain = V(OUT_P, OUT_N) / 1
-meas ac gain_dc find vdb(OUT_P, OUT_N) at=1
-meas ac gbw when vdb(OUT_P, OUT_N)=0 cross=1
-meas ac pm_raw find vp(OUT_P, OUT_N) at=gbw
+* Passband gain measured at optimal frequency (computed in C#)
+meas ac gain_passband find vout_diff_db at={{ passband_freq_hz }}
+meas ac gbw when vout_diff_db=0 cross=1
+meas ac pm_raw find vout_diff_ph at=gbw
 let pm = 180 + pm_raw
 
-let gain_3db = gain_dc - 3
-meas ac f3db_1 when vdb(OUT_P, OUT_N)=gain_3db cross=1
-meas ac f3db_2 when vdb(OUT_P, OUT_N)=gain_3db cross=2
-let hp_bw = f3db_1
-let lp_bw = f3db_2
-if lp_bw <= 0
-  let lp_bw = f3db_1
-  let hp_bw = 0
+let gain_3db = gain_passband - 3
+* LP bandwidth: falling crossing above passband center
+meas ac lp_bw_meas when vout_diff_db=gain_3db fall=1 from={{ passband_freq_hz }} to={{ ac_stop_hz }}
+* HP bandwidth: rising crossing below passband center
+meas ac hp_bw_meas when vout_diff_db=gain_3db rise=1 from={{ ac_start_hz }} to={{ passband_freq_hz }}
+
+* Initialize defaults
+let lp_bw = {{ ac_stop_hz }}
+let hp_bw = 0
+
+* Override if measurement succeeded
+if lp_bw_meas > 0
+  let lp_bw = lp_bw_meas
 end
+if hp_bw_meas > 0
+  let hp_bw = hp_bw_meas
+end
+
 let bp_bw = lp_bw - hp_bw
 if bp_bw < 0
   let bp_bw = -bp_bw
 end
 
-echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: PassbandGain = " $&gain_passband " dB"
 echo "RESULT: GainBandwidth = " $&gbw " Hz"
 echo "RESULT: PhaseMargin = " $&pm " deg"
 echo "RESULT: LowpassBandwidth = " $&lp_bw " Hz"

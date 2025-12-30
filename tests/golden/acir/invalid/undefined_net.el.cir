@@ -1,4 +1,4 @@
-ACIR 1
+ACIR 1.1
 
 ; Circuit with undefined net reference - EMIT-002 violation
 ; Device M1 references 'nonexistent_net' which is not declared

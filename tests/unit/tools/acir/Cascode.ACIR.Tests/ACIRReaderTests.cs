@@ -9,7 +9,7 @@ public class ACIRReaderTests
     [Fact]
     public void TryRead_ValidDocument_ReturnsSuccess()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -34,7 +34,7 @@ circuit TestCircuit
     [Fact]
     public void TryParse_ValidDocument_ReturnsSuccess()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -70,7 +70,7 @@ circuit TestCircuit
     [Fact]
     public void TryRead_MalformedDeviceDeclaration_ReturnsError()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -92,7 +92,7 @@ circuit TestCircuit
     [Fact]
     public void TryRead_MalformedBinding_ReturnsWarning()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -116,7 +116,7 @@ circuit TestCircuit
     [Fact]
     public void TryRead_DiagnosticsIncludeLineNumbers()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -151,8 +151,8 @@ circuit TestCircuit
     [Fact]
     public void TryRead_CommentsOnly_ReturnsEmptyResult()
     {
-        var acir = @"; This is a comment
-; Another comment
+        var acir = @"// This is a comment
+// Another comment
 ";
 
         using var reader = new StringReader(acir);
@@ -205,7 +205,7 @@ circuit TestCircuit
     [Fact]
     public void ACIRReadResult_WarningCount_ReflectsWarnings()
     {
-        var acir = @"ACIR 1
+        var acir = @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -227,7 +227,7 @@ circuit TestCircuit
     [Fact]
     public void TryParse_HarnessWithSweep_ParsesSweepCondition()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -255,7 +255,7 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -269,14 +269,16 @@ circuit Test
         var harness = result.Document!.Circuits[0].Harness!;
         Assert.Equal("1.8V", harness.Supplies[0].Value);
         Assert.Equal("0.6V", harness.Biases[0].Value);
-        Assert.Equal("1pF", harness.Loads[0].C);
+        Assert.Single(harness.Loads[0].Elements);
+        Assert.Equal("C", harness.Loads[0].Elements[0].Type);
+        Assert.Equal("1pF", harness.Loads[0].Elements[0].Value);
         Assert.Equal("50Ohm", harness.Sources[0].Z);
     }
 
     [Fact]
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -297,7 +299,7 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithAutoStepSweep_ParsesWithoutStep()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -320,7 +322,7 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithParallelLoad_ParsesBothComponents()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -329,14 +331,17 @@ circuit Test
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
         var load = result.Document!.Circuits[0].Harness!.Loads[0];
-        Assert.Equal("1pF", load.C);
-        Assert.Equal("1MOhm", load.R);
+        Assert.Equal(2, load.Elements.Count);
+        Assert.Equal("C", load.Elements[0].Type);
+        Assert.Equal("1pF", load.Elements[0].Value);
+        Assert.Equal("R", load.Elements[1].Type);
+        Assert.Equal("1MOhm", load.Elements[1].Value);
     }
 
     [Fact]
     public void TryParse_HarnessWithParallelLoadReverseOrder_ParsesBothComponents()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -345,14 +350,38 @@ circuit Test
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
         var load = result.Document!.Circuits[0].Harness!.Loads[0];
-        Assert.Equal("10pF", load.C);
-        Assert.Equal("10kOhm", load.R);
+        Assert.Equal(2, load.Elements.Count);
+        Assert.Equal("R", load.Elements[0].Type);
+        Assert.Equal("10kOhm", load.Elements[0].Value);
+        Assert.Equal("C", load.Elements[1].Type);
+        Assert.Equal("10pF", load.Elements[1].Value);
+    }
+
+    [Fact]
+    public void TryParse_HarnessWithMultipleSameTypeElements_ParsesAll()
+    {
+        var content = @"ACIR 1.0
+circuit Test
+  level EL
+  harness:
+    load OUT (C=1pF || R=1MOhm || C=15pF)
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        var load = result.Document!.Circuits[0].Harness!.Loads[0];
+        Assert.Equal(3, load.Elements.Count);
+        Assert.Equal("C", load.Elements[0].Type);
+        Assert.Equal("1pF", load.Elements[0].Value);
+        Assert.Equal("R", load.Elements[1].Type);
+        Assert.Equal("1MOhm", load.Elements[1].Value);
+        Assert.Equal("C", load.Elements[2].Type);
+        Assert.Equal("15pF", load.Elements[2].Value);
     }
 
     [Fact]
     public void TryParse_MalformedParallelLoad_EmitsDiagnostics()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -382,7 +411,15 @@ circuit Test
             {
                 Loads = new List<LoadValue>
                 {
-                    new() { Net = "OUT", C = "1pF", R = "1MOhm" }
+                    new()
+                    {
+                        Net = "OUT",
+                        Elements = new List<LoadElement>
+                        {
+                            new LoadElement("C", "1pF"),
+                            new LoadElement("R", "1MOhm")
+                        }
+                    }
                 }
             }
         };
@@ -397,7 +434,7 @@ circuit Test
     [Fact]
     public void TryParse_HarnessWithInvalidSweepRange_EmitsDiagnosticErrorIncludingLineAndRangeSpec()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -422,7 +459,7 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithMultipleSweeps_ParsesAll()
     {
-        var content = @"ACIR 1
+        var content = @"ACIR 1.0
 circuit Test
   level EL
   supply VDD
@@ -440,5 +477,78 @@ circuit Test
         Assert.Equal(2, sweeps.Count);
         Assert.Equal("InputDCCommonMode", sweeps[0].Name);
         Assert.Equal("OutputDCCommonMode", sweeps[1].Name);
+    }
+
+    [Fact]
+    public void TryParse_ConstraintsWithInlineComments_ParsesCorrectly()
+    {
+        var content = @"ACIR 1.0
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 100M Hz  // target gain-bandwidth product
+      c_gain : PassbandGain @ OUT >= 40 dB  // minimum gain requirement
+      c_pm : PhaseMargin @ OUT >= 60 deg  // phase margin for stability
+      c_pwr : Power <= 500u W
+    tech:
+      t_lmin : L >= 180n m on *  // minimum length per tech rules
+    measure:
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT  // measure GBW
+      m_gain : SEOpAmpACBench PassbandGain @ OUT
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document.Circuits[0];
+        var constraints = circuit.Constraints;
+        Assert.NotNull(constraints);
+
+        // All numeric constraints should be parsed despite inline comments
+        Assert.Equal(4, constraints.Numeric.Count);
+        Assert.Contains(constraints.Numeric, c => c.Id == "c_gbw" && c.Metric == "GainBandwidth");
+        Assert.Contains(constraints.Numeric, c => c.Id == "c_gain" && c.Metric == "PassbandGain");
+        Assert.Contains(constraints.Numeric, c => c.Id == "c_pm" && c.Metric == "PhaseMargin");
+        Assert.Contains(constraints.Numeric, c => c.Id == "c_pwr" && c.Metric == "Power");
+
+        // Tech constraint should be parsed despite inline comment
+        Assert.Single(constraints.Tech);
+        Assert.Equal("t_lmin", constraints.Tech[0].Id);
+        Assert.Equal("L", constraints.Tech[0].Param);
+
+        // Measure intents should be parsed despite inline comment
+        Assert.Equal(2, constraints.Measure.Count);
+        Assert.Contains(constraints.Measure, m => m.Id == "m_gbw");
+        Assert.Contains(constraints.Measure, m => m.Id == "m_gain");
+    }
+
+    [Fact]
+    public void TryParse_FullLineComments_AreIgnored()
+    {
+        var content = @"ACIR 1.0
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  port OUT : analog
+  constraints:
+    numeric:
+      // This is a full line comment
+      // This is another full line comment
+      c_test : Metric @ OUT >= 100M Hz
+";
+        var result = ACIRReader.TryParse(content);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+
+        var constraints = result.Document.Circuits[0].Constraints;
+        Assert.NotNull(constraints);
+        Assert.Single(constraints.Numeric);
+        Assert.Equal("c_test", constraints.Numeric[0].Id);
     }
 }

@@ -8,6 +8,7 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
  - Is there an opportunity to extract a common interface or function to unify the implementation?
 
 ## Purpose & Map
+
 - Purpose: bootstrap the Cascode toolchain while keeping the root lean.
 - Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries in `lib/`; runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
 - Where to read first: `docs/architecture/README.md` plus relevant component docs, e.g. `docs/architecture/cli-architecture.md` and `docs/architecture/pdk-scan-architecture.md`.
@@ -41,6 +42,8 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
 
 Avoid commonly overused AI motifs such as excessive use of bulleted lists and bolded text.
 Use professional prose and use precisely the level of verbosity that is required to communicate the intent of the text.
+
+Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
 
 ## Boundaries
 - `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/parser`. Nothing depends on CLI.
@@ -90,7 +93,16 @@ Use professional prose and use precisely the level of verbosity that is required
 - Update all in-repo references (grep before merge) to the new paths.
 - If external links exist, add a tiny redirect file only with an issue to remove it in ≤30 days.
 - Document the move in the PR body (“Replaces X with Y”).
-- Ban “temporary transition code”; if present, it must fail fast outside that window
+- Ban "temporary transition code"; if present, it must fail fast outside that window
+
+## ACIR Versioning
+
+- Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
+- **Major bump**: breaking changes - reader rejects different majors
+- **Minor bump**: additive-only changes - reader accepts any minor within same major
+- YOU MUST bump version when changing: `ACIRDocument.cs`, `ACIRReader.cs`, `ACIRWriter.cs`, `ACIRBenchAdapter.cs`, `ACIRTemplateHarness.cs`, or template data contracts
+- On bump: update all `tests/golden/acir/**/*.cir` headers to latest MAJOR.MINOR
+- NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
 
 ## Anti‑Patterns
 - Cross‑layer deps; IO in parser; UI outside CLI.

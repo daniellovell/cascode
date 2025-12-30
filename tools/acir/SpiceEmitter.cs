@@ -475,9 +475,19 @@ public static class SpiceEmitter
         // Load elements
         foreach (var load in harness.Loads)
         {
-            if (load.C is not null)
+            for (int i = 0; i < load.Elements.Count; i++)
             {
-                writer.WriteLine($"C{load.Net}_load {load.Net} 0 {load.C}");
+                var element = load.Elements[i];
+                var suffix = load.Elements.Count > 1 ? $"_{i}" : "";
+
+                if (element.Type == "C")
+                {
+                    writer.WriteLine($"C{load.Net}_load{suffix} {load.Net} 0 {element.Value}");
+                }
+                else if (element.Type == "R")
+                {
+                    writer.WriteLine($"R{load.Net}_load{suffix} {load.Net} 0 {element.Value}");
+                }
             }
         }
     }

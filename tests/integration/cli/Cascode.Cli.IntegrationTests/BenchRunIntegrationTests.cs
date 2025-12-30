@@ -17,6 +17,11 @@ public sealed class BenchRunIntegrationTests : IDisposable
     private readonly string _outputDir;
     private readonly CascodeHomeScope _cascodeHome;
 
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals
+    };
+
     public BenchRunIntegrationTests()
     {
         _repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
@@ -55,11 +60,15 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
 
-        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath));
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         var power = benchResults!.Measurements.Values.Where(m => m.Metric == "QuiescentPower").ToList();
         Assert.Single(power);
+        Assert.False(double.IsNaN(power[0].Value),
+            $"QuiescentPower measurement is NaN - simulation likely failed");
+        Assert.True(power[0].Value > 0,
+            $"QuiescentPower should be positive, got {power[0].Value}");
 
         var traceText = await File.ReadAllTextAsync(tracePath);
         Assert.Contains("\"type\":\"meta\"", traceText);
@@ -102,6 +111,16 @@ public sealed class BenchRunIntegrationTests : IDisposable
         var combinedResults = Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_results.json");
         Assert.True(File.Exists(combinedResults));
 
+        var combinedBenchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(combinedResults), s_jsonOptions);
+        Assert.NotNull(combinedBenchResults);
+
+        // Verify key measurements are not NaN
+        foreach (var measurement in combinedBenchResults!.Measurements.Values)
+        {
+            Assert.False(double.IsNaN(measurement.Value),
+                $"Measurement '{measurement.Metric}' is NaN - simulation likely failed");
+        }
+
         var verify = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
@@ -130,11 +149,15 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
 
-        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath));
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
         Assert.NotNull(benchResults);
 
         var power = benchResults!.Measurements.Values.Where(m => m.Metric == "QuiescentPower").ToList();
         Assert.Single(power);
+        Assert.False(double.IsNaN(power[0].Value),
+            $"QuiescentPower measurement is NaN - simulation likely failed");
+        Assert.True(power[0].Value > 0,
+            $"QuiescentPower should be positive, got {power[0].Value}");
 
         var traceText = await File.ReadAllTextAsync(tracePath);
         Assert.Contains("\"type\":\"meta\"", traceText);
@@ -220,5 +243,67 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
         var resultsPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench_results.json");
         Assert.True(File.Exists(resultsPath), "PDK results.json not found");
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_FD_OTA_ACBench_ProducesValidMeasurements()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench", "run", acirPath, "-o", _outputDir);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench_results.json");
+        Assert.True(File.Exists(resultsPath), "AC results.json not found");
+
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
+        Assert.NotNull(benchResults);
+
+        // Core assertions - these would have caught the vdb(OUT_P, OUT_N) bug
+        AssertMeasurementValid(benchResults!, "PassbandGain", minValue: 0, maxValue: 200);
+        AssertMeasurementValid(benchResults!, "GainBandwidth", minValue: 1e3, maxValue: 1e12);
+        AssertMeasurementValid(benchResults!, "PhaseMargin", minValue: 0, maxValue: 360);
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_SE_OTA_ACBench_ProducesValidMeasurements()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench", "run", acirPath, "-o", _outputDir);
+
+        CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
+
+        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        Assert.True(File.Exists(resultsPath), "AC results.json not found");
+
+        var benchResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(resultsPath), s_jsonOptions);
+        Assert.NotNull(benchResults);
+
+        // Core assertions - validates SE template produces valid measurements
+        AssertMeasurementValid(benchResults!, "PassbandGain@OUT", minValue: 0, maxValue: 200);
+        AssertMeasurementValid(benchResults!, "GainBandwidth@OUT", minValue: 1e3, maxValue: 1e12);
+        AssertMeasurementValid(benchResults!, "PhaseMargin@OUT", minValue: 0, maxValue: 360);
+    }
+
+    private static void AssertMeasurementValid(BenchResult results, string metric, double minValue, double maxValue)
+    {
+        Assert.True(results.Measurements.TryGetValue(metric, out var m),
+            $"Measurement '{metric}' not found");
+        Assert.False(double.IsNaN(m.Value),
+            $"Measurement '{metric}' is NaN - simulation measurement failed");
+        Assert.True(m.Value >= minValue && m.Value <= maxValue,
+            $"Measurement '{metric}' = {m.Value} outside expected range [{minValue}, {maxValue}]");
     }
 }
