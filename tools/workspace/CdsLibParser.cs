@@ -81,7 +81,7 @@ internal sealed class CdsLibParser
         foreach (var rawLine in File.ReadAllLines(filePath))
         {
             var line = rawLine.Trim();
-            if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal))
+            if (line.Length == 0 || line.StartsWith('#'))
             {
                 continue;
             }

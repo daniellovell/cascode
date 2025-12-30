@@ -8,12 +8,9 @@ namespace Cascode.Workspace;
 /// Helpers for parsing and formatting VDD tokens and volt values.
 /// Centralizes the logic so models, devices, DB writers and the CLI renderers stay consistent.
 /// </summary>
-public static class VddFormatting
+public static partial class VddFormatting
 {
-    private static readonly Regex TokenRegex = new(
-        "^(?<n>\\d+)v(?<f>\\d+)$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
-    );
+    private static readonly Regex TokenRegex = VoltageCompactFormatPattern();
 
     /// <summary>
     /// Extracts a canonical VDD token from a model voltage domain using config regex rules.
@@ -94,4 +91,10 @@ public static class VddFormatting
             s += ".0"; // ensure at least one decimal place
         return s + "V";
     }
+
+    [GeneratedRegex(
+        "^(?<n>\\d+)v(?<f>\\d+)$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex VoltageCompactFormatPattern();
 }

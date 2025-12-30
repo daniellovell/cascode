@@ -65,7 +65,7 @@ public sealed class PdkScanService
             "Scanning physical libraries for devices (libraries={Libraries})…",
             workspaceScan.Libraries.Count
         );
-        var devices = _physicalLibraryScanner.Scan(
+        var devices = PhysicalLibraryScanner.Scan(
             workspaceScan.Libraries,
             warnings: null,
             cancellationToken

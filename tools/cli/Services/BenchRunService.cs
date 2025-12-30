@@ -96,7 +96,7 @@ public class BenchRunService
                 }
                 backend = BenchBackendType.Ngspice;
             }
-            else if (args[i].StartsWith("-", StringComparison.Ordinal))
+            else if (args[i].StartsWith('-'))
             {
                 error = $"Error: unknown option '{args[i]}'.";
                 return false;
@@ -301,7 +301,7 @@ public class BenchRunService
         return null;
     }
 
-    private BenchRunResult? HandleNoMeasurementsOrReturnResult(
+    private static BenchRunResult? HandleNoMeasurementsOrReturnResult(
         string circuitName,
         BenchRunArgs args,
         string outputDir,

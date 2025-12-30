@@ -36,7 +36,7 @@ endsection
             m.Name.Equals("demo_nf", StringComparison.OrdinalIgnoreCase)
         );
         Assert.NotEmpty(model.DefinitionContexts);
-        var ctx = model.DefinitionContexts.First();
+        var ctx = model.DefinitionContexts[0];
         Assert.Equal("tt", ctx.Corner);
         Assert.Equal("tt_corner", ctx.Section);
         Assert.False(string.IsNullOrWhiteSpace(ctx.IncludePath));

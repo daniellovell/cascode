@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
 
-public sealed class BenchRunIntegrationTests : IDisposable
+public sealed partial class BenchRunIntegrationTests : IDisposable
 {
     private readonly string _repoRoot;
     private readonly string _outputDir;
@@ -293,10 +293,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
-        Assert.Matches(
-            new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase),
-            content
-        );
+        Assert.Matches(Sky130LibIncludePattern(), content);
 
         var resultsPath = Path.Combine(
             outputDir,
@@ -343,10 +340,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
-        Assert.Matches(
-            new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase),
-            content
-        );
+        Assert.Matches(Sky130LibIncludePattern(), content);
 
         var resultsPath = Path.Combine(
             outputDir,
@@ -441,4 +435,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
             $"Measurement '{metric}' = {m.Value} outside expected range [{minValue}, {maxValue}]"
         );
     }
+
+    [GeneratedRegex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex Sky130LibIncludePattern();
 }

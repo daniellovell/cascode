@@ -122,7 +122,7 @@ public static class DeviceFilterEvaluator
             return true;
         }
 
-        if (lower.EndsWith("v", StringComparison.Ordinal))
+        if (lower.EndsWith('v'))
         {
             lower = lower[..^1];
         }

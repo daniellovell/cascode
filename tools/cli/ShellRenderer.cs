@@ -518,7 +518,7 @@ internal static class ShellRenderer
 
         var safeCut = Math.Max(1, width - 1);
         safeCut = Math.Min(safeCut, text.Length);
-        return Escape(text.Substring(0, safeCut) + "…");
+        return Escape(string.Concat(text.AsSpan(0, safeCut), "…"));
     }
 
     private static int GetLogVisibleLines()

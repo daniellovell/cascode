@@ -15,7 +15,7 @@ namespace Cascode.Cli.IntegrationTests;
 /// Integration tests for the emit and verify CLI commands.
 /// Tests the full flow from ACIR to bench generation to constraint verification.
 /// </summary>
-public class EmitVerifyFlowTests : IDisposable
+public partial class EmitVerifyFlowTests : IDisposable
 {
     private const string FloatingPointPattern = @"[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?";
 
@@ -874,10 +874,7 @@ public class EmitVerifyFlowTests : IDisposable
             ),
         };
 
-        var libPattern = new Regex(
-            @"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt",
-            RegexOptions.IgnoreCase
-        );
+        var libPattern = Sky130LibIncludePattern();
 
         foreach (var (acirRel, benchFile) in cases)
         {
@@ -1232,4 +1229,7 @@ public class EmitVerifyFlowTests : IDisposable
             return (false, string.Empty, string.Empty, $"Failed to run ngspice: {ex.Message}");
         }
     }
+
+    [GeneratedRegex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex Sky130LibIncludePattern();
 }

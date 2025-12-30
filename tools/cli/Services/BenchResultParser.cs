@@ -8,7 +8,7 @@ using Cascode.Bench;
 
 namespace Cascode.Cli.Services;
 
-internal static class BenchResultParser
+internal static partial class BenchResultParser
 {
     public sealed record TracePoint(
         int Index,
@@ -16,15 +16,9 @@ internal static class BenchResultParser
         List<MeasurementResult> Measurements
     );
 
-    private static readonly Regex _resultRegex = new(
-        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled
-    );
+    private static readonly Regex _resultRegex = ResultWithValuePattern();
 
-    private static readonly Regex _failedResultRegex = new(
-        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s+(?<unit>\w+)?$",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled
-    );
+    private static readonly Regex _failedResultRegex = ResultWithoutValuePattern();
 
     public static List<TracePoint> ParsePoints(string stdout, HashSet<string> sweepNames)
     {
@@ -277,4 +271,16 @@ internal static class BenchResultParser
 
         return Guid.NewGuid().ToString("N");
     }
+
+    [GeneratedRegex(
+        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
+        RegexOptions.CultureInvariant
+    )]
+    private static partial Regex ResultWithValuePattern();
+
+    [GeneratedRegex(
+        @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s+(?<unit>\w+)?$",
+        RegexOptions.CultureInvariant
+    )]
+    private static partial Regex ResultWithoutValuePattern();
 }

@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-internal static class NameNormalization
+internal static partial class NameNormalization
 {
     /// <summary>
     /// Classifies a component or cell name into a DeviceClass category.
@@ -67,7 +67,7 @@ internal static class NameNormalization
     public static IReadOnlyList<string> ExtractVddTags(string name)
     {
         var list = new List<string>();
-        foreach (Match m in Regex.Matches(name, @"\d+v\d+", RegexOptions.IgnoreCase))
+        foreach (Match m in VoltageInNamePattern().Matches(name))
         {
             list.Add(m.Value.ToLowerInvariant());
         }
@@ -226,4 +226,7 @@ internal static class NameNormalization
             _ => DeviceSubclass.Unknown,
         };
     }
+
+    [GeneratedRegex(@"\d+v\d+", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex VoltageInNamePattern();
 }

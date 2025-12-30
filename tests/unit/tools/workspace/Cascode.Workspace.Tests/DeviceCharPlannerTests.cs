@@ -10,6 +10,15 @@ namespace Cascode.Workspace.Tests;
 public sealed class DeviceCharPlannerTests : IDisposable
 {
     private readonly string _tempDir;
+    private static readonly string[] item = new[] { "layout", "symbol" };
+    private static readonly string[] itemArray = new[] { "LVT" };
+    private static readonly string[] itemArray0 = new[] { "01v8" };
+    private static readonly string[] itemArray1 = new[] { "HVT" };
+    private static readonly string[] classes = new[] { "nmos" };
+    private static readonly string[] vts = new[] { "LVT" };
+    private static readonly string[] vdds = new[] { "1.8V" };
+    private static readonly string[] itemArray2 = new[] { "layout", "symbol" };
+    private static readonly string[] itemArray3 = new[] { "01v8" };
 
     public DeviceCharPlannerTests()
     {
@@ -95,9 +104,9 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "LVT" },
-                VddTags = new[] { "01v8" },
+                Views = item,
+                VtTags = itemArray,
+                VddTags = itemArray0,
                 Tags = Array.Empty<string>(),
             },
             new()
@@ -110,9 +119,9 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "HVT" },
-                VddTags = new[] { "01v8" },
+                Views = item,
+                VtTags = itemArray1,
+                VddTags = itemArray0,
                 Tags = Array.Empty<string>(),
             },
         };
@@ -170,9 +179,9 @@ public sealed class DeviceCharPlannerTests : IDisposable
         }
 
         var filters = new DeviceFilterOptions(
-            classes: new[] { "nmos" },
-            vts: new[] { "LVT" },
-            vdds: new[] { "1.8V" },
+            classes: classes,
+            vts: vts,
+            vdds: vdds,
             infra: null,
             matched: null
         );
@@ -274,9 +283,9 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "LVT" },
-                VddTags = new[] { "01v8" },
+                Views = itemArray2,
+                VtTags = itemArray,
+                VddTags = itemArray3,
                 Tags = Array.Empty<string>(),
             },
         };
@@ -314,7 +323,7 @@ public sealed class DeviceCharPlannerTests : IDisposable
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, modelGeom);
 
         var filters = new DeviceFilterOptions(
-            classes: new[] { "nmos" },
+            classes: classes,
             vts: null,
             vdds: null,
             infra: null,

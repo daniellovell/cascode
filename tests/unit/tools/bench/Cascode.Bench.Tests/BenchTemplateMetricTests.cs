@@ -12,7 +12,7 @@ namespace Cascode.Bench.Tests;
 /// Tests to ensure bench templates emit all metrics declared in their .cas specifications.
 /// These tests catch spec-template mismatches that would cause missing measurements.
 /// </summary>
-public class BenchTemplateMetricTests
+public partial class BenchTemplateMetricTests
 {
     [Fact]
     public void ParseBenchMetrics_FDOpAmpDCBench_ParsesAllMetrics()
@@ -86,7 +86,7 @@ public class BenchTemplateMetricTests
             }
         }
 
-        if (failures.Any())
+        if (failures.Count != 0)
         {
             var failureMessage =
                 "The following benches have metric emission issues:\n"
@@ -110,11 +110,7 @@ public class BenchTemplateMetricTests
 
         // Match: metrics [ ... ]
         // Looking for lines like "MetricName: Unit," or "MetricName: Unit"
-        var metricsBlockMatch = Regex.Match(
-            content,
-            @"metrics\s*\[\s*(.*?)\s*\]",
-            RegexOptions.Singleline
-        );
+        var metricsBlockMatch = MetricsBlockPattern().Match(content);
         if (!metricsBlockMatch.Success)
         {
             throw new InvalidOperationException($"No metrics block found in {casFilePath}");
@@ -134,7 +130,7 @@ public class BenchTemplateMetricTests
         );
 
         // Match metric declarations: MetricName: Unit
-        var metricMatches = Regex.Matches(strippedMetricsBlock, @"(\w+)\s*:\s*\w+");
+        var metricMatches = MetricDeclarationPattern().Matches(strippedMetricsBlock);
         foreach (Match match in metricMatches)
         {
             metrics.Add(match.Groups[1].Value);
@@ -158,7 +154,7 @@ public class BenchTemplateMetricTests
 
         // Match lines like: echo "RESULT: MetricName = " ...
         // or: RESULT: MetricName = value
-        var resultMatches = Regex.Matches(content, @"RESULT:\s*(\w+)\s*=", RegexOptions.IgnoreCase);
+        var resultMatches = ResultLinePattern().Matches(content);
         foreach (Match match in resultMatches)
         {
             resultMetrics.Add(match.Groups[1].Value);
@@ -223,7 +219,7 @@ public class BenchTemplateMetricTests
             }
         }
 
-        if (missingMetrics.Any())
+        if (missingMetrics.Count != 0)
         {
             var benchName = Path.GetFileNameWithoutExtension(casPath);
             var templateName = Path.GetFileName(templatePath);
@@ -232,4 +228,13 @@ public class BenchTemplateMetricTests
             );
         }
     }
+
+    [GeneratedRegex(@"metrics\s*\[\s*(.*?)\s*\]", RegexOptions.Singleline)]
+    private static partial Regex MetricsBlockPattern();
+
+    [GeneratedRegex(@"(\w+)\s*:\s*\w+")]
+    private static partial Regex MetricDeclarationPattern();
+
+    [GeneratedRegex(@"RESULT:\s*(\w+)\s*=", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex ResultLinePattern();
 }

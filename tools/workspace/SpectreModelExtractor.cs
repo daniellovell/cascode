@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-internal sealed class SpectreModelExtractor
+internal sealed partial class SpectreModelExtractor
 {
     private readonly struct CornerInfo
     {
@@ -271,34 +271,13 @@ internal sealed class SpectreModelExtractor
         public bool FramePushed { get; }
     }
 
-    private static readonly Regex IncludeDirectiveRegex = new(
-        @"^(\.include|include)\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex LibDirectiveRegex = new(
-        @"^\.lib\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex EndLibDirectiveRegex = new(
-        @"^\.endl\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex SectionDirectiveRegex = new(
-        @"^section\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex EndSectionDirectiveRegex = new(
-        @"^endsection\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex ModelDirectiveRegex = new(
-        @"^\.?model\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
-    private static readonly Regex SubcktDirectiveRegex = new(
-        @"^\.?subckt\b",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
+    private static readonly Regex IncludeDirectiveRegex = IncludeDirectivePattern();
+    private static readonly Regex LibDirectiveRegex = LibDirectivePattern();
+    private static readonly Regex EndLibDirectiveRegex = EndlDirectivePattern();
+    private static readonly Regex SectionDirectiveRegex = SectionDirectivePattern();
+    private static readonly Regex EndSectionDirectiveRegex = EndSectionDirectivePattern();
+    private static readonly Regex ModelDirectiveRegex = ModelDirectivePattern();
+    private static readonly Regex SubcktDirectiveRegex = SubcktDirectivePattern();
 
     // Matches common bin-model naming variants at end of model name:
     //  - *_model(.N)
@@ -306,10 +285,7 @@ internal sealed class SpectreModelExtractor
     //  - *_model_base(.N)
     //  - *__model_base(.N)
     //  - *__base(.N)
-    private static readonly Regex BinModelNameRegex = new(
-        @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
+    private static readonly Regex BinModelNameRegex = ModelBaseSuffixPattern();
 
     public IReadOnlyList<SpectreModel> Extract(
         string workspaceRoot,
@@ -896,7 +872,7 @@ internal sealed class SpectreModelExtractor
             return null;
         }
 
-        var match = Regex.Match(name, @"(?<voltage>\d+)v(?<frac>\d+)", RegexOptions.IgnoreCase);
+        var match = VoltageFormatPattern().Match(name);
         if (!match.Success)
         {
             return null;
@@ -956,10 +932,7 @@ internal sealed class SpectreModelExtractor
             return null;
         }
 
-        if (
-            trimmed.StartsWith("*", StringComparison.Ordinal)
-            || trimmed.StartsWith("//", StringComparison.Ordinal)
-        )
+        if (trimmed.StartsWith('*') || trimmed.StartsWith("//", StringComparison.Ordinal))
         {
             return null;
         }
@@ -1108,15 +1081,12 @@ internal sealed class SpectreModelExtractor
     private static string ExtractDirectiveArgument(string value)
     {
         var trimmed = value.Trim();
-        if (trimmed.StartsWith("=", StringComparison.Ordinal))
+        if (trimmed.StartsWith('='))
         {
             trimmed = trimmed[1..].Trim();
         }
 
-        if (
-            trimmed.StartsWith("\"", StringComparison.Ordinal)
-            && trimmed.EndsWith("\"", StringComparison.Ordinal)
-        )
+        if (trimmed.StartsWith('"') && trimmed.EndsWith('"'))
         {
             trimmed = trimmed[1..^1];
         }
@@ -1191,4 +1161,37 @@ internal sealed class SpectreModelExtractor
 
         return input.Contains('/') || input.Contains('\\') || input.Contains('.');
     }
+
+    [GeneratedRegex(
+        @"^(\.include|include)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex IncludeDirectivePattern();
+
+    [GeneratedRegex(@"^\.lib\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LibDirectivePattern();
+
+    [GeneratedRegex(@"^\.endl\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EndlDirectivePattern();
+
+    [GeneratedRegex(@"^section\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SectionDirectivePattern();
+
+    [GeneratedRegex(@"^endsection\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EndSectionDirectivePattern();
+
+    [GeneratedRegex(@"^\.?model\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ModelDirectivePattern();
+
+    [GeneratedRegex(@"^\.?subckt\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SubcktDirectivePattern();
+
+    [GeneratedRegex(
+        @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex ModelBaseSuffixPattern();
+
+    [GeneratedRegex(@"(?<voltage>\d+)v(?<frac>\d+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex VoltageFormatPattern();
 }

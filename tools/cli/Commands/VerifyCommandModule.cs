@@ -192,7 +192,7 @@ internal sealed class VerifyCommandModule : ICommandModule
                 tracePath = args[i + 1];
                 i++;
             }
-            else if (!args[i].StartsWith("-", StringComparison.Ordinal))
+            else if (!args[i].StartsWith('-'))
             {
                 positionals.Add(args[i]);
             }

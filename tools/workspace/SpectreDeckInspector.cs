@@ -5,14 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-internal sealed class SpectreDeckInspector
+internal sealed partial class SpectreDeckInspector
 {
-    private static readonly Regex IncludeRegex = new(
-        "include\\s+(?<path>\"[^\"]+\"|[^\\s)]+)(\\s+section=(?<section>[^\\s]+))?",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
-    );
+    private static readonly Regex IncludeRegex = SpectreIncludePattern();
 
-    public ModelDeckRecord Inspect(
+    public static ModelDeckRecord Inspect(
         string workspaceRoot,
         string deckPath,
         ICollection<string>? warnings = null
@@ -41,7 +38,7 @@ internal sealed class SpectreDeckInspector
             foreach (var rawLine in File.ReadLines(deckPath))
             {
                 var line = rawLine.Trim();
-                if (line.Length == 0 || line.StartsWith("*", StringComparison.Ordinal))
+                if (line.Length == 0 || line.StartsWith('*'))
                 {
                     continue; // comment
                 }
@@ -99,4 +96,10 @@ internal sealed class SpectreDeckInspector
             Array.Empty<SpectreModel>()
         );
     }
+
+    [GeneratedRegex(
+        "include\\s+(?<path>\"[^\"]+\"|[^\\s)]+)(\\s+section=(?<section>[^\\s]+))?",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex SpectreIncludePattern();
 }

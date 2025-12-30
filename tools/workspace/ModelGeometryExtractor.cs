@@ -25,20 +25,11 @@ public sealed class ModelGeometry
     public string? Notes { get; init; }
 }
 
-public static class ModelGeometryExtractor
+public static partial class ModelGeometryExtractor
 {
-    private static readonly Regex ModelLineRegex = new(
-        @"^\.?model\s+(\S+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
-    private static readonly Regex GeometryParamsRegex = new(
-        @"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
-    private static readonly Regex SubcktEndRegex = new(
-        @"^\.(ends|end)\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
+    private static readonly Regex ModelLineRegex = ModelNamePattern();
+    private static readonly Regex GeometryParamsRegex = GeometryLimitPattern();
+    private static readonly Regex SubcktEndRegex = EndStatementPattern();
 
     public static List<ModelGeometry> Extract(
         IReadOnlyList<SpectreModel> models,
@@ -456,4 +447,13 @@ public static class ModelGeometryExtractor
         var pattern = $@"(?<![a-zA-Z0-9]){Regex.Escape(modelName)}(?![a-zA-Z0-9])";
         return Regex.IsMatch(fullModelName, pattern, RegexOptions.IgnoreCase);
     }
+
+    [GeneratedRegex(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex ModelNamePattern();
+
+    [GeneratedRegex(@"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex GeometryLimitPattern();
+
+    [GeneratedRegex(@"^\.(ends|end)\b", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex EndStatementPattern();
 }

@@ -115,8 +115,7 @@ internal sealed class CommandRegistry
     // changing the underlying registry or handler signatures yet.
     public CommandDescriptor Register(Commands.ICliCommand command)
     {
-        if (command is null)
-            throw new ArgumentNullException(nameof(command));
+        ArgumentNullException.ThrowIfNull(command);
         return Register(
             command.Path,
             command.Description,

@@ -560,7 +560,7 @@ public sealed class CharLutWriterTests : IDisposable
         Assert.Equal("lib:cell", loaded!.DeviceName);
     }
 
-    private void SetupMinimalDatabase(string dbPath)
+    private static void SetupMinimalDatabase(string dbPath)
     {
         // Create database with schema including char tables
         using var db = PdkDatabase.Open(dbPath);

@@ -9,6 +9,9 @@ internal sealed class SystemCommandModule : ICommandModule
 {
     private readonly ShellState _state;
     private CommandRegistry? _registry;
+    internal static readonly string[] HelpAliases = new[] { "-h", "--help" };
+    internal static readonly string[] VersionAliases = new[] { "--version", "-v" };
+    internal static readonly string[] ExitAliases = new[] { "exit" };
 
     public SystemCommandModule(ShellState state)
     {
@@ -24,7 +27,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 path: "help",
                 description: "Show this message",
                 handler: ShowHelp,
-                aliases: new[] { "-h", "--help" }
+                aliases: HelpAliases
             )
         );
 
@@ -34,7 +37,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 description: "Show CLI version",
                 handler: ShowVersion,
                 hidden: true,
-                aliases: new[] { "--version", "-v" }
+                aliases: VersionAliases
             )
         );
 
@@ -60,7 +63,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 path: "quit",
                 description: "Exit the CLI",
                 handler: Quit,
-                aliases: new[] { "exit" }
+                aliases: ExitAliases
             )
         );
     }

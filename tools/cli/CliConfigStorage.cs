@@ -20,7 +20,7 @@ internal sealed class CliConfigStorage
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public CliConfig Load()
+    public static CliConfig Load()
     {
         var path = WorkspaceState.GetConfigPath();
         if (!File.Exists(path))
@@ -42,12 +42,9 @@ internal sealed class CliConfigStorage
         }
     }
 
-    public void Save(CliConfig config)
+    public static void Save(CliConfig config)
     {
-        if (config is null)
-        {
-            throw new ArgumentNullException(nameof(config));
-        }
+        ArgumentNullException.ThrowIfNull(config);
 
         Normalize(config);
         var path = WorkspaceState.GetConfigPath();

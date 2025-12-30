@@ -18,7 +18,7 @@ public sealed class PhysicalLibraryScanner
     /// <param name="warnings">Optional collection to receive non-fatal warnings (e.g., missing library path or per-library scan failures).</param>
     /// <param name="cancellationToken">Token to cancel the scan operation.</param>
     /// <returns>A list of Device objects representing cells that have both layout and symbol views, populated with classification, tags, view names, and source library information.</returns>
-    public List<Device> Scan(
+    public static List<Device> Scan(
         IReadOnlyList<WorkspaceLibrary> libraries,
         ICollection<string>? warnings = null,
         CancellationToken cancellationToken = default

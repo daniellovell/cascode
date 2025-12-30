@@ -210,9 +210,8 @@ public sealed class PdkInteractivePersistenceTests
     {
         static string Hash(string s)
         {
-            using var sha = System.Security.Cryptography.SHA256.Create();
             var bytes = System.Text.Encoding.UTF8.GetBytes(Path.GetFullPath(s));
-            var hash = sha.ComputeHash(bytes);
+            var hash = System.Security.Cryptography.SHA256.HashData(bytes);
             return Convert.ToHexString(hash).ToLowerInvariant();
         }
         var workId = Hash(workspaceAbs);

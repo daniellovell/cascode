@@ -6,19 +6,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
-internal sealed class LibInitScanner
+internal sealed partial class LibInitScanner
 {
     private static readonly string[] CandidateFileNames = { "libInit.il", "libinit.il" };
-    private static readonly Regex StrcatLibPathPattern = new(
-        @"strcat\s*\(\s*libPath\s*(?:,|\s)+""(?<path>[^""]+)""",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase
-    );
+    private static readonly Regex StrcatLibPathPattern = LibPathStrcatPattern();
 
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
 
-    public IReadOnlyList<string> FindModelDecks(
+    public static IReadOnlyList<string> FindModelDecks(
         string workspaceRoot,
         IEnumerable<WorkspaceLibrary> libraries,
         ICollection<string>? warnings,
@@ -178,4 +175,10 @@ internal sealed class LibInitScanner
         );
         return normalizedPath ?? Path.GetFullPath(combined);
     }
+
+    [GeneratedRegex(
+        @"strcat\s*\(\s*libPath\s*(?:,|\s)+""(?<path>[^""]+)""",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex LibPathStrcatPattern();
 }
