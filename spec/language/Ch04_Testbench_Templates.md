@@ -97,18 +97,40 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 | `out_node` | string | Primary output node (first OUT port) | `"OUT"` |
 | `generic_models` | boolean | True if circuit uses generic nmos/pmos | `true` |
 | `vcm` | double | Common-mode voltage (mid-supply) | `0.9` |
-| `bias_v` | double | Input bias voltage | `0.9` |
+| `bias_v` | double | Input bias voltage (defaults to vcm) | `0.9` |
+| `supply_elements` | string | Pre-rendered SPICE netlist for supplies and biases | `"VVDD VDD 0 DC 1.8V\nVVTAIL VTAIL 0 DC 0.6V"` |
+| `load_elements` | string | Pre-rendered SPICE netlist for loads | `"COUT_load OUT 0 1pF"` |
+| `ac_mag` | double | AC stimulus magnitude | `1.0` |
+| `ac_start_hz` | double | AC sweep start frequency (constraint-derived) | `1.0` |
+| `ac_stop_hz` | double | AC sweep stop frequency (constraint-derived) | `10e9` |
+| `passband_freq_hz` | double | Optimal frequency for passband gain measurement | `100e3` |
+| `stb_start_hz` | double | Stability analysis start frequency | `1.0` |
+| `stb_stop_hz` | double | Stability analysis stop frequency | `10e9` |
 | `includes_with_section` | array | Include files that should be paired with `section` | `["/path/models/sky130.lib.spice"]` |
 | `includes_without_section` | array | Include files emitted with `.include` (includes the design file) | `["OTA5TSingleEnded.sp"]` |
 | `section` | string or null | Preferred section for `includes_with_section` | `"tt"` |
 
 Templates should iterate over the include lists rather than manually including `design_file`, since the design file is appended to `includes_without_section` and PDK model decks may be present in `includes_with_section` when a workspace database is available.
 
+The `supply_elements` and `load_elements` variables provide pre-rendered SPICE netlist fragments, which is the recommended approach for most templates. See Section 4.3.4 for details on the structured harness data available for advanced use cases.
+
 ### 4.3.4 Harness Data Structures
 
-The `harness` object contains lists extracted from ACIR `harness:` blocks:
+Recommended Approach: Use the pre-rendered `supply_elements` and `load_elements` strings for most templates. These provide complete, ready-to-use SPICE netlist fragments:
 
-**harness.supplies** (array of objects):
+```scriban
+* Harness supplies and biases
+{{ supply_elements }}
+
+* Output loads
+{{ load_elements }}
+```
+
+This approach is more elegant and matches the pattern used in all standard library templates.
+
+Advanced Use: For templates requiring custom load splitting or conditional logic, the structured `harness` object is available:
+
+harness.supplies (array of objects):
 
 ```scriban
 {{ for supply in harness.supplies }}
@@ -119,16 +141,22 @@ V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
 - `supply.net`: net name (e.g., `"VDD"`)
 - `supply.value`: voltage value (e.g., `"1.8V"`)
 
-**harness.loads** (array of objects):
+harness.loads (array of objects):
 
 ```scriban
 {{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
-{{ end }}
+{{ for c in load.cs }}C{{ load.net }}_load {{ load.net }} 0 {{ c }}
+{{ end }}{{ for r in load.rs }}R{{ load.net }}_load {{ load.net }} 0 {{ r }}
+{{ end }}{{ end }}
 ```
 
 - `load.net`: net name (e.g., `"OUT"`)
-- `load.c`: capacitance value (e.g., `"1p"`)
+- `load.cs`: array of capacitance values (e.g., `["1pF"]`)
+- `load.rs`: array of resistance values (e.g., `["1MOhm"]`)
+- `load.cs_half`: array of halved capacitance values for differential load splitting
+- `load.rs_half`: array of halved resistance values for differential load splitting
+
+Note that loads support multiple parallel elements, hence the array structure.
 
 ### 4.3.5 Backend-Specific Variables (Spectre)
 
@@ -150,27 +178,49 @@ Spectre templates receive additional environment parameters in the `env` object,
 
 The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : GainBandwidth @ OUT >= 100M Hz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
 
-**DC Bias Sweep Parameters**:
+Passband Frequency Derivation:
+
+The `passband_freq_hz` variable provides the optimal frequency for measuring passband gain, ensuring measurements occur in the flat passband region rather than in rolloff regions. The derivation algorithm proceeds as follows:
+
+1. Determine HP corner (low-frequency bound of passband):
+   - If a `HighpassBandwidth` constraint exists, use that value
+   - Otherwise assume DC-coupled: use 1 Hz as the effective HP corner
+
+2. Determine LP corner (high-frequency bound of passband):
+   - If a `LowpassBandwidth` constraint exists, use that value
+   - Otherwise infer from GBW and gain: `f_3dB = GBW / 10^(gain_dB/20)`
+   - If only GBW is available, assume typical 40dB gain: `LP = GBW / 100`
+
+3. Compute passband measurement frequency as the geometric mean of the corners:
+   ```
+   passband_freq_hz = sqrt(HP_corner * LP_corner)
+   ```
+
+4. Clamp to AC sweep range: The result is clamped to `[ac_start_hz, ac_stop_hz]`
+
+This intelligent derivation ensures that gain measurements capture the true passband value regardless of circuit topology (DC-coupled vs AC-coupled, lowpass vs bandpass).
+
+DC Bias Sweep Parameters:
 
 | Variable | Type | Description | Example |
 |----------|------|-------------|---------|
 | `sweep.<ConditionName>` | object or null | Sweep condition if present in harness | `sweep.InputDCCommonMode` |
-| `sweep.<ConditionName>.start` | double | Sweep start value | `0.3` (for 0.3V) |
-| `sweep.<ConditionName>.stop` | double | Sweep stop value | `1.5` (for 1.5V) |
-| `sweep.<ConditionName>.step` | double | Sweep step value | `0.1` (for 100mV) |
+| `sweep.<ConditionName>.Start` | double | Sweep start value | `0.3` (for 0.3V) |
+| `sweep.<ConditionName>.Stop` | double | Sweep stop value | `1.5` (for 1.5V) |
+| `sweep.<ConditionName>.Step` | double | Sweep step value | `0.1` (for 100mV) |
 
 Templates should check for the presence of sweep conditions using `{{ if sweep.<ConditionName> }}` and adapt their analysis accordingly. When a sweep is present, benches must execute analyses at each sweep point and report worst-case values.
 
 Templates do not interpret `Auto`. When a design requests `sweep <ConditionName> [Auto]` at earlier elaboration levels, the synthesis/lowering pipeline must resolve it to a concrete numeric sweep in ACIR-EL before template rendering.
 
-**Example usage in templates:**
+Example usage in templates:
 
 ```spectre
 {{ if sweep.InputDCCommonMode }}
-VCM (vcm vss) vsource dc={{ sweep.InputDCCommonMode.start }}
+VCM (vcm vss) vsource dc={{ sweep.InputDCCommonMode.Start }}
 
-sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.start }} \
-    stop={{ sweep.InputDCCommonMode.stop }} step={{ sweep.InputDCCommonMode.step }} {
+sweepDC sweep param=VCM.dc start={{ sweep.InputDCCommonMode.Start }} \
+    stop={{ sweep.InputDCCommonMode.Stop }} step={{ sweep.InputDCCommonMode.Step }} {
   dcOp dc
   ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
 }
@@ -181,7 +231,7 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} dec=100
 {{ end }}
 ```
 
-**Spectre-Specific Objects**:
+Spectre-Specific Objects:
 
 | Variable | Type | Description |
 |----------|------|-------------|
@@ -208,35 +258,35 @@ Include lists are provided for all backends; see the common template variables f
 .include "{{ inc }}"
 {{ end }}
 
-* Harness
-{{ for supply in harness.supplies }}
-V{{ supply.net }} {{ supply.net }} 0 DC {{ supply.value }}
-{{ end }}
+* Harness supplies and biases
+{{ supply_elements }}
+
 * Differential input: common-mode bias with AC on positive input
 VIN_P IN_P 0 DC {{ vcm }} AC 1
 VIN_N IN_N 0 DC {{ vcm }}
-{{ for load in harness.loads }}
-C{{ load.net }}_load {{ load.net }} 0 {{ load.c }}
-{{ end }}
+
+* Output loads
+{{ load_elements }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}
 
 .control
 op
-ac dec 100 1 10G
+ac dec 100 {{ ac_start_hz }} {{ ac_stop_hz }}
 
 * Measurements
-meas ac gain_dc find vdb({{ out_node }}) at=1
+* Passband gain measured at optimal frequency (computed in C#)
+meas ac gain_passband find vdb({{ out_node }}) at={{ passband_freq_hz }}
 meas ac gbw when vdb({{ out_node }})=0 cross=1
 meas ac pm_raw find vp({{ out_node }}) at=gbw
 let pm = 180 + pm_raw
 
 * Per-point report for cascode bench runner
-echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_dc GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_passband GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
 
 * Results output
-echo "RESULT: PassbandGain = " $&gain_dc " dB"
+echo "RESULT: PassbandGain = " $&gain_passband " dB"
 echo "RESULT: GainBandwidth = " $&gbw " Hz"
 echo "RESULT: PhaseMargin = " $&pm " deg"
 
@@ -269,6 +319,32 @@ Templates must emit two kinds of lines to stdout when running under ngspice:
 1) One `CASCODE_POINT` line per executed sweep point. Each line is a flat set of `key=value` tokens. Keys should include `point_index` and may include sweep axes (e.g., `InputDCCommonMode_V=...`) and measured metrics (e.g., `GainBandwidth_Hz=...`). These lines are parsed into per-point records in the JSONL trace.
 
 2) One or more `RESULT:` lines that contain the bench-level spec-compliance values (scalar or vector). Values printed under `RESULT:` must be reduced across the sweep (for example, QuiescentPower must be the worst-case scalar across points), because `verify` evaluates constraints against these consolidated values.
+
+CASCODE_POINT Format Specification:
+
+The `CASCODE_POINT` line must follow this format:
+
+```
+CASCODE_POINT point_index=<index> [AxisName_Unit=<value>]* [MetricName_Unit=<value>]*
+```
+
+- Required: `point_index=<N>` where N is the zero-based sweep point index
+- Optional: Sweep axis values with format `AxisName_Unit=<value>` (e.g., `InputDCCommonMode_V=0.9`)
+- Optional: Measured metric values with format `MetricName_Unit=<value>` (e.g., `GainBandwidth_Hz=150e6`)
+- All keys use underscore-separated PascalCase with unit suffix
+- Values must use ngspice variable expansion syntax `$&variable_name` for numeric variables
+
+Example from SEOpAmpACBench:
+
+```spice
+echo CASCODE_POINT point_index=0 PassbandGain_dB=$&gain_passband GainBandwidth_Hz=$&gbw PhaseMargin_deg=$&pm
+```
+
+Example with sweep axis from SEOpAmpDCBench:
+
+```spice
+echo CASCODE_POINT point_index=$&point_index InputDCCommonMode_V=$&cm_val OutputDCBias_V=$&out_dc QuiescentPower_W=$&pwr_total
+```
 
 The JSONL file is a sequence of independent JSON objects with a stable envelope:
 
@@ -346,15 +422,19 @@ The `harness:` block specifies test-only elements that do not appear in the synt
 harness:
   supply VDD = 1.8V
   bias VTAIL = 0.6V
-  load OUT C=1p F
-  source IN Z=50 ohm
+  load OUT C=1pF
+  source IN Z=50ohm
   icmr min=0.55V max=0.75V
   pvt TT@27C
 ```
 
+Note the compact notation for values: no space between numeric value and unit (e.g., `1pF` not `1p F`, `50ohm` not `50 ohm`).
+
 Template variables derived from harness entries:
-- `harness.supplies`: list of supply/bias declarations
-- `harness.loads`: list of load capacitances
+- `supply_elements`: pre-rendered SPICE netlist for supplies and biases (recommended)
+- `load_elements`: pre-rendered SPICE netlist for loads (recommended)
+- `harness.supplies`: list of supply/bias declarations (advanced use)
+- `harness.loads`: list of load capacitances (advanced use)
 - `env.source_ohms`: extracted from source impedance declarations
 - `env.cload_f`: extracted from first load capacitance
 - `env.rload_ohms`: defaults to 1GΩ unless specified
@@ -574,9 +654,9 @@ The specific metrics, circuit requirements, and harness configurations for key b
 
 ### 4.8.1 SEOpAmpACBench
 
-**Purpose:** AC analysis for single-ended output operational amplifiers with differential inputs.
+Purpose: AC analysis for single-ended output operational amplifiers with differential inputs.
 
-**Metrics:**
+Metrics:
 - `GainBandwidth` (Hz): Frequency where gain crosses 0dB
 - `PassbandGain` (dB): Low-frequency gain magnitude
 - `PhaseMargin` (deg): Phase margin at unity-gain frequency
@@ -584,73 +664,95 @@ The specific metrics, circuit requirements, and harness configurations for key b
 - `HighpassBandwidth` (Hz): -3dB bandwidth for highpass response
 - `BandpassBandwidth` (Hz): -3dB bandwidth for bandpass response
 
-**Circuit Requirements:**
+Circuit Requirements:
 - Differential inputs (`IN_P`, `IN_N`)
 - Single-ended output (`OUT`)
 - Power supplies and grounds as declared in ACIR
 
-**Harness Configuration:**
+Harness Configuration:
 The ngspice template applies a common-mode bias at both inputs and superimposes AC stimulus on `IN_P`, creating a differential AC signal. The Spectre template uses an ideal balun to generate differential drive from a single AC source.
 
 ### 4.8.2 SEAmpACBench
 
-**Purpose:** AC analysis for single-ended amplifiers with single input and single output.
+Purpose: AC analysis for single-ended amplifiers with single input and single output.
 
-**Metrics:**
+Metrics:
 - `GainBandwidth` (Hz): Unity-gain frequency
 - `PassbandGain` (dB): Low-frequency gain magnitude
 
-**Circuit Requirements:**
+Circuit Requirements:
 - Single input (`IN`)
 - Single-ended output (`OUT`)
 - Power supplies and grounds as declared in ACIR
 
-**Harness Configuration:**
+Harness Configuration:
 Input receives DC bias (mid-supply by default) with AC stimulus. Simpler than `SEOpAmpACBench` as it requires no differential drive or balun structures.
 
 ### 4.8.3 SEOpAmpDCBench
 
-**Purpose:** DC characterization for single-ended output operational amplifiers with differential inputs, measuring output DC bias and quiescent power across the input common-mode range (ICMR).
+Purpose: DC characterization for single-ended output operational amplifiers with differential inputs, measuring output DC bias and quiescent power across the input common-mode range (ICMR).
 
-**Metrics:**
+Metrics:
 - `InputDCCommonMode` (V): ICMR sweep condition (echoed for traceability)
 - `OutputDCBias` (V): Output DC level at each ICMR point
 - `OutputDCBias_min` (V): Minimum output bias across ICMR sweep
 - `OutputDCBias_max` (V): Maximum output bias across ICMR sweep
 - `QuiescentPower` (W): Maximum static power consumption across ICMR sweep
 
-**Circuit Requirements:**
+Circuit Requirements:
 - Differential inputs (`IN_P`, `IN_N`)
 - Single-ended output (`OUT`)
 - Power supplies and grounds as declared in ACIR
 
-**Harness Configuration:**
+Harness Configuration:
 Applies common-mode voltage to both inputs while sweeping across the ICMR range specified in the harness. Measures DC operating points and supply current at each sweep point. When no sweep is specified, performs single-point DC analysis at mid-supply.
 
-**Sweep Support:**
+Sweep Support:
 This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. When present, executes DC analysis at each ICMR point and reports worst-case values (max power, output bias range).
 
 ### 4.8.4 SEAmpDCBench
 
-**Purpose:** DC characterization for single-ended amplifiers (single input, single output), measuring output DC bias and quiescent power across the input bias range.
+Purpose: DC characterization for single-ended amplifiers (single input, single output), measuring output DC bias and quiescent power across the input bias range.
 
-**Metrics:**
+Metrics:
 - `InputDCBias` (V): Input bias sweep condition (echoed for traceability)
 - `OutputDCBias` (V): Output DC level at each input bias point
 - `OutputDCBias_min` (V): Minimum output bias across input bias sweep
 - `OutputDCBias_max` (V): Maximum output bias across input bias sweep
 - `QuiescentPower` (W): Maximum static power consumption across input bias sweep
 
-**Circuit Requirements:**
+Circuit Requirements:
 - Single input (`IN`)
 - Single-ended output (`OUT`)
 - Power supplies and grounds as declared in ACIR
 
-**Harness Configuration:**
+Harness Configuration:
 Sweeps the input DC bias voltage across the specified range. Measures DC operating points and supply current at each sweep point. Simpler than `SEOpAmpDCBench` as it requires no differential input structure.
 
-**Sweep Support:**
+Sweep Support:
 This bench respects `sweep InputDCBias [start:step:stop]` in the harness. When present, executes DC analysis at each bias point and reports worst-case values (max power, output bias range).
+
+### 4.8.5 FDOpAmpDCBench
+
+Purpose: DC characterization for fully differential operational amplifiers, measuring output common-mode and quiescent power across the input common-mode range (ICMR).
+
+Metrics:
+- `InputDCCommonMode` (V): ICMR sweep condition (echoed for traceability)
+- `OutputDCCommonMode` (V): Output common-mode DC level at each ICMR point
+- `OutputDCCommonMode_min` (V): Minimum output common-mode across ICMR sweep
+- `OutputDCCommonMode_max` (V): Maximum output common-mode across ICMR sweep
+- `QuiescentPower` (W): Maximum static power consumption across ICMR sweep
+
+Circuit Requirements:
+- Differential inputs (`IN_P`, `IN_N`)
+- Differential outputs (`OUT_P`, `OUT_N`)
+- Power supplies and grounds as declared in ACIR
+
+Harness Configuration:
+Applies common-mode voltage to both inputs while sweeping across the ICMR range specified in the harness. Measures DC operating points and supply current at each sweep point. When no sweep is specified, performs single-point DC analysis at mid-supply.
+
+Sweep Support:
+This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. When present, executes DC analysis at each ICMR point and reports worst-case values (max power, output common-mode range).
 
 ---
 
@@ -794,7 +896,7 @@ circuit OTA5TSingleEnded
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
-    load OUT C=1p F
+    load OUT C=1pF
   benches:
     SEOpAmpACBench
 ```
