@@ -15,7 +15,11 @@ internal sealed class CdsLibParser
     private WorkspaceBashEnvironment? _workspaceEnvironment;
     private string _workspaceRoot = string.Empty;
 
-    public IReadOnlyList<WorkspaceLibrary> Parse(string rootPath, ICollection<string>? warnings = null, ILogger? logger = null)
+    public IReadOnlyList<WorkspaceLibrary> Parse(
+        string rootPath,
+        ICollection<string>? warnings = null,
+        ILogger? logger = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootPath);
 
@@ -45,7 +49,10 @@ internal sealed class CdsLibParser
         var variableNames = EnvironmentVariableScanner.FromFile(cdsLibPath);
         if (variableNames.Count > 0)
         {
-            logger?.LogDebug("Found {Count} env var references in root cds.lib", variableNames.Count);
+            logger?.LogDebug(
+                "Found {Count} env var references in root cds.lib",
+                variableNames.Count
+            );
         }
         LoadMissingVariables(variableNames);
     }
@@ -55,7 +62,8 @@ internal sealed class CdsLibParser
         List<WorkspaceLibrary> libraries,
         HashSet<string> visited,
         ICollection<string>? warnings,
-        ILogger? logger)
+        ILogger? logger
+    )
     {
         if (!visited.Add(Path.GetFullPath(filePath)))
         {
@@ -98,7 +106,8 @@ internal sealed class CdsLibParser
         string filePath,
         ICollection<WorkspaceLibrary> libraries,
         ICollection<string>? warnings,
-        ILogger? logger)
+        ILogger? logger
+    )
     {
         if (!TryParseDefineTokens(line, out var name, out var rawPath))
         {
@@ -119,7 +128,8 @@ internal sealed class CdsLibParser
         List<WorkspaceLibrary> libraries,
         HashSet<string> visited,
         ICollection<string>? warnings,
-        ILogger? logger)
+        ILogger? logger
+    )
     {
         var includePath = ExtractIncludePath(line, token, currentFile);
         if (includePath is null)
@@ -205,8 +215,8 @@ internal sealed class CdsLibParser
         _workspaceEnvironment.LoadVariables(variableNames);
     }
 
-    private static bool StartsWithToken(string line, string token)
-        => line.StartsWith(token, StringComparison.OrdinalIgnoreCase);
+    private static bool StartsWithToken(string line, string token) =>
+        line.StartsWith(token, StringComparison.OrdinalIgnoreCase);
 
     private static bool TryParseDefineTokens(string line, out string name, out string rawPath)
     {

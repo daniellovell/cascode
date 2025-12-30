@@ -14,7 +14,8 @@ internal sealed class DeviceSummaryViewState
         Array.Empty<DeviceClassSummaryRow>(),
         detailOffset: 0,
         detailPageSize: 0,
-        detailFilters: Array.Empty<string>());
+        detailFilters: Array.Empty<string>()
+    );
 
     public DeviceSummaryViewState(
         string title,
@@ -25,7 +26,8 @@ internal sealed class DeviceSummaryViewState
         IReadOnlyList<DeviceClassSummaryRow>? classRows = null,
         int detailOffset = 0,
         int detailPageSize = 0,
-        IReadOnlyList<string>? detailFilters = null)
+        IReadOnlyList<string>? detailFilters = null
+    )
     {
         Title = title;
         SummaryLine = summaryLine ?? string.Empty;
@@ -86,7 +88,8 @@ internal sealed class DeviceSummaryViewState
             ClassRows,
             detailOffset,
             DetailPageSize,
-            DetailFilters);
+            DetailFilters
+        );
     }
 }
 
@@ -97,7 +100,8 @@ internal sealed record DeviceSummaryRow(
     string Threshold,
     string Voltage,
     string Views,
-    string Notes);
+    string Notes
+);
 
 internal sealed record DeviceClassSummaryRow(
     string DeviceClass,
@@ -107,4 +111,5 @@ internal sealed record DeviceClassSummaryRow(
     string Thresholds,
     string Corners,
     string ExampleDevice,
-    bool IsUncategorized);
+    bool IsUncategorized
+);

@@ -11,7 +11,8 @@ internal sealed class DelegateCliCommand : ICliCommand
         string description,
         CommandHandler handler,
         bool hidden = false,
-        IReadOnlyList<string>? aliases = null)
+        IReadOnlyList<string>? aliases = null
+    )
     {
         Path = string.IsNullOrWhiteSpace(path)
             ? throw new ArgumentException("Path is required", nameof(path))
@@ -28,4 +29,3 @@ internal sealed class DelegateCliCommand : ICliCommand
     public IReadOnlyList<string> Aliases { get; }
     public CommandHandler Handler { get; }
 }
-

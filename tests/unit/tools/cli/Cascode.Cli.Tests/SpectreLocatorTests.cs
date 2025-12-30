@@ -28,7 +28,12 @@ public sealed class SpectreLocatorTests
 
             var dotnetDir = Environment.ProcessPath is string p ? Path.GetDirectoryName(p) : null;
             var original = Environment.GetEnvironmentVariable("PATH");
-            var pathValue = string.Join(Path.PathSeparator, new[] { tempDir.FullName, dotnetDir, original }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            var pathValue = string.Join(
+                Path.PathSeparator,
+                new[] { tempDir.FullName, dotnetDir, original }.Where(s =>
+                    !string.IsNullOrWhiteSpace(s)
+                )
+            );
 
             var result = SpectreLocator.FindOnPath(pathValue, pathextOverride: null);
 
@@ -36,7 +41,11 @@ public sealed class SpectreLocatorTests
         }
         finally
         {
-            try { tempDir.Delete(recursive: true); } catch { }
+            try
+            {
+                tempDir.Delete(recursive: true);
+            }
+            catch { }
         }
     }
 
@@ -55,15 +64,25 @@ public sealed class SpectreLocatorTests
             File.WriteAllText(exePath, "@echo off\nexit /b 0");
 
             var originalPath = Environment.GetEnvironmentVariable("PATH");
-            var pathValue = string.Join(Path.PathSeparator, new[] { tempDir.FullName, originalPath }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            var pathValue = string.Join(
+                Path.PathSeparator,
+                new[] { tempDir.FullName, originalPath }.Where(s => !string.IsNullOrWhiteSpace(s))
+            );
 
-            var result = SpectreLocator.FindOnPath(pathValue, pathextOverride: ".COM;.EXE;.BAT;.CMD");
+            var result = SpectreLocator.FindOnPath(
+                pathValue,
+                pathextOverride: ".COM;.EXE;.BAT;.CMD"
+            );
 
             Assert.Equal(exePath, result, ignoreCase: true);
         }
         finally
         {
-            try { tempDir.Delete(recursive: true); } catch { }
+            try
+            {
+                tempDir.Delete(recursive: true);
+            }
+            catch { }
         }
     }
 }

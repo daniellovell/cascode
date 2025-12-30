@@ -15,7 +15,11 @@ internal static class BenchRunHelpers
             ?? throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
     }
 
-    public static string ResolveOutputDir(string? outputDir, string circuitName, IReadOnlyList<string> benchesToRun)
+    public static string ResolveOutputDir(
+        string? outputDir,
+        string circuitName,
+        IReadOnlyList<string> benchesToRun
+    )
     {
         if (!string.IsNullOrWhiteSpace(outputDir))
         {
@@ -34,15 +38,22 @@ internal static class BenchRunHelpers
 
     public static HashSet<string> GetSweepNames(Circuit circuit)
     {
-        return circuit.Harness?.Sweeps?.Select(s => s.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
-               ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        return circuit
+                .Harness?.Sweeps?.Select(s => s.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase)
+            ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    public static IReadOnlyList<string>? ResolveBenchesToRun(string[] availableBenches, string? explicitBench)
+    public static IReadOnlyList<string>? ResolveBenchesToRun(
+        string[] availableBenches,
+        string? explicitBench
+    )
     {
         if (!string.IsNullOrWhiteSpace(explicitBench))
         {
-            var match = availableBenches.FirstOrDefault(b => b.Equals(explicitBench, StringComparison.OrdinalIgnoreCase));
+            var match = availableBenches.FirstOrDefault(b =>
+                b.Equals(explicitBench, StringComparison.OrdinalIgnoreCase)
+            );
             return match == null ? null : new[] { match };
         }
 
@@ -51,17 +62,20 @@ internal static class BenchRunHelpers
 
     public static string[] GetAvailableBenchNames(Circuit circuit)
     {
-        return circuit.Benches?.Benches.Select(b => b.Name)
-                   .Where(b => !string.IsNullOrWhiteSpace(b))
-                   .Distinct(StringComparer.OrdinalIgnoreCase)
-                   .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)
-                   .ToArray()
-               ?? Array.Empty<string>();
+        return circuit
+                .Benches?.Benches.Select(b => b.Name)
+                .Where(b => !string.IsNullOrWhiteSpace(b))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            ?? Array.Empty<string>();
     }
 
     public static string? FindWorkspaceRoot(string inputPath)
     {
-        var dir = new DirectoryInfo(Path.GetDirectoryName(Path.GetFullPath(inputPath)) ?? Directory.GetCurrentDirectory());
+        var dir = new DirectoryInfo(
+            Path.GetDirectoryName(Path.GetFullPath(inputPath)) ?? Directory.GetCurrentDirectory()
+        );
         while (dir != null)
         {
             if (File.Exists(Path.Combine(dir.FullName, "Cascode.sln")))
@@ -84,14 +98,20 @@ internal static class BenchRunHelpers
 
         if (!readResult.Success)
         {
-            var first = readResult.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error);
+            var first = readResult.Diagnostics.FirstOrDefault(d =>
+                d.Severity == DiagnosticSeverity.Error
+            );
             throw new InvalidOperationException(first?.Message ?? "Failed to parse ACIR.");
         }
 
         return readResult.Document!;
     }
 
-    public static string FindTestbenchPath(IReadOnlyList<string> testbenches, string circuitName, string benchName)
+    public static string FindTestbenchPath(
+        IReadOnlyList<string> testbenches,
+        string circuitName,
+        string benchName
+    )
     {
         foreach (var path in testbenches)
         {
@@ -112,4 +132,3 @@ internal static class BenchRunHelpers
         throw new InvalidOperationException($"Testbench for '{benchName}' not emitted.");
     }
 }
-

@@ -25,14 +25,19 @@ internal sealed class AsyncAutoResetEvent
                 return Task.CompletedTask;
             }
 
-            var waiter = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var waiter = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously
+            );
             if (cancellationToken.CanBeCanceled)
             {
-                cancellationToken.Register(state =>
-                {
-                    var source = (TaskCompletionSource)state!;
-                    source.TrySetCanceled(cancellationToken);
-                }, waiter);
+                cancellationToken.Register(
+                    state =>
+                    {
+                        var source = (TaskCompletionSource)state!;
+                        source.TrySetCanceled(cancellationToken);
+                    },
+                    waiter
+                );
             }
 
             _waiters.Enqueue(waiter);

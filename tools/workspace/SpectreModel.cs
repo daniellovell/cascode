@@ -44,7 +44,8 @@ public sealed class SpectreModel
         IReadOnlyList<string> cornerDetails,
         IReadOnlyList<string> sections,
         IReadOnlyList<string> sourceFiles,
-        IReadOnlyList<string> decks)
+        IReadOnlyList<string> decks
+    )
         : this()
     {
         Name = name;
@@ -69,33 +70,27 @@ public sealed class SpectreModel
     public DeviceClass DeviceClass { get; set; } = DeviceClass.Unknown;
 
     [JsonPropertyName("voltageDomain")]
-    public string? VoltageDomain { get; set; }
-        = null;
+    public string? VoltageDomain { get; set; } = null;
 
     [JsonPropertyName("thresholdFlavor")]
-    public string? ThresholdFlavor { get; set; }
-        = null;
+    public string? ThresholdFlavor { get; set; } = null;
 
     [JsonPropertyName("corners")]
-    public IReadOnlyList<string> Corners { get; set; }
-        = EmptyStringList;
+    public IReadOnlyList<string> Corners { get; set; } = EmptyStringList;
 
     [JsonPropertyName("cornerDetails")]
-    public IReadOnlyList<string> CornerDetails { get; set; }
-        = EmptyStringList;
+    public IReadOnlyList<string> CornerDetails { get; set; } = EmptyStringList;
 
     [JsonPropertyName("sections")]
-    public IReadOnlyList<string> Sections { get; set; }
-        = EmptyStringList;
+    public IReadOnlyList<string> Sections { get; set; } = EmptyStringList;
 
     [JsonPropertyName("sourceFiles")]
-    public IReadOnlyList<string> SourceFiles { get; set; }
-        = EmptyStringList;
+    public IReadOnlyList<string> SourceFiles { get; set; } = EmptyStringList;
 
     [JsonPropertyName("decks")]
-    public IReadOnlyList<string> Decks { get; set; }
-        = EmptyStringList;
+    public IReadOnlyList<string> Decks { get; set; } = EmptyStringList;
 
     [JsonPropertyName("definitionContexts")]
-    public IReadOnlyList<ModelContext> DefinitionContexts { get; set; } = Array.Empty<ModelContext>();
+    public IReadOnlyList<ModelContext> DefinitionContexts { get; set; } =
+        Array.Empty<ModelContext>();
 }

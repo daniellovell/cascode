@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Xunit;
 using Cascode.ACIR;
 using Cascode.Bench;
+using Xunit;
 
 namespace Cascode.ACIR.Tests
 {
@@ -19,13 +19,18 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "1.8V" }
-                    }
-                }
+                        new() { Net = "VDD", Value = "1.8V" },
+                    },
+                },
             };
             var bench = new BenchConfig { Name = "TestBench" };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                bench,
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             Assert.True(context.Args.ContainsKey("vcm"));
             Assert.Equal(0.9, context.Args["vcm"]);
@@ -41,14 +46,15 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "INVALID" }
-                    }
-                }
+                        new() { Net = "VDD", Value = "INVALID" },
+                    },
+                },
             };
             var bench = new BenchConfig { Name = "TestBench" };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
-                ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out"));
+                ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out")
+            );
 
             Assert.Contains("Unable to parse supply value", ex.Message);
         }
@@ -59,14 +65,16 @@ namespace Cascode.ACIR.Tests
             var circuit = new Circuit
             {
                 Name = "TestCircuit",
-                Harness = new HarnessBlock
-                {
-                    Supplies = null!
-                }
+                Harness = new HarnessBlock { Supplies = null! },
             };
             var bench = new BenchConfig { Name = "TestBench" };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                bench,
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             Assert.Equal(0.9, context.Args["vcm"]);
         }
@@ -77,14 +85,16 @@ namespace Cascode.ACIR.Tests
             var circuit = new Circuit
             {
                 Name = "TestCircuit",
-                Harness = new HarnessBlock
-                {
-                    Supplies = new List<SupplyValue>()
-                }
+                Harness = new HarnessBlock { Supplies = new List<SupplyValue>() },
             };
             var bench = new BenchConfig { Name = "TestBench" };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                bench,
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             Assert.Equal(0.9, context.Args["vcm"]);
         }
@@ -113,9 +123,9 @@ namespace Cascode.ACIR.Tests
                     Supplies = new List<SupplyValue>
                     {
                         new() { Net = "VDD", Value = "1.8V" },
-                        new() { Net = "VSS", Value = "0V" }
-                    }
-                }
+                        new() { Net = "VSS", Value = "0V" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessSuppliesAndBiases(circuit);
@@ -136,9 +146,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Biases = new List<BiasValue>
                     {
-                        new() { Net = "VBIAS", Value = "0.6V" }
-                    }
-                }
+                        new() { Net = "VBIAS", Value = "0.6V" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessSuppliesAndBiases(circuit);
@@ -159,13 +169,13 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "1.8V" }
+                        new() { Net = "VDD", Value = "1.8V" },
                     },
                     Biases = new List<BiasValue>
                     {
-                        new() { Net = "VBIAS", Value = "0.6V" }
-                    }
-                }
+                        new() { Net = "VBIAS", Value = "0.6V" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessSuppliesAndBiases(circuit);
@@ -196,9 +206,13 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
-                    }
-                }
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement> { new LoadElement("C", "1pF") },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -221,9 +235,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", Elements = new List<LoadElement>() }
-                    }
-                }
+                        new() { Net = "OUT", Elements = new List<LoadElement>() },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -247,11 +261,11 @@ namespace Cascode.ACIR.Tests
                             Elements = new List<LoadElement>
                             {
                                 new LoadElement("C", "1pF"),
-                                new LoadElement("R", "1MOhm")
-                            }
-                        }
-                    }
-                }
+                                new LoadElement("R", "1MOhm"),
+                            },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -279,8 +293,8 @@ namespace Cascode.ACIR.Tests
                 Ports = new List<PortDeclaration>
                 {
                     new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" }
-                }
+                    new() { Name = "OUT", Type = "analog" },
+                },
             };
 
             var result = ACIRBenchAdapter.DetermineOutNode(circuit);
@@ -296,8 +310,8 @@ namespace Cascode.ACIR.Tests
                 Name = "Test",
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "out", Type = "analog" }
-                }
+                    new() { Name = "out", Type = "analog" },
+                },
             };
 
             var result = ACIRBenchAdapter.DetermineOutNode(circuit);
@@ -314,8 +328,8 @@ namespace Cascode.ACIR.Tests
                 Ports = new List<PortDeclaration>
                 {
                     new() { Name = "IN", Type = "analog" },
-                    new() { Name = "VOUT", Type = "analog" }
-                }
+                    new() { Name = "VOUT", Type = "analog" },
+                },
             };
 
             var result = ACIRBenchAdapter.DetermineOutNode(circuit);
@@ -345,10 +359,10 @@ namespace Cascode.ACIR.Tests
                 Ports = new List<PortDeclaration>
                 {
                     new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" }
+                    new() { Name = "OUT", Type = "analog" },
                 },
                 Supplies = new List<string> { "VDD" },
-                Grounds = new List<string> { "VSS" }
+                Grounds = new List<string> { "VSS" },
             };
 
             var result = ACIRBenchAdapter.BuildPortList(circuit);
@@ -380,9 +394,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Devices = new List<DeviceDeclaration>
                     {
-                        new() { Id = "M1", DeviceType = "nmos" }
-                    }
-                }
+                        new() { Id = "M1", DeviceType = "nmos" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.UsesGenericModels(circuit);
@@ -400,9 +414,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Devices = new List<DeviceDeclaration>
                     {
-                        new() { Id = "M1", DeviceType = "pmos" }
-                    }
-                }
+                        new() { Id = "M1", DeviceType = "pmos" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.UsesGenericModels(circuit);
@@ -420,9 +434,14 @@ namespace Cascode.ACIR.Tests
                 {
                     Devices = new List<DeviceDeclaration>
                     {
-                        new() { Id = "M1", DeviceType = "nmos", PdkDevice = "sky130_fd_pr__nfet_01v8" }
-                    }
-                }
+                        new()
+                        {
+                            Id = "M1",
+                            DeviceType = "nmos",
+                            PdkDevice = "sky130_fd_pr__nfet_01v8",
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.UsesGenericModels(circuit);
@@ -459,7 +478,7 @@ namespace Cascode.ACIR.Tests
             var circuit = new Circuit
             {
                 Name = "Test",
-                Harness = new HarnessBlock { Sweeps = new List<SweepCondition>() }
+                Harness = new HarnessBlock { Sweeps = new List<SweepCondition>() },
             };
 
             var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
@@ -477,9 +496,15 @@ namespace Cascode.ACIR.Tests
                 {
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = "100 mV" }
-                    }
-                }
+                        new()
+                        {
+                            Name = "InputDCBias",
+                            Start = "0.3 V",
+                            Stop = "1.5 V",
+                            Step = "100 mV",
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
@@ -502,9 +527,15 @@ namespace Cascode.ACIR.Tests
                 {
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = null }
-                    }
-                }
+                        new()
+                        {
+                            Name = "InputDCBias",
+                            Start = "0.3 V",
+                            Stop = "1.5 V",
+                            Step = null,
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildSweepDictionary(circuit);
@@ -529,13 +560,19 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "1.8V" }
+                        new() { Net = "VDD", Value = "1.8V" },
                     },
                     Sweeps = new List<SweepCondition>
                     {
-                        new() { Name = "InputDCBias", Start = "0.3 V", Stop = "1.5 V", Step = "100 mV" }
-                    }
-                }
+                        new()
+                        {
+                            Name = "InputDCBias",
+                            Start = "0.3 V",
+                            Stop = "1.5 V",
+                            Step = "100 mV",
+                        },
+                    },
+                },
             };
 
             // Build context and extract sweep data through the same pipeline as real templates
@@ -543,7 +580,8 @@ namespace Cascode.ACIR.Tests
                 circuit,
                 new BenchConfig { Name = "TestBench" },
                 BenchBackendType.Spectre,
-                "out");
+                "out"
+            );
 
             // Extract sweep data as ACIRTemplateHarness does
             var sweepDict = new Dictionary<string, object?>();
@@ -556,9 +594,15 @@ namespace Cascode.ACIR.Tests
                     {
                         sweepDict[conditionName] = new
                         {
-                            Start = sweepData.TryGetValue("start", out var s) ? Convert.ToDouble(s) : 0.0,
-                            Stop = sweepData.TryGetValue("stop", out var st) ? Convert.ToDouble(st) : 0.0,
-                            Step = sweepData.TryGetValue("step", out var step) ? Convert.ToDouble(step) : (double?)null
+                            Start = sweepData.TryGetValue("start", out var s)
+                                ? Convert.ToDouble(s)
+                                : 0.0,
+                            Stop = sweepData.TryGetValue("stop", out var st)
+                                ? Convert.ToDouble(st)
+                                : 0.0,
+                            Step = sweepData.TryGetValue("step", out var step)
+                                ? Convert.ToDouble(step)
+                                : (double?)null,
                         };
                     }
                 }
@@ -571,7 +615,8 @@ namespace Cascode.ACIR.Tests
             }
 
             // Create a test template using PascalCase properties
-            var template = "start={{ sweep.InputDCBias.Start }} stop={{ sweep.InputDCBias.Stop }} step={{ sweep.InputDCBias.Step }}";
+            var template =
+                "start={{ sweep.InputDCBias.Start }} stop={{ sweep.InputDCBias.Stop }} step={{ sweep.InputDCBias.Step }}";
             var model = new { sweep = scriptObj };
 
             var rendered = Bench.TemplateRenderer.Render(template, model);
@@ -606,9 +651,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "1.8V" }
-                    }
-                }
+                        new() { Net = "VDD", Value = "1.8V" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
@@ -633,11 +678,11 @@ namespace Cascode.ACIR.Tests
                             Elements = new List<LoadElement>
                             {
                                 new LoadElement("C", "1pF"),
-                                new LoadElement("R", "10MOhm")
-                            }
-                        }
-                    }
-                }
+                                new LoadElement("R", "10MOhm"),
+                            },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
@@ -655,9 +700,13 @@ namespace Cascode.ACIR.Tests
                 {
                     Loads = new List<LoadValue>
                     {
-                        new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
-                    }
-                }
+                        new()
+                        {
+                            Net = "OUT",
+                            Elements = new List<LoadElement> { new LoadElement("C", "1pF") },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
@@ -675,9 +724,9 @@ namespace Cascode.ACIR.Tests
                 {
                     Sources = new List<SourceValue>
                     {
-                        new() { Net = "IN", Z = "100" }
-                    }
-                }
+                        new() { Net = "IN", Z = "100" },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit);
@@ -695,13 +744,14 @@ namespace Cascode.ACIR.Tests
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "INVALID" }
-                    }
-                }
+                        new() { Net = "VDD", Value = "INVALID" },
+                    },
+                },
             };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
-                ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit));
+                ACIRBenchAdapter.DeriveVoltageAndImpedance(circuit)
+            );
 
             Assert.Contains("Unable to parse supply value", ex.Message);
             Assert.Contains("TestCircuit", ex.Message);
@@ -731,21 +781,28 @@ namespace Cascode.ACIR.Tests
                 Ports = new List<PortDeclaration>
                 {
                     new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" }
+                    new() { Name = "OUT", Type = "analog" },
                 },
                 Harness = new HarnessBlock
                 {
                     Supplies = new List<SupplyValue>
                     {
-                        new() { Net = "VDD", Value = "1.8V" }
-                    }
-                }
+                        new() { Net = "VDD", Value = "1.8V" },
+                    },
+                },
             };
 
             var bench = new BenchConfig { Name = "EmptyBench" };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
-                ACIRBenchAdapter.GenerateTestbench(circuit, bench, BenchBackendType.Ngspice, outputDir, workspaceRoot));
+                ACIRBenchAdapter.GenerateTestbench(
+                    circuit,
+                    bench,
+                    BenchBackendType.Ngspice,
+                    outputDir,
+                    workspaceRoot
+                )
+            );
 
             Assert.Contains("Template file is empty", ex.Message);
             Assert.Contains("EmptyBench", ex.Message);
@@ -764,13 +821,28 @@ namespace Cascode.ACIR.Tests
                 {
                     Numeric = new List<NumericConstraint>
                     {
-                        new() { Metric = "GainBandwidth", Value = "100M", Unit = "Hz" },
-                        new() { Metric = "PassbandGain", Value = "40", Unit = "dB" }
-                    }
-                }
+                        new()
+                        {
+                            Metric = "GainBandwidth",
+                            Value = "100M",
+                            Unit = "Hz",
+                        },
+                        new()
+                        {
+                            Metric = "PassbandGain",
+                            Value = "40",
+                            Unit = "dB",
+                        },
+                    },
+                },
             };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                new BenchConfig { Name = "TestBench" },
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             // GBW=100M, Gain=40dB (100x linear) => LP corner = 100M/100 = 1MHz
             // HP corner = 1Hz (DC-coupled, no HP constraint)
@@ -790,13 +862,28 @@ namespace Cascode.ACIR.Tests
                 {
                     Numeric = new List<NumericConstraint>
                     {
-                        new() { Metric = "HighpassBandwidth", Value = "1k", Unit = "Hz" },
-                        new() { Metric = "LowpassBandwidth", Value = "100k", Unit = "Hz" }
-                    }
-                }
+                        new()
+                        {
+                            Metric = "HighpassBandwidth",
+                            Value = "1k",
+                            Unit = "Hz",
+                        },
+                        new()
+                        {
+                            Metric = "LowpassBandwidth",
+                            Value = "100k",
+                            Unit = "Hz",
+                        },
+                    },
+                },
             };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                new BenchConfig { Name = "TestBench" },
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             // HP=1kHz, LP=100kHz => geometric mean = sqrt(1k * 100k) = 10kHz
             Assert.True(context.Args.ContainsKey("passband_freq_hz"));
@@ -807,12 +894,14 @@ namespace Cascode.ACIR.Tests
         [Fact]
         public void DerivePassbandFreq_NoConstraints_UsesDefaultGeometricMean()
         {
-            var circuit = new Circuit
-            {
-                Name = "Test"
-            };
+            var circuit = new Circuit { Name = "Test" };
 
-            var context = ACIRBenchAdapter.ToTestbenchContext(circuit, new BenchConfig { Name = "TestBench" }, BenchBackendType.Ngspice, "out");
+            var context = ACIRBenchAdapter.ToTestbenchContext(
+                circuit,
+                new BenchConfig { Name = "TestBench" },
+                BenchBackendType.Ngspice,
+                "out"
+            );
 
             // Default sweep: 1Hz to 10GHz => geometric mean = sqrt(1 * 10G) = 100kHz
             Assert.True(context.Args.ContainsKey("passband_freq_hz"));
@@ -839,11 +928,11 @@ namespace Cascode.ACIR.Tests
                             Elements = new List<LoadElement>
                             {
                                 new LoadElement("C", "2pF"),
-                                new LoadElement("R", "10k")
-                            }
-                        }
-                    }
-                }
+                                new LoadElement("R", "10k"),
+                            },
+                        },
+                    },
+                },
             };
 
             var loadElements = ACIRBenchAdapter.GenerateLoadElements(circuit, differential: true);
@@ -869,13 +958,10 @@ namespace Cascode.ACIR.Tests
                         new()
                         {
                             Net = "OUT",
-                            Elements = new List<LoadElement>
-                            {
-                                new LoadElement("C", "1pF")
-                            }
-                        }
-                    }
-                }
+                            Elements = new List<LoadElement> { new LoadElement("C", "1pF") },
+                        },
+                    },
+                },
             };
 
             var loadElements = ACIRBenchAdapter.GenerateLoadElements(circuit, differential: false);

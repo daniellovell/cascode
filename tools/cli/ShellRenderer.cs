@@ -1,10 +1,10 @@
-using Cascode.Workspace;
-using Spectre.Console;
-using Spectre.Console.Rendering;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Cascode.Workspace;
+using Spectre.Console;
+using Spectre.Console.Rendering;
 
 namespace Cascode.Cli;
 
@@ -16,7 +16,7 @@ internal static class ShellRenderer
         {
             ShellViewMode.DeviceSummary => BuildDeviceSummaryLayout(state),
             ShellViewMode.CharRead => BuildCharReadLayout(state),
-            _ => BuildHomeLayout(state)
+            _ => BuildHomeLayout(state),
         };
     }
 
@@ -24,36 +24,38 @@ internal static class ShellRenderer
     {
         // Reserve a dedicated bottom line for the interactive prompt so it doesn't
         // overwrite the Log panel's bottom border. All content lives in "Content".
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("Content").Ratio(1),
-                new Layout("PromptSpacer").Size(1));
+        var layout = new Layout("Root").SplitRows(
+            new Layout("Content").Ratio(1),
+            new Layout("PromptSpacer").Size(1)
+        );
 
-        layout["Content"].SplitColumns(
-            new Layout("Main").Ratio(3),
-            new Layout("Sidebar").Ratio(2));
+        layout["Content"].SplitColumns(new Layout("Main").Ratio(3), new Layout("Sidebar").Ratio(2));
 
-        layout["Content"]["Main"].SplitRows(
-            new Layout("WorkspaceBar").Size(3),
-            new Layout("Log").Ratio(1));
+        layout["Content"]
+            ["Main"]
+            .SplitRows(new Layout("WorkspaceBar").Size(3), new Layout("Log").Ratio(1));
 
         if (state.CharJobActive)
         {
-            layout["Content"]["Sidebar"].SplitRows(
-                new Layout("Progress").Size(10),
-                new Layout("Navigator").Ratio(2),
-                new Layout("Details").Ratio(1));
+            layout["Content"]
+                ["Sidebar"]
+                .SplitRows(
+                    new Layout("Progress").Size(10),
+                    new Layout("Navigator").Ratio(2),
+                    new Layout("Details").Ratio(1)
+                );
         }
         else
         {
-            layout["Content"]["Sidebar"].SplitRows(
-                new Layout("Navigator").Ratio(2),
-                new Layout("Details").Ratio(1));
+            layout["Content"]
+                ["Sidebar"]
+                .SplitRows(new Layout("Navigator").Ratio(2), new Layout("Details").Ratio(1));
         }
 
         layout["Content"]["Main"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
         layout["Content"]["Main"]["Log"].Update(BuildLog(state));
-        if (state.CharJobActive) layout["Content"]["Sidebar"]["Progress"].Update(BuildCharProgress(state));
+        if (state.CharJobActive)
+            layout["Content"]["Sidebar"]["Progress"].Update(BuildCharProgress(state));
         layout["Content"]["Sidebar"]["Navigator"].Update(BuildNavigator(state));
         layout["Content"]["Sidebar"]["Details"].Update(BuildDeckDetails(state));
 
@@ -65,8 +67,16 @@ internal static class ShellRenderer
 
     private static IRenderable BuildCharProgress(ShellState state)
     {
-        var remaining = Math.Max(0, state.CharTotal - Math.Max(Math.Max(state.CharGenerated, state.CharRan), Math.Max(state.CharExported, state.CharSkipped)));
-        var label = $"[green bold underline]PDK Characterization Progress[/]  [grey]current:[/] {Markup.Escape(state.CharCurrent ?? string.Empty)}";
+        var remaining = Math.Max(
+            0,
+            state.CharTotal
+                - Math.Max(
+                    Math.Max(state.CharGenerated, state.CharRan),
+                    Math.Max(state.CharExported, state.CharSkipped)
+                )
+        );
+        var label =
+            $"[green bold underline]PDK Characterization Progress[/]  [grey]current:[/] {Markup.Escape(state.CharCurrent ?? string.Empty)}";
         var width = Math.Clamp(EstimateConsoleHeight() + 30, 40, 100);
         var chart = new BarChart()
             .Width(width)
@@ -81,23 +91,24 @@ internal static class ShellRenderer
         return new Panel(chart)
         {
             Border = BoxBorder.Rounded,
-            Header = new PanelHeader($"Characterization ({Markup.Escape(state.CharBackend ?? "?")}/{Markup.Escape(state.CharCorner ?? "?")})"),
+            Header = new PanelHeader(
+                $"Characterization ({Markup.Escape(state.CharBackend ?? "?")}/{Markup.Escape(state.CharCorner ?? "?")})"
+            ),
             Expand = true,
-            Padding = new Padding(1, 0, 1, 0)
+            Padding = new Padding(1, 0, 1, 0),
         };
     }
 
     private static Layout BuildDeviceSummaryLayout(ShellState state)
     {
         // Reserve a bottom line for the prompt across views to avoid border clipping
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("MainRows").Ratio(1),
-                new Layout("PromptSpacer").Size(1));
+        var layout = new Layout("Root").SplitRows(
+            new Layout("MainRows").Ratio(1),
+            new Layout("PromptSpacer").Size(1)
+        );
 
-        layout["MainRows"].SplitRows(
-            new Layout("WorkspaceBar").Size(3),
-            new Layout("Content").Ratio(1));
+        layout["MainRows"]
+            .SplitRows(new Layout("WorkspaceBar").Size(3), new Layout("Content").Ratio(1));
 
         layout["MainRows"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
 
@@ -112,14 +123,13 @@ internal static class ShellRenderer
 
     private static Layout BuildCharReadLayout(ShellState state)
     {
-        var layout = new Layout("Root")
-            .SplitRows(
-                new Layout("MainRows").Ratio(1),
-                new Layout("PromptSpacer").Size(1));
+        var layout = new Layout("Root").SplitRows(
+            new Layout("MainRows").Ratio(1),
+            new Layout("PromptSpacer").Size(1)
+        );
 
-        layout["MainRows"].SplitRows(
-            new Layout("WorkspaceBar").Size(3),
-            new Layout("Content").Ratio(1));
+        layout["MainRows"]
+            .SplitRows(new Layout("WorkspaceBar").Size(3), new Layout("Content").Ratio(1));
 
         layout["MainRows"]["WorkspaceBar"].Update(BuildWorkspaceBar(state));
         layout["MainRows"]["Content"].Update(BuildCharReadPanel(state));
@@ -164,7 +174,7 @@ internal static class ShellRenderer
             Border = BoxBorder.Rounded,
             Header = new PanelHeader("Characterization Viewer"),
             Expand = true,
-            Padding = new Padding(1, 1, 1, 1)
+            Padding = new Padding(1, 1, 1, 1),
         };
     }
 
@@ -172,11 +182,13 @@ internal static class ShellRenderer
     {
         var list = values.ToList();
         var finite = list.Where(double.IsFinite).ToList();
-        if (finite.Count == 0) return new Text($"{label}: (no data)");
+        if (finite.Count == 0)
+            return new Text($"{label}: (no data)");
 
         var min = finite.Min();
         var max = finite.Max();
-        if (Math.Abs(max - min) < 1e-12) max = min + 1e-12;
+        if (Math.Abs(max - min) < 1e-12)
+            max = min + 1e-12;
 
         var glyphs = " ▂▃▄▅▆▇█";
         var spark = new System.Text.StringBuilder();
@@ -194,13 +206,17 @@ internal static class ShellRenderer
 
         static string Fmt(double v)
         {
-            if (!double.IsFinite(v)) return string.Empty;
+            if (!double.IsFinite(v))
+                return string.Empty;
             var abs = Math.Abs(v);
-            if (abs >= 1e3 || (abs > 0 && abs < 1e-3)) return v.ToString("0.###E+0", CultureInfo.InvariantCulture);
+            if (abs >= 1e3 || (abs > 0 && abs < 1e-3))
+                return v.ToString("0.###E+0", CultureInfo.InvariantCulture);
             return v.ToString("0.###", CultureInfo.InvariantCulture);
         }
 
-        return new Markup($"[cyan]{Markup.Escape(label)}[/]: {spark} [grey](min {Fmt(min)} / max {Fmt(max)})[/]");
+        return new Markup(
+            $"[cyan]{Markup.Escape(label)}[/]: {spark} [grey](min {Fmt(min)} / max {Fmt(max)})[/]"
+        );
     }
 
     private static IRenderable BuildSummaryPanel(DeviceSummaryViewState summary)
@@ -217,7 +233,11 @@ internal static class ShellRenderer
         }
         else
         {
-            contentItems.Add(new Markup("[grey]No devices matched the current view. Run [bold]pdk scan[/] or adjust your filters.[/]"));
+            contentItems.Add(
+                new Markup(
+                    "[grey]No devices matched the current view. Run [bold]pdk scan[/] or adjust your filters.[/]"
+                )
+            );
         }
 
         if (!string.IsNullOrWhiteSpace(summary.SummaryLine))
@@ -239,7 +259,7 @@ internal static class ShellRenderer
         {
             0 => new Markup(string.Empty),
             1 => contentItems[0],
-            _ => new Rows(contentItems.ToArray())
+            _ => new Rows(contentItems.ToArray()),
         };
 
         return new Panel(panelBody)
@@ -247,7 +267,7 @@ internal static class ShellRenderer
             Border = BoxBorder.Rounded,
             Header = new PanelHeader(summary.Title),
             Expand = true,
-            Padding = new Padding(1, 1, 1, 1)
+            Padding = new Padding(1, 1, 1, 1),
         };
     }
 
@@ -262,15 +282,13 @@ internal static class ShellRenderer
         {
             Border = BoxBorder.None,
             Padding = new Padding(1, 0, 1, 0),
-            Expand = true
+            Expand = true,
         };
     }
 
     internal static Table CreateDeviceDetailTable(DeviceSummaryViewState summary)
     {
-        var table = new Table()
-            .Border(TableBorder.Rounded)
-            .Expand();
+        var table = new Table().Border(TableBorder.Rounded).Expand();
 
         table.AddColumn(new TableColumn("#").Centered());
         table.AddColumn(new TableColumn("Device"));
@@ -280,11 +298,9 @@ internal static class ShellRenderer
         table.AddColumn(new TableColumn("Views"));
         table.AddColumn(new TableColumn("Notes"));
 
-        var pageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
-        var visibleRows = summary.DetailRows
-            .Skip(summary.DetailOffset)
-            .Take(pageSize)
-            .ToArray();
+        var pageSize =
+            summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
+        var visibleRows = summary.DetailRows.Skip(summary.DetailOffset).Take(pageSize).ToArray();
 
         for (var i = 0; i < visibleRows.Length; i++)
         {
@@ -297,7 +313,8 @@ internal static class ShellRenderer
                 Markup.Escape(row.Threshold),
                 Markup.Escape(row.Voltage),
                 Markup.Escape(row.Views),
-                Markup.Escape(row.Notes));
+                Markup.Escape(row.Notes)
+            );
         }
 
         return table;
@@ -305,9 +322,7 @@ internal static class ShellRenderer
 
     internal static Table CreateDeviceClassSummaryTable(IReadOnlyList<DeviceClassSummaryRow> rows)
     {
-        var table = new Table()
-            .Border(TableBorder.Rounded)
-            .Expand();
+        var table = new Table().Border(TableBorder.Rounded).Expand();
 
         table.AddColumn(new TableColumn("Class"));
         table.AddColumn(new TableColumn("Devices").Centered());
@@ -330,7 +345,8 @@ internal static class ShellRenderer
                 Markup.Escape(row.VoltageDomains),
                 Markup.Escape(row.Thresholds),
                 Markup.Escape(row.Corners),
-                Markup.Escape(row.ExampleDevice));
+                Markup.Escape(row.ExampleDevice)
+            );
         }
 
         return table;
@@ -355,7 +371,7 @@ internal static class ShellRenderer
             Border = BoxBorder.Rounded,
             Header = new PanelHeader("Navigator"),
             Padding = new Padding(1, 1, 1, 1),
-            Expand = true
+            Expand = true,
         };
     }
 
@@ -364,13 +380,15 @@ internal static class ShellRenderer
         var decks = state.Scan?.ModelDecks ?? Array.Empty<ModelDeckRecord>();
         if (decks.Count == 0)
         {
-            var text = new Markup("[grey]No model decks discovered. Run [bold]pdk scan[/] to get started.[/]");
+            var text = new Markup(
+                "[grey]No model decks discovered. Run [bold]pdk scan[/] to get started.[/]"
+            );
             return new Panel(text)
             {
                 Border = BoxBorder.Rounded,
                 Header = new PanelHeader("Details"),
                 Expand = true,
-                Padding = new Padding(1, 1, 1, 1)
+                Padding = new Padding(1, 1, 1, 1),
             };
         }
 
@@ -384,7 +402,10 @@ internal static class ShellRenderer
         table.AddColumn("Value");
 
         table.AddRow("Path", Escape(deck.DeckPath));
-        table.AddRow("Sections", deck.Sections.Count > 0 ? string.Join(", ", deck.Sections) : "(none)");
+        table.AddRow(
+            "Sections",
+            deck.Sections.Count > 0 ? string.Join(", ", deck.Sections) : "(none)"
+        );
         table.AddRow("Includes", deck.Includes.Count.ToString(CultureInfo.InvariantCulture));
 
         var includes = new Table();
@@ -404,7 +425,7 @@ internal static class ShellRenderer
             Border = BoxBorder.Rounded,
             Header = new PanelHeader($"Deck Details (#{index + 1})"),
             Expand = true,
-            Padding = new Padding(1, 1, 1, 1)
+            Padding = new Padding(1, 1, 1, 1),
         };
     }
 
@@ -415,7 +436,7 @@ internal static class ShellRenderer
         {
             Border = BoxBorder.Rounded,
             Padding = new Padding(1, 0, 1, 0),
-            Expand = true
+            Expand = true,
         };
     }
 
@@ -430,13 +451,16 @@ internal static class ShellRenderer
         if (messagesSnapshot.Length == 0)
         {
             var empty = new Markup("[grey]Log is empty. Commands typed will appear here.[/]");
-            var tip = new Align(new Markup("[dim]Shift+↑/↓ scroll the log[/]"), HorizontalAlignment.Left);
+            var tip = new Align(
+                new Markup("[dim]Shift+↑/↓ scroll the log[/]"),
+                HorizontalAlignment.Left
+            );
             var rows = new Rows(empty, tip);
             return new Panel(rows)
             {
                 Border = BoxBorder.Rounded,
                 Header = new PanelHeader("Log"),
-                Expand = true
+                Expand = true,
             };
         }
 
@@ -458,7 +482,10 @@ internal static class ShellRenderer
         var renderable = new Markup(string.Join('\n', truncatedMessages));
         var headerLabel = offset == 0 ? "Log" : $"Log (scroll {offset})";
 
-        var tipLine = new Align(new Markup("[dim]Shift+↑/↓ scroll the log[/]"), HorizontalAlignment.Left);
+        var tipLine = new Align(
+            new Markup("[dim]Shift+↑/↓ scroll the log[/]"),
+            HorizontalAlignment.Left
+        );
         var content = new Rows(renderable, tipLine);
 
         return new Panel(content)
@@ -466,7 +493,7 @@ internal static class ShellRenderer
             Border = BoxBorder.Rounded,
             Header = new PanelHeader(headerLabel),
             Expand = true,
-            Padding = new Padding(1, 0, 1, 0)
+            Padding = new Padding(1, 0, 1, 0),
         };
     }
 

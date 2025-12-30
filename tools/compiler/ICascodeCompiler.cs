@@ -16,8 +16,5 @@ public interface ICascodeCompiler
     /// <remarks>
     /// In v0, only the first motif declaration in the first source file is considered.
     /// </remarks>
-    CompileResult CompileToACIR(
-        IReadOnlyList<SourceUnit> sources,
-        CompileOptions options);
+    CompileResult CompileToACIR(IReadOnlyList<SourceUnit> sources, CompileOptions options);
 }
-

@@ -28,7 +28,14 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
     private bool _shouldDumpTranscript = true;
     private bool _disposed;
 
-    private InteractiveCliSession(Process process, Stream stdout, Stream stderr, Stream stdin, string transcriptPath, StreamWriter transcriptWriter)
+    private InteractiveCliSession(
+        Process process,
+        Stream stdout,
+        Stream stderr,
+        Stream stdin,
+        string transcriptPath,
+        StreamWriter transcriptWriter
+    )
     {
         _process = process;
         _stdout = stdout;
@@ -42,7 +49,11 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     public void MarkSuccess() => _shouldDumpTranscript = false;
 
-    public static InteractiveCliSession Start(string repoRoot, IReadOnlyList<string>? args = null, IReadOnlyDictionary<string, string>? additionalEnvironment = null)
+    public static InteractiveCliSession Start(
+        string repoRoot,
+        IReadOnlyList<string>? args = null,
+        IReadOnlyDictionary<string, string>? additionalEnvironment = null
+    )
     {
         EnsureLinux();
 
@@ -78,19 +89,26 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
             throw new InvalidOperationException("Failed to start 'script'.");
         }
 
-        var transcriptPath = Path.Combine(Path.GetTempPath(), $"cascode-interactive-{Guid.NewGuid():N}.log");
-        var transcriptWriter = new StreamWriter(new FileStream(transcriptPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+        var transcriptPath = Path.Combine(
+            Path.GetTempPath(),
+            $"cascode-interactive-{Guid.NewGuid():N}.log"
+        );
+        var transcriptWriter = new StreamWriter(
+            new FileStream(transcriptPath, FileMode.Create, FileAccess.Write, FileShare.Read)
+        )
         {
             AutoFlush = true,
-            NewLine = "\n"
+            NewLine = "\n",
         };
 
-        return new InteractiveCliSession(process,
+        return new InteractiveCliSession(
+            process,
             process.StandardOutput.BaseStream,
             process.StandardError.BaseStream,
             process.StandardInput.BaseStream,
             transcriptPath,
-            transcriptWriter);
+            transcriptWriter
+        );
     }
 
     public string CapturedOutput
@@ -106,23 +124,30 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     public async Task SendLineAsync(string line, CancellationToken cancellationToken = default)
     {
-        if (line is null) throw new ArgumentNullException(nameof(line));
+        if (line is null)
+            throw new ArgumentNullException(nameof(line));
         await WriteAsync(line + "\n", cancellationToken).ConfigureAwait(false);
     }
 
-    public Task SendControlCAsync(CancellationToken cancellationToken = default)
-        => WriteBytesAsync(new byte[] { 0x03 }, cancellationToken);
+    public Task SendControlCAsync(CancellationToken cancellationToken = default) =>
+        WriteBytesAsync(new byte[] { 0x03 }, cancellationToken);
 
-    public async Task<string> WaitForOutputAsync(Func<string, bool> predicate, TimeSpan timeout, CancellationToken cancellationToken = default)
+    public async Task<string> WaitForOutputAsync(
+        Func<string, bool> predicate,
+        TimeSpan timeout,
+        CancellationToken cancellationToken = default
+    )
     {
-        if (predicate is null) throw new ArgumentNullException(nameof(predicate));
+        if (predicate is null)
+            throw new ArgumentNullException(nameof(predicate));
         using var linked = CreateLinkedTokenSource(timeout, cancellationToken);
 
         while (true)
         {
             linked.Token.ThrowIfCancellationRequested();
             var snapshot = CapturedOutput;
-            if (predicate(snapshot)) return snapshot;
+            if (predicate(snapshot))
+                return snapshot;
             try
             {
                 await _outputReady.WaitAsync(linked.Token).ConfigureAwait(false);
@@ -134,20 +159,33 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
         }
     }
 
-    public Task<int> WaitForExitAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    public Task<int> WaitForExitAsync(
+        TimeSpan? timeout = null,
+        CancellationToken cancellationToken = default
+    )
     {
-        if (_process.HasExited) return Task.FromResult(_process.ExitCode);
+        if (_process.HasExited)
+            return Task.FromResult(_process.ExitCode);
         return WaitForExitCoreAsync(timeout, cancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
 
         _shutdownCts.Cancel();
-        try { await _stdoutPumpTask.ConfigureAwait(false); } catch { }
-        try { await _stderrPumpTask.ConfigureAwait(false); } catch { }
+        try
+        {
+            await _stdoutPumpTask.ConfigureAwait(false);
+        }
+        catch { }
+        try
+        {
+            await _stderrPumpTask.ConfigureAwait(false);
+        }
+        catch { }
 
         await DisposeStreamAsync(_stdout).ConfigureAwait(false);
         await DisposeStreamAsync(_stderr).ConfigureAwait(false);
@@ -156,11 +194,22 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
         if (!_process.HasExited)
         {
-            try { _process.Kill(entireProcessTree: true); } catch { }
-            try { await _process.WaitForExitAsync().ConfigureAwait(false); } catch { }
+            try
+            {
+                _process.Kill(entireProcessTree: true);
+            }
+            catch { }
+            try
+            {
+                await _process.WaitForExitAsync().ConfigureAwait(false);
+            }
+            catch { }
         }
 
-        if (_shouldDumpTranscript) DumpTranscript(); else TryDeleteTranscript();
+        if (_shouldDumpTranscript)
+            DumpTranscript();
+        else
+            TryDeleteTranscript();
         _process.Dispose();
         _shutdownCts.Dispose();
         GC.SuppressFinalize(this);
@@ -174,14 +223,33 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
             while (true)
             {
                 int read;
-                try { read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false); }
-                catch (OperationCanceledException) { break; }
-                catch (IOException) { break; }
-                if (read == 0) break;
+                try
+                {
+                    read = await source
+                        .ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (IOException)
+                {
+                    break;
+                }
+                if (read == 0)
+                    break;
 
                 var chunk = Encoding.UTF8.GetString(buffer, 0, read);
-                lock (_sync) { _buffer.Append(chunk); }
-                try { await _transcriptWriter.WriteAsync(chunk).ConfigureAwait(false); } catch { }
+                lock (_sync)
+                {
+                    _buffer.Append(chunk);
+                }
+                try
+                {
+                    await _transcriptWriter.WriteAsync(chunk).ConfigureAwait(false);
+                }
+                catch { }
                 _outputReady.Set();
             }
         }
@@ -199,7 +267,9 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     private async Task WriteBytesAsync(byte[] payload, CancellationToken cancellationToken)
     {
-        await _stdin.WriteAsync(payload, 0, payload.Length, cancellationToken).ConfigureAwait(false);
+        await _stdin
+            .WriteAsync(payload, 0, payload.Length, cancellationToken)
+            .ConfigureAwait(false);
         await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -210,12 +280,15 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
             var exitCode = _process.HasExited ? _process.ExitCode : (int?)null;
             var sb = new StringBuilder();
             sb.AppendLine("===== cascode interactive transcript =====");
-            sb.AppendLine(exitCode.HasValue ? $"Exit code: {exitCode}" : "Exit code: (process still running)");
+            sb.AppendLine(
+                exitCode.HasValue ? $"Exit code: {exitCode}" : "Exit code: (process still running)"
+            );
             sb.AppendLine($"Transcript file: {_transcriptPath}");
             sb.AppendLine("--- output ---");
             var t = CapturedOutput;
             sb.Append(t);
-            if (!t.EndsWith("\n", StringComparison.Ordinal)) sb.AppendLine();
+            if (!t.EndsWith("\n", StringComparison.Ordinal))
+                sb.AppendLine();
             sb.AppendLine("===== end transcript =====");
             Console.Error.Write(sb.ToString());
         }
@@ -224,30 +297,44 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     private void TryDeleteTranscript()
     {
-        try { if (File.Exists(_transcriptPath)) File.Delete(_transcriptPath); } catch { }
+        try
+        {
+            if (File.Exists(_transcriptPath))
+                File.Delete(_transcriptPath);
+        }
+        catch { }
     }
 
     private static string BuildShellCommand(string fileName, IReadOnlyList<string> args)
     {
         static string Q(string s)
         {
-            if (string.IsNullOrEmpty(s)) return "''";
+            if (string.IsNullOrEmpty(s))
+                return "''";
             return "'" + s.Replace("'", "'\\''") + "'";
         }
         var parts = new List<string> { Q(fileName) };
-        foreach (var a in args) parts.Add(Q(a));
+        foreach (var a in args)
+            parts.Add(Q(a));
         return string.Join(' ', parts);
     }
 
-    private static CancellationTokenSource CreateLinkedTokenSource(TimeSpan timeout, CancellationToken cancellationToken)
+    private static CancellationTokenSource CreateLinkedTokenSource(
+        TimeSpan timeout,
+        CancellationToken cancellationToken
+    )
     {
-        if (timeout == Timeout.InfiniteTimeSpan) return CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (timeout == Timeout.InfiniteTimeSpan)
+            return CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         linked.CancelAfter(timeout);
         return linked;
     }
 
-    private async Task<int> WaitForExitCoreAsync(TimeSpan? timeout, CancellationToken cancellationToken)
+    private async Task<int> WaitForExitCoreAsync(
+        TimeSpan? timeout,
+        CancellationToken cancellationToken
+    )
     {
         if (timeout.HasValue)
         {
@@ -262,36 +349,59 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
         return _process.ExitCode;
     }
 
-    private static Dictionary<string, string> PrepareEnvironment(string repoRoot, IReadOnlyDictionary<string, string>? additionalEnvironment)
+    private static Dictionary<string, string> PrepareEnvironment(
+        string repoRoot,
+        IReadOnlyDictionary<string, string>? additionalEnvironment
+    )
     {
-        var env = new Dictionary<string, string>(CliIntegrationTestHelper.BuildDeterministicEnvironment(repoRoot), StringComparer.Ordinal)
+        var env = new Dictionary<string, string>(
+            CliIntegrationTestHelper.BuildDeterministicEnvironment(repoRoot),
+            StringComparer.Ordinal
+        )
         {
             ["TERM"] = "xterm-256color",
-            ["COLUMNS"] = DefaultColumns.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["COLUMNS"] = DefaultColumns.ToString(
+                System.Globalization.CultureInfo.InvariantCulture
+            ),
             ["LINES"] = DefaultRows.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["LC_ALL"] = "C",
             ["CASCODE_TEST_MODE"] = "interactive",
             ["PWD"] = repoRoot,
         };
-        if (additionalEnvironment is not null) foreach (var kv in additionalEnvironment) env[kv.Key] = kv.Value;
+        if (additionalEnvironment is not null)
+            foreach (var kv in additionalEnvironment)
+                env[kv.Key] = kv.Value;
         return env;
     }
 
     private static void EnsureLinux()
     {
-        if (!OperatingSystem.IsLinux()) throw new PlatformNotSupportedException("Interactive tests require util-linux 'script'.");
+        if (!OperatingSystem.IsLinux())
+            throw new PlatformNotSupportedException(
+                "Interactive tests require util-linux 'script'."
+            );
     }
 
     private static async Task DisposeStreamAsync(Stream s)
     {
-        if (s is IAsyncDisposable ad) { await ad.DisposeAsync().ConfigureAwait(false); }
-        else s.Dispose();
+        if (s is IAsyncDisposable ad)
+        {
+            await ad.DisposeAsync().ConfigureAwait(false);
+        }
+        else
+            s.Dispose();
     }
 
     private static async Task DisposeWriterAsync(TextWriter w)
     {
-        if (w is IAsyncDisposable ad) { await ad.DisposeAsync().ConfigureAwait(false); }
-        else { await w.FlushAsync().ConfigureAwait(false); w.Dispose(); }
+        if (w is IAsyncDisposable ad)
+        {
+            await ad.DisposeAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            await w.FlushAsync().ConfigureAwait(false);
+            w.Dispose();
+        }
     }
 }
-

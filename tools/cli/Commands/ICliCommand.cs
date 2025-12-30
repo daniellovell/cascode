@@ -13,4 +13,3 @@ internal interface ICliCommand
     IReadOnlyList<string> Aliases { get; }
     CommandHandler Handler { get; }
 }
-

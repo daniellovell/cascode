@@ -45,7 +45,9 @@ public sealed class NgspiceBackend : ISpiceBackend
         sb.AppendLine("* device under test");
         if (s.IsSubckt)
         {
-            sb.AppendLine($"X1 d g s b {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1, s.Mult)} nf={Math.Max(1, s.Nfingers)}");
+            sb.AppendLine(
+                $"X1 d g s b {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1, s.Mult)} nf={Math.Max(1, s.Nfingers)}"
+            );
         }
         else
         {

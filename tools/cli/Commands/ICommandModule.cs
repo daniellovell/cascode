@@ -8,4 +8,3 @@ internal interface ICommandModule
 {
     void Register(CommandRegistry registry);
 }
-

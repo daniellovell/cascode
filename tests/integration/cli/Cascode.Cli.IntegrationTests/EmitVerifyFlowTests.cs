@@ -26,7 +26,10 @@ public class EmitVerifyFlowTests : IDisposable
     public EmitVerifyFlowTests()
     {
         _repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
-        _outputDir = Path.Combine(Path.GetTempPath(), "cascode-emit-verify-test-" + Guid.NewGuid().ToString("N")[..8]);
+        _outputDir = Path.Combine(
+            Path.GetTempPath(),
+            "cascode-emit-verify-test-" + Guid.NewGuid().ToString("N")[..8]
+        );
         Directory.CreateDirectory(_outputDir);
         _cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(_repoRoot, "emit-verify");
     }
@@ -36,7 +39,11 @@ public class EmitVerifyFlowTests : IDisposable
         _cascodeHome.Dispose();
         if (Directory.Exists(_outputDir))
         {
-            try { Directory.Delete(_outputDir, recursive: true); } catch { }
+            try
+            {
+                Directory.Delete(_outputDir, recursive: true);
+            }
+            catch { }
         }
     }
 
@@ -48,16 +55,31 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
         Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
 
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded.sp")), "Design netlist not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp")), "AC testbench not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpDCBench.sp")), "DC testbench not found");
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded.sp")),
+            "Design netlist not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp")),
+            "AC testbench not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpDCBench.sp")),
+            "DC testbench not found"
+        );
     }
 
     [Fact]
@@ -68,25 +90,45 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
 
-        Assert.True(File.Exists(Path.Combine(_outputDir, "CSAmpResistive.sp")), "Design netlist not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "CSAmpResistive_SEAmpACBench.sp")), "Testbench not found");
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "CSAmpResistive.sp")),
+            "Design netlist not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "CSAmpResistive_SEAmpACBench.sp")),
+            "Testbench not found"
+        );
     }
 
     [Fact]
     public async Task Verify_WithPassingResults_ReturnsSuccess()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
-        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", resultsPath);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            resultsPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
@@ -107,17 +149,46 @@ public class EmitVerifyFlowTests : IDisposable
             bench = "SEOpAmpACBench",
             measurements = new
             {
-                gain = new { metric = "PassbandGain", value = 30.0, unit = "dB", node = "OUT" },
-                gbw = new { metric = "GainBandwidth", value = 50e6, unit = "Hz", node = "OUT" },
-                pm = new { metric = "PhaseMargin", value = 45.0, unit = "deg", node = "OUT" }
-            }
+                gain = new
+                {
+                    metric = "PassbandGain",
+                    value = 30.0,
+                    unit = "dB",
+                    node = "OUT",
+                },
+                gbw = new
+                {
+                    metric = "GainBandwidth",
+                    value = 50e6,
+                    unit = "Hz",
+                    node = "OUT",
+                },
+                pm = new
+                {
+                    metric = "PhaseMargin",
+                    value = 45.0,
+                    unit = "deg",
+                    node = "OUT",
+                },
+            },
         };
-        await File.WriteAllTextAsync(failingResultsPath, JsonSerializer.Serialize(failingResults, new JsonSerializerOptions { WriteIndented = true }));
+        await File.WriteAllTextAsync(
+            failingResultsPath,
+            JsonSerializer.Serialize(
+                failingResults,
+                new JsonSerializerOptions { WriteIndented = true }
+            )
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", failingResultsPath);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            failingResultsPath
+        );
 
         // Verify command should return non-zero exit code for failing constraints
         Assert.NotEqual(0, result.ExitCode);
@@ -129,12 +200,20 @@ public class EmitVerifyFlowTests : IDisposable
     public async Task Verify_CSAmp_WithPassingResults_ReturnsSuccess()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
-        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/cs/CSAmpResistive_SEAmpACBench_results.json");
+        var resultsPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/results/cs/CSAmpResistive_SEAmpACBench_results.json"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", resultsPath);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            resultsPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
@@ -150,7 +229,13 @@ public class EmitVerifyFlowTests : IDisposable
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -176,34 +261,74 @@ public class EmitVerifyFlowTests : IDisposable
             bench = "SEOpAmpACBench",
             measurements = new
             {
-                gain = new { metric = "PassbandGain", value = 45.2, unit = "dB", node = "OUT" },
-                gbw = new { metric = "GainBandwidth", value = 150e6, unit = "Hz", node = "OUT" },
-                pm = new { metric = "PhaseMargin", value = 65.3, unit = "deg", node = "OUT" }
-            }
+                gain = new
+                {
+                    metric = "PassbandGain",
+                    value = 45.2,
+                    unit = "dB",
+                    node = "OUT",
+                },
+                gbw = new
+                {
+                    metric = "GainBandwidth",
+                    value = 150e6,
+                    unit = "Hz",
+                    node = "OUT",
+                },
+                pm = new
+                {
+                    metric = "PhaseMargin",
+                    value = 65.3,
+                    unit = "deg",
+                    node = "OUT",
+                },
+            },
         };
-        await File.WriteAllTextAsync(resultsPath, JsonSerializer.Serialize(mockResults, new JsonSerializerOptions { WriteIndented = true }));
+        await File.WriteAllTextAsync(
+            resultsPath,
+            JsonSerializer.Serialize(
+                mockResults,
+                new JsonSerializerOptions { WriteIndented = true }
+            )
+        );
 
         // Step 3: Verify
         var verifyResult = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", resultsPath);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            resultsPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(verifyResult, "verify command failed");
         Assert.Contains("3/3 constraints satisfied", verifyResult.Stdout);
-        Assert.Contains("Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.", verifyResult.Stdout);
+        Assert.Contains(
+            "Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.",
+            verifyResult.Stdout
+        );
     }
 
     [Fact]
     public async Task Verify_MissingACIR_ReturnsError()
     {
         var nonExistentPath = Path.Combine(_outputDir, "nonexistent.cir");
-        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", nonExistentPath, "--results", resultsPath);
+            "verify",
+            "--acir",
+            nonExistentPath,
+            "--results",
+            resultsPath
+        );
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("not found", result.Stdout);
@@ -218,7 +343,12 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", nonExistentResults);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            nonExistentResults
+        );
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("not found", result.Stdout);
@@ -232,7 +362,11 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir);
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir
+        );
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EMIT-001", result.Stdout);
@@ -247,7 +381,11 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir);
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir
+        );
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EMIT-002", result.Stdout);
@@ -262,7 +400,11 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir);
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir
+        );
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EMIT-003", result.Stdout);
@@ -277,7 +419,11 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir);
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir
+        );
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EL-level", result.Stdout);
@@ -291,7 +437,9 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "erc command failed on valid circuit");
         Assert.Contains("ERC passed", result.Stdout);
@@ -305,7 +453,9 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("ERC-001", result.Stdout);
@@ -320,7 +470,9 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("ERC-002", result.Stdout);
@@ -336,7 +488,9 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
         // ERC includes emission validation, so structural errors cause ERC failure
         Assert.NotEqual(0, result.ExitCode);
@@ -352,15 +506,23 @@ public class EmitVerifyFlowTests : IDisposable
         var resultWithoutFlag = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
-        CliIntegrationTestHelper.AssertSuccess(resultWithoutFlag, "erc should pass without --require-pdk");
+        CliIntegrationTestHelper.AssertSuccess(
+            resultWithoutFlag,
+            "erc should pass without --require-pdk"
+        );
 
         // With --require-pdk, should fail because CSAmpResistive uses generic nmos/pmos
         var resultWithFlag = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath, "--require-pdk");
+            "erc",
+            acirPath,
+            "--require-pdk"
+        );
 
         Assert.NotEqual(0, resultWithFlag.ExitCode);
         Assert.Contains("ERC-005", resultWithFlag.Stdout);
@@ -372,7 +534,8 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc");
+            "erc"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "erc without args should show usage");
         Assert.Contains("Usage: erc", result.Stdout);
@@ -388,7 +551,10 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath, "--json");
+            "erc",
+            acirPath,
+            "--json"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "erc --json should succeed");
 
@@ -405,7 +571,10 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath, "--json");
+            "erc",
+            acirPath,
+            "--json"
+        );
 
         Assert.Equal(1, result.ExitCode);
 
@@ -425,7 +594,9 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "erc", acirPath);
+            "erc",
+            acirPath
+        );
 
         Assert.Equal(1, result.ExitCode);
         Assert.Contains("ERC-007", result.Stdout);
@@ -440,7 +611,12 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--json");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--json"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit --json should succeed");
 
@@ -457,7 +633,12 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--json");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--json"
+        );
 
         Assert.Equal(2, result.ExitCode);
 
@@ -468,10 +649,20 @@ public class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_CSAmp_DCSwept_GeneratesTestbenchWithSweep()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+        );
         var result = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
@@ -489,10 +680,20 @@ public class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir"
+        );
         var result = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
 
@@ -502,18 +703,30 @@ public class EmitVerifyFlowTests : IDisposable
         var content = await File.ReadAllTextAsync(benchPath);
         Assert.Contains("while cm_val <= cm_stop", content);
         Assert.Contains("alter VIN_CM DC=$&cm_val", content);
-        Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
+        Assert.Contains("EIN_N", content); // VCVS ties IN_N to IN_P for true common-mode
     }
 
     [Fact]
     public async Task Verify_CSAmp_DCSwept_WithPassingResults_ReturnsSuccess()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
-        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/cs/CSAmpResistive_SEAmpDCBench_results.json");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+        );
+        var resultsPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/results/cs/CSAmpResistive_SEAmpDCBench_results.json"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "verify", "--acir", acirPath, "--results", resultsPath);
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            resultsPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("constraints satisfied", result.Stdout);
@@ -525,8 +738,13 @@ public class EmitVerifyFlowTests : IDisposable
         // Test that [Auto] at EL level is rejected
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/auto_sweep_el.el.cir");
         var result = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir);
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir
+        );
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EMIT-006", result.Stdout);
@@ -536,12 +754,22 @@ public class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_CSAmp_DCSwept_SpiceSimulatesSuccessfully()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+        );
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -550,20 +778,32 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
     }
 
     [Fact]
     [Trait("Category", "Simulation")]
     public async Task Emit_OTA_DCSwept_SpiceSimulatesSuccessfully()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir"
+        );
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -572,8 +812,10 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
     }
 
     [Fact]
@@ -584,8 +826,15 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -594,8 +843,10 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
     }
 
     [Fact]
@@ -605,16 +856,28 @@ public class EmitVerifyFlowTests : IDisposable
         var scanResult = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             _cascodeHome,
-            "pdk", "scan", "tests/fixtures/pdk/sky130");
+            "pdk",
+            "scan",
+            "tests/fixtures/pdk/sky130"
+        );
         CliIntegrationTestHelper.AssertSuccess(scanResult, "pdk scan failed");
 
         var cases = new (string AcirRel, string BenchFile)[]
         {
-            ("tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir", "CommonSourceAmp_Pdk_SEAmpACBench.sp"),
-            ("tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir", "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp")
+            (
+                "tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir",
+                "CommonSourceAmp_Pdk_SEAmpACBench.sp"
+            ),
+            (
+                "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir",
+                "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp"
+            ),
         };
 
-        var libPattern = new Regex(@"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt", RegexOptions.IgnoreCase);
+        var libPattern = new Regex(
+            @"\.lib\s+""[^""]*sky130\.lib\.spice""\s+tt",
+            RegexOptions.IgnoreCase
+        );
 
         foreach (var (acirRel, benchFile) in cases)
         {
@@ -623,9 +886,17 @@ public class EmitVerifyFlowTests : IDisposable
             var acirPath = Path.Combine(_repoRoot, acirRel);
 
             var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(30), _cascodeHome,
-                "--workspace", "tests/fixtures/pdk/sky130",
-                "emit", acirPath, "--out", outputDir, "--backend", "ngspice");
+                TimeSpan.FromSeconds(30),
+                _cascodeHome,
+                "--workspace",
+                "tests/fixtures/pdk/sky130",
+                "emit",
+                acirPath,
+                "--out",
+                outputDir,
+                "--backend",
+                "ngspice"
+            );
 
             CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -636,8 +907,10 @@ public class EmitVerifyFlowTests : IDisposable
             Assert.Matches(libPattern, content);
 
             var ngspiceResult = await RunNgspiceAsync(benchPath);
-            Assert.True(ngspiceResult.Success,
-                $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+            Assert.True(
+                ngspiceResult.Success,
+                $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+            );
         }
     }
 
@@ -648,8 +921,15 @@ public class EmitVerifyFlowTests : IDisposable
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -657,8 +937,10 @@ public class EmitVerifyFlowTests : IDisposable
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
 
         Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
         Assert.Matches(CreateNumericResultRegex("GainBandwidth"), ngspiceResult.Stdout);
@@ -673,25 +955,50 @@ public class EmitVerifyFlowTests : IDisposable
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
         Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
 
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff.sp")), "Design netlist not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")), "AC testbench not found");
-        Assert.True(File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp")), "DC testbench not found");
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff.sp")),
+            "Design netlist not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")),
+            "AC testbench not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp")),
+            "DC testbench not found"
+        );
     }
 
     [Fact]
     public async Task Emit_FD_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir"
+        );
         var result = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
 
@@ -701,19 +1008,27 @@ public class EmitVerifyFlowTests : IDisposable
         var content = await File.ReadAllTextAsync(benchPath);
         Assert.Contains("while cm_val <= cm_stop", content);
         Assert.Contains("alter VIN_CM DC=$&cm_val", content);
-        Assert.Contains("EIN_N", content);  // VCVS ties IN_N to IN_P for true common-mode
+        Assert.Contains("EIN_N", content); // VCVS ties IN_N to IN_P for true common-mode
     }
 
     [Fact]
     public async Task Verify_FD_OTA_WithPassingResults_ReturnsSuccess()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
-        var resultsPath = Path.Combine(_repoRoot, "tests/golden/results/ota/OTA5TFullyDiff_FDOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/results/ota/OTA5TFullyDiff_FDOpAmpACBench_results.json"
+        );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
-            "verify", "--acir", acirPath, "--results", resultsPath);
+            "verify",
+            "--acir",
+            acirPath,
+            "--results",
+            resultsPath
+        );
 
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
@@ -729,8 +1044,15 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -739,8 +1061,10 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
 
         // Verify RESULT lines contain valid numeric values (not empty)
         Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
@@ -752,12 +1076,22 @@ public class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_FD_OTA_DCSwept_SpiceSimulatesSuccessfully()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir");
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir"
+        );
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(30), _cascodeHome,
-            "emit", acirPath, "--out", _outputDir, "--backend", "ngspice");
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
@@ -766,8 +1100,10 @@ public class EmitVerifyFlowTests : IDisposable
 
         // Verify ngspice can simulate the generated SPICE file
         var ngspiceResult = await RunNgspiceAsync(benchPath);
-        Assert.True(ngspiceResult.Success,
-            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}");
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
     }
 
     /// <summary>
@@ -777,7 +1113,10 @@ public class EmitVerifyFlowTests : IDisposable
     /// <returns>A Regex pattern that matches RESULT lines for the specified metric with a floating-point value.</returns>
     private static Regex CreateNumericResultRegex(string metricName)
     {
-        return new Regex($@"RESULT:\s*{Regex.Escape(metricName)}\s*=\s*{FloatingPointPattern}", RegexOptions.Compiled);
+        return new Regex(
+            $@"RESULT:\s*{Regex.Escape(metricName)}\s*=\s*{FloatingPointPattern}",
+            RegexOptions.Compiled
+        );
     }
 
     /// <summary>
@@ -785,7 +1124,12 @@ public class EmitVerifyFlowTests : IDisposable
     /// </summary>
     /// <param name="spiceFile">Path to the SPICE netlist file.</param>
     /// <returns>Result indicating success or failure with error message.</returns>
-    private static async Task<(bool Success, string Stdout, string Stderr, string ErrorMessage)> RunNgspiceAsync(string spiceFile)
+    private static async Task<(
+        bool Success,
+        string Stdout,
+        string Stderr,
+        string ErrorMessage
+    )> RunNgspiceAsync(string spiceFile)
     {
         if (!File.Exists(spiceFile))
         {
@@ -804,22 +1148,31 @@ public class EmitVerifyFlowTests : IDisposable
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
-                    CreateNoWindow = true
-                }
+                    CreateNoWindow = true,
+                },
             };
             checkProcess.Start();
             await checkProcess.WaitForExitAsync();
 
             if (checkProcess.ExitCode != 0)
             {
-                return (false, string.Empty, string.Empty,
-                    "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml");
+                return (
+                    false,
+                    string.Empty,
+                    string.Empty,
+                    "ngspice not found or not working. Install with: conda env create -f tests/simulation/environment.yml"
+                );
             }
         }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception || ex is FileNotFoundException)
+        catch (Exception ex)
+            when (ex is System.ComponentModel.Win32Exception || ex is FileNotFoundException)
         {
-            return (false, string.Empty, string.Empty,
-                $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml");
+            return (
+                false,
+                string.Empty,
+                string.Empty,
+                $"ngspice not found in PATH: {ex.Message}. Install with: conda env create -f tests/simulation/environment.yml"
+            );
         }
 
         // Run ngspice in batch mode (-b flag)
@@ -835,8 +1188,9 @@ public class EmitVerifyFlowTests : IDisposable
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory()
-                }
+                    WorkingDirectory =
+                        Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory(),
+                },
             };
 
             process.Start();
@@ -855,7 +1209,12 @@ public class EmitVerifyFlowTests : IDisposable
                 await process.WaitForExitAsync();
                 var stdoutTimedOut = await stdoutTask;
                 var stderrTimedOut = await stderrTask;
-                return (false, stdoutTimedOut, stderrTimedOut, "ngspice simulation timed out after 60 seconds");
+                return (
+                    false,
+                    stdoutTimedOut,
+                    stderrTimedOut,
+                    "ngspice simulation timed out after 60 seconds"
+                );
             }
 
             var stdout = await stdoutTask;

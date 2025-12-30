@@ -11,7 +11,8 @@ public class InstanceParamsTests
     [Fact]
     public void Parse_InstanceWithSingleParam_ExtractsParam()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -38,7 +39,8 @@ motif Test {
     [Fact]
     public void Parse_InstanceWithMultipleParams_ExtractsAllParams()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -69,7 +71,8 @@ motif Test {
     [Fact]
     public void Parse_InstanceWithNumericParam_ExtractsParam()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -96,7 +99,8 @@ motif Test {
     [Fact]
     public void Parse_InstanceWithoutParams_HasEmptyParamsList()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -119,7 +123,8 @@ motif Test {
     [Fact]
     public void Parse_OTA5TSingleEnded_ExtractsInstanceParams()
     {
-        const string text = @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+        const string text =
+            @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 motif OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD = 1.8V; ground GND;
@@ -164,4 +169,3 @@ motif OTA5TSingleEnded implements SingleEndedOpAmp {
         Assert.Equal("1", cm.Parameters[1].Value);
     }
 }
-

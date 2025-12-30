@@ -14,7 +14,12 @@ public static class HarnessService
         {
             if (reg.TryGet(h.Id, out _))
             {
-                logger.LogDebug("Skipping duplicate harness ID '{HarnessId}' (type: {HarnessType}, description: '{Description}')", h.Id, h.GetType().Name, h.Description);
+                logger.LogDebug(
+                    "Skipping duplicate harness ID '{HarnessId}' (type: {HarnessType}, description: '{Description}')",
+                    h.Id,
+                    h.GetType().Name,
+                    h.Description
+                );
                 continue; // keep built-in when IDs collide with discovered harnesses
             }
             reg.Register(h);
@@ -51,9 +56,11 @@ public static class HarnessService
         if (string.IsNullOrWhiteSpace(cascodeHome))
         {
             var user = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrEmpty(user)) cascodeHome = Path.Combine(user, ".cascode");
+            if (!string.IsNullOrEmpty(user))
+                cascodeHome = Path.Combine(user, ".cascode");
         }
-        if (!string.IsNullOrWhiteSpace(cascodeHome)) roots.Add(Path.Combine(cascodeHome!, "harnesses"));
+        if (!string.IsNullOrWhiteSpace(cascodeHome))
+            roots.Add(Path.Combine(cascodeHome!, "harnesses"));
 
         return YamlHarnessDiscovery.Discover(roots);
     }

@@ -9,7 +9,8 @@ internal static class EnvironmentVariableScanner
 {
     private static readonly Regex VariablePattern = new(
         @"\$(\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}|(?<name2>[A-Za-z_][A-Za-z0-9_]*))",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled
+    );
 
     public static IReadOnlyCollection<string> FromFile(string path)
     {
@@ -46,22 +47,25 @@ internal static class EnvironmentVariableScanner
             return text;
         }
 
-        return VariablePattern.Replace(text, match =>
-        {
-            var name = match.Groups["name"].Value;
-            if (string.IsNullOrEmpty(name))
+        return VariablePattern.Replace(
+            text,
+            match =>
             {
-                name = match.Groups["name2"].Value;
-            }
+                var name = match.Groups["name"].Value;
+                if (string.IsNullOrEmpty(name))
+                {
+                    name = match.Groups["name2"].Value;
+                }
 
-            if (string.IsNullOrEmpty(name))
-            {
-                return match.Value;
-            }
+                if (string.IsNullOrEmpty(name))
+                {
+                    return match.Value;
+                }
 
-            var value = valueProvider(name);
-            return value ?? match.Value;
-        });
+                var value = valueProvider(name);
+                return value ?? match.Value;
+            }
+        );
     }
 
     private static void CollectFromText(string text, HashSet<string> collector)

@@ -17,7 +17,12 @@ public static class TemplateDiscovery
     /// <param name="startDir">Starting directory for upward traversal (defaults to current directory).</param>
     /// <param name="workspaceRoot">Optional workspace root to check lib/std/amp/benches/.</param>
     /// <returns>Full path to template file if found, null otherwise.</returns>
-    public static string? FindTemplate(string benchName, BenchBackendType? backend = null, string? startDir = null, string? workspaceRoot = null)
+    public static string? FindTemplate(
+        string benchName,
+        BenchBackendType? backend = null,
+        string? startDir = null,
+        string? workspaceRoot = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(benchName);
 
@@ -32,7 +37,11 @@ public static class TemplateDiscovery
         {
             BenchBackendType.Ngspice => $"{benchName}.ngspice.tpl",
             BenchBackendType.Spectre => $"{benchName}.spectre.tpl",
-            _ => throw new ArgumentOutOfRangeException(nameof(backend), effectiveBackend, $"Unknown backend type: {effectiveBackend}")
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(backend),
+                effectiveBackend,
+                $"Unknown backend type: {effectiveBackend}"
+            ),
         };
 
         // Traverse upward looking for benches/ folders
@@ -88,7 +97,8 @@ public static class TemplateDiscovery
         }
 
         throw new InvalidOperationException(
-            "No supported SPICE backend found on PATH. Please install either spectre or ngspice, or explicitly specify a backend.");
+            "No supported SPICE backend found on PATH. Please install either spectre or ngspice, or explicitly specify a backend."
+        );
     }
 
     /// <summary>
@@ -106,7 +116,8 @@ public static class TemplateDiscovery
 
             var paths = pathVar.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
             var extensions = OperatingSystem.IsWindows()
-                ? Environment.GetEnvironmentVariable("PATHEXT")?.Split(';') ?? new[] { ".exe", ".cmd", ".bat" }
+                ? Environment.GetEnvironmentVariable("PATHEXT")?.Split(';')
+                    ?? new[] { ".exe", ".cmd", ".bat" }
                 : new[] { string.Empty };
 
             foreach (var basePath in paths)
@@ -129,4 +140,3 @@ public static class TemplateDiscovery
         }
     }
 }
-

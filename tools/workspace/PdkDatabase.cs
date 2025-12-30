@@ -18,7 +18,8 @@ public sealed class PdkDatabase : IDisposable
 
     public static PdkDatabase Open(string dbPath)
     {
-        if (string.IsNullOrWhiteSpace(dbPath)) throw new ArgumentException("dbPath is required", nameof(dbPath));
+        if (string.IsNullOrWhiteSpace(dbPath))
+            throw new ArgumentException("dbPath is required", nameof(dbPath));
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(dbPath))!);
         var builder = new SqliteConnectionStringBuilder
         {
@@ -36,8 +37,10 @@ public sealed class PdkDatabase : IDisposable
     // Open the database for read-only operations without running schema migrations.
     public static PdkDatabase OpenReadOnly(string dbPath)
     {
-        if (string.IsNullOrWhiteSpace(dbPath)) throw new ArgumentException("dbPath is required", nameof(dbPath));
-        if (!File.Exists(dbPath)) throw new FileNotFoundException("PDK database not found", dbPath);
+        if (string.IsNullOrWhiteSpace(dbPath))
+            throw new ArgumentException("dbPath is required", nameof(dbPath));
+        if (!File.Exists(dbPath))
+            throw new FileNotFoundException("PDK database not found", dbPath);
         var builder = new SqliteConnectionStringBuilder
         {
             DataSource = dbPath,
@@ -72,7 +75,8 @@ public sealed class PdkDatabase : IDisposable
         using var tx = _conn.BeginTransaction();
         using var cmd = _conn.CreateCommand();
         cmd.Transaction = tx;
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             CREATE TABLE IF NOT EXISTS libraries (
               id INTEGER PRIMARY KEY,
               name TEXT NOT NULL,

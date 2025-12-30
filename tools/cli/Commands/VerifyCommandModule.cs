@@ -31,7 +31,13 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <param name="registry">Command registry.</param>
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("verify", "Verify constraint compliance from bench results", VerifyCommand));
+        registry.Register(
+            new DelegateCliCommand(
+                "verify",
+                "Verify constraint compliance from bench results",
+                VerifyCommand
+            )
+        );
     }
 
     /// <summary>
@@ -44,15 +50,21 @@ internal sealed class VerifyCommandModule : ICommandModule
         if (args.Length == 0)
         {
             _state.AddMessage("Usage: verify <acir_file> <results_json|trace_jsonl>");
-            _state.AddMessage("       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)");
+            _state.AddMessage(
+                "       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)"
+            );
             _state.AddMessage("");
-            _state.AddMessage("Verifies numeric constraints from ACIR against bench measurement results.");
+            _state.AddMessage(
+                "Verifies numeric constraints from ACIR against bench measurement results."
+            );
             return CommandResult.Success;
         }
 
         if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
         {
-            _state.AddMessage("Error: provide an ACIR path plus either a results.json or trace.jsonl path.");
+            _state.AddMessage(
+                "Error: provide an ACIR path plus either a results.json or trace.jsonl path."
+            );
             return CommandResult.Failure;
         }
 
@@ -83,7 +95,11 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         if (!readResult.Success)
         {
-            foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+            foreach (
+                var diag in readResult.Diagnostics.Where(d =>
+                    d.Severity == DiagnosticSeverity.Error
+                )
+            )
             {
                 _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
@@ -105,13 +121,15 @@ internal sealed class VerifyCommandModule : ICommandModule
         {
             var jsonOptions = new JsonSerializerOptions
             {
-                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+                NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
             };
 
             if (resultsPath != null)
             {
                 var jsonText = File.ReadAllText(resultsPath);
-                results = JsonSerializer.Deserialize<BenchResult>(jsonText, jsonOptions) ?? throw new InvalidOperationException("Failed to deserialize results JSON");
+                results =
+                    JsonSerializer.Deserialize<BenchResult>(jsonText, jsonOptions)
+                    ?? throw new InvalidOperationException("Failed to deserialize results JSON");
             }
             else
             {
@@ -125,8 +143,10 @@ internal sealed class VerifyCommandModule : ICommandModule
         }
 
         // Find matching circuit by name
-        var circuit = elCircuits.FirstOrDefault(c => c.Name.Equals(results.Circuit, StringComparison.OrdinalIgnoreCase))
-            ?? elCircuits[0];
+        var circuit =
+            elCircuits.FirstOrDefault(c =>
+                c.Name.Equals(results.Circuit, StringComparison.OrdinalIgnoreCase)
+            ) ?? elCircuits[0];
 
         // Check compliance
         var report = ComplianceChecker.Check(circuit, results);
@@ -143,7 +163,12 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <param name="acirPath">Output parameter for ACIR file path.</param>
     /// <param name="resultsPath">Output parameter for results JSON file path.</param>
     /// <returns>True if both arguments were found, false otherwise.</returns>
-    private static bool ParseArguments(string[] args, out string? acirPath, out string? resultsPath, out string? tracePath)
+    private static bool ParseArguments(
+        string[] args,
+        out string? acirPath,
+        out string? resultsPath,
+        out string? tracePath
+    )
     {
         acirPath = null;
         resultsPath = null;
@@ -194,7 +219,10 @@ internal sealed class VerifyCommandModule : ICommandModule
         return acirPath != null && (resultsPath != null || tracePath != null);
     }
 
-    private static BenchResult ReadResultsFromTrace(string tracePath, JsonSerializerOptions jsonOptions)
+    private static BenchResult ReadResultsFromTrace(
+        string tracePath,
+        JsonSerializerOptions jsonOptions
+    )
     {
         BenchResult? last = null;
 
@@ -206,7 +234,10 @@ internal sealed class VerifyCommandModule : ICommandModule
             }
 
             using var doc = JsonDocument.Parse(line);
-            if (!doc.RootElement.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "summary")
+            if (
+                !doc.RootElement.TryGetProperty("type", out var typeEl)
+                || typeEl.GetString() != "summary"
+            )
             {
                 continue;
             }
@@ -219,7 +250,10 @@ internal sealed class VerifyCommandModule : ICommandModule
             last = JsonSerializer.Deserialize<BenchResult>(resultsEl.GetRawText(), jsonOptions);
         }
 
-        return last ?? throw new InvalidOperationException("No summary record with results found in trace.jsonl.");
+        return last
+            ?? throw new InvalidOperationException(
+                "No summary record with results found in trace.jsonl."
+            );
     }
 
     /// <summary>
@@ -245,14 +279,23 @@ internal sealed class VerifyCommandModule : ICommandModule
         {
             var status = result.Passed ? "PASS" : "FAIL";
             var nodeStr = result.Node != null ? $" @ {result.Node}" : "";
-            var expectedStr = ValueFormatter.FormatValue(result.Expected, GetUnitFromConstraint(circuit, result.Id));
-            var actualStr = result.Actual.HasValue ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})" : " (not measured)";
+            var expectedStr = ValueFormatter.FormatValue(
+                result.Expected,
+                GetUnitFromConstraint(circuit, result.Id)
+            );
+            var actualStr = result.Actual.HasValue
+                ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
+                : " (not measured)";
 
-            _state.AddMessage($"{result.Id,-8} {result.Metric}{nodeStr} {result.Operator} {expectedStr,-12} {status}{actualStr}");
+            _state.AddMessage(
+                $"{result.Id, -8} {result.Metric}{nodeStr} {result.Operator} {expectedStr, -12} {status}{actualStr}"
+            );
         }
 
         _state.AddMessage(new string('-', 50));
-        _state.AddMessage($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
+        _state.AddMessage(
+            $"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied"
+        );
 
         // Show hint about unchecked constraints from other benches
         if (report.UncheckedByBench.Count > 0)
@@ -264,7 +307,9 @@ internal sealed class VerifyCommandModule : ICommandModule
             foreach (var kvp in report.UncheckedByBench)
             {
                 var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
-                _state.AddMessage($"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}.");
+                _state.AddMessage(
+                    $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
+                );
             }
             _state.AddMessage("Run `verify` with combined results to check all constraints.");
         }

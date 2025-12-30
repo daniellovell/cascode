@@ -16,10 +16,17 @@ public sealed class DeviceFilterOptions
         bool? infra = null,
         bool? matched = null,
         IEnumerable<string>? nameContains = null,
-        IEnumerable<string>? nameExcludes = null)
+        IEnumerable<string>? nameExcludes = null
+    )
     {
-        Classes = new HashSet<string>(Normalize(classes, s => s.ToLowerInvariant()), StringComparer.OrdinalIgnoreCase);
-        Vts = new HashSet<string>(Normalize(vts, s => s.ToUpperInvariant()), StringComparer.OrdinalIgnoreCase);
+        Classes = new HashSet<string>(
+            Normalize(classes, s => s.ToLowerInvariant()),
+            StringComparer.OrdinalIgnoreCase
+        );
+        Vts = new HashSet<string>(
+            Normalize(vts, s => s.ToUpperInvariant()),
+            StringComparer.OrdinalIgnoreCase
+        );
         Vdds = new HashSet<string>(Normalize(vdds, s => s), StringComparer.OrdinalIgnoreCase);
         Infra = infra;
         Matched = matched;
@@ -35,12 +42,17 @@ public sealed class DeviceFilterOptions
     public IReadOnlyList<string> NameContains { get; }
     public IReadOnlyList<string> NameExcludes { get; }
 
-    private static IEnumerable<string> Normalize(IEnumerable<string>? input, Func<string, string> normalize)
+    private static IEnumerable<string> Normalize(
+        IEnumerable<string>? input,
+        Func<string, string> normalize
+    )
     {
-        if (input is null) yield break;
+        if (input is null)
+            yield break;
         foreach (var s in input)
         {
-            if (string.IsNullOrWhiteSpace(s)) continue;
+            if (string.IsNullOrWhiteSpace(s))
+                continue;
             yield return normalize(s.Trim());
         }
     }
@@ -48,31 +60,59 @@ public sealed class DeviceFilterOptions
 
 public static class DeviceFilterEvaluator
 {
-    public static bool Matches(Device device, DeviceFilterOptions filters, HashSet<string>? matchedKeys = null)
+    public static bool Matches(
+        Device device,
+        DeviceFilterOptions filters,
+        HashSet<string>? matchedKeys = null
+    )
     {
-        if (filters.Classes.Count > 0 && !filters.Classes.Contains(device.Class.ToString().ToLowerInvariant())) return false;
-        if (filters.Vts.Count > 0 && !device.VtTags.Any(t => filters.Vts.Contains(t))) return false;
-        if (filters.Vdds.Count > 0 && !MatchesVddFilters(device.VddTags, filters.Vdds)) return false;
+        if (
+            filters.Classes.Count > 0
+            && !filters.Classes.Contains(device.Class.ToString().ToLowerInvariant())
+        )
+            return false;
+        if (filters.Vts.Count > 0 && !device.VtTags.Any(t => filters.Vts.Contains(t)))
+            return false;
+        if (filters.Vdds.Count > 0 && !MatchesVddFilters(device.VddTags, filters.Vdds))
+            return false;
         if (filters.Infra.HasValue)
         {
-            var isInfra = device.Tags.Any(t => t.Equals("infra", StringComparison.OrdinalIgnoreCase));
-            if (filters.Infra.Value != isInfra) return false;
+            var isInfra = device.Tags.Any(t =>
+                t.Equals("infra", StringComparison.OrdinalIgnoreCase)
+            );
+            if (filters.Infra.Value != isInfra)
+                return false;
         }
         if (filters.Matched.HasValue)
         {
-            if (matchedKeys is null) return false;
+            if (matchedKeys is null)
+                return false;
             var isMatched = matchedKeys.Contains(device.CanonicalName);
-            if (filters.Matched.Value != isMatched) return false;
+            if (filters.Matched.Value != isMatched)
+                return false;
         }
-        if (filters.NameContains.Count > 0 && !filters.NameContains.Any(tok => device.CellName.Contains(tok, StringComparison.OrdinalIgnoreCase))) return false;
-        if (filters.NameExcludes.Count > 0 && filters.NameExcludes.Any(tok => device.CellName.Contains(tok, StringComparison.OrdinalIgnoreCase))) return false;
+        if (
+            filters.NameContains.Count > 0
+            && !filters.NameContains.Any(tok =>
+                device.CellName.Contains(tok, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+            return false;
+        if (
+            filters.NameExcludes.Count > 0
+            && filters.NameExcludes.Any(tok =>
+                device.CellName.Contains(tok, StringComparison.OrdinalIgnoreCase)
+            )
+        )
+            return false;
         return true;
     }
 
     public static bool TryNormalizeVddFilter(string raw, out string normalized)
     {
         normalized = string.Empty;
-        if (string.IsNullOrWhiteSpace(raw)) return false;
+        if (string.IsNullOrWhiteSpace(raw))
+            return false;
 
         var trimmed = raw.Trim();
         var lower = trimmed.ToLowerInvariant();
@@ -96,15 +136,22 @@ public static class DeviceFilterEvaluator
         return false;
     }
 
-    private static bool MatchesVddFilters(IReadOnlyList<string> deviceVddTags, HashSet<string> filters)
+    private static bool MatchesVddFilters(
+        IReadOnlyList<string> deviceVddTags,
+        HashSet<string> filters
+    )
     {
-        if (filters.Count == 0) return true;
-        if (deviceVddTags is null || deviceVddTags.Count == 0) return false;
+        if (filters.Count == 0)
+            return true;
+        if (deviceVddTags is null || deviceVddTags.Count == 0)
+            return false;
 
         foreach (var tag in deviceVddTags)
         {
-            if (TryNormalizeVddFilter(tag, out var normalized) && filters.Contains(normalized)) return true;
-            if (filters.Contains(tag)) return true;
+            if (TryNormalizeVddFilter(tag, out var normalized) && filters.Contains(normalized))
+                return true;
+            if (filters.Contains(tag))
+                return true;
         }
 
         return false;

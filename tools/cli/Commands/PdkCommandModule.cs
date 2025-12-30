@@ -5,12 +5,12 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Cascode.Cli.Logging;
+using Cascode.Cli.Services;
+using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Rendering;
-using Microsoft.Extensions.Logging;
-using Cascode.Cli.Logging;
-using Cascode.Workspace;
-using Cascode.Cli.Services;
 
 namespace Cascode.Cli.Commands;
 
@@ -30,7 +30,8 @@ internal sealed class PdkCommandModule : ICommandModule
         CliConfig config,
         CliConfigStorage configStorage,
         string initialWorkspaceRoot,
-        Func<bool> isInteractive)
+        Func<bool> isInteractive
+    )
     {
         _state = state;
         _scanner = scanner;
@@ -46,18 +47,63 @@ internal sealed class PdkCommandModule : ICommandModule
 
         registry.Register(new DelegateCliCommand("pdk", "Manage PDK workspace", ShowPdkUsage));
         registry.Register(new DelegateCliCommand("pdk scan", "Scan workspace for decks", PdkScan));
-        registry.Register(new DelegateCliCommand("pdk devices", "List discovered devices", PdkDevices));
-        registry.Register(new DelegateCliCommand("pdk device", "Inspect a specific device", PdkDevice));
-        registry.Register(new DelegateCliCommand("pdk set-dir", "Set or clear the default PDK workspace", PdkSetDir));
-        registry.Register(new DelegateCliCommand("pdk match", "Device↔Model coverage and ambiguity summary", PdkMatch));
+        registry.Register(
+            new DelegateCliCommand("pdk devices", "List discovered devices", PdkDevices)
+        );
+        registry.Register(
+            new DelegateCliCommand("pdk device", "Inspect a specific device", PdkDevice)
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk set-dir",
+                "Set or clear the default PDK workspace",
+                PdkSetDir
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk match",
+                "Device↔Model coverage and ambiguity summary",
+                PdkMatch
+            )
+        );
 
         // PDK characterization
-        registry.Register(new DelegateCliCommand("pdk char", "PDK characterization commands", ShowPdkCharUsage));
-        registry.Register(new DelegateCliCommand("pdk char help", "Show PDK characterization help", ShowPdkCharUsage, hidden: true));
-        registry.Register(new DelegateCliCommand("pdk char config", "Configure batch characterization", PdkCharConfigCommand));
-        registry.Register(new DelegateCliCommand("pdk char run", "Characterize devices (Spectre)", PdkCharRunCommand));
-        registry.Register(new DelegateCliCommand("pdk char read", "View characterized LUTs", PdkCharReadCommand));
-        registry.Register(new DelegateCliCommand("pdk char status", "Show characterization coverage", PdkCharStatusCommand));
+        registry.Register(
+            new DelegateCliCommand("pdk char", "PDK characterization commands", ShowPdkCharUsage)
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk char help",
+                "Show PDK characterization help",
+                ShowPdkCharUsage,
+                hidden: true
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk char config",
+                "Configure batch characterization",
+                PdkCharConfigCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk char run",
+                "Characterize devices (Spectre)",
+                PdkCharRunCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand("pdk char read", "View characterized LUTs", PdkCharReadCommand)
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "pdk char status",
+                "Show characterization coverage",
+                PdkCharStatusCommand
+            )
+        );
     }
 
     private CommandResult ShowPdkUsage(string[] args)
@@ -68,7 +114,9 @@ internal sealed class PdkCommandModule : ICommandModule
         foreach (var sub in subcommands)
         {
             var padded = width > 0 ? sub.DisplayPath.PadRight(width) : sub.DisplayPath;
-            var description = string.IsNullOrEmpty(sub.Description) ? string.Empty : $"  {sub.Description}";
+            var description = string.IsNullOrEmpty(sub.Description)
+                ? string.Empty
+                : $"  {sub.Description}";
             _state.AddMessage($"  {padded}{description}");
         }
         return CommandResult.Success;
@@ -78,46 +126,92 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         try
         {
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
-            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+            var dbPath = Path.Combine(
+                WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+                "pdk.db"
+            );
+            if (!File.Exists(dbPath))
+            {
+                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                return CommandResult.Failure;
+            }
 
             // Parse filters early to decide fast path
-            var (classFilter, vtFilter, vddFilter, infraFilter, matchedFilter, limit) = ParseDeviceFilters(args);
-            var forceList = args.Any(a => a.Equals("--list", StringComparison.OrdinalIgnoreCase) || a.Equals("--detail", StringComparison.OrdinalIgnoreCase));
-            var hasFilters = classFilter.Count > 0 || vtFilter.Count > 0 || vddFilter.Count > 0 || infraFilter.HasValue || matchedFilter.HasValue;
+            var (classFilter, vtFilter, vddFilter, infraFilter, matchedFilter, limit) =
+                ParseDeviceFilters(args);
+            var forceList = args.Any(a =>
+                a.Equals("--list", StringComparison.OrdinalIgnoreCase)
+                || a.Equals("--detail", StringComparison.OrdinalIgnoreCase)
+            );
+            var hasFilters =
+                classFilter.Count > 0
+                || vtFilter.Count > 0
+                || vddFilter.Count > 0
+                || infraFilter.HasValue
+                || matchedFilter.HasValue;
             var filterLabels = new List<string>();
-            if (classFilter.Count > 0) filterLabels.Add("class=" + string.Join(',', classFilter));
-            if (vtFilter.Count > 0) filterLabels.Add("vt=" + string.Join(',', vtFilter));
-            if (vddFilter.Count > 0) filterLabels.Add("vdd=" + string.Join(',', vddFilter));
-            if (infraFilter.HasValue) filterLabels.Add(infraFilter.Value ? "infra" : "no-infra");
-            if (matchedFilter.HasValue) filterLabels.Add(matchedFilter.Value ? "matched" : "unmatched");
+            if (classFilter.Count > 0)
+                filterLabels.Add("class=" + string.Join(',', classFilter));
+            if (vtFilter.Count > 0)
+                filterLabels.Add("vt=" + string.Join(',', vtFilter));
+            if (vddFilter.Count > 0)
+                filterLabels.Add("vdd=" + string.Join(',', vddFilter));
+            if (infraFilter.HasValue)
+                filterLabels.Add(infraFilter.Value ? "infra" : "no-infra");
+            if (matchedFilter.HasValue)
+                filterLabels.Add(matchedFilter.Value ? "matched" : "unmatched");
 
             if (_isInteractive() && !forceList && !hasFilters)
             {
                 // Fast path: use precomputed per-class summary written at 'pdk scan' time
                 var summary = Cascode.Workspace.PdkDatabaseReader.LoadDeviceClassSummary(dbPath);
-                if (summary.Count == 0) { _state.AddMessage("No devices discovered. Run 'pdk scan'."); return CommandResult.Success; }
+                if (summary.Count == 0)
+                {
+                    _state.AddMessage("No devices discovered. Run 'pdk scan'.");
+                    return CommandResult.Success;
+                }
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
                 foreach (var s in summary)
                 {
                     var clsEnum = s.DeviceClass;
-                    classRows.Add(new DeviceClassSummaryRow(
-                        DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
-                        DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
-                        Decks: s.Decks.ToString(CultureInfo.InvariantCulture),
-                        VoltageDomains: string.IsNullOrWhiteSpace(s.VoltageDomainsCsv) ? "-" : s.VoltageDomainsCsv,
-                        Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv) ? "-" : s.ThresholdsCsv,
-                        Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
-                        ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel) ? "-" : s.ExampleModel,
-                        IsUncategorized: s.DeviceClass == DeviceClass.Unknown));
+                    classRows.Add(
+                        new DeviceClassSummaryRow(
+                            DeviceClass: DeviceSummaryHelpers.FormatDeviceClassName(clsEnum),
+                            DeviceCount: s.DeviceCount.ToString(CultureInfo.InvariantCulture),
+                            Decks: s.Decks.ToString(CultureInfo.InvariantCulture),
+                            VoltageDomains: string.IsNullOrWhiteSpace(s.VoltageDomainsCsv)
+                                ? "-"
+                                : s.VoltageDomainsCsv,
+                            Thresholds: string.IsNullOrWhiteSpace(s.ThresholdsCsv)
+                                ? "-"
+                                : s.ThresholdsCsv,
+                            Corners: string.IsNullOrWhiteSpace(s.CornersCsv) ? "-" : s.CornersCsv,
+                            ExampleDevice: string.IsNullOrWhiteSpace(s.ExampleModel)
+                                ? "-"
+                                : s.ExampleModel,
+                            IsUncategorized: s.DeviceClass == DeviceClass.Unknown
+                        )
+                    );
                 }
 
                 var title = "Devices by Class";
-                var scope = filterLabels.Count == 0 ? "(all)" : "(" + string.Join(' ', filterLabels) + ")";
+                var scope =
+                    filterLabels.Count == 0 ? "(all)" : "(" + string.Join(' ', filterLabels) + ")";
                 var total = summary.Sum(s => s.DeviceCount);
                 var matched = summary.Sum(s => s.Matched);
-                var summaryLine = $"Device classes: {classRows.Count} {scope}. Devices: {total}. Matched: {matched}. Use 'pdk devices --list' to list.";
-                var view = new DeviceSummaryViewState(title, summaryLine, statsLine: string.Empty, suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(), detailRows: Array.Empty<DeviceSummaryRow>(), classRows: classRows, detailOffset: 0, detailPageSize: 0, detailFilters: Array.Empty<string>());
+                var summaryLine =
+                    $"Device classes: {classRows.Count} {scope}. Devices: {total}. Matched: {matched}. Use 'pdk devices --list' to list.";
+                var view = new DeviceSummaryViewState(
+                    title,
+                    summaryLine,
+                    statsLine: string.Empty,
+                    suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(),
+                    detailRows: Array.Empty<DeviceSummaryRow>(),
+                    classRows: classRows,
+                    detailOffset: 0,
+                    detailPageSize: 0,
+                    detailFilters: Array.Empty<string>()
+                );
                 _state.ShowDeviceSummary(view);
                 _state.AddMessage(summaryLine);
                 return CommandResult.Success;
@@ -126,22 +220,52 @@ internal sealed class PdkCommandModule : ICommandModule
             {
                 // Load devices only when we need to render a list or apply filters
                 var devicesAll = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
-                if (devicesAll.Count == 0) { _state.AddMessage("No devices discovered. Run 'pdk scan'."); return CommandResult.Success; }
+                if (devicesAll.Count == 0)
+                {
+                    _state.AddMessage("No devices discovered. Run 'pdk scan'.");
+                    return CommandResult.Success;
+                }
 
                 HashSet<string>? matchedKeys = null;
-                if (matchedFilter.HasValue) matchedKeys = Cascode.Workspace.PdkDatabaseReader.LoadMatchedDeviceKeys(dbPath);
-                var devices = devicesAll.Where(d => DeviceMatchesFilters(d, classFilter, vtFilter, vddFilter, infraFilter, matchedKeys, matchedFilter)).ToList();
+                if (matchedFilter.HasValue)
+                    matchedKeys = Cascode.Workspace.PdkDatabaseReader.LoadMatchedDeviceKeys(dbPath);
+                var devices = devicesAll
+                    .Where(d =>
+                        DeviceMatchesFilters(
+                            d,
+                            classFilter,
+                            vtFilter,
+                            vddFilter,
+                            infraFilter,
+                            matchedKeys,
+                            matchedFilter
+                        )
+                    )
+                    .ToList();
 
                 var total = devices.Count;
-                var matched = matchedKeys is null ? Cascode.Workspace.PdkDatabaseReader.CountMatchedDevices(dbPath)
-                                                  : devices.Count(d => matchedKeys.Contains(d.CanonicalName));
+                var matched = matchedKeys is null
+                    ? Cascode.Workspace.PdkDatabaseReader.CountMatchedDevices(dbPath)
+                    : devices.Count(d => matchedKeys.Contains(d.CanonicalName));
 
                 if (_isInteractive())
                 {
                     if (devices.Count == 0)
                     {
                         _state.AddMessage("No devices matched the selected filters.");
-                        _state.ShowDeviceSummary(new DeviceSummaryViewState("Devices", "No devices matched the selected filters.", string.Empty, DeviceSummaryHelpers.BuildSuggestionText(), Array.Empty<DeviceSummaryRow>(), Array.Empty<DeviceClassSummaryRow>(), 0, 0, filterLabels));
+                        _state.ShowDeviceSummary(
+                            new DeviceSummaryViewState(
+                                "Devices",
+                                "No devices matched the selected filters.",
+                                string.Empty,
+                                DeviceSummaryHelpers.BuildSuggestionText(),
+                                Array.Empty<DeviceSummaryRow>(),
+                                Array.Empty<DeviceClassSummaryRow>(),
+                                0,
+                                0,
+                                filterLabels
+                            )
+                        );
                         return CommandResult.Success;
                     }
 
@@ -154,19 +278,53 @@ internal sealed class PdkCommandModule : ICommandModule
                         // Values from DB are already numeric CSV; reader maps them to display strings.
                         var vdd = d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags);
                         var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
-                        rows.Add(new DeviceSummaryRow(i + 1, d.CellName, d.Class.ToString(), vt, vdd, views, string.Empty));
+                        rows.Add(
+                            new DeviceSummaryRow(
+                                i + 1,
+                                d.CellName,
+                                d.Class.ToString(),
+                                vt,
+                                vdd,
+                                views,
+                                string.Empty
+                            )
+                        );
                     }
                     var title = "Devices";
-                    var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(filterLabels, 0, pageSize, rows.Count);
+                    var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(
+                        filterLabels,
+                        0,
+                        pageSize,
+                        rows.Count
+                    );
                     var statsLine = $"Matched: {matched} of {total}.";
-                    var view = new DeviceSummaryViewState(title, summaryLine, statsLine: statsLine, suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(), detailRows: rows, classRows: Array.Empty<DeviceClassSummaryRow>(), detailOffset: 0, detailPageSize: pageSize, detailFilters: filterLabels);
+                    var view = new DeviceSummaryViewState(
+                        title,
+                        summaryLine,
+                        statsLine: statsLine,
+                        suggestionLine: DeviceSummaryHelpers.BuildSuggestionText(),
+                        detailRows: rows,
+                        classRows: Array.Empty<DeviceClassSummaryRow>(),
+                        detailOffset: 0,
+                        detailPageSize: pageSize,
+                        detailFilters: filterLabels
+                    );
                     _state.ShowDeviceSummary(view);
                     var visible = Math.Min(pageSize, rows.Count);
-                    _state.AddMessage($"Devices: showing {visible} of {rows.Count} (page size {pageSize}, total {total}). Matched: {matched}. Use 'pdk device <name>' for details.");
+                    _state.AddMessage(
+                        $"Devices: showing {visible} of {rows.Count} (page size {pageSize}, total {total}). Matched: {matched}. Use 'pdk device <name>' for details."
+                    );
                 }
                 else
                 {
-                    var table = new Table().Border(TableBorder.Rounded).AddColumn("Library").AddColumn("Cell").AddColumn("Class").AddColumn("VT").AddColumn("VDD").AddColumn("Views");
+                    var table = new Table()
+                        .Border(TableBorder.Rounded)
+                        .AddColumn("Library")
+                        .AddColumn("Cell")
+                        .AddColumn("Class")
+                        .AddColumn("VT")
+                        .AddColumn("VDD")
+                        .AddColumn("Views");
                     foreach (var d in devices.Take(limit))
                     {
                         var vt = d.VtTags.Count == 0 ? "-" : string.Join('/', d.VtTags);
@@ -175,7 +333,9 @@ internal sealed class PdkCommandModule : ICommandModule
                         table.AddRow(d.LibraryName, d.CellName, d.Class.ToString(), vt, vdd, views);
                     }
                     AnsiConsole.Write(table);
-                    _state.AddMessage($"Devices: {total}. Showing first {Math.Min(limit, total)}. Matched: {matched}. Use 'pdk device <name>' for details.");
+                    _state.AddMessage(
+                        $"Devices: {total}. Showing first {Math.Min(limit, total)}. Matched: {matched}. Use 'pdk device <name>' for details."
+                    );
                 }
             }
             return CommandResult.Success;
@@ -197,14 +357,31 @@ internal sealed class PdkCommandModule : ICommandModule
 
         try
         {
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
-            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+            var dbPath = Path.Combine(
+                WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+                "pdk.db"
+            );
+            if (!File.Exists(dbPath))
+            {
+                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                return CommandResult.Failure;
+            }
             var devices = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
             var needle = args[0];
-            var d = devices.FirstOrDefault(x => x.CellName.Contains(needle, StringComparison.OrdinalIgnoreCase) || x.CanonicalName.Contains(needle, StringComparison.OrdinalIgnoreCase));
-            if (d is null) { _state.AddMessage("Device not found."); return CommandResult.Failure; }
+            var d = devices.FirstOrDefault(x =>
+                x.CellName.Contains(needle, StringComparison.OrdinalIgnoreCase)
+                || x.CanonicalName.Contains(needle, StringComparison.OrdinalIgnoreCase)
+            );
+            if (d is null)
+            {
+                _state.AddMessage("Device not found.");
+                return CommandResult.Failure;
+            }
 
-            var detail = new Table().Border(TableBorder.Rounded).AddColumn("Field").AddColumn("Value");
+            var detail = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn("Field")
+                .AddColumn("Value");
             detail.AddRow("Library", d.LibraryName);
             detail.AddRow("Cell", d.CellName);
             detail.AddRow("Class", d.Class.ToString());
@@ -212,16 +389,29 @@ internal sealed class PdkCommandModule : ICommandModule
             detail.AddRow("VDD", d.VddTags.Count == 0 ? "-" : string.Join('/', d.VddTags));
             detail.AddRow("Views", d.Views.Count == 0 ? "-" : string.Join(',', d.Views));
             detail.AddRow("Cell Path", d.CellPath);
-            var matches = Cascode.Workspace.PdkDatabaseReader.LoadMatchesForDevice(dbPath, d.CanonicalName);
+            var matches = Cascode.Workspace.PdkDatabaseReader.LoadMatchesForDevice(
+                dbPath,
+                d.CanonicalName
+            );
             if (matches.Count > 0)
             {
                 var best = matches.OrderBy(m => m.Rank).First();
                 detail.AddRow("Match", $"{best.ModelName} ({best.Quality})");
-                var geom = Cascode.Workspace.PdkDatabaseReader.LoadGeometryForModel(dbPath, best.ModelName);
+                var geom = Cascode.Workspace.PdkDatabaseReader.LoadGeometryForModel(
+                    dbPath,
+                    best.ModelName
+                );
                 if (geom is not null)
                 {
-                    string fmt(double? v) => v.HasValue ? v.Value.ToString("g4", System.Globalization.CultureInfo.InvariantCulture) : "-";
-                    var gstr = $"W:[{fmt(geom.WMin)}..{fmt(geom.WMax)}], L:[{fmt(geom.LMin)}..{fmt(geom.LMax)}]; Wdef={fmt(geom.WDefault)}, Ldef={fmt(geom.LDefault)}";
+                    string fmt(double? v) =>
+                        v.HasValue
+                            ? v.Value.ToString(
+                                "g4",
+                                System.Globalization.CultureInfo.InvariantCulture
+                            )
+                            : "-";
+                    var gstr =
+                        $"W:[{fmt(geom.WMin)}..{fmt(geom.WMax)}], L:[{fmt(geom.LMin)}..{fmt(geom.LMax)}]; Wdef={fmt(geom.WDefault)}, Ldef={fmt(geom.LDefault)}";
                     detail.AddRow("Geometry", Markup.Escape(gstr));
                 }
             }
@@ -244,39 +434,65 @@ internal sealed class PdkCommandModule : ICommandModule
         _state.AddMessage("Outputs: Netlists, results.csv, derived.csv stored in workspace cache.");
         _state.AddMessage("");
         _state.AddMessage("Commands:");
-        _state.AddMessage("  pdk char config              Interactive form to set defaults (backend/corner/filters/jobs).");
+        _state.AddMessage(
+            "  pdk char config              Interactive form to set defaults (backend/corner/filters/jobs)."
+        );
         _state.AddMessage("  pdk char config --show       Show the saved defaults.");
-        _state.AddMessage("  pdk char run                 Run a batch using saved defaults (flags override). Shows progress.");
-        _state.AddMessage("  pdk char status              Show characterization coverage matrix (devices × corners).");
-        _state.AddMessage("  pdk char read <device/model> Preview latest LUT — table + sparklines.");
+        _state.AddMessage(
+            "  pdk char run                 Run a batch using saved defaults (flags override). Shows progress."
+        );
+        _state.AddMessage(
+            "  pdk char status              Show characterization coverage matrix (devices × corners)."
+        );
+        _state.AddMessage(
+            "  pdk char read <device/model> Preview latest LUT — table + sparklines."
+        );
         _state.AddMessage("");
         _state.AddMessage("Common Flags:");
-        _state.AddMessage("  --backend spectre|ngspice    Pick simulator (Spectre-first; ngspice for CI).");
+        _state.AddMessage(
+            "  --backend spectre|ngspice    Pick simulator (Spectre-first; ngspice for CI)."
+        );
         _state.AddMessage("  --corner <name>              Model section/corner, e.g., tt/ff/ss.");
-        _state.AddMessage("  --limit <n>                  Cap how many devices to process (0 = all).");
-        _state.AddMessage("  --jobs <n>                   Planned: parallelize bench generation (not Spectre).");
+        _state.AddMessage(
+            "  --limit <n>                  Cap how many devices to process (0 = all)."
+        );
+        _state.AddMessage(
+            "  --jobs <n>                   Planned: parallelize bench generation (not Spectre)."
+        );
         _state.AddMessage("  --class nmos,pmos            Filter device classes.");
         _state.AddMessage("  --name-contains <csv>        Only names containing any token.");
         _state.AddMessage("  --name-excludes <csv>        Skip names containing any token.");
         _state.AddMessage("  --vt <csv>                   Only VT flavors (e.g., LVT,HVT).");
         _state.AddMessage("  --vdd <csv>                  Only VDD tags (e.g., 1.8V,01v8).");
-        _state.AddMessage("  --infra / --no-infra         Include only infra devices, or exclude them.");
+        _state.AddMessage(
+            "  --infra / --no-infra         Include only infra devices, or exclude them."
+        );
         _state.AddMessage("");
         _state.AddMessage("Examples:");
         _state.AddMessage("  pdk char config");
-        _state.AddMessage("    → Open the defaults form; save corner/backend/filters/jobs to workspace.");
+        _state.AddMessage(
+            "    → Open the defaults form; save corner/backend/filters/jobs to workspace."
+        );
         _state.AddMessage("  pdk char run");
-        _state.AddMessage("    → Start a batch with saved defaults; shows a live progress bar chart.");
+        _state.AddMessage(
+            "    → Start a batch with saved defaults; shows a live progress bar chart."
+        );
         _state.AddMessage("  pdk char run --class nmos --limit 5 --name-excludes esd,io --vt LVT");
         _state.AddMessage("    → Quick LVT-only NMOS subset; skips ESD/IO variants.");
         _state.AddMessage("  pdk char run --corner tt --backend spectre --jobs 4");
-        _state.AddMessage("    → Spectre-first; prepare to parallelize bench generation with 4 jobs.");
+        _state.AddMessage(
+            "    → Spectre-first; prepare to parallelize bench generation with 4 jobs."
+        );
         _state.AddMessage("  pdk char read sky130_fd_pr__nfet_01v8");
-        _state.AddMessage("    → Show table and gm/Id sparkline for the latest run of that device.");
+        _state.AddMessage(
+            "    → Show table and gm/Id sparkline for the latest run of that device."
+        );
         _state.AddMessage("");
         _state.AddMessage("Notes:");
         _state.AddMessage("- If SPECTRE_BIN isn't set, runs are skipped (generation only).");
-        _state.AddMessage("- Results live under ~/.cascode/workspaces/<id>/char/<backend>/<corner>/<device>/<ts>/");
+        _state.AddMessage(
+            "- Results live under ~/.cascode/workspaces/<id>/char/<backend>/<corner>/<device>/<ts>/"
+        );
         return CommandResult.Success;
     }
 
@@ -291,14 +507,23 @@ internal sealed class PdkCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        cfg.Backend = AnsiConsole.Prompt(new SelectionPrompt<string>()
-            .Title("Select backend")
-            .AddChoices(new[] { "spectre", "ngspice" })
-            .HighlightStyle(new Style(Color.Cyan1))
-            .MoreChoicesText("[grey](Move up/down to reveal more)[/]")
-            .AddChoices(string.IsNullOrWhiteSpace(cfg.Backend) ? Array.Empty<string>() : new[] { cfg.Backend }));
+        cfg.Backend = AnsiConsole.Prompt(
+            new SelectionPrompt<string>()
+                .Title("Select backend")
+                .AddChoices(new[] { "spectre", "ngspice" })
+                .HighlightStyle(new Style(Color.Cyan1))
+                .MoreChoicesText("[grey](Move up/down to reveal more)[/]")
+                .AddChoices(
+                    string.IsNullOrWhiteSpace(cfg.Backend)
+                        ? Array.Empty<string>()
+                        : new[] { cfg.Backend }
+                )
+        );
 
-        cfg.Corner = AnsiConsole.Ask<string>("Corner (e.g., tt/ff/ss):", string.IsNullOrWhiteSpace(cfg.Corner) ? "tt" : cfg.Corner);
+        cfg.Corner = AnsiConsole.Ask<string>(
+            "Corner (e.g., tt/ff/ss):",
+            string.IsNullOrWhiteSpace(cfg.Corner) ? "tt" : cfg.Corner
+        );
 
         var classChoices = new[] { "nmos", "pmos" };
         var classPrompt = new MultiSelectionPrompt<string>()
@@ -306,22 +531,36 @@ internal sealed class PdkCommandModule : ICommandModule
             .NotRequired()
             .InstructionsText("[grey](Space to toggle, Enter to accept)[/]")
             .AddChoices(classChoices);
-        foreach (var c in cfg.Classes ?? new()) classPrompt.Select(c);
+        foreach (var c in cfg.Classes ?? new())
+            classPrompt.Select(c);
         var selected = AnsiConsole.Prompt(classPrompt);
         cfg.Classes = selected.ToList();
 
         cfg.Limit = AnsiConsole.Ask<int>("Limit (0 = all):", Math.Max(0, cfg.Limit));
-        cfg.Jobs = AnsiConsole.Ask<int>("Jobs (parallel generation) [1..8]:", Math.Clamp(cfg.Jobs <= 0 ? 1 : cfg.Jobs, 1, 8));
+        cfg.Jobs = AnsiConsole.Ask<int>(
+            "Jobs (parallel generation) [1..8]:",
+            Math.Clamp(cfg.Jobs <= 0 ? 1 : cfg.Jobs, 1, 8)
+        );
 
-        var nameContains = AnsiConsole.Ask<string>("Name contains (comma-separated, blank=none):", string.Join(',', cfg.NameContains ?? new()));
+        var nameContains = AnsiConsole.Ask<string>(
+            "Name contains (comma-separated, blank=none):",
+            string.Join(',', cfg.NameContains ?? new())
+        );
         cfg.NameContains = string.IsNullOrWhiteSpace(nameContains)
             ? new List<string>()
-            : nameContains.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            : nameContains
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
-        var nameExcludes = AnsiConsole.Ask<string>("Name excludes (comma-separated, blank=esd):", string.Join(',', cfg.NameExcludes ?? new()));
+        var nameExcludes = AnsiConsole.Ask<string>(
+            "Name excludes (comma-separated, blank=esd):",
+            string.Join(',', cfg.NameExcludes ?? new())
+        );
         cfg.NameExcludes = string.IsNullOrWhiteSpace(nameExcludes)
             ? new List<string> { "esd" }
-            : nameExcludes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            : nameExcludes
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
         var vtChoices = new[] { "ULVT", "LLVT", "SLVT", "LVT", "RVT", "SVT", "NVT", "HVT", "MVT" };
         var vtPrompt = new MultiSelectionPrompt<string>()
@@ -329,13 +568,15 @@ internal sealed class PdkCommandModule : ICommandModule
             .NotRequired()
             .InstructionsText("[grey](Space to toggle, Enter to accept)[/]")
             .AddChoices(vtChoices);
-        foreach (var v in cfg.Vt ?? new()) vtPrompt.Select(v.ToUpperInvariant());
+        foreach (var v in cfg.Vt ?? new())
+            vtPrompt.Select(v.ToUpperInvariant());
         cfg.Vt = AnsiConsole.Prompt(vtPrompt).ToList();
 
-        var vddInput = AnsiConsole.Ask<string>("VDD filter (comma-separated, blank=all):", string.Join(',', cfg.Vdd ?? new()));
-        cfg.Vdd = string.IsNullOrWhiteSpace(vddInput)
-            ? new List<string>()
-            : SplitCsv(vddInput);
+        var vddInput = AnsiConsole.Ask<string>(
+            "VDD filter (comma-separated, blank=all):",
+            string.Join(',', cfg.Vdd ?? new())
+        );
+        cfg.Vdd = string.IsNullOrWhiteSpace(vddInput) ? new List<string>() : SplitCsv(vddInput);
 
         var infraPrompt = new SelectionPrompt<string>()
             .Title("Infra devices")
@@ -347,11 +588,15 @@ internal sealed class PdkCommandModule : ICommandModule
         {
             "infra-only" => true,
             "exclude-infra" => false,
-            _ => null
+            _ => null,
         };
 
-        cfg.OutRoot = AnsiConsole.Ask<string>("Output root (blank = default)", cfg.OutRoot ?? string.Empty);
-        if (string.IsNullOrWhiteSpace(cfg.OutRoot)) cfg.OutRoot = null;
+        cfg.OutRoot = AnsiConsole.Ask<string>(
+            "Output root (blank = default)",
+            cfg.OutRoot ?? string.Empty
+        );
+        if (string.IsNullOrWhiteSpace(cfg.OutRoot))
+            cfg.OutRoot = null;
 
         cfg.Save(cfgPath);
         _state.AddMessage($"Saved characterization config → {cfgPath}");
@@ -370,11 +615,13 @@ internal sealed class PdkCommandModule : ICommandModule
             table.AddRow("NameExcludes", string.Join(',', show.NameExcludes ?? new()));
             table.AddRow("VT", string.Join(',', show.Vt ?? new()));
             table.AddRow("VDD", string.Join(',', show.Vdd ?? new()));
-            table.AddRow("Infra", show.Infra.HasValue ? (show.Infra.Value ? "infra-only" : "exclude-infra") : "all");
+            table.AddRow(
+                "Infra",
+                show.Infra.HasValue ? (show.Infra.Value ? "infra-only" : "exclude-infra") : "all"
+            );
             table.AddRow("OutRoot", show.OutRoot ?? "(default)");
             AnsiConsole.Write(table);
         }
-
     }
 
     private CommandResult PdkScan(string[] args)
@@ -394,7 +641,11 @@ internal sealed class PdkCommandModule : ICommandModule
             }
             else
             {
-                builder.AddSimpleConsole(o => { o.SingleLine = true; o.TimestampFormat = "HH:mm:ss "; });
+                builder.AddSimpleConsole(o =>
+                {
+                    o.SingleLine = true;
+                    o.TimestampFormat = "HH:mm:ss ";
+                });
                 _state.MarkStreamedOutput();
             }
         });
@@ -405,7 +656,14 @@ internal sealed class PdkCommandModule : ICommandModule
         if (_isInteractive())
         {
             using var renderSignal = new System.Threading.AutoResetEvent(false);
-            void Handler() { try { renderSignal.Set(); } catch { } }
+            void Handler()
+            {
+                try
+                {
+                    renderSignal.Set();
+                }
+                catch { }
+            }
             _state.Changed += Handler;
 
             using var cancellationTokenSource = new CancellationTokenSource();
@@ -419,7 +677,11 @@ internal sealed class PdkCommandModule : ICommandModule
             {
                 try
                 {
-                    result = PerformScanAndUpdateDatabase(targetRoot, logger, cancellationTokenSource.Token);
+                    result = PerformScanAndUpdateDatabase(
+                        targetRoot,
+                        logger,
+                        cancellationTokenSource.Token
+                    );
                 }
                 catch (OperationCanceledException)
                 {
@@ -440,75 +702,94 @@ internal sealed class PdkCommandModule : ICommandModule
             try
             {
                 var layout = ShellRenderer.Build(_state);
-                AnsiConsole.Live(layout)
+                AnsiConsole
+                    .Live(layout)
                     .AutoClear(false)
                     .Start(ctx =>
-                {
-                    ctx.Refresh();
-                    while (!scanTask.IsCompleted)
                     {
-                        // Check for ESC key (non-blocking)
-                        try
+                        ctx.Refresh();
+                        while (!scanTask.IsCompleted)
                         {
-                            if (System.Console.KeyAvailable)
+                            // Check for ESC key (non-blocking)
+                            try
                             {
-                                var keyInfo = System.Console.ReadKey(intercept: true);
-                                if (keyInfo.Key == ConsoleKey.Escape)
+                                if (System.Console.KeyAvailable)
                                 {
-                                    cancellationTokenSource.Cancel();
-                                    wasCancelled = true;
-                                    _state.AddMessage("Scan aborted by user (ESC)");
-                                    break; // Exit immediately
+                                    var keyInfo = System.Console.ReadKey(intercept: true);
+                                    if (keyInfo.Key == ConsoleKey.Escape)
+                                    {
+                                        cancellationTokenSource.Cancel();
+                                        wasCancelled = true;
+                                        _state.AddMessage("Scan aborted by user (ESC)");
+                                        break; // Exit immediately
+                                    }
                                 }
                             }
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            // Console input not available, continue without key checking
-                        }
-
-                        // Refresh on either an event (new logs/state) or timeout tick for spinner
-                        renderSignal.WaitOne(System.TimeSpan.FromMilliseconds(50));
-                        _state.TickSpinner();
-
-                        // Update panels based on current state
-                        try
-                        {
-                            layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
-                            if (_state.Scan is not null)
+                            catch (InvalidOperationException)
                             {
-                                layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
-                                layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                                // Console input not available, continue without key checking
                             }
-                            layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
-                        }
-                        ctx.Refresh();
-                    }
 
-                    // Final update only if not cancelled
-                    if (!wasCancelled)
-                    {
-                        try
-                        {
-                            layout["Content"]["Main"]["Log"].Update(ShellRenderer.BuildLog(_state));
-                            if (_state.Scan is not null)
+                            // Refresh on either an event (new logs/state) or timeout tick for spinner
+                            renderSignal.WaitOne(System.TimeSpan.FromMilliseconds(50));
+                            _state.TickSpinner();
+
+                            // Update panels based on current state
+                            try
                             {
-                                layout["Content"]["Sidebar"]["Navigator"].Update(ShellRenderer.BuildNavigator(_state));
-                                layout["Content"]["Sidebar"]["Details"].Update(ShellRenderer.BuildDeckDetails(_state));
+                                layout["Content"]
+                                    ["Main"]["Log"]
+                                    .Update(ShellRenderer.BuildLog(_state));
+                                if (_state.Scan is not null)
+                                {
+                                    layout["Content"]
+                                        ["Sidebar"]["Navigator"]
+                                        .Update(ShellRenderer.BuildNavigator(_state));
+                                    layout["Content"]
+                                        ["Sidebar"]["Details"]
+                                        .Update(ShellRenderer.BuildDeckDetails(_state));
+                                }
+                                layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
                             }
-                            layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
+                            catch (Exception ex)
+                            {
+                                logger.LogTrace(
+                                    ex,
+                                    "Ignoring transient error during live UI refresh"
+                                );
+                            }
+                            ctx.Refresh();
                         }
-                        catch (Exception ex)
+
+                        // Final update only if not cancelled
+                        if (!wasCancelled)
                         {
-                            logger.LogTrace(ex, "Ignoring transient error during live UI refresh");
+                            try
+                            {
+                                layout["Content"]
+                                    ["Main"]["Log"]
+                                    .Update(ShellRenderer.BuildLog(_state));
+                                if (_state.Scan is not null)
+                                {
+                                    layout["Content"]
+                                        ["Sidebar"]["Navigator"]
+                                        .Update(ShellRenderer.BuildNavigator(_state));
+                                    layout["Content"]
+                                        ["Sidebar"]["Details"]
+                                        .Update(ShellRenderer.BuildDeckDetails(_state));
+                                }
+                                layout["PromptSpacer"].Update(ShellRenderer.BuildPrompt(_state));
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogTrace(
+                                    ex,
+                                    "Ignoring transient error during live UI refresh"
+                                );
+                            }
+                            ctx.Refresh();
                         }
-                        ctx.Refresh();
-                    }
-                });
+                    });
             }
             finally
             {
@@ -529,8 +810,13 @@ internal sealed class PdkCommandModule : ICommandModule
 
             if (result is not null)
             {
-                logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
-                foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+                logger.LogInformation(
+                    "Found {Libraries} libraries, {Decks} model decks.",
+                    result.Libraries.Count,
+                    result.ModelDecks.Count
+                );
+                foreach (var warning in result.Warnings)
+                    logger.LogWarning("{Warning}", warning);
             }
 
             return CommandResult.Success;
@@ -538,13 +824,22 @@ internal sealed class PdkCommandModule : ICommandModule
         else
         {
             var result = PerformScanAndUpdateDatabase(targetRoot, logger);
-            logger.LogInformation("Found {Libraries} libraries, {Decks} model decks.", result.Libraries.Count, result.ModelDecks.Count);
-            foreach (var warning in result.Warnings) logger.LogWarning("{Warning}", warning);
+            logger.LogInformation(
+                "Found {Libraries} libraries, {Decks} model decks.",
+                result.Libraries.Count,
+                result.ModelDecks.Count
+            );
+            foreach (var warning in result.Warnings)
+                logger.LogWarning("{Warning}", warning);
             return CommandResult.Success;
         }
     }
 
-    private WorkspaceScanResult PerformScanAndUpdateDatabase(string targetRoot, ILogger logger, CancellationToken cancellationToken = default)
+    private WorkspaceScanResult PerformScanAndUpdateDatabase(
+        string targetRoot,
+        ILogger logger,
+        CancellationToken cancellationToken = default
+    )
     {
         var overall = System.Diagnostics.Stopwatch.StartNew();
 
@@ -552,20 +847,36 @@ internal sealed class PdkCommandModule : ICommandModule
         var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
         var created = Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
         if (created)
-            logger.LogInformation("Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+            logger.LogInformation(
+                "Initialized default PDK matching patterns → {Path}. Edit this file to customize device↔model matching.",
+                cfgPath
+            );
         else
-            logger.LogInformation("Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.", cfgPath);
+            logger.LogInformation(
+                "Using PDK matching patterns → {Path}. Edit this file to customize device↔model matching.",
+                cfgPath
+            );
 
         // Use PdkScanService for the core scanning workflow
-        var scanService = new Cascode.Workspace.PdkScanService(_scanner, new Cascode.Workspace.PhysicalLibraryScanner());
+        var scanService = new Cascode.Workspace.PdkScanService(
+            _scanner,
+            new Cascode.Workspace.PhysicalLibraryScanner()
+        );
         var scanResult = scanService.ScanAndPersist(targetRoot, logger, cancellationToken);
 
         // Update CLI state with scan results
         var previousSelection = _state.SelectedDeckIndex;
         _state.Scan = scanResult.WorkspaceScan;
-        if (scanResult.WorkspaceScan.ModelDecks.Count == 0) _state.SelectedDeckIndex = null;
-        else if (previousSelection.HasValue && previousSelection.Value >= 0 && previousSelection.Value < scanResult.WorkspaceScan.ModelDecks.Count) _state.SelectedDeckIndex = previousSelection;
-        else _state.SelectedDeckIndex = 0;
+        if (scanResult.WorkspaceScan.ModelDecks.Count == 0)
+            _state.SelectedDeckIndex = null;
+        else if (
+            previousSelection.HasValue
+            && previousSelection.Value >= 0
+            && previousSelection.Value < scanResult.WorkspaceScan.ModelDecks.Count
+        )
+            _state.SelectedDeckIndex = previousSelection;
+        else
+            _state.SelectedDeckIndex = 0;
 
         overall.Stop();
         logger.LogInformation("Total scan time: {ElapsedMs} ms.", overall.ElapsedMilliseconds);
@@ -585,7 +896,7 @@ internal sealed class PdkCommandModule : ICommandModule
             "warn" or "warning" => Microsoft.Extensions.Logging.LogLevel.Warning,
             "error" => Microsoft.Extensions.Logging.LogLevel.Error,
             "critical" => Microsoft.Extensions.Logging.LogLevel.Critical,
-            _ => Microsoft.Extensions.Logging.LogLevel.Information
+            _ => Microsoft.Extensions.Logging.LogLevel.Information,
         };
     }
 
@@ -607,7 +918,10 @@ internal sealed class PdkCommandModule : ICommandModule
         }
 
         var current = _state.PdkRoot ?? _state.WorkspaceRoot;
-        var input = AnsiConsole.Ask<string>("Enter PDK workspace directory (leave blank to cancel):", current);
+        var input = AnsiConsole.Ask<string>(
+            "Enter PDK workspace directory (leave blank to cancel):",
+            current
+        );
         if (string.IsNullOrWhiteSpace(input))
         {
             _state.AddMessage("PDK workspace unchanged.");
@@ -655,23 +969,71 @@ internal sealed class PdkCommandModule : ICommandModule
         for (var i = 0; i < args.Length; i++)
         {
             var arg = args[i];
-            if (arg.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) backend = args[++i];
-            else if (arg.Equals("--corner", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) corner = args[++i];
-            else if (arg.Equals("--limit", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length && int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedLimit)) limit = Math.Max(0, parsedLimit);
-            else if (arg.Equals("--jobs", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length && int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedJobs)) jobs = Math.Clamp(parsedJobs, 1, 16);
-            else if (arg.Equals("--name-contains", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) cfg.NameContains = SplitCsv(args[++i]);
-            else if (arg.Equals("--name-excludes", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) cfg.NameExcludes = SplitCsv(args[++i]);
-            else if (arg.Equals("--vt", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) cfg.Vt = SplitCsv(args[++i]).Select(s => s.ToUpperInvariant()).ToList();
-            else if (arg.Equals("--class", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) cfg.Classes = SplitCsv(args[++i]).Select(s => s.ToLowerInvariant()).ToList();
-            else if (arg.Equals("--vdd", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) cfg.Vdd = SplitCsv(args[++i]);
-            else if (arg.Equals("--infra", StringComparison.OrdinalIgnoreCase)) cfg.Infra = true;
-            else if (arg.Equals("--no-infra", StringComparison.OrdinalIgnoreCase)) cfg.Infra = false;
-            else if (arg.Equals("--out-root", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) outRoot = args[++i];
+            if (arg.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                backend = args[++i];
+            else if (
+                arg.Equals("--corner", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                corner = args[++i];
+            else if (
+                arg.Equals("--limit", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+                && int.TryParse(
+                    args[++i],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var parsedLimit
+                )
+            )
+                limit = Math.Max(0, parsedLimit);
+            else if (
+                arg.Equals("--jobs", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+                && int.TryParse(
+                    args[++i],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var parsedJobs
+                )
+            )
+                jobs = Math.Clamp(parsedJobs, 1, 16);
+            else if (
+                arg.Equals("--name-contains", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                cfg.NameContains = SplitCsv(args[++i]);
+            else if (
+                arg.Equals("--name-excludes", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                cfg.NameExcludes = SplitCsv(args[++i]);
+            else if (arg.Equals("--vt", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                cfg.Vt = SplitCsv(args[++i]).Select(s => s.ToUpperInvariant()).ToList();
+            else if (
+                arg.Equals("--class", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                cfg.Classes = SplitCsv(args[++i]).Select(s => s.ToLowerInvariant()).ToList();
+            else if (arg.Equals("--vdd", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                cfg.Vdd = SplitCsv(args[++i]);
+            else if (arg.Equals("--infra", StringComparison.OrdinalIgnoreCase))
+                cfg.Infra = true;
+            else if (arg.Equals("--no-infra", StringComparison.OrdinalIgnoreCase))
+                cfg.Infra = false;
+            else if (
+                arg.Equals("--out-root", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                outRoot = args[++i];
         }
 
         _ = jobs; // reserved for future parallel generation
 
-        var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+        var dbPath = Path.Combine(
+            WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+            "pdk.db"
+        );
         if (!File.Exists(dbPath))
         {
             _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
@@ -708,7 +1070,9 @@ internal sealed class PdkCommandModule : ICommandModule
                 matchedKeys = Cascode.Workspace.PdkDatabaseReader.LoadMatchedDeviceKeys(dbPath);
             }
 
-            var filteredDevices = allDevices.Where(d => DeviceFilterEvaluator.Matches(d, filters, matchedKeys)).ToList();
+            var filteredDevices = allDevices
+                .Where(d => DeviceFilterEvaluator.Matches(d, filters, matchedKeys))
+                .ToList();
             if (filteredDevices.Count == 0)
             {
                 _state.AddMessage("No devices matched the selected filters.");
@@ -716,10 +1080,14 @@ internal sealed class PdkCommandModule : ICommandModule
             }
 
             var bestMatches = Cascode.Workspace.PdkDatabaseReader.LoadBestMatchByDevice(dbPath);
-            var matchedFiltered = filteredDevices.Where(d => bestMatches.ContainsKey(d.CanonicalName)).ToList();
+            var matchedFiltered = filteredDevices
+                .Where(d => bestMatches.ContainsKey(d.CanonicalName))
+                .ToList();
             if (matchedFiltered.Count == 0)
             {
-                _state.AddMessage($"Filtered devices: {filteredDevices.Count}. None have matched models; rerun 'pdk scan' or adjust matching.");
+                _state.AddMessage(
+                    $"Filtered devices: {filteredDevices.Count}. None have matched models; rerun 'pdk scan' or adjust matching."
+                );
                 return CommandResult.Failure;
             }
 
@@ -727,11 +1095,16 @@ internal sealed class PdkCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        var modelCount = plans.Select(p => p.ModelName).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+        var modelCount = plans
+            .Select(p => p.ModelName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
 
         // Start progress
         _state.StartCharJob(plans.Count, backend, corner);
-        _state.AddMessage($"Starting characterization batch → backend={backend}, corner={corner}, devices={plans.Count}, models={modelCount}");
+        _state.AddMessage(
+            $"Starting characterization batch → backend={backend}, corner={corner}, devices={plans.Count}, models={modelCount}"
+        );
 
         void RunBatch()
         {
@@ -745,7 +1118,13 @@ internal sealed class PdkCommandModule : ICommandModule
                 foreach (var plan in plans)
                 {
                     _state.UpdateCharProgress(plan.DeviceName, generatedDelta: 1);
-                    var jobDir = Path.Combine(outRoot, backend.ToLowerInvariant(), string.IsNullOrWhiteSpace(corner) ? "default" : corner, Sanitize(plan.DeviceName), DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
+                    var jobDir = Path.Combine(
+                        outRoot,
+                        backend.ToLowerInvariant(),
+                        string.IsNullOrWhiteSpace(corner) ? "default" : corner,
+                        Sanitize(plan.DeviceName),
+                        DateTime.UtcNow.ToString("yyyyMMdd_HHmmss")
+                    );
                     Directory.CreateDirectory(jobDir);
                     var harnessId = ResolveHarnessForDeviceClass(plan.DeviceClass) ?? "gm_id.v1";
                     var genResult = GenerateBenchForPlan(plan, harnessId, backend, jobDir);
@@ -762,7 +1141,12 @@ internal sealed class PdkCommandModule : ICommandModule
                         _state.UpdateCharProgress(plan.DeviceName, ranDelta: 1);
                     }
 
-                    var exportOk = Services.CharExportService.ExportDerived(jobDir, metricFilter: null, out _, out var exportMsg);
+                    var exportOk = Services.CharExportService.ExportDerived(
+                        jobDir,
+                        metricFilter: null,
+                        out _,
+                        out var exportMsg
+                    );
                     _state.AddMessage(exportMsg);
                     if (exportOk)
                     {
@@ -785,7 +1169,9 @@ internal sealed class PdkCommandModule : ICommandModule
                     }
                 }
 
-                _state.AddMessage($"Characterization batch complete: ran {executed}, exported {exported}, skipped {skipped}.");
+                _state.AddMessage(
+                    $"Characterization batch complete: ran {executed}, exported {exported}, skipped {skipped}."
+                );
                 completed = true;
             }
             catch (Exception ex)
@@ -806,7 +1192,9 @@ internal sealed class PdkCommandModule : ICommandModule
         if (_isInteractive())
         {
             Task.Run(RunBatch);
-            _state.AddMessage("Batch running in background; progress will update while the CLI remains responsive.");
+            _state.AddMessage(
+                "Batch running in background; progress will update while the CLI remains responsive."
+            );
             return CommandResult.Success;
         }
 
@@ -819,8 +1207,10 @@ internal sealed class PdkCommandModule : ICommandModule
         var vddNormalized = new List<string>();
         foreach (var tok in cfg.Vdd ?? new List<string>())
         {
-            if (DeviceFilterEvaluator.TryNormalizeVddFilter(tok, out var normalized)) vddNormalized.Add(normalized);
-            else vddNormalized.Add(tok.ToLowerInvariant());
+            if (DeviceFilterEvaluator.TryNormalizeVddFilter(tok, out var normalized))
+                vddNormalized.Add(normalized);
+            else
+                vddNormalized.Add(tok.ToLowerInvariant());
         }
 
         return new DeviceFilterOptions(
@@ -830,14 +1220,17 @@ internal sealed class PdkCommandModule : ICommandModule
             cfg.Infra,
             matched: null,
             cfg.NameContains ?? new List<string>(),
-            cfg.NameExcludes ?? new List<string>());
+            cfg.NameExcludes ?? new List<string>()
+        );
     }
 
     private CommandResult PdkCharReadCommand(string[] args)
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: pdk char read <model> [--corner <name>] [--backend spectre] [--head <n>] [--job <path>]");
+            _state.AddMessage(
+                "Usage: pdk char read <model> [--corner <name>] [--backend spectre] [--head <n>] [--job <path>]"
+            );
             return CommandResult.Success;
         }
 
@@ -849,14 +1242,37 @@ internal sealed class PdkCommandModule : ICommandModule
         for (var i = 1; i < args.Length; i++)
         {
             var arg = args[i];
-            if (arg.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) backend = args[++i];
-            else if (arg.Equals("--corner", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) corner = args[++i];
-            else if (arg.Equals("--head", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length && int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)) head = Math.Max(1, parsed);
-            else if (arg.Equals("--job", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) jobOverride = PathUtils.NormalizePath(args[++i]);
+            if (arg.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                backend = args[++i];
+            else if (
+                arg.Equals("--corner", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                corner = args[++i];
+            else if (
+                arg.Equals("--head", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+                && int.TryParse(
+                    args[++i],
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out var parsed
+                )
+            )
+                head = Math.Max(1, parsed);
+            else if (arg.Equals("--job", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                jobOverride = PathUtils.NormalizePath(args[++i]);
         }
 
-        var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
-        if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+        var dbPath = Path.Combine(
+            WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+            "pdk.db"
+        );
+        if (!File.Exists(dbPath))
+        {
+            _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+            return CommandResult.Failure;
+        }
 
         string jobDir;
         if (!string.IsNullOrEmpty(jobOverride))
@@ -866,12 +1282,22 @@ internal sealed class PdkCommandModule : ICommandModule
         else
         {
             CharRunRecord? run = null;
-            var deviceRuns = Cascode.Workspace.CharLutReader.GetRunsForDevice(dbPath, query, corner);
-            if (deviceRuns.Count > 0) run = deviceRuns.First();
+            var deviceRuns = Cascode.Workspace.CharLutReader.GetRunsForDevice(
+                dbPath,
+                query,
+                corner
+            );
+            if (deviceRuns.Count > 0)
+                run = deviceRuns.First();
             if (run is null)
             {
-                var modelRuns = Cascode.Workspace.CharLutReader.GetRunsForModel(dbPath, query, corner);
-                if (modelRuns.Count > 0) run = modelRuns.First();
+                var modelRuns = Cascode.Workspace.CharLutReader.GetRunsForModel(
+                    dbPath,
+                    query,
+                    corner
+                );
+                if (modelRuns.Count > 0)
+                    run = modelRuns.First();
             }
 
             if (run is null)
@@ -890,10 +1316,20 @@ internal sealed class PdkCommandModule : ICommandModule
         }
 
         var derivedPath = Path.Combine(jobDir, "derived.csv");
-        if (!File.Exists(derivedPath)) { _state.AddMessage($"Derived metrics not found at {derivedPath}. Run 'char export {jobDir}' first."); return CommandResult.Failure; }
+        if (!File.Exists(derivedPath))
+        {
+            _state.AddMessage(
+                $"Derived metrics not found at {derivedPath}. Run 'char export {jobDir}' first."
+            );
+            return CommandResult.Failure;
+        }
 
         var (headers, samples) = Services.CharIoHelpers.LoadDerivedCsv(derivedPath);
-        if (headers.Count == 0 || samples.Count == 0) { _state.AddMessage("Derived CSV did not contain numeric samples."); return CommandResult.Failure; }
+        if (headers.Count == 0 || samples.Count == 0)
+        {
+            _state.AddMessage("Derived CSV did not contain numeric samples.");
+            return CommandResult.Failure;
+        }
 
         var (controlIdx, controlName) = Services.CharIoHelpers.FindColumn(headers, "vgs", "vsg");
         var (idIdx, _) = Services.CharIoHelpers.FindColumn(headers, "id");
@@ -911,18 +1347,28 @@ internal sealed class PdkCommandModule : ICommandModule
 
         // Build headers
         var displayHeaders = new List<string> { "#", controlName.ToUpperInvariant(), "Id" };
-        if (gmIdx >= 0) displayHeaders.Add("gm");
-        if (gmIdIdx >= 0) displayHeaders.Add("gm/Id");
-        if (gmPerWIdx >= 0) displayHeaders.Add("gm/W");
-        if (idPerWIdx >= 0) displayHeaders.Add("Id/W");
-        if (vstarIdx >= 0) displayHeaders.Add("Vov");
-        if (roIdx >= 0) displayHeaders.Add("ro");
-        if (gmRoIdx >= 0) displayHeaders.Add("gm·ro");
-        if (ftIdx >= 0) displayHeaders.Add("fT");
-        if (vthIdx >= 0) displayHeaders.Add("Vth");
+        if (gmIdx >= 0)
+            displayHeaders.Add("gm");
+        if (gmIdIdx >= 0)
+            displayHeaders.Add("gm/Id");
+        if (gmPerWIdx >= 0)
+            displayHeaders.Add("gm/W");
+        if (idPerWIdx >= 0)
+            displayHeaders.Add("Id/W");
+        if (vstarIdx >= 0)
+            displayHeaders.Add("Vov");
+        if (roIdx >= 0)
+            displayHeaders.Add("ro");
+        if (gmRoIdx >= 0)
+            displayHeaders.Add("gm·ro");
+        if (ftIdx >= 0)
+            displayHeaders.Add("fT");
+        if (vthIdx >= 0)
+            displayHeaders.Add("Vth");
 
         // Build rows
-        static double sampleSafe(IReadOnlyList<double> data, int idx) => idx >= 0 && idx < data.Count ? data[idx] : double.NaN;
+        static double sampleSafe(IReadOnlyList<double> data, int idx) =>
+            idx >= 0 && idx < data.Count ? data[idx] : double.NaN;
         var displayRows = new List<List<string>>();
 
         for (var i = 0; i < preview; i++)
@@ -932,17 +1378,26 @@ internal sealed class PdkCommandModule : ICommandModule
             {
                 (i + 1).ToString(CultureInfo.InvariantCulture),
                 Services.CharIoHelpers.FormatNumber(sampleSafe(sample, controlIdx)),
-                Services.CharIoHelpers.FormatNumber(sampleSafe(sample, idIdx))
+                Services.CharIoHelpers.FormatNumber(sampleSafe(sample, idIdx)),
             };
-            if (gmIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmIdx)));
-            if (gmIdIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmIdIdx)));
-            if (gmPerWIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmPerWIdx)));
-            if (idPerWIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, idPerWIdx)));
-            if (vstarIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, vstarIdx)));
-            if (roIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, roIdx)));
-            if (gmRoIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmRoIdx)));
-            if (ftIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, ftIdx)));
-            if (vthIdx >= 0) row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, vthIdx)));
+            if (gmIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmIdx)));
+            if (gmIdIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmIdIdx)));
+            if (gmPerWIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmPerWIdx)));
+            if (idPerWIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, idPerWIdx)));
+            if (vstarIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, vstarIdx)));
+            if (roIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, roIdx)));
+            if (gmRoIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, gmRoIdx)));
+            if (ftIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, ftIdx)));
+            if (vthIdx >= 0)
+                row.Add(Services.CharIoHelpers.FormatNumber(sampleSafe(sample, vthIdx)));
             displayRows.Add(row);
         }
 
@@ -950,24 +1405,41 @@ internal sealed class PdkCommandModule : ICommandModule
         var sparklines = new Dictionary<string, IReadOnlyList<double>>();
         List<double> ExtractCol(int idx) => samples.Select(s => sampleSafe(s, idx)).ToList();
 
-        if (gmIdIdx >= 0) sparklines["gm/Id"] = ExtractCol(gmIdIdx);
-        if (idIdx >= 0) sparklines["Id"] = ExtractCol(idIdx);
-        if (gmPerWIdx >= 0) sparklines["gm/W"] = ExtractCol(gmPerWIdx);
-        if (idPerWIdx >= 0) sparklines["Id/W"] = ExtractCol(idPerWIdx);
-        if (vstarIdx >= 0) sparklines["Vov"] = ExtractCol(vstarIdx);
-        if (roIdx >= 0) sparklines["ro"] = ExtractCol(roIdx);
-        if (gmRoIdx >= 0) sparklines["gm·ro"] = ExtractCol(gmRoIdx);
-        if (ftIdx >= 0) sparklines["fT"] = ExtractCol(ftIdx);
+        if (gmIdIdx >= 0)
+            sparklines["gm/Id"] = ExtractCol(gmIdIdx);
+        if (idIdx >= 0)
+            sparklines["Id"] = ExtractCol(idIdx);
+        if (gmPerWIdx >= 0)
+            sparklines["gm/W"] = ExtractCol(gmPerWIdx);
+        if (idPerWIdx >= 0)
+            sparklines["Id/W"] = ExtractCol(idPerWIdx);
+        if (vstarIdx >= 0)
+            sparklines["Vov"] = ExtractCol(vstarIdx);
+        if (roIdx >= 0)
+            sparklines["ro"] = ExtractCol(roIdx);
+        if (gmRoIdx >= 0)
+            sparklines["gm·ro"] = ExtractCol(gmRoIdx);
+        if (ftIdx >= 0)
+            sparklines["fT"] = ExtractCol(ftIdx);
 
         if (controlIdx >= 0 && vthIdx >= 0)
         {
-            sparklines["Vov (VGS-Vth)"] = samples.Select(s => sampleSafe(s, controlIdx) - sampleSafe(s, vthIdx)).ToList();
+            sparklines["Vov (VGS-Vth)"] = samples
+                .Select(s => sampleSafe(s, controlIdx) - sampleSafe(s, vthIdx))
+                .ToList();
         }
 
         if (_isInteractive())
         {
             var rowsReadOnly = displayRows.Select(r => (IReadOnlyList<string>)r).ToList();
-            var view = new CharReadViewState(query, $"{backend} / {corner}", displayHeaders, rowsReadOnly, sparklines, derivedPath);
+            var view = new CharReadViewState(
+                query,
+                $"{backend} / {corner}",
+                displayHeaders,
+                rowsReadOnly,
+                sparklines,
+                derivedPath
+            );
             _state.ShowCharRead(view);
             _state.AddMessage($"Showing characterization for {query}");
             return CommandResult.Success;
@@ -975,10 +1447,14 @@ internal sealed class PdkCommandModule : ICommandModule
 
         // Non-interactive fallthrough
         var table = new Table().Border(TableBorder.SimpleHeavy);
-        foreach (var h in displayHeaders) table.AddColumn(h);
-        foreach (var r in displayRows) table.AddRow(r.ToArray());
+        foreach (var h in displayHeaders)
+            table.AddColumn(h);
+        foreach (var r in displayRows)
+            table.AddRow(r.ToArray());
 
-        AnsiConsole.Write(new Rule($"[bold]{query}[/] — {backend} / {corner}") { Justification = Justify.Left });
+        AnsiConsole.Write(
+            new Rule($"[bold]{query}[/] — {backend} / {corner}") { Justification = Justify.Left }
+        );
         AnsiConsole.Write(table);
 
         foreach (var kvp in sparklines)
@@ -993,7 +1469,10 @@ internal sealed class PdkCommandModule : ICommandModule
 
     private CommandResult PdkCharStatusCommand(string[] args)
     {
-        var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+        var dbPath = Path.Combine(
+            WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+            "pdk.db"
+        );
         if (!File.Exists(dbPath))
         {
             _state.AddMessage("PDK database not found. Run 'pdk scan' first.");
@@ -1011,16 +1490,23 @@ internal sealed class PdkCommandModule : ICommandModule
 
             if (coverage.TotalRuns == 0)
             {
-                _state.AddMessage("No characterization runs found. Use 'pdk char run' to characterize devices.");
+                _state.AddMessage(
+                    "No characterization runs found. Use 'pdk char run' to characterize devices."
+                );
                 return CommandResult.Success;
             }
 
-            var classes = coverage.DeviceClasses.Values.Distinct().OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase).ToList();
-            var totalsByClass = coverage.DeviceClasses
-                .GroupBy(kvp => kvp.Value)
+            var classes = coverage
+                .DeviceClasses.Values.Distinct()
+                .OrderBy(c => c.ToString(), StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var totalsByClass = coverage
+                .DeviceClasses.GroupBy(kvp => kvp.Value)
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            var table = new Table().Border(TableBorder.Rounded).Title("[bold]Device Characterization Coverage[/]");
+            var table = new Table()
+                .Border(TableBorder.Rounded)
+                .Title("[bold]Device Characterization Coverage[/]");
             table.AddColumn("Class");
             table.AddColumn("Total");
             foreach (var corner in coverage.Corners)
@@ -1031,10 +1517,16 @@ internal sealed class PdkCommandModule : ICommandModule
             foreach (var cls in classes)
             {
                 var total = totalsByClass.TryGetValue(cls, out var t) ? t : 0;
-                var row = new List<string> { cls.ToString(), total.ToString(CultureInfo.InvariantCulture) };
+                var row = new List<string>
+                {
+                    cls.ToString(),
+                    total.ToString(CultureInfo.InvariantCulture),
+                };
                 foreach (var corner in coverage.Corners)
                 {
-                    var covered = coverage.Devices.Count(d => coverage.GetDeviceClass(d) == cls && coverage.HasRun(d, corner));
+                    var covered = coverage.Devices.Count(d =>
+                        coverage.GetDeviceClass(d) == cls && coverage.HasRun(d, corner)
+                    );
                     row.Add($"{covered}/{total}");
                 }
                 table.AddRow(row.ToArray());
@@ -1044,7 +1536,9 @@ internal sealed class PdkCommandModule : ICommandModule
 
             var totalPossible = coverage.Devices.Count * Math.Max(1, coverage.Corners.Count);
             var percentage = totalPossible > 0 ? (coverage.TotalRuns * 100.0 / totalPossible) : 0.0;
-            _state.AddMessage($"Device coverage: {coverage.TotalRuns}/{totalPossible} ({percentage:F1}%)");
+            _state.AddMessage(
+                $"Device coverage: {coverage.TotalRuns}/{totalPossible} ({percentage:F1}%)"
+            );
             return CommandResult.Success;
         }
         catch (Exception ex)
@@ -1061,7 +1555,8 @@ internal sealed class PdkCommandModule : ICommandModule
     /// <returns>The input string with every character that is invalid in file names replaced by '_' (underscore).</returns>
     private static string Sanitize(string name)
     {
-        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+        foreach (var c in Path.GetInvalidFileNameChars())
+            name = name.Replace(c, '_');
         return name;
     }
 
@@ -1070,15 +1565,23 @@ internal sealed class PdkCommandModule : ICommandModule
     /// </summary>
     /// <param name="value">The comma-separated input string to split.</param>
     /// <returns>A list of trimmed tokens; an empty list if <paramref name="value"/> is null, empty, or consists only of whitespace.</returns>
-    private static List<string> SplitCsv(string value)
-        => string.IsNullOrWhiteSpace(value)
+    private static List<string> SplitCsv(string value) =>
+        string.IsNullOrWhiteSpace(value)
             ? new List<string>()
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            : value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
 
     /// <summary>
     /// Generate a testbench and supporting files for the specified device characterization plan.
     /// </summary>
-    private bool GenerateBenchForPlan(DeviceCharPlan plan, string harnessId, string backend, string jobDir, ILogger? logger = null)
+    private bool GenerateBenchForPlan(
+        DeviceCharPlan plan,
+        string harnessId,
+        string backend,
+        string jobDir,
+        ILogger? logger = null
+    )
     {
         try
         {
@@ -1095,7 +1598,8 @@ internal sealed class PdkCommandModule : ICommandModule
                 {
                     resolvedIncludes.Add(normalized!);
                     decksWithSection.Add(normalized!);
-                    if (!string.Equals(normalized, inc, StringComparison.OrdinalIgnoreCase)) sectionApplied = true;
+                    if (!string.Equals(normalized, inc, StringComparison.OrdinalIgnoreCase))
+                        sectionApplied = true;
                 }
             }
 
@@ -1121,14 +1625,21 @@ internal sealed class PdkCommandModule : ICommandModule
                 resolvedSection = null;
             }
 
-            if (resolvedIncludes.Count == 0) _state.AddMessage($"[warn] No include decks located for device '{plan.DeviceName}'. Spectre run may fail.");
+            if (resolvedIncludes.Count == 0)
+                _state.AddMessage(
+                    $"[warn] No include decks located for device '{plan.DeviceName}'. Spectre run may fail."
+                );
 
             var netlistModelName = ResolveModelNameForNetlist(plan.ModelName);
-            _state.AddMessage($"Geometry for {plan.DeviceName}: W={plan.Width:g4} m, L={plan.Length:g4} m, NF={plan.Nf}");
+            _state.AddMessage(
+                $"Geometry for {plan.DeviceName}: W={plan.Width:g4} m, L={plan.Length:g4} m, NF={plan.Nf}"
+            );
 
             var spec = new Cascode.Bench.TestbenchSpec
             {
-                Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase) ? Cascode.Bench.BenchBackendType.Spectre : Cascode.Bench.BenchBackendType.Ngspice,
+                Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase)
+                    ? Cascode.Bench.BenchBackendType.Spectre
+                    : Cascode.Bench.BenchBackendType.Ngspice,
                 Name = harnessId,
                 ModelName = netlistModelName,
                 IsSubckt = plan.IsSubckt,
@@ -1146,7 +1657,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 Section = resolvedSection,
                 JobDir = jobDir,
                 ResultsCsv = "results.csv",
-                DeviceName = plan.DeviceName
+                DeviceName = plan.DeviceName,
             };
 
             var ctx = new Cascode.Bench.TestbenchContext
@@ -1178,16 +1689,24 @@ internal sealed class PdkCommandModule : ICommandModule
     private static string ResolveModelNameForNetlist(string modelName)
     {
         var name = modelName;
-        if (string.IsNullOrWhiteSpace(name)) return name;
+        if (string.IsNullOrWhiteSpace(name))
+            return name;
         var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-        if (modelMarker < 0) return name;
+        if (modelMarker < 0)
+            return name;
         var basePart = name.Substring(0, modelMarker);
         var lastSeparator = basePart.LastIndexOf("__", StringComparison.Ordinal);
-        if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length) basePart = basePart[(lastSeparator + 2)..];
+        if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length)
+            basePart = basePart[(lastSeparator + 2)..];
         return basePart.Replace('.', '_');
     }
 
-    private static string PrepareCharacterizationInclude(string includePath, string? section, string jobDir, ILogger? logger = null)
+    private static string PrepareCharacterizationInclude(
+        string includePath,
+        string? section,
+        string jobDir,
+        ILogger? logger = null
+    )
     {
         if (string.IsNullOrWhiteSpace(section) || !File.Exists(includePath))
         {
@@ -1207,7 +1726,11 @@ internal sealed class PdkCommandModule : ICommandModule
                 if (trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase))
                 {
                     var label = trimmed.Substring("section".Length).Trim().Trim('"', '\'');
-                    inSection = string.Equals(label, normalizedTarget, StringComparison.OrdinalIgnoreCase);
+                    inSection = string.Equals(
+                        label,
+                        normalizedTarget,
+                        StringComparison.OrdinalIgnoreCase
+                    );
                     continue;
                 }
 
@@ -1239,27 +1762,34 @@ internal sealed class PdkCommandModule : ICommandModule
         {
             if (logger is not null)
             {
-                logger.LogWarning(ex, "Failed to extract section from include file '{IncludePath}'", includePath);
+                logger.LogWarning(
+                    ex,
+                    "Failed to extract section from include file '{IncludePath}'",
+                    includePath
+                );
             }
             else
             {
-                Console.Error.WriteLine($"Warning: Failed to extract section from include file '{includePath}': {ex.Message}");
+                Console.Error.WriteLine(
+                    $"Warning: Failed to extract section from include file '{includePath}': {ex.Message}"
+                );
             }
             return includePath;
         }
     }
 
-    private static string? ResolveHarnessForDeviceClass(DeviceClass deviceClass)
-        => deviceClass switch
+    private static string? ResolveHarnessForDeviceClass(DeviceClass deviceClass) =>
+        deviceClass switch
         {
             DeviceClass.Nmos => "gm_id.v1",
             DeviceClass.Pmos => "gm_id_pmos.v1",
-            _ => null
+            _ => null,
         };
 
     private bool TryRunSpectre(string jobDir, string backend)
     {
-        if (!backend.Equals("spectre", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!backend.Equals("spectre", StringComparison.OrdinalIgnoreCase))
+            return false;
         var binary = Environment.GetEnvironmentVariable("SPECTRE_BIN");
         var exe = ResolveSpectreExecutable(binary);
         if (string.IsNullOrWhiteSpace(exe))
@@ -1276,7 +1806,8 @@ internal sealed class PdkCommandModule : ICommandModule
             return false;
         }
         // Find a netlist to run (prefer .scs)
-        var netlist = Directory.EnumerateFiles(jobDir, "*.scs", SearchOption.TopDirectoryOnly)
+        var netlist = Directory
+            .EnumerateFiles(jobDir, "*.scs", SearchOption.TopDirectoryOnly)
             .OrderByDescending(f => new FileInfo(f).LastWriteTimeUtc)
             .FirstOrDefault();
         if (netlist is null)
@@ -1312,7 +1843,10 @@ internal sealed class PdkCommandModule : ICommandModule
                 var errorOutput = stderr.Result;
                 var errorPreview = string.IsNullOrWhiteSpace(errorOutput)
                     ? "No error details available"
-                    : errorOutput.Split('\n').FirstOrDefault(line => !string.IsNullOrWhiteSpace(line)) ?? "Unknown error";
+                    : errorOutput
+                        .Split('\n')
+                        .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))
+                        ?? "Unknown error";
                 _state.AddMessage($"Spectre exited with code {rc}: {errorPreview}");
                 return false;
             }
@@ -1326,21 +1860,30 @@ internal sealed class PdkCommandModule : ICommandModule
 
     private static string? ResolveSpectreExecutable(string? input)
     {
-        if (string.IsNullOrWhiteSpace(input)) return null;
+        if (string.IsNullOrWhiteSpace(input))
+            return null;
         var candidate = Environment.ExpandEnvironmentVariables(input.Trim());
-        if (string.IsNullOrWhiteSpace(candidate)) return null;
-        if (File.Exists(candidate)) return candidate;
+        if (string.IsNullOrWhiteSpace(candidate))
+            return null;
+        if (File.Exists(candidate))
+            return candidate;
         if (Directory.Exists(candidate))
         {
-            foreach (var guess in EnumerateSpectreGuesses(candidate)) if (File.Exists(guess)) return guess;
+            foreach (var guess in EnumerateSpectreGuesses(candidate))
+                if (File.Exists(guess))
+                    return guess;
         }
-        else if (!candidate.Contains(Path.DirectorySeparatorChar) && !candidate.Contains(Path.AltDirectorySeparatorChar))
+        else if (
+            !candidate.Contains(Path.DirectorySeparatorChar)
+            && !candidate.Contains(Path.AltDirectorySeparatorChar)
+        )
         {
             var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
             foreach (var part in pathEnv.Split(Path.PathSeparator))
             {
                 var exe = Path.Combine(part, candidate);
-                if (File.Exists(exe)) return exe;
+                if (File.Exists(exe))
+                    return exe;
             }
         }
         return null;
@@ -1379,7 +1922,14 @@ internal sealed class PdkCommandModule : ICommandModule
     /// - `matched`: `true` to include only matched devices, `false` to include only unmatched devices, `null` to include all,
     /// - `limit`: maximum number of results to show (minimum 1, defaults to 20).
     /// </returns>
-    private static (HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, bool? matched, int limit) ParseDeviceFilters(string[] args)
+    private static (
+        HashSet<string> classes,
+        HashSet<string> vts,
+        HashSet<string> vdds,
+        bool? infra,
+        bool? matched,
+        int limit
+    ) ParseDeviceFilters(string[] args)
     {
         var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var vts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1392,33 +1942,50 @@ internal sealed class PdkCommandModule : ICommandModule
             var a = args[i];
             if (a.Equals("--class", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                foreach (var tok in SplitCsv(args[++i])) classes.Add(tok);
+                foreach (var tok in SplitCsv(args[++i]))
+                    classes.Add(tok);
             }
             else if (a.Equals("--vt", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                foreach (var tok in SplitCsv(args[++i])) vts.Add(tok.ToUpperInvariant());
+                foreach (var tok in SplitCsv(args[++i]))
+                    vts.Add(tok.ToUpperInvariant());
             }
             else if (a.Equals("--vdd", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 foreach (var tok in SplitCsv(args[++i]))
                 {
-                    if (DeviceFilterEvaluator.TryNormalizeVddFilter(tok, out var normalized)) vdds.Add(normalized);
-                    else vdds.Add(tok.ToLowerInvariant());
+                    if (DeviceFilterEvaluator.TryNormalizeVddFilter(tok, out var normalized))
+                        vdds.Add(normalized);
+                    else
+                        vdds.Add(tok.ToLowerInvariant());
                 }
             }
-            else if (a.Equals("--infra", StringComparison.OrdinalIgnoreCase)) infra = true;
-            else if (a.Equals("--no-infra", StringComparison.OrdinalIgnoreCase)) infra = false;
-            else if (a.Equals("--matched", StringComparison.OrdinalIgnoreCase)) matched = true;
-            else if (a.Equals("--unmatched", StringComparison.OrdinalIgnoreCase)) matched = false;
+            else if (a.Equals("--infra", StringComparison.OrdinalIgnoreCase))
+                infra = true;
+            else if (a.Equals("--no-infra", StringComparison.OrdinalIgnoreCase))
+                infra = false;
+            else if (a.Equals("--matched", StringComparison.OrdinalIgnoreCase))
+                matched = true;
+            else if (a.Equals("--unmatched", StringComparison.OrdinalIgnoreCase))
+                matched = false;
             else if (a.Equals("--limit", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
-                if (int.TryParse(args[++i], out var lim)) limit = Math.Max(1, lim);
+                if (int.TryParse(args[++i], out var lim))
+                    limit = Math.Max(1, lim);
             }
         }
         return (classes, vts, vdds, infra, matched, limit);
     }
 
-    private static bool DeviceMatchesFilters(Cascode.Workspace.Device d, HashSet<string> classes, HashSet<string> vts, HashSet<string> vdds, bool? infra, HashSet<string>? matchedKeys, bool? matched)
+    private static bool DeviceMatchesFilters(
+        Cascode.Workspace.Device d,
+        HashSet<string> classes,
+        HashSet<string> vts,
+        HashSet<string> vdds,
+        bool? infra,
+        HashSet<string>? matchedKeys,
+        bool? matched
+    )
     {
         var opts = new DeviceFilterOptions(classes, vts, vdds, infra, matched);
         return DeviceFilterEvaluator.Matches(d, opts, matchedKeys);
@@ -1428,21 +1995,44 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         try
         {
-            var dbPath = Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
-            if (!File.Exists(dbPath)) { _state.AddMessage("No PDK database found. Run 'pdk scan' first."); return CommandResult.Failure; }
+            var dbPath = Path.Combine(
+                WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+                "pdk.db"
+            );
+            if (!File.Exists(dbPath))
+            {
+                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                return CommandResult.Failure;
+            }
 
             var cov = Cascode.Workspace.PdkDatabaseReader.GetMatchCoverage(dbPath);
             var byClass = Cascode.Workspace.PdkDatabaseReader.GetMatchCoverageByClass(dbPath);
 
-            var table = new Table().Border(TableBorder.Rounded).AddColumn("Class").AddColumn("Total").AddColumn("Matched").AddColumn("Ambiguous").AddColumn("Unmatched");
+            var table = new Table()
+                .Border(TableBorder.Rounded)
+                .AddColumn("Class")
+                .AddColumn("Total")
+                .AddColumn("Matched")
+                .AddColumn("Ambiguous")
+                .AddColumn("Unmatched");
             foreach (var row in byClass)
             {
-                table.AddRow(row.Class, row.Total.ToString(CultureInfo.InvariantCulture), row.Matched.ToString(CultureInfo.InvariantCulture), row.Ambiguous.ToString(CultureInfo.InvariantCulture), row.Unmatched.ToString(CultureInfo.InvariantCulture));
+                table.AddRow(
+                    row.Class,
+                    row.Total.ToString(CultureInfo.InvariantCulture),
+                    row.Matched.ToString(CultureInfo.InvariantCulture),
+                    row.Ambiguous.ToString(CultureInfo.InvariantCulture),
+                    row.Unmatched.ToString(CultureInfo.InvariantCulture)
+                );
             }
             AnsiConsole.Write(table);
-            _state.AddMessage($"Coverage: total={cov.Total}, matched={cov.Matched}, ambiguous={cov.Ambiguous}, unmatched={cov.Unmatched}.");
-            if (cov.SampleAmbiguous.Count > 0) _state.AddMessage("Ambiguous examples: " + string.Join(", ", cov.SampleAmbiguous));
-            if (cov.SampleUnmatched.Count > 0) _state.AddMessage("Unmatched examples: " + string.Join(", ", cov.SampleUnmatched));
+            _state.AddMessage(
+                $"Coverage: total={cov.Total}, matched={cov.Matched}, ambiguous={cov.Ambiguous}, unmatched={cov.Unmatched}."
+            );
+            if (cov.SampleAmbiguous.Count > 0)
+                _state.AddMessage("Ambiguous examples: " + string.Join(", ", cov.SampleAmbiguous));
+            if (cov.SampleUnmatched.Count > 0)
+                _state.AddMessage("Unmatched examples: " + string.Join(", ", cov.SampleUnmatched));
             return CommandResult.Success;
         }
         catch (Exception ex)
@@ -1451,5 +2041,4 @@ internal sealed class PdkCommandModule : ICommandModule
             return CommandResult.Failure;
         }
     }
-
 }

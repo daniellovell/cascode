@@ -11,14 +11,12 @@ public class SpiceEmitterTests
     [Fact]
     public void EmitDesign_RequiresELLevel()
     {
-        var circuit = new Circuit
-        {
-            Name = "TestCircuit",
-            Level = ACIRLevel.ML
-        };
+        var circuit = new Circuit { Name = "TestCircuit", Level = ACIRLevel.ML };
 
         using var writer = new StringWriter();
-        var ex = Assert.Throws<InvalidOperationException>(() => SpiceEmitter.EmitDesign(circuit, writer));
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            SpiceEmitter.EmitDesign(circuit, writer)
+        );
         Assert.Contains("EL-level", ex.Message);
     }
 
@@ -33,11 +31,11 @@ public class SpiceEmitterTests
             {
                 new() { Name = "A", Type = "analog" },
                 new() { Name = "B", Type = "analog" },
-                new() { Name = "C", Type = "analog" }
+                new() { Name = "C", Type = "analog" },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "VSS" },
-            Fill = new FillBlock()
+            Fill = new FillBlock(),
         };
 
         using var writer = new StringWriter();
@@ -58,7 +56,7 @@ public class SpiceEmitterTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
@@ -75,18 +73,18 @@ public class SpiceEmitterTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
                         Params = new Dictionary<string, string>
                         {
                             { "W", "1u" },
                             { "L", "180n" },
-                            { "M", "1" }
+                            { "M", "1" },
                         },
-                        PdkDevice = "nmos"
-                    }
-                }
-            }
+                        PdkDevice = "nmos",
+                    },
+                },
+            },
         };
 
         using var writer = new StringWriter();
@@ -155,7 +153,7 @@ public class SpiceEmitterTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
@@ -164,13 +162,17 @@ public class SpiceEmitterTests
             {
                 Supplies = new List<SupplyValue>
                 {
-                    new() { Net = "VDD", Value = "1.8V" }
+                    new() { Net = "VDD", Value = "1.8V" },
                 },
                 Loads = new List<LoadValue>
                 {
-                    new() { Net = "OUT", Elements = new List<LoadElement> { new LoadElement("C", "1pF") } }
-                }
-            }
+                    new()
+                    {
+                        Net = "OUT",
+                        Elements = new List<LoadElement> { new LoadElement("C", "1pF") },
+                    },
+                },
+            },
         };
 
         var bench = new BenchConfig { Name = "ACBench" };

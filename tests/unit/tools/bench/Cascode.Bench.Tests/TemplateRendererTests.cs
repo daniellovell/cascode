@@ -8,11 +8,7 @@ public class TemplateRendererTests
     [Fact]
     public void TemplateRenderer_PreprocessesScribanBlocks()
     {
-        var model = new
-        {
-            spec = new { name = "demo" },
-            items = new[] { "alpha", "beta" },
-        };
+        var model = new { spec = new { name = "demo" }, items = new[] { "alpha", "beta" } };
 
         const string conditionalTemplate = "{{ if true }}value{{ end }}";
         const string loopTemplate = "{{ for item in items }}{{ item }}{{ end }}";

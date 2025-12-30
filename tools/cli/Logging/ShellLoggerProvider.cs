@@ -1,13 +1,15 @@
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Logging;
 
 internal sealed class ShellLoggerProvider : ILoggerProvider
 {
     private readonly ShellState _state;
-    private readonly ConcurrentDictionary<string, ILogger> _loggers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ILogger> _loggers = new(
+        StringComparer.OrdinalIgnoreCase
+    );
     private readonly LogLevel _minLevel;
 
     public ShellLoggerProvider(ShellState state, LogLevel minLevel = LogLevel.Information)
@@ -16,8 +18,8 @@ internal sealed class ShellLoggerProvider : ILoggerProvider
         _minLevel = minLevel;
     }
 
-    public ILogger CreateLogger(string categoryName)
-        => _loggers.GetOrAdd(categoryName, c => new ShellLogger(_state, c, _minLevel));
+    public ILogger CreateLogger(string categoryName) =>
+        _loggers.GetOrAdd(categoryName, c => new ShellLogger(_state, c, _minLevel));
 
     public void Dispose() => _loggers.Clear();
 
@@ -34,11 +36,19 @@ internal sealed class ShellLoggerProvider : ILoggerProvider
             _minLevel = minLevel;
         }
 
-        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+        public IDisposable BeginScope<TState>(TState state)
+            where TState : notnull => NullScope.Instance;
 
-        public bool IsEnabled(LogLevel logLevel) => logLevel >= _minLevel && logLevel != LogLevel.None;
+        public bool IsEnabled(LogLevel logLevel) =>
+            logLevel >= _minLevel && logLevel != LogLevel.None;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        )
         {
             if (!IsEnabled(logLevel) || formatter is null)
             {
@@ -59,7 +69,7 @@ internal sealed class ShellLoggerProvider : ILoggerProvider
                 LogLevel.Warning => "warn",
                 LogLevel.Error => "error",
                 LogLevel.Critical => "crit",
-                _ => "log"
+                _ => "log",
             };
 
             var line = string.IsNullOrEmpty(_category)
@@ -72,8 +82,8 @@ internal sealed class ShellLoggerProvider : ILoggerProvider
         private sealed class NullScope : IDisposable
         {
             public static readonly NullScope Instance = new();
+
             public void Dispose() { }
         }
     }
 }
-

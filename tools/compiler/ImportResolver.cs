@@ -30,7 +30,8 @@ internal sealed class ImportResolver
     public IReadOnlyDictionary<string, MotifDeclarationSyntax> ResolveImports(
         CompilationUnitSyntax compilationUnit,
         ISet<string> referencedTypes,
-        ICollection<Diagnostic> diagnostics)
+        ICollection<Diagnostic> diagnostics
+    )
     {
         if (_libraryRoots.Count == 0)
         {
@@ -107,7 +108,9 @@ internal sealed class ImportResolver
             var tree = CascodeParserFacade.Parse(filePath, sourceText);
 
             // Add any parse errors
-            foreach (var diag in tree.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+            foreach (
+                var diag in tree.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
+            )
             {
                 diagnostics.Add(diag);
             }
@@ -123,41 +126,51 @@ internal sealed class ImportResolver
         }
         catch (UnauthorizedAccessException ex)
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0006: Failed to read import file '{filePath}' (access denied): {ex.Message}",
-                DiagnosticSeverity.Warning,
-                filePath,
-                1,
-                1));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0006: Failed to read import file '{filePath}' (access denied): {ex.Message}",
+                    DiagnosticSeverity.Warning,
+                    filePath,
+                    1,
+                    1
+                )
+            );
         }
         catch (System.Security.SecurityException ex)
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0006: Failed to read import file '{filePath}' (security exception): {ex.Message}",
-                DiagnosticSeverity.Warning,
-                filePath,
-                1,
-                1));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0006: Failed to read import file '{filePath}' (security exception): {ex.Message}",
+                    DiagnosticSeverity.Warning,
+                    filePath,
+                    1,
+                    1
+                )
+            );
         }
         catch (PathTooLongException ex)
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0006: Failed to read import file '{filePath}' (path too long): {ex.Message}",
-                DiagnosticSeverity.Warning,
-                filePath,
-                1,
-                1));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0006: Failed to read import file '{filePath}' (path too long): {ex.Message}",
+                    DiagnosticSeverity.Warning,
+                    filePath,
+                    1,
+                    1
+                )
+            );
         }
         catch (IOException ex)
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0006: Failed to read import file '{filePath}': {ex.Message}",
-                DiagnosticSeverity.Warning,
-                filePath,
-                1,
-                1));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0006: Failed to read import file '{filePath}': {ex.Message}",
+                    DiagnosticSeverity.Warning,
+                    filePath,
+                    1,
+                    1
+                )
+            );
         }
     }
-
 }
-

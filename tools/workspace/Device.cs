@@ -15,12 +15,13 @@ public enum DeviceClass
     Inductor,
     TransmissionLine,
     Stdcell,
-    Other
+    Other,
 }
 
 public enum DeviceSubclass
 {
     Unknown = 0,
+
     // Stdcell subclasses
     Inverter,
     Buffer,
@@ -35,19 +36,22 @@ public enum DeviceSubclass
     Flipflop,
     Latch,
     Adder,
+
     // Capacitor subclasses
     MIMCAP,
     MOMCAP,
     MOSCAP,
     VarCap,
+
     // Resistor subclasses
     TFR,
     RMetal,
     RPoly,
     RWell,
+
     // MOS device subclasses
     DeepNwell,
-    RF
+    RF,
 }
 
 public sealed class Device
@@ -65,6 +69,7 @@ public sealed class Device
     public IReadOnlyList<string> VddTags { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> Tags { get; init; } = Array.Empty<string>();
 
-    public string CanonicalName => string.IsNullOrWhiteSpace(LibraryName) ? CellName : $"{LibraryName}__{CellName}";
+    public string CanonicalName =>
+        string.IsNullOrWhiteSpace(LibraryName) ? CellName : $"{LibraryName}__{CellName}";
     public string DisplayName => CellName;
 }

@@ -12,9 +12,7 @@ namespace Cascode.Compiler;
 /// In v0, only the first motif declaration in the first source file is considered,
 /// regardless of the EntryMotifFullName value.
 /// </remarks>
-public sealed record CompileOptions(
-    string EntryMotifFullName,
-    ACIRLevel Level)
+public sealed record CompileOptions(string EntryMotifFullName, ACIRLevel Level)
 {
     /// <summary>
     /// Root directories to search for imported motif definitions.

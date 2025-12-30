@@ -48,8 +48,11 @@ jobs:
       - name: Build (Release)
         run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
 
+      - name: Restore Tools
+        run: dotnet tool restore
+
       - name: Format Check
-        run: dotnet format --verify-no-changes
+        run: dotnet csharpier check .
 
       - name: Test with Coverage
         shell: bash -el {0}

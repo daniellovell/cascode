@@ -34,8 +34,8 @@ internal static class PathUtils
             return home;
         }
 
-        var remainder = path[1..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var remainder = path[1..]
+            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return Path.Combine(home, remainder);
     }
 }
-

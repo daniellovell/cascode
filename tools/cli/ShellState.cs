@@ -1,8 +1,8 @@
-using Cascode.Workspace;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli;
 
@@ -10,7 +10,7 @@ internal enum ShellViewMode
 {
     Home = 0,
     DeviceSummary,
-    CharRead
+    CharRead,
 }
 
 internal sealed class ShellState
@@ -50,21 +50,29 @@ internal sealed class ShellState
     }
 
     public event Action? Changed;
+
     private void OnChanged()
     {
         // Notify subscribers best-effort. Today we expect at most one subscriber
         // (the interactive renderer). Guard in debug and isolate each handler.
         var handlers = Changed;
-        if (handlers is null) return;
+        if (handlers is null)
+            return;
 
         System.Diagnostics.Debug.Assert(
             handlers.GetInvocationList().Length <= 1,
-            "ShellState.Changed should have at most one subscriber.");
+            "ShellState.Changed should have at most one subscriber."
+        );
 
         foreach (Action h in handlers.GetInvocationList())
         {
-            try { h(); }
-            catch { /* best-effort: keep notifying others */ }
+            try
+            {
+                h();
+            }
+            catch
+            { /* best-effort: keep notifying others */
+            }
         }
     }
 
@@ -212,7 +220,11 @@ internal sealed class ShellState
             return;
         }
 
-        LogScrollOffset = Math.Clamp(LogScrollOffset - lines, 0, Math.Max(0, messageCount - LogViewport));
+        LogScrollOffset = Math.Clamp(
+            LogScrollOffset - lines,
+            0,
+            Math.Max(0, messageCount - LogViewport)
+        );
     }
 
     public void ScrollLogHome()
@@ -252,7 +264,8 @@ internal sealed class ShellState
     // Advance the spinner independently of log writes while busy.
     public void TickSpinner()
     {
-        if (!IsBusy) return;
+        if (!IsBusy)
+            return;
         _spinnerIndex = (_spinnerIndex + 1) % SpinnerFrames.Length;
         // No OnChanged() here: the interactive loop refreshes on a timer.
     }
@@ -279,14 +292,25 @@ internal sealed class ShellState
         CharBackend = backend;
     }
 
-    public void UpdateCharProgress(string current, int? generatedDelta = null, int? ranDelta = null, int? exportedDelta = null, int? skippedDelta = null)
+    public void UpdateCharProgress(
+        string current,
+        int? generatedDelta = null,
+        int? ranDelta = null,
+        int? exportedDelta = null,
+        int? skippedDelta = null
+    )
     {
-        if (!CharJobActive) return;
+        if (!CharJobActive)
+            return;
         CharCurrent = current ?? string.Empty;
-        if (generatedDelta.HasValue) CharGenerated += Math.Max(0, generatedDelta.Value);
-        if (ranDelta.HasValue) CharRan += Math.Max(0, ranDelta.Value);
-        if (exportedDelta.HasValue) CharExported += Math.Max(0, exportedDelta.Value);
-        if (skippedDelta.HasValue) CharSkipped += Math.Max(0, skippedDelta.Value);
+        if (generatedDelta.HasValue)
+            CharGenerated += Math.Max(0, generatedDelta.Value);
+        if (ranDelta.HasValue)
+            CharRan += Math.Max(0, ranDelta.Value);
+        if (exportedDelta.HasValue)
+            CharExported += Math.Max(0, exportedDelta.Value);
+        if (skippedDelta.HasValue)
+            CharSkipped += Math.Max(0, skippedDelta.Value);
     }
 
     public void CompleteCharJob()
@@ -301,7 +325,8 @@ internal sealed class ShellState
             return false;
         }
 
-        var pageSize = DeviceDetailPageSize > 0 ? DeviceDetailPageSize : DeviceSummary.DetailRows.Count;
+        var pageSize =
+            DeviceDetailPageSize > 0 ? DeviceDetailPageSize : DeviceSummary.DetailRows.Count;
         var maxOffset = Math.Max(0, DeviceSummary.DetailRows.Count - pageSize);
         offset = Math.Clamp(offset, 0, maxOffset);
         if (offset == DeviceDetailOffset)
@@ -330,8 +355,13 @@ internal sealed class ShellState
         DeviceSummary = summary;
         if (summary.HasDetailRows)
         {
-            DeviceDetailPageSize = summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
-            DeviceDetailOffset = Math.Clamp(summary.DetailOffset, 0, Math.Max(0, summary.DetailRows.Count - DeviceDetailPageSize));
+            DeviceDetailPageSize =
+                summary.DetailPageSize > 0 ? summary.DetailPageSize : summary.DetailRows.Count;
+            DeviceDetailOffset = Math.Clamp(
+                summary.DetailOffset,
+                0,
+                Math.Max(0, summary.DetailRows.Count - DeviceDetailPageSize)
+            );
         }
         else
         {

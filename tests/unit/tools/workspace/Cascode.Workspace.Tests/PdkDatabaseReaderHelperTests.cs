@@ -21,7 +21,8 @@ public sealed class PdkDatabaseReaderHelperTests
         {
             using var cmd = db.Connection.CreateCommand();
             cmd.Transaction = tx;
-            cmd.CommandText = @"INSERT INTO devices(id, canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol)
+            cmd.CommandText =
+                @"INSERT INTO devices(id, canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol)
                                 VALUES ($id, $key, $disp, $lib, $libp, $cell, $cellp, $cls, 0, 1, 1)";
             cmd.Parameters.Add(new SqliteParameter("$id", id));
             cmd.Parameters.Add(new SqliteParameter("$key", $"{lib}__{cell}"));
@@ -47,14 +48,21 @@ public sealed class PdkDatabaseReaderHelperTests
             cmd.Parameters.Add(new SqliteParameter("$v", view));
             cmd.ExecuteNonQuery();
         }
-        AddView(1, "layout"); AddView(1, "symbol");
-        AddView(2, "layout"); AddView(2, "symbol");
+        AddView(1, "layout");
+        AddView(1, "symbol");
+        AddView(2, "layout");
+        AddView(2, "symbol");
         AddView(3, "layout");
 
         tx.Commit();
 
         // Filter: NMOS only, page size 2
-        var page = Cascode.Workspace.PdkDatabaseReader.LoadDevicesFiltered(dbPath, DeviceClass.Nmos, limit: 2, offset: 0);
+        var page = Cascode.Workspace.PdkDatabaseReader.LoadDevicesFiltered(
+            dbPath,
+            DeviceClass.Nmos,
+            limit: 2,
+            offset: 0
+        );
         Assert.Equal(2, page.Count);
         Assert.All(page, d => Assert.Equal(DeviceClass.Nmos, d.Class));
         Assert.All(page, d => Assert.Contains("layout", d.Views));
@@ -73,7 +81,8 @@ public sealed class PdkDatabaseReaderHelperTests
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT INTO models(name, model_type, device_class) VALUES ('m1','model',1); SELECT last_insert_rowid();";
+            cmd.CommandText =
+                "INSERT INTO models(name, model_type, device_class) VALUES ('m1','model',1); SELECT last_insert_rowid();";
             mid = (long)(cmd.ExecuteScalar()!);
         }
         // decks
@@ -108,7 +117,8 @@ public sealed class PdkDatabaseReaderHelperTests
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT INTO models(name, model_type, device_class) VALUES ('m2','subckt',1); SELECT last_insert_rowid();";
+            cmd.CommandText =
+                "INSERT INTO models(name, model_type, device_class) VALUES ('m2','subckt',1); SELECT last_insert_rowid();";
             mid = (long)(cmd.ExecuteScalar()!);
         }
         // include deck first (so contexts can reference it)
@@ -123,13 +133,16 @@ public sealed class PdkDatabaseReaderHelperTests
         long? includeId;
         using (var ins = db.Connection.CreateCommand())
         {
-            ins.Transaction = tx; ins.CommandText = "INSERT INTO includes(path) VALUES ($p) ON CONFLICT(path) DO NOTHING;";
+            ins.Transaction = tx;
+            ins.CommandText =
+                "INSERT INTO includes(path) VALUES ($p) ON CONFLICT(path) DO NOTHING;";
             ins.Parameters.Add(new SqliteParameter("$p", "/pdk/models/spectre/toplevel.scs"));
             ins.ExecuteNonQuery();
         }
         using (var sel = db.Connection.CreateCommand())
         {
-            sel.Transaction = tx; sel.CommandText = "SELECT id FROM includes WHERE path=$p";
+            sel.Transaction = tx;
+            sel.CommandText = "SELECT id FROM includes WHERE path=$p";
             sel.Parameters.Add(new SqliteParameter("$p", "/pdk/models/spectre/toplevel.scs"));
             includeId = (long?)sel.ExecuteScalar();
         }
@@ -137,17 +150,22 @@ public sealed class PdkDatabaseReaderHelperTests
         // corners: two sections for 'tt'
         void AddCorner(string? corner, string? section)
         {
-            long? cornerId = null, sectionId = null;
+            long? cornerId = null,
+                sectionId = null;
             if (!string.IsNullOrWhiteSpace(corner))
             {
                 using (var ins = db.Connection.CreateCommand())
                 {
-                    ins.Transaction = tx; ins.CommandText = "INSERT INTO corners(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;";
-                    ins.Parameters.Add(new SqliteParameter("$n", corner)); ins.ExecuteNonQuery();
+                    ins.Transaction = tx;
+                    ins.CommandText =
+                        "INSERT INTO corners(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;";
+                    ins.Parameters.Add(new SqliteParameter("$n", corner));
+                    ins.ExecuteNonQuery();
                 }
                 using (var sel = db.Connection.CreateCommand())
                 {
-                    sel.Transaction = tx; sel.CommandText = "SELECT id FROM corners WHERE name=$n";
+                    sel.Transaction = tx;
+                    sel.CommandText = "SELECT id FROM corners WHERE name=$n";
                     sel.Parameters.Add(new SqliteParameter("$n", corner));
                     cornerId = (long?)sel.ExecuteScalar();
                 }
@@ -156,12 +174,16 @@ public sealed class PdkDatabaseReaderHelperTests
             {
                 using (var ins = db.Connection.CreateCommand())
                 {
-                    ins.Transaction = tx; ins.CommandText = "INSERT INTO sections(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;";
-                    ins.Parameters.Add(new SqliteParameter("$n", section)); ins.ExecuteNonQuery();
+                    ins.Transaction = tx;
+                    ins.CommandText =
+                        "INSERT INTO sections(name) VALUES ($n) ON CONFLICT(name) DO NOTHING;";
+                    ins.Parameters.Add(new SqliteParameter("$n", section));
+                    ins.ExecuteNonQuery();
                 }
                 using (var sel = db.Connection.CreateCommand())
                 {
-                    sel.Transaction = tx; sel.CommandText = "SELECT id FROM sections WHERE name=$n";
+                    sel.Transaction = tx;
+                    sel.CommandText = "SELECT id FROM sections WHERE name=$n";
                     sel.Parameters.Add(new SqliteParameter("$n", section));
                     sectionId = (long?)sel.ExecuteScalar();
                 }
@@ -169,11 +191,16 @@ public sealed class PdkDatabaseReaderHelperTests
             using (var insCtx = db.Connection.CreateCommand())
             {
                 insCtx.Transaction = tx;
-                insCtx.CommandText = "INSERT INTO model_contexts(model_id, corner_id, detail_id, section_id, include_id) VALUES ($m, $c, NULL, $s, $i)";
+                insCtx.CommandText =
+                    "INSERT INTO model_contexts(model_id, corner_id, detail_id, section_id, include_id) VALUES ($m, $c, NULL, $s, $i)";
                 insCtx.Parameters.Add(new SqliteParameter("$m", mid));
                 insCtx.Parameters.Add(new SqliteParameter("$c", (object?)cornerId ?? DBNull.Value));
-                insCtx.Parameters.Add(new SqliteParameter("$s", (object?)sectionId ?? DBNull.Value));
-                insCtx.Parameters.Add(new SqliteParameter("$i", (object?)includeId ?? DBNull.Value));
+                insCtx.Parameters.Add(
+                    new SqliteParameter("$s", (object?)sectionId ?? DBNull.Value)
+                );
+                insCtx.Parameters.Add(
+                    new SqliteParameter("$i", (object?)includeId ?? DBNull.Value)
+                );
                 insCtx.ExecuteNonQuery();
             }
         }
@@ -181,10 +208,23 @@ public sealed class PdkDatabaseReaderHelperTests
         AddCorner("tt", "tt_io");
         tx.Commit();
 
-        var ctx = Cascode.Workspace.PdkDatabaseReader.GetContextsForModelAndCorner(dbPath, "m2", "tt");
+        var ctx = Cascode.Workspace.PdkDatabaseReader.GetContextsForModelAndCorner(
+            dbPath,
+            "m2",
+            "tt"
+        );
         Assert.Equal(2, ctx.Count);
-        Assert.All(ctx, c => Assert.Contains("/spectre/", c.IncludePath, StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(ctx, c => string.Equals(c.Section, "tt_core", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(ctx, c => string.Equals(c.Section, "tt_io", StringComparison.OrdinalIgnoreCase));
+        Assert.All(
+            ctx,
+            c => Assert.Contains("/spectre/", c.IncludePath, StringComparison.OrdinalIgnoreCase)
+        );
+        Assert.Contains(
+            ctx,
+            c => string.Equals(c.Section, "tt_core", StringComparison.OrdinalIgnoreCase)
+        );
+        Assert.Contains(
+            ctx,
+            c => string.Equals(c.Section, "tt_io", StringComparison.OrdinalIgnoreCase)
+        );
     }
 }

@@ -12,17 +12,29 @@ public sealed class PdkMatchingPatternsInitTests
     public async Task PdkScan_EnsuresMatchingPatterns_AndLogsPath()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
-        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
+        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(
+            repoRoot,
+            new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" },
+            out var commandLine
+        );
+        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(
+            startInfo,
+            repoRoot
+        );
 
-        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkMatchingPatternsInitTests));
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            nameof(PdkMatchingPatternsInitTests)
+        );
         cascodeHome.ApplyTo(startInfo.Environment);
 
         var expectedPath = Path.Combine(cascodeHome.Path, "config", "pdk-matching-patterns.yml");
-        if (File.Exists(expectedPath)) File.Delete(expectedPath);
+        if (File.Exists(expectedPath))
+            File.Delete(expectedPath);
 
         using var process = new Process { StartInfo = startInfo };
-        if (!process.Start()) throw new InvalidOperationException("Failed to start the Cascode CLI process.");
+        if (!process.Start())
+            throw new InvalidOperationException("Failed to start the Cascode CLI process.");
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         await process.WaitForExitAsync(timeout.Token);
 
@@ -30,7 +42,10 @@ public sealed class PdkMatchingPatternsInitTests
         var stderr = await process.StandardError.ReadToEndAsync();
 
         Assert.Equal(0, process.ExitCode);
-        Assert.True(File.Exists(expectedPath), $"Expected patterns file at '{expectedPath}' to be created.");
+        Assert.True(
+            File.Exists(expectedPath),
+            $"Expected patterns file at '{expectedPath}' to be created."
+        );
         Assert.Contains("matching patterns", stdout, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("pdk-matching-patterns.yml", stdout, StringComparison.OrdinalIgnoreCase);
     }

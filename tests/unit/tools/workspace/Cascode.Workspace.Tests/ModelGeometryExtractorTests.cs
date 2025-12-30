@@ -1,8 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using Xunit;
 using Xunit.Abstractions;
-using System.IO;
-using System.Collections.Generic;
-using System;
 
 namespace Cascode.Workspace.Tests;
 
@@ -20,7 +20,7 @@ public class ModelGeometryExtractorTests
     /// - A .subckt definition with default w/l parameters
     /// - Multiple binned .model definitions with lmin/lmax/wmin/wmax
     /// - Continuation lines (+) after comment lines (*)
-    /// 
+    ///
     /// This is a common pattern in Sky130 PDK model files.
     /// </summary>
     [Fact]
@@ -28,7 +28,8 @@ public class ModelGeometryExtractorTests
     {
         // Snippet from sky130_fd_pr__nfet_03v3_nvt.pm3.spice
         // Note: continuation lines (+) come after comment lines (*)
-        var spiceContent = @"
+        var spiceContent =
+            @"
 .subckt  nfet_03v3_nvt d g s b
 .param  l = 1 w = 1 nf = 1.0
 msky130_fd_pr__nfet_03v3_nvt d g s b sky130_fd_pr__nfet_03v3_nvt__model l = l w = w nf = nf
@@ -60,7 +61,7 @@ msky130_fd_pr__nfet_03v3_nvt d g s b sky130_fd_pr__nfet_03v3_nvt__model l = l w 
                 Name = "nfet_03v3_nvt",
                 ModelType = "subckt",
                 SourceFiles = new[] { tempFile },
-                Decks = Array.Empty<string>()
+                Decks = Array.Empty<string>(),
             };
 
             var geometry = ModelGeometryExtractor.Extract(new[] { model });
@@ -68,7 +69,9 @@ msky130_fd_pr__nfet_03v3_nvt d g s b sky130_fd_pr__nfet_03v3_nvt__model l = l w 
             Assert.Single(geometry);
             var geom = geometry[0];
 
-            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+            _output.WriteLine(
+                $"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}"
+            );
             _output.WriteLine($"Source={geom.Source}");
 
             // Should find both subckt and model
@@ -102,7 +105,8 @@ msky130_fd_pr__nfet_03v3_nvt d g s b sky130_fd_pr__nfet_03v3_nvt__model l = l w 
     [Fact]
     public void Extract_ModelWithGeometryOnSameLine_ExtractsGeometry()
     {
-        var spiceContent = @"
+        var spiceContent =
+            @"
 .subckt  simple_nfet d g s b
 .param  l = 1u w = 1u nf = 1
 m1 d g s b simple_nfet__model l=l w=w nf=nf
@@ -119,7 +123,7 @@ m1 d g s b simple_nfet__model l=l w=w nf=nf
                 Name = "simple_nfet",
                 ModelType = "subckt",
                 SourceFiles = new[] { tempFile },
-                Decks = Array.Empty<string>()
+                Decks = Array.Empty<string>(),
             };
 
             var geometry = ModelGeometryExtractor.Extract(new[] { model });
@@ -127,7 +131,9 @@ m1 d g s b simple_nfet__model l=l w=w nf=nf
             Assert.Single(geometry);
             var geom = geometry[0];
 
-            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+            _output.WriteLine(
+                $"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}"
+            );
 
             Assert.NotNull(geom.LMin);
             Assert.NotNull(geom.LMax);
@@ -152,7 +158,8 @@ m1 d g s b simple_nfet__model l=l w=w nf=nf
     [Fact]
     public void Extract_GeometryWithSpacesAroundEquals_ExtractsCorrectly()
     {
-        var spiceContent = @"
+        var spiceContent =
+            @"
 .subckt  spaced_nfet d g s b
 .param  l = 1u w = 1u
 m1 d g s b spaced_nfet__model l = l w = w
@@ -171,7 +178,7 @@ m1 d g s b spaced_nfet__model l = l w = w
                 Name = "spaced_nfet",
                 ModelType = "subckt",
                 SourceFiles = new[] { tempFile },
-                Decks = Array.Empty<string>()
+                Decks = Array.Empty<string>(),
             };
 
             var geometry = ModelGeometryExtractor.Extract(new[] { model });
@@ -179,7 +186,9 @@ m1 d g s b spaced_nfet__model l = l w = w
             Assert.Single(geometry);
             var geom = geometry[0];
 
-            _output.WriteLine($"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}");
+            _output.WriteLine(
+                $"Extracted: WMin={geom.WMin}, WMax={geom.WMax}, LMin={geom.LMin}, LMax={geom.LMax}"
+            );
 
             Assert.NotNull(geom.LMin);
             Assert.NotNull(geom.LMax);
@@ -203,7 +212,8 @@ m1 d g s b spaced_nfet__model l = l w = w
     [Fact]
     public void Extract_SubcktWithDefaults_ExtractsDefaults()
     {
-        var spiceContent = @"
+        var spiceContent =
+            @"
 .subckt  nfet_with_defaults d g s b w=1u l=180n nf=1
 m1 d g s b nfet_with_defaults__model w=w l=l nf=nf
 .model nfet_with_defaults__model nmos level=54
@@ -219,7 +229,7 @@ m1 d g s b nfet_with_defaults__model w=w l=l nf=nf
                 Name = "nfet_with_defaults",
                 ModelType = "subckt",
                 SourceFiles = new[] { tempFile },
-                Decks = Array.Empty<string>()
+                Decks = Array.Empty<string>(),
             };
 
             var geometry = ModelGeometryExtractor.Extract(new[] { model });
@@ -227,7 +237,9 @@ m1 d g s b nfet_with_defaults__model w=w l=l nf=nf
             Assert.Single(geometry);
             var geom = geometry[0];
 
-            _output.WriteLine($"Extracted defaults: WDefault={geom.WDefault}, LDefault={geom.LDefault}, NfDefault={geom.NfDefault}");
+            _output.WriteLine(
+                $"Extracted defaults: WDefault={geom.WDefault}, LDefault={geom.LDefault}, NfDefault={geom.NfDefault}"
+            );
 
             Assert.NotNull(geom.WDefault);
             Assert.NotNull(geom.LDefault);

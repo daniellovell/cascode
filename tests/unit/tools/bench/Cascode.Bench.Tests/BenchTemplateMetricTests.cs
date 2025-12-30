@@ -57,7 +57,8 @@ public class BenchTemplateMetricTests
         var benchesDir = Path.Combine(repoRoot, "lib/std/amp/benches");
 
         // Discover all .cas bench files
-        var casFiles = Directory.GetFiles(benchesDir, "*.cas")
+        var casFiles = Directory
+            .GetFiles(benchesDir, "*.cas")
             .Where(f => !f.EndsWith("Amplifier.cas")) // Skip trait files
             .OrderBy(Path.GetFileName)
             .ToList();
@@ -87,8 +88,9 @@ public class BenchTemplateMetricTests
 
         if (failures.Any())
         {
-            var failureMessage = "The following benches have metric emission issues:\n" +
-                                 string.Join("\n", failures);
+            var failureMessage =
+                "The following benches have metric emission issues:\n"
+                + string.Join("\n", failures);
             Assert.Fail(failureMessage);
         }
     }
@@ -108,7 +110,11 @@ public class BenchTemplateMetricTests
 
         // Match: metrics [ ... ]
         // Looking for lines like "MetricName: Unit," or "MetricName: Unit"
-        var metricsBlockMatch = Regex.Match(content, @"metrics\s*\[\s*(.*?)\s*\]", RegexOptions.Singleline);
+        var metricsBlockMatch = Regex.Match(
+            content,
+            @"metrics\s*\[\s*(.*?)\s*\]",
+            RegexOptions.Singleline
+        );
         if (!metricsBlockMatch.Success)
         {
             throw new InvalidOperationException($"No metrics block found in {casFilePath}");
@@ -124,7 +130,8 @@ public class BenchTemplateMetricTests
                 {
                     var commentStart = line.IndexOf("//", StringComparison.Ordinal);
                     return commentStart >= 0 ? line[..commentStart] : line;
-                }));
+                })
+        );
 
         // Match metric declarations: MetricName: Unit
         var metricMatches = Regex.Matches(strippedMetricsBlock, @"(\w+)\s*:\s*\w+");
@@ -203,8 +210,10 @@ public class BenchTemplateMetricTests
             {
                 // Standalone metrics (no variants) should be emitted unless they look like sweep inputs
                 // Heuristic: metrics starting with "Input" are typically sweep parameters
-                if (!metric.StartsWith("Input", StringComparison.OrdinalIgnoreCase) &&
-                    !metric.Equals("Examples", StringComparison.OrdinalIgnoreCase))
+                if (
+                    !metric.StartsWith("Input", StringComparison.OrdinalIgnoreCase)
+                    && !metric.Equals("Examples", StringComparison.OrdinalIgnoreCase)
+                )
                 {
                     if (!emittedMetrics.Contains(metric))
                     {
@@ -218,7 +227,9 @@ public class BenchTemplateMetricTests
         {
             var benchName = Path.GetFileNameWithoutExtension(casPath);
             var templateName = Path.GetFileName(templatePath);
-            Assert.Fail($"Template {templateName} for bench {benchName} is missing RESULT emission for: {string.Join(", ", missingMetrics)}");
+            Assert.Fail(
+                $"Template {templateName} for bench {benchName} is missing RESULT emission for: {string.Join(", ", missingMetrics)}"
+            );
         }
     }
 }

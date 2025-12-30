@@ -15,7 +15,9 @@ public static class ParserTestHelpers
     public static void AssertNoParseErrors(CascodeSyntaxTree tree)
     {
         var errors = tree.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
-        Assert.True(errors.Count == 0, $"Expected no parse errors but got: {string.Join("; ", errors.Select(e => e.Message))}");
+        Assert.True(
+            errors.Count == 0,
+            $"Expected no parse errors but got: {string.Join("; ", errors.Select(e => e.Message))}"
+        );
     }
 }
-

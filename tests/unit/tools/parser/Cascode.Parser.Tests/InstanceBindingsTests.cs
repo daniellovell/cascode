@@ -11,7 +11,8 @@ public class InstanceBindingsTests
     [Fact]
     public void Parse_InstanceWithSingleBinding_ExtractsBinding()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -36,7 +37,8 @@ motif Test {
     [Fact]
     public void Parse_InstanceWithMultipleBindings_ExtractsAllBindings()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -70,7 +72,8 @@ motif Test {
     [Fact]
     public void Parse_InstanceWithoutBindings_HasEmptyBindingsList()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -93,7 +96,8 @@ motif Test {
     [Fact]
     public void Parse_OTA5TSingleEnded_ExtractsInstanceBindings()
     {
-        const string text = @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+        const string text =
+            @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 motif OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD = 1.8V; ground GND;
@@ -138,4 +142,3 @@ motif OTA5TSingleEnded implements SingleEndedOpAmp {
         Assert.Empty(cm.Bindings);
     }
 }
-

@@ -16,7 +16,12 @@ public static class CascodeHome
     /// <param name="prefix">Prefix for the generated directory name.</param>
     /// <param name="setEnvironmentVariable">Whether to update the process-level CASCODE_HOME variable.</param>
     /// <param name="deleteOnDispose">Whether to delete the directory when the scope ends.</param>
-    public static CascodeHomeScope CreateUnder(string rootDirectory, string prefix = "cascode-home", bool setEnvironmentVariable = true, bool deleteOnDispose = true)
+    public static CascodeHomeScope CreateUnder(
+        string rootDirectory,
+        string prefix = "cascode-home",
+        bool setEnvironmentVariable = true,
+        bool deleteOnDispose = true
+    )
     {
         Directory.CreateDirectory(rootDirectory);
         var candidate = Path.Combine(rootDirectory, $"{prefix}-{Guid.NewGuid():N}");
@@ -29,7 +34,11 @@ public static class CascodeHome
     /// <param name="prefix">Prefix for the generated directory name.</param>
     /// <param name="setEnvironmentVariable">Whether to update the process-level CASCODE_HOME variable.</param>
     /// <param name="deleteOnDispose">Whether to delete the directory when the scope ends.</param>
-    public static CascodeHomeScope CreateInTemp(string prefix = "cascode-home", bool setEnvironmentVariable = true, bool deleteOnDispose = true)
+    public static CascodeHomeScope CreateInTemp(
+        string prefix = "cascode-home",
+        bool setEnvironmentVariable = true,
+        bool deleteOnDispose = true
+    )
     {
         var root = Path.Combine(Path.GetTempPath(), "cascode-tests");
         return CreateUnder(root, prefix, setEnvironmentVariable, deleteOnDispose);
@@ -113,7 +122,8 @@ public sealed class CascodeHomeScope : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
         if (_setEnvironmentVariable)
         {

@@ -19,7 +19,8 @@ public static class ACIRBenchAdapter
         double BiasV,
         double LoadC,
         double SourceOhms,
-        double RloadOhms);
+        double RloadOhms
+    );
 
     /// <summary>
     /// Converts an ACIR circuit and bench config to a TestbenchContext.
@@ -37,7 +38,8 @@ public static class ACIRBenchAdapter
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
-        BenchIncludeResolution? includeResolution = null)
+        BenchIncludeResolution? includeResolution = null
+    )
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bench);
@@ -58,16 +60,18 @@ public static class ACIRBenchAdapter
         var supplyElements = GenerateSupplyElements(circuit);
 
         var designFile = $"{circuit.Name}.sp";
-        var includesWithSection = includeResolution?.WithSection?
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
+        var includesWithSection =
+            includeResolution
+                ?.WithSection?.Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
             ?? new List<string>();
 
-        var includesWithoutSection = includeResolution?.WithoutSection?
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList()
+        var includesWithoutSection =
+            includeResolution
+                ?.WithoutSection?.Where(p => !string.IsNullOrWhiteSpace(p))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
             ?? new List<string>();
 
         if (!includesWithoutSection.Contains(designFile, StringComparer.OrdinalIgnoreCase))
@@ -100,7 +104,7 @@ public static class ACIRBenchAdapter
             ["supply_elements"] = supplyElements,
             ["includes_with_section"] = includesWithSection,
             ["includes_without_section"] = includesWithoutSection,
-            ["section"] = includeResolution?.Section
+            ["section"] = includeResolution?.Section,
         };
 
         // Add sweep conditions - templates access them as sweep.ConditionName
@@ -120,7 +124,7 @@ public static class ACIRBenchAdapter
             Name = bench.Name,
             JobDir = outputDir,
             ResultsCsv = $"{circuit.Name}_{bench.Name}_results.json",
-            TemperatureC = 27.0
+            TemperatureC = 27.0,
         };
 
         return new TestbenchContext
@@ -129,7 +133,7 @@ public static class ACIRBenchAdapter
             WorkspaceRoot = workspaceRoot ?? Directory.GetCurrentDirectory(),
             PdkRoot = string.Empty,
             DeckPaths = Array.Empty<string>(),
-            Args = args
+            Args = args,
         };
     }
 
@@ -144,11 +148,13 @@ public static class ACIRBenchAdapter
         {
             foreach (var supply in circuit.Harness.Supplies)
             {
-                result.Add(new Dictionary<string, object>
-                {
-                    ["net"] = supply.Net,
-                    ["value"] = supply.Value
-                });
+                result.Add(
+                    new Dictionary<string, object>
+                    {
+                        ["net"] = supply.Net,
+                        ["value"] = supply.Value,
+                    }
+                );
             }
         }
 
@@ -156,11 +162,9 @@ public static class ACIRBenchAdapter
         {
             foreach (var bias in circuit.Harness.Biases)
             {
-                result.Add(new Dictionary<string, object>
-                {
-                    ["net"] = bias.Net,
-                    ["value"] = bias.Value
-                });
+                result.Add(
+                    new Dictionary<string, object> { ["net"] = bias.Net, ["value"] = bias.Value }
+                );
             }
         }
 
@@ -187,8 +191,10 @@ public static class ACIRBenchAdapter
             var cs = load.Elements.Where(e => e.Type == "C").Select(e => e.Value).ToList();
             var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
 
-            if (cs.Count > 0) data["cs"] = cs;
-            if (rs.Count > 0) data["rs"] = rs;
+            if (cs.Count > 0)
+                data["cs"] = cs;
+            if (rs.Count > 0)
+                data["rs"] = rs;
 
             // Compute halved values for FD templates (split load across differential outputs)
             if (cs.Count > 0)
@@ -203,9 +209,10 @@ public static class ACIRBenchAdapter
                     else
                     {
                         throw new ArgumentException(
-                            $"Unable to parse capacitance load value '{c}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
-                            "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
-                            paramName: null);
+                            $"Unable to parse capacitance load value '{c}' for net '{load.Net}' in circuit '{circuit.Name}'. "
+                                + "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
+                            paramName: null
+                        );
                     }
                 }
                 data["cs_half"] = csHalf;
@@ -223,9 +230,10 @@ public static class ACIRBenchAdapter
                     else
                     {
                         throw new ArgumentException(
-                            $"Unable to parse resistance load value '{r}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
-                            "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
-                            paramName: null);
+                            $"Unable to parse resistance load value '{r}' for net '{load.Net}' in circuit '{circuit.Name}'. "
+                                + "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
+                            paramName: null
+                        );
                     }
                 }
                 data["rs_half"] = rsHalf;
@@ -260,8 +268,9 @@ public static class ACIRBenchAdapter
             var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
 
             // Check if load is already split (ends with _P or _N)
-            var isAlreadySplit = load.Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase) ||
-                                load.Net.EndsWith("_N", StringComparison.OrdinalIgnoreCase);
+            var isAlreadySplit =
+                load.Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
+                || load.Net.EndsWith("_N", StringComparison.OrdinalIgnoreCase);
 
             if (differential && !isAlreadySplit)
             {
@@ -278,9 +287,10 @@ public static class ACIRBenchAdapter
                     else
                     {
                         throw new ArgumentException(
-                            $"Unable to parse capacitance load value '{cs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
-                            "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
-                            paramName: null);
+                            $"Unable to parse capacitance load value '{cs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. "
+                                + "Value must be a valid number with optional SI prefix (e.g., '1p', '10pF', '500f').",
+                            paramName: null
+                        );
                     }
                 }
 
@@ -296,9 +306,10 @@ public static class ACIRBenchAdapter
                     else
                     {
                         throw new ArgumentException(
-                            $"Unable to parse resistance load value '{rs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. " +
-                            "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
-                            paramName: null);
+                            $"Unable to parse resistance load value '{rs[i]}' for net '{load.Net}' in circuit '{circuit.Name}'. "
+                                + "Value must be a valid number with optional SI prefix (e.g., '1K', '10KOhm', '500').",
+                            paramName: null
+                        );
                     }
                 }
             }
@@ -370,23 +381,25 @@ public static class ACIRBenchAdapter
             if (!TryParseValue(sweep.Start, out var startVal))
             {
                 throw new ArgumentException(
-                    $"Unable to parse sweep start value '{sweep.Start}' for sweep '{sweep.Name}'. " +
-                    "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
-                    paramName: null);
+                    $"Unable to parse sweep start value '{sweep.Start}' for sweep '{sweep.Name}'. "
+                        + "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
+                    paramName: null
+                );
             }
 
             if (!TryParseValue(sweep.Stop, out var stopVal))
             {
                 throw new ArgumentException(
-                    $"Unable to parse sweep stop value '{sweep.Stop}' for sweep '{sweep.Name}'. " +
-                    "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
-                    paramName: null);
+                    $"Unable to parse sweep stop value '{sweep.Stop}' for sweep '{sweep.Name}'. "
+                        + "Value must be a valid number with optional SI prefix (e.g., '0.3V', '1.5V').",
+                    paramName: null
+                );
             }
 
             var sweepData = new Dictionary<string, object>
             {
                 ["start"] = startVal,
-                ["stop"] = stopVal
+                ["stop"] = stopVal,
             };
 
             if (sweep.Step != null)
@@ -399,9 +412,10 @@ public static class ACIRBenchAdapter
             else
             {
                 // Auto-step: compute as (stop - start) / 20, clamped between 10mV and 100mV
-                var range = sweepData["stop"] is double stop && sweepData["start"] is double start
-                    ? Math.Abs(stop - start)
-                    : 0.0;
+                var range =
+                    sweepData["stop"] is double stop && sweepData["start"] is double start
+                        ? Math.Abs(stop - start)
+                        : 0.0;
                 var autoStep = Math.Max(0.01, Math.Min(0.1, range / 20.0));
                 sweepData["step"] = autoStep;
             }
@@ -418,8 +432,9 @@ public static class ACIRBenchAdapter
     /// </summary>
     internal static string DetermineOutNode(Circuit circuit)
     {
-        return circuit.Ports
-            .FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))?.Name
+        return circuit
+                .Ports.FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))
+                ?.Name
             ?? circuit.Ports.FirstOrDefault()?.Name
             ?? "OUT";
     }
@@ -449,11 +464,12 @@ public static class ACIRBenchAdapter
     internal static bool UsesGenericModels(Circuit circuit)
     {
         return circuit.Fill?.Devices?.Any(d =>
-        {
-            var modelName = d.PdkDevice ?? d.DeviceType;
-            return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase) ||
-                   modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
-        }) ?? false;
+            {
+                var modelName = d.PdkDevice ?? d.DeviceType;
+                return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase)
+                    || modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
+            })
+            ?? false;
     }
 
     /// <summary>
@@ -485,8 +501,9 @@ public static class ACIRBenchAdapter
             return supplyVal / 2.0;
 
         throw new InvalidOperationException(
-            $"Unable to parse supply value '{firstSupply.Value}' in harness for circuit '{circuit.Name}'. " +
-            "Value must be a valid number (e.g. '1.8', '1.8V') to automatically determine common-mode voltage.");
+            $"Unable to parse supply value '{firstSupply.Value}' in harness for circuit '{circuit.Name}'. "
+                + "Value must be a valid number (e.g. '1.8', '1.8V') to automatically determine common-mode voltage."
+        );
     }
 
     private static double DeriveLoadCapacitance(Circuit circuit)
@@ -549,17 +566,27 @@ public static class ACIRBenchAdapter
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
-        BenchIncludeResolution? includeResolution = null)
+        BenchIncludeResolution? includeResolution = null
+    )
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bench);
 
         var harness = new ACIRTemplateHarness();
-        var context = ToTestbenchContext(circuit, bench, backend, outputDir, workspaceRoot, includeResolution);
+        var context = ToTestbenchContext(
+            circuit,
+            bench,
+            backend,
+            outputDir,
+            workspaceRoot,
+            includeResolution
+        );
         var plan = harness.BuildPlan(context);
 
         // Find template
-        var templatePath = plan.Data.TryGetValue("template_path", out var tp) ? tp?.ToString() : null;
+        var templatePath = plan.Data.TryGetValue("template_path", out var tp)
+            ? tp?.ToString()
+            : null;
         if (string.IsNullOrWhiteSpace(templatePath) || !File.Exists(templatePath))
         {
             throw new InvalidOperationException($"Template not found: {templatePath}");
@@ -570,8 +597,9 @@ public static class ACIRBenchAdapter
         if (string.IsNullOrWhiteSpace(templateText))
         {
             throw new InvalidOperationException(
-                $"Template file is empty: {templatePath}. " +
-                $"Bench '{bench.Name}' requires a valid template with content.");
+                $"Template file is empty: {templatePath}. "
+                    + $"Bench '{bench.Name}' requires a valid template with content."
+            );
         }
 
         // Get template model from plan
@@ -586,8 +614,9 @@ public static class ACIRBenchAdapter
         if (string.IsNullOrWhiteSpace(netlistText))
         {
             throw new InvalidOperationException(
-                $"Template rendering produced empty output for bench '{bench.Name}'. " +
-                $"Template: {templatePath}");
+                $"Template rendering produced empty output for bench '{bench.Name}'. "
+                    + $"Template: {templatePath}"
+            );
         }
 
         // Write files
@@ -596,7 +625,13 @@ public static class ACIRBenchAdapter
         File.WriteAllText(netlistPath, netlistText);
 
         var specPath = Path.Combine(outputDir, "spec.json");
-        File.WriteAllText(specPath, System.Text.Json.JsonSerializer.Serialize(context.Spec, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(
+            specPath,
+            System.Text.Json.JsonSerializer.Serialize(
+                context.Spec,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+            )
+        );
 
         return new TestbenchFiles
         {
@@ -604,7 +639,7 @@ public static class ACIRBenchAdapter
             NetlistPath = netlistPath,
             SpecPath = specPath,
             ResultsCsv = context.Spec.ResultsCsv,
-            RunnerPath = string.Empty
+            RunnerPath = string.Empty,
         };
     }
 
@@ -625,7 +660,8 @@ public static class ACIRBenchAdapter
 
         // Check for highpass constraint (AC-coupled amplifier)
         var hpConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
-            c.Metric.Equals("HighpassBandwidth", StringComparison.OrdinalIgnoreCase));
+            c.Metric.Equals("HighpassBandwidth", StringComparison.OrdinalIgnoreCase)
+        );
 
         double acStartHz;
         if (hpConstraint != null && TryParseConstraintValue(hpConstraint.Value, out var hpHz))
@@ -641,10 +677,11 @@ public static class ACIRBenchAdapter
 
         // Determine stop frequency from GBW or bandwidth constraints
         var gbwConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
-            c.Metric.Equals("GainBandwidth", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("GBW", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("UGF", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("UnityGainFrequency", StringComparison.OrdinalIgnoreCase));
+            c.Metric.Equals("GainBandwidth", StringComparison.OrdinalIgnoreCase)
+            || c.Metric.Equals("GBW", StringComparison.OrdinalIgnoreCase)
+            || c.Metric.Equals("UGF", StringComparison.OrdinalIgnoreCase)
+            || c.Metric.Equals("UnityGainFrequency", StringComparison.OrdinalIgnoreCase)
+        );
 
         if (gbwConstraint != null && TryParseConstraintValue(gbwConstraint.Value, out var gbwHz))
         {
@@ -655,9 +692,10 @@ public static class ACIRBenchAdapter
 
         // Look for bandwidth-related constraints
         var bwConstraint = circuit.Constraints.Numeric.FirstOrDefault(c =>
-            c.Metric.Equals("Bandwidth", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("3dBBandwidth", StringComparison.OrdinalIgnoreCase) ||
-            c.Metric.Equals("LowpassBandwidth", StringComparison.OrdinalIgnoreCase));
+            c.Metric.Equals("Bandwidth", StringComparison.OrdinalIgnoreCase)
+            || c.Metric.Equals("3dBBandwidth", StringComparison.OrdinalIgnoreCase)
+            || c.Metric.Equals("LowpassBandwidth", StringComparison.OrdinalIgnoreCase)
+        );
 
         if (bwConstraint != null && TryParseConstraintValue(bwConstraint.Value, out var bwHz))
         {
@@ -672,7 +710,11 @@ public static class ACIRBenchAdapter
     /// Derives the optimal passband measurement frequency from circuit constraints.
     /// Uses HP/LP corner constraints or infers from GBW and gain constraints.
     /// </summary>
-    private static double DerivePassbandMeasurementFrequency(Circuit circuit, double acStartHz, double acStopHz)
+    private static double DerivePassbandMeasurementFrequency(
+        Circuit circuit,
+        double acStartHz,
+        double acStopHz
+    )
     {
         const double DcCoupledHpCorner = 1.0; // DC-coupled amps: passband starts at ~1Hz
         var constraints = circuit.Constraints?.Numeric ?? new List<NumericConstraint>();
@@ -687,7 +729,13 @@ public static class ACIRBenchAdapter
         if (lpCorner == null)
         {
             // Infer from GBW and PassbandGain
-            var gbwHz = GetConstraintHz(constraints, "GainBandwidth", "GBW", "UGF", "UnityGainFrequency");
+            var gbwHz = GetConstraintHz(
+                constraints,
+                "GainBandwidth",
+                "GBW",
+                "UGF",
+                "UnityGainFrequency"
+            );
             var gainDb = GetConstraintValue(constraints, "PassbandGain", "Gain");
 
             if (gbwHz != null && gainDb != null)
@@ -717,12 +765,16 @@ public static class ACIRBenchAdapter
     /// <summary>
     /// Gets constraint value in Hz by searching for metric names (case-insensitive).
     /// </summary>
-    private static double? GetConstraintHz(IEnumerable<NumericConstraint> constraints, params string[] metricNames)
+    private static double? GetConstraintHz(
+        IEnumerable<NumericConstraint> constraints,
+        params string[] metricNames
+    )
     {
         foreach (var name in metricNames)
         {
             var constraint = constraints.FirstOrDefault(c =>
-                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase));
+                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase)
+            );
 
             if (constraint != null && TryParseConstraintValue(constraint.Value, out var value))
             {
@@ -735,12 +787,16 @@ public static class ACIRBenchAdapter
     /// <summary>
     /// Gets constraint value (unitless) by searching for metric names.
     /// </summary>
-    private static double? GetConstraintValue(IEnumerable<NumericConstraint> constraints, params string[] metricNames)
+    private static double? GetConstraintValue(
+        IEnumerable<NumericConstraint> constraints,
+        params string[] metricNames
+    )
     {
         foreach (var name in metricNames)
         {
             var constraint = constraints.FirstOrDefault(c =>
-                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase));
+                c.Metric.Equals(name, StringComparison.OrdinalIgnoreCase)
+            );
 
             if (constraint != null && TryParseConstraintValue(constraint.Value, out var value))
             {
@@ -789,7 +845,7 @@ public static class ACIRBenchAdapter
             >= 1e-6 => (1e-6, "u"),
             >= 1e-9 => (1e-9, "n"),
             >= 1e-12 => (1e-12, "p"),
-            _ => (1e-15, "f")
+            _ => (1e-15, "f"),
         };
 
         var scaled = absValue / divisor;
@@ -808,7 +864,12 @@ public static class ACIRBenchAdapter
     /// <param name="result">Parsed numeric result.</param>
     /// <param name="stripUnits">Whether to strip unit suffixes (V, F, ohm, Hz, etc.).</param>
     /// <param name="allowSubUnity">Whether to recognize sub-unity prefixes (m, u, n, p, f).</param>
-    private static bool TryParseSIValue(string valueStr, out double result, bool stripUnits, bool allowSubUnity)
+    private static bool TryParseSIValue(
+        string valueStr,
+        out double result,
+        bool stripUnits,
+        bool allowSubUnity
+    )
     {
         result = 0;
         if (string.IsNullOrWhiteSpace(valueStr))
@@ -848,7 +909,7 @@ public static class ACIRBenchAdapter
                 'N' when allowSubUnity => 1e-9,
                 'P' when allowSubUnity => 1e-12,
                 'F' when allowSubUnity => 1e-15,
-                _ => 1.0
+                _ => 1.0,
             };
 
             // Handle lowercase 'm' for milli separately (uppercase 'M' is mega)
@@ -863,8 +924,14 @@ public static class ACIRBenchAdapter
             }
         }
 
-        if (double.TryParse(cleanedValue, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        if (
+            double.TryParse(
+                cleanedValue,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed
+            )
+        )
         {
             result = parsed * multiplier;
             return true;

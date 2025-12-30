@@ -27,7 +27,12 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
     /// <summary>
     /// Creates a device with the given cell name and class.
     /// </summary>
-    private static Device CreateDevice(string cellName, DeviceClass deviceClass, string? vtTag = null, string? vddTag = null)
+    private static Device CreateDevice(
+        string cellName,
+        DeviceClass deviceClass,
+        string? vtTag = null,
+        string? vddTag = null
+    )
     {
         return new Device
         {
@@ -41,14 +46,20 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
             Views = new[] { "layout", "symbol", "spectre" },
             VtTags = vtTag is null ? Array.Empty<string>() : new[] { vtTag },
             VddTags = vddTag is null ? Array.Empty<string>() : new[] { vddTag },
-            Tags = Array.Empty<string>()
+            Tags = Array.Empty<string>(),
         };
     }
 
     /// <summary>
     /// Creates a model with the given name and class.
     /// </summary>
-    private static SpectreModel CreateModel(string name, DeviceClass deviceClass, string modelType = "subckt", string? voltageDomain = null, string? thresholdFlavor = null)
+    private static SpectreModel CreateModel(
+        string name,
+        DeviceClass deviceClass,
+        string modelType = "subckt",
+        string? voltageDomain = null,
+        string? thresholdFlavor = null
+    )
     {
         return new SpectreModel(
             name,
@@ -60,7 +71,8 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
-            Array.Empty<string>());
+            Array.Empty<string>()
+        );
     }
 
     [Fact]
@@ -143,7 +155,10 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
 
         // nfet_g5v0d10v5 should match sky130_fd_pr__nfet_g5v0d10v5
         Assert.True(matchDict.ContainsKey("sky130_fd_pr_main__nfet_g5v0d10v5"));
-        Assert.Equal("sky130_fd_pr__nfet_g5v0d10v5", matchDict["sky130_fd_pr_main__nfet_g5v0d10v5"]);
+        Assert.Equal(
+            "sky130_fd_pr__nfet_g5v0d10v5",
+            matchDict["sky130_fd_pr_main__nfet_g5v0d10v5"]
+        );
     }
 
     [Fact]
@@ -168,7 +183,9 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
         // Assert: Should not match a standard device to a native model
         // The matching should either return no match or a low-quality class-based match
         // that would be filtered by MinAcceptScore
-        var nfet01v8Matches = matches.Where(m => m.DeviceCanonicalName == "sky130_fd_pr_main__nfet_01v8").ToList();
+        var nfet01v8Matches = matches
+            .Where(m => m.DeviceCanonicalName == "sky130_fd_pr_main__nfet_01v8")
+            .ToList();
 
         // If there are matches, they should NOT be to native models
         foreach (var match in nfet01v8Matches)
@@ -247,4 +264,3 @@ public sealed class DeviceModelMatcherSky130Tests : IDisposable
         Assert.Equal("sky130_fd_pr__nfet_20v0", matches[0].ModelName);
     }
 }
-

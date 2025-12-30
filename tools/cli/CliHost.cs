@@ -1,11 +1,11 @@
-using Cascode.Cli.Services;
-using Cascode.Workspace;
-using Microsoft.Extensions.Logging;
-using Spectre.Console;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Cascode.Cli.Services;
+using Cascode.Workspace;
+using Microsoft.Extensions.Logging;
+using Spectre.Console;
 
 namespace Cascode.Cli;
 
@@ -38,7 +38,14 @@ internal sealed class CliHost
     private void RegisterCommands()
     {
         new Commands.SystemCommandModule(_state).Register(_commands);
-        new Commands.PdkCommandModule(_state, _scanner, _config, _configStorage, _initialWorkspaceRoot, () => _isInteractive).Register(_commands);
+        new Commands.PdkCommandModule(
+            _state,
+            _scanner,
+            _config,
+            _configStorage,
+            _initialWorkspaceRoot,
+            () => _isInteractive
+        ).Register(_commands);
         new Commands.CharacterizationCommandModule(_state).Register(_commands);
         new Commands.BenchCommandModule(_state).Register(_commands);
         new Commands.BuildCommandModule(_state).Register(_commands);
@@ -79,7 +86,10 @@ internal sealed class CliHost
             }
 
             var result = Execute(tokens);
-            if (!result.ExitImmediate && !tokens[0].Equals("log", StringComparison.OrdinalIgnoreCase))
+            if (
+                !result.ExitImmediate
+                && !tokens[0].Equals("log", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 _state.PinLog();
             }
@@ -99,7 +109,10 @@ internal sealed class CliHost
             // In non-interactive mode, prefer concise, user-focused output via ShellState messages.
             // Keep the console logger for warnings/errors only.
             builder.SetMinimumLevel(LogLevel.Warning);
-            builder.AddSimpleConsole(o => { o.SingleLine = true; });
+            builder.AddSimpleConsole(o =>
+            {
+                o.SingleLine = true;
+            });
         });
         _state.SetLoggerFactory(loggerFactory);
 
@@ -126,7 +139,10 @@ internal sealed class CliHost
             return CommandResult.Success;
         }
 
-        if (_commands.TryResolve(tokens, out var descriptor, out var args, out var matchedLength) && descriptor is not null)
+        if (
+            _commands.TryResolve(tokens, out var descriptor, out var args, out var matchedLength)
+            && descriptor is not null
+        )
         {
             return descriptor.Handler(args);
         }
@@ -150,7 +166,12 @@ internal sealed class CliHost
             return false;
         }
 
-        var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(view.DetailFilters, newOffset, pageSize, view.DetailRows.Count);
+        var summaryLine = DeviceSummaryHelpers.BuildDetailSummaryLine(
+            view.DetailFilters,
+            newOffset,
+            pageSize,
+            view.DetailRows.Count
+        );
         var updatedView = view.WithDetail(newOffset, summaryLine);
         _state.ReplaceDeviceSummary(updatedView);
         return true;
@@ -198,8 +219,11 @@ internal sealed class CliHost
                 var width = suggestions.Max(s => s.DisplayPath.Length);
                 foreach (var suggestion in suggestions)
                 {
-                    var padded = width > 0 ? suggestion.DisplayPath.PadRight(width) : suggestion.DisplayPath;
-                    var description = string.IsNullOrEmpty(suggestion.Description) ? string.Empty : $"  {suggestion.Description}";
+                    var padded =
+                        width > 0 ? suggestion.DisplayPath.PadRight(width) : suggestion.DisplayPath;
+                    var description = string.IsNullOrEmpty(suggestion.Description)
+                        ? string.Empty
+                        : $"  {suggestion.Description}";
                     _state.AddMessage($"  {padded}{description}");
                 }
             }

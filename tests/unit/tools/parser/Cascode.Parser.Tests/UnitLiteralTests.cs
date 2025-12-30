@@ -18,9 +18,14 @@ public class UnitLiteralTests
     [InlineData("1mW", 1.0, "mW")]
     [InlineData("2pF", 2.0, "pF")]
     [InlineData("180nm", 180.0, "nm")]
-    public void Parse_SupplyWithUnitLiteral_ExtractsValueAndUnit(string literal, double expectedValue, string expectedUnit)
+    public void Parse_SupplyWithUnitLiteral_ExtractsValueAndUnit(
+        string literal,
+        double expectedValue,
+        string expectedUnit
+    )
     {
-        var text = $@"
+        var text =
+            $@"
 package test;
 motif Test {{
     supply VDD = {literal};
@@ -43,9 +48,13 @@ motif Test {{
     [InlineData("5", 5.0)]
     [InlineData("1.8", 1.8)]
     [InlineData("0.9", 0.9)]
-    public void Parse_SupplyWithBareNumeric_ExtractsValueWithoutUnit(string literal, double expectedValue)
+    public void Parse_SupplyWithBareNumeric_ExtractsValueWithoutUnit(
+        string literal,
+        double expectedValue
+    )
     {
-        var text = $@"
+        var text =
+            $@"
 package test;
 motif Test {{
     supply VDD = {literal};
@@ -67,7 +76,8 @@ motif Test {{
     [Fact]
     public void Parse_SupplyWithoutValue_HasNullValue()
     {
-        const string text = @"
+        const string text =
+            @"
 package test;
 motif Test {
     supply VDD;
@@ -88,7 +98,8 @@ motif Test {
     public void Parse_OTA5TSingleEnded_ParsesWithoutErrors()
     {
         // This is the actual OTA5TSingleEnded.cas content that was previously failing
-        const string text = @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+        const string text =
+            @"package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 // Five-transistor OTA (single-ended) built from DiffPair + CurrentMirror.
 // Synthesizable structural motif (no spec/bench blocks here).
@@ -133,7 +144,8 @@ motif OTA5TSingleEnded implements SingleEndedOpAmp {
     [InlineData("1000")]
     public void Parse_SupplyWithIntegerLiteral_ExtractsValue(string literal)
     {
-        var text = $@"
+        var text =
+            $@"
 package test;
 motif Test {{
     supply VDD = {literal};
@@ -147,8 +159,10 @@ motif Test {{
         var supply = motif.Supplies.Single();
 
         Assert.NotNull(supply.Value);
-        Assert.Equal(double.Parse(literal, CultureInfo.InvariantCulture), supply.Value!.NumericValue);
+        Assert.Equal(
+            double.Parse(literal, CultureInfo.InvariantCulture),
+            supply.Value!.NumericValue
+        );
         Assert.Null(supply.Value.Unit);
     }
 }
-

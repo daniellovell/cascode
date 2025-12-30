@@ -8,4 +8,3 @@ public interface ISpiceBackend
     // Render the netlist text for the given context and harness-generated plan.
     string RenderNetlist(TestbenchContext ctx, TestbenchPlan plan);
 }
-

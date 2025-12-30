@@ -15,7 +15,12 @@ public class TemplateDiscoveryTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var startDir = Path.Combine(repoRoot, "tests/golden/acir/ota");
 
-        var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", BenchBackendType.Ngspice, startDir, repoRoot);
+        var templatePath = TemplateDiscovery.FindTemplate(
+            "SEOpAmpACBench",
+            BenchBackendType.Ngspice,
+            startDir,
+            repoRoot
+        );
 
         Assert.NotNull(templatePath);
         Assert.True(File.Exists(templatePath), $"Template not found at {templatePath}");
@@ -28,7 +33,12 @@ public class TemplateDiscoveryTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var startDir = Path.Combine(repoRoot, "tests/golden/acir/ota");
 
-        var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", BenchBackendType.Spectre, startDir, repoRoot);
+        var templatePath = TemplateDiscovery.FindTemplate(
+            "SEOpAmpACBench",
+            BenchBackendType.Spectre,
+            startDir,
+            repoRoot
+        );
 
         Assert.NotNull(templatePath);
         Assert.True(File.Exists(templatePath), $"Template not found at {templatePath}");
@@ -40,8 +50,18 @@ public class TemplateDiscoveryTests
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
 
-        var ngspicePath = TemplateDiscovery.FindTemplate("SEAmpACBench", BenchBackendType.Ngspice, null, repoRoot);
-        var spectrePath = TemplateDiscovery.FindTemplate("SEAmpACBench", BenchBackendType.Spectre, null, repoRoot);
+        var ngspicePath = TemplateDiscovery.FindTemplate(
+            "SEAmpACBench",
+            BenchBackendType.Ngspice,
+            null,
+            repoRoot
+        );
+        var spectrePath = TemplateDiscovery.FindTemplate(
+            "SEAmpACBench",
+            BenchBackendType.Spectre,
+            null,
+            repoRoot
+        );
 
         Assert.NotNull(ngspicePath);
         Assert.NotNull(spectrePath);
@@ -60,7 +80,12 @@ public class TemplateDiscoveryTests
         // Start from a directory that doesn't have a local benches/ folder
         var startDir = Path.Combine(repoRoot, "tests/golden/acir");
 
-        var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", BenchBackendType.Ngspice, startDir, repoRoot);
+        var templatePath = TemplateDiscovery.FindTemplate(
+            "SEOpAmpACBench",
+            BenchBackendType.Ngspice,
+            startDir,
+            repoRoot
+        );
 
         Assert.NotNull(templatePath);
         // Should fall back to lib/std/amp/benches since no local benches/ exists
@@ -72,7 +97,12 @@ public class TemplateDiscoveryTests
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
 
-        var templatePath = TemplateDiscovery.FindTemplate("NonexistentBench", BenchBackendType.Ngspice, null, repoRoot);
+        var templatePath = TemplateDiscovery.FindTemplate(
+            "NonexistentBench",
+            BenchBackendType.Ngspice,
+            null,
+            repoRoot
+        );
 
         Assert.Null(templatePath);
     }
@@ -80,9 +110,15 @@ public class TemplateDiscoveryTests
     [Fact]
     public void FindTemplate_NullOrEmptyBenchName_ThrowsArgumentException()
     {
-        Assert.ThrowsAny<ArgumentException>(() => TemplateDiscovery.FindTemplate(null!, BenchBackendType.Ngspice));
-        Assert.ThrowsAny<ArgumentException>(() => TemplateDiscovery.FindTemplate("", BenchBackendType.Ngspice));
-        Assert.ThrowsAny<ArgumentException>(() => TemplateDiscovery.FindTemplate("   ", BenchBackendType.Ngspice));
+        Assert.ThrowsAny<ArgumentException>(() =>
+            TemplateDiscovery.FindTemplate(null!, BenchBackendType.Ngspice)
+        );
+        Assert.ThrowsAny<ArgumentException>(() =>
+            TemplateDiscovery.FindTemplate("", BenchBackendType.Ngspice)
+        );
+        Assert.ThrowsAny<ArgumentException>(() =>
+            TemplateDiscovery.FindTemplate("   ", BenchBackendType.Ngspice)
+        );
     }
 
     [Fact]
@@ -92,7 +128,12 @@ public class TemplateDiscoveryTests
         // Starting from a temp directory that has no benches/ folders above it
         var tempDir = Path.GetTempPath();
 
-        var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", BenchBackendType.Ngspice, tempDir, null);
+        var templatePath = TemplateDiscovery.FindTemplate(
+            "SEOpAmpACBench",
+            BenchBackendType.Ngspice,
+            tempDir,
+            null
+        );
 
         Assert.Null(templatePath);
     }
@@ -104,26 +145,41 @@ public class TemplateDiscoveryTests
         var benchesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
 
         // Discover all benches that have both ngspice and spectre templates
-        var ngspiceTemplates = Directory.GetFiles(benchesDir, "*.ngspice.tpl")
+        var ngspiceTemplates = Directory
+            .GetFiles(benchesDir, "*.ngspice.tpl")
             .Select(f => Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(f)))
             .ToHashSet();
 
-        var spectreTemplates = Directory.GetFiles(benchesDir, "*.spectre.tpl")
+        var spectreTemplates = Directory
+            .GetFiles(benchesDir, "*.spectre.tpl")
             .Select(f => Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(f)))
             .ToHashSet();
 
         // Only test benches that have BOTH backends implemented
-        var benchesWithBothBackends = ngspiceTemplates.Intersect(spectreTemplates).OrderBy(b => b).ToList();
+        var benchesWithBothBackends = ngspiceTemplates
+            .Intersect(spectreTemplates)
+            .OrderBy(b => b)
+            .ToList();
 
         Assert.NotEmpty(benchesWithBothBackends); // Ensure we found at least some benches
 
         foreach (var benchName in benchesWithBothBackends)
         {
-            var ngspicePath = TemplateDiscovery.FindTemplate(benchName, BenchBackendType.Ngspice, null, repoRoot);
+            var ngspicePath = TemplateDiscovery.FindTemplate(
+                benchName,
+                BenchBackendType.Ngspice,
+                null,
+                repoRoot
+            );
             Assert.NotNull(ngspicePath);
             Assert.True(File.Exists(ngspicePath), $"Ngspice template for {benchName} not found");
 
-            var spectrePath = TemplateDiscovery.FindTemplate(benchName, BenchBackendType.Spectre, null, repoRoot);
+            var spectrePath = TemplateDiscovery.FindTemplate(
+                benchName,
+                BenchBackendType.Spectre,
+                null,
+                repoRoot
+            );
             Assert.NotNull(spectrePath);
             Assert.True(File.Exists(spectrePath), $"Spectre template for {benchName} not found");
         }
@@ -138,12 +194,19 @@ public class TemplateDiscoveryTests
         // if neither spectre nor ngspice is on PATH
         try
         {
-            var templatePath = TemplateDiscovery.FindTemplate("SEOpAmpACBench", null, null, repoRoot);
+            var templatePath = TemplateDiscovery.FindTemplate(
+                "SEOpAmpACBench",
+                null,
+                null,
+                repoRoot
+            );
 
             // If we got here, auto-detection succeeded
             Assert.NotNull(templatePath);
             Assert.True(File.Exists(templatePath));
-            Assert.True(templatePath.EndsWith(".ngspice.tpl") || templatePath.EndsWith(".spectre.tpl"));
+            Assert.True(
+                templatePath.EndsWith(".ngspice.tpl") || templatePath.EndsWith(".spectre.tpl")
+            );
         }
         catch (InvalidOperationException ex)
         {
@@ -152,4 +215,3 @@ public class TemplateDiscoveryTests
         }
     }
 }
-

@@ -26,8 +26,10 @@ public class NgspiceTemplateSyntaxTests
 
         // Pattern matches: meas dc <varname> param='...<v(...)>...' or similar with i(...)
         // This catches the invalid syntax where vectors are used in param expressions
-        var invalidPattern = new Regex(@"meas\s+dc\s+\w+\s+param\s*=\s*['""][^'""]*[vi]\([^'""]+\)['""]",
-            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        var invalidPattern = new Regex(
+            @"meas\s+dc\s+\w+\s+param\s*=\s*['""][^'""]*[vi]\([^'""]+\)['""]",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline
+        );
 
         foreach (var templatePath in ngspiceTemplates)
         {
@@ -51,8 +53,10 @@ public class NgspiceTemplateSyntaxTests
         // Pattern matches: let pwr_... = v(...)*(-i(V...))
         // Accounts for Scriban template syntax like {{ supply.net }}
         // Character class includes \w (word chars), {}, ., and spaces
-        var validLetPattern = new Regex(@"let\s+pwr_[\w\{\}\.\s]+\s*=\s*v\([^)]+\)\s*\*\s*\(\s*-i\([^)]+\)\s*\)",
-            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+        var validLetPattern = new Regex(
+            @"let\s+pwr_[\w\{\}\.\s]+\s*=\s*v\([^)]+\)\s*\*\s*\(\s*-i\([^)]+\)\s*\)",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline
+        );
 
         var dcBenchTemplates = ngspiceTemplates.Where(t => t.Contains("DCBench")).ToArray();
         Assert.NotEmpty(dcBenchTemplates); // Ensure we have DC bench templates to test
@@ -97,7 +101,8 @@ public class NgspiceTemplateSyntaxTests
 
         Assert.True(
             resultEchoLineCount > 0,
-            "No RESULT echo statements were found in the ngspice templates; test did not validate anything.");
+            "No RESULT echo statements were found in the ngspice templates; test did not validate anything."
+        );
     }
 
     [Fact]
@@ -112,7 +117,8 @@ public class NgspiceTemplateSyntaxTests
 
         var invalidForeachRangePattern = new Regex(
             @"^\s*foreach\s+\w+\s+\$&\w+_start\s+\$&\w+_stop\s+\$&\w+_step\b",
-            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            RegexOptions.IgnoreCase | RegexOptions.Multiline
+        );
 
         foreach (var templatePath in ngspiceTemplates)
         {

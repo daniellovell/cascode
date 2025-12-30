@@ -7,7 +7,6 @@ namespace Cascode.Workspace;
 
 internal static class NameNormalization
 {
-
     /// <summary>
     /// Classifies a component or cell name into a DeviceClass category.
     /// </summary>
@@ -19,7 +18,8 @@ internal static class NameNormalization
     /// </returns>
     public static DeviceClass ClassifyByName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return DeviceClass.Unknown;
+        if (string.IsNullOrWhiteSpace(name))
+            return DeviceClass.Unknown;
 
         var lower = name.ToLowerInvariant();
 
@@ -35,7 +35,8 @@ internal static class NameNormalization
     /// <remarks>Matching is case-insensitive and uses known prefixes for standard-cell subclasses and substring checks for capacitor and resistor subclasses.</remarks>
     public static DeviceSubclass ClassifySubclass(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return DeviceSubclass.Unknown;
+        if (string.IsNullOrWhiteSpace(name))
+            return DeviceSubclass.Unknown;
 
         var lower = name.ToLowerInvariant();
 
@@ -55,9 +56,11 @@ internal static class NameNormalization
         var vtTokens = PdkMatchingConfigManager.Load().Normalization.VtTokens;
         foreach (var vt in vtTokens)
         {
-            if (lower.Contains("_" + vt) || lower.EndsWith(vt, StringComparison.Ordinal)) tags.Add(vt.ToUpperInvariant());
+            if (lower.Contains("_" + vt) || lower.EndsWith(vt, StringComparison.Ordinal))
+                tags.Add(vt.ToUpperInvariant());
         }
-        if (tags.Count == 0) tags.Add("SVT");
+        if (tags.Count == 0)
+            tags.Add("SVT");
         return tags;
     }
 
@@ -80,7 +83,8 @@ internal static class NameNormalization
 
     private static DeviceClass TryClassifyFromConfig(string lower, PdkMatchingConfig cfg)
     {
-        if (cfg.Classify.Classes.Count == 0) return DeviceClass.Unknown;
+        if (cfg.Classify.Classes.Count == 0)
+            return DeviceClass.Unknown;
 
         string? bestKey = null;
         int bestScore = int.MinValue;
@@ -95,13 +99,15 @@ internal static class NameNormalization
             }
         }
 
-        if (bestKey is null) return DeviceClass.Unknown;
+        if (bestKey is null)
+            return DeviceClass.Unknown;
         return MapClass(bestKey);
     }
 
     private static DeviceSubclass TrySubclassFromConfig(string lower, PdkMatchingConfig cfg)
     {
-        if (cfg.Classify.Subclasses.Count == 0) return DeviceSubclass.Unknown;
+        if (cfg.Classify.Subclasses.Count == 0)
+            return DeviceSubclass.Unknown;
 
         // Restrict subclass patterns to the primary class for this name
         var parentClass = TryClassifyFromConfig(lower, cfg);
@@ -119,15 +125,24 @@ internal static class NameNormalization
                     bestKey = sub.Key;
                 }
             }
-            if (bestKey is not null && bestScore > int.MinValue) return MapSubclass(bestKey);
+            if (bestKey is not null && bestScore > int.MinValue)
+                return MapSubclass(bestKey);
         }
         return DeviceSubclass.Unknown;
     }
 
     private static int MatchScore(PdkMatchingConfig.ClassPattern pattern, string lower)
     {
-        if (pattern.ExcludeContains is not null && pattern.ExcludeContains.Any(tok => lower.Contains(tok))) return int.MinValue;
-        if (pattern.ExcludeRegex is not null && pattern.ExcludeRegex.Any(rx => Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase))) return int.MinValue;
+        if (
+            pattern.ExcludeContains is not null
+            && pattern.ExcludeContains.Any(tok => lower.Contains(tok))
+        )
+            return int.MinValue;
+        if (
+            pattern.ExcludeRegex is not null
+            && pattern.ExcludeRegex.Any(rx => Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase))
+        )
+            return int.MinValue;
 
         int score = int.MinValue;
 
@@ -135,21 +150,24 @@ internal static class NameNormalization
         {
             foreach (var p in pattern.Prefixes)
             {
-                if (lower.StartsWith(p)) score = Math.Max(score, 300 + p.Length);
+                if (lower.StartsWith(p))
+                    score = Math.Max(score, 300 + p.Length);
             }
         }
         if (pattern.Contains is not null)
         {
             foreach (var c in pattern.Contains)
             {
-                if (lower.Contains(c)) score = Math.Max(score, 200 + c.Length);
+                if (lower.Contains(c))
+                    score = Math.Max(score, 200 + c.Length);
             }
         }
         if (pattern.Regex is not null)
         {
             foreach (var rx in pattern.Regex)
             {
-                if (Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase)) score = Math.Max(score, 250);
+                if (Regex.IsMatch(lower, rx, RegexOptions.IgnoreCase))
+                    score = Math.Max(score, 250);
             }
         }
 
@@ -170,7 +188,7 @@ internal static class NameNormalization
             "moscap" => DeviceClass.Capacitor,
             "transmissionline" or "tline" => DeviceClass.TransmissionLine,
             "stdcell" => DeviceClass.Stdcell,
-            _ => DeviceClass.Other
+            _ => DeviceClass.Other,
         };
     }
 
@@ -205,7 +223,7 @@ internal static class NameNormalization
             // MOS device subclasses
             "deepnwell" => DeviceSubclass.DeepNwell,
             "rf" => DeviceSubclass.RF,
-            _ => DeviceSubclass.Unknown
+            _ => DeviceSubclass.Unknown,
         };
     }
 }

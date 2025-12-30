@@ -18,11 +18,7 @@ public class EmissionValidatorTests
     [Fact]
     public void Validate_NonELCircuit_ReturnsEMIT005()
     {
-        var circuit = new Circuit
-        {
-            Name = "TestCircuit",
-            Level = ACIRLevel.ML
-        };
+        var circuit = new Circuit { Name = "TestCircuit", Level = ACIRLevel.ML };
 
         var result = EmissionValidator.Validate(circuit);
 
@@ -44,7 +40,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -59,16 +55,12 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             // Missing G
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -89,7 +81,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -103,17 +95,13 @@ public class EmissionValidatorTests
                         {
                             { "D", "OUT" },
                             { "G", "IN" },
-                            { "S", "VDD" }
+                            { "S", "VDD" },
                             // Missing B
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -134,7 +122,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -149,22 +137,21 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "NONEXISTENT_NET" }, // Invalid reference
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-002" && e.Message.Contains("NONEXISTENT_NET"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-002" && e.Message.Contains("NONEXISTENT_NET")
+        );
     }
 
     [Fact]
@@ -179,7 +166,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -194,16 +181,16 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
                         Params = new Dictionary<string, string>
                         {
                             // Missing W
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                            { "L", "180n" },
+                        },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -224,7 +211,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -239,16 +226,16 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "VDD" },
-                            { "B", "VDD" }
+                            { "B", "VDD" },
                         },
                         Params = new Dictionary<string, string>
                         {
-                            { "W", "2u" }
+                            { "W", "2u" },
                             // Missing L
-                        }
-                    }
-                }
-            }
+                        },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -269,7 +256,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -279,21 +266,20 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "unknown_device",
                         Id = "X1",
-                        Bindings = new Dictionary<string, string>
-                        {
-                            { "A", "IN" },
-                            { "B", "OUT" }
-                        },
-                        Params = new Dictionary<string, string>()
-                    }
-                }
-            }
+                        Bindings = new Dictionary<string, string> { { "A", "IN" }, { "B", "OUT" } },
+                        Params = new Dictionary<string, string>(),
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-004" && e.Message.Contains("unknown_device"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-004" && e.Message.Contains("unknown_device")
+        );
     }
 
     [Fact]
@@ -307,7 +293,7 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -319,16 +305,13 @@ public class EmissionValidatorTests
                         Id = "R1",
                         Bindings = new Dictionary<string, string>
                         {
-                            { "P", "VDD" }
+                            { "P", "VDD" },
                             // Missing N
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "R", "10k" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "R", "10k" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -348,7 +331,7 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -361,13 +344,13 @@ public class EmissionValidatorTests
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
-                            { "N", "OUT" }
+                            { "N", "OUT" },
                         },
-                        Params = new Dictionary<string, string>()
+                        Params = new Dictionary<string, string>(),
                         // Missing R
-                    }
-                }
-            }
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -387,7 +370,7 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -400,15 +383,12 @@ public class EmissionValidatorTests
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
-                            { "N", "OUT" }
+                            { "N", "OUT" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "R", "10k" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "R", "10k" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -428,13 +408,13 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
                 Nets = new List<NetDeclaration>
                 {
-                    new() { Id = "internal_node", Domain = "analog" }
+                    new() { Id = "internal_node", Domain = "analog" },
                 },
                 Devices = new List<DeviceDeclaration>
                 {
@@ -447,16 +427,12 @@ public class EmissionValidatorTests
                             { "D", "internal_node" }, // Using internal net
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -476,7 +452,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -496,10 +472,10 @@ public class EmissionValidatorTests
                         Params = new Dictionary<string, string>
                         {
                             // Missing W and L
-                        }
-                    }
-                }
-            }
+                        },
+                    },
+                },
+            },
         };
 
         var result = EmissionValidator.Validate(circuit);
@@ -520,14 +496,14 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Harness = new HarnessBlock
             {
                 Sweeps = new List<SweepCondition>
                 {
-                    new() { Name = "InputDCBias", IsAuto = true }
-                }
+                    new() { Name = "InputDCBias", IsAuto = true },
+                },
             },
             Fill = new FillBlock
             {
@@ -542,16 +518,12 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
         var result = EmissionValidator.Validate(circuit);
         Assert.False(result.IsValid);
@@ -571,14 +543,21 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Harness = new HarnessBlock
             {
                 Sweeps = new List<SweepCondition>
                 {
-                    new() { Name = "InputDCBias", Start = "0.3V", Stop = "1.5V", Step = "100mV", IsAuto = false }
-                }
+                    new()
+                    {
+                        Name = "InputDCBias",
+                        Start = "0.3V",
+                        Stop = "1.5V",
+                        Step = "100mV",
+                        IsAuto = false,
+                    },
+                },
             },
             Fill = new FillBlock
             {
@@ -593,16 +572,12 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        }
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                    },
+                },
+            },
         };
         var result = EmissionValidator.Validate(circuit);
         Assert.True(result.IsValid);
@@ -620,7 +595,7 @@ public class EmissionValidatorTests
             Ports = new List<PortDeclaration>
             {
                 new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" }
+                new() { Name = "OUT", Type = "analog" },
             },
             Fill = new FillBlock
             {
@@ -635,17 +610,13 @@ public class EmissionValidatorTests
                             { "D", "OUT" },
                             { "G", "IN" },
                             { "S", "GND" },
-                            { "B", "GND" }
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "1u" },
-                            { "L", "180n" }
-                        },
-                        PdkDevice = "nmos"
-                    }
-                }
-            }
+                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        PdkDevice = "nmos",
+                    },
+                },
+            },
         };
     }
 }

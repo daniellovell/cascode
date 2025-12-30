@@ -26,8 +26,9 @@ public class ImportResolutionTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
-                LibraryRoots = new[] { repoRoot }
-            });
+                LibraryRoots = new[] { repoRoot },
+            }
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -51,8 +52,9 @@ public class ImportResolutionTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
-                LibraryRoots = new[] { repoRoot }
-            });
+                LibraryRoots = new[] { repoRoot },
+            }
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -75,8 +77,9 @@ public class ImportResolutionTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
-                LibraryRoots = new[] { repoRoot }
-            });
+                LibraryRoots = new[] { repoRoot },
+            }
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -91,7 +94,8 @@ public class ImportResolutionTests
     public void Compile_WithoutLibraryRoots_OmitsDefinitions()
     {
         var sourcePath = "test.cas";
-        var sourceText = @"
+        var sourceText =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -104,7 +108,8 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", ACIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML)
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -114,4 +119,3 @@ motif Test {
         Assert.Equal("Test", circuit.Name);
     }
 }
-

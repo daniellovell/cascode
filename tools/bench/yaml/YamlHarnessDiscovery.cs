@@ -12,10 +12,18 @@ public static class YamlHarnessDiscovery
         foreach (var root in roots)
         {
             var baseDir = SafeGetFullPath(root);
-            if (baseDir is null || !Directory.Exists(baseDir)) continue;
-            if (debug) Console.WriteLine($"[debug] scan dir: {baseDir}");
+            if (baseDir is null || !Directory.Exists(baseDir))
+                continue;
+            if (debug)
+                Console.WriteLine($"[debug] scan dir: {baseDir}");
 
-            foreach (var path in Directory.EnumerateFiles(baseDir, "harness.yaml", SearchOption.AllDirectories))
+            foreach (
+                var path in Directory.EnumerateFiles(
+                    baseDir,
+                    "harness.yaml",
+                    SearchOption.AllDirectories
+                )
+            )
             {
                 try
                 {
@@ -25,14 +33,21 @@ public static class YamlHarnessDiscovery
                         .IgnoreUnmatchedProperties()
                         .Build();
                     var manifest = deserializer.Deserialize<HarnessYaml>(text);
-                    if (manifest is null || string.IsNullOrWhiteSpace(manifest.Id)) { if (debug) Console.WriteLine($"[debug] skip (no id): {path}"); continue; }
+                    if (manifest is null || string.IsNullOrWhiteSpace(manifest.Id))
+                    {
+                        if (debug)
+                            Console.WriteLine($"[debug] skip (no id): {path}");
+                        continue;
+                    }
                     var harness = new YamlTemplateHarness(Path.GetDirectoryName(path)!, manifest);
-                    if (debug) Console.WriteLine($"[debug] found harness: {manifest.Id} at {path}");
+                    if (debug)
+                        Console.WriteLine($"[debug] found harness: {manifest.Id} at {path}");
                     list.Add(harness);
                 }
                 catch (Exception ex)
                 {
-                    if (debug) Console.WriteLine($"[debug] invalid harness at {path}: {ex.Message}");
+                    if (debug)
+                        Console.WriteLine($"[debug] invalid harness at {path}: {ex.Message}");
                 }
             }
         }
@@ -41,6 +56,13 @@ public static class YamlHarnessDiscovery
 
     private static string? SafeGetFullPath(string path)
     {
-        try { return Path.GetFullPath(path); } catch { return null; }
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

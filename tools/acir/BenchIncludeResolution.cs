@@ -9,10 +9,11 @@ public sealed record DeviceModelResolution(string ModelName, bool IsSubckt);
 public sealed record BenchIncludeResolution(
     IReadOnlyList<string> WithSection,
     IReadOnlyList<string> WithoutSection,
-    string? Section)
+    string? Section
+)
 {
-    public IReadOnlyDictionary<string, DeviceModelResolution> DeviceModelMap { get; init; }
-        = new Dictionary<string, DeviceModelResolution>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, DeviceModelResolution> DeviceModelMap { get; init; } =
+        new Dictionary<string, DeviceModelResolution>(StringComparer.OrdinalIgnoreCase);
 }
 
 public interface IBenchIncludeResolver

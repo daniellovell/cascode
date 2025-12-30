@@ -24,7 +24,8 @@ public sealed class PdkIncludeResolverTests
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT INTO models(name, model_type, device_class) VALUES ('sky130_fd_pr__nfet_01v8','model',1); SELECT last_insert_rowid();";
+            cmd.CommandText =
+                "INSERT INTO models(name, model_type, device_class) VALUES ('sky130_fd_pr__nfet_01v8','model',1); SELECT last_insert_rowid();";
             modelId = (long)(cmd.ExecuteScalar()!);
         }
 
@@ -41,7 +42,8 @@ public sealed class PdkIncludeResolverTests
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT INTO sections(name) VALUES ('tt'); SELECT last_insert_rowid();";
+            cmd.CommandText =
+                "INSERT INTO sections(name) VALUES ('tt'); SELECT last_insert_rowid();";
             sectionId = (long)(cmd.ExecuteScalar()!);
         }
 
@@ -49,14 +51,16 @@ public sealed class PdkIncludeResolverTests
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = "INSERT INTO corners(name) VALUES ('tt'); SELECT last_insert_rowid();";
+            cmd.CommandText =
+                "INSERT INTO corners(name) VALUES ('tt'); SELECT last_insert_rowid();";
             cornerId = (long)(cmd.ExecuteScalar()!);
         }
 
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.Transaction = tx;
-            cmd.CommandText = @"INSERT INTO model_contexts(model_id, corner_id, section_id, include_id)
+            cmd.CommandText =
+                @"INSERT INTO model_contexts(model_id, corner_id, section_id, include_id)
                                 VALUES ($m, $c, $s, $i)";
             cmd.Parameters.Add(new SqliteParameter("$m", modelId));
             cmd.Parameters.Add(new SqliteParameter("$c", cornerId));
@@ -67,7 +71,9 @@ public sealed class PdkIncludeResolverTests
 
         tx.Commit();
 
-        var model = PdkDatabaseReader.LoadModels(dbPath).First(m => m.Name == "sky130_fd_pr__nfet_01v8");
+        var model = PdkDatabaseReader
+            .LoadModels(dbPath)
+            .First(m => m.Name == "sky130_fd_pr__nfet_01v8");
         var includes = PdkIncludeResolver.ResolveModelIncludes(dbPath, model, "tt");
 
         Assert.Contains(includePath, includes.IncludePaths);
@@ -93,7 +99,7 @@ public sealed class PdkIncludeResolverTests
         var model = new SpectreModel
         {
             Name = "dummy",
-            SourceFiles = new[] { match, falseMatchSuffix, falseMatchPrefix }
+            SourceFiles = new[] { match, falseMatchSuffix, falseMatchPrefix },
         };
 
         var includes = PdkIncludeResolver.ResolveModelIncludes(dbPath, model, "tt");

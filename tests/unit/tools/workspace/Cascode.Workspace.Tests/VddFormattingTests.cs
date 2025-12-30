@@ -12,7 +12,11 @@ public sealed class VddFormattingTests
     [InlineData("00v9", 0.9, "0.9V")]
     [InlineData("05v0", 5.0, "5.0V")]
     [InlineData("01v05", 1.05, "1.05V")]
-    public void TokenParsingAndPrettyPrint(string token, double expectedVolts, string expectedPretty)
+    public void TokenParsingAndPrettyPrint(
+        string token,
+        double expectedVolts,
+        string expectedPretty
+    )
     {
         Assert.True(Cascode.Workspace.VddFormatting.TryTokenToVolts(token, out var volts));
         Assert.Equal(expectedVolts, volts, 3);
@@ -23,7 +27,12 @@ public sealed class VddFormattingTests
     public void WritesNumericVolts_ForDevices()
     {
         using var cascodeHome = CascodeHome.CreateInTemp("cascode-vdd-floats-db");
-        var dbPath = Path.Combine(Cascode.Workspace.PdkMatchingConfigManager.GetCascodeHome(), "workspaces", "test", "pdk.db");
+        var dbPath = Path.Combine(
+            Cascode.Workspace.PdkMatchingConfigManager.GetCascodeHome(),
+            "workspaces",
+            "test",
+            "pdk.db"
+        );
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
 
         var scan = new Cascode.Workspace.WorkspaceScanResult(
@@ -31,7 +40,8 @@ public sealed class VddFormattingTests
             libraries: Array.Empty<Cascode.Workspace.WorkspaceLibrary>(),
             modelDecks: Array.Empty<Cascode.Workspace.ModelDeckRecord>(),
             models: Array.Empty<Cascode.Workspace.SpectreModel>(),
-            warnings: Array.Empty<string>());
+            warnings: Array.Empty<string>()
+        );
         var devices = new[]
         {
             new Cascode.Workspace.Device
@@ -43,11 +53,11 @@ public sealed class VddFormattingTests
                 Class = Cascode.Workspace.DeviceClass.Nmos,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new [] { "layout", "symbol" },
-                VtTags = new [] { "LVT" },
-                VddTags = new [] { "01v8" },
-                Tags = Array.Empty<string>()
-            }
+                Views = new[] { "layout", "symbol" },
+                VtTags = new[] { "LVT" },
+                VddTags = new[] { "01v8" },
+                Tags = Array.Empty<string>(),
+            },
         };
 
         Cascode.Workspace.PdkDatabaseWriter.Write(dbPath, scan, devices);

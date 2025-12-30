@@ -7,7 +7,9 @@ namespace Cascode.Parser;
 /// <summary>
 /// ANTLR error listener that collects lexer and parser errors into the compiler diagnostic list.
 /// </summary>
-internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAntlrErrorListener<int>
+internal sealed class CollectingErrorListener
+    : IAntlrErrorListener<IToken>,
+        IAntlrErrorListener<int>
 {
     private readonly string _filePath;
     private readonly List<Diagnostic> _diagnostics;
@@ -25,12 +27,15 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
 
     private void AddSyntaxDiagnostic(string message, int line, int charPositionInLine)
     {
-        _diagnostics.Add(new Diagnostic(
-            message,
-            DiagnosticSeverity.Error,
-            _filePath,
-            line,
-            charPositionInLine + 1));
+        _diagnostics.Add(
+            new Diagnostic(
+                message,
+                DiagnosticSeverity.Error,
+                _filePath,
+                line,
+                charPositionInLine + 1
+            )
+        );
     }
 
     /// <summary>
@@ -43,7 +48,8 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
         int line,
         int charPositionInLine,
         string msg,
-        RecognitionException e)
+        RecognitionException e
+    )
     {
         AddSyntaxDiagnostic(msg, line, charPositionInLine);
     }
@@ -58,7 +64,8 @@ internal sealed class CollectingErrorListener : IAntlrErrorListener<IToken>, IAn
         int line,
         int charPositionInLine,
         string msg,
-        RecognitionException e)
+        RecognitionException e
+    )
     {
         AddSyntaxDiagnostic(msg, line, charPositionInLine);
     }

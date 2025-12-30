@@ -20,4 +20,3 @@ public sealed record HarnessParam(
     bool Required = false,
     IReadOnlyList<object>? Choices = null
 );
-

@@ -22,9 +22,15 @@ public sealed class TestbenchGenerator
         if (!_registry.TryGet(ctx.Spec.Name, out var harness))
         {
             // Allow passing explicit harness id via Spec.Name OR via Args["harness"]
-            if (!ctx.Args.TryGetValue("harness", out var idObj) || idObj is not string id || !_registry.TryGet(id, out harness))
+            if (
+                !ctx.Args.TryGetValue("harness", out var idObj)
+                || idObj is not string id
+                || !_registry.TryGet(id, out harness)
+            )
             {
-                throw new InvalidOperationException("Unknown harness: specify spec.name or args.harness to a registered id.");
+                throw new InvalidOperationException(
+                    "Unknown harness: specify spec.name or args.harness to a registered id."
+                );
             }
         }
 
@@ -41,7 +47,10 @@ public sealed class TestbenchGenerator
 
         var netlistText = TryRenderTemplate(ctx, plan) ?? backend.RenderNetlist(ctx, plan);
         File.WriteAllText(netlistPath, netlistText);
-        File.WriteAllText(specPath, JsonSerializer.Serialize(ctx.Spec, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(
+            specPath,
+            JsonSerializer.Serialize(ctx.Spec, new JsonSerializerOptions { WriteIndented = true })
+        );
 
         return new TestbenchFiles
         {
@@ -61,7 +70,10 @@ public sealed class TestbenchGenerator
         }
 
         var path = pathObj?.ToString();
-        if (string.IsNullOrWhiteSpace(path) && plan.Data.TryGetValue("template_name", out var nameObj))
+        if (
+            string.IsNullOrWhiteSpace(path)
+            && plan.Data.TryGetValue("template_name", out var nameObj)
+        )
         {
             path = nameObj?.ToString();
         }
@@ -75,7 +87,10 @@ public sealed class TestbenchGenerator
         {
             // Attempt to load from embedded resources (bench assembly)
             var asm = typeof(TestbenchGenerator).Assembly;
-            var resName = asm.GetManifestResourceNames().FirstOrDefault(n => n.EndsWith(Path.GetFileName(path), StringComparison.OrdinalIgnoreCase));
+            var resName = asm.GetManifestResourceNames()
+                .FirstOrDefault(n =>
+                    n.EndsWith(Path.GetFileName(path), StringComparison.OrdinalIgnoreCase)
+                );
             if (!string.IsNullOrWhiteSpace(resName))
             {
                 using var stream = asm.GetManifestResourceStream(resName);
@@ -110,13 +125,15 @@ public sealed class TestbenchGenerator
                     temperature_c = ctx.Spec.TemperatureC,
                     model_name = ctx.Spec.ModelName,
                     results_csv = ctx.Spec.ResultsCsv,
-                    is_subckt = ctx.Spec.IsSubckt
+                    is_subckt = ctx.Spec.IsSubckt,
                 },
                 includes = ctx.DeckPaths,
                 includes_with_section = ctx.IncludePathsWithSection,
                 includes_without_section = ctx.IncludePathsWithoutSection,
                 section = ctx.Section,
-                @params = plan.Data.TryGetValue("params", out var p) ? p : new Dictionary<string, object?>()
+                @params = plan.Data.TryGetValue("params", out var p)
+                    ? p
+                    : new Dictionary<string, object?>(),
             };
         }
 

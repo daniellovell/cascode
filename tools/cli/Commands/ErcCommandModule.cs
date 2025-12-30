@@ -31,7 +31,9 @@ internal sealed class ErcCommandModule : ICommandModule
 
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("erc", "Run electrical rule check on ACIR file", ErcCommand));
+        registry.Register(
+            new DelegateCliCommand("erc", "Run electrical rule check on ACIR file", ErcCommand)
+        );
     }
 
     private CommandResult ErcCommand(string[] args)
@@ -42,7 +44,15 @@ internal sealed class ErcCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        if (!ValidateAndReadInput(args, out var doc, out var earlyResult, out var requirePdk, out var jsonOutput))
+        if (
+            !ValidateAndReadInput(
+                args,
+                out var doc,
+                out var earlyResult,
+                out var requirePdk,
+                out var jsonOutput
+            )
+        )
         {
             return earlyResult.Value;
         }
@@ -75,7 +85,8 @@ internal sealed class ErcCommandModule : ICommandModule
         out ACIRDocument? doc,
         [NotNullWhen(false)] out CommandResult? earlyResult,
         out bool requirePdk,
-        out bool jsonOutput)
+        out bool jsonOutput
+    )
     {
         doc = null;
         earlyResult = null;
@@ -114,7 +125,11 @@ internal sealed class ErcCommandModule : ICommandModule
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
-                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                foreach (
+                    var diag in readResult.Diagnostics.Where(d =>
+                        d.Severity == DiagnosticSeverity.Error
+                    )
+                )
                 {
                     errorResult.AddError("ERC-PARSE", diag.Message, $"{diag.FilePath}:{diag.Line}");
                 }
@@ -122,7 +137,11 @@ internal sealed class ErcCommandModule : ICommandModule
             }
             else
             {
-                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                foreach (
+                    var diag in readResult.Diagnostics.Where(d =>
+                        d.Severity == DiagnosticSeverity.Error
+                    )
+                )
                 {
                     _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
@@ -140,7 +159,10 @@ internal sealed class ErcCommandModule : ICommandModule
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
-                errorResult.AddError("ERC-PARSE", "No EL-level circuits found. ERC requires EL-level ACIR.");
+                errorResult.AddError(
+                    "ERC-PARSE",
+                    "No EL-level circuits found. ERC requires EL-level ACIR."
+                );
                 _state.AddMessage(errorResult.ToJson(2));
             }
             else
@@ -176,7 +198,9 @@ internal sealed class ErcCommandModule : ICommandModule
         // Summary
         if (result.HasErrors)
         {
-            _state.AddMessage($"ERC failed: {result.ErrorCount} error(s), {result.WarningCount} warning(s).");
+            _state.AddMessage(
+                $"ERC failed: {result.ErrorCount} error(s), {result.WarningCount} warning(s)."
+            );
         }
         else if (result.HasWarnings)
         {
@@ -195,7 +219,9 @@ internal sealed class ErcCommandModule : ICommandModule
         _state.AddMessage("Runs electrical rule checking on an ACIR EL document.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
-        _state.AddMessage("  --require-pdk    Treat missing PDK device names as errors (default: warnings)");
+        _state.AddMessage(
+            "  --require-pdk    Treat missing PDK device names as errors (default: warnings)"
+        );
         _state.AddMessage("  --json           Output results as JSON for machine processing");
         _state.AddMessage("");
         _state.AddMessage("Exit codes:");

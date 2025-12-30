@@ -24,9 +24,21 @@ public class ComplianceCheckerTests
     [InlineData(">", 100.0, 100.0, false)]
     [InlineData("<", 100.0, 50.0, true)]
     [InlineData("<", 100.0, 100.0, false)]
-    public void Check_Operators_EvaluateCorrectly(string op, double threshold, double measured, bool expectedPass)
+    public void Check_Operators_EvaluateCorrectly(
+        string op,
+        double threshold,
+        double measured,
+        bool expectedPass
+    )
     {
-        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, op, threshold.ToString(), "");
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "TestMetric",
+            null,
+            op,
+            threshold.ToString(),
+            ""
+        );
         var results = CreateResultsWithMeasurement("TestMetric", measured, "", null);
 
         var report = ComplianceChecker.Check(circuit, results);
@@ -47,7 +59,14 @@ public class ComplianceCheckerTests
     [InlineData("2.5m", 2.5e-3)]
     public void Check_Units_ParseCorrectly(string valueStr, double expectedValue)
     {
-        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, ">=", valueStr, "Hz");
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "TestMetric",
+            null,
+            ">=",
+            valueStr,
+            "Hz"
+        );
         var results = CreateResultsWithMeasurement("TestMetric", expectedValue, "Hz", null);
 
         var report = ComplianceChecker.Check(circuit, results);
@@ -62,7 +81,14 @@ public class ComplianceCheckerTests
     [InlineData("1a")]
     public void Check_InvalidSuffix_ThrowsFormatException(string valueStr)
     {
-        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, ">=", valueStr, "Hz");
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "TestMetric",
+            null,
+            ">=",
+            valueStr,
+            "Hz"
+        );
         var results = CreateResultsWithMeasurement("TestMetric", 100.0, "Hz", null);
 
         var ex = Assert.Throws<FormatException>(() => ComplianceChecker.Check(circuit, results));
@@ -73,7 +99,14 @@ public class ComplianceCheckerTests
     [Fact]
     public void Check_MilliAndMegaAreCaseSensitive()
     {
-        var circuitMilli = CreateCircuitWithConstraint("c_milli", "TestMetric", null, "==", "1m", "");
+        var circuitMilli = CreateCircuitWithConstraint(
+            "c_milli",
+            "TestMetric",
+            null,
+            "==",
+            "1m",
+            ""
+        );
         var circuitMega = CreateCircuitWithConstraint("c_mega", "TestMetric", null, "==", "1M", "");
 
         var resultsMilli = CreateResultsWithMeasurement("TestMetric", 1e-3, "", null);
@@ -96,10 +129,26 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c_out1", Metric = "Gain", Node = "OUT1", Op = ">=", Value = "40", Unit = "dB" },
-                    new() { Id = "c_out2", Metric = "Gain", Node = "OUT2", Op = ">=", Value = "30", Unit = "dB" }
-                }
-            }
+                    new()
+                    {
+                        Id = "c_out1",
+                        Metric = "Gain",
+                        Node = "OUT1",
+                        Op = ">=",
+                        Value = "40",
+                        Unit = "dB",
+                    },
+                    new()
+                    {
+                        Id = "c_out2",
+                        Metric = "Gain",
+                        Node = "OUT2",
+                        Op = ">=",
+                        Value = "30",
+                        Unit = "dB",
+                    },
+                },
+            },
         };
 
         var results = new BenchResult
@@ -108,30 +157,55 @@ public class ComplianceCheckerTests
             Bench = "TestBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["m_out1"] = new() { Metric = "Gain", Value = 42.0, Unit = "dB", Node = "OUT1" },
-                ["m_out2"] = new() { Metric = "Gain", Value = 25.0, Unit = "dB", Node = "OUT2" }
-            }
+                ["m_out1"] = new()
+                {
+                    Metric = "Gain",
+                    Value = 42.0,
+                    Unit = "dB",
+                    Node = "OUT1",
+                },
+                ["m_out2"] = new()
+                {
+                    Metric = "Gain",
+                    Value = 25.0,
+                    Unit = "dB",
+                    Node = "OUT2",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, results);
 
         Assert.Equal(2, report.Results.Count);
-        Assert.True(report.Results[0].Passed);   // OUT1 >= 40
-        Assert.False(report.Results[1].Passed);  // OUT2 >= 30 but measured 25
+        Assert.True(report.Results[0].Passed); // OUT1 >= 40
+        Assert.False(report.Results[1].Passed); // OUT2 >= 30 but measured 25
     }
 
     [Fact]
     public void Check_MissingMeasurement_ReportsFailure()
     {
-        var circuit = CreateCircuitWithConstraint("c_test", "MissingMetric", "OUT", ">=", "100", "Hz");
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "MissingMetric",
+            "OUT",
+            ">=",
+            "100",
+            "Hz"
+        );
         var results = new BenchResult
         {
             Circuit = "TestCircuit",
             Bench = "TestBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["m_other"] = new() { Metric = "OtherMetric", Value = 100.0, Unit = "Hz", Node = "OUT" }
-            }
+                ["m_other"] = new()
+                {
+                    Metric = "OtherMetric",
+                    Value = 100.0,
+                    Unit = "Hz",
+                    Node = "OUT",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, results);
@@ -156,15 +230,28 @@ public class ComplianceCheckerTests
     [Fact]
     public void Check_CaseInsensitiveMetricMatching()
     {
-        var circuit = CreateCircuitWithConstraint("c_test", "GainBandwidth", "OUT", ">=", "100M", "Hz");
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "GainBandwidth",
+            "OUT",
+            ">=",
+            "100M",
+            "Hz"
+        );
         var results = new BenchResult
         {
             Circuit = "TestCircuit",
             Bench = "TestBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["m_gbw"] = new() { Metric = "gainbandwidth", Value = 150e6, Unit = "Hz", Node = "OUT" }
-            }
+                ["m_gbw"] = new()
+                {
+                    Metric = "gainbandwidth",
+                    Value = 150e6,
+                    Unit = "Hz",
+                    Node = "OUT",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, results);
@@ -199,11 +286,32 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c1", Metric = "M1", Op = ">=", Value = "100", Unit = "" },
-                    new() { Id = "c2", Metric = "M2", Op = ">=", Value = "100", Unit = "" },
-                    new() { Id = "c3", Metric = "M3", Op = ">=", Value = "100", Unit = "" }
-                }
-            }
+                    new()
+                    {
+                        Id = "c1",
+                        Metric = "M1",
+                        Op = ">=",
+                        Value = "100",
+                        Unit = "",
+                    },
+                    new()
+                    {
+                        Id = "c2",
+                        Metric = "M2",
+                        Op = ">=",
+                        Value = "100",
+                        Unit = "",
+                    },
+                    new()
+                    {
+                        Id = "c3",
+                        Metric = "M3",
+                        Op = ">=",
+                        Value = "100",
+                        Unit = "",
+                    },
+                },
+            },
         };
 
         var results = new BenchResult
@@ -212,10 +320,25 @@ public class ComplianceCheckerTests
             Bench = "TestBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["m1"] = new() { Metric = "M1", Value = 150.0, Unit = "" },
-                ["m2"] = new() { Metric = "M2", Value = 50.0, Unit = "" },
-                ["m3"] = new() { Metric = "M3", Value = 200.0, Unit = "" }
-            }
+                ["m1"] = new()
+                {
+                    Metric = "M1",
+                    Value = 150.0,
+                    Unit = "",
+                },
+                ["m2"] = new()
+                {
+                    Metric = "M2",
+                    Value = 50.0,
+                    Unit = "",
+                },
+                ["m3"] = new()
+                {
+                    Metric = "M3",
+                    Value = 200.0,
+                    Unit = "",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, results);
@@ -225,7 +348,14 @@ public class ComplianceCheckerTests
         Assert.Equal(1, report.FailedCount);
     }
 
-    private static Circuit CreateCircuitWithConstraint(string id, string metric, string? node, string op, string value, string unit)
+    private static Circuit CreateCircuitWithConstraint(
+        string id,
+        string metric,
+        string? node,
+        string op,
+        string value,
+        string unit
+    )
     {
         return new Circuit
         {
@@ -234,13 +364,26 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = id, Metric = metric, Node = node, Op = op, Value = value, Unit = unit }
-                }
-            }
+                    new()
+                    {
+                        Id = id,
+                        Metric = metric,
+                        Node = node,
+                        Op = op,
+                        Value = value,
+                        Unit = unit,
+                    },
+                },
+            },
         };
     }
 
-    private static BenchResult CreateResultsWithMeasurement(string metric, double value, string unit, string? node)
+    private static BenchResult CreateResultsWithMeasurement(
+        string metric,
+        double value,
+        string unit,
+        string? node
+    )
     {
         return new BenchResult
         {
@@ -248,8 +391,14 @@ public class ComplianceCheckerTests
             Bench = "TestBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["m_test"] = new() { Metric = metric, Value = value, Unit = unit, Node = node }
-            }
+                ["m_test"] = new()
+                {
+                    Metric = metric,
+                    Value = value,
+                    Unit = unit,
+                    Node = node,
+                },
+            },
         };
     }
 
@@ -263,17 +412,57 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
-                    new() { Id = "c_gain", Metric = "PassbandGain", Node = "OUT", Op = ">=", Value = "40", Unit = "dB" },
-                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                    new()
+                    {
+                        Id = "c_gbw",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                        Op = ">=",
+                        Value = "100M",
+                        Unit = "Hz",
+                    },
+                    new()
+                    {
+                        Id = "c_gain",
+                        Metric = "PassbandGain",
+                        Node = "OUT",
+                        Op = ">=",
+                        Value = "40",
+                        Unit = "dB",
+                    },
+                    new()
+                    {
+                        Id = "c_pwr",
+                        Metric = "QuiescentPower",
+                        Op = "<=",
+                        Value = "500u",
+                        Unit = "W",
+                    },
                 },
                 Measure = new List<MeasureIntent>
                 {
-                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
-                    new() { Id = "m_gain", Bench = "SEOpAmpACBench", Metric = "PassbandGain", Node = "OUT" },
-                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
-                }
-            }
+                    new()
+                    {
+                        Id = "m_gbw",
+                        Bench = "SEOpAmpACBench",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                    },
+                    new()
+                    {
+                        Id = "m_gain",
+                        Bench = "SEOpAmpACBench",
+                        Metric = "PassbandGain",
+                        Node = "OUT",
+                    },
+                    new()
+                    {
+                        Id = "m_pwr",
+                        Bench = "SEOpAmpDCBench",
+                        Metric = "QuiescentPower",
+                    },
+                },
+            },
         };
 
         var acResults = new BenchResult
@@ -282,9 +471,21 @@ public class ComplianceCheckerTests
             Bench = "SEOpAmpACBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["gbw"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz", Node = "OUT" },
-                ["gain"] = new() { Metric = "PassbandGain", Value = 45.0, Unit = "dB", Node = "OUT" }
-            }
+                ["gbw"] = new()
+                {
+                    Metric = "GainBandwidth",
+                    Value = 150e6,
+                    Unit = "Hz",
+                    Node = "OUT",
+                },
+                ["gain"] = new()
+                {
+                    Metric = "PassbandGain",
+                    Value = 45.0,
+                    Unit = "dB",
+                    Node = "OUT",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, acResults);
@@ -308,15 +509,41 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
-                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                    new()
+                    {
+                        Id = "c_gbw",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                        Op = ">=",
+                        Value = "100M",
+                        Unit = "Hz",
+                    },
+                    new()
+                    {
+                        Id = "c_pwr",
+                        Metric = "QuiescentPower",
+                        Op = "<=",
+                        Value = "500u",
+                        Unit = "W",
+                    },
                 },
                 Measure = new List<MeasureIntent>
                 {
-                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
-                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
-                }
-            }
+                    new()
+                    {
+                        Id = "m_gbw",
+                        Bench = "SEOpAmpACBench",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                    },
+                    new()
+                    {
+                        Id = "m_pwr",
+                        Bench = "SEOpAmpDCBench",
+                        Metric = "QuiescentPower",
+                    },
+                },
+            },
         };
 
         var dcResults = new BenchResult
@@ -325,8 +552,13 @@ public class ComplianceCheckerTests
             Bench = "SEOpAmpDCBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["pwr"] = new() { Metric = "QuiescentPower", Value = 0.0003, Unit = "W" }
-            }
+                ["pwr"] = new()
+                {
+                    Metric = "QuiescentPower",
+                    Value = 0.0003,
+                    Unit = "W",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, dcResults);
@@ -348,17 +580,57 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c_gbw", Metric = "GainBandwidth", Node = "OUT", Op = ">=", Value = "100M", Unit = "Hz" },
-                    new() { Id = "c_gain", Metric = "PassbandGain", Node = "OUT", Op = ">=", Value = "40", Unit = "dB" },
-                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
+                    new()
+                    {
+                        Id = "c_gbw",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                        Op = ">=",
+                        Value = "100M",
+                        Unit = "Hz",
+                    },
+                    new()
+                    {
+                        Id = "c_gain",
+                        Metric = "PassbandGain",
+                        Node = "OUT",
+                        Op = ">=",
+                        Value = "40",
+                        Unit = "dB",
+                    },
+                    new()
+                    {
+                        Id = "c_pwr",
+                        Metric = "QuiescentPower",
+                        Op = "<=",
+                        Value = "500u",
+                        Unit = "W",
+                    },
                 },
                 Measure = new List<MeasureIntent>
                 {
-                    new() { Id = "m_gbw", Bench = "SEOpAmpACBench", Metric = "GainBandwidth", Node = "OUT" },
-                    new() { Id = "m_gain", Bench = "SEOpAmpACBench", Metric = "PassbandGain", Node = "OUT" },
-                    new() { Id = "m_pwr", Bench = "SEOpAmpDCBench", Metric = "QuiescentPower" }
-                }
-            }
+                    new()
+                    {
+                        Id = "m_gbw",
+                        Bench = "SEOpAmpACBench",
+                        Metric = "GainBandwidth",
+                        Node = "OUT",
+                    },
+                    new()
+                    {
+                        Id = "m_gain",
+                        Bench = "SEOpAmpACBench",
+                        Metric = "PassbandGain",
+                        Node = "OUT",
+                    },
+                    new()
+                    {
+                        Id = "m_pwr",
+                        Bench = "SEOpAmpDCBench",
+                        Metric = "QuiescentPower",
+                    },
+                },
+            },
         };
 
         // Combined results with bench="all" containing measurements from both AC and DC benches
@@ -368,10 +640,27 @@ public class ComplianceCheckerTests
             Bench = "all",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["GainBandwidth@OUT"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz", Node = "OUT" },
-                ["PassbandGain@OUT"] = new() { Metric = "PassbandGain", Value = 45.0, Unit = "dB", Node = "OUT" },
-                ["QuiescentPower"] = new() { Metric = "QuiescentPower", Value = 0.0003, Unit = "W" }
-            }
+                ["GainBandwidth@OUT"] = new()
+                {
+                    Metric = "GainBandwidth",
+                    Value = 150e6,
+                    Unit = "Hz",
+                    Node = "OUT",
+                },
+                ["PassbandGain@OUT"] = new()
+                {
+                    Metric = "PassbandGain",
+                    Value = 45.0,
+                    Unit = "dB",
+                    Node = "OUT",
+                },
+                ["QuiescentPower"] = new()
+                {
+                    Metric = "QuiescentPower",
+                    Value = 0.0003,
+                    Unit = "W",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, combinedResults);
@@ -394,11 +683,25 @@ public class ComplianceCheckerTests
             {
                 Numeric = new List<NumericConstraint>
                 {
-                    new() { Id = "c_gbw", Metric = "GainBandwidth", Op = ">=", Value = "100M", Unit = "Hz" },
-                    new() { Id = "c_pwr", Metric = "QuiescentPower", Op = "<=", Value = "500u", Unit = "W" }
-                }
+                    new()
+                    {
+                        Id = "c_gbw",
+                        Metric = "GainBandwidth",
+                        Op = ">=",
+                        Value = "100M",
+                        Unit = "Hz",
+                    },
+                    new()
+                    {
+                        Id = "c_pwr",
+                        Metric = "QuiescentPower",
+                        Op = "<=",
+                        Value = "500u",
+                        Unit = "W",
+                    },
+                },
                 // No Measure section
-            }
+            },
         };
 
         var results = new BenchResult
@@ -407,16 +710,21 @@ public class ComplianceCheckerTests
             Bench = "SomeBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
-                ["gbw"] = new() { Metric = "GainBandwidth", Value = 150e6, Unit = "Hz" }
-            }
+                ["gbw"] = new()
+                {
+                    Metric = "GainBandwidth",
+                    Value = 150e6,
+                    Unit = "Hz",
+                },
+            },
         };
 
         var report = ComplianceChecker.Check(circuit, results);
 
         // Both constraints should be checked (no filtering)
         Assert.Equal(2, report.TotalCount);
-        Assert.Equal(1, report.PassedCount);  // GainBandwidth passes
-        Assert.Equal(1, report.FailedCount);  // QuiescentPower not measured = fail
+        Assert.Equal(1, report.PassedCount); // GainBandwidth passes
+        Assert.Equal(1, report.FailedCount); // QuiescentPower not measured = fail
         Assert.Empty(report.UncheckedByBench);
     }
 
@@ -425,7 +733,10 @@ public class ComplianceCheckerTests
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
-        var resultsPath = Path.Combine(repoRoot, "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(
+            repoRoot,
+            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+        );
 
         using var acirReader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(acirReader);
@@ -449,4 +760,3 @@ public class ComplianceCheckerTests
         Assert.Equal("c_pwr", report.UncheckedByBench["SEOpAmpDCBench"][0].Id);
     }
 }
-

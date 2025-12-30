@@ -63,15 +63,27 @@ public sealed class ShellStateTests
             firstMessageReceived.Task,
             Task.Delay(TimeSpan.FromSeconds(2))
         );
-        Assert.True(firstReceived == firstMessageReceived.Task, "First message should be received within timeout");
-        Assert.False(backgroundTask.IsCompleted, "Background task should still be running when first message received");
+        Assert.True(
+            firstReceived == firstMessageReceived.Task,
+            "First message should be received within timeout"
+        );
+        Assert.False(
+            backgroundTask.IsCompleted,
+            "Background task should still be running when first message received"
+        );
 
         var secondReceived = await Task.WhenAny(
             secondMessageReceived.Task,
             Task.Delay(TimeSpan.FromSeconds(2))
         );
-        Assert.True(secondReceived == secondMessageReceived.Task, "Second message should be received within timeout");
-        Assert.False(backgroundTask.IsCompleted, "Background task should still be running when second message received");
+        Assert.True(
+            secondReceived == secondMessageReceived.Task,
+            "Second message should be received within timeout"
+        );
+        Assert.False(
+            backgroundTask.IsCompleted,
+            "Background task should still be running when second message received"
+        );
 
         // Let task complete
         taskShouldComplete.SetResult(true);
@@ -79,7 +91,10 @@ public sealed class ShellStateTests
 
         // Verify all messages were received in order
         var receivedList = messagesReceived.ToList();
-        Assert.True(receivedList.Count >= 3, $"Should receive at least 3 messages, got {receivedList.Count}");
+        Assert.True(
+            receivedList.Count >= 3,
+            $"Should receive at least 3 messages, got {receivedList.Count}"
+        );
         Assert.Contains("Message 1", receivedList[0].message);
         Assert.Contains("Message 2", receivedList[1].message);
     }
@@ -147,7 +162,6 @@ public sealed class ShellStateTests
                     exceptions.Add(ex);
                 }
             }),
-
             // Reader thread 1
             Task.Run(async () =>
             {
@@ -165,7 +179,6 @@ public sealed class ShellStateTests
                     exceptions.Add(ex);
                 }
             }),
-
             // Reader thread 2
             Task.Run(async () =>
             {
@@ -182,7 +195,7 @@ public sealed class ShellStateTests
                 {
                     exceptions.Add(ex);
                 }
-            })
+            }),
         };
 
         var allTasks = Task.WhenAll(tasks);

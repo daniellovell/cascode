@@ -17,7 +17,7 @@ internal sealed class CliConfigStorage
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     public CliConfig Load()
@@ -31,7 +31,8 @@ internal sealed class CliConfigStorage
         try
         {
             var json = File.ReadAllText(path);
-            var config = JsonSerializer.Deserialize<CliConfig>(json, SerializerOptions) ?? new CliConfig();
+            var config =
+                JsonSerializer.Deserialize<CliConfig>(json, SerializerOptions) ?? new CliConfig();
             Normalize(config);
             return config;
         }

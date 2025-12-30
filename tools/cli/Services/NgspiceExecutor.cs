@@ -16,7 +16,7 @@ internal static class NgspiceExecutor
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory()
+            WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory(),
         };
         startInfo.ArgumentList.Add("-b");
         startInfo.ArgumentList.Add(spiceFile);
@@ -31,4 +31,3 @@ internal static class NgspiceExecutor
         return new NgspiceRun(process.ExitCode, stdout, stderr);
     }
 }
-

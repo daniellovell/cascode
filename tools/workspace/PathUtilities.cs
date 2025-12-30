@@ -9,16 +9,22 @@ internal static class PathUtilities
     private const string WorkDirToken = "$WORK_DIR";
     private const string WorkDirTokenBraced = "${WORK_DIR}";
 
-    private static readonly HashSet<string> ValidSpectreExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> ValidSpectreExtensions = new HashSet<string>(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         ".scs",
         ".spice",
         ".lib",
         ".spi",
-        ".sp"
+        ".sp",
     };
 
-    public static string? NormalizeWorkspacePath(string rawPath, string workspaceRoot, string relativeBase)
+    public static string? NormalizeWorkspacePath(
+        string rawPath,
+        string workspaceRoot,
+        string relativeBase
+    )
     {
         if (string.IsNullOrWhiteSpace(rawPath))
         {
@@ -48,8 +54,13 @@ internal static class PathUtilities
     {
         var trimmed = value.Trim();
 
-        if (trimmed.Length >= 2 &&
-            ((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        if (
+            trimmed.Length >= 2
+            && (
+                (trimmed[0] == '"' && trimmed[^1] == '"')
+                || (trimmed[0] == '\'' && trimmed[^1] == '\'')
+            )
+        )
         {
             return trimmed[1..^1];
         }
@@ -108,7 +119,8 @@ internal static class PathUtilities
             return home;
         }
 
-        var remainder = value[1..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var remainder = value[1..]
+            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return Path.Combine(home, remainder);
     }
 }

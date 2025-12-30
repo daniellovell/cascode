@@ -22,4 +22,3 @@ public static class ACIRVersion
     /// </summary>
     public static string Current => $"{Major}.{Minor}";
 }
-

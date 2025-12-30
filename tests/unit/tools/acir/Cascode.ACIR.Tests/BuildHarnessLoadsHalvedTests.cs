@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using Xunit;
 using Cascode.ACIR;
+using Xunit;
 
 namespace Cascode.ACIR.Tests
 {
@@ -22,11 +22,11 @@ namespace Cascode.ACIR.Tests
                             Elements = new List<LoadElement>
                             {
                                 new LoadElement("C", "1pF"),
-                                new LoadElement("R", "10MOhm")
-                            }
-                        }
-                    }
-                }
+                                new LoadElement("R", "10MOhm"),
+                            },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -70,11 +70,11 @@ namespace Cascode.ACIR.Tests
                                 new LoadElement("C", "1pF"),
                                 new LoadElement("C", "500fF"),
                                 new LoadElement("R", "1MOhm"),
-                                new LoadElement("R", "10MOhm")
-                            }
-                        }
-                    }
-                }
+                                new LoadElement("R", "10MOhm"),
+                            },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -116,13 +116,10 @@ namespace Cascode.ACIR.Tests
                         new()
                         {
                             Net = "OUT",
-                            Elements = new List<LoadElement>
-                            {
-                                new LoadElement("C", "2pF")
-                            }
-                        }
-                    }
-                }
+                            Elements = new List<LoadElement> { new LoadElement("C", "2pF") },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -153,13 +150,10 @@ namespace Cascode.ACIR.Tests
                         new()
                         {
                             Net = "OUT",
-                            Elements = new List<LoadElement>
-                            {
-                                new LoadElement("R", "100Ohm")
-                            }
-                        }
-                    }
-                }
+                            Elements = new List<LoadElement> { new LoadElement("R", "100Ohm") },
+                        },
+                    },
+                },
             };
 
             var result = ACIRBenchAdapter.BuildHarnessLoads(circuit);
@@ -178,4 +172,3 @@ namespace Cascode.ACIR.Tests
         }
     }
 }
-

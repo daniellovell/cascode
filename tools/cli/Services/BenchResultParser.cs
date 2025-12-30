@@ -10,15 +10,21 @@ namespace Cascode.Cli.Services;
 
 internal static class BenchResultParser
 {
-    public sealed record TracePoint(int Index, Dictionary<string, double> AxisValues, List<MeasurementResult> Measurements);
+    public sealed record TracePoint(
+        int Index,
+        Dictionary<string, double> AxisValues,
+        List<MeasurementResult> Measurements
+    );
 
     private static readonly Regex _resultRegex = new(
         @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.CultureInvariant | RegexOptions.Compiled
+    );
 
     private static readonly Regex _failedResultRegex = new(
         @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s+(?<unit>\w+)?$",
-        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        RegexOptions.CultureInvariant | RegexOptions.Compiled
+    );
 
     public static List<TracePoint> ParsePoints(string stdout, HashSet<string> sweepNames)
     {
@@ -48,14 +54,28 @@ internal static class BenchResultParser
 
                 var key = token.Substring(0, equals);
                 var valueStr = token.Substring(equals + 1);
-                if (key.Equals("point_index", StringComparison.OrdinalIgnoreCase) &&
-                    int.TryParse(valueStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedIndex))
+                if (
+                    key.Equals("point_index", StringComparison.OrdinalIgnoreCase)
+                    && int.TryParse(
+                        valueStr,
+                        NumberStyles.Integer,
+                        CultureInfo.InvariantCulture,
+                        out var parsedIndex
+                    )
+                )
                 {
                     index = parsedIndex;
                     continue;
                 }
 
-                if (!double.TryParse(valueStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsedValue))
+                if (
+                    !double.TryParse(
+                        valueStr,
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out var parsedValue
+                    )
+                )
                 {
                     continue;
                 }
@@ -85,11 +105,18 @@ internal static class BenchResultParser
         var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         if (circuit.Constraints?.Measure != null)
         {
-            foreach (var group in circuit.Constraints.Measure
-                         .Where(m => m.Bench.Equals(benchName, StringComparison.OrdinalIgnoreCase))
-                         .GroupBy(m => m.Metric, StringComparer.OrdinalIgnoreCase))
+            foreach (
+                var group in circuit
+                    .Constraints.Measure.Where(m =>
+                        m.Bench.Equals(benchName, StringComparison.OrdinalIgnoreCase)
+                    )
+                    .GroupBy(m => m.Metric, StringComparer.OrdinalIgnoreCase)
+            )
             {
-                var nodes = group.Select(x => x.Node).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var nodes = group
+                    .Select(x => x.Node)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
                 nodeByMetric[group.Key] = nodes.Count == 1 ? nodes[0] : null;
             }
         }
@@ -101,35 +128,53 @@ internal static class BenchResultParser
                 continue;
             }
 
-            var key = MakeMeasurementKey(results.Measurements, metric, nodeByMetric.TryGetValue(metric, out var node) ? node : null);
+            var key = MakeMeasurementKey(
+                results.Measurements,
+                metric,
+                nodeByMetric.TryGetValue(metric, out var node) ? node : null
+            );
             results.Measurements[key] = new MeasurementResult
             {
                 Metric = metric,
                 Value = value,
                 Unit = unit,
-                Node = nodeByMetric.TryGetValue(metric, out var n) ? n : null
+                Node = nodeByMetric.TryGetValue(metric, out var n) ? n : null,
             };
         }
 
         return results;
     }
 
-    public static void MergeMeasurements(Dictionary<string, MeasurementResult> target, IEnumerable<MeasurementResult> source)
+    public static void MergeMeasurements(
+        Dictionary<string, MeasurementResult> target,
+        IEnumerable<MeasurementResult> source
+    )
     {
         foreach (var measurement in source)
         {
-            var key = measurement.Node == null ? measurement.Metric : $"{measurement.Metric}@{measurement.Node}";
+            var key =
+                measurement.Node == null
+                    ? measurement.Metric
+                    : $"{measurement.Metric}@{measurement.Node}";
             target[key] = measurement;
         }
     }
 
-    public static BenchResult CreateCombinedResults(string circuitName, IReadOnlyList<string> benchesToRun, Dictionary<string, MeasurementResult> measurements)
+    public static BenchResult CreateCombinedResults(
+        string circuitName,
+        IReadOnlyList<string> benchesToRun,
+        Dictionary<string, MeasurementResult> measurements
+    )
     {
         return new BenchResult
         {
             Circuit = circuitName,
             Bench = benchesToRun.Count == 1 ? benchesToRun[0] : "all",
-            Measurements = measurements.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase)
+            Measurements = measurements.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value,
+                StringComparer.OrdinalIgnoreCase
+            ),
         };
     }
 
@@ -155,11 +200,21 @@ internal static class BenchResultParser
 
         var metric = key.Substring(0, underscore);
         var unit = key.Substring(underscore + 1);
-        measurement = new MeasurementResult { Metric = metric, Value = value, Unit = unit };
+        measurement = new MeasurementResult
+        {
+            Metric = metric,
+            Value = value,
+            Unit = unit,
+        };
         return true;
     }
 
-    private static bool TryParseResultLine(string line, out string metric, out double value, out string unit)
+    private static bool TryParseResultLine(
+        string line,
+        out string metric,
+        out double value,
+        out string unit
+    )
     {
         metric = string.Empty;
         unit = string.Empty;
@@ -177,7 +232,12 @@ internal static class BenchResultParser
         {
             metric = match.Groups["metric"].Value.Trim();
             unit = match.Groups["unit"].Value.Trim();
-            return double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+            return double.TryParse(
+                match.Groups["value"].Value,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out value
+            );
         }
 
         // Check for failed measurement pattern: "RESULT: Metric =   unit" (empty value)
@@ -193,7 +253,11 @@ internal static class BenchResultParser
         return false;
     }
 
-    private static string MakeMeasurementKey(Dictionary<string, MeasurementResult> existing, string metric, string? node)
+    private static string MakeMeasurementKey(
+        Dictionary<string, MeasurementResult> existing,
+        string metric,
+        string? node
+    )
     {
         var baseKey = node == null ? metric : $"{metric}@{node}";
         baseKey = baseKey.Replace(' ', '_');
@@ -214,4 +278,3 @@ internal static class BenchResultParser
         return Guid.NewGuid().ToString("N");
     }
 }
-

@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using System.Linq;
-using Xunit;
-using Xunit.Abstractions;
 using Cascode.TestSupport;
 using Microsoft.Extensions.Logging;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace Cascode.Workspace.Tests;
 
@@ -76,9 +76,7 @@ public class PdkScanServiceTests : IDisposable
         var service = new PdkScanService();
         var result = service.ScanAndPersist(fixturePath);
 
-        var nmosDevices = result.Devices
-            .Where(d => d.Class == DeviceClass.Nmos)
-            .ToList();
+        var nmosDevices = result.Devices.Where(d => d.Class == DeviceClass.Nmos).ToList();
 
         _output.WriteLine($"Found {nmosDevices.Count} NMOS devices:");
         foreach (var dev in nmosDevices)
@@ -87,12 +85,23 @@ public class PdkScanServiceTests : IDisposable
         }
 
         // Sky130 fixture should have NMOS devices
-        Assert.True(nmosDevices.Count >= 7, $"Expected at least 7 NMOS devices, found {nmosDevices.Count}");
+        Assert.True(
+            nmosDevices.Count >= 7,
+            $"Expected at least 7 NMOS devices, found {nmosDevices.Count}"
+        );
 
         // Check for specific expected devices
-        var deviceNames = nmosDevices.Select(d => d.CanonicalName).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        Assert.True(deviceNames.Any(n => n.Contains("nfet_01v8", StringComparison.OrdinalIgnoreCase)), "Should find nfet_01v8");
-        Assert.True(deviceNames.Any(n => n.Contains("nfet_01v8_lvt", StringComparison.OrdinalIgnoreCase)), "Should find nfet_01v8_lvt");
+        var deviceNames = nmosDevices
+            .Select(d => d.CanonicalName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.True(
+            deviceNames.Any(n => n.Contains("nfet_01v8", StringComparison.OrdinalIgnoreCase)),
+            "Should find nfet_01v8"
+        );
+        Assert.True(
+            deviceNames.Any(n => n.Contains("nfet_01v8_lvt", StringComparison.OrdinalIgnoreCase)),
+            "Should find nfet_01v8_lvt"
+        );
     }
 
     [Fact]
@@ -108,24 +117,34 @@ public class PdkScanServiceTests : IDisposable
         var result = service.ScanAndPersist(fixturePath);
 
         // Find matches for NMOS devices
-        var nmosDeviceNames = result.Devices
-            .Where(d => d.Class == DeviceClass.Nmos)
+        var nmosDeviceNames = result
+            .Devices.Where(d => d.Class == DeviceClass.Nmos)
             .Select(d => d.CanonicalName)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var nmosMatches = result.Matches
-            .Where(m => nmosDeviceNames.Contains(m.DeviceCanonicalName))
+        var nmosMatches = result
+            .Matches.Where(m => nmosDeviceNames.Contains(m.DeviceCanonicalName))
             .ToList();
 
-        _output.WriteLine($"Found {nmosMatches.Count} matches for {nmosDeviceNames.Count} NMOS devices:");
+        _output.WriteLine(
+            $"Found {nmosMatches.Count} matches for {nmosDeviceNames.Count} NMOS devices:"
+        );
         foreach (var match in nmosMatches.OrderBy(m => m.DeviceCanonicalName))
         {
-            _output.WriteLine($"  {match.DeviceCanonicalName} → {match.ModelName} (rank={match.Rank}, quality={match.Quality})");
+            _output.WriteLine(
+                $"  {match.DeviceCanonicalName} → {match.ModelName} (rank={match.Rank}, quality={match.Quality})"
+            );
         }
 
         // Each NMOS device should have at least one match
-        var matchedDevices = nmosMatches.Select(m => m.DeviceCanonicalName).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-        Assert.True(matchedDevices >= 7, $"Expected at least 7 matched NMOS devices, found {matchedDevices}");
+        var matchedDevices = nmosMatches
+            .Select(m => m.DeviceCanonicalName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        Assert.True(
+            matchedDevices >= 7,
+            $"Expected at least 7 matched NMOS devices, found {matchedDevices}"
+        );
     }
 
     [Fact]
@@ -141,8 +160,9 @@ public class PdkScanServiceTests : IDisposable
         var result = service.ScanAndPersist(fixturePath);
 
         // Find geometry for nfet_03v3_nvt (a binned model with lmin/lmax constraints)
-        var nvtGeometry = result.ModelGeometry
-            .FirstOrDefault(g => g.ModelName.Contains("nfet_03v3_nvt", StringComparison.OrdinalIgnoreCase));
+        var nvtGeometry = result.ModelGeometry.FirstOrDefault(g =>
+            g.ModelName.Contains("nfet_03v3_nvt", StringComparison.OrdinalIgnoreCase)
+        );
 
         _output.WriteLine($"Geometry for nfet_03v3_nvt:");
         if (nvtGeometry != null)
@@ -167,10 +187,14 @@ public class PdkScanServiceTests : IDisposable
         // The nfet_03v3_nvt has specific geometry constraints from binned models
         // LMin should be around 0.495um (4.95e-7)
         // LMax should be around 0.805um (8.05e-7)
-        Assert.True(nvtGeometry.LMin >= 4e-7 && nvtGeometry.LMin <= 6e-7,
-            $"LMin should be around 0.5um, got {nvtGeometry.LMin}");
-        Assert.True(nvtGeometry.LMax >= 7e-7 && nvtGeometry.LMax <= 9e-7,
-            $"LMax should be around 0.8um, got {nvtGeometry.LMax}");
+        Assert.True(
+            nvtGeometry.LMin >= 4e-7 && nvtGeometry.LMin <= 6e-7,
+            $"LMin should be around 0.5um, got {nvtGeometry.LMin}"
+        );
+        Assert.True(
+            nvtGeometry.LMax >= 7e-7 && nvtGeometry.LMax <= 9e-7,
+            $"LMax should be around 0.8um, got {nvtGeometry.LMax}"
+        );
     }
 
     [Fact]
@@ -195,11 +219,18 @@ public class PdkScanServiceTests : IDisposable
         Assert.True(models.Count > 0, "Database should contain models");
 
         // Verify we can read geometry
-        var nfet01v8 = devices.FirstOrDefault(d => d.CanonicalName.Contains("nfet_01v8", StringComparison.OrdinalIgnoreCase));
+        var nfet01v8 = devices.FirstOrDefault(d =>
+            d.CanonicalName.Contains("nfet_01v8", StringComparison.OrdinalIgnoreCase)
+        );
         if (nfet01v8 != null)
         {
-            var geom = PdkDatabaseReader.LoadGeometryForDevice(result.DatabasePath, nfet01v8.CanonicalName);
-            _output.WriteLine($"Geometry for {nfet01v8.CanonicalName}: W={geom?.WDefault}, L={geom?.LDefault}");
+            var geom = PdkDatabaseReader.LoadGeometryForDevice(
+                result.DatabasePath,
+                nfet01v8.CanonicalName
+            );
+            _output.WriteLine(
+                $"Geometry for {nfet01v8.CanonicalName}: W={geom?.WDefault}, L={geom?.LDefault}"
+            );
         }
     }
 
@@ -212,10 +243,18 @@ public class PdkScanServiceTests : IDisposable
 
         public TestLogger(ITestOutputHelper output) => _output = output;
 
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
         public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Information;
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        )
         {
             if (IsEnabled(logLevel))
             {
@@ -224,4 +263,3 @@ public class PdkScanServiceTests : IDisposable
         }
     }
 }
-
