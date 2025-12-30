@@ -200,8 +200,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[0.2.1, )",
-          "Cascode.Parser": "[0.2.1, )"
+          "Cascode.Bench": "[0.2.2, )",
+          "Cascode.Parser": "[0.2.2, )"
         }
       },
       "cascode.bench": {
@@ -215,8 +215,8 @@
       "cascode.compiler": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.2.1, )",
-          "Cascode.Parser": "[0.2.1, )"
+          "Cascode.ACIR": "[0.2.2, )",
+          "Cascode.Parser": "[0.2.2, )"
         }
       },
       "cascode.parser": {
