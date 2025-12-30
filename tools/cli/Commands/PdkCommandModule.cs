@@ -23,9 +23,14 @@ internal sealed class PdkCommandModule : ICommandModule
     private readonly string _initialWorkspaceRoot;
     private readonly Func<bool> _isInteractive;
     private CommandRegistry? _registry;
-    internal static readonly string[] prefix = new[] { "pdk" };
-    internal static readonly string[] choices = new[] { "spectre", "ngspice" };
-    internal static readonly string[] choicesArray = new[] { "all", "infra-only", "exclude-infra" };
+    internal static readonly string[] PdkCommandPrefix = new[] { "pdk" };
+    internal static readonly string[] SimulatorBackends = new[] { "spectre", "ngspice" };
+    internal static readonly string[] InfraFilterOptions = new[]
+    {
+        "all",
+        "infra-only",
+        "exclude-infra",
+    };
 
     public PdkCommandModule(
         ShellState state,
@@ -112,7 +117,7 @@ internal sealed class PdkCommandModule : ICommandModule
     private CommandResult ShowPdkUsage(string[] args)
     {
         _state.AddMessage("Usage: pdk <subcommand>");
-        var subcommands = _registry!.GetSubcommands(prefix).ToArray();
+        var subcommands = _registry!.GetSubcommands(PdkCommandPrefix).ToArray();
         var width = subcommands.Length == 0 ? 0 : subcommands.Max(c => c.DisplayPath.Length);
         foreach (var sub in subcommands)
         {
@@ -513,7 +518,7 @@ internal sealed class PdkCommandModule : ICommandModule
         cfg.Backend = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("Select backend")
-                .AddChoices(choices)
+                .AddChoices(SimulatorBackends)
                 .HighlightStyle(new Style(Color.Cyan1))
                 .MoreChoicesText("[grey](Move up/down to reveal more)[/]")
                 .AddChoices(
@@ -583,7 +588,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
         var infraPrompt = new SelectionPrompt<string>()
             .Title("Infra devices")
-            .AddChoices(choicesArray)
+            .AddChoices(InfraFilterOptions)
             .HighlightStyle(new Style(Color.Cyan1))
             .MoreChoicesText("[grey](Use arrows to change selection)[/]");
         var infraChoice = AnsiConsole.Prompt(infraPrompt);

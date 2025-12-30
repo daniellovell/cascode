@@ -315,6 +315,6 @@ public static partial class DeviceModelMatcher
         list.Add(value);
     }
 
-    [GeneratedRegex(@"^\d+v\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    [GeneratedRegex(@"^\d+v\d+$", RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex VoltageOnlyPattern();
 }

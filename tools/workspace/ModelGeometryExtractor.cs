@@ -448,16 +448,10 @@ public static partial class ModelGeometryExtractor
         return Regex.IsMatch(fullModelName, pattern, RegexOptions.IgnoreCase);
     }
 
-    [GeneratedRegex(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    [GeneratedRegex(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex ModelNamePattern();
-
-    [GeneratedRegex(
-        @"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled,
-        "en-US"
-    )]
+    [GeneratedRegex(@"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex GeometryLimitPattern();
-
-    [GeneratedRegex(@"^\.(ends|end)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    [GeneratedRegex(@"^\.(ends|end)\b", RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex EndStatementPattern();
 }

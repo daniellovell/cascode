@@ -274,13 +274,13 @@ internal static partial class BenchResultParser
 
     [GeneratedRegex(
         @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s*(?<value>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)\s*(?<unit>\w+)?",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant
+        RegexOptions.CultureInvariant
     )]
     private static partial Regex ResultWithValuePattern();
 
     [GeneratedRegex(
         @"^RESULT:\s*(?<metric>[^=]+?)\s*=\s+(?<unit>\w+)?$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant
+        RegexOptions.CultureInvariant
     )]
     private static partial Regex ResultWithoutValuePattern();
 }

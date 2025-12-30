@@ -168,6 +168,6 @@ public static partial class PdkIncludeResolver
         return false;
     }
 
-    [GeneratedRegex(@"^library\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    [GeneratedRegex(@"^library\b", RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex LibraryKeywordPattern();
 }
