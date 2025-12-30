@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cascode.Bench;
@@ -19,12 +20,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
 
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
-        NumberHandling = System
-            .Text
-            .Json
-            .Serialization
-            .JsonNumberHandling
-            .AllowNamedFloatingPointLiterals,
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
     public BenchRunIntegrationTests()
