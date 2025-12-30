@@ -17,14 +17,8 @@ public static class CascodeParserFacade
     /// <returns>A syntax tree with collected diagnostics.</returns>
     public static CascodeSyntaxTree Parse(string path, string text)
     {
-        if (path is null)
-        {
-            throw new ArgumentNullException(nameof(path));
-        }
-        if (text is null)
-        {
-            throw new ArgumentNullException(nameof(text));
-        }
+        ArgumentNullException.ThrowIfNull(path);
+        ArgumentNullException.ThrowIfNull(text);
 
         var diagnostics = new List<Diagnostic>();
 

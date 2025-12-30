@@ -1,5 +1,5 @@
-using Spectre.Console;
 using System;
+using Spectre.Console;
 
 namespace Cascode.Cli;
 
@@ -9,7 +9,8 @@ internal static class ShellPrompt
         ShellState state,
         Func<int> getDetailScrollStep,
         Func<int, bool> tryAdjustDetailOffset,
-        Action render)
+        Action render
+    )
     {
         var console = AnsiConsole.Console;
 
@@ -34,14 +35,20 @@ internal static class ShellPrompt
                     return null;
                 }
 
-                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.LeftArrow)
+                if (
+                    (key.Modifiers & ConsoleModifiers.Control) != 0
+                    && key.Key == ConsoleKey.LeftArrow
+                )
                 {
                     buffer.MoveWordLeft();
                     WritePrompt(buffer);
                     continue;
                 }
 
-                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.RightArrow)
+                if (
+                    (key.Modifiers & ConsoleModifiers.Control) != 0
+                    && key.Key == ConsoleKey.RightArrow
+                )
                 {
                     buffer.MoveWordRight();
                     WritePrompt(buffer);
@@ -98,7 +105,10 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if ((key.Modifiers & ConsoleModifiers.Shift) != 0 && key.Key == ConsoleKey.DownArrow)
+                if (
+                    (key.Modifiers & ConsoleModifiers.Shift) != 0
+                    && key.Key == ConsoleKey.DownArrow
+                )
                 {
                     var detailStep = getDetailScrollStep();
                     if (tryAdjustDetailOffset(detailStep))
@@ -141,7 +151,10 @@ internal static class ShellPrompt
                 }
 
                 // Alternate bindings for terminals that do not send Shift+Arrow modifiers
-                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.UpArrow)
+                if (
+                    (key.Modifiers & ConsoleModifiers.Control) != 0
+                    && key.Key == ConsoleKey.UpArrow
+                )
                 {
                     var step = getDetailScrollStep();
                     if (tryAdjustDetailOffset(-step))
@@ -152,7 +165,10 @@ internal static class ShellPrompt
                     continue;
                 }
 
-                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.DownArrow)
+                if (
+                    (key.Modifiers & ConsoleModifiers.Control) != 0
+                    && key.Key == ConsoleKey.DownArrow
+                )
                 {
                     var step = getDetailScrollStep();
                     if (tryAdjustDetailOffset(step))

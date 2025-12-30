@@ -12,13 +12,19 @@ public sealed class PdkCharRunContextSelectionTests
     public async Task PdkCharRun_UsesDbContexts_ForSectionSelection()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkCharRunContextSelectionTests));
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            nameof(PdkCharRunContextSelectionTests)
+        );
 
         // 1) Scan fixture PDK (sky130) to build DB
         var scan = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
-            "pdk", "scan", "tests/fixtures/pdk/sky130");
+            "pdk",
+            "scan",
+            "tests/fixtures/pdk/sky130"
+        );
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(scan);
 
         // 2) Run a single-device char for 'tt' and verify the generated spec/netlist references a valid include
@@ -26,12 +32,20 @@ public sealed class PdkCharRunContextSelectionTests
         var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
-            "pdk", "char", "run",
-            "--backend", "spectre",
-            "--corner", "tt",
-            "--limit", "1",
-            "--name-contains", deviceNeedle,
-            "--workspace", "tests/fixtures/pdk/sky130");
+            "pdk",
+            "char",
+            "run",
+            "--backend",
+            "spectre",
+            "--corner",
+            "tt",
+            "--limit",
+            "1",
+            "--name-contains",
+            deviceNeedle,
+            "--workspace",
+            "tests/fixtures/pdk/sky130"
+        );
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(run);
 
         // 3) Find the most recent job dir and inspect spec.json and netlist
@@ -61,7 +75,11 @@ public sealed class PdkCharRunContextSelectionTests
         Assert.True(File.Exists(includePath!), $"Include path should exist: {includePath}");
 
         Assert.True(spec.RootElement.TryGetProperty("device_name", out var deviceNameElem));
-        Assert.Contains(deviceNeedle, deviceNameElem.GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            deviceNeedle,
+            deviceNameElem.GetString(),
+            StringComparison.OrdinalIgnoreCase
+        );
 
         Assert.Contains("include", netlistText, StringComparison.OrdinalIgnoreCase);
     }

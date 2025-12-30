@@ -42,4 +42,3 @@ public sealed class MeasurementResult
     [JsonPropertyName("node")]
     public string? Node { get; init; }
 }
-

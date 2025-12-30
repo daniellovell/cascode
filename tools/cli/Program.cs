@@ -60,7 +60,11 @@ internal static class Program
         Console.Error.WriteLine($"{AppName}: fatal error: {ex.Message}");
         Console.ForegroundColor = previousColor;
 
-        if (Environment.GetEnvironmentVariable("CASCODE_DEBUG")?.Equals("1", StringComparison.Ordinal) == true)
+        if (
+            Environment
+                .GetEnvironmentVariable("CASCODE_DEBUG")
+                ?.Equals("1", StringComparison.Ordinal) == true
+        )
         {
             Console.Error.WriteLine();
             Console.Error.WriteLine(ex);

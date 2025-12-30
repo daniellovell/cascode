@@ -1,5 +1,4 @@
 using System;
-
 using Cascode.Workspace;
 
 namespace Cascode.Workspace.Tests;

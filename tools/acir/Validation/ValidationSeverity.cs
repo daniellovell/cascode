@@ -18,5 +18,5 @@ public enum ValidationSeverity
     /// <summary>
     /// Error that blocks emission or indicates an invalid circuit.
     /// </summary>
-    Error
+    Error,
 }

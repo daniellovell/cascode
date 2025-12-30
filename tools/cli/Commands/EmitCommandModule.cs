@@ -42,7 +42,9 @@ internal sealed class EmitCommandModule : ICommandModule
     /// <param name="registry">Command registry.</param>
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("emit", "Emit SPICE netlist from ACIR EL", EmitCommand));
+        registry.Register(
+            new DelegateCliCommand("emit", "Emit SPICE netlist from ACIR EL", EmitCommand)
+        );
     }
 
     /// <summary>
@@ -65,8 +67,14 @@ internal sealed class EmitCommandModule : ICommandModule
         {
             if (jsonOutput)
             {
-                OutputEmitJson(false, 2, new ValidationResult(), new List<string>(), new List<string>(),
-                    $"Input file '{inputPath}' not found.");
+                OutputEmitJson(
+                    false,
+                    2,
+                    new ValidationResult(),
+                    new List<string>(),
+                    new List<string>(),
+                    $"Input file '{inputPath}' not found."
+                );
             }
             else
             {
@@ -88,17 +96,27 @@ internal sealed class EmitCommandModule : ICommandModule
         {
             if (jsonOutput)
             {
-                OutputEmitJson(false, 2, new ValidationResult(), new List<string>(), new List<string>(),
-                    "No EL-level circuits found. SPICE emission requires EL-level ACIR.");
+                OutputEmitJson(
+                    false,
+                    2,
+                    new ValidationResult(),
+                    new List<string>(),
+                    new List<string>(),
+                    "No EL-level circuits found. SPICE emission requires EL-level ACIR."
+                );
             }
             else
             {
-                _state.AddMessage("No EL-level circuits found. SPICE emission requires EL-level ACIR.");
+                _state.AddMessage(
+                    "No EL-level circuits found. SPICE emission requires EL-level ACIR."
+                );
             }
             return new CommandResult(2, false);
         }
 
-        var usesPdkDevices = elCircuits.Any(c => c.Fill?.Devices.Any(d => !string.IsNullOrWhiteSpace(d.PdkDevice)) == true);
+        var usesPdkDevices = elCircuits.Any(c =>
+            c.Fill?.Devices.Any(d => !string.IsNullOrWhiteSpace(d.PdkDevice)) == true
+        );
 
         ILoggerFactory? localFactory = null;
         try
@@ -111,21 +129,41 @@ internal sealed class EmitCommandModule : ICommandModule
                 var status = File.Exists(dbPath) ? string.Empty : " (no pdk.db; run 'pdk scan')";
                 _state.AddMessage($"PDK workspace: {pdkRoot}{status}");
             }
-            var loggerFactory = _state.LoggerFactory ?? (localFactory = LoggerFactory.Create(builder =>
-            {
-                builder.SetMinimumLevel(LogLevel.Warning);
-                builder.AddSimpleConsole(o => { o.SingleLine = true; });
-            }));
+            var loggerFactory =
+                _state.LoggerFactory
+                ?? (
+                    localFactory = LoggerFactory.Create(builder =>
+                    {
+                        builder.SetMinimumLevel(LogLevel.Warning);
+                        builder.AddSimpleConsole(o =>
+                        {
+                            o.SingleLine = true;
+                        });
+                    })
+                );
             var includeResolver = PdkBenchIncludeResolver.Create(
                 pdkRoot,
-                loggerFactory.CreateLogger<PdkBenchIncludeResolver>());
-            var result = SpiceEmitter.ValidateAndEmit(doc, outputDir, backend, workspaceRoot, includeResolver);
+                loggerFactory.CreateLogger<PdkBenchIncludeResolver>()
+            );
+            var result = SpiceEmitter.ValidateAndEmit(
+                doc,
+                outputDir,
+                backend,
+                workspaceRoot,
+                includeResolver
+            );
 
             if (!result.Validation.IsValid)
             {
                 if (jsonOutput)
                 {
-                    OutputEmitJson(false, 2, result.Validation, new List<string>(), new List<string>());
+                    OutputEmitJson(
+                        false,
+                        2,
+                        result.Validation,
+                        new List<string>(),
+                        new List<string>()
+                    );
                 }
                 else
                 {
@@ -133,14 +171,22 @@ internal sealed class EmitCommandModule : ICommandModule
                     {
                         _state.AddMessage(error.ToString());
                     }
-                    _state.AddMessage($"Emission failed: {result.Validation.ErrorCount} error(s) found.");
+                    _state.AddMessage(
+                        $"Emission failed: {result.Validation.ErrorCount} error(s) found."
+                    );
                 }
                 return new CommandResult(2, false);
             }
 
             if (jsonOutput)
             {
-                OutputEmitJson(true, 0, result.Validation, result.Emit.DesignPaths, result.Emit.TestbenchPaths);
+                OutputEmitJson(
+                    true,
+                    0,
+                    result.Validation,
+                    result.Emit.DesignPaths,
+                    result.Emit.TestbenchPaths
+                );
             }
             else
             {
@@ -156,7 +202,9 @@ internal sealed class EmitCommandModule : ICommandModule
                 {
                     _state.AddMessage($"Testbench: {path}");
                 }
-                _state.AddMessage($"Emitted {result.Emit.DesignPaths.Count} design(s) and {result.Emit.TestbenchPaths.Count} testbench(es).");
+                _state.AddMessage(
+                    $"Emitted {result.Emit.DesignPaths.Count} design(s) and {result.Emit.TestbenchPaths.Count} testbench(es)."
+                );
             }
 
             return CommandResult.Success;
@@ -165,8 +213,14 @@ internal sealed class EmitCommandModule : ICommandModule
         {
             if (jsonOutput)
             {
-                OutputEmitJson(false, 1, new ValidationResult(), new List<string>(), new List<string>(),
-                    $"SPICE emission failed: {ex.Message}");
+                OutputEmitJson(
+                    false,
+                    1,
+                    new ValidationResult(),
+                    new List<string>(),
+                    new List<string>(),
+                    $"SPICE emission failed: {ex.Message}"
+                );
             }
             else
             {
@@ -180,8 +234,14 @@ internal sealed class EmitCommandModule : ICommandModule
         }
     }
 
-    private void OutputEmitJson(bool success, int exitCode, ValidationResult validation,
-        List<string> designPaths, List<string> testbenchPaths, string? additionalError = null)
+    private void OutputEmitJson(
+        bool success,
+        int exitCode,
+        ValidationResult validation,
+        List<string> designPaths,
+        List<string> testbenchPaths,
+        string? additionalError = null
+    )
     {
         var validationCopy = validation;
         if (additionalError != null)
@@ -197,7 +257,7 @@ internal sealed class EmitCommandModule : ICommandModule
             ExitCode = exitCode,
             Validation = JsonSerializer.Deserialize<JsonElement>(validationCopy.ToJson(exitCode)),
             DesignPaths = designPaths,
-            TestbenchPaths = testbenchPaths
+            TestbenchPaths = testbenchPaths,
         };
 
         _state.AddMessage(JsonSerializer.Serialize(output, EmitJsonOutput.SerializerOptions));
@@ -205,18 +265,24 @@ internal sealed class EmitCommandModule : ICommandModule
 
     private void ShowUsage()
     {
-        _state.AddMessage("Usage: emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]");
+        _state.AddMessage(
+            "Usage: emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]"
+        );
         _state.AddMessage("");
         _state.AddMessage("Emits SPICE netlists from an ACIR EL document.");
         _state.AddMessage("Generates both design subcircuit and testbench files.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
         _state.AddMessage("  --out <dir>      Output directory (default: ./build)");
-        _state.AddMessage("  --backend <type> Simulator backend: ngspice or spectre (default: ngspice)");
+        _state.AddMessage(
+            "  --backend <type> Simulator backend: ngspice or spectre (default: ngspice)"
+        );
         _state.AddMessage("  --json           Output results as JSON for machine processing");
     }
 
-    private static (string OutputDir, BenchBackendType Backend, bool JsonOutput) ParseEmitOptions(string[] args)
+    private static (string OutputDir, BenchBackendType Backend, bool JsonOutput) ParseEmitOptions(
+        string[] args
+    )
     {
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "build");
         var backend = BenchBackendType.Ngspice;
@@ -236,7 +302,9 @@ internal sealed class EmitCommandModule : ICommandModule
                 {
                     "ngspice" => BenchBackendType.Ngspice,
                     "spectre" => BenchBackendType.Spectre,
-                    _ => throw new InvalidOperationException($"Unknown backend: {args[i + 1]}. Use 'ngspice' or 'spectre'.")
+                    _ => throw new InvalidOperationException(
+                        $"Unknown backend: {args[i + 1]}. Use 'ngspice' or 'spectre'."
+                    ),
                 };
                 i++;
             }
@@ -262,7 +330,11 @@ internal sealed class EmitCommandModule : ICommandModule
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
-                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                foreach (
+                    var diag in readResult.Diagnostics.Where(d =>
+                        d.Severity == DiagnosticSeverity.Error
+                    )
+                )
                 {
                     var code = string.IsNullOrWhiteSpace(diag.Code) ? "EMIT-PARSE" : diag.Code;
                     errorResult.AddError(code, diag.Message, $"{diag.FilePath}:{diag.Line}");
@@ -271,7 +343,11 @@ internal sealed class EmitCommandModule : ICommandModule
             }
             else
             {
-                foreach (var diag in readResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
+                foreach (
+                    var diag in readResult.Diagnostics.Where(d =>
+                        d.Severity == DiagnosticSeverity.Error
+                    )
+                )
                 {
                     _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
@@ -306,7 +382,7 @@ internal sealed class EmitJsonOutput
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     [JsonPropertyName("success")]

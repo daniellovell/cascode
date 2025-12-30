@@ -10,7 +10,14 @@ internal sealed class CommandDescriptor
 {
     private readonly string[] _path;
 
-    internal CommandDescriptor(string path, string description, CommandHandler handler, bool hidden = false, bool isAlias = false, CommandDescriptor? canonical = null)
+    internal CommandDescriptor(
+        string path,
+        string description,
+        CommandHandler handler,
+        bool hidden = false,
+        bool isAlias = false,
+        CommandDescriptor? canonical = null
+    )
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -60,17 +67,25 @@ internal sealed class CommandDescriptor
         return true;
     }
 
-    private static string[] Split(string path) => path
-        .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    private static string[] Split(string path) =>
+        path.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
 internal sealed class CommandRegistry
 {
     private readonly List<CommandDescriptor> _descriptors = new();
-    private readonly Dictionary<string, CommandDescriptor> _lookup = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, CommandDescriptor> _lookup = new(
+        StringComparer.OrdinalIgnoreCase
+    );
     private int _maxPathLength;
 
-    public CommandDescriptor Register(string path, string description, CommandHandler handler, bool hidden = false, params string[] aliases)
+    public CommandDescriptor Register(
+        string path,
+        string description,
+        CommandHandler handler,
+        bool hidden = false,
+        params string[] aliases
+    )
     {
         var descriptor = new CommandDescriptor(path, description, handler, hidden);
         AddDescriptor(descriptor);
@@ -82,7 +97,14 @@ internal sealed class CommandRegistry
                 continue;
             }
 
-            var aliasDescriptor = new CommandDescriptor(alias, description, handler, hidden: true, isAlias: true, canonical: descriptor);
+            var aliasDescriptor = new CommandDescriptor(
+                alias,
+                description,
+                handler,
+                hidden: true,
+                isAlias: true,
+                canonical: descriptor
+            );
             AddDescriptor(aliasDescriptor);
         }
 
@@ -93,11 +115,22 @@ internal sealed class CommandRegistry
     // changing the underlying registry or handler signatures yet.
     public CommandDescriptor Register(Commands.ICliCommand command)
     {
-        if (command is null) throw new ArgumentNullException(nameof(command));
-        return Register(command.Path, command.Description, command.Handler, command.Hidden, command.Aliases is null ? Array.Empty<string>() : command.Aliases.ToArray());
+        ArgumentNullException.ThrowIfNull(command);
+        return Register(
+            command.Path,
+            command.Description,
+            command.Handler,
+            command.Hidden,
+            command.Aliases is null ? Array.Empty<string>() : command.Aliases.ToArray()
+        );
     }
 
-    public bool TryResolve(IReadOnlyList<string> tokens, out CommandDescriptor? descriptor, out string[] args, out int matchedLength)
+    public bool TryResolve(
+        IReadOnlyList<string> tokens,
+        out CommandDescriptor? descriptor,
+        out string[] args,
+        out int matchedLength
+    )
     {
         descriptor = null;
         args = Array.Empty<string>();
@@ -127,14 +160,17 @@ internal sealed class CommandRegistry
 
     public IEnumerable<CommandDescriptor> GetCanonicalCommands()
     {
-        return _descriptors.Where(d => !d.IsAlias && !d.Hidden)
+        return _descriptors
+            .Where(d => !d.IsAlias && !d.Hidden)
             .OrderBy(d => d.DisplayPath, StringComparer.OrdinalIgnoreCase);
     }
 
     public IEnumerable<CommandDescriptor> GetSubcommands(IReadOnlyList<string> prefix)
     {
         return _descriptors
-            .Where(d => !d.IsAlias && !d.Hidden && d.Tokens.Count > prefix.Count && d.StartsWith(prefix))
+            .Where(d =>
+                !d.IsAlias && !d.Hidden && d.Tokens.Count > prefix.Count && d.StartsWith(prefix)
+            )
             .OrderBy(d => d.DisplayPath, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -143,7 +179,9 @@ internal sealed class CommandRegistry
         var key = MakeKey(descriptor.OwnTokens);
         if (_lookup.ContainsKey(key))
         {
-            throw new InvalidOperationException($"Command '{descriptor.DisplayPath}' is already registered.");
+            throw new InvalidOperationException(
+                $"Command '{descriptor.DisplayPath}' is already registered."
+            );
         }
 
         _lookup[key] = descriptor;

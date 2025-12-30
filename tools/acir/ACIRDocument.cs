@@ -431,4 +431,3 @@ public sealed class SourceReference
     public int? FromLine { get; init; }
     public int? ToLine { get; init; }
 }
-

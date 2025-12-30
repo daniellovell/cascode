@@ -11,7 +11,8 @@ internal sealed class CharReadViewState
         IReadOnlyList<string> headers,
         IReadOnlyList<IReadOnlyList<string>> rows,
         IReadOnlyDictionary<string, IReadOnlyList<double>> sparklines,
-        string sourcePath)
+        string sourcePath
+    )
     {
         Title = title;
         Subtitle = subtitle;
@@ -34,5 +35,6 @@ internal sealed class CharReadViewState
         Array.Empty<string>(),
         Array.Empty<IReadOnlyList<string>>(),
         new Dictionary<string, IReadOnlyList<double>>(),
-        string.Empty);
+        string.Empty
+    );
 }

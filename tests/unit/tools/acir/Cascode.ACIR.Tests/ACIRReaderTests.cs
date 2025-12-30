@@ -9,7 +9,8 @@ public class ACIRReaderTests
     [Fact]
     public void TryRead_ValidDocument_ReturnsSuccess()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -34,7 +35,8 @@ circuit TestCircuit
     [Fact]
     public void TryParse_ValidDocument_ReturnsSuccess()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -52,7 +54,8 @@ circuit TestCircuit
     [Fact]
     public void TryRead_InvalidVersionDeclaration_ReturnsError()
     {
-        var acir = @"ACIR invalid
+        var acir =
+            @"ACIR invalid
 
 circuit TestCircuit
   level EL
@@ -62,15 +65,17 @@ circuit TestCircuit
         var result = ACIRReader.TryRead(reader, "test.cir");
 
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, d =>
-            d.Severity == DiagnosticSeverity.Error &&
-            d.Message.Contains("ACIR0002"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+        );
     }
 
     [Fact]
     public void TryRead_MalformedDeviceDeclaration_ReturnsError()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -84,15 +89,17 @@ circuit TestCircuit
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
-        Assert.Contains(result.Diagnostics, d =>
-            d.Severity == DiagnosticSeverity.Error &&
-            d.Message.Contains("ACIR0004"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0004")
+        );
     }
 
     [Fact]
     public void TryRead_MalformedBinding_ReturnsWarning()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -107,16 +114,20 @@ circuit TestCircuit
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
-        Assert.Contains(result.Diagnostics, d =>
-            d.Severity == DiagnosticSeverity.Warning &&
-            d.Message.Contains("ACIR0005") &&
-            d.Message.Contains("bad_binding"));
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Warning
+                && d.Message.Contains("ACIR0005")
+                && d.Message.Contains("bad_binding")
+        );
     }
 
     [Fact]
     public void TryRead_DiagnosticsIncludeLineNumbers()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -129,7 +140,9 @@ circuit TestCircuit
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
-        var errorDiag = result.Diagnostics.FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error);
+        var errorDiag = result.Diagnostics.FirstOrDefault(d =>
+            d.Severity == DiagnosticSeverity.Error
+        );
         Assert.NotNull(errorDiag);
         Assert.Equal("test.cir", errorDiag.FilePath);
         Assert.True(errorDiag.Line > 0);
@@ -151,7 +164,8 @@ circuit TestCircuit
     [Fact]
     public void TryRead_CommentsOnly_ReturnsEmptyResult()
     {
-        var acir = @"// This is a comment
+        var acir =
+            @"// This is a comment
 // Another comment
 ";
 
@@ -166,7 +180,8 @@ circuit TestCircuit
     [Fact]
     public void TryRead_MissingVersionDeclaration_ReturnsWarning()
     {
-        var acir = @"circuit TestCircuit
+        var acir =
+            @"circuit TestCircuit
   level EL
   supply VDD
   ground GND
@@ -177,16 +192,20 @@ circuit TestCircuit
 
         // Should still parse but with a warning
         Assert.NotNull(result.Document);
-        Assert.Contains(result.Diagnostics, d =>
-            d.Severity == DiagnosticSeverity.Warning &&
-            d.Message.Contains("ACIR0002") &&
-            d.Message.Contains("Missing version"));
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Warning
+                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("Missing version")
+        );
     }
 
     [Fact]
     public void ACIRReadResult_ErrorCount_ReflectsErrors()
     {
-        var acir = @"ACIR invalid
+        var acir =
+            @"ACIR invalid
 
 circuit TestCircuit
   level EL
@@ -205,7 +224,8 @@ circuit TestCircuit
     [Fact]
     public void ACIRReadResult_WarningCount_ReflectsWarnings()
     {
-        var acir = @"ACIR 1.0
+        var acir =
+            @"ACIR 1.0
 
 circuit TestCircuit
   level EL
@@ -227,7 +247,8 @@ circuit TestCircuit
     [Fact]
     public void TryParse_HarnessWithSweep_ParsesSweepCondition()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -255,7 +276,8 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -278,7 +300,8 @@ circuit Test
     [Fact]
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -299,7 +322,8 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithAutoStepSweep_ParsesWithoutStep()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -322,7 +346,8 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithParallelLoad_ParsesBothComponents()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -341,7 +366,8 @@ circuit Test
     [Fact]
     public void TryParse_HarnessWithParallelLoadReverseOrder_ParsesBothComponents()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -360,7 +386,8 @@ circuit Test
     [Fact]
     public void TryParse_HarnessWithMultipleSameTypeElements_ParsesAll()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -381,7 +408,8 @@ circuit Test
     [Fact]
     public void TryParse_MalformedParallelLoad_EmitsDiagnostics()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   harness:
@@ -417,11 +445,11 @@ circuit Test
                         Elements = new List<LoadElement>
                         {
                             new LoadElement("C", "1pF"),
-                            new LoadElement("R", "1MOhm")
-                        }
-                    }
-                }
-            }
+                            new LoadElement("R", "1MOhm"),
+                        },
+                    },
+                },
+            },
         };
         var doc = new ACIRDocument { Circuits = new List<Circuit> { circuit } };
         using var writer = new StringWriter();
@@ -434,7 +462,8 @@ circuit Test
     [Fact]
     public void TryParse_HarnessWithInvalidSweepRange_EmitsDiagnosticErrorIncludingLineAndRangeSpec()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -448,10 +477,11 @@ circuit Test : SingleEndedAmp
 
         Assert.False(result.Success);
         var errorDiag = result.Diagnostics.FirstOrDefault(d =>
-            d.Severity == DiagnosticSeverity.Error &&
-            d.Message.Contains("ACIR0006") &&
-            d.Message.Contains("sweep InputDCBias []") &&
-            d.Message.Contains("''"));
+            d.Severity == DiagnosticSeverity.Error
+            && d.Message.Contains("ACIR0006")
+            && d.Message.Contains("sweep InputDCBias []")
+            && d.Message.Contains("''")
+        );
         Assert.NotNull(errorDiag);
         Assert.Equal(9, errorDiag.Line);
     }
@@ -459,7 +489,8 @@ circuit Test : SingleEndedAmp
     [Fact]
     public void TryParse_HarnessWithMultipleSweeps_ParsesAll()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   supply VDD
@@ -482,7 +513,8 @@ circuit Test
     [Fact]
     public void TryParse_ConstraintsWithInlineComments_ParsesCorrectly()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   supply VDD
@@ -530,7 +562,8 @@ circuit Test
     [Fact]
     public void TryParse_FullLineComments_AreIgnored()
     {
-        var content = @"ACIR 1.0
+        var content =
+            @"ACIR 1.0
 circuit Test
   level EL
   supply VDD

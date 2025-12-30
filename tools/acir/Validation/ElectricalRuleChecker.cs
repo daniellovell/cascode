@@ -56,16 +56,23 @@ public static class ElectricalRuleChecker
     /// <summary>
     /// ERC-001: Check for floating gates (MOSFET gates not connected to driven nets).
     /// </summary>
-    private static void CheckFloatingGates(Circuit circuit, CircuitAnalysis analysis, ValidationResult result)
+    private static void CheckFloatingGates(
+        Circuit circuit,
+        CircuitAnalysis analysis,
+        ValidationResult result
+    )
     {
-        if (circuit.Fill?.Devices == null) return;
+        if (circuit.Fill?.Devices == null)
+            return;
 
         foreach (var device in circuit.Fill.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
-            if (deviceType is not ("nmos" or "pmos")) continue;
+            if (deviceType is not ("nmos" or "pmos"))
+                continue;
 
-            if (!device.Bindings.TryGetValue("G", out var gateNet)) continue;
+            if (!device.Bindings.TryGetValue("G", out var gateNet))
+                continue;
 
             if (!analysis.IsDrivenNet(gateNet))
             {
@@ -73,7 +80,8 @@ public static class ElectricalRuleChecker
                     "ERC-001",
                     $"Floating gate on device {device.Id}",
                     $"{device.Id}.G -> {gateNet}",
-                    "Connect gate to a driven net (port, supply, or device output)");
+                    "Connect gate to a driven net (port, supply, or device output)"
+                );
             }
         }
     }
@@ -81,19 +89,26 @@ public static class ElectricalRuleChecker
     /// <summary>
     /// ERC-002: Check for VDD-GND shorts (device with drain on VDD and source on GND or vice versa).
     /// </summary>
-    private static void CheckVddGndShorts(Circuit circuit, CircuitAnalysis analysis, ValidationResult result)
+    private static void CheckVddGndShorts(
+        Circuit circuit,
+        CircuitAnalysis analysis,
+        ValidationResult result
+    )
     {
-        if (circuit.Fill?.Devices == null) return;
+        if (circuit.Fill?.Devices == null)
+            return;
 
         foreach (var device in circuit.Fill.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
-            if (deviceType is not ("nmos" or "pmos")) continue;
+            if (deviceType is not ("nmos" or "pmos"))
+                continue;
 
             var drain = device.Bindings.GetValueOrDefault("D");
             var source = device.Bindings.GetValueOrDefault("S");
 
-            if (drain == null || source == null) continue;
+            if (drain == null || source == null)
+                continue;
 
             var drainIsSupply = analysis.IsSupply(drain);
             var drainIsGround = analysis.IsGround(drain);
@@ -106,7 +121,8 @@ public static class ElectricalRuleChecker
                     "ERC-002",
                     $"VDD-GND short through device {device.Id}",
                     $"{device.Id} (D->{drain}, S->{source})",
-                    "Check device connectivity - drain and source cannot span supply rails directly");
+                    "Check device connectivity - drain and source cannot span supply rails directly"
+                );
             }
         }
     }
@@ -114,19 +130,26 @@ public static class ElectricalRuleChecker
     /// <summary>
     /// ERC-007: Check for passive devices bridging supply rails (R/L/C between VDD and GND).
     /// </summary>
-    private static void CheckPassiveShorts(Circuit circuit, CircuitAnalysis analysis, ValidationResult result)
+    private static void CheckPassiveShorts(
+        Circuit circuit,
+        CircuitAnalysis analysis,
+        ValidationResult result
+    )
     {
-        if (circuit.Fill?.Devices == null) return;
+        if (circuit.Fill?.Devices == null)
+            return;
 
         foreach (var device in circuit.Fill.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
-            if (deviceType is not ("resistor" or "inductor" or "capacitor")) continue;
+            if (deviceType is not ("resistor" or "inductor" or "capacitor"))
+                continue;
 
             var p = device.Bindings.GetValueOrDefault("P");
             var n = device.Bindings.GetValueOrDefault("N");
 
-            if (p == null || n == null) continue;
+            if (p == null || n == null)
+                continue;
 
             var pIsSupply = analysis.IsSupply(p);
             var pIsGround = analysis.IsGround(p);
@@ -140,14 +163,15 @@ public static class ElectricalRuleChecker
                     "resistor" => "Resistor",
                     "inductor" => "Inductor",
                     "capacitor" => "Capacitor",
-                    _ => "Passive device"
+                    _ => "Passive device",
                 };
 
                 result.AddError(
                     "ERC-007",
                     $"{deviceTypeName} '{device.Id}' bridges supply rails",
                     $"{device.Id} (P->{p}, N->{n})",
-                    "This creates a direct path between VDD and GND");
+                    "This creates a direct path between VDD and GND"
+                );
             }
         }
     }
@@ -158,8 +182,8 @@ public static class ElectricalRuleChecker
     private static void CheckRailUniqueness(Circuit circuit, ValidationResult result)
     {
         // Check for duplicate supply declarations
-        var supplyDuplicates = circuit.Supplies
-            .GroupBy(s => s, StringComparer.Ordinal)
+        var supplyDuplicates = circuit
+            .Supplies.GroupBy(s => s, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key);
 
@@ -169,12 +193,13 @@ public static class ElectricalRuleChecker
                 "ERC-003",
                 $"Supply '{dup}' is declared multiple times",
                 $"supply {dup}",
-                "Remove duplicate supply declaration");
+                "Remove duplicate supply declaration"
+            );
         }
 
         // Check for duplicate ground declarations
-        var groundDuplicates = circuit.Grounds
-            .GroupBy(g => g, StringComparer.Ordinal)
+        var groundDuplicates = circuit
+            .Grounds.GroupBy(g => g, StringComparer.Ordinal)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key);
 
@@ -184,7 +209,8 @@ public static class ElectricalRuleChecker
                 "ERC-003",
                 $"Ground '{dup}' is declared multiple times",
                 $"ground {dup}",
-                "Remove duplicate ground declaration");
+                "Remove duplicate ground declaration"
+            );
         }
 
         // Check for supply/ground name collision
@@ -195,16 +221,22 @@ public static class ElectricalRuleChecker
                 "ERC-003",
                 $"'{collision}' is declared as both supply and ground",
                 collision,
-                "A net cannot be both supply and ground");
+                "A net cannot be both supply and ground"
+            );
         }
     }
 
     /// <summary>
     /// ERC-004: Check for dangling nets (internal nets with no device connections).
     /// </summary>
-    private static void CheckDanglingNets(Circuit circuit, CircuitAnalysis analysis, ValidationResult result)
+    private static void CheckDanglingNets(
+        Circuit circuit,
+        CircuitAnalysis analysis,
+        ValidationResult result
+    )
     {
-        if (circuit.Fill?.Nets == null) return;
+        if (circuit.Fill?.Nets == null)
+            return;
 
         foreach (var net in circuit.Fill.Nets)
         {
@@ -220,36 +252,50 @@ public static class ElectricalRuleChecker
                     "ERC-004",
                     $"Dangling net '{net.Id}' has no device connections",
                     $"net {net.Id}",
-                    "Remove unused net or connect it to a device");
+                    "Remove unused net or connect it to a device"
+                );
             }
         }
     }
 
-    private static readonly HashSet<string> GenericMosfetModels = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> GenericMosfetModels = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        "nmos", "pmos"
+        "nmos",
+        "pmos",
     };
 
     /// <summary>
     /// ERC-005: Check for missing PDK device names at EL level.
     /// </summary>
-    private static void CheckPdkDevice(Circuit circuit, ValidationResult result, bool requirePdkDevice)
+    private static void CheckPdkDevice(
+        Circuit circuit,
+        ValidationResult result,
+        bool requirePdkDevice
+    )
     {
-        if (circuit.Level != ACIRLevel.EL) return;
-        if (circuit.Fill?.Devices == null) return;
+        if (circuit.Level != ACIRLevel.EL)
+            return;
+        if (circuit.Fill?.Devices == null)
+            return;
 
         foreach (var device in circuit.Fill.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
-            if (deviceType is not ("nmos" or "pmos")) continue;
+            if (deviceType is not ("nmos" or "pmos"))
+                continue;
 
             // Device is missing PDK name or using generic name (nmos/pmos)
-            var isGenericOrMissing = string.IsNullOrEmpty(device.PdkDevice)
+            var isGenericOrMissing =
+                string.IsNullOrEmpty(device.PdkDevice)
                 || GenericMosfetModels.Contains(device.PdkDevice);
 
             if (isGenericOrMissing)
             {
-                var modelName = string.IsNullOrEmpty(device.PdkDevice) ? device.DeviceType : device.PdkDevice;
+                var modelName = string.IsNullOrEmpty(device.PdkDevice)
+                    ? device.DeviceType
+                    : device.PdkDevice;
 
                 if (requirePdkDevice)
                 {
@@ -257,7 +303,8 @@ public static class ElectricalRuleChecker
                         "ERC-005",
                         $"Device '{device.Id}' using generic model '{modelName}' instead of PDK device",
                         $"device {device.Id}",
-                        "Add PDK device name, e.g., sky130_fd_pr__nfet_01v8");
+                        "Add PDK device name, e.g., sky130_fd_pr__nfet_01v8"
+                    );
                 }
                 else
                 {
@@ -265,7 +312,8 @@ public static class ElectricalRuleChecker
                         "ERC-005",
                         $"Device '{device.Id}' using generic model '{modelName}' instead of PDK device",
                         $"device {device.Id}",
-                        "Consider specifying PDK device name for accurate simulation");
+                        "Consider specifying PDK device name for accurate simulation"
+                    );
                 }
             }
         }
@@ -276,19 +324,24 @@ public static class ElectricalRuleChecker
     /// </summary>
     private static bool IsReferencedInHarness(Circuit circuit, string netId)
     {
-        if (circuit.Harness == null) return false;
+        if (circuit.Harness == null)
+            return false;
 
         // Check supplies
-        if (circuit.Harness.Supplies.Any(s => s.Net == netId)) return true;
+        if (circuit.Harness.Supplies.Any(s => s.Net == netId))
+            return true;
 
         // Check biases
-        if (circuit.Harness.Biases.Any(b => b.Net == netId)) return true;
+        if (circuit.Harness.Biases.Any(b => b.Net == netId))
+            return true;
 
         // Check sources
-        if (circuit.Harness.Sources.Any(s => s.Net == netId)) return true;
+        if (circuit.Harness.Sources.Any(s => s.Net == netId))
+            return true;
 
         // Check loads
-        if (circuit.Harness.Loads.Any(l => l.Net == netId)) return true;
+        if (circuit.Harness.Loads.Any(l => l.Net == netId))
+            return true;
 
         return false;
     }

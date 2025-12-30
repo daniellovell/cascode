@@ -34,7 +34,11 @@ public static class ComplianceChecker
         var metricToBench = BuildMetricToBenchMapping(circuit);
 
         // "all" indicates combined results from multiple benches - check all constraints
-        var isCombinedResults = string.Equals(results.Bench, "all", StringComparison.OrdinalIgnoreCase);
+        var isCombinedResults = string.Equals(
+            results.Bench,
+            "all",
+            StringComparison.OrdinalIgnoreCase
+        );
 
         foreach (var constraint in circuit.Constraints.Numeric)
         {
@@ -42,9 +46,15 @@ public static class ComplianceChecker
 
             // If we can determine the bench for this constraint, check if it matches the results' bench
             // Skip filtering for combined results ("all") which should check all constraints
-            if (!isCombinedResults &&
-                benchForConstraint != null &&
-                !string.Equals(benchForConstraint, results.Bench, StringComparison.OrdinalIgnoreCase))
+            if (
+                !isCombinedResults
+                && benchForConstraint != null
+                && !string.Equals(
+                    benchForConstraint,
+                    results.Bench,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 // This constraint belongs to a different bench - track as unchecked
                 if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
@@ -52,11 +62,9 @@ public static class ComplianceChecker
                     uncheckedList = new List<UncheckedConstraint>();
                     report.UncheckedByBench[benchForConstraint] = uncheckedList;
                 }
-                uncheckedList.Add(new UncheckedConstraint
-                {
-                    Id = constraint.Id,
-                    Metric = constraint.Metric
-                });
+                uncheckedList.Add(
+                    new UncheckedConstraint { Id = constraint.Id, Metric = constraint.Metric }
+                );
                 continue;
             }
 
@@ -82,9 +90,7 @@ public static class ComplianceChecker
 
         foreach (var measure in circuit.Constraints.Measure)
         {
-            var key = measure.Node != null
-                ? $"{measure.Metric}@{measure.Node}"
-                : measure.Metric;
+            var key = measure.Node != null ? $"{measure.Metric}@{measure.Node}" : measure.Metric;
             mapping[key] = measure.Bench;
         }
 
@@ -96,7 +102,8 @@ public static class ComplianceChecker
     /// </summary>
     private static string? FindBenchForConstraint(
         NumericConstraint constraint,
-        Dictionary<string, string> metricToBench)
+        Dictionary<string, string> metricToBench
+    )
     {
         // Try with node first if specified
         if (constraint.Node != null)
@@ -118,7 +125,10 @@ public static class ComplianceChecker
         return null;
     }
 
-    private static ConstraintResult EvaluateConstraint(NumericConstraint constraint, BenchResult results)
+    private static ConstraintResult EvaluateConstraint(
+        NumericConstraint constraint,
+        BenchResult results
+    )
     {
         // Find matching measurement by metric and optional node
         var matchingMeasurement = FindMatchingMeasurement(constraint, results);
@@ -137,8 +147,9 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
-                Message = $"No measurement found for {constraint.Metric}" +
-                    (constraint.Node != null ? $" @ {constraint.Node}" : "")
+                Message =
+                    $"No measurement found for {constraint.Metric}"
+                    + (constraint.Node != null ? $" @ {constraint.Node}" : ""),
             };
         }
 
@@ -159,19 +170,26 @@ public static class ComplianceChecker
             Actual = actual,
             ActualUnit = measurement.Unit,
             Passed = passed,
-            Message = passed ? "PASS" : "FAIL"
+            Message = passed ? "PASS" : "FAIL",
         };
     }
 
     private static KeyValuePair<string, MeasurementResult>? FindMatchingMeasurement(
         NumericConstraint constraint,
-        BenchResult results)
+        BenchResult results
+    )
     {
         foreach (var kvp in results.Measurements)
         {
             var measurement = kvp.Value;
             // Match by metric name (case-insensitive)
-            if (!string.Equals(measurement.Metric, constraint.Metric, StringComparison.OrdinalIgnoreCase))
+            if (
+                !string.Equals(
+                    measurement.Metric,
+                    constraint.Metric,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 continue;
             }
@@ -179,8 +197,14 @@ public static class ComplianceChecker
             // If constraint specifies a node, measurement must match (or be null/empty)
             if (constraint.Node != null)
             {
-                if (measurement.Node == null ||
-                    !string.Equals(measurement.Node, constraint.Node, StringComparison.OrdinalIgnoreCase))
+                if (
+                    measurement.Node == null
+                    || !string.Equals(
+                        measurement.Node,
+                        constraint.Node,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
                 {
                     continue;
                 }
@@ -201,7 +225,7 @@ public static class ComplianceChecker
             "==" => Math.Abs(actual - expected) < 1e-9, // Floating point comparison
             ">" => actual > expected,
             "<" => actual < expected,
-            _ => throw new InvalidOperationException($"Unknown operator: {op}")
+            _ => throw new InvalidOperationException($"Unknown operator: {op}"),
         };
     }
 
@@ -231,11 +255,20 @@ public static class ComplianceChecker
                 'n' or 'N' => 1e-9,
                 'p' or 'P' => 1e-12,
                 'f' or 'F' => 1e-15,
-                _ => throw new FormatException($"Unrecognized unit suffix '{suffix}' in value: {valueStr}")
+                _ => throw new FormatException(
+                    $"Unrecognized unit suffix '{suffix}' in value: {valueStr}"
+                ),
             };
         }
 
-        if (!double.TryParse(numericPart, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+        if (
+            !double.TryParse(
+                numericPart,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var value
+            )
+        )
         {
             throw new FormatException($"Invalid numeric value: {valueStr}");
         }

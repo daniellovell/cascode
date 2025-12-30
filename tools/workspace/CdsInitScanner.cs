@@ -7,13 +7,15 @@ using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
-internal sealed class CdsInitScanner
+internal sealed partial class CdsInitScanner
 {
-    private static readonly Regex ModelFilesRegex = new(
-        "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex ModelFilesRegex = EnvSetValModelFilesPattern();
 
-    public IReadOnlyList<string> FindModelDecks(string workspaceRoot, ICollection<string>? warnings = null, Microsoft.Extensions.Logging.ILogger? logger = null)
+    public static IReadOnlyList<string> FindModelDecks(
+        string workspaceRoot,
+        ICollection<string>? warnings = null,
+        Microsoft.Extensions.Logging.ILogger? logger = null
+    )
     {
         var candidates = EnumerateCandidateFiles(workspaceRoot, logger)
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -50,7 +52,10 @@ internal sealed class CdsInitScanner
         return decks;
     }
 
-    private static IEnumerable<string> EnumerateCandidateFiles(string workspaceRoot, Microsoft.Extensions.Logging.ILogger? logger)
+    private static IEnumerable<string> EnumerateCandidateFiles(
+        string workspaceRoot,
+        Microsoft.Extensions.Logging.ILogger? logger
+    )
     {
         var candidates = new List<string>();
 
@@ -81,7 +86,12 @@ internal sealed class CdsInitScanner
         return candidates;
     }
 
-    private static IEnumerable<string> ExtractModelPaths(string workspaceRoot, string filePath, ICollection<string>? warnings, Microsoft.Extensions.Logging.ILogger? logger)
+    private static IEnumerable<string> ExtractModelPaths(
+        string workspaceRoot,
+        string filePath,
+        ICollection<string>? warnings,
+        Microsoft.Extensions.Logging.ILogger? logger
+    )
     {
         var result = new List<string>();
         var root = Path.GetDirectoryName(filePath) ?? Directory.GetCurrentDirectory();
@@ -100,11 +110,19 @@ internal sealed class CdsInitScanner
                     }
 
                     var pathSegment = ExtractPathSegment(token, out _);
-                    var normalized = PathUtilities.NormalizeWorkspacePath(pathSegment, workspaceRoot, root);
+                    var normalized = PathUtilities.NormalizeWorkspacePath(
+                        pathSegment,
+                        workspaceRoot,
+                        root
+                    );
                     if (normalized is not null)
                     {
                         result.Add(normalized);
-                        logger?.LogDebug("[cdsinit] Candidate deck '{Deck}' extracted from {File}", normalized, filePath);
+                        logger?.LogDebug(
+                            "[cdsinit] Candidate deck '{Deck}' extracted from {File}",
+                            normalized,
+                            filePath
+                        );
                     }
                 }
             }
@@ -127,8 +145,13 @@ internal sealed class CdsInitScanner
 
         var trimmed = raw.Trim();
 
-        if (trimmed.Length >= 2 &&
-            ((trimmed[0] == '"' && trimmed[^1] == '"') || (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        if (
+            trimmed.Length >= 2
+            && (
+                (trimmed[0] == '"' && trimmed[^1] == '"')
+                || (trimmed[0] == '\'' && trimmed[^1] == '\'')
+            )
+        )
         {
             trimmed = trimmed[1..^1];
         }
@@ -163,4 +186,13 @@ internal sealed class CdsInitScanner
         section = trimmed[(separatorIndex + 1)..].Trim();
         return trimmed[..separatorIndex].Trim();
     }
+
+    [GeneratedRegex(
+        "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
+        RegexOptions.IgnoreCase
+            | RegexOptions.Compiled
+            | RegexOptions.Singleline
+            | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex EnvSetValModelFilesPattern();
 }

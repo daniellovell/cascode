@@ -82,7 +82,12 @@ public class ValidationResultTests
     public void ToJson_WithErrors_IncludesErrorDetails()
     {
         var result = new ValidationResult();
-        result.AddError("ERC-001", "Floating gate on device M1", "M1.G -> n_float", "Connect gate to driven net");
+        result.AddError(
+            "ERC-001",
+            "Floating gate on device M1",
+            "M1.G -> n_float",
+            "Connect gate to driven net"
+        );
 
         var json = result.ToJson(1);
 

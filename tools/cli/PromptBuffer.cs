@@ -65,23 +65,44 @@ internal sealed class PromptBuffer
     /// <summary>Move cursor one word to the left.</summary>
     public void MoveWordLeft()
     {
-        if (Cursor == 0) { return; }
+        if (Cursor == 0)
+        {
+            return;
+        }
 
         var i = Cursor - 1;
-        while (i >= 0 && char.IsWhiteSpace(_buffer[i])) { i--; }
-        while (i >= 0 && !char.IsWhiteSpace(_buffer[i])) { i--; }
+        while (i >= 0 && char.IsWhiteSpace(_buffer[i]))
+        {
+            i--;
+        }
+        while (i >= 0 && !char.IsWhiteSpace(_buffer[i]))
+        {
+            i--;
+        }
         Cursor = i + 1;
     }
 
     /// <summary>Move cursor one word to the right.</summary>
     public void MoveWordRight()
     {
-        if (Cursor >= _buffer.Length) { return; }
+        if (Cursor >= _buffer.Length)
+        {
+            return;
+        }
 
         var i = Cursor;
-        while (i < _buffer.Length && char.IsWhiteSpace(_buffer[i])) { i++; }
-        while (i < _buffer.Length && !char.IsWhiteSpace(_buffer[i])) { i++; }
-        while (i < _buffer.Length && char.IsWhiteSpace(_buffer[i])) { i++; }
+        while (i < _buffer.Length && char.IsWhiteSpace(_buffer[i]))
+        {
+            i++;
+        }
+        while (i < _buffer.Length && !char.IsWhiteSpace(_buffer[i]))
+        {
+            i++;
+        }
+        while (i < _buffer.Length && char.IsWhiteSpace(_buffer[i]))
+        {
+            i++;
+        }
         Cursor = i;
     }
 

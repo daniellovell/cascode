@@ -28,7 +28,8 @@ public sealed class ACIRReadResult
     /// <summary>
     /// True if the document was successfully parsed with no errors.
     /// </summary>
-    public bool Success => Document != null && !Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
+    public bool Success =>
+        Document != null && !Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 
     /// <summary>
     /// True if there are any errors (fatal diagnostics).

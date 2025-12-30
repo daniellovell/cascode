@@ -10,13 +10,18 @@ public sealed record PdkIncludeResolution(
     IReadOnlyList<string> IncludePaths,
     IReadOnlyList<string> IncludePathsWithSection,
     IReadOnlyList<string> IncludePathsWithoutSection,
-    string? Section);
+    string? Section
+);
 
-public static class PdkIncludeResolver
+public static partial class PdkIncludeResolver
 {
-    private static readonly Regex LibraryRegex = new(@"^library\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex LibraryRegex = LibraryKeywordPattern();
 
-    public static PdkIncludeResolution ResolveModelIncludes(string dbPath, SpectreModel model, string? corner)
+    public static PdkIncludeResolution ResolveModelIncludes(
+        string dbPath,
+        SpectreModel model,
+        string? corner
+    )
     {
         var resolvedIncludes = new List<string>();
         var withSection = new List<string>();
@@ -39,7 +44,9 @@ public static class PdkIncludeResolver
                 if (FileHasLibrarySections(inc))
                 {
                     withSection.Add(inc);
-                    resolvedSection = string.IsNullOrWhiteSpace(chosen.Section) ? corner : chosen.Section;
+                    resolvedSection = string.IsNullOrWhiteSpace(chosen.Section)
+                        ? corner
+                        : chosen.Section;
                 }
                 else
                 {
@@ -89,8 +96,15 @@ public static class PdkIncludeResolver
                 {
                     var key = corner.Trim();
                     var pattern = "_" + Regex.Escape(key) + "(?:\\.|$)";
-                    sources = sources.Where(p =>
-                        Regex.IsMatch(Path.GetFileName(p) ?? string.Empty, pattern, RegexOptions.IgnoreCase)).ToList();
+                    sources = sources
+                        .Where(p =>
+                            Regex.IsMatch(
+                                Path.GetFileName(p) ?? string.Empty,
+                                pattern,
+                                RegexOptions.IgnoreCase
+                            )
+                        )
+                        .ToList();
                 }
 
                 extraIncludes.AddRange(sources);
@@ -102,19 +116,28 @@ public static class PdkIncludeResolver
             resolvedIncludes.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             withSection.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             extraIncludes.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
-            resolvedSection);
+            resolvedSection
+        );
     }
 
     private static string? TryNormalizeInclude(string path)
     {
-        if (string.IsNullOrWhiteSpace(path)) return null;
-        try { return Path.GetFullPath(path); }
-        catch { return null; }
+        if (string.IsNullOrWhiteSpace(path))
+            return null;
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static bool FileHasLibrarySections(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return false;
 
         try
         {
@@ -127,9 +150,11 @@ public static class PdkIncludeResolver
             {
                 lineCount++;
                 var trimmed = line.TrimStart();
-                if (trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase) ||
-                    trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase) ||
-                    LibraryRegex.IsMatch(trimmed))
+                if (
+                    trimmed.StartsWith(".lib", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.StartsWith("section", StringComparison.OrdinalIgnoreCase)
+                    || LibraryRegex.IsMatch(trimmed)
+                )
                 {
                     return true;
                 }
@@ -142,4 +167,7 @@ public static class PdkIncludeResolver
 
         return false;
     }
+
+    [GeneratedRegex(@"^library\b", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex LibraryKeywordPattern();
 }

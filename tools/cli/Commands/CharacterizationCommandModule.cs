@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using Spectre.Console;
 using Cascode.Cli.Services;
 using Cascode.Workspace;
+using Spectre.Console;
 
 namespace Cascode.Cli.Commands;
 
@@ -20,10 +20,30 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("char", "Characterization commands", ShowCharUsage));
-        registry.Register(new DelegateCliCommand("char gen", "Generate characterization testbench", CharacterizationGenerateCommand));
-        registry.Register(new DelegateCliCommand("char read", "Read characterization results", CharacterizationReadCommand));
-        registry.Register(new DelegateCliCommand("char export", "Export derived metrics (e.g., gm/Id)", CharacterizationExportCommand));
+        registry.Register(
+            new DelegateCliCommand("char", "Characterization commands", ShowCharUsage)
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "char gen",
+                "Generate characterization testbench",
+                CharacterizationGenerateCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "char read",
+                "Read characterization results",
+                CharacterizationReadCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "char export",
+                "Export derived metrics (e.g., gm/Id)",
+                CharacterizationExportCommand
+            )
+        );
     }
 
     private CommandResult ShowCharUsage(string[] args)
@@ -36,7 +56,9 @@ internal sealed class CharacterizationCommandModule : ICommandModule
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: char gen <model> [--harness <id>] [--backend spectre|ngspice] [--out <dir>] [--corner <name>]");
+            _state.AddMessage(
+                "Usage: char gen <model> [--harness <id>] [--backend spectre|ngspice] [--out <dir>] [--corner <name>]"
+            );
             return CommandResult.Success;
         }
         return CharacterizationGenerate(args);
@@ -64,14 +86,36 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         HashSet<string>? metricFilter = null;
         for (var i = 1; i < args.Length; i++)
         {
-            if (args[i].Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) outOverride = args[++i];
-            else if (args[i].Equals("--metrics", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) metricFilter = args[++i].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (args[i].Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                outOverride = args[++i];
+            else if (
+                args[i].Equals("--metrics", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                metricFilter = args[++i]
+                    .Split(
+                        ',',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    )
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
         }
-        var ok = CharExportService.ExportDerived(jobDir, metricFilter, out var outFile, out var msg);
+        var ok = CharExportService.ExportDerived(
+            jobDir,
+            metricFilter,
+            out var outFile,
+            out var msg
+        );
         if (ok && !string.IsNullOrWhiteSpace(outOverride))
         {
-            try { File.Copy(outFile, outOverride, overwrite: true); outFile = outOverride; }
-            catch (Exception ex) { _state.AddMessage($"Failed to copy to '{outOverride}': {ex.Message}"); }
+            try
+            {
+                File.Copy(outFile, outOverride, overwrite: true);
+                outFile = outOverride;
+            }
+            catch (Exception ex)
+            {
+                _state.AddMessage($"Failed to copy to '{outOverride}': {ex.Message}");
+            }
         }
         _state.AddMessage(msg);
         return ok ? CommandResult.Success : CommandResult.Failure;
@@ -81,14 +125,22 @@ internal sealed class CharacterizationCommandModule : ICommandModule
     {
         var jobDir = PathUtils.NormalizePath(args[0]);
         var head = 20;
-        for (var i = 1; i < args.Length; i++) if (args[i].Equals("--head", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) int.TryParse(args[++i], out head);
+        for (var i = 1; i < args.Length; i++)
+            if (args[i].Equals("--head", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                int.TryParse(args[++i], out head);
         var csv = Path.Combine(jobDir, "results.csv");
-        if (!File.Exists(csv)) { _state.AddMessage($"Results file not found: {csv}"); return CommandResult.Failure; }
+        if (!File.Exists(csv))
+        {
+            _state.AddMessage($"Results file not found: {csv}");
+            return CommandResult.Failure;
+        }
         try
         {
             using var reader = new StreamReader(csv);
-            for (var i = 0; i < head && !reader.EndOfStream; i++) _state.AddMessage(reader.ReadLine() ?? string.Empty);
-            if (!reader.EndOfStream) _state.AddMessage("…");
+            for (var i = 0; i < head && !reader.EndOfStream; i++)
+                _state.AddMessage(reader.ReadLine() ?? string.Empty);
+            if (!reader.EndOfStream)
+                _state.AddMessage("…");
             return CommandResult.Success;
         }
         catch (Exception ex)
@@ -109,10 +161,20 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         for (var i = 1; i < args.Length; i++)
         {
             var a = args[i];
-            if (a.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) backend = args[++i];
-            else if (a.Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) outDir = args[++i];
-            else if (a.Equals("--corner", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) corner = args[++i];
-            else if (a.Equals("--harness", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length) harness = args[++i];
+            if (a.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                backend = args[++i];
+            else if (a.Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                outDir = args[++i];
+            else if (
+                a.Equals("--corner", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                corner = args[++i];
+            else if (
+                a.Equals("--harness", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < args.Length
+            )
+                harness = args[++i];
             else if (a.Equals("--param", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 var kv = args[++i];
@@ -121,21 +183,43 @@ internal sealed class CharacterizationCommandModule : ICommandModule
                 {
                     var key = kv[..eq].Trim();
                     var value = kv[(eq + 1)..].Trim();
-                    if (key.Length > 0) userParams[key] = value;
+                    if (key.Length > 0)
+                        userParams[key] = value;
                 }
             }
         }
 
         var models = EnsureModels();
-        if (models is null || models.Count == 0) return CommandResult.Failure;
-        var model = models.FirstOrDefault(m => string.Equals(m.Name, modelName, StringComparison.OrdinalIgnoreCase)) ?? models.FirstOrDefault(m => m.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase));
-        if (model is null) { _state.AddMessage("Model not found."); return CommandResult.Failure; }
+        if (models is null || models.Count == 0)
+            return CommandResult.Failure;
+        var model =
+            models.FirstOrDefault(m =>
+                string.Equals(m.Name, modelName, StringComparison.OrdinalIgnoreCase)
+            )
+            ?? models.FirstOrDefault(m =>
+                m.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)
+            );
+        if (model is null)
+        {
+            _state.AddMessage("Model not found.");
+            return CommandResult.Failure;
+        }
 
-        var jobRoot = outDir ?? Path.Combine(_state.WorkspaceRoot, "build", "char", Sanitize(model.Name), DateTime.UtcNow.ToString("yyyyMMdd_HHmmss"));
+        var jobRoot =
+            outDir
+            ?? Path.Combine(
+                _state.WorkspaceRoot,
+                "build",
+                "char",
+                Sanitize(model.Name),
+                DateTime.UtcNow.ToString("yyyyMMdd_HHmmss")
+            );
         Directory.CreateDirectory(jobRoot);
 
-        double TryParseDouble(string key, double fallback) => userParams.TryGetValue(key, out var s) && double.TryParse(s, out var v) ? v : fallback;
-        int TryParseInt(string key, int fallback) => userParams.TryGetValue(key, out var s) && int.TryParse(s, out var v) ? v : fallback;
+        double TryParseDouble(string key, double fallback) =>
+            userParams.TryGetValue(key, out var s) && double.TryParse(s, out var v) ? v : fallback;
+        int TryParseInt(string key, int fallback) =>
+            userParams.TryGetValue(key, out var s) && int.TryParse(s, out var v) ? v : fallback;
 
         var w_m = TryParseDouble("w", TryParseDouble("w_m", 1e-6));
         var l_m = TryParseDouble("l", TryParseDouble("l_m", 0.18e-6));
@@ -149,21 +233,45 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
         static string? TryNormalizeInclude(string path)
         {
-            if (string.IsNullOrWhiteSpace(path)) return null;
-            try { return PathUtils.NormalizePath(path); }
-            catch { return File.Exists(path) ? Path.GetFullPath(path) : null; }
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+            try
+            {
+                return PathUtils.NormalizePath(path);
+            }
+            catch
+            {
+                return File.Exists(path) ? Path.GetFullPath(path) : null;
+            }
         }
 
         var rawDecks = model.Decks ?? Array.Empty<string>();
-        var decksWithSection = rawDecks.Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>()).Select(TryNormalizeInclude).Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!)).Select(p => p!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var decksWithSection = rawDecks
+            .Select(TryNormalizeInclude)
+            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
+            .Select(p => p!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>())
+            .Select(TryNormalizeInclude)
+            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
+            .Select(p => p!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         List<string> extraIncludes = new();
         if (!string.IsNullOrWhiteSpace(corner))
         {
             var key = corner!.Trim();
-            sourceIncludesAll = sourceIncludesAll.Where(p => Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+            sourceIncludesAll = sourceIncludesAll
+                .Where(p =>
+                    Path.GetFileName(p).Contains($"_{key}", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToList();
         }
-        if (decksWithSection.Count == 0) extraIncludes = sourceIncludesAll; else extraIncludes.Clear();
+        if (decksWithSection.Count == 0)
+            extraIncludes = sourceIncludesAll;
+        else
+            extraIncludes.Clear();
 
         var resolvedIncludes = new List<string>(decksWithSection.Count + extraIncludes.Count);
         resolvedIncludes.AddRange(decksWithSection);
@@ -172,20 +280,28 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         static string ResolveModelNameForNetlist(Cascode.Workspace.SpectreModel m)
         {
             var name = m.Name;
-            if (string.IsNullOrWhiteSpace(name)) return name;
+            if (string.IsNullOrWhiteSpace(name))
+                return name;
             var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-            if (modelMarker < 0) return name;
+            if (modelMarker < 0)
+                return name;
             var basePart = name.Substring(0, modelMarker);
             var lastSeparator = basePart.LastIndexOf("__", StringComparison.Ordinal);
-            if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length) basePart = basePart[(lastSeparator + 2)..];
+            if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length)
+                basePart = basePart[(lastSeparator + 2)..];
             return basePart.Replace('.', '_');
         }
         var netlistModelName = ResolveModelNameForNetlist(model);
-        if (resolvedIncludes.Count == 0) _state.AddMessage($"[warn] No include decks located for model '{model.Name}'. Spectre run may fail.");
+        if (resolvedIncludes.Count == 0)
+            _state.AddMessage(
+                $"[warn] No include decks located for model '{model.Name}'. Spectre run may fail."
+            );
 
         var spec = new Cascode.Bench.TestbenchSpec
         {
-            Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase) ? Cascode.Bench.BenchBackendType.Spectre : Cascode.Bench.BenchBackendType.Ngspice,
+            Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase)
+                ? Cascode.Bench.BenchBackendType.Spectre
+                : Cascode.Bench.BenchBackendType.Ngspice,
             Name = harness,
             ModelName = netlistModelName,
             IsSubckt = string.Equals(model.ModelType, "subckt", StringComparison.OrdinalIgnoreCase),
@@ -202,7 +318,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             Includes = resolvedIncludes,
             Section = corner,
             JobDir = jobRoot,
-            ResultsCsv = "results.csv"
+            ResultsCsv = "results.csv",
         };
 
         var ctx = new Cascode.Bench.TestbenchContext
@@ -214,7 +330,11 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             IncludePathsWithSection = decksWithSection,
             IncludePathsWithoutSection = extraIncludes,
             Section = corner,
-            Args = userParams.ToDictionary(kv => kv.Key, kv => (object?)kv.Value, StringComparer.OrdinalIgnoreCase),
+            Args = userParams.ToDictionary(
+                kv => kv.Key,
+                kv => (object?)kv.Value,
+                StringComparer.OrdinalIgnoreCase
+            ),
         };
 
         try
@@ -224,7 +344,9 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             var files = gen.Generate(ctx);
             _state.AddMessage($"Generated testbench: {files.NetlistPath}");
             _state.AddMessage($"Spec: {files.SpecPath}");
-            _state.AddMessage("Run your simulator manually and then 'char export' to derive gm/Id.");
+            _state.AddMessage(
+                "Run your simulator manually and then 'char export' to derive gm/Id."
+            );
             return CommandResult.Success;
         }
         catch (Exception ex)
@@ -238,7 +360,10 @@ internal sealed class CharacterizationCommandModule : ICommandModule
     {
         try
         {
-            var dbPath = System.IO.Path.Combine(WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot), "pdk.db");
+            var dbPath = System.IO.Path.Combine(
+                WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
+                "pdk.db"
+            );
             if (!System.IO.File.Exists(dbPath))
             {
                 _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
@@ -255,7 +380,8 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
     private static string Sanitize(string name)
     {
-        foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+        foreach (var c in Path.GetInvalidFileNameChars())
+            name = name.Replace(c, '_');
         return name;
     }
 }

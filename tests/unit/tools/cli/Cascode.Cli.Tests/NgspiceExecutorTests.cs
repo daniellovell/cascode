@@ -48,8 +48,11 @@ public sealed class NgspiceExecutorTests
         }
         finally
         {
-            try { tempDir.Delete(recursive: true); } catch { }
+            try
+            {
+                tempDir.Delete(recursive: true);
+            }
+            catch { }
         }
     }
 }
-

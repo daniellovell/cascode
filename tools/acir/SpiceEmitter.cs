@@ -16,20 +16,23 @@ namespace Cascode.ACIR;
 /// It produces:
 /// - Design subcircuit files (.sp) with device instantiations
 /// - Testbench files that instantiate the design with harness elements
-/// 
+///
 /// Device terminal ordering follows SPICE conventions:
 /// - MOSFETs: D G S B (drain, gate, source, bulk)
 /// - Two-terminal devices (R, C, L): P N (positive, negative)
 /// - Diodes: A K (anode, cathode)
-/// 
+///
 /// When devices use generic model names (nmos, pmos) without PDK-specific models,
 /// the emitter includes Level-1 MOSFET model definitions for ngspice simulation.
 /// </remarks>
 public static class SpiceEmitter
 {
-    private static readonly HashSet<string> GenericMosfetModels = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> GenericMosfetModels = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
-        "nmos", "pmos"
+        "nmos",
+        "pmos",
     };
 
     /// <summary>
@@ -53,12 +56,14 @@ public static class SpiceEmitter
     public static void EmitDesign(
         Circuit circuit,
         TextWriter writer,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null)
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null
+    )
     {
         if (circuit.Level != ACIRLevel.EL)
         {
             throw new InvalidOperationException(
-                $"SpiceEmitter requires EL-level circuit, but '{circuit.Name}' is {circuit.Level}.");
+                $"SpiceEmitter requires EL-level circuit, but '{circuit.Name}' is {circuit.Level}."
+            );
         }
 
         // Header comment
@@ -86,8 +91,8 @@ public static class SpiceEmitter
         // Internal nets comment
         if (circuit.Fill?.Nets.Count > 0)
         {
-            var netNames = circuit.Fill.Nets
-                .OrderBy(n => n.Id, StringComparer.Ordinal)
+            var netNames = circuit
+                .Fill.Nets.OrderBy(n => n.Id, StringComparer.Ordinal)
                 .Select(n => n.Id);
             writer.WriteLine($"* Internal nets: {string.Join(", ", netNames)}");
             writer.WriteLine();
@@ -120,12 +125,19 @@ public static class SpiceEmitter
     /// The testbench is now generated using templates via TestbenchGenerator.
     /// </remarks>
     [Obsolete("Use Emit() method with backend parameter instead")]
-    public static void EmitTestbench(Circuit circuit, BenchConfig bench, string designPath, TextWriter writer, BenchBackendType backend = BenchBackendType.Ngspice)
+    public static void EmitTestbench(
+        Circuit circuit,
+        BenchConfig bench,
+        string designPath,
+        TextWriter writer,
+        BenchBackendType backend = BenchBackendType.Ngspice
+    )
     {
         if (circuit.Level != ACIRLevel.EL)
         {
             throw new InvalidOperationException(
-                $"SpiceEmitter requires EL-level circuit, but '{circuit.Name}' is {circuit.Level}.");
+                $"SpiceEmitter requires EL-level circuit, but '{circuit.Name}' is {circuit.Level}."
+            );
         }
 
         var title = $"{circuit.Name}_{bench.Name}";
@@ -186,7 +198,8 @@ public static class SpiceEmitter
         string outputDir,
         BenchBackendType backend = BenchBackendType.Ngspice,
         string? workspaceRoot = null,
-        IBenchIncludeResolver? includeResolver = null)
+        IBenchIncludeResolver? includeResolver = null
+    )
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(outputDir);
@@ -222,7 +235,8 @@ public static class SpiceEmitter
                         backend,
                         outputDir,
                         workspaceRoot,
-                        includeResolution);
+                        includeResolution
+                    );
                     result.TestbenchPaths.Add(files.NetlistPath);
                 }
             }
@@ -248,7 +262,8 @@ public static class SpiceEmitter
         string outputDir,
         BenchBackendType backend = BenchBackendType.Ngspice,
         string? workspaceRoot = null,
-        IBenchIncludeResolver? includeResolver = null)
+        IBenchIncludeResolver? includeResolver = null
+    )
     {
         ArgumentNullException.ThrowIfNull(doc);
         ArgumentNullException.ThrowIfNull(outputDir);
@@ -269,18 +284,14 @@ public static class SpiceEmitter
             return new ValidatedEmitResult
             {
                 Validation = validationResult,
-                Emit = new SpiceEmitResult()
+                Emit = new SpiceEmitResult(),
             };
         }
 
         // Validation passed, proceed with emission
         var emitResult = Emit(doc, outputDir, backend, workspaceRoot, includeResolver);
 
-        return new ValidatedEmitResult
-        {
-            Validation = validationResult,
-            Emit = emitResult
-        };
+        return new ValidatedEmitResult { Validation = validationResult, Emit = emitResult };
     }
 
     /// <summary>
@@ -292,7 +303,8 @@ public static class SpiceEmitter
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap)
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
+    )
     {
         var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
@@ -304,7 +316,7 @@ public static class SpiceEmitter
             "capacitor" => "C",
             "inductor" => "L",
             "diode" => "D",
-            _ => throw new InvalidOperationException($"Unknown device type: {device.DeviceType}")
+            _ => throw new InvalidOperationException($"Unknown device type: {device.DeviceType}"),
         };
 
         var sb = new StringBuilder();
@@ -331,7 +343,7 @@ public static class SpiceEmitter
                 "R" => "R",
                 "C" => "C",
                 "L" => "L",
-                _ => throw new InvalidOperationException()
+                _ => throw new InvalidOperationException(),
             };
             if (device.Params.TryGetValue(valueKey, out var value))
             {
@@ -361,7 +373,8 @@ public static class SpiceEmitter
         DeviceDeclaration device,
         StringBuilder sb,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        bool useSubckt)
+        bool useSubckt
+    )
     {
         // MOSFET terminal ordering: D G S B
         sb.Append(GetBinding(device, "D"));
@@ -394,7 +407,8 @@ public static class SpiceEmitter
 
     private static DeviceModelResolution? ResolveDeviceModel(
         DeviceDeclaration device,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap)
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
+    )
     {
         if (string.IsNullOrWhiteSpace(device.PdkDevice) || deviceModelMap is null)
         {
@@ -407,7 +421,8 @@ public static class SpiceEmitter
     private static string ResolveDeviceModelName(
         DeviceDeclaration device,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        string defaultModel)
+        string defaultModel
+    )
     {
         var resolved = ResolveDeviceModel(device, deviceModelMap);
         if (resolved is not null && !string.IsNullOrWhiteSpace(resolved.ModelName))
@@ -437,7 +452,8 @@ public static class SpiceEmitter
             return net;
         }
         throw new InvalidOperationException(
-            $"Device '{device.Id}' missing required terminal '{terminal}'.");
+            $"Device '{device.Id}' missing required terminal '{terminal}'."
+        );
     }
 
     /// <summary>
@@ -598,7 +614,7 @@ public static class SpiceEmitter
             {
                 "nmos" => ".model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
                 "pmos" => ".model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
-                _ => null
+                _ => null,
             };
             if (modelLine is not null)
             {

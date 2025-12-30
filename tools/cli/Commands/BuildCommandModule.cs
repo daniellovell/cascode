@@ -47,9 +47,7 @@ internal sealed class BuildCommandModule : ICommandModule
         var compiler = new SimpleCascodeCompiler();
         // TODO: We need to intelligently detect which level of ACIR should be compiled to.
         var options = new CompileOptions(string.Empty, ACIRLevel.ML);
-        var result = compiler.CompileToACIR(
-            new[] { new SourceUnit(inputPath, text) },
-            options);
+        var result = compiler.CompileToACIR(new[] { new SourceUnit(inputPath, text) }, options);
 
         foreach (var diag in result.Diagnostics)
         {
@@ -85,4 +83,3 @@ internal sealed class BuildCommandModule : ICommandModule
         return CommandResult.Success;
     }
 }
-

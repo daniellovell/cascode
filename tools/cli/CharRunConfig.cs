@@ -25,7 +25,8 @@ internal sealed class CharRunConfig
             {
                 var json = File.ReadAllText(path);
                 var cfg = JsonSerializer.Deserialize<CharRunConfig>(json);
-                if (cfg is not null) return cfg;
+                if (cfg is not null)
+                    return cfg;
             }
         }
         catch { }
@@ -36,8 +37,12 @@ internal sealed class CharRunConfig
     public void Save(string path)
     {
         var dir = Path.GetDirectoryName(path);
-        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        var json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+        var json = JsonSerializer.Serialize(
+            this,
+            new JsonSerializerOptions { WriteIndented = true }
+        );
         File.WriteAllText(path, json);
     }
 }

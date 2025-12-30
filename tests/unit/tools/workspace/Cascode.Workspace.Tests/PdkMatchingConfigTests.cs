@@ -11,12 +11,16 @@ public sealed class PdkMatchingConfigTests
     {
         Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
         var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
-        var defaultsYaml = Cascode.Workspace.DefaultPdkMatchingPatterns.RenderYaml(Cascode.Workspace.DefaultPdkMatchingPatterns.Build());
+        var defaultsYaml = Cascode.Workspace.DefaultPdkMatchingPatterns.RenderYaml(
+            Cascode.Workspace.DefaultPdkMatchingPatterns.Build()
+        );
         File.WriteAllText(cfgPath, defaultsYaml);
         Cascode.Workspace.PdkMatchingConfigManager.InvalidateCache();
     }
 
-    private static void ResetConfig(Func<Cascode.Workspace.PdkMatchingConfig, Cascode.Workspace.PdkMatchingConfig> mutate)
+    private static void ResetConfig(
+        Func<Cascode.Workspace.PdkMatchingConfig, Cascode.Workspace.PdkMatchingConfig> mutate
+    )
     {
         Cascode.Workspace.PdkMatchingConfigManager.EnsureInitialized();
         var cfgPath = Cascode.Workspace.PdkMatchingConfigManager.GetConfigFilePath();
@@ -26,7 +30,10 @@ public sealed class PdkMatchingConfigTests
         Cascode.Workspace.PdkMatchingConfigManager.InvalidateCache();
     }
 
-    private static Cascode.Workspace.Device MakeDevice(string cellName, Cascode.Workspace.DeviceClass cls = Cascode.Workspace.DeviceClass.Nmos)
+    private static Cascode.Workspace.Device MakeDevice(
+        string cellName,
+        Cascode.Workspace.DeviceClass cls = Cascode.Workspace.DeviceClass.Nmos
+    )
     {
         return new Cascode.Workspace.Device
         {
@@ -40,11 +47,17 @@ public sealed class PdkMatchingConfigTests
             Views = new[] { "layout", "symbol" },
             VtTags = Cascode.Workspace.NameNormalization.ExtractVtTags(cellName),
             VddTags = Cascode.Workspace.NameNormalization.ExtractVddTags(cellName),
-            Tags = Array.Empty<string>()
+            Tags = Array.Empty<string>(),
         };
     }
 
-    private static Cascode.Workspace.SpectreModel MakeModel(string name, string voltageDomain, Cascode.Workspace.DeviceClass cls = Cascode.Workspace.DeviceClass.Nmos, string type = "model", string vt = "LVT")
+    private static Cascode.Workspace.SpectreModel MakeModel(
+        string name,
+        string voltageDomain,
+        Cascode.Workspace.DeviceClass cls = Cascode.Workspace.DeviceClass.Nmos,
+        string type = "model",
+        string vt = "LVT"
+    )
     {
         return new Cascode.Workspace.SpectreModel(
             name: name,
@@ -56,10 +69,14 @@ public sealed class PdkMatchingConfigTests
             cornerDetails: Array.Empty<string>(),
             sections: Array.Empty<string>(),
             sourceFiles: Array.Empty<string>(),
-            decks: Array.Empty<string>());
+            decks: Array.Empty<string>()
+        );
     }
 
-    private static Cascode.Workspace.DeviceModelMatchRecord AssertSingleMatch(Cascode.Workspace.Device device, params Cascode.Workspace.SpectreModel[] models)
+    private static Cascode.Workspace.DeviceModelMatchRecord AssertSingleMatch(
+        Cascode.Workspace.Device device,
+        params Cascode.Workspace.SpectreModel[] models
+    )
     {
         var matches = Cascode.Workspace.DeviceModelMatcher.Match(new[] { device }, models);
         var match = Assert.Single(matches);
@@ -67,6 +84,7 @@ public sealed class PdkMatchingConfigTests
         Assert.NotEqual("ambiguous", match.Quality);
         return match;
     }
+
     [Fact]
     public void EnsureInitialized_WritesDefaultFile_UnderCascodeHome()
     {
@@ -86,7 +104,11 @@ public sealed class PdkMatchingConfigTests
     public void DeviceModelMatcher_RespectsVendorPrefixFromConfig()
     {
         using var cascodeHome = CascodeHome.CreateInTemp("cascode-matchingcfg-test2");
-        ResetConfig(cfg => { cfg.Normalization.VendorPrefixes.Insert(0, "testprefix__"); return cfg; });
+        ResetConfig(cfg =>
+        {
+            cfg.Normalization.VendorPrefixes.Insert(0, "testprefix__");
+            return cfg;
+        });
 
         var dev = MakeDevice("testprefix__nfet_01v8_lvt");
         var model = MakeModel("nfet_01v8__model", "1.8V");
@@ -141,7 +163,11 @@ public sealed class PdkMatchingConfigTests
     public void DeviceModelMatcher_RespectsCustomVddExtractRegex()
     {
         using var cascodeHome = CascodeHome.CreateInTemp("cascode-matchingcfg-vddregex");
-        ResetConfig(cfg => { cfg.Normalization.VddExtractRegex = @"vdd(?<n>\d+)p(?<f>\d+)"; return cfg; });
+        ResetConfig(cfg =>
+        {
+            cfg.Normalization.VddExtractRegex = @"vdd(?<n>\d+)p(?<f>\d+)";
+            return cfg;
+        });
 
         const string cellName = "nfet_01v8_lvt";
         var dev = MakeDevice(cellName);

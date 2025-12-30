@@ -8,11 +8,17 @@ namespace Cascode.Workspace;
 
 public static class PdkDatabaseReader
 {
-    private static IReadOnlyList<string> SplitCsv(string? csv)
-        => string.IsNullOrWhiteSpace(csv) ? Array.Empty<string>() : csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    private static IReadOnlyList<string> SplitCsv(string? csv) =>
+        string.IsNullOrWhiteSpace(csv)
+            ? Array.Empty<string>()
+            : csv.Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
 
-    private static DeviceClass MapDeviceClass(int raw)
-        => Enum.IsDefined(typeof(DeviceClass), raw) ? (DeviceClass)raw : DeviceClass.Unknown;
+    private static DeviceClass MapDeviceClass(int raw) =>
+        Enum.IsDefined(typeof(DeviceClass), raw) ? (DeviceClass)raw : DeviceClass.Unknown;
+
     /// <summary>
     /// Load device metadata from the specified PDK database.
     /// </summary>
@@ -24,7 +30,8 @@ public static class PdkDatabaseReader
         var devices = new List<Device>();
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 SELECT d.canonical_name, d.display_name, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
                        d.device_class, d.device_subclass, d.has_layout, d.has_symbol, d.vt_tags, d.vdd_tags, d.tags,
                        GROUP_CONCAT(v.view)
@@ -35,27 +42,30 @@ public static class PdkDatabaseReader
             while (reader.Read())
             {
                 var viewsCsv = reader.IsDBNull(13) ? string.Empty : reader.GetString(13);
-                devices.Add(new Device
-                {
-                    LibraryName = reader.GetString(2),
-                    LibraryPath = reader.GetString(3),
-                    CellName = reader.GetString(4),
-                    CellPath = reader.GetString(5),
-                    Class = MapDeviceClass(reader.GetInt32(6)),
-                    Subclass = (DeviceSubclass)reader.GetInt32(7),
-                    HasLayout = reader.GetInt32(8) != 0,
-                    HasSymbol = reader.GetInt32(9) != 0,
-                    VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
-                    VddTags = reader.IsDBNull(11)
-                        ? Array.Empty<string>()
-                        : new[] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
-                    Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
-                    Views = SplitCsv(viewsCsv)
-                });
+                devices.Add(
+                    new Device
+                    {
+                        LibraryName = reader.GetString(2),
+                        LibraryPath = reader.GetString(3),
+                        CellName = reader.GetString(4),
+                        CellPath = reader.GetString(5),
+                        Class = MapDeviceClass(reader.GetInt32(6)),
+                        Subclass = (DeviceSubclass)reader.GetInt32(7),
+                        HasLayout = reader.GetInt32(8) != 0,
+                        HasSymbol = reader.GetInt32(9) != 0,
+                        VtTags = SplitCsv(reader.IsDBNull(10) ? null : reader.GetString(10)),
+                        VddTags = reader.IsDBNull(11)
+                            ? Array.Empty<string>()
+                            : new[] { VddFormatting.PrettyFromVolts(reader.GetDouble(11)) },
+                        Tags = SplitCsv(reader.IsDBNull(12) ? null : reader.GetString(12)),
+                        Views = SplitCsv(viewsCsv),
+                    }
+                );
             }
         }
         return devices;
     }
+
     /// <summary>
     /// Loads Spectre models and their associated metadata from the specified PDK database.
     /// </summary>
@@ -72,7 +82,8 @@ public static class PdkDatabaseReader
         var models = new List<(long Id, SpectreModel Model)>();
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT id, name, model_type, device_class, voltage_domain, threshold_flavor FROM models ORDER BY name";
+            cmd.CommandText =
+                @"SELECT id, name, model_type, device_class, voltage_domain, threshold_flavor FROM models ORDER BY name";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -82,12 +93,24 @@ public static class PdkDatabaseReader
                 var cls = MapDeviceClass(reader.GetInt32(3));
                 var vdd = reader.IsDBNull(4) ? null : reader.GetString(4);
                 var vt = reader.IsDBNull(5) ? null : reader.GetString(5);
-                var model = new SpectreModel(name, type, cls, vdd, vt, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList);
+                var model = new SpectreModel(
+                    name,
+                    type,
+                    cls,
+                    vdd,
+                    vt,
+                    SpectreModel.EmptyStringList,
+                    SpectreModel.EmptyStringList,
+                    SpectreModel.EmptyStringList,
+                    SpectreModel.EmptyStringList,
+                    SpectreModel.EmptyStringList
+                );
                 models.Add((id, model));
             }
         }
 
-        if (models.Count == 0) return Array.Empty<SpectreModel>();
+        if (models.Count == 0)
+            return Array.Empty<SpectreModel>();
 
         // Load sources
         using (var cmd = db.Connection.CreateCommand())
@@ -99,11 +122,13 @@ public static class PdkDatabaseReader
             {
                 var id = reader.GetInt64(0);
                 var path = reader.GetString(1);
-                if (map.TryGetValue(id, out var list)) list.Add(path);
+                if (map.TryGetValue(id, out var list))
+                    list.Add(path);
             }
             foreach (var (id, model) in models)
             {
-                if (map.TryGetValue(id, out var list)) model.SourceFiles = list.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                if (map.TryGetValue(id, out var list))
+                    model.SourceFiles = list.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             }
         }
 
@@ -117,32 +142,47 @@ public static class PdkDatabaseReader
             {
                 var id = reader.GetInt64(0);
                 var path = reader.GetString(1);
-                if (map.TryGetValue(id, out var list)) list.Add(path);
+                if (map.TryGetValue(id, out var list))
+                    list.Add(path);
             }
             foreach (var (id, model) in models)
             {
-                if (map.TryGetValue(id, out var list)) model.Decks = list.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+                if (map.TryGetValue(id, out var list))
+                    model.Decks = list.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
             }
         }
 
         // Load corners/details/sections from model_contexts (table guaranteed to exist in schema)
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT mc.model_id, c.name AS corner, d.name AS detail, s.name AS section
+            cmd.CommandText =
+                @"SELECT mc.model_id, c.name AS corner, d.name AS detail, s.name AS section
                                  FROM model_contexts mc
                                  LEFT JOIN corners c ON c.id=mc.corner_id
                                  LEFT JOIN details d ON d.id=mc.detail_id
                                  LEFT JOIN sections s ON s.id=mc.section_id";
             using var reader = cmd.ExecuteReader();
-            var cornersMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-            var detailsMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
-            var sectionsMap = models.ToDictionary(m => m.Id, m => new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            var cornersMap = models.ToDictionary(
+                m => m.Id,
+                m => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            );
+            var detailsMap = models.ToDictionary(
+                m => m.Id,
+                m => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            );
+            var sectionsMap = models.ToDictionary(
+                m => m.Id,
+                m => new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            );
             while (reader.Read())
             {
                 var id = reader.GetInt64(0);
-                if (!reader.IsDBNull(1)) cornersMap[id].Add(reader.GetString(1));
-                if (!reader.IsDBNull(2)) detailsMap[id].Add(reader.GetString(2));
-                if (!reader.IsDBNull(3)) sectionsMap[id].Add(reader.GetString(3));
+                if (!reader.IsDBNull(1))
+                    cornersMap[id].Add(reader.GetString(1));
+                if (!reader.IsDBNull(2))
+                    detailsMap[id].Add(reader.GetString(2));
+                if (!reader.IsDBNull(3))
+                    sectionsMap[id].Add(reader.GetString(3));
             }
             foreach (var (id, model) in models)
             {
@@ -154,6 +194,7 @@ public static class PdkDatabaseReader
 
         return models.Select(m => m.Model).ToArray();
     }
+
     /// <summary>
     /// Load a paginated list of devices with aggregated view names, optionally filtered by device class.
     /// </summary>
@@ -162,12 +203,18 @@ public static class PdkDatabaseReader
     /// <param name="limit">Maximum number of devices to return; negative values are treated as zero.</param>
     /// <param name="offset">Number of devices to skip for paging; negative values are treated as zero.</param>
     /// <returns>A list of Device objects ordered by library name then cell name. Each Device.Views contains comma-aggregated view names from the database; other device fields are populated from the corresponding database columns.</returns>
-    public static IReadOnlyList<Device> LoadDevicesFiltered(string dbPath, DeviceClass? classFilter, int limit, int offset)
+    public static IReadOnlyList<Device> LoadDevicesFiltered(
+        string dbPath,
+        DeviceClass? classFilter,
+        int limit,
+        int offset
+    )
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
         var where = classFilter.HasValue ? "WHERE d.device_class=$cls" : string.Empty;
-        cmd.CommandText = $@"
+        cmd.CommandText =
+            $@"
             SELECT d.id, d.lib_name, d.lib_path, d.cell_name, d.cell_path,
                    d.device_class, d.device_subclass, d.has_layout, d.has_symbol,
                    d.vt_tags, d.vdd_tags, d.tags,
@@ -179,35 +226,49 @@ public static class PdkDatabaseReader
             LIMIT $limit OFFSET $offset";
         if (classFilter.HasValue)
         {
-            var pCls = cmd.CreateParameter(); pCls.ParameterName = "$cls"; pCls.Value = (int)classFilter.Value; cmd.Parameters.Add(pCls);
+            var pCls = cmd.CreateParameter();
+            pCls.ParameterName = "$cls";
+            pCls.Value = (int)classFilter.Value;
+            cmd.Parameters.Add(pCls);
         }
-        var pLim = cmd.CreateParameter(); pLim.ParameterName = "$limit"; pLim.Value = Math.Max(0, limit); cmd.Parameters.Add(pLim);
-        var pOff = cmd.CreateParameter(); pOff.ParameterName = "$offset"; pOff.Value = Math.Max(0, offset); cmd.Parameters.Add(pOff);
+        var pLim = cmd.CreateParameter();
+        pLim.ParameterName = "$limit";
+        pLim.Value = Math.Max(0, limit);
+        cmd.Parameters.Add(pLim);
+        var pOff = cmd.CreateParameter();
+        pOff.ParameterName = "$offset";
+        pOff.Value = Math.Max(0, offset);
+        cmd.Parameters.Add(pOff);
 
         var list = new List<Device>();
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
             var viewsCsv = r.IsDBNull(12) ? string.Empty : r.GetString(12);
-            var vdds = r.IsDBNull(10) ? Array.Empty<string>() : new[] { VddFormatting.PrettyFromVolts(r.GetDouble(10)) };
-            list.Add(new Device
-            {
-                LibraryName = r.GetString(1),
-                LibraryPath = r.GetString(2),
-                CellName = r.GetString(3),
-                CellPath = r.GetString(4),
-                Class = MapDeviceClass(r.GetInt32(5)),
-                Subclass = (DeviceSubclass)r.GetInt32(6),
-                HasLayout = r.GetInt32(7) != 0,
-                HasSymbol = r.GetInt32(8) != 0,
-                VtTags = SplitCsv(r.IsDBNull(9) ? null : r.GetString(9)),
-                VddTags = vdds,
-                Tags = SplitCsv(r.IsDBNull(11) ? null : r.GetString(11)),
-                Views = SplitCsv(viewsCsv)
-            });
+            var vdds = r.IsDBNull(10)
+                ? Array.Empty<string>()
+                : new[] { VddFormatting.PrettyFromVolts(r.GetDouble(10)) };
+            list.Add(
+                new Device
+                {
+                    LibraryName = r.GetString(1),
+                    LibraryPath = r.GetString(2),
+                    CellName = r.GetString(3),
+                    CellPath = r.GetString(4),
+                    Class = MapDeviceClass(r.GetInt32(5)),
+                    Subclass = (DeviceSubclass)r.GetInt32(6),
+                    HasLayout = r.GetInt32(7) != 0,
+                    HasSymbol = r.GetInt32(8) != 0,
+                    VtTags = SplitCsv(r.IsDBNull(9) ? null : r.GetString(9)),
+                    VddTags = vdds,
+                    Tags = SplitCsv(r.IsDBNull(11) ? null : r.GetString(11)),
+                    Views = SplitCsv(viewsCsv),
+                }
+            );
         }
         return list;
     }
+
     /// <summary>
     /// Get the include/deck file paths associated with a model, ordered by preference.
     /// </summary>
@@ -216,31 +277,38 @@ public static class PdkDatabaseReader
     /// <returns>
     /// An array of include/deck paths for the specified model, ordered so that Spectre-related files (paths containing "/spectre/" or ending with ".scs") come first, then paths that contain "/models/", and finally other paths; ties are ordered case-insensitively by path.
     /// </returns>
-    public static IReadOnlyList<string> GetPreferredIncludesForModel(string dbPath, string modelName)
+    public static IReadOnlyList<string> GetPreferredIncludesForModel(
+        string dbPath,
+        string modelName
+    )
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"SELECT md.path
+        cmd.CommandText =
+            @"SELECT md.path
                              FROM models m JOIN model_decks md ON md.model_id=m.id
                              WHERE m.name=$name";
-        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = modelName; cmd.Parameters.Add(p);
+        var p = cmd.CreateParameter();
+        p.ParameterName = "$name";
+        p.Value = modelName;
+        cmd.Parameters.Add(p);
         var paths = new List<string>();
         using (var r = cmd.ExecuteReader())
         {
-            while (r.Read()) paths.Add(r.GetString(0));
+            while (r.Read())
+                paths.Add(r.GetString(0));
         }
         static int Score(string p)
         {
             var lower = p.ToLowerInvariant();
             var score = 0;
-            if (lower.Contains("/spectre/") || lower.EndsWith(".scs", StringComparison.Ordinal)) score += 2;
-            if (lower.Contains("/models/")) score += 1;
+            if (lower.Contains("/spectre/") || lower.EndsWith(".scs", StringComparison.Ordinal))
+                score += 2;
+            if (lower.Contains("/models/"))
+                score += 1;
             return -score; // sort ascending by negative score then by path
         }
-        return paths
-            .OrderBy(Score)
-            .ThenBy(p => p, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        return paths.OrderBy(Score).ThenBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     /// <summary>
@@ -250,11 +318,16 @@ public static class PdkDatabaseReader
     /// <param name="modelName">Name of the model to query.</param>
     /// <param name="corner">Optional corner name to filter by; pass <c>null</c> to select contexts without a corner.</param>
     /// <returns>An <see cref="IReadOnlyList{T}"/> of tuples where `IncludePath` is the include file path (empty string if the database value is NULL) and `Section` is the section name or <c>null</c> if none.</returns>
-    public static IReadOnlyList<(string IncludePath, string? Section)> GetContextsForModelAndCorner(string dbPath, string modelName, string? corner)
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetContextsForModelAndCorner(
+        string dbPath,
+        string modelName,
+        string? corner
+    )
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"SELECT i.path, s.name
+        cmd.CommandText =
+            @"SELECT i.path, s.name
                              FROM model_contexts mc
                              JOIN models m ON m.id=mc.model_id
                              LEFT JOIN corners c ON c.id=mc.corner_id
@@ -267,11 +340,23 @@ public static class PdkDatabaseReader
                                )
                              GROUP BY i.path, s.name
                              ORDER BY s.name, i.path";
-        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
-        var pCorner = cmd.CreateParameter(); pCorner.ParameterName = "$corner"; pCorner.Value = (object?)corner ?? DBNull.Value; cmd.Parameters.Add(pCorner);
+        var pName = cmd.CreateParameter();
+        pName.ParameterName = "$name";
+        pName.Value = modelName;
+        cmd.Parameters.Add(pName);
+        var pCorner = cmd.CreateParameter();
+        pCorner.ParameterName = "$corner";
+        pCorner.Value = (object?)corner ?? DBNull.Value;
+        cmd.Parameters.Add(pCorner);
         var list = new List<(string, string?)>();
         using var r = cmd.ExecuteReader();
-        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        while (r.Read())
+            list.Add(
+                (
+                    r.IsDBNull(0) ? string.Empty : r.GetString(0),
+                    r.IsDBNull(1) ? null : r.GetString(1)
+                )
+            );
         return list;
     }
 
@@ -281,11 +366,15 @@ public static class PdkDatabaseReader
     /// <param name="dbPath">Filesystem path to the PDK database.</param>
     /// <param name="modelName">Name of the model to query.</param>
     /// <returns>An ordered list of include/section tuples for the model.</returns>
-    public static IReadOnlyList<(string IncludePath, string? Section)> GetAllContextsForModel(string dbPath, string modelName)
+    public static IReadOnlyList<(string IncludePath, string? Section)> GetAllContextsForModel(
+        string dbPath,
+        string modelName
+    )
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"SELECT i.path, s.name
+        cmd.CommandText =
+            @"SELECT i.path, s.name
                              FROM model_contexts mc
                              JOIN models m ON m.id=mc.model_id
                              LEFT JOIN sections s ON s.id=mc.section_id
@@ -293,10 +382,19 @@ public static class PdkDatabaseReader
                              WHERE m.name=$name
                              GROUP BY i.path, s.name
                              ORDER BY s.name, i.path";
-        var pName = cmd.CreateParameter(); pName.ParameterName = "$name"; pName.Value = modelName; cmd.Parameters.Add(pName);
+        var pName = cmd.CreateParameter();
+        pName.ParameterName = "$name";
+        pName.Value = modelName;
+        cmd.Parameters.Add(pName);
         var list = new List<(string, string?)>();
         using var r = cmd.ExecuteReader();
-        while (r.Read()) list.Add((r.IsDBNull(0) ? string.Empty : r.GetString(0), r.IsDBNull(1) ? null : r.GetString(1)));
+        while (r.Read())
+            list.Add(
+                (
+                    r.IsDBNull(0) ? string.Empty : r.GetString(0),
+                    r.IsDBNull(1) ? null : r.GetString(1)
+                )
+            );
         return list;
     }
 
@@ -318,23 +416,34 @@ public static class PdkDatabaseReader
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"SELECT DISTINCT d.canonical_name
+        cmd.CommandText =
+            @"SELECT DISTINCT d.canonical_name
                              FROM device_model_matches m
                              JOIN devices d ON d.id = m.device_id";
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using var reader = cmd.ExecuteReader();
-        while (reader.Read()) set.Add(reader.GetString(0));
+        while (reader.Read())
+            set.Add(reader.GetString(0));
         return set;
     }
 
-    public sealed record MatchCoverage(int Total, int Matched, int Ambiguous, int Unmatched,
-        IReadOnlyList<string> SampleAmbiguous, IReadOnlyList<string> SampleUnmatched);
+    public sealed record MatchCoverage(
+        int Total,
+        int Matched,
+        int Ambiguous,
+        int Unmatched,
+        IReadOnlyList<string> SampleAmbiguous,
+        IReadOnlyList<string> SampleUnmatched
+    );
 
     public static MatchCoverage GetMatchCoverage(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         // Totals
-        int total, matched, ambiguous, unmatched;
+        int total,
+            matched,
+            ambiguous,
+            unmatched;
         using (var cmd = db.Connection.CreateCommand())
         {
             cmd.CommandText = "SELECT COUNT(*) FROM devices";
@@ -347,7 +456,8 @@ public static class PdkDatabaseReader
         }
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT COUNT(*) FROM (
+            cmd.CommandText =
+                @"SELECT COUNT(*) FROM (
                 SELECT device_id, COUNT(*) c FROM device_model_matches GROUP BY device_id HAVING c > 1
             )";
             ambiguous = Convert.ToInt32((long)(cmd.ExecuteScalar() ?? 0));
@@ -358,7 +468,8 @@ public static class PdkDatabaseReader
         var sampleAmb = new List<string>();
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT d.canonical_name
+            cmd.CommandText =
+                @"SELECT d.canonical_name
                                  FROM devices d
                                  JOIN (
                                    SELECT device_id, COUNT(*) c FROM device_model_matches GROUP BY device_id HAVING c > 1
@@ -366,26 +477,35 @@ public static class PdkDatabaseReader
                                  ORDER BY d.canonical_name
                                  LIMIT 8";
             using var r = cmd.ExecuteReader();
-            while (r.Read()) sampleAmb.Add(r.GetString(0));
+            while (r.Read())
+                sampleAmb.Add(r.GetString(0));
         }
 
         var sampleUn = new List<string>();
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT d.canonical_name
+            cmd.CommandText =
+                @"SELECT d.canonical_name
                                  FROM devices d
                                  LEFT JOIN device_model_matches m ON m.device_id = d.id
                                  WHERE m.device_id IS NULL
                                  ORDER BY d.canonical_name
                                  LIMIT 8";
             using var r = cmd.ExecuteReader();
-            while (r.Read()) sampleUn.Add(r.GetString(0));
+            while (r.Read())
+                sampleUn.Add(r.GetString(0));
         }
 
         return new MatchCoverage(total, matched, ambiguous, unmatched, sampleAmb, sampleUn);
     }
 
-    public sealed record MatchCoverageByClass(string Class, int Total, int Matched, int Ambiguous, int Unmatched);
+    public sealed record MatchCoverageByClass(
+        string Class,
+        int Total,
+        int Matched,
+        int Ambiguous,
+        int Unmatched
+    );
 
     /// <summary>
     /// Retrieves per-device-class match coverage summaries from the PDK database.
@@ -397,7 +517,8 @@ public static class PdkDatabaseReader
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         var list = new List<MatchCoverageByClass>();
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             WITH m AS (
               SELECT device_id, COUNT(*) AS c FROM device_model_matches GROUP BY device_id
             )
@@ -413,46 +534,85 @@ public static class PdkDatabaseReader
         while (r.Read())
         {
             var cls = MapDeviceClass(r.GetInt32(0));
-            list.Add(new MatchCoverageByClass(cls.ToString(), r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4)));
+            list.Add(
+                new MatchCoverageByClass(
+                    cls.ToString(),
+                    r.GetInt32(1),
+                    r.GetInt32(2),
+                    r.GetInt32(3),
+                    r.GetInt32(4)
+                )
+            );
         }
         return list;
     }
 
     public sealed record DeviceMatchRow(string ModelName, string Quality, int Rank, string? Notes);
 
-    public static IReadOnlyList<DeviceMatchRow> LoadMatchesForDevice(string dbPath, string deviceCanonicalName)
+    public static IReadOnlyList<DeviceMatchRow> LoadMatchesForDevice(
+        string dbPath,
+        string deviceCanonicalName
+    )
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT m.name, dmm.quality, dmm.rank, dmm.notes
             FROM device_model_matches dmm
             JOIN devices d ON d.id = dmm.device_id
             JOIN models m ON m.id = dmm.model_id
             WHERE d.canonical_name=$key
             ORDER BY dmm.rank, m.name";
-        var p = cmd.CreateParameter(); p.ParameterName = "$key"; p.Value = deviceCanonicalName; cmd.Parameters.Add(p);
+        var p = cmd.CreateParameter();
+        p.ParameterName = "$key";
+        p.Value = deviceCanonicalName;
+        cmd.Parameters.Add(p);
         var list = new List<DeviceMatchRow>();
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
-            list.Add(new DeviceMatchRow(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
+            list.Add(
+                new DeviceMatchRow(
+                    reader.GetString(0),
+                    reader.GetString(1),
+                    reader.GetInt32(2),
+                    reader.IsDBNull(3) ? null : reader.GetString(3)
+                )
+            );
         }
         return list;
     }
 
-    public sealed record GeometryRow(double? WMin, double? WMax, double? LMin, double? LMax, int? NfMin, int? NfMax, double? WDefault, double? LDefault, int? NfDefault, string? Source, string? Notes);
+    public sealed record GeometryRow(
+        double? WMin,
+        double? WMax,
+        double? LMin,
+        double? LMax,
+        int? NfMin,
+        int? NfMax,
+        double? WDefault,
+        double? LDefault,
+        int? NfDefault,
+        string? Source,
+        string? Notes
+    );
 
     public static GeometryRow? LoadGeometryForModel(string dbPath, string modelName)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT g.w_min, g.w_max, g.l_min, g.l_max, g.nf_min, g.nf_max, g.w_default, g.l_default, g.nf_default, g.source, g.notes
             FROM model_geometry g JOIN models m ON m.id=g.model_id WHERE m.name=$name";
-        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = modelName; cmd.Parameters.Add(p);
+        var p = cmd.CreateParameter();
+        p.ParameterName = "$name";
+        p.Value = modelName;
+        cmd.Parameters.Add(p);
         using var reader = cmd.ExecuteReader();
-        if (!reader.Read()) return null;
+        if (!reader.Read())
+            return null;
         return new GeometryRow(
             reader.IsDBNull(0) ? null : reader.GetDouble(0),
             reader.IsDBNull(1) ? null : reader.GetDouble(1),
@@ -472,12 +632,17 @@ public static class PdkDatabaseReader
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT g.w_min, g.w_max, g.l_min, g.l_max, g.nf_min, g.nf_max, g.w_default, g.l_default, g.nf_default, g.source, g.notes
             FROM device_geometry g JOIN devices d ON d.id=g.device_id WHERE d.canonical_name=$name";
-        var p = cmd.CreateParameter(); p.ParameterName = "$name"; p.Value = deviceCanonicalName; cmd.Parameters.Add(p);
+        var p = cmd.CreateParameter();
+        p.ParameterName = "$name";
+        p.Value = deviceCanonicalName;
+        cmd.Parameters.Add(p);
         using var reader = cmd.ExecuteReader();
-        if (!reader.Read()) return null;
+        if (!reader.Read())
+            return null;
         return new GeometryRow(
             reader.IsDBNull(0) ? null : reader.GetDouble(0),
             reader.IsDBNull(1) ? null : reader.GetDouble(1),
@@ -493,26 +658,44 @@ public static class PdkDatabaseReader
         );
     }
 
-    public sealed record DeviceClassSummaryRow(DeviceClass DeviceClass, int DeviceCount, int Matched, int Ambiguous, int Unmatched, string VoltageDomainsCsv, string ThresholdsCsv, string CornersCsv, string ExampleModel, int Decks);
+    public sealed record DeviceClassSummaryRow(
+        DeviceClass DeviceClass,
+        int DeviceCount,
+        int Matched,
+        int Ambiguous,
+        int Unmatched,
+        string VoltageDomainsCsv,
+        string ThresholdsCsv,
+        string CornersCsv,
+        string ExampleModel,
+        int Decks
+    );
 
     public static IReadOnlyList<DeviceClassSummaryRow> LoadDeviceClassSummary(string dbPath)
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"SELECT device_class, device_count, matched_count, ambiguous_count, unmatched_count, voltage_domains, thresholds, corners, example_model, decks
+        cmd.CommandText =
+            @"SELECT device_class, device_count, matched_count, ambiguous_count, unmatched_count, voltage_domains, thresholds, corners, example_model, decks
                             FROM device_class_summary ORDER BY device_count DESC";
         var list = new List<DeviceClassSummaryRow>();
         using var r = cmd.ExecuteReader();
         while (r.Read())
         {
-            list.Add(new DeviceClassSummaryRow(
-                MapDeviceClass(r.GetInt32(0)),
-                r.GetInt32(1), r.GetInt32(2), r.GetInt32(3), r.GetInt32(4),
-                r.IsDBNull(5) ? string.Empty : r.GetString(5),
-                r.IsDBNull(6) ? string.Empty : r.GetString(6),
-                r.IsDBNull(7) ? string.Empty : r.GetString(7),
-                r.IsDBNull(8) ? string.Empty : r.GetString(8),
-                r.GetInt32(9)));
+            list.Add(
+                new DeviceClassSummaryRow(
+                    MapDeviceClass(r.GetInt32(0)),
+                    r.GetInt32(1),
+                    r.GetInt32(2),
+                    r.GetInt32(3),
+                    r.GetInt32(4),
+                    r.IsDBNull(5) ? string.Empty : r.GetString(5),
+                    r.IsDBNull(6) ? string.Empty : r.GetString(6),
+                    r.IsDBNull(7) ? string.Empty : r.GetString(7),
+                    r.IsDBNull(8) ? string.Empty : r.GetString(8),
+                    r.GetInt32(9)
+                )
+            );
         }
         return list;
     }
@@ -526,7 +709,8 @@ public static class PdkDatabaseReader
     {
         using var db = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT d.canonical_name, m.name
             FROM device_model_matches dmm
             JOIN devices d ON d.id = dmm.device_id
@@ -542,7 +726,8 @@ public static class PdkDatabaseReader
             var key = reader.GetString(0);
             var model = reader.GetString(1);
             // If ties exist, keep the first occurrence
-            if (!map.ContainsKey(key)) map[key] = model;
+            if (!map.ContainsKey(key))
+                map[key] = model;
         }
         return map;
     }

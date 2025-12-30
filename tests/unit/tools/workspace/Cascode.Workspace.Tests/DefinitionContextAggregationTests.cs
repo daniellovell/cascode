@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
-using Cascode.Workspace;
 using Cascode.TestSupport;
+using Cascode.Workspace;
 using Xunit;
 using static Cascode.Workspace.Tests.TestUtilities;
 
@@ -17,7 +17,8 @@ public sealed class DefinitionContextAggregationTests
 
         workspace.WriteFile(
             ".cdsinit",
-            "envSetVal(\"spectre.envOpts\" \"modelFiles\" `string \"./models/example.scs\")");
+            "envSetVal(\"spectre.envOpts\" \"modelFiles\" `string \"./models/example.scs\")"
+        );
 
         workspace.WriteFile(
             "models/example.scs",
@@ -25,14 +26,17 @@ public sealed class DefinitionContextAggregationTests
 section tt_corner
 .model demo_nf nmos
 endsection
-");
+"
+        );
 
         var scanner = new WorkspaceScanner();
         var result = scanner.Scan(workspace.RootPath);
 
-        var model = result.Models.First(m => m.Name.Equals("demo_nf", StringComparison.OrdinalIgnoreCase));
+        var model = result.Models.First(m =>
+            m.Name.Equals("demo_nf", StringComparison.OrdinalIgnoreCase)
+        );
         Assert.NotEmpty(model.DefinitionContexts);
-        var ctx = model.DefinitionContexts.First();
+        var ctx = model.DefinitionContexts[0];
         Assert.Equal("tt", ctx.Corner);
         Assert.Equal("tt_corner", ctx.Section);
         Assert.False(string.IsNullOrWhiteSpace(ctx.IncludePath));
@@ -40,6 +44,9 @@ endsection
         using var tempDb = TempPdkDatabase.Create();
         PdkDatabaseWriter.Write(tempDb.DatabasePath, result);
         var dbContexts = PdkDatabaseReader.GetAllContextsForModel(tempDb.DatabasePath, "demo_nf");
-        Assert.Contains(dbContexts, c => string.Equals(c.Section, "tt_corner", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(
+            dbContexts,
+            c => string.Equals(c.Section, "tt_corner", StringComparison.OrdinalIgnoreCase)
+        );
     }
 }

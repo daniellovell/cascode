@@ -21,7 +21,9 @@ public static class ACIRWriter
         writer.WriteLine();
 
         // Bundle type definitions
-        foreach (var bundleType in document.BundleTypes.OrderBy(b => b.Name, StringComparer.Ordinal))
+        foreach (
+            var bundleType in document.BundleTypes.OrderBy(b => b.Name, StringComparer.Ordinal)
+        )
         {
             WriteBundleType(bundleType, writer);
             writer.WriteLine();
@@ -127,7 +129,11 @@ public static class ACIRWriter
         var header = $"  slot {slot.Id}";
         if (slot.Bindings.Count > 0)
         {
-            var bindings = string.Join(", ", slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}->{b.Value}"));
+            var bindings = string.Join(
+                ", ",
+                slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
+                    .Select(b => $"{b.Key}->{b.Value}")
+            );
             header += $" ({bindings})";
         }
         header += " : ";
@@ -180,7 +186,11 @@ public static class ACIRWriter
         if (inst.Bindings.Count > 0 && inst.Bindings.Count <= 4)
         {
             // Use inline syntax for 4 or fewer simple connections
-            var bindings = string.Join(", ", inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}->{b.Value}"));
+            var bindings = string.Join(
+                ", ",
+                inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
+                    .Select(b => $"{b.Key}->{b.Value}")
+            );
             header += $" ({bindings})";
         }
         header += $" : {inst.Type}";
@@ -207,11 +217,18 @@ public static class ACIRWriter
         var header = $"    {device.DeviceType} {device.Id}";
         if (device.Bindings.Count > 0 && device.Bindings.Count <= 4)
         {
-            var bindings = string.Join(", ", device.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal).Select(b => $"{b.Key}->{b.Value}"));
+            var bindings = string.Join(
+                ", ",
+                device
+                    .Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
+                    .Select(b => $"{b.Key}->{b.Value}")
+            );
             header += $" ({bindings})";
         }
         header += " : ";
-        var paramParts = device.Params.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => $"{p.Key}={p.Value}");
+        var paramParts = device
+            .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
+            .Select(p => $"{p.Key}={p.Value}");
         header += string.Join(" ", paramParts);
         if (!string.IsNullOrEmpty(device.PdkDevice))
         {
@@ -246,7 +263,9 @@ public static class ACIRWriter
             writer.WriteLine("    tech:");
             foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value} {c.Unit} on {c.Scope}");
+                writer.WriteLine(
+                    $"      {c.Id} : {c.Param} {c.Op} {c.Value} {c.Unit} on {c.Scope}"
+                );
             }
         }
         if (constraints.Graph.Count > 0)
@@ -336,9 +355,10 @@ public static class ACIRWriter
             writer.WriteLine("    sources:");
             foreach (var source in provenance.Sources)
             {
-                var span = source.FromLine.HasValue && source.ToLine.HasValue
-                    ? $" [{source.FromLine}:{source.ToLine}]"
-                    : "";
+                var span =
+                    source.FromLine.HasValue && source.ToLine.HasValue
+                        ? $" [{source.FromLine}:{source.ToLine}]"
+                        : "";
                 writer.WriteLine($"      {source.File}{span}");
             }
         }
@@ -377,4 +397,3 @@ public static class ACIRWriter
         return "";
     }
 }
-

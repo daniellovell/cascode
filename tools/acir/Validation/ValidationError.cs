@@ -40,7 +40,7 @@ public sealed class ValidationError
             ValidationSeverity.Error => "Error",
             ValidationSeverity.Warning => "Warning",
             ValidationSeverity.Info => "Info",
-            _ => "Unknown"
+            _ => "Unknown",
         };
 
         var result = $"{prefix}: [{Code}] {Message}";

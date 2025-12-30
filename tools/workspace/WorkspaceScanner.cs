@@ -15,7 +15,11 @@ public sealed class WorkspaceScanner
     private readonly SpectreDeckInspector _deckInspector = new();
     private readonly SpectreModelExtractor _modelExtractor = new();
 
-    public WorkspaceScanResult Scan(string workspaceRoot, ILogger? logger = null, CancellationToken cancellationToken = default)
+    public WorkspaceScanResult Scan(
+        string workspaceRoot,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot))
         {
@@ -52,12 +56,12 @@ public sealed class WorkspaceScanner
         }
 
         logger?.LogInformation("Inspecting cdsinit files for model decks");
-        AddDeckPaths(_cdsInitScanner.FindModelDecks(root, warnings, logger));
+        AddDeckPaths(CdsInitScanner.FindModelDecks(root, warnings, logger));
 
         cancellationToken.ThrowIfCancellationRequested();
 
         logger?.LogInformation("Inspecting libInit files for model decks");
-        AddDeckPaths(_libInitScanner.FindModelDecks(root, libraries, warnings, logger));
+        AddDeckPaths(LibInitScanner.FindModelDecks(root, libraries, warnings, logger));
         logger?.LogInformation("Total model decks discovered so far: {Count}", deckPaths.Count);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -70,7 +74,7 @@ public sealed class WorkspaceScanner
             cancellationToken.ThrowIfCancellationRequested();
 
             logger?.LogInformation("Inspecting deck {Deck}", deckPath);
-            var record = _deckInspector.Inspect(root, deckPath, warnings);
+            var record = SpectreDeckInspector.Inspect(root, deckPath, warnings);
             var modelsForDeck = _modelExtractor.Extract(root, deckPath, warnings);
             record = record with { Models = modelsForDeck };
             deckRecords.Add(record);
@@ -84,7 +88,11 @@ public sealed class WorkspaceScanner
         cancellationToken.ThrowIfCancellationRequested();
 
         var consolidated = ConsolidateModels(models);
-        logger?.LogInformation("Consolidated {Raw} model entries → {Consolidated} unique models", models.Count, consolidated.Count);
+        logger?.LogInformation(
+            "Consolidated {Raw} model entries → {Consolidated} unique models",
+            models.Count,
+            consolidated.Count
+        );
         logger?.LogInformation("Workspace scan complete");
 
         return new WorkspaceScanResult(root, libraries, deckRecords, consolidated, warnings);
@@ -92,7 +100,9 @@ public sealed class WorkspaceScanner
 
     private static IReadOnlyList<SpectreModel> ConsolidateModels(IEnumerable<SpectreModel> models)
     {
-        var aggregator = new Dictionary<string, SpectreModelAggregator>(StringComparer.OrdinalIgnoreCase);
+        var aggregator = new Dictionary<string, SpectreModelAggregator>(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         foreach (var model in models)
         {
@@ -105,8 +115,8 @@ public sealed class WorkspaceScanner
             aggregate.Add(model);
         }
 
-        return aggregator.Values
-            .Select(a => a.Build())
+        return aggregator
+            .Values.Select(a => a.Build())
             .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
@@ -199,7 +209,9 @@ public sealed class WorkspaceScanner
             var threshold = _thresholdFlavors.FirstOrDefault();
 
             var corners = _corners.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
-            var cornerDetails = _cornerDetails.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
+            var cornerDetails = _cornerDetails
+                .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
             var sections = _sections.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var sources = _sources.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var decks = _decks.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -220,9 +232,10 @@ public sealed class WorkspaceScanner
                 cornerDetails.Length == 0 ? SpectreModel.EmptyStringList : cornerDetails,
                 sections.Length == 0 ? SpectreModel.EmptyStringList : sections,
                 sources.Length == 0 ? SpectreModel.EmptyStringList : sources,
-                decks.Length == 0 ? SpectreModel.EmptyStringList : decks)
+                decks.Length == 0 ? SpectreModel.EmptyStringList : decks
+            )
             {
-                DefinitionContexts = contexts.Length == 0 ? Array.Empty<ModelContext>() : contexts
+                DefinitionContexts = contexts.Length == 0 ? Array.Empty<ModelContext>() : contexts,
             };
         }
     }

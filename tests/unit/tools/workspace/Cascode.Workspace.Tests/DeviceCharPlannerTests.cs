@@ -10,6 +10,15 @@ namespace Cascode.Workspace.Tests;
 public sealed class DeviceCharPlannerTests : IDisposable
 {
     private readonly string _tempDir;
+    private static readonly string[] item = new[] { "layout", "symbol" };
+    private static readonly string[] itemArray = new[] { "LVT" };
+    private static readonly string[] itemArray0 = new[] { "01v8" };
+    private static readonly string[] itemArray1 = new[] { "HVT" };
+    private static readonly string[] classes = new[] { "nmos" };
+    private static readonly string[] vts = new[] { "LVT" };
+    private static readonly string[] vdds = new[] { "1.8V" };
+    private static readonly string[] itemArray2 = new[] { "layout", "symbol" };
+    private static readonly string[] itemArray3 = new[] { "01v8" };
 
     public DeviceCharPlannerTests()
     {
@@ -31,15 +40,48 @@ public sealed class DeviceCharPlannerTests : IDisposable
         var dbPath = Path.Combine(_tempDir, "plan.db");
         var includePath = Path.Combine(_tempDir, "model.scs");
         // Include a .lib directive so FileHasLibrarySections returns true
-        File.WriteAllText(includePath, "simulator lang=spectre\n.lib ttt\n.model nmos_model nmos\n.endl ttt");
+        File.WriteAllText(
+            includePath,
+            "simulator lang=spectre\n.lib ttt\n.model nmos_model nmos\n.endl ttt"
+        );
 
         var models = new List<SpectreModel>
         {
-            new("nmos_model", "subckt", DeviceClass.Nmos, "1.8V", "LVT", SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, new[] { includePath }, SpectreModel.EmptyStringList)
+            new(
+                "nmos_model",
+                "subckt",
+                DeviceClass.Nmos,
+                "1.8V",
+                "LVT",
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                new[] { includePath },
+                SpectreModel.EmptyStringList
+            )
             {
-                DefinitionContexts = new[] { new ModelContext { Corner = "tt", Section = "ttt", IncludePath = includePath } }
+                DefinitionContexts = new[]
+                {
+                    new ModelContext
+                    {
+                        Corner = "tt",
+                        Section = "ttt",
+                        IncludePath = includePath,
+                    },
+                },
             },
-            new("pmos_model", "subckt", DeviceClass.Pmos, "1.8V", "HVT", SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, new[] { includePath }, SpectreModel.EmptyStringList)
+            new(
+                "pmos_model",
+                "subckt",
+                DeviceClass.Pmos,
+                "1.8V",
+                "HVT",
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                new[] { includePath },
+                SpectreModel.EmptyStringList
+            ),
         };
 
         var scan = new WorkspaceScanResult(
@@ -47,7 +89,8 @@ public sealed class DeviceCharPlannerTests : IDisposable
             new[] { new WorkspaceLibrary("lib", _tempDir) },
             Array.Empty<ModelDeckRecord>(),
             models,
-            Array.Empty<string>());
+            Array.Empty<string>()
+        );
 
         var devices = new List<Device>
         {
@@ -61,10 +104,10 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "LVT" },
-                VddTags = new[] { "01v8" },
-                Tags = Array.Empty<string>()
+                Views = item,
+                VtTags = itemArray,
+                VddTags = itemArray0,
+                Tags = Array.Empty<string>(),
             },
             new()
             {
@@ -76,25 +119,48 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "HVT" },
-                VddTags = new[] { "01v8" },
-                Tags = Array.Empty<string>()
-            }
+                Views = item,
+                VtTags = itemArray1,
+                VddTags = itemArray0,
+                Tags = Array.Empty<string>(),
+            },
         };
 
         PdkDatabaseWriter.Write(dbPath, scan, devices);
 
         var matches = new List<DeviceModelMatchRecord>
         {
-            new() { DeviceCanonicalName = devices[0].CanonicalName, ModelName = "nmos_model", Quality = "exact", Rank = 1 },
-            new() { DeviceCanonicalName = devices[1].CanonicalName, ModelName = "pmos_model", Quality = "exact", Rank = 1 }
+            new()
+            {
+                DeviceCanonicalName = devices[0].CanonicalName,
+                ModelName = "nmos_model",
+                Quality = "exact",
+                Rank = 1,
+            },
+            new()
+            {
+                DeviceCanonicalName = devices[1].CanonicalName,
+                ModelName = "pmos_model",
+                Quality = "exact",
+                Rank = 1,
+            },
         };
         PdkDatabaseWriter.UpsertMatches(dbPath, matches);
 
         var modelGeom = new List<ModelGeometry>
         {
-            new() { ModelName = "nmos_model", WDefault = 2e-6, LDefault = 0.2e-6, NfDefault = 2, WMin = 1e-6, LMin = 0.1e-6, WMax = 10e-6, LMax = 1e-6, Source = "model" }
+            new()
+            {
+                ModelName = "nmos_model",
+                WDefault = 2e-6,
+                LDefault = 0.2e-6,
+                NfDefault = 2,
+                WMin = 1e-6,
+                LMin = 0.1e-6,
+                WMax = 10e-6,
+                LMax = 1e-6,
+                Source = "model",
+            },
         };
         PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom, default);
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, modelGeom);
@@ -103,13 +169,26 @@ public sealed class DeviceCharPlannerTests : IDisposable
         using (var db = PdkDatabase.Open(dbPath))
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = "UPDATE device_geometry SET w_default=5e-06, l_default=3e-07, nf_default=4 WHERE device_id=(SELECT id FROM devices WHERE canonical_name=$n)";
-            var p = cmd.CreateParameter(); p.ParameterName = "$n"; p.Value = devices[0].CanonicalName; cmd.Parameters.Add(p);
+            cmd.CommandText =
+                "UPDATE device_geometry SET w_default=5e-06, l_default=3e-07, nf_default=4 WHERE device_id=(SELECT id FROM devices WHERE canonical_name=$n)";
+            var p = cmd.CreateParameter();
+            p.ParameterName = "$n";
+            p.Value = devices[0].CanonicalName;
+            cmd.Parameters.Add(p);
             cmd.ExecuteNonQuery();
         }
 
-        var filters = new DeviceFilterOptions(classes: new[] { "nmos" }, vts: new[] { "LVT" }, vdds: new[] { "1.8V" }, infra: null, matched: null);
-        var plans = DeviceCharPlanner.Plan(dbPath, DeviceCharPlannerOptions.Create("spectre", "tt", 0, filters));
+        var filters = new DeviceFilterOptions(
+            classes: classes,
+            vts: vts,
+            vdds: vdds,
+            infra: null,
+            matched: null
+        );
+        var plans = DeviceCharPlanner.Plan(
+            dbPath,
+            DeviceCharPlannerOptions.Create("spectre", "tt", 0, filters)
+        );
 
         Assert.Single(plans);
         var plan = plans[0];
@@ -118,7 +197,11 @@ public sealed class DeviceCharPlannerTests : IDisposable
         Assert.Equal(3e-7, plan.Length, 12);
         Assert.Equal(4, plan.Nf);
         Assert.Equal("ttt", plan.Section);
-        Assert.Contains(includePath, plan.IncludePathsWithSection, StringComparer.OrdinalIgnoreCase);
+        Assert.Contains(
+            includePath,
+            plan.IncludePathsWithSection,
+            StringComparer.OrdinalIgnoreCase
+        );
         Assert.True(plan.IsSubckt);
         Assert.True(plan.VgsStop >= 1.2);
         Assert.True(plan.Vds > 0.1);
@@ -129,7 +212,10 @@ public sealed class DeviceCharPlannerTests : IDisposable
     {
         var dbPath = Path.Combine(_tempDir, "plan_lib.db");
         var includePath = Path.Combine(_tempDir, "model_lib.scs");
-        File.WriteAllText(includePath, "simulator lang=spectre\nlibrary ttt\n.model nmos_model nmos\nendlibrary ttt");
+        File.WriteAllText(
+            includePath,
+            "simulator lang=spectre\nlibrary ttt\n.model nmos_model nmos\nendlibrary ttt"
+        );
 
         SetupAndVerifyPlan(dbPath, includePath, expectSection: true);
     }
@@ -140,7 +226,10 @@ public sealed class DeviceCharPlannerTests : IDisposable
         var dbPath = Path.Combine(_tempDir, "plan_prefix.db");
         var includePath = Path.Combine(_tempDir, "model_prefix.scs");
         // "library_foo" should not be detected as "library" keyword
-        File.WriteAllText(includePath, "simulator lang=spectre\nlibrary_foo ttt\n.model nmos_model nmos");
+        File.WriteAllText(
+            includePath,
+            "simulator lang=spectre\nlibrary_foo ttt\n.model nmos_model nmos"
+        );
 
         SetupAndVerifyPlan(dbPath, includePath, expectSection: false);
     }
@@ -149,10 +238,29 @@ public sealed class DeviceCharPlannerTests : IDisposable
     {
         var models = new List<SpectreModel>
         {
-            new("nmos_model", "subckt", DeviceClass.Nmos, "1.8V", "LVT", SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, SpectreModel.EmptyStringList, new[] { includePath }, SpectreModel.EmptyStringList)
+            new(
+                "nmos_model",
+                "subckt",
+                DeviceClass.Nmos,
+                "1.8V",
+                "LVT",
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                SpectreModel.EmptyStringList,
+                new[] { includePath },
+                SpectreModel.EmptyStringList
+            )
             {
-                DefinitionContexts = new[] { new ModelContext { Corner = "tt", Section = "ttt", IncludePath = includePath } }
-            }
+                DefinitionContexts = new[]
+                {
+                    new ModelContext
+                    {
+                        Corner = "tt",
+                        Section = "ttt",
+                        IncludePath = includePath,
+                    },
+                },
+            },
         };
 
         var scan = new WorkspaceScanResult(
@@ -160,7 +268,8 @@ public sealed class DeviceCharPlannerTests : IDisposable
             new[] { new WorkspaceLibrary("lib", _tempDir) },
             Array.Empty<ModelDeckRecord>(),
             models,
-            Array.Empty<string>());
+            Array.Empty<string>()
+        );
 
         var devices = new List<Device>
         {
@@ -174,42 +283,76 @@ public sealed class DeviceCharPlannerTests : IDisposable
                 Subclass = DeviceSubclass.Unknown,
                 HasLayout = true,
                 HasSymbol = true,
-                Views = new[] { "layout", "symbol" },
-                VtTags = new[] { "LVT" },
-                VddTags = new[] { "01v8" },
-                Tags = Array.Empty<string>()
-            }
+                Views = itemArray2,
+                VtTags = itemArray,
+                VddTags = itemArray3,
+                Tags = Array.Empty<string>(),
+            },
         };
 
         PdkDatabaseWriter.Write(dbPath, scan, devices);
 
         var matches = new List<DeviceModelMatchRecord>
         {
-            new() { DeviceCanonicalName = devices[0].CanonicalName, ModelName = "nmos_model", Quality = "exact", Rank = 1 }
+            new()
+            {
+                DeviceCanonicalName = devices[0].CanonicalName,
+                ModelName = "nmos_model",
+                Quality = "exact",
+                Rank = 1,
+            },
         };
         PdkDatabaseWriter.UpsertMatches(dbPath, matches);
 
         var modelGeom = new List<ModelGeometry>
         {
-            new() { ModelName = "nmos_model", WDefault = 1e-6, LDefault = 1e-6, NfDefault = 1, WMin = 1e-6, LMin = 1e-6, WMax = 1e-6, LMax = 1e-6, Source = "model" }
+            new()
+            {
+                ModelName = "nmos_model",
+                WDefault = 1e-6,
+                LDefault = 1e-6,
+                NfDefault = 1,
+                WMin = 1e-6,
+                LMin = 1e-6,
+                WMax = 1e-6,
+                LMax = 1e-6,
+                Source = "model",
+            },
         };
         PdkDatabaseWriter.UpsertGeometry(dbPath, modelGeom, default);
         PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, modelGeom);
 
-        var filters = new DeviceFilterOptions(classes: new[] { "nmos" }, vts: null, vdds: null, infra: null, matched: null);
-        var plans = DeviceCharPlanner.Plan(dbPath, DeviceCharPlannerOptions.Create("spectre", "tt", 0, filters));
+        var filters = new DeviceFilterOptions(
+            classes: classes,
+            vts: null,
+            vdds: null,
+            infra: null,
+            matched: null
+        );
+        var plans = DeviceCharPlanner.Plan(
+            dbPath,
+            DeviceCharPlannerOptions.Create("spectre", "tt", 0, filters)
+        );
 
         Assert.Single(plans);
         var plan = plans[0];
         if (expectSection)
         {
             Assert.Equal("ttt", plan.Section);
-            Assert.Contains(includePath, plan.IncludePathsWithSection, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(
+                includePath,
+                plan.IncludePathsWithSection,
+                StringComparer.OrdinalIgnoreCase
+            );
         }
         else
         {
             Assert.Null(plan.Section);
-            Assert.Contains(includePath, plan.IncludePathsWithoutSection, StringComparer.OrdinalIgnoreCase);
+            Assert.Contains(
+                includePath,
+                plan.IncludePathsWithoutSection,
+                StringComparer.OrdinalIgnoreCase
+            );
         }
     }
 }

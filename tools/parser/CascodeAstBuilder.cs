@@ -42,13 +42,7 @@ internal sealed class CascodeAstBuilder
             }
         }
 
-        return new CompilationUnitSyntax(
-            _filePath,
-            1,
-            1,
-            package,
-            imports,
-            members);
+        return new CompilationUnitSyntax(_filePath, 1, 1, package, imports, members);
     }
 
     private PackageDeclarationSyntax BuildPackage(CascodeParser.PackageDeclContext ctx)
@@ -126,7 +120,8 @@ internal sealed class CascodeAstBuilder
             ports,
             supplies,
             grounds,
-            useBlock);
+            useBlock
+        );
     }
 
     private IEnumerable<PortDeclarationSyntax> BuildPorts(CascodeParser.PortsSquareContext ctx)
@@ -175,27 +170,37 @@ internal sealed class CascodeAstBuilder
                 var (qLine, qColumn) = GetLocation(quantityCtx.Start);
                 var quantityText = quantityCtx.GetText();
                 throw new InvalidOperationException(
-                    $"Quantity literal at {_filePath}:{qLine}:{qColumn} is missing a numeric value. " +
-                    $"Expected IntegerLiteral or RealLiteral, but found: '{quantityText}'");
+                    $"Quantity literal at {_filePath}:{qLine}:{qColumn} is missing a numeric value. "
+                        + $"Expected IntegerLiteral or RealLiteral, but found: '{quantityText}'"
+                );
             }
 
             var numericText = integerLiteral?.GetText() ?? realLiteral!.GetText();
             var unit = quantityCtx.Identifier()?.GetText();
-            var numericValue = double.Parse(numericText, System.Globalization.CultureInfo.InvariantCulture);
+            var numericValue = double.Parse(
+                numericText,
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             return new QuantityLiteralSyntax(_filePath, line, column, numericValue, unit);
         }
 
         // Bare integer literal
         if (ctx.IntegerLiteral() is { } intLit)
         {
-            var numericValue = double.Parse(intLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            var numericValue = double.Parse(
+                intLit.GetText(),
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
         }
 
         // Bare real literal
         if (ctx.RealLiteral() is { } realLit)
         {
-            var numericValue = double.Parse(realLit.GetText(), System.Globalization.CultureInfo.InvariantCulture);
+            var numericValue = double.Parse(
+                realLit.GetText(),
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             return new QuantityLiteralSyntax(_filePath, line, column, numericValue, null);
         }
 
@@ -259,7 +264,9 @@ internal sealed class CascodeAstBuilder
                 var paramName = paramCtx.Identifier().GetText();
                 var paramValue = paramCtx.paramValue().GetText();
                 var (pLine, pColumn) = GetLocation(paramCtx.Start);
-                parameters.Add(new InstanceParameterSyntax(_filePath, pLine, pColumn, paramName, paramValue));
+                parameters.Add(
+                    new InstanceParameterSyntax(_filePath, pLine, pColumn, paramName, paramValue)
+                );
             }
         }
 
@@ -275,7 +282,16 @@ internal sealed class CascodeAstBuilder
             }
         }
 
-        return new InstanceDeclarationSyntax(_filePath, line, column, instanceName, typeName, constructorArgs, parameters, bindings);
+        return new InstanceDeclarationSyntax(
+            _filePath,
+            line,
+            column,
+            instanceName,
+            typeName,
+            constructorArgs,
+            parameters,
+            bindings
+        );
     }
 
     private AttachStatementSyntax BuildAttach(CascodeParser.AttachStmtContext ctx)

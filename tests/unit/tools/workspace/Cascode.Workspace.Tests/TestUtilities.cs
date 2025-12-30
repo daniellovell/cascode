@@ -129,7 +129,11 @@ internal static class TestUtilities
         /// <param name="tempDirectory">The backing temporary directory whose lifetime is tied to this instance.</param>
         /// <param name="databasePath">The full file path to the PDK database.</param>
         /// <param name="database">The opened PDK database instance to expose via the Database property.</param>
-        private TempPdkDatabase(TempDirectory tempDirectory, string databasePath, Cascode.Workspace.PdkDatabase database)
+        private TempPdkDatabase(
+            TempDirectory tempDirectory,
+            string databasePath,
+            Cascode.Workspace.PdkDatabase database
+        )
         {
             _tempDirectory = tempDirectory;
             DatabasePath = databasePath;

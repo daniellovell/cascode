@@ -12,12 +12,19 @@ public sealed class PdkScanService
     private readonly WorkspaceScanner _workspaceScanner;
     private readonly PhysicalLibraryScanner _physicalLibraryScanner;
 
-    public PdkScanService() : this(new WorkspaceScanner(), new PhysicalLibraryScanner()) { }
+    public PdkScanService()
+        : this(new WorkspaceScanner(), new PhysicalLibraryScanner()) { }
 
-    public PdkScanService(WorkspaceScanner workspaceScanner, PhysicalLibraryScanner physicalLibraryScanner)
+    public PdkScanService(
+        WorkspaceScanner workspaceScanner,
+        PhysicalLibraryScanner physicalLibraryScanner
+    )
     {
-        _workspaceScanner = workspaceScanner ?? throw new ArgumentNullException(nameof(workspaceScanner));
-        _physicalLibraryScanner = physicalLibraryScanner ?? throw new ArgumentNullException(nameof(physicalLibraryScanner));
+        _workspaceScanner =
+            workspaceScanner ?? throw new ArgumentNullException(nameof(workspaceScanner));
+        _physicalLibraryScanner =
+            physicalLibraryScanner
+            ?? throw new ArgumentNullException(nameof(physicalLibraryScanner));
     }
 
     /// <summary>
@@ -28,7 +35,8 @@ public sealed class PdkScanService
         IReadOnlyList<Device> Devices,
         IReadOnlyList<DeviceModelMatchRecord> Matches,
         IReadOnlyList<ModelGeometry> ModelGeometry,
-        string DatabasePath);
+        string DatabasePath
+    );
 
     /// <summary>
     /// Performs a full PDK scan and writes results to the workspace database.
@@ -40,7 +48,8 @@ public sealed class PdkScanService
     public PdkScanResult ScanAndPersist(
         string targetRoot,
         ILogger? logger = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         logger ??= NullLogger.Instance;
 
@@ -52,15 +61,23 @@ public sealed class PdkScanService
         cancellationToken.ThrowIfCancellationRequested();
 
         // Stage 2: Physical library scan (devices)
-        logger.LogInformation("Scanning physical libraries for devices (libraries={Libraries})…", workspaceScan.Libraries.Count);
-        var devices = _physicalLibraryScanner.Scan(workspaceScan.Libraries, warnings: null, cancellationToken);
+        logger.LogInformation(
+            "Scanning physical libraries for devices (libraries={Libraries})…",
+            workspaceScan.Libraries.Count
+        );
+        var devices = PhysicalLibraryScanner.Scan(
+            workspaceScan.Libraries,
+            warnings: null,
+            cancellationToken
+        );
         logger.LogInformation("Physical scan complete: {Devices} devices", devices.Count);
         cancellationToken.ThrowIfCancellationRequested();
 
         // Stage 3: Prepare database
         var dbPath = WorkspacePaths.GetDatabasePath(targetRoot);
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-        if (File.Exists(dbPath)) File.Delete(dbPath);
+        if (File.Exists(dbPath))
+            File.Delete(dbPath);
 
         logger.LogInformation("Writing PDK database → {Path}", dbPath);
         PdkDatabaseWriter.Write(dbPath, workspaceScan, devices, cancellationToken);
@@ -70,14 +87,21 @@ public sealed class PdkScanService
         PdkMatchingConfigManager.EnsureInitialized();
         PdkMatchingConfigManager.Load(logger);
 
-        logger.LogInformation("Matching devices to models ({Devices} × {Models})…", devices.Count, workspaceScan.Models.Count);
+        logger.LogInformation(
+            "Matching devices to models ({Devices} × {Models})…",
+            devices.Count,
+            workspaceScan.Models.Count
+        );
         var matches = DeviceModelMatcher.Match(devices, workspaceScan.Models);
         PdkDatabaseWriter.UpsertMatches(dbPath, matches, cancellationToken);
         logger.LogInformation("Matching complete: {Matches} associations", matches.Count);
         cancellationToken.ThrowIfCancellationRequested();
 
         // Stage 5: Geometry extraction
-        logger.LogInformation("Extracting model geometry from sources ({Models})…", workspaceScan.Models.Count);
+        logger.LogInformation(
+            "Extracting model geometry from sources ({Models})…",
+            workspaceScan.Models.Count
+        );
         var geometry = ModelGeometryExtractor.Extract(workspaceScan.Models, logger);
         cancellationToken.ThrowIfCancellationRequested();
         PdkDatabaseWriter.UpsertGeometry(dbPath, geometry, cancellationToken);
@@ -85,7 +109,13 @@ public sealed class PdkScanService
 
         // Stage 6: Project geometry to devices
         logger.LogInformation("Projecting geometry onto devices ({Devices})…", devices.Count);
-        PdkDatabaseWriter.UpsertDeviceGeometry(dbPath, devices, matches, geometry, cancellationToken);
+        PdkDatabaseWriter.UpsertDeviceGeometry(
+            dbPath,
+            devices,
+            matches,
+            geometry,
+            cancellationToken
+        );
         cancellationToken.ThrowIfCancellationRequested();
 
         logger.LogInformation("PDK database updated → {Path}", dbPath);
@@ -93,4 +123,3 @@ public sealed class PdkScanService
         return new PdkScanResult(workspaceScan, devices, matches, geometry, dbPath);
     }
 }
-

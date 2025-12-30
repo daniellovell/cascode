@@ -18,28 +18,37 @@ namespace Cascode.ACIR.Validation;
 /// </remarks>
 public static class EmissionValidator
 {
-    private static readonly Dictionary<string, string[]> RequiredTerminals = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string[]> RequiredTerminals = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         { "nmos", new[] { "D", "G", "S", "B" } },
         { "pmos", new[] { "D", "G", "S", "B" } },
         { "resistor", new[] { "P", "N" } },
         { "capacitor", new[] { "P", "N" } },
         { "inductor", new[] { "P", "N" } },
-        { "diode", new[] { "A", "K" } }
+        { "diode", new[] { "A", "K" } },
     };
 
-    private static readonly Dictionary<string, string[]> RequiredParams = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string[]> RequiredParams = new(
+        StringComparer.OrdinalIgnoreCase
+    )
     {
         { "nmos", new[] { "W", "L" } },
         { "pmos", new[] { "W", "L" } },
         { "resistor", new[] { "R" } },
         { "capacitor", new[] { "C" } },
-        { "inductor", new[] { "L" } }
+        { "inductor", new[] { "L" } },
     };
 
     private static readonly HashSet<string> KnownDeviceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "nmos", "pmos", "resistor", "capacitor", "inductor", "diode"
+        "nmos",
+        "pmos",
+        "resistor",
+        "capacitor",
+        "inductor",
+        "diode",
     };
 
     /// <summary>
@@ -60,7 +69,8 @@ public static class EmissionValidator
                 "EMIT-005",
                 $"Circuit '{circuit.Name}' is at {circuit.Level} level, but SPICE emission requires EL level",
                 $"circuit {circuit.Name}",
-                "Elaborate the circuit to EL level before emission");
+                "Elaborate the circuit to EL level before emission"
+            );
             return result; // Cannot validate further if not EL
         }
 
@@ -75,7 +85,8 @@ public static class EmissionValidator
                         "EMIT-006",
                         $"Sweep condition '{sweep.Name}' contains unresolved [Auto] at EL level",
                         "harness",
-                        "Resolve [Auto] to concrete numeric values during elaboration");
+                        "Resolve [Auto] to concrete numeric values during elaboration"
+                    );
                 }
             }
         }
@@ -135,7 +146,11 @@ public static class EmissionValidator
     /// <summary>
     /// Validates a single device declaration.
     /// </summary>
-    private static void ValidateDevice(DeviceDeclaration device, HashSet<string> validNets, ValidationResult result)
+    private static void ValidateDevice(
+        DeviceDeclaration device,
+        HashSet<string> validNets,
+        ValidationResult result
+    )
     {
         var deviceType = device.DeviceType.ToLowerInvariant();
 
@@ -146,7 +161,8 @@ public static class EmissionValidator
                 "EMIT-004",
                 $"Unknown device type '{device.DeviceType}'",
                 $"device {device.Id}",
-                $"Use one of: {string.Join(", ", KnownDeviceTypes)}");
+                $"Use one of: {string.Join(", ", KnownDeviceTypes)}"
+            );
             return; // Cannot validate terminals/params for unknown type
         }
 
@@ -159,16 +175,21 @@ public static class EmissionValidator
                 {
                     var suggestion = deviceType switch
                     {
-                        "nmos" => terminal == "B" ? "Add bulk connection, typically B->GND for NMOS" : $"Add {terminal} terminal binding",
-                        "pmos" => terminal == "B" ? "Add bulk connection, typically B->VDD for PMOS" : $"Add {terminal} terminal binding",
-                        _ => $"Add {terminal} terminal binding"
+                        "nmos" => terminal == "B"
+                            ? "Add bulk connection, typically B->GND for NMOS"
+                            : $"Add {terminal} terminal binding",
+                        "pmos" => terminal == "B"
+                            ? "Add bulk connection, typically B->VDD for PMOS"
+                            : $"Add {terminal} terminal binding",
+                        _ => $"Add {terminal} terminal binding",
                     };
 
                     result.AddError(
                         "EMIT-001",
                         $"Device '{device.Id}' missing required terminal '{terminal}'",
                         $"device {device.Id}",
-                        suggestion);
+                        suggestion
+                    );
                 }
             }
         }
@@ -179,15 +200,17 @@ public static class EmissionValidator
             if (!validNets.Contains(netName))
             {
                 var availableNets = validNets.Take(8).ToList();
-                var netList = availableNets.Count < validNets.Count
-                    ? string.Join(", ", availableNets) + "..."
-                    : string.Join(", ", availableNets);
+                var netList =
+                    availableNets.Count < validNets.Count
+                        ? string.Join(", ", availableNets) + "..."
+                        : string.Join(", ", availableNets);
 
                 result.AddError(
                     "EMIT-002",
                     $"Device '{device.Id}' terminal '{terminal}' references undefined net '{netName}'",
                     $"device {device.Id}.{terminal} -> {netName}",
-                    $"Available nets: {netList}");
+                    $"Available nets: {netList}"
+                );
             }
         }
 
@@ -204,14 +227,15 @@ public static class EmissionValidator
                         "L" => "L=180n",
                         "R" => "R=10k",
                         "C" => "C=1p",
-                        _ => $"{param}=<value>"
+                        _ => $"{param}=<value>",
                     };
 
                     result.AddError(
                         "EMIT-003",
                         $"Device '{device.Id}' missing required parameter '{param}'",
                         $"device {device.Id}",
-                        $"Add {param} parameter, e.g., {example}");
+                        $"Add {param} parameter, e.g., {example}"
+                    );
                 }
             }
         }

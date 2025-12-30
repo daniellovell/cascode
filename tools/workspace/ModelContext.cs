@@ -16,11 +16,16 @@ public sealed class ModelContext : IEquatable<ModelContext>
     /// <returns>`true` if `Corner`, `Detail`, and `Section` match using ordinal case-insensitive comparison and the normalized `IncludePath` values match using ordinal case-insensitive comparison; `false` otherwise.</returns>
     public bool Equals(ModelContext? other)
     {
-        if (other is null) return false;
+        if (other is null)
+            return false;
         return string.Equals(Corner, other.Corner, StringComparison.OrdinalIgnoreCase)
             && string.Equals(Detail, other.Detail, StringComparison.OrdinalIgnoreCase)
             && string.Equals(Section, other.Section, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(NormalizePath(IncludePath), NormalizePath(other.IncludePath), StringComparison.OrdinalIgnoreCase);
+            && string.Equals(
+                NormalizePath(IncludePath),
+                NormalizePath(other.IncludePath),
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 
     /// <summary>
@@ -42,7 +47,8 @@ public sealed class ModelContext : IEquatable<ModelContext>
             Corner?.ToLowerInvariant(),
             Detail?.ToLowerInvariant(),
             Section?.ToLowerInvariant(),
-            NormalizePath(IncludePath)?.ToLowerInvariant());
+            NormalizePath(IncludePath)?.ToLowerInvariant()
+        );
     }
 
     /// <summary>
@@ -54,7 +60,15 @@ public sealed class ModelContext : IEquatable<ModelContext>
     /// </returns>
     private static string? NormalizePath(string? p)
     {
-        if (string.IsNullOrWhiteSpace(p)) return null;
-        try { return System.IO.Path.GetFullPath(p); } catch { return p; }
+        if (string.IsNullOrWhiteSpace(p))
+            return null;
+        try
+        {
+            return System.IO.Path.GetFullPath(p);
+        }
+        catch
+        {
+            return p;
+        }
     }
 }

@@ -26,23 +26,29 @@ public sealed class PdkContextContractTests
         var top = Path.Combine(tempDir.DirectoryPath, "top.scs");
         var core = Path.Combine(tempDir.DirectoryPath, "core.scs");
 
-        WriteAll(top, @"
+        WriteAll(
+            top,
+            @"
 .lib tt_lib noise_best
 include ""core.scs"" section=tt_core
 .endl
 .lib ff_lib noise_worst
 include ""core.scs"" section=ff_core
 .endl
-");
+"
+        );
 
-        WriteAll(core, @"
+        WriteAll(
+            core,
+            @"
 section tt_core
 .model m1 nmos
 endsection
 section ff_core
 .model m1 nmos
 endsection
-");
+"
+        );
 
         // Extract models
         var warnings = new List<string>();
@@ -50,7 +56,13 @@ endsection
         var models = extractor.Extract(tempDir.DirectoryPath, top, warnings);
 
         // Write DB using current writer
-        var scan = new Cascode.Workspace.WorkspaceScanResult(tempDir.DirectoryPath, Array.Empty<Cascode.Workspace.WorkspaceLibrary>(), Array.Empty<Cascode.Workspace.ModelDeckRecord>(), models, warnings);
+        var scan = new Cascode.Workspace.WorkspaceScanResult(
+            tempDir.DirectoryPath,
+            Array.Empty<Cascode.Workspace.WorkspaceLibrary>(),
+            Array.Empty<Cascode.Workspace.ModelDeckRecord>(),
+            models,
+            warnings
+        );
         var dbDir = Path.Combine(tempDir.DirectoryPath, ".db");
         Directory.CreateDirectory(dbDir);
         var dbPath = Path.Combine(dbDir, "pdk.db");
@@ -67,7 +79,8 @@ endsection
 
         using (var cmd = db.Connection.CreateCommand())
         {
-            cmd.CommandText = @"SELECT COUNT(*)
+            cmd.CommandText =
+                @"SELECT COUNT(*)
                                 FROM model_contexts mc
                                 LEFT JOIN corners c ON c.id=mc.corner_id
                                 LEFT JOIN sections s ON s.id=mc.section_id

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using Xunit;
 using Cascode.ACIR;
 using Cascode.Bench;
 using Cascode.Cli.Services;
+using Xunit;
 
 namespace Cascode.Cli.Tests;
 
@@ -12,12 +12,10 @@ public class BenchResultParserTests
     [Fact]
     public void TryParseResultLine_EmptyValue_RecordsAsNaN()
     {
-        var circuit = new Circuit
-        {
-            Name = "TestCircuit"
-        };
+        var circuit = new Circuit { Name = "TestCircuit" };
 
-        var stdout = @"
+        var stdout =
+            @"
 RESULT: PassbandGain =   dB
 RESULT: GainBandwidth = 1e6 Hz
 ";
@@ -41,12 +39,10 @@ RESULT: GainBandwidth = 1e6 Hz
     [Fact]
     public void TryParseResultLine_ValidValue_ParsesCorrectly()
     {
-        var circuit = new Circuit
-        {
-            Name = "TestCircuit"
-        };
+        var circuit = new Circuit { Name = "TestCircuit" };
 
-        var stdout = @"
+        var stdout =
+            @"
 RESULT: PassbandGain = 42.5 dB
 RESULT: PhaseMargin = 65.2 deg
 ";
@@ -63,12 +59,10 @@ RESULT: PhaseMargin = 65.2 deg
     [Fact]
     public void TryParseResultLine_MixedValidAndFailed_ParsesBoth()
     {
-        var circuit = new Circuit
-        {
-            Name = "TestCircuit"
-        };
+        var circuit = new Circuit { Name = "TestCircuit" };
 
-        var stdout = @"
+        var stdout =
+            @"
 RESULT: PassbandGain = 40.2 dB
 RESULT: GainBandwidth =   Hz
 RESULT: PhaseMargin = 60.5 deg
@@ -82,4 +76,3 @@ RESULT: PhaseMargin = 60.5 deg
         Assert.Equal(60.5, result.Measurements["PhaseMargin"].Value);
     }
 }
-

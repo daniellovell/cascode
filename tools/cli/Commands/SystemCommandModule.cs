@@ -9,6 +9,9 @@ internal sealed class SystemCommandModule : ICommandModule
 {
     private readonly ShellState _state;
     private CommandRegistry? _registry;
+    internal static readonly string[] HelpAliases = new[] { "-h", "--help" };
+    internal static readonly string[] VersionAliases = new[] { "--version", "-v" };
+    internal static readonly string[] ExitAliases = new[] { "exit" };
 
     public SystemCommandModule(ShellState state)
     {
@@ -19,35 +22,50 @@ internal sealed class SystemCommandModule : ICommandModule
     {
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
 
-        registry.Register(new DelegateCliCommand(
-            path: "help",
-            description: "Show this message",
-            handler: ShowHelp,
-            aliases: new[] { "-h", "--help" }));
+        registry.Register(
+            new DelegateCliCommand(
+                path: "help",
+                description: "Show this message",
+                handler: ShowHelp,
+                aliases: HelpAliases
+            )
+        );
 
-        registry.Register(new DelegateCliCommand(
-            path: "version",
-            description: "Show CLI version",
-            handler: ShowVersion,
-            hidden: true,
-            aliases: new[] { "--version", "-v" }));
+        registry.Register(
+            new DelegateCliCommand(
+                path: "version",
+                description: "Show CLI version",
+                handler: ShowVersion,
+                hidden: true,
+                aliases: VersionAliases
+            )
+        );
 
-        registry.Register(new DelegateCliCommand(
-            path: "home",
-            description: "Return to dashboard layout",
-            handler: Home));
+        registry.Register(
+            new DelegateCliCommand(
+                path: "home",
+                description: "Return to dashboard layout",
+                handler: Home
+            )
+        );
 
-        registry.Register(new DelegateCliCommand(
-            path: "log",
-            description: "Scroll the log history",
-            handler: Log,
-            hidden: true));
+        registry.Register(
+            new DelegateCliCommand(
+                path: "log",
+                description: "Scroll the log history",
+                handler: Log,
+                hidden: true
+            )
+        );
 
-        registry.Register(new DelegateCliCommand(
-            path: "quit",
-            description: "Exit the CLI",
-            handler: Quit,
-            aliases: new[] { "exit" }));
+        registry.Register(
+            new DelegateCliCommand(
+                path: "quit",
+                description: "Exit the CLI",
+                handler: Quit,
+                aliases: ExitAliases
+            )
+        );
     }
 
     private CommandResult ShowHelp(string[] args)
@@ -55,11 +73,14 @@ internal sealed class SystemCommandModule : ICommandModule
         _state.AddMessage("Commands:");
         var commands = _registry!.GetCanonicalCommands();
         var array = System.Linq.Enumerable.ToArray(commands);
-        var width = array.Length == 0 ? 0 : System.Linq.Enumerable.Max(array, c => c.DisplayPath.Length);
+        var width =
+            array.Length == 0 ? 0 : System.Linq.Enumerable.Max(array, c => c.DisplayPath.Length);
         foreach (var command in array)
         {
             var padded = width > 0 ? command.DisplayPath.PadRight(width) : command.DisplayPath;
-            var description = string.IsNullOrEmpty(command.Description) ? string.Empty : $"  {command.Description}";
+            var description = string.IsNullOrEmpty(command.Description)
+                ? string.Empty
+                : $"  {command.Description}";
             _state.AddMessage($"  {padded}{description}");
         }
         return CommandResult.Success;
@@ -68,7 +89,8 @@ internal sealed class SystemCommandModule : ICommandModule
     private CommandResult ShowVersion(string[] args)
     {
         var asm = typeof(SystemCommandModule).Assembly;
-        var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var info =
+            asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var version = string.IsNullOrWhiteSpace(info)
             ? (asm.GetName().Version?.ToString() ?? "0.0.0")
             : info.Split('+', 2)[0]; // strip build metadata if present
@@ -99,7 +121,15 @@ internal sealed class SystemCommandModule : ICommandModule
         var action = args[0].ToLowerInvariant();
         var defaultStep = Math.Max(1, _state.LogViewport / 4);
         var count = defaultStep;
-        if (args.Length > 1 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+        if (
+            args.Length > 1
+            && int.TryParse(
+                args[1],
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parsed
+            )
+        )
         {
             count = Math.Max(1, parsed);
         }
@@ -134,4 +164,3 @@ internal sealed class SystemCommandModule : ICommandModule
 
     private static CommandResult Quit(string[] args) => new(0, true);
 }
-

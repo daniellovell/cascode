@@ -18,11 +18,33 @@ internal sealed class BenchCommandModule : ICommandModule
 
     public void Register(CommandRegistry registry)
     {
-        registry.Register(new DelegateCliCommand("bench", "Bench and harness commands", ShowBenchUsage));
-        registry.Register(new DelegateCliCommand("bench harness", "Harness helpers", ShowBenchHarnessUsage));
-        registry.Register(new DelegateCliCommand("bench harness list", "List available harnesses", BenchHarnessListCommand));
-        registry.Register(new DelegateCliCommand("bench harness show", "Show harness details", BenchHarnessShowCommand));
-        registry.Register(new DelegateCliCommand("bench run", "Run a bench simulation and emit trace/results", BenchRunCommand));
+        registry.Register(
+            new DelegateCliCommand("bench", "Bench and harness commands", ShowBenchUsage)
+        );
+        registry.Register(
+            new DelegateCliCommand("bench harness", "Harness helpers", ShowBenchHarnessUsage)
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "bench harness list",
+                "List available harnesses",
+                BenchHarnessListCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "bench harness show",
+                "Show harness details",
+                BenchHarnessShowCommand
+            )
+        );
+        registry.Register(
+            new DelegateCliCommand(
+                "bench run",
+                "Run a bench simulation and emit trace/results",
+                BenchRunCommand
+            )
+        );
     }
 
     private CommandResult ShowBenchUsage(string[] args)
@@ -42,7 +64,9 @@ internal sealed class BenchCommandModule : ICommandModule
         if (!BenchRunService.TryParseArgs(args, out var parsed, out var error))
         {
             _state.AddMessage(error);
-            _state.AddMessage("Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]");
+            _state.AddMessage(
+                "Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
+            );
             _state.AddMessage("If <bench> is omitted, runs all benches declared by the circuit.");
             return CommandResult.Failure;
         }
@@ -50,17 +74,26 @@ internal sealed class BenchCommandModule : ICommandModule
         try
         {
             ILoggerFactory? localFactory = null;
-            var loggerFactory = _state.LoggerFactory ?? (localFactory = LoggerFactory.Create(builder =>
-            {
-                builder.SetMinimumLevel(LogLevel.Warning);
-                builder.AddSimpleConsole(o => { o.SingleLine = true; });
-            }));
+            var loggerFactory =
+                _state.LoggerFactory
+                ?? (
+                    localFactory = LoggerFactory.Create(builder =>
+                    {
+                        builder.SetMinimumLevel(LogLevel.Warning);
+                        builder.AddSimpleConsole(o =>
+                        {
+                            o.SingleLine = true;
+                        });
+                    })
+                );
 
             var service = new BenchRunService(loggerFactory.CreateLogger<BenchRunService>());
             var result = service.Run(_state.WorkspaceRoot, _state.PdkRoot, parsed);
             WriteBenchRunSummary(result.Summary, parsed.Verbose);
             localFactory?.Dispose();
-            return result.ExitCode == 0 ? CommandResult.Success : new CommandResult(result.ExitCode, false);
+            return result.ExitCode == 0
+                ? CommandResult.Success
+                : new CommandResult(result.ExitCode, false);
         }
         catch (Exception ex)
         {
@@ -71,7 +104,9 @@ internal sealed class BenchCommandModule : ICommandModule
 
     private void WriteBenchRunSummary(BenchRunService.BenchRunSummary summary, bool verbose)
     {
-        _state.AddMessage($"Circuit: {summary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})");
+        _state.AddMessage(
+            $"Circuit: {summary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})"
+        );
         _state.AddMessage($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
 
         var succeeded = summary.Benches.Where(b => b.Succeeded).Select(b => b.Name).ToArray();
@@ -88,19 +123,25 @@ internal sealed class BenchCommandModule : ICommandModule
 
         if (summary.CombinedResultsPath != null)
         {
-            _state.AddMessage($"Combined results: {FormatPath(summary.CombinedResultsPath, summary.OutputDir, verbose)}");
+            _state.AddMessage(
+                $"Combined results: {FormatPath(summary.CombinedResultsPath, summary.OutputDir, verbose)}"
+            );
         }
 
         foreach (var bench in summary.Benches.Where(b => b.Succeeded))
         {
             if (bench.ResultsPath != null)
             {
-                _state.AddMessage($"{bench.Name} results: {FormatPath(bench.ResultsPath, summary.OutputDir, verbose)}");
+                _state.AddMessage(
+                    $"{bench.Name} results: {FormatPath(bench.ResultsPath, summary.OutputDir, verbose)}"
+                );
             }
 
             if (bench.TracePath != null)
             {
-                _state.AddMessage($"{bench.Name} trace: {FormatPath(bench.TracePath, summary.OutputDir, verbose)}");
+                _state.AddMessage(
+                    $"{bench.Name} trace: {FormatPath(bench.TracePath, summary.OutputDir, verbose)}"
+                );
             }
         }
 
@@ -114,7 +155,9 @@ internal sealed class BenchCommandModule : ICommandModule
             if (verbose && !string.IsNullOrWhiteSpace(bench.Stderr))
             {
                 _state.AddMessage($"{bench.Name} stderr:");
-                foreach (var line in bench.Stderr.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                foreach (
+                    var line in bench.Stderr.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                )
                 {
                     _state.AddMessage($"  {line.TrimEnd()}");
                 }
@@ -122,17 +165,25 @@ internal sealed class BenchCommandModule : ICommandModule
         }
 
         var compliance = summary.Compliance;
-        var passPercentage = compliance.TotalCount > 0
-            ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
-            : 0;
-        _state.AddMessage($"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)");
+        var passPercentage =
+            compliance.TotalCount > 0
+                ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
+                : 0;
+        _state.AddMessage(
+            $"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
+        );
 
         // Helper to format a constraint result
         string FormatConstraint(ConstraintResult result)
         {
-            var where = string.IsNullOrWhiteSpace(result.Node) ? result.Metric : $"{result.Metric}@{result.Node}";
-            var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
-            var actual = result.Actual is null ? "missing" : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
+            var where = string.IsNullOrWhiteSpace(result.Node)
+                ? result.Metric
+                : $"{result.Metric}@{result.Node}";
+            var expected =
+                $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
+            var actual = result.Actual is null
+                ? "missing"
+                : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
             return $"  {result.Id}: {where} {expected} (actual {actual})";
         }
 
@@ -231,10 +282,15 @@ internal sealed class BenchCommandModule : ICommandModule
                 var w = h.Params.Max(p => p.Name.Length);
                 foreach (var p in h.Params)
                 {
-                    var choices = p.Choices is null || p.Choices.Count == 0 ? string.Empty : $" choices=[{string.Join('/', p.Choices)}]";
+                    var choices =
+                        p.Choices is null || p.Choices.Count == 0
+                            ? string.Empty
+                            : $" choices=[{string.Join('/', p.Choices)}]";
                     var def = p.DefaultValue is null ? string.Empty : $" default={p.DefaultValue}";
                     var req = p.Required ? " required" : string.Empty;
-                    _state.AddMessage($"  {p.Name.PadRight(w)}  {p.Type}{req}{def}{choices} — {p.Description}");
+                    _state.AddMessage(
+                        $"  {p.Name.PadRight(w)}  {p.Type}{req}{def}{choices} — {p.Description}"
+                    );
                 }
             }
             return CommandResult.Success;

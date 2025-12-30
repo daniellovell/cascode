@@ -18,7 +18,7 @@ internal static class PathUtils
 
     internal static string ExpandHomePath(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("~", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('~'))
         {
             return path;
         }
@@ -34,8 +34,8 @@ internal static class PathUtils
             return home;
         }
 
-        var remainder = path[1..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var remainder = path[1..]
+            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         return Path.Combine(home, remainder);
     }
 }
-

@@ -19,8 +19,8 @@ public sealed class InteractiveCliFactAttribute : FactAttribute
 
         if (CliIntegrationTestHelper.IsRunningInCi())
         {
-            Skip = "Interactive CLI test skipped in CI due to pseudo‑TTY flakiness; covered by non-interactive integration tests.";
+            Skip =
+                "Interactive CLI test skipped in CI due to pseudo‑TTY flakiness; covered by non-interactive integration tests.";
         }
     }
 }
-

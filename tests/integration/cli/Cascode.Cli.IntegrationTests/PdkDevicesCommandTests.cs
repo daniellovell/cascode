@@ -10,13 +10,17 @@ public sealed class PdkDevicesCommandTests
     public async Task PdkDevicesCommand_WithValidWorkspace_PrintsDeviceSummary()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkDevicesCommandTests));
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            nameof(PdkDevicesCommandTests)
+        );
         var scanResult = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromMinutes(2),
             cascodeHome,
             "pdk",
             "scan",
-            "tests/fixtures/pdk/sky130");
+            "tests/fixtures/pdk/sky130"
+        );
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(scanResult);
 
         var devicesResult = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
@@ -27,10 +31,12 @@ public sealed class PdkDevicesCommandTests
             "--workspace",
             "tests/fixtures/pdk/sky130",
             "--class",
-            "nmos");
+            "nmos"
+        );
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(devicesResult);
         Assert.True(
             devicesResult.Stdout.Contains("nfet_01v8", StringComparison.Ordinal),
-            $"Expected device summary to include 'nfet_01v8'. Stdout: {devicesResult.Stdout}{Environment.NewLine}Stderr: {devicesResult.Stderr}");
+            $"Expected device summary to include 'nfet_01v8'. Stdout: {devicesResult.Stdout}{Environment.NewLine}Stderr: {devicesResult.Stderr}"
+        );
     }
 }

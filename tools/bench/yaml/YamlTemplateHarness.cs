@@ -13,20 +13,22 @@ public sealed class YamlTemplateHarness : ITestbenchHarness
         _manifest = manifest;
         Id = _manifest.Id;
         Description = _manifest.Description ?? string.Empty;
-        SupportedBackends = _manifest.Backends
-            .Select(ToBackend)
+        SupportedBackends = _manifest
+            .Backends.Select(ToBackend)
             .Where(x => x is not null)
             .Cast<BenchBackendType>()
             .Distinct()
             .ToArray();
 
-        Params = _manifest.Params.Select(kv =>
-            new HarnessParam(kv.Key,
+        Params = _manifest
+            .Params.Select(kv => new HarnessParam(
+                kv.Key,
                 kv.Value.Type,
                 kv.Value.Description ?? string.Empty,
                 kv.Value.Default,
                 kv.Value.Required,
-                kv.Value.Choices?.ToArray() ?? Array.Empty<object>()))
+                kv.Value.Choices?.ToArray() ?? Array.Empty<object>()
+            ))
             .ToArray();
     }
 
@@ -55,19 +57,19 @@ public sealed class YamlTemplateHarness : ITestbenchHarness
         }
 
         // Select template path for backend
-        var templateRel = backend == BenchBackendType.Spectre
-            ? _manifest.Templates.Spectre
-            : _manifest.Templates.Ngspice;
+        var templateRel =
+            backend == BenchBackendType.Spectre
+                ? _manifest.Templates.Spectre
+                : _manifest.Templates.Ngspice;
         if (string.IsNullOrWhiteSpace(templateRel))
         {
-            throw new InvalidOperationException($"Harness '{Id}' lacks a template for backend {backend}.");
+            throw new InvalidOperationException(
+                $"Harness '{Id}' lacks a template for backend {backend}."
+            );
         }
         var templatePath = Path.Combine(_baseDir, templateRel!);
 
-        var artifacts = new Dictionary<string, string>
-        {
-            ["results"] = ctx.Spec.ResultsCsv
-        };
+        var artifacts = new Dictionary<string, string> { ["results"] = ctx.Spec.ResultsCsv };
 
         return new TestbenchPlan
         {
@@ -79,22 +81,29 @@ public sealed class YamlTemplateHarness : ITestbenchHarness
             Data = new Dictionary<string, object>
             {
                 ["template_path"] = templatePath,
-                ["params"] = resolved
-            }
+                ["params"] = resolved,
+            },
         };
     }
 
     private static object? Coerce(object? value, string type)
     {
-        if (value is null) return null;
+        if (value is null)
+            return null;
         try
         {
             switch (type.ToLowerInvariant())
             {
                 case "number":
-                    return Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
+                    return Convert.ToDouble(
+                        value,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    );
                 case "integer":
-                    return Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+                    return Convert.ToInt32(
+                        value,
+                        System.Globalization.CultureInfo.InvariantCulture
+                    );
                 case "enum":
                 case "string":
                 default:
@@ -113,7 +122,7 @@ public sealed class YamlTemplateHarness : ITestbenchHarness
         {
             "spectre" => BenchBackendType.Spectre,
             "ngspice" => BenchBackendType.Ngspice,
-            _ => null
+            _ => null,
         };
     }
 
@@ -128,4 +137,3 @@ public sealed class YamlTemplateHarness : ITestbenchHarness
         return baseName + ext;
     }
 }
-

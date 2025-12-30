@@ -18,6 +18,5 @@ public enum ACIRLevel
     /// <summary>
     /// Electrical Level: All params are numeric; ready for SPICE emission.
     /// </summary>
-    EL
+    EL,
 }
-

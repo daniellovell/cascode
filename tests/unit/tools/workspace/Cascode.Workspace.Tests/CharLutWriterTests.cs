@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using Xunit;
 using Cascode.TestSupport;
+using Xunit;
 
 namespace Cascode.Workspace.Tests;
 
@@ -42,7 +42,7 @@ public sealed class CharLutWriterTests : IDisposable
             Vsb = 0.0,
             TemperatureC = 27.0,
             Status = "complete",
-            JobDir = "/tmp/char/job1"
+            JobDir = "/tmp/char/job1",
         };
 
         // Act
@@ -83,16 +83,43 @@ public sealed class CharLutWriterTests : IDisposable
             Vsb = 0.0,
             TemperatureC = 27.0,
             Status = "complete",
-            JobDir = "/tmp/char/job2"
+            JobDir = "/tmp/char/job2",
         };
         var runId = CharLutWriter.WriteCharRun(dbPath, run);
 
         var points = new List<CharLutPoint>
         {
-            new() { Vgs = 0.0, Id = 1e-12, Gm = 1e-9, GmOverId = 1000 },
-            new() { Vgs = 0.3, Id = 1e-9, Gm = 1e-6, GmOverId = 1000 },
-            new() { Vgs = 0.6, Id = 1e-6, Gm = 1e-3, GmOverId = 1000, Vth = 0.4 },
-            new() { Vgs = 0.9, Id = 1e-4, Gm = 1e-2, GmOverId = 100, Vth = 0.4, GmRo = 50 }
+            new()
+            {
+                Vgs = 0.0,
+                Id = 1e-12,
+                Gm = 1e-9,
+                GmOverId = 1000,
+            },
+            new()
+            {
+                Vgs = 0.3,
+                Id = 1e-9,
+                Gm = 1e-6,
+                GmOverId = 1000,
+            },
+            new()
+            {
+                Vgs = 0.6,
+                Id = 1e-6,
+                Gm = 1e-3,
+                GmOverId = 1000,
+                Vth = 0.4,
+            },
+            new()
+            {
+                Vgs = 0.9,
+                Id = 1e-4,
+                Gm = 1e-2,
+                GmOverId = 100,
+                Vth = 0.4,
+                GmRo = 50,
+            },
         };
 
         // Act
@@ -127,19 +154,65 @@ public sealed class CharLutWriterTests : IDisposable
             Vsb = 0.0,
             TemperatureC = 27.0,
             Status = "complete",
-            JobDir = "/tmp/char/job3"
+            JobDir = "/tmp/char/job3",
         };
         var runId = CharLutWriter.WriteCharRun(dbPath, run);
 
         // Points with varying gm/Id - peak at Vgs=0.4
         var points = new List<CharLutPoint>
         {
-            new() { Vgs = 0.2, Id = 1e-9, Gm = 5e-9, GmOverId = 5.0 },
-            new() { Vgs = 0.3, Id = 1e-8, Gm = 2e-7, GmOverId = 20.0, Vth = 0.35 },
-            new() { Vgs = 0.4, Id = 1e-7, Gm = 3e-6, GmOverId = 30.0, Vth = 0.35 },  // Peak gm/Id
-            new() { Vgs = 0.5, Id = 1e-6, Gm = 2e-5, GmOverId = 20.0, Vth = 0.35, GmRo = 45 },
-            new() { Vgs = 0.6, Id = 1e-5, Gm = 1e-4, GmOverId = 10.0, Vth = 0.35, GmRo = 50, Ft = 1e10 },  // Max gm*ro and ft
-            new() { Vgs = 0.7, Id = 1e-4, Gm = 5e-4, GmOverId = 5.0, Vth = 0.35, GmRo = 40, Ft = 8e9 }
+            new()
+            {
+                Vgs = 0.2,
+                Id = 1e-9,
+                Gm = 5e-9,
+                GmOverId = 5.0,
+            },
+            new()
+            {
+                Vgs = 0.3,
+                Id = 1e-8,
+                Gm = 2e-7,
+                GmOverId = 20.0,
+                Vth = 0.35,
+            },
+            new()
+            {
+                Vgs = 0.4,
+                Id = 1e-7,
+                Gm = 3e-6,
+                GmOverId = 30.0,
+                Vth = 0.35,
+            }, // Peak gm/Id
+            new()
+            {
+                Vgs = 0.5,
+                Id = 1e-6,
+                Gm = 2e-5,
+                GmOverId = 20.0,
+                Vth = 0.35,
+                GmRo = 45,
+            },
+            new()
+            {
+                Vgs = 0.6,
+                Id = 1e-5,
+                Gm = 1e-4,
+                GmOverId = 10.0,
+                Vth = 0.35,
+                GmRo = 50,
+                Ft = 1e10,
+            }, // Max gm*ro and ft
+            new()
+            {
+                Vgs = 0.7,
+                Id = 1e-4,
+                Gm = 5e-4,
+                GmOverId = 5.0,
+                Vth = 0.35,
+                GmRo = 40,
+                Ft = 8e9,
+            },
         };
         CharLutWriter.WriteLutPoints(dbPath, runId, points);
 
@@ -167,7 +240,8 @@ public sealed class CharLutWriterTests : IDisposable
         Directory.CreateDirectory(jobDir);
 
         // Create a mock spec.json
-        var specJson = @"{
+        var specJson =
+            @"{
             ""model_name"": ""test_model"",
             ""corner"": ""tt"",
             ""backend"": ""spectre"",
@@ -181,7 +255,8 @@ public sealed class CharLutWriterTests : IDisposable
         File.WriteAllText(Path.Combine(jobDir, "spec.json"), specJson);
 
         // Create a mock derived.csv with realistic gm/Id curve (peak in weak inversion)
-        var derivedCsv = @"vgs,vds,id,gm,gm_over_id,vth,gm_ro,ft
+        var derivedCsv =
+            @"vgs,vds,id,gm,gm_over_id,vth,gm_ro,ft
 0.0,0.9,1e-12,1e-11,10,,,
 0.3,0.9,1e-9,2e-8,20,0.35,,
 0.6,0.9,1e-6,3e-5,30,0.35,45,5e9
@@ -221,18 +296,62 @@ public sealed class CharLutWriterTests : IDisposable
         using (var db = PdkDatabase.Open(dbPath))
         {
             using var cmd = db.Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO models(name, model_type, device_class) VALUES ('model_2', 'nmos', 1)";
+            cmd.CommandText =
+                "INSERT INTO models(name, model_type, device_class) VALUES ('model_2', 'nmos', 1)";
             cmd.ExecuteNonQuery();
         }
 
         // Create runs for different model/corner combinations
         var runs = new[]
         {
-            new CharRunRecord { ModelName = "test_model", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j1" },
-            new CharRunRecord { ModelName = "test_model", Corner = "ff", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j2" },
-            new CharRunRecord { ModelName = "model_2", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j3" }
+            new CharRunRecord
+            {
+                ModelName = "test_model",
+                Corner = "tt",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j1",
+            },
+            new CharRunRecord
+            {
+                ModelName = "test_model",
+                Corner = "ff",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j2",
+            },
+            new CharRunRecord
+            {
+                ModelName = "model_2",
+                Corner = "tt",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j3",
+            },
         };
-        foreach (var r in runs) CharLutWriter.WriteCharRun(dbPath, r);
+        foreach (var r in runs)
+            CharLutWriter.WriteCharRun(dbPath, r);
 
         // Act
         var coverage = CharLutReader.GetCharacterizationCoverage(dbPath);
@@ -260,7 +379,8 @@ public sealed class CharLutWriterTests : IDisposable
         using (var db = PdkDatabase.Open(dbPath))
         {
             using var cmd = db.Connection.CreateCommand();
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol, vt_tags, vdd_tags, tags)
                 VALUES ('lib__d1', 'd1', 'lib', '/tmp', 'd1', '/tmp/d1', 1, 0, 1, 1, 'LVT', 1.8, NULL);
                 INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol, vt_tags, vdd_tags, tags)
@@ -270,11 +390,57 @@ public sealed class CharLutWriterTests : IDisposable
 
         var runs = new[]
         {
-            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__d1", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j1" },
-            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__d1", Corner = "ff", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j2" },
-            new CharRunRecord { ModelName = "test_model", DeviceName = "lib__p1", Corner = "tt", Backend = "spectre", Timestamp = DateTime.UtcNow, W_M = 1e-6, L_M = 180e-9, Nf = 1, Vds = 0.9, Vsb = 0, TemperatureC = 27, Status = "complete", JobDir = "/tmp/j3" }
+            new CharRunRecord
+            {
+                ModelName = "test_model",
+                DeviceName = "lib__d1",
+                Corner = "tt",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j1",
+            },
+            new CharRunRecord
+            {
+                ModelName = "test_model",
+                DeviceName = "lib__d1",
+                Corner = "ff",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j2",
+            },
+            new CharRunRecord
+            {
+                ModelName = "test_model",
+                DeviceName = "lib__p1",
+                Corner = "tt",
+                Backend = "spectre",
+                Timestamp = DateTime.UtcNow,
+                W_M = 1e-6,
+                L_M = 180e-9,
+                Nf = 1,
+                Vds = 0.9,
+                Vsb = 0,
+                TemperatureC = 27,
+                Status = "complete",
+                JobDir = "/tmp/j3",
+            },
         };
-        foreach (var r in runs) CharLutWriter.WriteCharRun(dbPath, r);
+        foreach (var r in runs)
+            CharLutWriter.WriteCharRun(dbPath, r);
 
         var coverage = CharLutReader.GetDeviceCoverage(dbPath);
         Assert.Equal(2, coverage.Devices.Count);
@@ -311,7 +477,7 @@ public sealed class CharLutWriterTests : IDisposable
             Vsb = 0,
             TemperatureC = 27,
             Status = "complete",
-            JobDir = "/tmp/old"
+            JobDir = "/tmp/old",
         };
         var newer = new CharRunRecord
         {
@@ -319,14 +485,14 @@ public sealed class CharLutWriterTests : IDisposable
             Corner = "tt",
             Backend = "spectre",
             Timestamp = DateTime.UtcNow,
-            W_M = 2e-6,  // Different W to distinguish
+            W_M = 2e-6, // Different W to distinguish
             L_M = 180e-9,
             Nf = 1,
             Vds = 0.9,
             Vsb = 0,
             TemperatureC = 27,
             Status = "complete",
-            JobDir = "/tmp/new"
+            JobDir = "/tmp/new",
         };
 
         CharLutWriter.WriteCharRun(dbPath, older);
@@ -351,7 +517,8 @@ public sealed class CharLutWriterTests : IDisposable
         using (var db = PdkDatabase.Open(dbPath))
         {
             using var cmd = db.Connection.CreateCommand();
-            cmd.CommandText = @"
+            cmd.CommandText =
+                @"
                 INSERT INTO devices(canonical_name, display_name, lib_name, lib_path, cell_name, cell_path, device_class, device_subclass, has_layout, has_symbol)
                 VALUES ('lib:cell', 'cell', 'lib', '/tmp/lib', 'cell', '/tmp/cell', 1, 0, 1, 1)";
             cmd.ExecuteNonQuery();
@@ -371,7 +538,7 @@ public sealed class CharLutWriterTests : IDisposable
             Vsb = 0.0,
             TemperatureC = 27.0,
             Status = "complete",
-            JobDir = "/tmp/char/job-device"
+            JobDir = "/tmp/char/job-device",
         };
 
         // Act
@@ -381,7 +548,10 @@ public sealed class CharLutWriterTests : IDisposable
         using var db2 = PdkDatabase.OpenReadOnly(dbPath);
         using var cmd2 = db2.Connection.CreateCommand();
         cmd2.CommandText = "SELECT device_id FROM char_runs WHERE id=$id";
-        var p = cmd2.CreateParameter(); p.ParameterName = "$id"; p.Value = runId; cmd2.Parameters.Add(p);
+        var p = cmd2.CreateParameter();
+        p.ParameterName = "$id";
+        p.Value = runId;
+        cmd2.Parameters.Add(p);
         var deviceId = cmd2.ExecuteScalar();
         Assert.NotNull(deviceId);
 
@@ -390,7 +560,7 @@ public sealed class CharLutWriterTests : IDisposable
         Assert.Equal("lib:cell", loaded!.DeviceName);
     }
 
-    private void SetupMinimalDatabase(string dbPath)
+    private static void SetupMinimalDatabase(string dbPath)
     {
         // Create database with schema including char tables
         using var db = PdkDatabase.Open(dbPath);
@@ -398,7 +568,8 @@ public sealed class CharLutWriterTests : IDisposable
         // Ensure char tables exist (they should be created by PdkDatabase.Open after we add them)
         // For now, add a test model so foreign keys work
         using var cmd = db.Connection.CreateCommand();
-        cmd.CommandText = "INSERT INTO models(name, model_type, device_class) VALUES ('test_model', 'nmos', 1)";
+        cmd.CommandText =
+            "INSERT INTO models(name, model_type, device_class) VALUES ('test_model', 'nmos', 1)";
         cmd.ExecuteNonQuery();
     }
 }

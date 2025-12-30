@@ -1,5 +1,5 @@
-using Xunit;
 using Cascode.ACIR;
+using Xunit;
 
 namespace Cascode.ACIR.Tests
 {
@@ -33,4 +33,3 @@ namespace Cascode.ACIR.Tests
         }
     }
 }
-

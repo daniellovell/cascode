@@ -43,7 +43,12 @@ Values:
 """;
         File.WriteAllText(Path.Combine(tmpDir.Path, "sample.raw"), raw);
 
-        var ok = CharExportService.ExportDerived(tmpDir.Path, metricFilter: null, out var derivedPath, out var message);
+        var ok = CharExportService.ExportDerived(
+            tmpDir.Path,
+            metricFilter: null,
+            out var derivedPath,
+            out var message
+        );
 
         Assert.True(ok, message);
         Assert.True(File.Exists(derivedPath));
@@ -55,7 +60,10 @@ Values:
         var vgsIdx = Array.IndexOf(header, "vgs");
         var vdIdx = Array.IndexOf(header, "vds");
         var idIdx = Array.IndexOf(header, "id");
-        Assert.True(vgsIdx >= 0 && vdIdx >= 0 && idIdx >= 0, "Required columns missing from derived.csv");
+        Assert.True(
+            vgsIdx >= 0 && vdIdx >= 0 && idIdx >= 0,
+            "Required columns missing from derived.csv"
+        );
 
         AssertLine(lines[1], vgsIdx, vdIdx, idIdx, 0.0, 0.9, 1e-6);
         AssertLine(lines[2], vgsIdx, vdIdx, idIdx, 0.01, 0.9, 2e-6);
@@ -89,14 +97,18 @@ rseff = 5
 rdeff = 6
 w_eff = 1e-6
 """;
-        var opp2 = opp1
-            .Replace("vgs = 0.10", "vgs = 0.20", StringComparison.Ordinal)
+        var opp2 = opp1.Replace("vgs = 0.10", "vgs = 0.20", StringComparison.Ordinal)
             .Replace("ids = 1e-4", "ids = 2e-4", StringComparison.Ordinal)
             .Replace("gm = 2e-3", "gm = 3e-3", StringComparison.Ordinal);
         File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.0"), opp1);
         File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.1"), opp2);
 
-        var ok = CharExportService.ExportDerived(tmpDir.Path, metricFilter: null, out var derivedPath, out var message);
+        var ok = CharExportService.ExportDerived(
+            tmpDir.Path,
+            metricFilter: null,
+            out var derivedPath,
+            out var message
+        );
 
         Assert.True(ok, message);
         Assert.True(File.Exists(derivedPath));
@@ -109,16 +121,27 @@ w_eff = 1e-6
         int idxIdPerW = Array.IndexOf(header, "id_per_w");
         int idxVstar = Array.IndexOf(header, "vstar");
         int idxFt = Array.IndexOf(header, "ft");
-        Assert.True(idxGmPerW >= 0 && idxIdPerW >= 0 && idxVstar >= 0 && idxFt >= 0, "Missing derived metrics in header.");
+        Assert.True(
+            idxGmPerW >= 0 && idxIdPerW >= 0 && idxVstar >= 0 && idxFt >= 0,
+            "Missing derived metrics in header."
+        );
 
         var first = lines[1].Split(',', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(2000, double.Parse(first[idxGmPerW], CultureInfo.InvariantCulture), 3); // gm_per_w = gm / w_eff
-        Assert.Equal(100, double.Parse(first[idxIdPerW], CultureInfo.InvariantCulture), 3);  // id_per_w = id / w_eff
+        Assert.Equal(100, double.Parse(first[idxIdPerW], CultureInfo.InvariantCulture), 3); // id_per_w = id / w_eff
         Assert.True(double.Parse(first[idxVstar], CultureInfo.InvariantCulture) > 0);
         Assert.True(double.Parse(first[idxFt], CultureInfo.InvariantCulture) > 0);
     }
 
-    private static void AssertLine(string line, int vgsIdx, int vdIdx, int idIdx, double expectedVgs, double expectedVd, double expectedId)
+    private static void AssertLine(
+        string line,
+        int vgsIdx,
+        int vdIdx,
+        int idIdx,
+        double expectedVgs,
+        double expectedVd,
+        double expectedId
+    )
     {
         var parts = line.Split(',', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(expectedVgs, double.Parse(parts[vgsIdx], CultureInfo.InvariantCulture), 6);

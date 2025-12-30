@@ -20,19 +20,28 @@ public sealed class PdkScanInteractiveStreamingTests
     [Infrastructure.InteractiveCliFact]
     public async Task PdkScan_InteractiveMode_StreamsProgressDuringScan()
     {
-        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(_fixture.RepoRoot, nameof(PdkScanInteractiveStreamingTests));
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            _fixture.RepoRoot,
+            nameof(PdkScanInteractiveStreamingTests)
+        );
         var env = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["CASCODE_HOME"] = cascodeHome.Path,
             ["COLUMNS"] = "160",
-            ["LINES"] = "50"
+            ["LINES"] = "50",
         };
 
-        await using var session = InteractiveCliSession.Start(_fixture.RepoRoot, additionalEnvironment: env);
+        await using var session = InteractiveCliSession.Start(
+            _fixture.RepoRoot,
+            additionalEnvironment: env
+        );
 
         await session.WaitForOutputAsync(
-            output => output.Contains("cascode", StringComparison.OrdinalIgnoreCase) && (output.Contains("/>") || output.Contains("> ")),
-            TimeSpan.FromSeconds(10));
+            output =>
+                output.Contains("cascode", StringComparison.OrdinalIgnoreCase)
+                && (output.Contains("/>") || output.Contains("> ")),
+            TimeSpan.FromSeconds(10)
+        );
 
         await session.SendLineAsync("pdk scan tests/fixtures/pdk/sky130");
 
@@ -50,8 +59,10 @@ public sealed class PdkScanInteractiveStreamingTests
             lineCountSnapshots.Add(lineCount);
 
             // If we see completion message, we're done polling
-            if (output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase) ||
-                output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase))
+            if (
+                output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase)
+                || output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 break;
             }
@@ -67,15 +78,19 @@ public sealed class PdkScanInteractiveStreamingTests
             }
         }
 
-        Assert.True(increasingPolls >= 2,
-            $"Expected line count to increase in at least 2 polls (incremental streaming), but only increased {increasingPolls} times. " +
-            $"Line counts: [{string.Join(", ", lineCountSnapshots)}]");
+        Assert.True(
+            increasingPolls >= 2,
+            $"Expected line count to increase in at least 2 polls (incremental streaming), but only increased {increasingPolls} times. "
+                + $"Line counts: [{string.Join(", ", lineCountSnapshots)}]"
+        );
 
         // Wait for scan to complete with generous timeout for CI
         await session.WaitForOutputAsync(
-            output => output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase) ||
-                      output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase),
-            TimeSpan.FromMinutes(2));
+            output =>
+                output.Contains("PDK database updated", StringComparison.OrdinalIgnoreCase)
+                || output.Contains("Scan failed", StringComparison.OrdinalIgnoreCase),
+            TimeSpan.FromMinutes(2)
+        );
 
         // Verify expected progress messages appeared
         var finalOutput = session.CapturedOutput;

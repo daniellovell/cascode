@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-
 using Cascode.Workspace;
 using static Cascode.Workspace.Tests.TestUtilities;
 
@@ -40,7 +39,10 @@ public sealed class WorkspaceEnvironmentTests
             var libraries = parser.Parse(workspace.RootPath, warnings);
 
             Assert.Equal(vendorRoot, Environment.GetEnvironmentVariable(envVarName));
-            Assert.DoesNotContain(warnings, w => w.Contains("does not exist", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(
+                warnings,
+                w => w.Contains("does not exist", StringComparison.OrdinalIgnoreCase)
+            );
 
             var library = Assert.Single(libraries);
             Assert.Equal("analog_lib", library.Name);
@@ -72,7 +74,8 @@ public sealed class WorkspaceEnvironmentTests
             // Test that escaped quotes don't break comment detection
             // The value contains an escaped quote and a # character, which should NOT be treated as a comment
             // The actual comment after the closing quote SHOULD be removed
-            var bashrcContent = $"export {envVarName}=\"{testDir}/with/\\\"escaped\\\" and #hash\" # this is a comment{Environment.NewLine}";
+            var bashrcContent =
+                $"export {envVarName}=\"{testDir}/with/\\\"escaped\\\" and #hash\" # this is a comment{Environment.NewLine}";
             workspace.WriteFile(".bashrc", bashrcContent);
 
             // Reference the variable in cds.lib so the parser will load it

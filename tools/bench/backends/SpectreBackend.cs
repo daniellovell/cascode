@@ -16,9 +16,8 @@ public sealed class SpectreBackend : ISpiceBackend
         sb.AppendLine($"simulator lang=spectre");
         sb.AppendLine($"global 0");
 
-        var withSection = ctx.IncludePathsWithSection.Count > 0
-            ? ctx.IncludePathsWithSection
-            : ctx.DeckPaths;
+        var withSection =
+            ctx.IncludePathsWithSection.Count > 0 ? ctx.IncludePathsWithSection : ctx.DeckPaths;
 
         foreach (var inc in withSection.Distinct(StringComparer.OrdinalIgnoreCase))
         {
@@ -50,16 +49,22 @@ public sealed class SpectreBackend : ISpiceBackend
         if (s.IsSubckt)
         {
             // Instantiate a subckt wrapper
-            sb.AppendLine($"X1 (d g s b) {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1, s.Mult)} nf={Math.Max(1, s.Nfingers)}");
+            sb.AppendLine(
+                $"X1 (d g s b) {s.ModelName} l={s.L_M} w={s.W_M} m={Math.Max(1, s.Mult)} nf={Math.Max(1, s.Nfingers)}"
+            );
         }
         else
         {
             // Instantiate a raw device model
-            sb.AppendLine($"M1 (d g s b) {s.ModelName} w={s.W_M} l={s.L_M} m={Math.Max(1, s.Mult)}");
+            sb.AppendLine(
+                $"M1 (d g s b) {s.ModelName} w={s.W_M} l={s.L_M} m={Math.Max(1, s.Mult)}"
+            );
         }
 
         sb.AppendLine($"dcOp dc write=\"spectre.ic\" maxiters=150 maxsteps=5");
-        sb.AppendLine($"dc sweep param=VGS start={s.Vgs.Start} stop={s.Vgs.Stop} step={s.Vgs.Step}");
+        sb.AppendLine(
+            $"dc sweep param=VGS start={s.Vgs.Start} stop={s.Vgs.Stop} step={s.Vgs.Step}"
+        );
         sb.AppendLine("saveOptions options save=allpub");
         sb.AppendLine("save g");
         sb.AppendLine("save s");

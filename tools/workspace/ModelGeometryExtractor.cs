@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 
@@ -25,13 +25,16 @@ public sealed class ModelGeometry
     public string? Notes { get; init; }
 }
 
-public static class ModelGeometryExtractor
+public static partial class ModelGeometryExtractor
 {
-    private static readonly Regex ModelLineRegex = new(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex GeometryParamsRegex = new(@"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex SubcktEndRegex = new(@"^\.(ends|end)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex ModelLineRegex = ModelNamePattern();
+    private static readonly Regex GeometryParamsRegex = GeometryLimitPattern();
+    private static readonly Regex SubcktEndRegex = EndStatementPattern();
 
-    public static List<ModelGeometry> Extract(IReadOnlyList<SpectreModel> models, ILogger? logger = null)
+    public static List<ModelGeometry> Extract(
+        IReadOnlyList<SpectreModel> models,
+        ILogger? logger = null
+    )
     {
         // Cache normalized file contents to avoid redundant reads
         var fileCache = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -41,15 +44,28 @@ public static class ModelGeometryExtractor
         {
             try
             {
-                var paths = (m.SourceFiles ?? Array.Empty<string>()).Concat(m.Decks ?? Array.Empty<string>()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                if (paths.Count == 0) continue;
-                double? wmin = null, wmax = null, lmin = null, lmax = null, wdef = null, ldef = null;
-                int? nfmin = null, nfmax = null, nfdef = null;
-                var gotModel = false; var gotSubckt = false;
+                var paths = (m.SourceFiles ?? Array.Empty<string>())
+                    .Concat(m.Decks ?? Array.Empty<string>())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (paths.Count == 0)
+                    continue;
+                double? wmin = null,
+                    wmax = null,
+                    lmin = null,
+                    lmax = null,
+                    wdef = null,
+                    ldef = null;
+                int? nfmin = null,
+                    nfmax = null,
+                    nfdef = null;
+                var gotModel = false;
+                var gotSubckt = false;
 
                 foreach (var path in paths)
                 {
-                    if (!File.Exists(path)) continue;
+                    if (!File.Exists(path))
+                        continue;
 
                     // Check cache first to avoid redundant file reads
                     if (!fileCache.TryGetValue(path, out var normalized))
@@ -63,13 +79,28 @@ public static class ModelGeometryExtractor
                     foreach (var line in normalized)
                     {
                         var t = line.Trim();
-                        if (string.IsNullOrWhiteSpace(t)) continue;
-                        if (TryParseModelParams(t, m.Name, ref wmin, ref wmax, ref lmin, ref lmax)) gotModel = true;
-                        if (IsSubcktStart(t, m.Name)) { inTargetSubckt = true; gotSubckt = true; TryParseSubcktDefaults(t, m.Name, ref wdef, ref ldef, ref nfdef); continue; }
+                        if (string.IsNullOrWhiteSpace(t))
+                            continue;
+                        if (TryParseModelParams(t, m.Name, ref wmin, ref wmax, ref lmin, ref lmax))
+                            gotModel = true;
+                        if (IsSubcktStart(t, m.Name))
+                        {
+                            inTargetSubckt = true;
+                            gotSubckt = true;
+                            TryParseSubcktDefaults(t, m.Name, ref wdef, ref ldef, ref nfdef);
+                            continue;
+                        }
                         if (inTargetSubckt)
                         {
-                            if (IsSubcktEnd(t)) { inTargetSubckt = false; continue; }
-                            if (t.StartsWith("param", StringComparison.OrdinalIgnoreCase) || t.StartsWith("parameters", StringComparison.OrdinalIgnoreCase))
+                            if (IsSubcktEnd(t))
+                            {
+                                inTargetSubckt = false;
+                                continue;
+                            }
+                            if (
+                                t.StartsWith("param", StringComparison.OrdinalIgnoreCase)
+                                || t.StartsWith("parameters", StringComparison.OrdinalIgnoreCase)
+                            )
                             {
                                 TryParseParamLine(t, ref wdef, ref ldef, ref nfdef);
                             }
@@ -79,21 +110,24 @@ public static class ModelGeometryExtractor
 
                 if (gotModel || gotSubckt)
                 {
-                    list.Add(new ModelGeometry
-                    {
-                        ModelName = m.Name,
-                        WMin = wmin,
-                        WMax = wmax,
-                        LMin = lmin,
-                        LMax = lmax,
-                        NfMin = nfmin,
-                        NfMax = nfmax,
-                        WDefault = wdef,
-                        LDefault = ldef,
-                        NfDefault = nfdef,
-                        Source = gotModel && gotSubckt ? "mixed" : (gotModel ? "model" : "subckt"),
-                        Notes = null
-                    });
+                    list.Add(
+                        new ModelGeometry
+                        {
+                            ModelName = m.Name,
+                            WMin = wmin,
+                            WMax = wmax,
+                            LMin = lmin,
+                            LMax = lmax,
+                            NfMin = nfmin,
+                            NfMax = nfmax,
+                            WDefault = wdef,
+                            LDefault = ldef,
+                            NfDefault = nfdef,
+                            Source =
+                                gotModel && gotSubckt ? "mixed" : (gotModel ? "model" : "subckt"),
+                            Notes = null,
+                        }
+                    );
                 }
             }
             catch (Exception ex)
@@ -111,14 +145,22 @@ public static class ModelGeometryExtractor
         {
             if (logger is null)
             {
-                Console.Error.WriteLine($"[cascode] Failed to extract geometry for model '{modelName}': {ex.Message}");
+                Console.Error.WriteLine(
+                    $"[cascode] Failed to extract geometry for model '{modelName}': {ex.Message}"
+                );
             }
             else
             {
-                logger.LogWarning(ex, "Failed to extract geometry for model {ModelName}", modelName);
+                logger.LogWarning(
+                    ex,
+                    "Failed to extract geometry for model {ModelName}",
+                    modelName
+                );
             }
         }
-        catch { /* ignore logging failures */ }
+        catch
+        { /* ignore logging failures */
+        }
     }
 
     private static List<string> ReadAndNormalizeFile(string path)
@@ -132,7 +174,8 @@ public static class ModelGeometryExtractor
         foreach (var raw in lines)
         {
             var line = raw.Trim();
-            if (line.Length == 0) continue;
+            if (line.Length == 0)
+                continue;
             if (line.StartsWith("*"))
             {
                 // Skip comments but don't break continuation tracking
@@ -153,41 +196,83 @@ public static class ModelGeometryExtractor
                 }
                 continue;
             }
-            if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
-            if (line.EndsWith("\\")) { acc.Append(line[..^1].Trim()); continue; }
+            if (acc.Length > 0)
+            {
+                normalized.Add(acc.ToString());
+                acc.Clear();
+            }
+            if (line.EndsWith("\\"))
+            {
+                acc.Append(line[..^1].Trim());
+                continue;
+            }
             normalized.Add(line);
         }
-        if (acc.Length > 0) { normalized.Add(acc.ToString()); acc.Clear(); }
+        if (acc.Length > 0)
+        {
+            normalized.Add(acc.ToString());
+            acc.Clear();
+        }
         return normalized;
     }
 
-    private static bool TryParseModelParams(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)
+    private static bool TryParseModelParams(
+        string line,
+        string modelName,
+        ref double? wmin,
+        ref double? wmax,
+        ref double? lmin,
+        ref double? lmax
+    )
     {
         var modelMatch = ModelLineRegex.Match(line);
-        if (!modelMatch.Success) return false;
+        if (!modelMatch.Success)
+            return false;
 
         var fullModelName = modelMatch.Groups[1].Value;
 
         // Exact match
         if (fullModelName.Equals(modelName, StringComparison.OrdinalIgnoreCase))
         {
-            return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
+            return ExtractModelGeometryFromLine(
+                line,
+                fullModelName,
+                ref wmin,
+                ref wmax,
+                ref lmin,
+                ref lmax
+            );
         }
 
         // Also match model names that contain the base model name (e.g., sky130_fd_pr__nfet_03v3_nvt__model.0 contains nfet_03v3_nvt)
         // This handles binned models where the base subckt name is embedded in the full model name
         if (ContainsModelNameWithWordBoundaries(fullModelName, modelName))
         {
-            return ExtractModelGeometryFromLine(line, fullModelName, ref wmin, ref wmax, ref lmin, ref lmax);
+            return ExtractModelGeometryFromLine(
+                line,
+                fullModelName,
+                ref wmin,
+                ref wmax,
+                ref lmin,
+                ref lmax
+            );
         }
 
         return false;
     }
 
-    private static bool ExtractModelGeometryFromLine(string line, string modelName, ref double? wmin, ref double? wmax, ref double? lmin, ref double? lmax)
+    private static bool ExtractModelGeometryFromLine(
+        string line,
+        string modelName,
+        ref double? wmin,
+        ref double? wmax,
+        ref double? lmin,
+        ref double? lmax
+    )
     {
         var idx = line.IndexOf(modelName, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0) return false;
+        if (idx < 0)
+            return false;
         var rest = line[(idx + modelName.Length)..];
 
         // Use regex to find key=value pairs, handling optional spaces around '='
@@ -199,7 +284,8 @@ public static class ModelGeometryExtractor
             var key = match.Groups[1].Value.ToLowerInvariant();
             var valStr = match.Groups[2].Value;
             var val = ParseSi(valStr);
-            if (!val.HasValue) continue;
+            if (!val.HasValue)
+                continue;
 
             switch (key)
             {
@@ -220,72 +306,132 @@ public static class ModelGeometryExtractor
         return true;
     }
 
-    private static bool TryParseSubcktDefaults(string line, string subcktName, ref double? wdef, ref double? ldef, ref int? nfdef)
+    private static bool TryParseSubcktDefaults(
+        string line,
+        string subcktName,
+        ref double? wdef,
+        ref double? ldef,
+        ref int? nfdef
+    )
     {
-        if (!Regex.IsMatch(line, @$"^\.?subckt\s+{Regex.Escape(subcktName)}\b", RegexOptions.IgnoreCase)) return false;
+        if (
+            !Regex.IsMatch(
+                line,
+                @$"^\.?subckt\s+{Regex.Escape(subcktName)}\b",
+                RegexOptions.IgnoreCase
+            )
+        )
+            return false;
         var idx = line.IndexOf(subcktName, StringComparison.OrdinalIgnoreCase);
-        if (idx < 0) return false;
+        if (idx < 0)
+            return false;
         var rest = line[(idx + subcktName.Length)..];
         var tokens = SplitArgs(rest);
         foreach (var tok in tokens)
         {
-            if (TryParseAssign(tok, "w", out var w)) wdef = ParseSi(w);
-            else if (TryParseAssign(tok, "l", out var l)) ldef = ParseSi(l);
-            else if (TryParseAssign(tok, "nf", out var nf)) nfdef = ParseInt(nf);
+            if (TryParseAssign(tok, "w", out var w))
+                wdef = ParseSi(w);
+            else if (TryParseAssign(tok, "l", out var l))
+                ldef = ParseSi(l);
+            else if (TryParseAssign(tok, "nf", out var nf))
+                nfdef = ParseInt(nf);
         }
         return true;
     }
 
-    private static bool IsSubcktStart(string line, string subcktName)
-        => Regex.IsMatch(line, @$"^\.?subckt\s+{Regex.Escape(subcktName)}\b", RegexOptions.IgnoreCase);
+    private static bool IsSubcktStart(string line, string subcktName) =>
+        Regex.IsMatch(line, @$"^\.?subckt\s+{Regex.Escape(subcktName)}\b", RegexOptions.IgnoreCase);
 
-    private static bool IsSubcktEnd(string line)
-        => SubcktEndRegex.IsMatch(line);
+    private static bool IsSubcktEnd(string line) => SubcktEndRegex.IsMatch(line);
 
-    private static void TryParseParamLine(string line, ref double? wdef, ref double? ldef, ref int? nfdef)
+    private static void TryParseParamLine(
+        string line,
+        ref double? wdef,
+        ref double? ldef,
+        ref int? nfdef
+    )
     {
         foreach (var tok in SplitArgs(line))
         {
-            if (TryParseAssign(tok, "w", out var w)) wdef = ParseSi(w) ?? wdef;
-            else if (TryParseAssign(tok, "l", out var l)) ldef = ParseSi(l) ?? ldef;
-            else if (TryParseAssign(tok, "nf", out var nf)) nfdef = ParseInt(nf) ?? nfdef;
+            if (TryParseAssign(tok, "w", out var w))
+                wdef = ParseSi(w) ?? wdef;
+            else if (TryParseAssign(tok, "l", out var l))
+                ldef = ParseSi(l) ?? ldef;
+            else if (TryParseAssign(tok, "nf", out var nf))
+                nfdef = ParseInt(nf) ?? nfdef;
         }
     }
 
     private static IEnumerable<string> SplitArgs(string s)
     {
-        return s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return s.Split(
+            (char[]?)null,
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
     }
 
     private static bool TryParseAssign(string token, string key, out string value)
     {
         value = string.Empty;
         var eq = token.IndexOf('=');
-        if (eq <= 0) return false;
+        if (eq <= 0)
+            return false;
         var lhs = token[..eq].Trim();
-        if (!lhs.Equals(key, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!lhs.Equals(key, StringComparison.OrdinalIgnoreCase))
+            return false;
         value = token[(eq + 1)..].Trim().Trim('"', '\'');
         return value.Length > 0;
     }
 
     private static double? ParseSi(string raw)
     {
-        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var val)) return val;
+        if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var val))
+            return val;
         var lower = raw.Trim().ToLowerInvariant();
         double scale = 1;
-        if (lower.EndsWith("m")) { scale = 1e-3; lower = lower[..^1]; }
-        else if (lower.EndsWith("u")) { scale = 1e-6; lower = lower[..^1]; }
-        else if (lower.EndsWith("n")) { scale = 1e-9; lower = lower[..^1]; }
-        else if (lower.EndsWith("p")) { scale = 1e-12; lower = lower[..^1]; }
-        else if (lower.EndsWith("f")) { scale = 1e-15; lower = lower[..^1]; }
-        if (double.TryParse(lower, NumberStyles.Float, CultureInfo.InvariantCulture, out var baseVal)) return baseVal * scale;
+        if (lower.EndsWith("m"))
+        {
+            scale = 1e-3;
+            lower = lower[..^1];
+        }
+        else if (lower.EndsWith("u"))
+        {
+            scale = 1e-6;
+            lower = lower[..^1];
+        }
+        else if (lower.EndsWith("n"))
+        {
+            scale = 1e-9;
+            lower = lower[..^1];
+        }
+        else if (lower.EndsWith("p"))
+        {
+            scale = 1e-12;
+            lower = lower[..^1];
+        }
+        else if (lower.EndsWith("f"))
+        {
+            scale = 1e-15;
+            lower = lower[..^1];
+        }
+        if (
+            double.TryParse(
+                lower,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out var baseVal
+            )
+        )
+            return baseVal * scale;
         return null;
     }
 
     private static int? ParseInt(string raw)
     {
-        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v)) return v;
-        if (double.TryParse(raw, NumberStyles.Float, CultureBox, out var vf)) return (int)Math.Round(vf);
+        if (int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v))
+            return v;
+        if (double.TryParse(raw, NumberStyles.Float, CultureBox, out var vf))
+            return (int)Math.Round(vf);
         return null;
     }
 
@@ -293,11 +439,21 @@ public static class ModelGeometryExtractor
 
     private static bool ContainsModelNameWithWordBoundaries(string fullModelName, string modelName)
     {
-        if (string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(fullModelName)) return false;
+        if (string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(fullModelName))
+            return false;
 
         // Use lookarounds to ensure the match is NOT surrounded by letters or digits.
         // This treats underscores (and other symbols) as valid boundaries.
         var pattern = $@"(?<![a-zA-Z0-9]){Regex.Escape(modelName)}(?![a-zA-Z0-9])";
         return Regex.IsMatch(fullModelName, pattern, RegexOptions.IgnoreCase);
     }
+
+    [GeneratedRegex(@"^\.?model\s+(\S+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex ModelNamePattern();
+
+    [GeneratedRegex(@"\b(wmin|wmax|lmin|lmax)\s*=\s*(\S+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex GeometryLimitPattern();
+
+    [GeneratedRegex(@"^\.(ends|end)\b", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex EndStatementPattern();
 }

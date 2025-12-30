@@ -14,4 +14,3 @@
     <ProjectReference Include="../parser/Cascode.Parser.csproj" />
   </ItemGroup>
 </Project>
-

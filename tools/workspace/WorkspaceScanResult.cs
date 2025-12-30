@@ -7,7 +7,8 @@ public sealed class WorkspaceScanResult
         IReadOnlyList<WorkspaceLibrary> libraries,
         IReadOnlyList<ModelDeckRecord> modelDecks,
         IReadOnlyList<SpectreModel> models,
-        IReadOnlyList<string> warnings)
+        IReadOnlyList<string> warnings
+    )
     {
         WorkspaceRoot = workspaceRoot;
         Libraries = libraries;

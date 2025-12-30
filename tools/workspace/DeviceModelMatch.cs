@@ -8,4 +8,3 @@ public sealed class DeviceModelMatchRecord
     public int Rank { get; init; }
     public string? Notes { get; init; }
 }
-

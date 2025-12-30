@@ -25,8 +25,9 @@ public static class TestPathUtilities
         }
 
         throw new InvalidOperationException(
-            $"Unable to locate repository root starting from '{baseDirectory}'. " +
-            "Ensure you are running tests from within the repository or a marker file exists.");
+            $"Unable to locate repository root starting from '{baseDirectory}'. "
+                + "Ensure you are running tests from within the repository or a marker file exists."
+        );
     }
 
     /// <summary>
@@ -42,8 +43,9 @@ public static class TestPathUtilities
             if (!Directory.Exists(resolvedPath))
             {
                 throw new DirectoryNotFoundException(
-                    $"Fixtures directory not found at '{resolvedPath}' (from FIXTURES_DIR environment variable). " +
-                    "Ensure the directory exists or set 'FIXTURES_DIR' to a valid path.");
+                    $"Fixtures directory not found at '{resolvedPath}' (from FIXTURES_DIR environment variable). "
+                        + "Ensure the directory exists or set 'FIXTURES_DIR' to a valid path."
+                );
             }
             return resolvedPath;
         }
@@ -54,11 +56,11 @@ public static class TestPathUtilities
         if (!Directory.Exists(fixturesPath))
         {
             throw new DirectoryNotFoundException(
-               $"Fixtures directory not found at '{fixturesPath}'. " +
-               "Ensure the repository structure is correct or set 'FIXTURES_DIR'.");
+                $"Fixtures directory not found at '{fixturesPath}'. "
+                    + "Ensure the repository structure is correct or set 'FIXTURES_DIR'."
+            );
         }
 
         return fixturesPath;
     }
 }
-

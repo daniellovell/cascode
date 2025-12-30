@@ -38,12 +38,13 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
 
     public BenchIncludeResolution Resolve(Circuit circuit, BenchBackendType backend)
     {
-        var pdkDevices = circuit.Fill?.Devices
-            .Select(d => d.PdkDevice)
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .Select(n => n!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray()
+        var pdkDevices =
+            circuit
+                .Fill?.Devices.Select(d => d.PdkDevice)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
             ?? Array.Empty<string>();
 
         if (pdkDevices.Length == 0)
@@ -55,13 +56,17 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         {
             if (!_loggedMissingDb)
             {
-                _logger?.LogWarning("No PDK database found at {Path}. Run 'pdk scan' to enable PDK-backed includes.", _dbPath);
+                _logger?.LogWarning(
+                    "No PDK database found at {Path}. Run 'pdk scan' to enable PDK-backed includes.",
+                    _dbPath
+                );
                 _loggedMissingDb = true;
             }
             return new BenchIncludeResolution(Array.Empty<string>(), Array.Empty<string>(), null);
         }
 
-        _models ??= PdkDatabaseReader.LoadModels(_dbPath)
+        _models ??= PdkDatabaseReader
+            .LoadModels(_dbPath)
             .ToDictionary(m => m.Name, StringComparer.OrdinalIgnoreCase);
 
         if (_models.Count == 0)
@@ -72,17 +77,24 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
 
         var matches = DeviceModelMatcher.Match(
             pdkDevices.Select(BuildDevice).ToList(),
-            _models.Values.ToList());
+            _models.Values.ToList()
+        );
 
         var bestMatches = matches
             .Where(m => m.Rank == 0)
             .GroupBy(m => m.DeviceCanonicalName, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
-            .ToDictionary(m => m.DeviceCanonicalName, m => m.ModelName, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                m => m.DeviceCanonicalName,
+                m => m.ModelName,
+                StringComparer.OrdinalIgnoreCase
+            );
 
         var includesWithSection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var includesWithoutSection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var deviceModelMap = new Dictionary<string, DeviceModelResolution>(StringComparer.OrdinalIgnoreCase);
+        var deviceModelMap = new Dictionary<string, DeviceModelResolution>(
+            StringComparer.OrdinalIgnoreCase
+        );
         string? resolvedSection = null;
 
         foreach (var device in pdkDevices)
@@ -101,11 +113,14 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
 
             deviceModelMap[device] = new DeviceModelResolution(
                 modelName,
-                string.Equals(model.ModelType, "subckt", StringComparison.OrdinalIgnoreCase));
+                string.Equals(model.ModelType, "subckt", StringComparison.OrdinalIgnoreCase)
+            );
 
             var includeSet = PdkIncludeResolver.ResolveModelIncludes(_dbPath, model, _corner);
-            foreach (var path in includeSet.IncludePathsWithSection) includesWithSection.Add(path);
-            foreach (var path in includeSet.IncludePathsWithoutSection) includesWithoutSection.Add(path);
+            foreach (var path in includeSet.IncludePathsWithSection)
+                includesWithSection.Add(path);
+            foreach (var path in includeSet.IncludePathsWithoutSection)
+                includesWithoutSection.Add(path);
 
             if (!string.IsNullOrWhiteSpace(includeSet.Section))
             {
@@ -113,10 +128,16 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
                 {
                     resolvedSection = includeSet.Section;
                 }
-                else if (!resolvedSection.Equals(includeSet.Section, StringComparison.OrdinalIgnoreCase))
+                else if (
+                    !resolvedSection.Equals(includeSet.Section, StringComparison.OrdinalIgnoreCase)
+                )
                 {
-                    _logger?.LogWarning("Multiple PDK sections resolved ({First}, {Second}). Using {Chosen}.",
-                        resolvedSection, includeSet.Section, resolvedSection);
+                    _logger?.LogWarning(
+                        "Multiple PDK sections resolved ({First}, {Second}). Using {Chosen}.",
+                        resolvedSection,
+                        includeSet.Section,
+                        resolvedSection
+                    );
                 }
             }
         }
@@ -124,9 +145,10 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         return new BenchIncludeResolution(
             includesWithSection.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList(),
             includesWithoutSection.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToList(),
-            resolvedSection)
+            resolvedSection
+        )
         {
-            DeviceModelMap = deviceModelMap
+            DeviceModelMap = deviceModelMap,
         };
     }
 
@@ -141,7 +163,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
             HasSymbol = true,
             VtTags = Array.Empty<string>(),
             VddTags = Array.Empty<string>(),
-            Tags = Array.Empty<string>()
+            Tags = Array.Empty<string>(),
         };
     }
 }

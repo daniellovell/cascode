@@ -59,19 +59,26 @@ public sealed class ValidationResult
     /// <param name="message">Error message.</param>
     /// <param name="location">Optional location string.</param>
     /// <param name="suggestion">Optional suggestion for fixing.</param>
-    public void AddError(string code, string message, string? location = null, string? suggestion = null)
+    public void AddError(
+        string code,
+        string message,
+        string? location = null,
+        string? suggestion = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
         ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
 
-        _diagnostics.Add(new ValidationError
-        {
-            Code = code,
-            Severity = ValidationSeverity.Error,
-            Message = message,
-            Location = NormalizeOptional(location),
-            Suggestion = NormalizeOptional(suggestion)
-        });
+        _diagnostics.Add(
+            new ValidationError
+            {
+                Code = code,
+                Severity = ValidationSeverity.Error,
+                Message = message,
+                Location = NormalizeOptional(location),
+                Suggestion = NormalizeOptional(suggestion),
+            }
+        );
     }
 
     /// <summary>
@@ -81,19 +88,26 @@ public sealed class ValidationResult
     /// <param name="message">Warning message.</param>
     /// <param name="location">Optional location string.</param>
     /// <param name="suggestion">Optional suggestion for fixing.</param>
-    public void AddWarning(string code, string message, string? location = null, string? suggestion = null)
+    public void AddWarning(
+        string code,
+        string message,
+        string? location = null,
+        string? suggestion = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
         ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
 
-        _diagnostics.Add(new ValidationError
-        {
-            Code = code,
-            Severity = ValidationSeverity.Warning,
-            Message = message,
-            Location = NormalizeOptional(location),
-            Suggestion = NormalizeOptional(suggestion)
-        });
+        _diagnostics.Add(
+            new ValidationError
+            {
+                Code = code,
+                Severity = ValidationSeverity.Warning,
+                Message = message,
+                Location = NormalizeOptional(location),
+                Suggestion = NormalizeOptional(suggestion),
+            }
+        );
     }
 
     /// <summary>
@@ -107,13 +121,15 @@ public sealed class ValidationResult
         ArgumentException.ThrowIfNullOrWhiteSpace(code, nameof(code));
         ArgumentException.ThrowIfNullOrWhiteSpace(message, nameof(message));
 
-        _diagnostics.Add(new ValidationError
-        {
-            Code = code,
-            Severity = ValidationSeverity.Info,
-            Message = message,
-            Location = NormalizeOptional(location)
-        });
+        _diagnostics.Add(
+            new ValidationError
+            {
+                Code = code,
+                Severity = ValidationSeverity.Info,
+                Message = message,
+                Location = NormalizeOptional(location),
+            }
+        );
     }
 
     /// <summary>
@@ -129,16 +145,17 @@ public sealed class ValidationResult
     /// <summary>
     /// Gets only the errors (excludes warnings and info).
     /// </summary>
-    public IEnumerable<ValidationError> GetErrors()
-        => _diagnostics.Where(e => e.Severity == ValidationSeverity.Error);
+    public IEnumerable<ValidationError> GetErrors() =>
+        _diagnostics.Where(e => e.Severity == ValidationSeverity.Error);
 
     /// <summary>
     /// Gets only the warnings.
     /// </summary>
-    public IEnumerable<ValidationError> GetWarnings()
-        => _diagnostics.Where(e => e.Severity == ValidationSeverity.Warning);
+    public IEnumerable<ValidationError> GetWarnings() =>
+        _diagnostics.Where(e => e.Severity == ValidationSeverity.Warning);
 
-    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 
     /// <summary>
     /// Converts the validation result to a JSON string for machine-readable output.
@@ -151,27 +168,31 @@ public sealed class ValidationResult
         {
             Success = IsValid,
             ExitCode = exitCode,
-            Errors = GetErrors().Select(e => new ValidationErrorJson
-            {
-                Code = e.Code,
-                Severity = "error",
-                Message = e.Message,
-                Location = e.Location,
-                Suggestion = e.Suggestion
-            }).ToList(),
-            Warnings = GetWarnings().Select(e => new ValidationErrorJson
-            {
-                Code = e.Code,
-                Severity = "warning",
-                Message = e.Message,
-                Location = e.Location,
-                Suggestion = e.Suggestion
-            }).ToList(),
+            Errors = GetErrors()
+                .Select(e => new ValidationErrorJson
+                {
+                    Code = e.Code,
+                    Severity = "error",
+                    Message = e.Message,
+                    Location = e.Location,
+                    Suggestion = e.Suggestion,
+                })
+                .ToList(),
+            Warnings = GetWarnings()
+                .Select(e => new ValidationErrorJson
+                {
+                    Code = e.Code,
+                    Severity = "warning",
+                    Message = e.Message,
+                    Location = e.Location,
+                    Suggestion = e.Suggestion,
+                })
+                .ToList(),
             Summary = new ValidationSummaryJson
             {
                 ErrorCount = ErrorCount,
-                WarningCount = WarningCount
-            }
+                WarningCount = WarningCount,
+            },
         };
 
         return JsonSerializer.Serialize(output, ValidationJsonOutput.SerializerOptions);
@@ -187,7 +208,7 @@ internal sealed class ValidationJsonOutput
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
     [JsonPropertyName("success")]

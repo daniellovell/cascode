@@ -8,19 +8,33 @@ namespace Cascode.Cli.IntegrationTests;
 
 public sealed class PdkScanStreamingTests
 {
+    private static readonly string[] args = new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" };
+
     [Infrastructure.LinuxOnlyFact]
     public async Task PdkScan_RunOnce_StreamsLogsImmediately()
     {
         // Arrange: start CLI in run-once mode so logging goes to console immediately
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
-        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(repoRoot, new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" }, out var commandLine);
-        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(startInfo, repoRoot);
-        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(repoRoot, nameof(PdkScanStreamingTests));
+        var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(
+            repoRoot,
+            args,
+            out var commandLine
+        );
+        Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(
+            startInfo,
+            repoRoot
+        );
+        using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(
+            repoRoot,
+            nameof(PdkScanStreamingTests)
+        );
         cascodeHome.ApplyTo(startInfo.Environment);
 
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 
-        var firstProgressTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstProgressTcs = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
         var allStdout = new List<string>();
 
         process.OutputDataReceived += (_, e) =>
@@ -36,17 +50,18 @@ public sealed class PdkScanStreamingTests
             }
 
             // Accept any of several progress anchors that the scanner emits early
-            if (e.Data.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase) ||
-                e.Data.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase) ||
-                e.Data.Contains("Inspecting cdsinit", StringComparison.OrdinalIgnoreCase) ||
-                e.Data.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase))
+            if (
+                e.Data.Contains("Scanning workspace", StringComparison.OrdinalIgnoreCase)
+                || e.Data.Contains("Workspace root resolved", StringComparison.OrdinalIgnoreCase)
+                || e.Data.Contains("Inspecting cdsinit", StringComparison.OrdinalIgnoreCase)
+                || e.Data.Contains("Inspecting libInit", StringComparison.OrdinalIgnoreCase)
+            )
             {
                 firstProgressTcs.TrySetResult(e.Data);
             }
         };
 
-        process.ErrorDataReceived += (_, e) =>
-        {
+        process.ErrorDataReceived += (_, e) => {
             // stderr is not required for the assertion, but capturing reduces risk of buffer deadlocks
         };
 
@@ -61,14 +76,19 @@ public sealed class PdkScanStreamingTests
 
         // Assert: a progress line must appear quickly, proving streaming behavior
         using var streamingTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var completed = await Task.WhenAny(firstProgressTcs.Task, Task.Delay(Timeout.Infinite, streamingTimeout.Token));
+        var completed = await Task.WhenAny(
+            firstProgressTcs.Task,
+            Task.Delay(Timeout.Infinite, streamingTimeout.Token)
+        );
         if (completed != firstProgressTcs.Task)
         {
             Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
             await process.WaitForExitAsync();
 
             var combined = string.Join(Environment.NewLine, allStdout);
-            throw new TimeoutException($"No streaming progress detected within timeout. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}");
+            throw new TimeoutException(
+                $"No streaming progress detected within timeout. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}"
+            );
         }
 
         // Clean up: allow the scan to finish, but bound total time to prevent hanging CI
@@ -82,7 +102,9 @@ public sealed class PdkScanStreamingTests
             Infrastructure.CliIntegrationTestHelper.TryKillProcess(process);
             await process.WaitForExitAsync();
             var combined = string.Join(Environment.NewLine, allStdout);
-            throw new TimeoutException($"Scan did not complete in time. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}");
+            throw new TimeoutException(
+                $"Scan did not complete in time. Command: {commandLine}{Environment.NewLine}Stdout so far:{Environment.NewLine}{combined}"
+            );
         }
 
         Assert.Equal(0, process.ExitCode);

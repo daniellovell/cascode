@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-internal sealed class SpectreModelExtractor
+internal sealed partial class SpectreModelExtractor
 {
     private readonly struct CornerInfo
     {
@@ -27,7 +27,7 @@ internal sealed class SpectreModelExtractor
     {
         LibBlock,
         SectionBlock,
-        IncludeSection
+        IncludeSection,
     }
 
     private readonly struct CornerFrame
@@ -59,8 +59,7 @@ internal sealed class SpectreModelExtractor
                 && string.Equals(Section, other.Section, StringComparison.OrdinalIgnoreCase);
         }
 
-        public override bool Equals(object? obj)
-            => obj is VisitKey other && Equals(other);
+        public override bool Equals(object? obj) => obj is VisitKey other && Equals(other);
 
         public override int GetHashCode()
         {
@@ -184,14 +183,19 @@ internal sealed class SpectreModelExtractor
         /// <param name="detail">The corner detail (sub-corner) for the definition, or null if unspecified.</param>
         /// <param name="section">The normalized section name containing the definition, or null if unspecified.</param>
         /// <param name="includePath">The workspace-normalized include file path where the definition was found, or null if not from an include.</param>
-        public void AddDefinitionContext(string? corner, string? detail, string? section, string? includePath)
+        public void AddDefinitionContext(
+            string? corner,
+            string? detail,
+            string? section,
+            string? includePath
+        )
         {
             var ctx = new ModelContext
             {
                 Corner = string.IsNullOrWhiteSpace(corner) ? null : corner,
                 Detail = string.IsNullOrWhiteSpace(detail) ? null : detail,
                 Section = string.IsNullOrWhiteSpace(section) ? null : section,
-                IncludePath = string.IsNullOrWhiteSpace(includePath) ? null : includePath
+                IncludePath = string.IsNullOrWhiteSpace(includePath) ? null : includePath,
             };
             _definitionContexts.Add(ctx);
         }
@@ -227,7 +231,9 @@ internal sealed class SpectreModelExtractor
         public SpectreModel Build()
         {
             var corners = _corners.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
-            var cornerDetails = _cornerDetails.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
+            var cornerDetails = _cornerDetails
+                .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
             var sections = _sections.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var sources = _sources.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
             var decks = _decks.OrderBy(c => c, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -242,9 +248,13 @@ internal sealed class SpectreModelExtractor
                 cornerDetails,
                 sections,
                 sources,
-                decks)
+                decks
+            )
             {
-                DefinitionContexts = _definitionContexts.Count == 0 ? Array.Empty<ModelContext>() : _definitionContexts.ToArray()
+                DefinitionContexts =
+                    _definitionContexts.Count == 0
+                        ? Array.Empty<ModelContext>()
+                        : _definitionContexts.ToArray(),
             };
         }
     }
@@ -261,24 +271,27 @@ internal sealed class SpectreModelExtractor
         public bool FramePushed { get; }
     }
 
-    private static readonly Regex IncludeDirectiveRegex = new(@"^(\.include|include)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex LibDirectiveRegex = new(@"^\.lib\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex EndLibDirectiveRegex = new(@"^\.endl\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex SectionDirectiveRegex = new(@"^section\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex EndSectionDirectiveRegex = new(@"^endsection\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex ModelDirectiveRegex = new(@"^\.?model\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-    private static readonly Regex SubcktDirectiveRegex = new(@"^\.?subckt\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex IncludeDirectiveRegex = IncludeDirectivePattern();
+    private static readonly Regex LibDirectiveRegex = LibDirectivePattern();
+    private static readonly Regex EndLibDirectiveRegex = EndlDirectivePattern();
+    private static readonly Regex SectionDirectiveRegex = SectionDirectivePattern();
+    private static readonly Regex EndSectionDirectiveRegex = EndSectionDirectivePattern();
+    private static readonly Regex ModelDirectiveRegex = ModelDirectivePattern();
+    private static readonly Regex SubcktDirectiveRegex = SubcktDirectivePattern();
+
     // Matches common bin-model naming variants at end of model name:
     //  - *_model(.N)
     //  - *__model(.N)
     //  - *_model_base(.N)
     //  - *__model_base(.N)
     //  - *__base(.N)
-    private static readonly Regex BinModelNameRegex = new(
-        @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex BinModelNameRegex = ModelBaseSuffixPattern();
 
-    public IReadOnlyList<SpectreModel> Extract(string workspaceRoot, string deckPath, ICollection<string>? warnings = null)
+    public IReadOnlyList<SpectreModel> Extract(
+        string workspaceRoot,
+        string deckPath,
+        ICollection<string>? warnings = null
+    )
     {
         if (string.IsNullOrWhiteSpace(workspaceRoot))
         {
@@ -290,7 +303,9 @@ internal sealed class SpectreModelExtractor
             throw new ArgumentException("Deck path must be provided", nameof(deckPath));
         }
 
-        var builders = new Dictionary<string, SpectreModelBuilder>(StringComparer.OrdinalIgnoreCase);
+        var builders = new Dictionary<string, SpectreModelBuilder>(
+            StringComparer.OrdinalIgnoreCase
+        );
         var frames = new Stack<CornerFrame>();
         var visited = new HashSet<VisitKey>();
 
@@ -303,16 +318,21 @@ internal sealed class SpectreModelExtractor
             frames,
             builders,
             visited,
-            warnings);
+            warnings
+        );
 
-        var built = builders.Values
-            .Select(b => b.Build())
+        var built = builders
+            .Values.Select(b => b.Build())
             .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
         // Filter out bin .model entries (e.g., *_model.0, *_model.1 …). Keep subckts and non-bin models.
-        var filtered = built.Where(m => string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase)
-            || !IsBinModelName(m.Name)).ToArray();
+        var filtered = built
+            .Where(m =>
+                string.Equals(m.ModelType, "subckt", StringComparison.OrdinalIgnoreCase)
+                || !IsBinModelName(m.Name)
+            )
+            .ToArray();
 
         return filtered;
     }
@@ -339,7 +359,8 @@ internal sealed class SpectreModelExtractor
         Stack<CornerFrame> frames,
         Dictionary<string, SpectreModelBuilder> builders,
         HashSet<VisitKey> visited,
-        ICollection<string>? warnings)
+        ICollection<string>? warnings
+    )
     {
         var normalizedPath = Path.GetFullPath(filePath);
         var visitKey = new VisitKey(normalizedPath, includeSectionFilter);
@@ -379,7 +400,16 @@ internal sealed class SpectreModelExtractor
 
             if (LibDirectiveRegex.IsMatch(line))
             {
-                HandleLibDirective(line, workspaceRoot, directory, deckPath, frames, builders, visited, warnings);
+                HandleLibDirective(
+                    line,
+                    workspaceRoot,
+                    directory,
+                    deckPath,
+                    frames,
+                    builders,
+                    visited,
+                    warnings
+                );
                 continue;
             }
 
@@ -428,13 +458,20 @@ internal sealed class SpectreModelExtractor
                     frames,
                     builders,
                     visited,
-                    warnings);
+                    warnings
+                );
                 continue;
             }
 
             if (SubcktDirectiveRegex.IsMatch(line))
             {
-                var builder = ProcessSubcktDirective(line, normalizedPath, deckPath, builders, frames);
+                var builder = ProcessSubcktDirective(
+                    line,
+                    normalizedPath,
+                    deckPath,
+                    builders,
+                    frames
+                );
                 if (builder is not null)
                 {
                     // Record sections (for set view)
@@ -460,7 +497,13 @@ internal sealed class SpectreModelExtractor
                     continue;
                 }
 
-                var builder = ProcessModelDirective(line, normalizedPath, deckPath, builders, frames);
+                var builder = ProcessModelDirective(
+                    line,
+                    normalizedPath,
+                    deckPath,
+                    builders,
+                    frames
+                );
                 if (builder is not null)
                 {
                     // Record sections (for set view)
@@ -501,8 +544,10 @@ internal sealed class SpectreModelExtractor
         foreach (var frame in frames.Reverse())
         {
             // Reverse to get oldest..newest; pick newest by overwriting
-            if (!string.IsNullOrWhiteSpace(frame.Info.Primary)) corner = frame.Info.Primary;
-            if (!string.IsNullOrWhiteSpace(frame.Info.Detail)) detail = frame.Info.Detail;
+            if (!string.IsNullOrWhiteSpace(frame.Info.Primary))
+                corner = frame.Info.Primary;
+            if (!string.IsNullOrWhiteSpace(frame.Info.Detail))
+                detail = frame.Info.Detail;
         }
         return (corner, detail);
     }
@@ -517,7 +562,8 @@ internal sealed class SpectreModelExtractor
         foreach (var sc in sectionStack)
         {
             // Stack enumerates LIFO; first element is most recent
-            if (!string.IsNullOrWhiteSpace(sc.NormalizedName)) return sc.NormalizedName;
+            if (!string.IsNullOrWhiteSpace(sc.NormalizedName))
+                return sc.NormalizedName;
         }
         return null;
     }
@@ -542,7 +588,8 @@ internal sealed class SpectreModelExtractor
         Stack<CornerFrame> frames,
         Dictionary<string, SpectreModelBuilder> builders,
         HashSet<VisitKey> visited,
-        ICollection<string>? warnings)
+        ICollection<string>? warnings
+    )
     {
         var args = SplitArguments(line.Substring(4));
         if (args.Count == 0)
@@ -574,7 +621,8 @@ internal sealed class SpectreModelExtractor
                     frames,
                     builders,
                     visited,
-                    warnings);
+                    warnings
+                );
             }
 
             return;
@@ -595,7 +643,8 @@ internal sealed class SpectreModelExtractor
         Stack<CornerFrame> frames,
         Dictionary<string, SpectreModelBuilder> builders,
         HashSet<VisitKey> visited,
-        ICollection<string>? warnings)
+        ICollection<string>? warnings
+    )
     {
         var args = SplitArguments(RemoveDirectiveKeyword(line));
         if (args.Count == 0)
@@ -649,7 +698,8 @@ internal sealed class SpectreModelExtractor
             frames,
             builders,
             visited,
-            warnings);
+            warnings
+        );
     }
 
     private static SpectreModelBuilder? ProcessModelDirective(
@@ -657,9 +707,12 @@ internal sealed class SpectreModelExtractor
         string sourcePath,
         string deckPath,
         Dictionary<string, SpectreModelBuilder> builders,
-        IEnumerable<CornerFrame> frames)
+        IEnumerable<CornerFrame> frames
+    )
     {
-        var args = SplitArguments(line.Substring(line.IndexOf("model", StringComparison.OrdinalIgnoreCase) + 5));
+        var args = SplitArguments(
+            line.Substring(line.IndexOf("model", StringComparison.OrdinalIgnoreCase) + 5)
+        );
         if (args.Count < 2)
         {
             return null;
@@ -707,7 +760,8 @@ internal sealed class SpectreModelExtractor
         string sourcePath,
         string deckPath,
         Dictionary<string, SpectreModelBuilder> builders,
-        IEnumerable<CornerFrame> frames)
+        IEnumerable<CornerFrame> frames
+    )
     {
         var idx = line.IndexOf("subckt", StringComparison.OrdinalIgnoreCase);
         if (idx < 0)
@@ -808,8 +862,8 @@ internal sealed class SpectreModelExtractor
     /// Determines whether a model name matches common binary-model naming patterns.
     /// </summary>
     /// <returns>`true` if the provided name is non-empty and matches the bin-model regex pattern, `false` otherwise.</returns>
-    private static bool IsBinModelName(string name)
-    => !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
+    private static bool IsBinModelName(string name) =>
+        !string.IsNullOrWhiteSpace(name) && BinModelNameRegex.IsMatch(name.Trim());
 
     private static string? InferVoltageDomain(string name)
     {
@@ -818,7 +872,7 @@ internal sealed class SpectreModelExtractor
             return null;
         }
 
-        var match = Regex.Match(name, @"(?<voltage>\d+)v(?<frac>\d+)", RegexOptions.IgnoreCase);
+        var match = VoltageFormatPattern().Match(name);
         if (!match.Success)
         {
             return null;
@@ -878,7 +932,7 @@ internal sealed class SpectreModelExtractor
             return null;
         }
 
-        if (trimmed.StartsWith("*", StringComparison.Ordinal) || trimmed.StartsWith("//", StringComparison.Ordinal))
+        if (trimmed.StartsWith('*') || trimmed.StartsWith("//", StringComparison.Ordinal))
         {
             return null;
         }
@@ -1027,12 +1081,12 @@ internal sealed class SpectreModelExtractor
     private static string ExtractDirectiveArgument(string value)
     {
         var trimmed = value.Trim();
-        if (trimmed.StartsWith("=", StringComparison.Ordinal))
+        if (trimmed.StartsWith('='))
         {
             trimmed = trimmed[1..].Trim();
         }
 
-        if (trimmed.StartsWith("\"", StringComparison.Ordinal) && trimmed.EndsWith("\"", StringComparison.Ordinal))
+        if (trimmed.StartsWith('"') && trimmed.EndsWith('"'))
         {
             trimmed = trimmed[1..^1];
         }
@@ -1051,7 +1105,10 @@ internal sealed class SpectreModelExtractor
         return token[(index + 1)..].Trim().Trim('"', '\'');
     }
 
-    private static bool ShouldSkipForSectionFilter(string? includeSectionFilter, Stack<SectionContext> sectionStack)
+    private static bool ShouldSkipForSectionFilter(
+        string? includeSectionFilter,
+        Stack<SectionContext> sectionStack
+    )
     {
         if (string.IsNullOrWhiteSpace(includeSectionFilter))
         {
@@ -1065,7 +1122,13 @@ internal sealed class SpectreModelExtractor
 
         foreach (var context in sectionStack)
         {
-            if (string.Equals(context.NormalizedName, includeSectionFilter, StringComparison.OrdinalIgnoreCase))
+            if (
+                string.Equals(
+                    context.NormalizedName,
+                    includeSectionFilter,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
             {
                 return false;
             }
@@ -1098,4 +1161,37 @@ internal sealed class SpectreModelExtractor
 
         return input.Contains('/') || input.Contains('\\') || input.Contains('.');
     }
+
+    [GeneratedRegex(
+        @"^(\.include|include)\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex IncludeDirectivePattern();
+
+    [GeneratedRegex(@"^\.lib\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LibDirectivePattern();
+
+    [GeneratedRegex(@"^\.endl\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EndlDirectivePattern();
+
+    [GeneratedRegex(@"^section\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SectionDirectivePattern();
+
+    [GeneratedRegex(@"^endsection\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex EndSectionDirectivePattern();
+
+    [GeneratedRegex(@"^\.?model\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ModelDirectivePattern();
+
+    [GeneratedRegex(@"^\.?subckt\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SubcktDirectivePattern();
+
+    [GeneratedRegex(
+        @"(?:__|_)(?:model(?:_base)?|base)(?:\.\d+)?$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex ModelBaseSuffixPattern();
+
+    [GeneratedRegex(@"(?<voltage>\d+)v(?<frac>\d+)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex VoltageFormatPattern();
 }

@@ -20,9 +20,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// <param name="sources">Compilation units to process. Only the first unit is consumed in v0.</param>
     /// <param name="options">Compilation options controlling the target ACIR level.</param>
     /// <returns>Compilation result containing either ACIR output or error diagnostics.</returns>
-    public CompileResult CompileToACIR(
-        IReadOnlyList<SourceUnit> sources,
-        CompileOptions options)
+    public CompileResult CompileToACIR(IReadOnlyList<SourceUnit> sources, CompileOptions options)
     {
         ArgumentNullException.ThrowIfNull(sources, nameof(sources));
         ArgumentNullException.ThrowIfNull(options, nameof(options));
@@ -39,11 +37,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         var diagnostics = tree.Diagnostics;
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
-            return new CompileResult
-            {
-                ACIR = null,
-                Diagnostics = diagnostics
-            };
+            return new CompileResult { ACIR = null, Diagnostics = diagnostics };
         }
 
         var motif = tree.Root.Members.OfType<MotifDeclarationSyntax>().FirstOrDefault();
@@ -56,13 +50,10 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                     DiagnosticSeverity.Error,
                     tree.Root.FilePath,
                     tree.Root.Line,
-                    tree.Root.Column)
+                    tree.Root.Column
+                ),
             };
-            return new CompileResult
-            {
-                ACIR = null,
-                Diagnostics = compilerDiagnostics
-            };
+            return new CompileResult { ACIR = null, Diagnostics = compilerDiagnostics };
         }
 
         var elaborationDiagnostics = new List<Diagnostic>(diagnostics);
@@ -70,20 +61,12 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
 
         if (elaborationDiagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
-            return new CompileResult
-            {
-                ACIR = null,
-                Diagnostics = elaborationDiagnostics
-            };
+            return new CompileResult { ACIR = null, Diagnostics = elaborationDiagnostics };
         }
 
         var acir = LowerToACIR(design, options, motif, source.Path);
 
-        return new CompileResult
-        {
-            ACIR = acir,
-            Diagnostics = elaborationDiagnostics
-        };
+        return new CompileResult { ACIR = acir, Diagnostics = elaborationDiagnostics };
     }
 
     /// <summary>
@@ -123,7 +106,10 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// <param name="motif">Motif syntax node to elaborate.</param>
     /// <param name="diagnostics">Diagnostic sink that receives compiler errors.</param>
     /// <returns>Structural design with nets, bundles, and instances.</returns>
-    private static StructuralDesign ElaborateMotif(MotifDeclarationSyntax motif, ICollection<Diagnostic> diagnostics)
+    private static StructuralDesign ElaborateMotif(
+        MotifDeclarationSyntax motif,
+        ICollection<Diagnostic> diagnostics
+    )
     {
         var design = new StructuralDesign();
 
@@ -136,23 +122,42 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                 var nNet = port.Name + "_N";
                 design.Nets[pNet] = new NetInfo { Id = pNet, Domain = "analog" };
                 design.Nets[nNet] = new NetInfo { Id = nNet, Domain = "analog" };
-                design.Bundles[port.Name] = new BundleInfo { Id = port.Name, PNet = pNet, NNet = nNet };
+                design.Bundles[port.Name] = new BundleInfo
+                {
+                    Id = port.Name,
+                    PNet = pNet,
+                    NNet = nNet,
+                };
             }
             else
             {
-                design.Nets[port.Name] = new NetInfo { Id = port.Name, Domain = MapKindToDomain(port.Kind) };
+                design.Nets[port.Name] = new NetInfo
+                {
+                    Id = port.Name,
+                    Domain = MapKindToDomain(port.Kind),
+                };
             }
         }
 
         // Supplies.
         foreach (var supply in motif.Supplies)
         {
-            design.Nets[supply.Name] = new NetInfo { Id = supply.Name, Domain = "supply", Rail = supply.Name };
+            design.Nets[supply.Name] = new NetInfo
+            {
+                Id = supply.Name,
+                Domain = "supply",
+                Rail = supply.Name,
+            };
         }
 
         foreach (var ground in motif.Grounds)
         {
-            design.Nets[ground.Name] = new NetInfo { Id = ground.Name, Domain = "ground", Rail = ground.Name };
+            design.Nets[ground.Name] = new NetInfo
+            {
+                Id = ground.Name,
+                Domain = "ground",
+                Rail = ground.Name,
+            };
         }
 
         if (motif.UseBlock is null)
@@ -169,7 +174,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                     var instInfo = new InstanceInfo
                     {
                         Id = instance.InstanceName,
-                        Type = instance.TypeName
+                        Type = instance.TypeName,
                     };
                     design.Instances[instance.InstanceName] = instInfo;
 
@@ -179,12 +184,15 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                         var toNet = ResolveBindingTarget(design, binding.ToPin);
                         if (toNet is null)
                         {
-                            diagnostics.Add(new Diagnostic(
-                                $"CAS0005: Binding target '{binding.ToPin}' is not a declared net, port, or bundle field.",
-                                DiagnosticSeverity.Error,
-                                binding.FilePath,
-                                binding.Line,
-                                binding.Column));
+                            diagnostics.Add(
+                                new Diagnostic(
+                                    $"CAS0005: Binding target '{binding.ToPin}' is not a declared net, port, or bundle field.",
+                                    DiagnosticSeverity.Error,
+                                    binding.FilePath,
+                                    binding.Line,
+                                    binding.Column
+                                )
+                            );
                             continue;
                         }
 
@@ -223,7 +231,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             "signal" => "signal",
             "rf" => "rf",
             "clock" => "clock",
-            _ => "signal"
+            _ => "signal",
         };
     }
 
@@ -255,7 +263,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
                 {
                     "P" => bundle.PNet,
                     "N" => bundle.NNet,
-                    _ => null
+                    _ => null,
                 };
             }
         }
@@ -269,7 +277,11 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// <param name="design">Accumulated structural design being elaborated.</param>
     /// <param name="connect">Connect statement syntax.</param>
     /// <param name="diagnostics">Diagnostic sink that receives compiler errors.</param>
-    private static void BindConnect(StructuralDesign design, ConnectStatementSyntax connect, ICollection<Diagnostic> diagnostics)
+    private static void BindConnect(
+        StructuralDesign design,
+        ConnectStatementSyntax connect,
+        ICollection<Diagnostic> diagnostics
+    )
     {
         // v0: support only dp.OUT.N -> OUT, where left is instance pin and right is top-level net.
         var from = connect.FromPin;
@@ -278,24 +290,30 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         var parts = from.Split('.');
         if (parts.Length < 2)
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0002: Invalid connection source format '{from}'. Expected 'instance.pin'.",
-                DiagnosticSeverity.Error,
-                connect.FilePath,
-                connect.Line,
-                connect.Column));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0002: Invalid connection source format '{from}'. Expected 'instance.pin'.",
+                    DiagnosticSeverity.Error,
+                    connect.FilePath,
+                    connect.Line,
+                    connect.Column
+                )
+            );
             return;
         }
 
         var instanceId = parts[0];
         if (!design.Instances.TryGetValue(instanceId, out var instance))
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0003: Instance '{instanceId}' not found in design.",
-                DiagnosticSeverity.Error,
-                connect.FilePath,
-                connect.Line,
-                connect.Column));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0003: Instance '{instanceId}' not found in design.",
+                    DiagnosticSeverity.Error,
+                    connect.FilePath,
+                    connect.Line,
+                    connect.Column
+                )
+            );
             return;
         }
 
@@ -303,12 +321,15 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
 
         if (!design.Nets.ContainsKey(to))
         {
-            diagnostics.Add(new Diagnostic(
-                $"CAS0004: Connection target '{to}' is not a declared net or port.",
-                DiagnosticSeverity.Error,
-                connect.FilePath,
-                connect.Line,
-                connect.Column));
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS0004: Connection target '{to}' is not a declared net or port.",
+                    DiagnosticSeverity.Error,
+                    connect.FilePath,
+                    connect.Line,
+                    connect.Column
+                )
+            );
             return;
         }
 
@@ -323,27 +344,36 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// <param name="motif">Original motif syntax for extracting package and traits.</param>
     /// <param name="sourcePath">Source file path for package extraction.</param>
     /// <returns>ACIR document ready for serialization or further passes.</returns>
-    private static ACIRDocument LowerToACIR(StructuralDesign design, CompileOptions options, MotifDeclarationSyntax motif, string sourcePath)
+    private static ACIRDocument LowerToACIR(
+        StructuralDesign design,
+        CompileOptions options,
+        MotifDeclarationSyntax motif,
+        string sourcePath
+    )
     {
         var doc = new ACIRDocument
         {
             VersionMajor = ACIRVersion.Major,
-            VersionMinor = ACIRVersion.Minor
+            VersionMinor = ACIRVersion.Minor,
         };
 
         // Extract bundle types (Diff is built-in, but we can declare it explicitly)
-        var hasDiffBundle = design.Bundles.Values.Any(b => b.Id == "Diff" || design.Bundles.Count > 0);
+        var hasDiffBundle = design.Bundles.Values.Any(b =>
+            b.Id == "Diff" || design.Bundles.Count > 0
+        );
         if (hasDiffBundle)
         {
-            doc.BundleTypes.Add(new BundleType
-            {
-                Name = "Diff",
-                Fields = new Dictionary<string, string>
+            doc.BundleTypes.Add(
+                new BundleType
                 {
-                    { "P", "analog" },
-                    { "N", "analog" }
+                    Name = "Diff",
+                    Fields = new Dictionary<string, string>
+                    {
+                        { "P", "analog" },
+                        { "N", "analog" },
+                    },
                 }
-            });
+            );
         }
 
         var fill = BuildFillBlock(design, motif, options);
@@ -357,8 +387,10 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             Traits = motif.Implements.Count > 0 ? motif.Implements.ToList() : null,
             Supplies = motif.Supplies.Select(s => s.Name).ToList(),
             Grounds = motif.Grounds.Select(g => g.Name).ToList(),
-            Ports = motif.Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind }).ToList(),
-            Fill = fill
+            Ports = motif
+                .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
+                .ToList(),
+            Fill = fill,
         };
 
         doc.Circuits.Add(circuit);
@@ -372,7 +404,11 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
     /// <param name="motif">Motif syntax for extracting port, supply, and ground declarations.</param>
     /// <param name="options">Compilation options that determine the target ACIR level.</param>
     /// <returns>Fill block with nets and instances, or null for HL level.</returns>
-    private static FillBlock? BuildFillBlock(StructuralDesign design, MotifDeclarationSyntax motif, CompileOptions options)
+    private static FillBlock? BuildFillBlock(
+        StructuralDesign design,
+        MotifDeclarationSyntax motif,
+        CompileOptions options
+    )
     {
         if (options.Level == ACIRLevel.HL)
         {
@@ -402,19 +438,19 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             portNets.Add(ground.Name);
         }
 
-        var nets = design.Nets.Values
-            .OrderBy(n => n.Id, StringComparer.Ordinal)
+        var nets = design
+            .Nets.Values.OrderBy(n => n.Id, StringComparer.Ordinal)
             .Where(n => !portNets.Contains(n.Id))
             .Select(n => new NetDeclaration { Id = n.Id, Domain = n.Domain })
             .ToList();
 
-        var instances = design.Instances.Values
-            .OrderBy(i => i.Id, StringComparer.Ordinal)
+        var instances = design
+            .Instances.Values.OrderBy(i => i.Id, StringComparer.Ordinal)
             .Select(i => new InstanceDeclaration
             {
                 Id = i.Id,
                 Type = i.Type,
-                Bindings = new Dictionary<string, string>(i.Ports)
+                Bindings = new Dictionary<string, string>(i.Ports),
             })
             .ToList();
 

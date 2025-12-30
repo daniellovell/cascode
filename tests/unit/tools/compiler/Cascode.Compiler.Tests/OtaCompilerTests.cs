@@ -15,7 +15,10 @@ public class OtaCompilerTests
     public void Compile_SimpleOtaMotif_ProducesACIRWithDpAndOutNet()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var sourcePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas");
+        var sourcePath = Path.Combine(
+            repoRoot,
+            "tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas"
+        );
         var sourceText = File.ReadAllText(sourcePath);
 
         var compiler = new SimpleCascodeCompiler();
@@ -23,8 +26,9 @@ public class OtaCompilerTests
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEndedSimplified", ACIRLevel.ML)
             {
-                LibraryRoots = new[] { repoRoot }
-            });
+                LibraryRoots = new[] { repoRoot },
+            }
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -47,7 +51,8 @@ public class OtaCompilerTests
         ACIRWriter.Write(acir, writer);
         var actualAcir = writer.ToString();
         var expectedAcir = File.ReadAllText(
-            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEndedSimplified.ml.cir"));
+            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEndedSimplified.ml.cir")
+        );
         Assert.Equal(Normalize(expectedAcir), Normalize(actualAcir));
     }
 
@@ -60,12 +65,14 @@ public class OtaCompilerTests
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", ACIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML)
+        );
 
         Assert.Null(result.ACIR);
         var cas0001Diagnostic = Assert.Single(
             result.Diagnostics,
-            d => d.Message.Contains("CAS0001: No motif declaration found"));
+            d => d.Message.Contains("CAS0001: No motif declaration found")
+        );
         Assert.Equal("CAS0001", cas0001Diagnostic.Code);
         Assert.Equal(DiagnosticSeverity.Error, cas0001Diagnostic.Severity);
         Assert.Equal(sourcePath, cas0001Diagnostic.FilePath);
@@ -75,7 +82,8 @@ public class OtaCompilerTests
     public void Compile_InvalidConnections_ReturnsDiagnostics()
     {
         var sourcePath = "test.cas";
-        var sourceText = @"
+        var sourceText =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -91,7 +99,8 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", ACIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML)
+        );
 
         Assert.Null(result.ACIR);
         var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
@@ -105,7 +114,8 @@ motif Test {
     public void Compile_InstanceBindings_ElaboratesAsPortConnections()
     {
         var sourcePath = "test.cas";
-        var sourceText = @"
+        var sourceText =
+            @"
 package test;
 motif Test {
     supply VDD; ground GND;
@@ -120,7 +130,8 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("test", ACIRLevel.ML));
+            new CompileOptions("test", ACIRLevel.ML)
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -156,7 +167,8 @@ motif Test {
         var compiler = new SimpleCascodeCompiler();
         var result = compiler.CompileToACIR(
             new[] { new SourceUnit(sourcePath, sourceText) },
-            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML));
+            new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -188,8 +200,9 @@ motif Test {
             new[] { new SourceUnit(sourcePath, sourceText) },
             new CompileOptions("analog.ota.OTA5TSingleEnded", ACIRLevel.ML)
             {
-                LibraryRoots = new[] { repoRoot }
-            });
+                LibraryRoots = new[] { repoRoot },
+            }
+        );
 
         Assert.NotNull(result.ACIR);
         var acir = result.ACIR!;
@@ -199,10 +212,10 @@ motif Test {
         ACIRWriter.Write(acir, writer);
         var actualAcir = writer.ToString();
         var expectedAcir = File.ReadAllText(
-            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.ml.cir"));
+            Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.ml.cir")
+        );
         Assert.Equal(Normalize(expectedAcir), Normalize(actualAcir));
     }
 
-    private static string Normalize(string text)
-        => text.Replace("\r\n", "\n").Trim();
+    private static string Normalize(string text) => text.Replace("\r\n", "\n").Trim();
 }

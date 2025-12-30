@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-
 using Cascode.Workspace;
 using static Cascode.Workspace.Tests.TestUtilities;
 
@@ -16,14 +15,13 @@ public sealed class WorkspaceScannerLibInitTests
         using var workspace = TemporaryWorkspace.Create();
 
         // Root cds.lib includes a PDK cds.lib located deeper in the tree.
-        workspace.WriteFile(
-            "cds.lib",
-            $"INCLUDE ./pdk/cds.lib{Environment.NewLine}");
+        workspace.WriteFile("cds.lib", $"INCLUDE ./pdk/cds.lib{Environment.NewLine}");
 
         // The PDK cds.lib defines a library that uses a libInit.il to register model decks.
         workspace.WriteFile(
             Path.Combine("pdk", "cds.lib"),
-            $"DEFINE vendorAnalog ./vendorAnalog{Environment.NewLine}");
+            $"DEFINE vendorAnalog ./vendorAnalog{Environment.NewLine}"
+        );
 
         workspace.CreateDirectory(Path.Combine("pdk", "vendorAnalog"));
 
@@ -41,7 +39,8 @@ public sealed class WorkspaceScannerLibInitTests
         File.WriteAllText(addedPath, "added content");
 
         // The libInit.il references all four files
-        var libInitContent = $@";
+        var libInitContent =
+            $@";
 ; setup spectre model files, sections
     if(isContextLoaded(""schView"") then
 
@@ -74,21 +73,25 @@ public sealed class WorkspaceScannerLibInitTests
         Assert.Contains(
             normalizedValidPath,
             result.ModelDecks.Select(deck => deck.DeckPath),
-            StringComparer.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase
+        );
 
         // Should NOT find the non-Spectre files
         Assert.DoesNotContain(
             Path.GetFullPath(eldoPath),
             result.ModelDecks.Select(deck => deck.DeckPath),
-            StringComparer.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase
+        );
         Assert.DoesNotContain(
             Path.GetFullPath(hspicePath),
             result.ModelDecks.Select(deck => deck.DeckPath),
-            StringComparer.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase
+        );
         Assert.DoesNotContain(
             Path.GetFullPath(addedPath),
             result.ModelDecks.Select(deck => deck.DeckPath),
-            StringComparer.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase
+        );
     }
 
     [Fact]
@@ -97,14 +100,13 @@ public sealed class WorkspaceScannerLibInitTests
         using var workspace = TemporaryWorkspace.Create();
 
         // Root cds.lib includes a PDK cds.lib located deeper in the tree.
-        workspace.WriteFile(
-            "cds.lib",
-            $"INCLUDE ./pdk/cds.lib{Environment.NewLine}");
+        workspace.WriteFile("cds.lib", $"INCLUDE ./pdk/cds.lib{Environment.NewLine}");
 
         // The PDK cds.lib defines a library that uses a libInit.il to register model decks.
         workspace.WriteFile(
             Path.Combine("pdk", "cds.lib"),
-            $"DEFINE vendorAnalog ./vendorAnalog{Environment.NewLine}");
+            $"DEFINE vendorAnalog ./vendorAnalog{Environment.NewLine}"
+        );
 
         workspace.CreateDirectory(Path.Combine("pdk", "vendorAnalog"));
 
@@ -113,7 +115,8 @@ public sealed class WorkspaceScannerLibInitTests
         File.WriteAllText(modelPath, "simulator deck");
 
         // The libInit.il relies on libPath and relative navigation to point to model files.
-        var libInitContent = $@";
+        var libInitContent =
+            $@";
 ; setup spectre model files, sections
     if(isContextLoaded(""schView"") then
 
@@ -143,6 +146,7 @@ public sealed class WorkspaceScannerLibInitTests
         Assert.Contains(
             normalizedDeckPath,
             result.ModelDecks.Select(deck => deck.DeckPath),
-            StringComparer.OrdinalIgnoreCase);
+            StringComparer.OrdinalIgnoreCase
+        );
     }
 }

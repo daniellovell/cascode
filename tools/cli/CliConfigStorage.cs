@@ -17,10 +17,10 @@ internal sealed class CliConfigStorage
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public CliConfig Load()
+    public static CliConfig Load()
     {
         var path = WorkspaceState.GetConfigPath();
         if (!File.Exists(path))
@@ -31,7 +31,8 @@ internal sealed class CliConfigStorage
         try
         {
             var json = File.ReadAllText(path);
-            var config = JsonSerializer.Deserialize<CliConfig>(json, SerializerOptions) ?? new CliConfig();
+            var config =
+                JsonSerializer.Deserialize<CliConfig>(json, SerializerOptions) ?? new CliConfig();
             Normalize(config);
             return config;
         }
@@ -41,12 +42,9 @@ internal sealed class CliConfigStorage
         }
     }
 
-    public void Save(CliConfig config)
+    public static void Save(CliConfig config)
     {
-        if (config is null)
-        {
-            throw new ArgumentNullException(nameof(config));
-        }
+        ArgumentNullException.ThrowIfNull(config);
 
         Normalize(config);
         var path = WorkspaceState.GetConfigPath();

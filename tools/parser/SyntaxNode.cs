@@ -38,7 +38,9 @@ public sealed class CompilationUnitSyntax : SyntaxNode
         int column,
         PackageDeclarationSyntax? package,
         IReadOnlyList<ImportDeclarationSyntax> imports,
-        IReadOnlyList<MemberDeclarationSyntax> members) : base(filePath, line, column)
+        IReadOnlyList<MemberDeclarationSyntax> members
+    )
+        : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(imports);
         ArgumentNullException.ThrowIfNull(members);
@@ -79,7 +81,13 @@ public sealed class PackageDeclarationSyntax : SyntaxNode
 /// </summary>
 public sealed class ImportDeclarationSyntax : SyntaxNode
 {
-    public ImportDeclarationSyntax(string filePath, int line, int column, string name, bool isWildcard)
+    public ImportDeclarationSyntax(
+        string filePath,
+        int line,
+        int column,
+        string name,
+        bool isWildcard
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -100,9 +108,7 @@ public sealed class ImportDeclarationSyntax : SyntaxNode
 public abstract class MemberDeclarationSyntax : SyntaxNode
 {
     protected MemberDeclarationSyntax(string filePath, int line, int column)
-        : base(filePath, line, column)
-    {
-    }
+        : base(filePath, line, column) { }
 }
 
 /// <summary>
@@ -115,7 +121,8 @@ public sealed class TraitDeclarationSyntax : MemberDeclarationSyntax
         int line,
         int column,
         string name,
-        IReadOnlyList<string> extends)
+        IReadOnlyList<string> extends
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -146,7 +153,8 @@ public sealed class MotifDeclarationSyntax : MemberDeclarationSyntax
         IReadOnlyList<PortDeclarationSyntax> ports,
         IReadOnlyList<SupplyDeclarationSyntax> supplies,
         IReadOnlyList<GroundDeclarationSyntax> grounds,
-        UseBlockSyntax? useBlock)
+        UseBlockSyntax? useBlock
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -209,7 +217,13 @@ public sealed class PortDeclarationSyntax : SyntaxNode
 /// </summary>
 public sealed class QuantityLiteralSyntax : SyntaxNode
 {
-    public QuantityLiteralSyntax(string filePath, int line, int column, double numericValue, string? unit)
+    public QuantityLiteralSyntax(
+        string filePath,
+        int line,
+        int column,
+        double numericValue,
+        string? unit
+    )
         : base(filePath, line, column)
     {
         NumericValue = numericValue;
@@ -228,7 +242,13 @@ public sealed class QuantityLiteralSyntax : SyntaxNode
 /// </summary>
 public sealed class SupplyDeclarationSyntax : SyntaxNode
 {
-    public SupplyDeclarationSyntax(string filePath, int line, int column, string name, QuantityLiteralSyntax? value = null)
+    public SupplyDeclarationSyntax(
+        string filePath,
+        int line,
+        int column,
+        string name,
+        QuantityLiteralSyntax? value = null
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -264,7 +284,12 @@ public sealed class GroundDeclarationSyntax : SyntaxNode
 /// </summary>
 public sealed class UseBlockSyntax : SyntaxNode
 {
-    public UseBlockSyntax(string filePath, int line, int column, IReadOnlyList<UseStatementSyntax> statements)
+    public UseBlockSyntax(
+        string filePath,
+        int line,
+        int column,
+        IReadOnlyList<UseStatementSyntax> statements
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(statements);
@@ -281,9 +306,7 @@ public sealed class UseBlockSyntax : SyntaxNode
 public abstract class UseStatementSyntax : SyntaxNode
 {
     protected UseStatementSyntax(string filePath, int line, int column)
-        : base(filePath, line, column)
-    {
-    }
+        : base(filePath, line, column) { }
 }
 
 /// <summary>
@@ -320,15 +343,20 @@ public sealed class InstanceDeclarationSyntax : UseStatementSyntax
         string typeName,
         IReadOnlyList<string>? constructorArgs = null,
         IReadOnlyList<InstanceParameterSyntax>? parameters = null,
-        IReadOnlyList<BindingSyntax>? bindings = null)
+        IReadOnlyList<BindingSyntax>? bindings = null
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(instanceName);
         ArgumentNullException.ThrowIfNull(typeName);
         InstanceName = instanceName;
         TypeName = typeName;
-        ConstructorArgs = constructorArgs is null ? Array.Empty<string>() : constructorArgs.ToList().AsReadOnly();
-        Parameters = parameters is null ? Array.Empty<InstanceParameterSyntax>() : parameters.ToList().AsReadOnly();
+        ConstructorArgs = constructorArgs is null
+            ? Array.Empty<string>()
+            : constructorArgs.ToList().AsReadOnly();
+        Parameters = parameters is null
+            ? Array.Empty<InstanceParameterSyntax>()
+            : parameters.ToList().AsReadOnly();
         Bindings = bindings is null ? Array.Empty<BindingSyntax>() : bindings.ToList().AsReadOnly();
     }
 
@@ -379,7 +407,8 @@ public sealed class AttachStatementSyntax : UseStatementSyntax
         int line,
         int column,
         string sourceInstance,
-        string targetInstance)
+        string targetInstance
+    )
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(sourceInstance);
@@ -400,12 +429,7 @@ public sealed class AttachStatementSyntax : UseStatementSyntax
 /// </summary>
 public sealed class ConnectStatementSyntax : UseStatementSyntax
 {
-    public ConnectStatementSyntax(
-        string filePath,
-        int line,
-        int column,
-        string from,
-        string to)
+    public ConnectStatementSyntax(string filePath, int line, int column, string from, string to)
         : base(filePath, line, column)
     {
         ArgumentNullException.ThrowIfNull(from);

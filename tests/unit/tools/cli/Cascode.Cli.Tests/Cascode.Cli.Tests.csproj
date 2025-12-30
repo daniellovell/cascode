@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -25,5 +24,4 @@
     <Compile Include="..\..\..\..\shared\**\*.cs" />
     <ProjectReference Include="..\..\..\..\..\tools\cli\Cascode.Cli.csproj" />
   </ItemGroup>
-
 </Project>
