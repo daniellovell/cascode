@@ -14,7 +14,7 @@ namespace Cascode.ACIR;
 /// It handles bundle definitions, circuit declarations at all levels (HL, ML, EL),
 /// and all circuit sections including fill, harness, benches, and provenance.
 /// </remarks>
-public static class ACIRReader
+public static partial class ACIRReader
 {
     /// <summary>
     /// Reads an ACIR document from a text reader. Throws on parse errors.
@@ -294,7 +294,7 @@ public static class ACIRReader
     )
     {
         var line = lines[start].Trim();
-        var match = Regex.Match(line, @"^bundle\s+(\w+)\s*:");
+        var match = BundleDeclarationPattern().Match(line);
         if (!match.Success)
         {
             diagnostics.Add(
@@ -318,7 +318,7 @@ public static class ACIRReader
             if (!fieldLine.StartsWith("  ") || string.IsNullOrWhiteSpace(fieldLine))
                 break;
 
-            var fieldMatch = Regex.Match(fieldLine.Trim(), @"^(\w+)\s*:\s*(\w+)");
+            var fieldMatch = BundleFieldPattern().Match(fieldLine.Trim());
             if (fieldMatch.Success)
             {
                 bundle.Fields[fieldMatch.Groups[1].Value] = fieldMatch.Groups[2].Value;
@@ -342,7 +342,7 @@ public static class ACIRReader
     )
     {
         var line = lines[start].Trim();
-        var match = Regex.Match(line, @"^circuit\s+(\w+)(?:\s*:\s*(.+))?$");
+        var match = CircuitDeclarationPattern().Match(line);
         if (!match.Success)
         {
             diagnostics.Add(
@@ -556,7 +556,7 @@ public static class ACIRReader
             }
             else if (contentTrimmed.StartsWith("port "))
             {
-                var portMatch = Regex.Match(contentTrimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
+                var portMatch = PortDeclarationPattern().Match(contentTrimmed);
                 if (portMatch.Success)
                 {
                     ports.Add(
@@ -614,7 +614,7 @@ public static class ACIRReader
     {
         if (line.StartsWith("net "))
         {
-            var match = Regex.Match(line, @"^net\s+(\w+)\s*:\s*(\w+)");
+            var match = NetDeclarationPattern().Match(line);
             if (match.Success)
             {
                 fill.Nets.Add(
@@ -652,10 +652,7 @@ public static class ACIRReader
     )
     {
         // Pattern: deviceType id (bindings) : params [pdkDevice]
-        var deviceMatch = Regex.Match(
-            line,
-            @"^(nmos|pmos|resistor|capacitor|inductor|diode)\s+([^\s(]+)\s*\(([^)]+)\)\s*:\s*(.+)$"
-        );
+        var deviceMatch = DeviceDeclarationPattern().Match(line);
         if (!deviceMatch.Success)
         {
             diagnostics.Add(
@@ -678,7 +675,7 @@ public static class ACIRReader
         var bindingsStr = deviceMatch.Groups[3].Value;
         foreach (var binding in bindingsStr.Split(','))
         {
-            var bindMatch = Regex.Match(binding.Trim(), @"(\w+)->(\w+)");
+            var bindMatch = ConnectionPattern().Match(binding.Trim());
             if (bindMatch.Success)
             {
                 bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
@@ -735,7 +732,7 @@ public static class ACIRReader
     private static int ParseBundle(IReadOnlyList<string> lines, int start, List<BundleType> bundles)
     {
         var line = lines[start].Trim();
-        var match = Regex.Match(line, @"^bundle\s+(\w+)\s*:");
+        var match = BundleDeclarationPattern().Match(line);
         if (!match.Success)
             return start + 1;
 
@@ -748,7 +745,7 @@ public static class ACIRReader
             if (!fieldLine.StartsWith("  ") || string.IsNullOrWhiteSpace(fieldLine))
                 break;
 
-            var fieldMatch = Regex.Match(fieldLine.Trim(), @"^(\w+)\s*:\s*(\w+)");
+            var fieldMatch = BundleFieldPattern().Match(fieldLine.Trim());
             if (fieldMatch.Success)
             {
                 bundle.Fields[fieldMatch.Groups[1].Value] = fieldMatch.Groups[2].Value;
@@ -770,7 +767,7 @@ public static class ACIRReader
     private static int ParseCircuit(IReadOnlyList<string> lines, int start, List<Circuit> circuits)
     {
         var line = lines[start].Trim();
-        var match = Regex.Match(line, @"^circuit\s+(\w+)(?:\s*:\s*(.+))?$");
+        var match = CircuitDeclarationPattern().Match(line);
         if (!match.Success)
             return start + 1;
 
@@ -961,7 +958,7 @@ public static class ACIRReader
             }
             else if (contentTrimmed.StartsWith("port "))
             {
-                var portMatch = Regex.Match(contentTrimmed, @"^port\s+(\w+)\s*:\s*(\w+)");
+                var portMatch = PortDeclarationPattern().Match(contentTrimmed);
                 if (portMatch.Success)
                 {
                     ports.Add(
@@ -1067,10 +1064,7 @@ public static class ACIRReader
     private static void ParseNumericConstraint(string line, ConstraintsBlock constraints)
     {
         // Pattern: id : Metric @ Node op value unit  OR  id : Metric op value unit (no node)
-        var match = Regex.Match(
-            line,
-            @"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$"
-        );
+        var match = ConstraintPattern().Match(line);
         if (!match.Success)
             return;
 
@@ -1095,10 +1089,7 @@ public static class ACIRReader
     private static void ParseTechConstraint(string line, ConstraintsBlock constraints)
     {
         // Pattern: id : Param op value unit on scope
-        var match = Regex.Match(
-            line,
-            @"^(\w+)\s*:\s*(\w+)\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)\s+on\s+(\S+)$"
-        );
+        var match = ConstraintOnConditionPattern().Match(line);
         if (!match.Success)
             return;
 
@@ -1123,7 +1114,7 @@ public static class ACIRReader
     private static void ParseMeasureIntent(string line, ConstraintsBlock constraints)
     {
         // Pattern: id : BenchName Metric @ Node  OR  id : BenchName Metric (no node)
-        var match = Regex.Match(line, @"^(\w+)\s*:\s*(\w+)\s+(\w+)(?:\s*@\s*(\w+))?$");
+        var match = MetricDeclarationWithCornerPattern().Match(line);
         if (!match.Success)
             return;
 
@@ -1147,7 +1138,7 @@ public static class ACIRReader
     {
         if (line.StartsWith("net "))
         {
-            var match = Regex.Match(line, @"^net\s+(\w+)\s*:\s*(\w+)");
+            var match = NetDeclarationPattern().Match(line);
             if (match.Success)
             {
                 fill.Nets.Add(
@@ -1182,10 +1173,7 @@ public static class ACIRReader
     private static DeviceDeclaration? ParseDevice(string line)
     {
         // Pattern: deviceType id (bindings) : params [pdkDevice]
-        var deviceMatch = Regex.Match(
-            line,
-            @"^(nmos|pmos|resistor|capacitor|inductor|diode)\s+([^\s(]+)\s*\(([^)]+)\)\s*:\s*(.+)$"
-        );
+        var deviceMatch = DeviceDeclarationPattern().Match(line);
         if (!deviceMatch.Success)
             return null;
 
@@ -1197,7 +1185,7 @@ public static class ACIRReader
         var bindingsStr = deviceMatch.Groups[3].Value;
         foreach (var binding in bindingsStr.Split(','))
         {
-            var bindMatch = Regex.Match(binding.Trim(), @"(\w+)->(\w+)");
+            var bindMatch = ConnectionPattern().Match(binding.Trim());
             if (bindMatch.Success)
             {
                 bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
@@ -1254,8 +1242,8 @@ public static class ACIRReader
 
         if (line.StartsWith("load "))
         {
-            bool hasOpenParen = line.Contains("(");
-            bool hasCloseParen = line.Contains(")");
+            bool hasOpenParen = line.Contains('(');
+            bool hasCloseParen = line.Contains(')');
             bool hasPipe = line.Contains("||");
 
             if (hasOpenParen || hasCloseParen || hasPipe)
@@ -1286,7 +1274,7 @@ public static class ACIRReader
                 }
                 else
                 {
-                    var contentMatch = Regex.Match(line, @"\(([^)]*)\)");
+                    var contentMatch = ParenthesizedContentPattern().Match(line);
                     var content = contentMatch.Groups[1].Value;
                     var parts = content.Split("||");
 
@@ -1344,7 +1332,7 @@ public static class ACIRReader
         {
             // Allow empty brackets here so we can report [] as invalid rather than silently ignoring it.
             // Pattern: sweep ConditionName [start:step:stop] or [start:stop] or [Auto]
-            var match = Regex.Match(line, @"^sweep\s+(\w+)\s+\[([^\]]*)\]$");
+            var match = SweepDeclarationPattern().Match(line);
             if (match.Success)
             {
                 var name = match.Groups[1].Value;
@@ -1375,7 +1363,7 @@ public static class ACIRReader
     {
         if (line.StartsWith("supply "))
         {
-            var match = Regex.Match(line, @"^supply\s+(\w+)\s*=\s*(.+)$");
+            var match = SupplyDeclarationPattern().Match(line);
             if (match.Success)
             {
                 harness.Supplies.Add(
@@ -1390,7 +1378,7 @@ public static class ACIRReader
         else if (line.StartsWith("load "))
         {
             // Try parallel syntax first: load NET (C=... || R=...) or (R=... || C=...)
-            var parallelMatch = Regex.Match(line, @"^load\s+(\w+)\s+\(([^)]+)\)$");
+            var parallelMatch = LoadWithPortsPattern().Match(line);
             if (parallelMatch.Success)
             {
                 var net = parallelMatch.Groups[1].Value;
@@ -1422,7 +1410,7 @@ public static class ACIRReader
             else
             {
                 // Single-element syntax
-                var match = Regex.Match(line, @"^load\s+(\w+)\s+(C|R)=([^;]+)");
+                var match = LoadWithComponentPattern().Match(line);
                 if (match.Success)
                 {
                     var net = match.Groups[1].Value;
@@ -1449,7 +1437,7 @@ public static class ACIRReader
         }
         else if (line.StartsWith("source "))
         {
-            var match = Regex.Match(line, @"^source\s+(\w+)\s+Z=([^;]+)");
+            var match = SourceImpedancePattern().Match(line);
             if (match.Success)
             {
                 harness.Sources.Add(
@@ -1463,7 +1451,7 @@ public static class ACIRReader
         }
         else if (line.StartsWith("bias "))
         {
-            var match = Regex.Match(line, @"^bias\s+(\w+)\s*=\s*(.+)$");
+            var match = BiasDeclarationPattern().Match(line);
             if (match.Success)
             {
                 harness.Biases.Add(
@@ -1478,7 +1466,7 @@ public static class ACIRReader
         else if (line.StartsWith("sweep "))
         {
             // Pattern: sweep ConditionName [start:step:stop] or [start:stop] or [Auto]
-            var match = Regex.Match(line, @"^sweep\s+(\w+)\s+\[([^\]]+)\]$");
+            var match = SweepWithRangePattern().Match(line);
             if (match.Success)
             {
                 var name = match.Groups[1].Value;
@@ -1499,7 +1487,7 @@ public static class ACIRReader
     private static string NormalizeQuantity(string value, string defaultUnit = "")
     {
         // Regex pattern for quantity: (\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?
-        var match = Regex.Match(value.Trim(), @"^(\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?$");
+        var match = UnitValuePattern().Match(value.Trim());
         if (!match.Success)
             return value;
 
@@ -1609,4 +1597,63 @@ public static class ACIRReader
         var trimmed = line.Trim();
         return string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//");
     }
+
+    [GeneratedRegex(@"^bundle\s+(\w+)\s*:")]
+    private static partial Regex BundleDeclarationPattern();
+
+    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)")]
+    private static partial Regex BundleFieldPattern();
+
+    [GeneratedRegex(@"^circuit\s+(\w+)(?:\s*:\s*(.+))?$")]
+    private static partial Regex CircuitDeclarationPattern();
+
+    [GeneratedRegex(@"^port\s+(\w+)\s*:\s*(\w+)")]
+    private static partial Regex PortDeclarationPattern();
+
+    [GeneratedRegex(@"^net\s+(\w+)\s*:\s*(\w+)")]
+    private static partial Regex NetDeclarationPattern();
+
+    [GeneratedRegex(
+        @"^(nmos|pmos|resistor|capacitor|inductor|diode)\s+([^\s(]+)\s*\(([^)]+)\)\s*:\s*(.+)$"
+    )]
+    private static partial Regex DeviceDeclarationPattern();
+
+    [GeneratedRegex(@"(\w+)->(\w+)")]
+    private static partial Regex ConnectionPattern();
+
+    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$")]
+    private static partial Regex ConstraintPattern();
+
+    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)\s+on\s+(\S+)$")]
+    private static partial Regex ConstraintOnConditionPattern();
+
+    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)\s+(\w+)(?:\s*@\s*(\w+))?$")]
+    private static partial Regex MetricDeclarationWithCornerPattern();
+
+    [GeneratedRegex(@"\(([^)]*)\)")]
+    private static partial Regex ParenthesizedContentPattern();
+
+    [GeneratedRegex(@"^sweep\s+(\w+)\s+\[([^\]]*)\]$")]
+    private static partial Regex SweepDeclarationPattern();
+
+    [GeneratedRegex(@"^supply\s+(\w+)\s*=\s*(.+)$")]
+    private static partial Regex SupplyDeclarationPattern();
+
+    [GeneratedRegex(@"^load\s+(\w+)\s+\(([^)]+)\)$")]
+    private static partial Regex LoadWithPortsPattern();
+
+    [GeneratedRegex(@"^load\s+(\w+)\s+(C|R)=([^;]+)")]
+    private static partial Regex LoadWithComponentPattern();
+
+    [GeneratedRegex(@"^source\s+(\w+)\s+Z=([^;]+)")]
+    private static partial Regex SourceImpedancePattern();
+
+    [GeneratedRegex(@"^bias\s+(\w+)\s*=\s*(.+)$")]
+    private static partial Regex BiasDeclarationPattern();
+
+    [GeneratedRegex(@"^sweep\s+(\w+)\s+\[([^\]]+)\]$")]
+    private static partial Regex SweepWithRangePattern();
+
+    [GeneratedRegex(@"^(\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?$")]
+    private static partial Regex UnitValuePattern();
 }

@@ -124,8 +124,7 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     public async Task SendLineAsync(string line, CancellationToken cancellationToken = default)
     {
-        if (line is null)
-            throw new ArgumentNullException(nameof(line));
+        ArgumentNullException.ThrowIfNull(line);
         await WriteAsync(line + "\n", cancellationToken).ConfigureAwait(false);
     }
 
@@ -138,8 +137,7 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
         CancellationToken cancellationToken = default
     )
     {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(predicate);
         using var linked = CreateLinkedTokenSource(timeout, cancellationToken);
 
         while (true)
@@ -267,9 +265,7 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
 
     private async Task WriteBytesAsync(byte[] payload, CancellationToken cancellationToken)
     {
-        await _stdin
-            .WriteAsync(payload, 0, payload.Length, cancellationToken)
-            .ConfigureAwait(false);
+        await _stdin.WriteAsync(payload, cancellationToken).ConfigureAwait(false);
         await _stdin.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -287,7 +283,7 @@ internal sealed class InteractiveCliSession : IAsyncDisposable
             sb.AppendLine("--- output ---");
             var t = CapturedOutput;
             sb.Append(t);
-            if (!t.EndsWith("\n", StringComparison.Ordinal))
+            if (!t.EndsWith('\n'))
                 sb.AppendLine();
             sb.AppendLine("===== end transcript =====");
             Console.Error.Write(sb.ToString());

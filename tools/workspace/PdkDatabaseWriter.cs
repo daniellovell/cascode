@@ -21,8 +21,7 @@ public static class PdkDatabaseWriter
         CancellationToken cancellationToken = default
     )
     {
-        if (scan is null)
-            throw new ArgumentNullException(nameof(scan));
+        ArgumentNullException.ThrowIfNull(scan);
         cancellationToken.ThrowIfCancellationRequested();
 
         using var db = PdkDatabase.Open(dbPath);

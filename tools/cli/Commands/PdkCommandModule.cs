@@ -23,6 +23,9 @@ internal sealed class PdkCommandModule : ICommandModule
     private readonly string _initialWorkspaceRoot;
     private readonly Func<bool> _isInteractive;
     private CommandRegistry? _registry;
+    internal static readonly string[] prefix = new[] { "pdk" };
+    internal static readonly string[] choices = new[] { "spectre", "ngspice" };
+    internal static readonly string[] choicesArray = new[] { "all", "infra-only", "exclude-infra" };
 
     public PdkCommandModule(
         ShellState state,
@@ -109,7 +112,7 @@ internal sealed class PdkCommandModule : ICommandModule
     private CommandResult ShowPdkUsage(string[] args)
     {
         _state.AddMessage("Usage: pdk <subcommand>");
-        var subcommands = _registry!.GetSubcommands(new[] { "pdk" }).ToArray();
+        var subcommands = _registry!.GetSubcommands(prefix).ToArray();
         var width = subcommands.Length == 0 ? 0 : subcommands.Max(c => c.DisplayPath.Length);
         foreach (var sub in subcommands)
         {
@@ -510,7 +513,7 @@ internal sealed class PdkCommandModule : ICommandModule
         cfg.Backend = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("Select backend")
-                .AddChoices(new[] { "spectre", "ngspice" })
+                .AddChoices(choices)
                 .HighlightStyle(new Style(Color.Cyan1))
                 .MoreChoicesText("[grey](Move up/down to reveal more)[/]")
                 .AddChoices(
@@ -580,7 +583,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
         var infraPrompt = new SelectionPrompt<string>()
             .Title("Infra devices")
-            .AddChoices(new[] { "all", "infra-only", "exclude-infra" })
+            .AddChoices(choicesArray)
             .HighlightStyle(new Style(Color.Cyan1))
             .MoreChoicesText("[grey](Use arrows to change selection)[/]");
         var infraChoice = AnsiConsole.Prompt(infraPrompt);
@@ -905,7 +908,7 @@ internal sealed class PdkCommandModule : ICommandModule
         if (args.Length > 0 && args[0].Equals("--clear", StringComparison.OrdinalIgnoreCase))
         {
             _config.PdkRoot = null;
-            _configStorage.Save(_config);
+            CliConfigStorage.Save(_config);
             _state.UpdatePdkRoot(null);
             _state.SetWorkspace(_initialWorkspaceRoot);
             _state.AddMessage("Cleared default PDK workspace preference.");
@@ -942,7 +945,7 @@ internal sealed class PdkCommandModule : ICommandModule
             }
 
             _config.PdkRoot = resolved;
-            _configStorage.Save(_config);
+            CliConfigStorage.Save(_config);
             _state.UpdatePdkRoot(resolved);
             _state.SetWorkspace(resolved);
             _state.AddMessage($"PDK workspace set to {resolved}");
@@ -1288,7 +1291,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 corner
             );
             if (deviceRuns.Count > 0)
-                run = deviceRuns.First();
+                run = deviceRuns[0];
             if (run is null)
             {
                 var modelRuns = Cascode.Workspace.CharLutReader.GetRunsForModel(
@@ -1297,7 +1300,7 @@ internal sealed class PdkCommandModule : ICommandModule
                     corner
                 );
                 if (modelRuns.Count > 0)
-                    run = modelRuns.First();
+                    run = modelRuns[0];
             }
 
             if (run is null)

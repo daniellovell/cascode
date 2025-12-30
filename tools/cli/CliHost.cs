@@ -22,7 +22,7 @@ internal sealed class CliHost
     public CliHost(string workspaceRoot)
     {
         _initialWorkspaceRoot = Path.GetFullPath(workspaceRoot);
-        _config = _configStorage.Load();
+        _config = CliConfigStorage.Load();
 
         var startingRoot = _config.PdkRoot ?? _initialWorkspaceRoot;
         _state = new ShellState(Path.GetFullPath(startingRoot));

@@ -350,6 +350,8 @@ namespace Cascode.ACIR.Tests
 
     public class BuildPortListTests
     {
+        private static readonly string[] expected = new[] { "IN", "OUT", "VDD", "VSS" };
+
         [Fact]
         public void CombinesPortsSuppliesAndGrounds()
         {
@@ -368,7 +370,7 @@ namespace Cascode.ACIR.Tests
             var result = ACIRBenchAdapter.BuildPortList(circuit);
 
             Assert.Equal(4, result.Count);
-            Assert.Equal(new[] { "IN", "OUT", "VDD", "VSS" }, result);
+            Assert.Equal(expected, result);
         }
 
         [Fact]

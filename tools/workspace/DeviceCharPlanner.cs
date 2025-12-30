@@ -47,15 +47,14 @@ public sealed record DeviceCharPlan(
     string? Section
 );
 
-public static class DeviceCharPlanner
+public static partial class DeviceCharPlanner
 {
     public static IReadOnlyList<DeviceCharPlan> Plan(
         string dbPath,
         DeviceCharPlannerOptions options
     )
     {
-        if (options is null)
-            throw new ArgumentNullException(nameof(options));
+        ArgumentNullException.ThrowIfNull(options);
         if (!File.Exists(dbPath))
             throw new FileNotFoundException("PDK database not found", dbPath);
 
@@ -216,7 +215,7 @@ public static class DeviceCharPlanner
         if (!string.IsNullOrWhiteSpace(voltageDomain))
         {
             var vd = voltageDomain.Trim().ToLowerInvariant();
-            var m = Regex.Match(vd, @"(?<n>\d+)(?:\.(?<f>\d+))?v");
+            var m = VoltageValuePattern().Match(vd);
             if (m.Success)
             {
                 var nn = int.Parse(m.Groups["n"].Value);
@@ -236,4 +235,7 @@ public static class DeviceCharPlanner
     private sealed record Geometry(double Width, double Length, int Nf);
 
     private sealed record Voltages(double Vds, double VgsStop);
+
+    [GeneratedRegex(@"(?<n>\d+)(?:\.(?<f>\d+))?v")]
+    private static partial Regex VoltageValuePattern();
 }

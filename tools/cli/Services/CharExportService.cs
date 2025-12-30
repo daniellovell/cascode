@@ -438,6 +438,27 @@ internal static class CharExportService
         return null;
     }
 
+    internal static readonly string[] value = new[]
+    {
+        "vgs",
+        "vd",
+        "id",
+        "gm",
+        "gmbs",
+        "gds",
+        "vth",
+        "vdsat",
+        "cgs",
+        "cgd",
+        "cgg",
+        "gmoverid",
+        "ueff",
+        "ron",
+        "rseff",
+        "rdeff",
+        "w_eff",
+    };
+
     private static bool TryExportFromOppointFiles(string jobDir, out string message)
     {
         var csvPath = Path.Combine(jobDir, "results.csv");
@@ -456,31 +477,7 @@ internal static class CharExportService
                 .ToArray();
 
             var rows = new List<string>();
-            rows.Add(
-                string.Join(
-                    ',',
-                    new[]
-                    {
-                        "vgs",
-                        "vd",
-                        "id",
-                        "gm",
-                        "gmbs",
-                        "gds",
-                        "vth",
-                        "vdsat",
-                        "cgs",
-                        "cgd",
-                        "cgg",
-                        "gmoverid",
-                        "ueff",
-                        "ron",
-                        "rseff",
-                        "rdeff",
-                        "w_eff",
-                    }
-                )
-            );
+            rows.Add(string.Join(',', value));
 
             string? detectedInst = null;
             for (int n = 0; n < oppFiles.Length; n++)
@@ -568,6 +565,8 @@ internal static class CharExportService
             double.IsNaN(value) ? string.Empty : value.ToString("G", CultureInfo.InvariantCulture);
     }
 
+    internal static readonly char[] separator = new[] { ' ', '\t' };
+
     private static bool TryBuildResultsCsvFromNutascii(string jobDir, out string message)
     {
         try
@@ -649,7 +648,7 @@ internal static class CharExportService
                     if (line.StartsWith("Variables:", StringComparison.OrdinalIgnoreCase))
                     {
                         var tokensInline = line.Split(
-                            new[] { ' ', '\t' },
+                            separator,
                             StringSplitOptions.RemoveEmptyEntries
                         );
                         if (tokensInline.Length >= 3)
@@ -664,10 +663,7 @@ internal static class CharExportService
                                 continue;
                             if (l.StartsWith("Values:", StringComparison.OrdinalIgnoreCase))
                                 break;
-                            var parts = l.Split(
-                                new[] { ' ', '\t' },
-                                StringSplitOptions.RemoveEmptyEntries
-                            );
+                            var parts = l.Split(separator, StringSplitOptions.RemoveEmptyEntries);
                             if (parts.Length >= 3)
                             {
                                 var name = string.IsNullOrWhiteSpace(parts[1])
@@ -688,10 +684,7 @@ internal static class CharExportService
                         rowWidth = varCount > 0 ? varCount : names.Count;
                         continue;
                     }
-                    var parts = line.Split(
-                        new[] { ' ', '\t' },
-                        StringSplitOptions.RemoveEmptyEntries
-                    );
+                    var parts = line.Split(separator, StringSplitOptions.RemoveEmptyEntries);
                     foreach (var p in parts)
                     {
                         if (
@@ -741,7 +734,7 @@ internal static class CharExportService
             int iVdr = -1;
             for (int k = 0; k < names.Count; k++)
             {
-                if (names[k].IndexOf("vdr", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (names[k].Contains("vdr", StringComparison.OrdinalIgnoreCase))
                 {
                     iVdr = k;
                     break;
@@ -920,7 +913,7 @@ internal static class CharExportService
             var l = lines[i];
             if (string.IsNullOrWhiteSpace(l))
                 continue;
-            var parts = l.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+            var parts = l.Split(separator, StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length < 2)
                 return;
             var name = parts[0].Trim(':');

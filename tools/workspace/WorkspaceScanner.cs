@@ -56,12 +56,12 @@ public sealed class WorkspaceScanner
         }
 
         logger?.LogInformation("Inspecting cdsinit files for model decks");
-        AddDeckPaths(_cdsInitScanner.FindModelDecks(root, warnings, logger));
+        AddDeckPaths(CdsInitScanner.FindModelDecks(root, warnings, logger));
 
         cancellationToken.ThrowIfCancellationRequested();
 
         logger?.LogInformation("Inspecting libInit files for model decks");
-        AddDeckPaths(_libInitScanner.FindModelDecks(root, libraries, warnings, logger));
+        AddDeckPaths(LibInitScanner.FindModelDecks(root, libraries, warnings, logger));
         logger?.LogInformation("Total model decks discovered so far: {Count}", deckPaths.Count);
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -74,7 +74,7 @@ public sealed class WorkspaceScanner
             cancellationToken.ThrowIfCancellationRequested();
 
             logger?.LogInformation("Inspecting deck {Deck}", deckPath);
-            var record = _deckInspector.Inspect(root, deckPath, warnings);
+            var record = SpectreDeckInspector.Inspect(root, deckPath, warnings);
             var modelsForDeck = _modelExtractor.Extract(root, deckPath, warnings);
             record = record with { Models = modelsForDeck };
             deckRecords.Add(record);

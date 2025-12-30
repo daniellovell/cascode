@@ -8,13 +8,15 @@ namespace Cascode.Cli.IntegrationTests;
 
 public sealed class PdkMatchingPatternsInitTests
 {
+    private static readonly string[] args = new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" };
+
     [Fact]
     public async Task PdkScan_EnsuresMatchingPatterns_AndLogsPath()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(
             repoRoot,
-            new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" },
+            args,
             out var commandLine
         );
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(

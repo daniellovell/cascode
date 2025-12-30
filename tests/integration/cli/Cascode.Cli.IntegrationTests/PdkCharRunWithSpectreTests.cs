@@ -76,7 +76,7 @@ public sealed class PdkCharRunWithSpectreTests
         {
             var runs = CharLutReader.GetRunsForDevice(dbPath, device.CanonicalName, "tt");
             Assert.NotEmpty(runs);
-            var latest = runs.First();
+            var latest = runs[0];
             Assert.Equal(device.CanonicalName, latest.DeviceName);
             Assert.Equal("spectre", latest.Backend);
             Assert.Equal("tt", latest.Corner);

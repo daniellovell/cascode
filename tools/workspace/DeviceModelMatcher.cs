@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-public static class DeviceModelMatcher
+public static partial class DeviceModelMatcher
 {
     public static List<DeviceModelMatchRecord> Match(
         IReadOnlyList<Device> devices,
@@ -226,10 +226,7 @@ public static class DeviceModelMatcher
     }
 
     // Canonical VDD token format: <digits>v<digits> (e.g., "01v8", "03v3")
-    private static readonly Regex CanonicalVddRegex = new(
-        @"^\d+v\d+$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase
-    );
+    private static readonly Regex CanonicalVddRegex = VoltageOnlyPattern();
 
     /// <summary>
     /// Normalizes a VDD tag to canonical format (e.g., "01v8").
@@ -317,4 +314,7 @@ public static class DeviceModelMatcher
             map[key] = list = new List<ModelRef>();
         list.Add(value);
     }
+
+    [GeneratedRegex(@"^\d+v\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    private static partial Regex VoltageOnlyPattern();
 }

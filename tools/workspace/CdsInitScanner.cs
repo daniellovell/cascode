@@ -7,17 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Cascode.Workspace;
 
-internal sealed class CdsInitScanner
+internal sealed partial class CdsInitScanner
 {
-    private static readonly Regex ModelFilesRegex = new(
-        "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
-        RegexOptions.Compiled
-            | RegexOptions.CultureInvariant
-            | RegexOptions.IgnoreCase
-            | RegexOptions.Singleline
-    );
+    private static readonly Regex ModelFilesRegex = EnvSetValModelFilesPattern();
 
-    public IReadOnlyList<string> FindModelDecks(
+    public static IReadOnlyList<string> FindModelDecks(
         string workspaceRoot,
         ICollection<string>? warnings = null,
         Microsoft.Extensions.Logging.ILogger? logger = null
@@ -192,4 +186,13 @@ internal sealed class CdsInitScanner
         section = trimmed[(separatorIndex + 1)..].Trim();
         return trimmed[..separatorIndex].Trim();
     }
+
+    [GeneratedRegex(
+        "envSetVal\\(\\s*\"spectre\\.envOpts\"\\s+\"modelFiles\"\\s+`string\\s+(?<paths>\"[^\"]+\"|[^)]*)\\)",
+        RegexOptions.IgnoreCase
+            | RegexOptions.Compiled
+            | RegexOptions.Singleline
+            | RegexOptions.CultureInvariant
+    )]
+    private static partial Regex EnvSetValModelFilesPattern();
 }

@@ -18,7 +18,7 @@ internal static class PathUtils
 
     internal static string ExpandHomePath(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith("~", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('~'))
         {
             return path;
         }

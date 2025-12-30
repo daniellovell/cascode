@@ -5,12 +5,9 @@ using System.Text.RegularExpressions;
 
 namespace Cascode.Workspace;
 
-internal static class EnvironmentVariableScanner
+internal static partial class EnvironmentVariableScanner
 {
-    private static readonly Regex VariablePattern = new(
-        @"\$(\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}|(?<name2>[A-Za-z_][A-Za-z0-9_]*))",
-        RegexOptions.Compiled
-    );
+    private static readonly Regex VariablePattern = EnvVarReferencePattern();
 
     public static IReadOnlyCollection<string> FromFile(string path)
     {
@@ -84,4 +81,10 @@ internal static class EnvironmentVariableScanner
             }
         }
     }
+
+    [GeneratedRegex(
+        @"\$(\{(?<name>[A-Za-z_][A-Za-z0-9_]*)\}|(?<name2>[A-Za-z_][A-Za-z0-9_]*))",
+        RegexOptions.Compiled
+    )]
+    private static partial Regex EnvVarReferencePattern();
 }

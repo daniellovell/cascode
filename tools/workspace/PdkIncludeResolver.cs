@@ -13,12 +13,9 @@ public sealed record PdkIncludeResolution(
     string? Section
 );
 
-public static class PdkIncludeResolver
+public static partial class PdkIncludeResolver
 {
-    private static readonly Regex LibraryRegex = new(
-        @"^library\b",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
-    );
+    private static readonly Regex LibraryRegex = LibraryKeywordPattern();
 
     public static PdkIncludeResolution ResolveModelIncludes(
         string dbPath,
@@ -170,4 +167,7 @@ public static class PdkIncludeResolver
 
         return false;
     }
+
+    [GeneratedRegex(@"^library\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "en-US")]
+    private static partial Regex LibraryKeywordPattern();
 }

@@ -8,6 +8,8 @@ namespace Cascode.Cli.IntegrationTests;
 
 public sealed class PdkScanStreamingTests
 {
+    private static readonly string[] args = new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" };
+
     [Infrastructure.LinuxOnlyFact]
     public async Task PdkScan_RunOnce_StreamsLogsImmediately()
     {
@@ -15,7 +17,7 @@ public sealed class PdkScanStreamingTests
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         var startInfo = Infrastructure.CliIntegrationTestHelper.CreateCliStartInfo(
             repoRoot,
-            new[] { "pdk", "scan", "tests/fixtures/pdk/sky130" },
+            args,
             out var commandLine
         );
         Infrastructure.CliIntegrationTestHelper.ConfigureDeterministicEnvironment(

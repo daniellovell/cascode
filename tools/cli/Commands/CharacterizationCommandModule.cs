@@ -264,7 +264,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             var key = corner!.Trim();
             sourceIncludesAll = sourceIncludesAll
                 .Where(p =>
-                    Path.GetFileName(p)!.IndexOf($"_{key}", StringComparison.OrdinalIgnoreCase) >= 0
+                    Path.GetFileName(p).Contains($"_{key}", StringComparison.OrdinalIgnoreCase)
                 )
                 .ToList();
         }

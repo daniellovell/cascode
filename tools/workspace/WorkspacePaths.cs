@@ -66,9 +66,8 @@ public static class WorkspacePaths
 
     private static string ComputeHash(string input)
     {
-        using var sha = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(Path.GetFullPath(input));
-        var hash = sha.ComputeHash(bytes);
+        var hash = SHA256.HashData(bytes);
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }
