@@ -43,6 +43,8 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
 Avoid commonly overused AI motifs such as excessive use of bulleted lists and bolded text.
 Use professional prose and use precisely the level of verbosity that is required to communicate the intent of the text.
 
+Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
+
 ## Boundaries
 - `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/parser`. Nothing depends on CLI.
 - `tools/workspace`: orchestration + persistence to `pdk.db`. No UI.
