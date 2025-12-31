@@ -864,7 +864,7 @@ public static class ACIRBenchAdapter
     /// <param name="result">Parsed numeric result.</param>
     /// <param name="stripUnits">Whether to strip unit suffixes (V, F, ohm, Hz, etc.).</param>
     /// <param name="allowSubUnity">Whether to recognize sub-unity prefixes (m, u, n, p, f).</param>
-    private static bool TryParseSIValue(
+    internal static bool TryParseSIValue(
         string valueStr,
         out double result,
         bool stripUnits,
