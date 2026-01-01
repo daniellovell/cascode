@@ -48,6 +48,7 @@ public class AcirJsonConverterRoundTripTests
         Assert.Equal(originalConstraint.Id, roundTrippedConstraint.Id);
         Assert.Equal(originalConstraint.Metric, roundTrippedConstraint.Metric);
         Assert.Equal(originalConstraint.Op, roundTrippedConstraint.Op);
+        Assert.Equal(originalConstraint.Value, roundTrippedConstraint.Value);
         Assert.Equal(originalConstraint.Unit, roundTrippedConstraint.Unit);
     }
 
