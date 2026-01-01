@@ -428,6 +428,118 @@ public class AcirJsonConverterTests
         };
     }
 
+    [Fact]
+    public void ToJson_MultipleLoadElements_PreservesAllElements()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                    Harness = new HarnessBlock
+                    {
+                        Loads =
+                        [
+                            new LoadValue
+                            {
+                                Net = "OUT",
+                                Elements =
+                                [
+                                    new LoadElement("C", "1pF"),
+                                    new LoadElement("C", "500fF"),
+                                    new LoadElement("R", "1MOhm"),
+                                    new LoadElement("R", "10MOhm"),
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(doc);
+        var parsed = JsonDocument.Parse(json);
+
+        var loads = parsed.RootElement.GetProperty("harness").GetProperty("loads");
+        Assert.Single(loads.EnumerateArray());
+
+        var load = loads[0];
+        Assert.Equal("OUT", load.GetProperty("net").GetString());
+
+        var capacitances = load.GetProperty("capacitances");
+        Assert.Equal(2, capacitances.GetArrayLength());
+        Assert.Equal(1e-12, capacitances[0].GetDouble());
+        Assert.Equal(500e-15, capacitances[1].GetDouble());
+
+        var resistances = load.GetProperty("resistances");
+        Assert.Equal(2, resistances.GetArrayLength());
+        Assert.Equal(1e6, resistances[0].GetDouble());
+        Assert.Equal(10e6, resistances[1].GetDouble());
+    }
+
+    [Fact]
+    public void RoundTrip_MultipleLoadElements_PreservesAllElements()
+    {
+        var original = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                    Harness = new HarnessBlock
+                    {
+                        Loads =
+                        [
+                            new LoadValue
+                            {
+                                Net = "OUT",
+                                Elements =
+                                [
+                                    new LoadElement("C", "1pF"),
+                                    new LoadElement("C", "500fF"),
+                                    new LoadElement("R", "1MOhm"),
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        var load = roundTripped.Circuits[0].Harness!.Loads[0];
+        Assert.Equal("OUT", load.Net);
+        Assert.Equal(3, load.Elements.Count);
+
+        var capacitors = load.Elements.Where(e => e.Type == "C").ToList();
+        Assert.Equal(2, capacitors.Count);
+        Assert.Equal("1pF", capacitors[0].Value);
+        Assert.Equal("500fF", capacitors[1].Value);
+
+        var resistors = load.Elements.Where(e => e.Type == "R").ToList();
+        Assert.Single(resistors);
+        Assert.Equal("1MOhm", resistors[0].Value);
+    }
+
     private static ACIRDocument CreateCircuitWithHarness()
     {
         return new ACIRDocument

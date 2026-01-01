@@ -111,7 +111,9 @@
     "loads": [
       {
         "net": "OUT",
-        "capacitance": 1E-12
+        "capacitances": [
+          1E-12
+        ]
       }
     ],
     "sweeps": []

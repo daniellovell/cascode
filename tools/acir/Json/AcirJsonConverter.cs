@@ -264,22 +264,22 @@ public static class AcirJsonConverter
 
     private static AcirJsonHarnessLoad ConvertLoad(LoadValue load)
     {
-        double capacitance = 0;
-        double resistance = 0;
+        var capacitances = new List<double>();
+        var resistances = new List<double>();
 
         foreach (var element in load.Elements)
         {
             if (element.Type == "C")
-                capacitance = ParseHarnessValue(element.Value);
+                capacitances.Add(ParseHarnessValue(element.Value));
             else if (element.Type == "R")
-                resistance = ParseHarnessValue(element.Value);
+                resistances.Add(ParseHarnessValue(element.Value));
         }
 
         return new AcirJsonHarnessLoad
         {
             Net = load.Net,
-            Capacitance = capacitance,
-            Resistance = resistance,
+            Capacitances = capacitances,
+            Resistances = resistances,
         };
     }
 
@@ -424,10 +424,16 @@ public static class AcirJsonConverter
     private static LoadValue BuildLoadValue(AcirJsonHarnessLoad load)
     {
         var elements = new List<LoadElement>();
-        if (load.Capacitance != 0)
-            elements.Add(new LoadElement("C", FormatCapacitance(load.Capacitance)));
-        if (load.Resistance != 0)
-            elements.Add(new LoadElement("R", FormatResistance(load.Resistance)));
+        foreach (var capacitance in load.Capacitances)
+        {
+            if (capacitance != 0)
+                elements.Add(new LoadElement("C", FormatCapacitance(capacitance)));
+        }
+        foreach (var resistance in load.Resistances)
+        {
+            if (resistance != 0)
+                elements.Add(new LoadElement("R", FormatResistance(resistance)));
+        }
 
         return new LoadValue { Net = load.Net, Elements = elements };
     }
@@ -450,6 +456,6 @@ public static class AcirJsonConverter
 
     private static string FormatResistance(double value)
     {
-        return $"{ACIRBenchAdapter.FormatSIValue(value)}";
+        return $"{ACIRBenchAdapter.FormatSIValue(value)}Ohm";
     }
 }
