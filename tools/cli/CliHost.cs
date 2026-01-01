@@ -53,6 +53,7 @@ internal sealed class CliHost
         new Commands.ErcCommandModule(_state).Register(_commands);
         new Commands.VerifyCommandModule(_state).Register(_commands);
         new Commands.ConvertCommandModule(_state).Register(_commands);
+        new Commands.RenderCommandModule(_state).Register(_commands);
     }
 
     public int RunInteractive()

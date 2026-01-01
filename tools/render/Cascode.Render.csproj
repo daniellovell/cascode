@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cascode.Render.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../acir/Cascode.ACIR.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.OrTools" Version="9.10.4067" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="symbols\*.svg" />
+  </ItemGroup>
+</Project>

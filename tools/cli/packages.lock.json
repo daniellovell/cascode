@@ -56,6 +56,49 @@
         "resolved": "4.13.1",
         "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
       },
+      "Google.OrTools": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "b4F5bO1tLszgd6JHng4zgNBbzLYs3wdZTCqT4xUc50xnOUz6k+qCX7k9H1Q2kK858KIjLSnXWLp2hC9nbz2sTw==",
+        "dependencies": {
+          "Google.OrTools.runtime.linux-arm64": "9.10.4067",
+          "Google.OrTools.runtime.linux-x64": "9.10.4067",
+          "Google.OrTools.runtime.osx-arm64": "9.10.4067",
+          "Google.OrTools.runtime.osx-x64": "9.10.4067",
+          "Google.OrTools.runtime.win-x64": "9.10.4067",
+          "Google.Protobuf": "3.26.1"
+        }
+      },
+      "Google.OrTools.runtime.linux-arm64": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "vzly0LTe1rPes/YyG1slx7fu4MvRNxQ2RseTOXA9AOjbYM5w1mGllknjfR6iIdx4GpuROkRlDA2fLD+47KJGvw=="
+      },
+      "Google.OrTools.runtime.linux-x64": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "8J+/Mai5dESMbU4MjwwEOKj19RjZJydOUam0qnvLXwZ2tUhsJHQK58e2VbLuWQDzycUIEODFy8Px8d2Qj2a+4g=="
+      },
+      "Google.OrTools.runtime.osx-arm64": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "yiowB0Uegefhvcsu61v6DX5qKBnedlblKQOOzWqiO2GhQ44jZR2NjyFiIMUSeX0dxU2JnCuwDVFlAGWa4D8W6g=="
+      },
+      "Google.OrTools.runtime.osx-x64": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "r2jZzYJ98SIJ3Mbq+0HapuyEaMmddnV87Q0mIX0f5R06OWOi78wneiUyWXPeYHJMtzC/iQYGpkEQIZOX4hXuSA=="
+      },
+      "Google.OrTools.runtime.win-x64": {
+        "type": "Transitive",
+        "resolved": "9.10.4067",
+        "contentHash": "Lj/3OWN5b24CoPJGGvJAY+pPL6sGUWJDpYglq83/dcHitVIYm8qFcR8v8mqiheeYztZVA102yRIOAh2sUZ4eEg=="
+      },
+      "Google.Protobuf": {
+        "type": "Transitive",
+        "resolved": "3.26.1",
+        "contentHash": "CHZX8zXqhF/fdUtd+AYzew8T2HFkAoe5c7lbGxZY/qryAlQXckDvM5BfOJjXlMS7kyICqQTMszj4w1bX5uBJ/w=="
+      },
       "Microsoft.Data.Sqlite": {
         "type": "Transitive",
         "resolved": "8.0.8",
@@ -223,6 +266,13 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )"
+        }
+      },
+      "cascode.render": {
+        "type": "Project",
+        "dependencies": {
+          "Cascode.ACIR": "[0.2.2, )",
+          "Google.OrTools": "[9.10.4067, )"
         }
       },
       "cascode.workspace": {
