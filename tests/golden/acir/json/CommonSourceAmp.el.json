@@ -7,8 +7,12 @@
     ],
     "level": "EL"
   },
-  "supply": "VDD",
-  "ground": "GND",
+  "supplies": [
+    "VDD"
+  ],
+  "grounds": [
+    "GND"
+  ],
   "ports": [
     {
       "name": "IN",

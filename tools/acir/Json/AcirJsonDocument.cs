@@ -14,13 +14,11 @@ public sealed record AcirJsonDocument
     [JsonPropertyName("circuit")]
     public required AcirJsonCircuitInfo Circuit { get; init; }
 
-    [JsonPropertyName("supply")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Supply { get; init; }
+    [JsonPropertyName("supplies")]
+    public IReadOnlyList<string> Supplies { get; init; } = [];
 
-    [JsonPropertyName("ground")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Ground { get; init; }
+    [JsonPropertyName("grounds")]
+    public IReadOnlyList<string> Grounds { get; init; } = [];
 
     [JsonPropertyName("ports")]
     public IReadOnlyList<AcirJsonPort> Ports { get; init; } = [];

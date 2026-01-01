@@ -34,7 +34,7 @@ public class AcirJsonConverterTests
         var json = AcirJsonConverter.ToJson(doc);
 
         var parsed = JsonDocument.Parse(json);
-        Assert.Equal("1.0", parsed.RootElement.GetProperty("acirVersion").GetString());
+        Assert.Equal("1.1", parsed.RootElement.GetProperty("acirVersion").GetString());
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public class AcirJsonConverterTests
     {
         var json =
             @"{
-            ""acirVersion"": ""1.0"",
+            ""acirVersion"": ""1.1"",
             ""circuit"": { ""name"": ""TestCircuit"", ""level"": ""EL"" },
-            ""supply"": ""VDD"",
-            ""ground"": ""GND"",
+            ""supplies"": [""VDD""],
+            ""grounds"": [""GND""],
             ""ports"": [{ ""name"": ""IN"", ""kind"": ""analog"" }],
             ""nets"": [],
             ""components"": [],
@@ -151,9 +151,10 @@ public class AcirJsonConverterTests
     {
         var json =
             @"{
-            ""acirVersion"": ""1.0"",
+            ""acirVersion"": ""1.1"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
-            ""supply"": ""VDD"",
+            ""supplies"": [""VDD""],
+            ""grounds"": [],
             ""ports"": [],
             ""nets"": [],
             ""components"": [{
@@ -181,8 +182,10 @@ public class AcirJsonConverterTests
     {
         var json =
             @"{
-            ""acirVersion"": ""1.0"",
+            ""acirVersion"": ""1.1"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
+            ""supplies"": [],
+            ""grounds"": [],
             ""ports"": [],
             ""nets"": [],
             ""components"": [],
@@ -253,6 +256,65 @@ public class AcirJsonConverterTests
         Assert.Equal(originalConstraint.Metric, roundTrippedConstraint.Metric);
         Assert.Equal(originalConstraint.Op, roundTrippedConstraint.Op);
         Assert.Equal(originalConstraint.Unit, roundTrippedConstraint.Unit);
+    }
+
+    [Fact]
+    public void FromJson_MultipleSuppliesAndGrounds_ParsesAllEntries()
+    {
+        var json =
+            @"{
+            ""acirVersion"": ""1.1"",
+            ""circuit"": { ""name"": ""TestCircuit"", ""level"": ""EL"" },
+            ""supplies"": [""VDD"", ""VDDA"", ""VDDD""],
+            ""grounds"": [""GND"", ""GNDA"", ""GNDD""],
+            ""ports"": [],
+            ""nets"": [],
+            ""components"": [],
+            ""benches"": []
+        }";
+
+        var doc = AcirJsonConverter.FromJson(json);
+
+        Assert.Equal(3, doc.Circuits[0].Supplies.Count);
+        Assert.Equal("VDD", doc.Circuits[0].Supplies[0]);
+        Assert.Equal("VDDA", doc.Circuits[0].Supplies[1]);
+        Assert.Equal("VDDD", doc.Circuits[0].Supplies[2]);
+        Assert.Equal(3, doc.Circuits[0].Grounds.Count);
+        Assert.Equal("GND", doc.Circuits[0].Grounds[0]);
+        Assert.Equal("GNDA", doc.Circuits[0].Grounds[1]);
+        Assert.Equal("GNDD", doc.Circuits[0].Grounds[2]);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesMultipleSuppliesAndGrounds()
+    {
+        var original = new ACIRDocument
+        {
+            VersionMajor = 1,
+            VersionMinor = 0,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "MultiRail",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD", "VDDA"],
+                    Grounds = ["GND", "GNDA"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        Assert.Equal(2, roundTripped.Circuits[0].Supplies.Count);
+        Assert.Equal("VDD", roundTripped.Circuits[0].Supplies[0]);
+        Assert.Equal("VDDA", roundTripped.Circuits[0].Supplies[1]);
+        Assert.Equal(2, roundTripped.Circuits[0].Grounds.Count);
+        Assert.Equal("GND", roundTripped.Circuits[0].Grounds[0]);
+        Assert.Equal("GNDA", roundTripped.Circuits[0].Grounds[1]);
     }
 
     private static ACIRDocument CreateSimpleElCircuit()

@@ -80,8 +80,8 @@ public static class AcirJsonConverter
             Name = jsonDoc.Circuit.Name,
             Traits = jsonDoc.Circuit.Traits?.ToList(),
             Level = ACIRLevel.EL,
-            Supplies = jsonDoc.Supply != null ? [jsonDoc.Supply] : [],
-            Grounds = jsonDoc.Ground != null ? [jsonDoc.Ground] : [],
+            Supplies = jsonDoc.Supplies.ToList(),
+            Grounds = jsonDoc.Grounds.ToList(),
             Ports = jsonDoc
                 .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
                 .ToList(),
@@ -130,8 +130,8 @@ public static class AcirJsonConverter
                 Traits = circuit.Traits?.Count > 0 ? circuit.Traits : null,
                 Level = "EL",
             },
-            Supply = circuit.Supplies.FirstOrDefault(),
-            Ground = circuit.Grounds.FirstOrDefault(),
+            Supplies = circuit.Supplies,
+            Grounds = circuit.Grounds,
             Ports = circuit
                 .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
                 .ToList(),
