@@ -314,13 +314,29 @@ public static class AcirJsonConverter
     private static (int major, int minor) ParseVersion(string version)
     {
         var parts = version.Split('.');
-        if (
-            parts.Length >= 2
-            && int.TryParse(parts[0], out var major)
-            && int.TryParse(parts[1], out var minor)
-        )
-            return (major, minor);
-        return (ACIRVersion.Major, ACIRVersion.Minor);
+
+        if (parts.Length < 2)
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        if (!int.TryParse(parts[0], out var major))
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Major version '{parts[0]}' is not a valid integer. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        if (!int.TryParse(parts[1], out var minor))
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Minor version '{parts[1]}' is not a valid integer. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        return (major, minor);
     }
 
     private static FillBlock BuildFillBlock(AcirJsonDocument jsonDoc)

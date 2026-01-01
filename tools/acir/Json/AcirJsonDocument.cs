@@ -239,11 +239,11 @@ public sealed record AcirJsonHarnessLoad
 
     [JsonPropertyName("capacitances")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<double> Capacitances { get; init; } = new();
+    public IReadOnlyList<double> Capacitances { get; init; } = Array.Empty<double>();
 
     [JsonPropertyName("resistances")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public List<double> Resistances { get; init; } = new();
+    public IReadOnlyList<double> Resistances { get; init; } = Array.Empty<double>();
 }
 
 /// <summary>
