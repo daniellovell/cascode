@@ -598,4 +598,92 @@ public class AcirJsonConverterTests
             ],
         };
     }
+
+    [Fact]
+    public void RoundTrip_WithBiases_PreservesBiasValues()
+    {
+        var original = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports =
+                    [
+                        new PortDeclaration { Name = "VTAIL", Type = "bias" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    ],
+                    Fill = new FillBlock { Devices = [] },
+                    Harness = new HarnessBlock
+                    {
+                        Supplies = [new SupplyValue { Net = "VDD", Value = "1.8V" }],
+                        Biases =
+                        [
+                            new BiasValue { Net = "VTAIL", Value = "0.7V" },
+                            new BiasValue { Net = "VBIAS", Value = "0.5V" },
+                        ],
+                        Loads =
+                        [
+                            new LoadValue
+                            {
+                                Net = "OUT",
+                                Elements = [new LoadElement("C", "100fF")],
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        var harness = roundTripped.Circuits[0].Harness!;
+        Assert.Equal(2, harness.Biases.Count);
+        Assert.Equal("VTAIL", harness.Biases[0].Net);
+        Assert.Equal("700mV", harness.Biases[0].Value);
+        Assert.Equal("VBIAS", harness.Biases[1].Net);
+        Assert.Equal("500mV", harness.Biases[1].Value);
+    }
+
+    [Fact]
+    public void ToJson_WithBiases_IncludesBiasesInHarness()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                    Harness = new HarnessBlock
+                    {
+                        Supplies = [new SupplyValue { Net = "VDD", Value = "1.8V" }],
+                        Biases = [new BiasValue { Net = "VTAIL", Value = "0.7V" }],
+                    },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(doc);
+        var parsed = JsonDocument.Parse(json);
+
+        var biases = parsed.RootElement.GetProperty("harness").GetProperty("biases");
+        Assert.Equal(1, biases.GetArrayLength());
+        Assert.Equal("VTAIL", biases[0].GetProperty("net").GetString());
+        Assert.Equal(0.7, biases[0].GetProperty("voltage").GetDouble());
+    }
 }

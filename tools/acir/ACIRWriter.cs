@@ -294,6 +294,10 @@ public static class ACIRWriter
         {
             writer.WriteLine($"    supply {supply.Net} = {supply.Value}");
         }
+        foreach (var bias in harness.Biases.OrderBy(b => b.Net, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    bias {bias.Net} = {bias.Value}");
+        }
         foreach (var source in harness.Sources.OrderBy(s => s.Net, StringComparer.Ordinal))
         {
             var z = source.Z is not null ? $" Z={source.Z}" : "";
