@@ -34,7 +34,7 @@ public class AcirJsonConverterTests
         var json = AcirJsonConverter.ToJson(doc);
 
         var parsed = JsonDocument.Parse(json);
-        Assert.Equal("1.1", parsed.RootElement.GetProperty("acirVersion").GetString());
+        Assert.Equal(ACIRVersion.Current, parsed.RootElement.GetProperty("acirVersion").GetString());
     }
 
     [Fact]
