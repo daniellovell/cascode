@@ -10,7 +10,7 @@ public class ACIRReaderBasicTests
     public void TryRead_ValidDocument_ReturnsSuccess()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL
@@ -36,7 +36,7 @@ circuit TestCircuit
     public void TryParse_ValidDocument_ReturnsSuccess()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL
@@ -75,7 +75,7 @@ circuit TestCircuit
     public void TryRead_MalformedDeviceDeclaration_ReturnsError()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL
@@ -99,7 +99,7 @@ circuit TestCircuit
     public void TryRead_MalformedBinding_ReturnsWarning()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL
@@ -127,7 +127,7 @@ circuit TestCircuit
     public void TryRead_DiagnosticsIncludeLineNumbers()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL
@@ -225,7 +225,7 @@ circuit TestCircuit
     public void ACIRReadResult_WarningCount_ReflectsWarnings()
     {
         var acir =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 
 circuit TestCircuit
   level EL

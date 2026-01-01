@@ -10,7 +10,7 @@ public class ACIRReaderHarnessTests
     public void TryParse_HarnessWithSweep_ParsesSweepCondition()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -39,7 +39,7 @@ circuit Test : SingleEndedAmp
     public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   harness:
@@ -63,7 +63,7 @@ circuit Test
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -85,7 +85,7 @@ circuit Test : SingleEndedAmp
     public void TryParse_HarnessWithAutoStepSweep_ParsesWithoutStep()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -109,7 +109,7 @@ circuit Test : SingleEndedAmp
     public void TryParse_HarnessWithParallelLoad_ParsesBothComponents()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   harness:
@@ -129,7 +129,7 @@ circuit Test
     public void TryParse_HarnessWithParallelLoadReverseOrder_ParsesBothComponents()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   harness:
@@ -149,7 +149,7 @@ circuit Test
     public void TryParse_HarnessWithMultipleSameTypeElements_ParsesAll()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   harness:
@@ -171,7 +171,7 @@ circuit Test
     public void TryParse_MalformedParallelLoad_EmitsDiagnostics()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   harness:
@@ -194,7 +194,7 @@ circuit Test
     public void TryParse_HarnessWithInvalidSweepRange_EmitsDiagnosticErrorIncludingLineAndRangeSpec()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test : SingleEndedAmp
   level EL
   supply VDD
@@ -221,7 +221,7 @@ circuit Test : SingleEndedAmp
     public void TryParse_HarnessWithMultipleSweeps_ParsesAll()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   supply VDD

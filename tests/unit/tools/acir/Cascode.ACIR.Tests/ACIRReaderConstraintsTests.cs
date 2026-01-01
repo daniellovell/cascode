@@ -8,7 +8,7 @@ public class ACIRReaderConstraintsTests
     public void TryParse_ConstraintsWithInlineComments_ParsesCorrectly()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   supply VDD
@@ -57,7 +57,7 @@ circuit Test
     public void TryParse_FullLineComments_AreIgnored()
     {
         var content =
-            @"ACIR 1.0
+            $@"ACIR {ACIRVersion.Current}
 circuit Test
   level EL
   supply VDD
