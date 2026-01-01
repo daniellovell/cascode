@@ -26,7 +26,7 @@ public class ACIRVersionTests
             var firstLine = File.ReadLines(file).FirstOrDefault();
             Assert.NotNull(firstLine);
 
-            var expected = $"ACIR {ACIRVersion.Current}"; // "ACIR 1.0"
+            var expected = $"ACIR {ACIRVersion.Current}";
             Assert.True(
                 firstLine.StartsWith(expected),
                 $"File {Path.GetRelativePath(repoRoot, file)} has version header '{firstLine}' but expected '{expected}'. "
@@ -38,17 +38,19 @@ public class ACIRVersionTests
     [Fact]
     public void Reader_AcceptsSameMajorDifferentMinor()
     {
-        var content = "ACIR 1.5\ncircuit Test\n  level EL";
+        var differentMinor = ACIRVersion.Minor + 4;
+        var content = $"ACIR {ACIRVersion.Major}.{differentMinor}\ncircuit Test\n  level EL";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success); // No error for minor mismatch
-        Assert.Equal(1, result.Document!.VersionMajor);
-        Assert.Equal(5, result.Document.VersionMinor);
+        Assert.Equal(ACIRVersion.Major, result.Document!.VersionMajor);
+        Assert.Equal(differentMinor, result.Document.VersionMinor);
     }
 
     [Fact]
     public void Reader_RejectsDifferentMajor()
     {
-        var content = "ACIR 2.0\ncircuit Test\n  level EL";
+        var differentMajor = ACIRVersion.Major + 1;
+        var content = $"ACIR {differentMajor}.0\ncircuit Test\n  level EL";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0007"));
