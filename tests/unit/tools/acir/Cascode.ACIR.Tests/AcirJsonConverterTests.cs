@@ -290,8 +290,8 @@ public class AcirJsonConverterTests
     {
         var original = new ACIRDocument
         {
-            VersionMajor = 1,
-            VersionMinor = 0,
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
             Circuits =
             [
                 new Circuit
@@ -321,8 +321,8 @@ public class AcirJsonConverterTests
     {
         return new ACIRDocument
         {
-            VersionMajor = 1,
-            VersionMinor = 0,
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
             Circuits =
             [
                 new Circuit
@@ -369,8 +369,8 @@ public class AcirJsonConverterTests
     {
         return new ACIRDocument
         {
-            VersionMajor = 1,
-            VersionMinor = 0,
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
             Circuits =
             [
                 new Circuit
@@ -432,8 +432,8 @@ public class AcirJsonConverterTests
     {
         return new ACIRDocument
         {
-            VersionMajor = 1,
-            VersionMinor = 0,
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
             Circuits =
             [
                 new Circuit

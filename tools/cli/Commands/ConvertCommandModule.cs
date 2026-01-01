@@ -164,6 +164,14 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
+        if (doc.VersionMajor != ACIRVersion.Major)
+        {
+            _state.AddMessage(
+                $"ACIR major version {doc.VersionMajor} not supported. Expected major version {ACIRVersion.Major}."
+            );
+            return new CommandResult(2, false);
+        }
+
         using var writer = new StringWriter();
         ACIRWriter.Write(doc, writer);
         var acirText = writer.ToString();
