@@ -7,8 +7,12 @@
     ],
     "level": "EL"
   },
-  "supply": "VDD",
-  "ground": "GND",
+  "supplies": [
+    "VDD"
+  ],
+  "grounds": [
+    "GND"
+  ],
   "ports": [
     {
       "name": "IN",
@@ -107,7 +111,9 @@
     "loads": [
       {
         "net": "OUT",
-        "capacitance": 1E-12
+        "capacitances": [
+          1E-12
+        ]
       }
     ],
     "sweeps": []

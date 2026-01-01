@@ -1,0 +1,292 @@
+using System.Collections.Generic;
+using System.Text.Json;
+using Cascode.ACIR;
+using Cascode.ACIR.Json;
+
+namespace Cascode.ACIR.Tests;
+
+public class AcirJsonConverterRoundTripTests
+{
+    [Fact]
+    public void RoundTrip_PreservesCircuitName()
+    {
+        var original = CreateSimpleElCircuit();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        Assert.Equal(original.Circuits[0].Name, roundTripped.Circuits[0].Name);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesDevices()
+    {
+        var original = CreateSimpleElCircuit();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        var originalDevice = original.Circuits[0].Fill!.Devices[0];
+        var roundTrippedDevice = roundTripped.Circuits[0].Fill!.Devices[0];
+
+        Assert.Equal(originalDevice.DeviceType, roundTrippedDevice.DeviceType);
+        Assert.Equal(originalDevice.Id, roundTrippedDevice.Id);
+        Assert.Equal(originalDevice.Bindings["G"], roundTrippedDevice.Bindings["G"]);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesConstraintSemantics()
+    {
+        var original = CreateCircuitWithConstraints();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        var originalConstraint = original.Circuits[0].Constraints!.Numeric[0];
+        var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Numeric[0];
+
+        Assert.Equal(originalConstraint.Id, roundTrippedConstraint.Id);
+        Assert.Equal(originalConstraint.Metric, roundTrippedConstraint.Metric);
+        Assert.Equal(originalConstraint.Op, roundTrippedConstraint.Op);
+        Assert.Equal(originalConstraint.Value, roundTrippedConstraint.Value);
+        Assert.Equal(originalConstraint.Unit, roundTrippedConstraint.Unit);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesMultipleSuppliesAndGrounds()
+    {
+        var original = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "MultiRail",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD", "VDDA"],
+                    Grounds = ["GND", "GNDA"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                },
+            ],
+        };
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        Assert.Equal(2, roundTripped.Circuits[0].Supplies.Count);
+        Assert.Equal("VDD", roundTripped.Circuits[0].Supplies[0]);
+        Assert.Equal("VDDA", roundTripped.Circuits[0].Supplies[1]);
+        Assert.Equal(2, roundTripped.Circuits[0].Grounds.Count);
+        Assert.Equal("GND", roundTripped.Circuits[0].Grounds[0]);
+        Assert.Equal("GNDA", roundTripped.Circuits[0].Grounds[1]);
+    }
+
+    [Fact]
+    public void RoundTrip_WithBenches_PreservesBenchNames()
+    {
+        var original = CreateCircuitWithBenches();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        Assert.NotNull(roundTripped.Circuits[0].Benches);
+        Assert.Equal(2, roundTripped.Circuits[0].Benches!.Benches.Count);
+        Assert.Equal("DCOpPoint", roundTripped.Circuits[0].Benches!.Benches[0].Name);
+        Assert.Equal("ACSmallSignal", roundTripped.Circuits[0].Benches!.Benches[1].Name);
+    }
+
+    [Fact]
+    public void ToJson_WithBenches_EmitsBenchesArray()
+    {
+        var doc = CreateCircuitWithBenches();
+
+        var json = AcirJsonConverter.ToJson(doc);
+        var parsed = JsonDocument.Parse(json);
+
+        var benches = parsed.RootElement.GetProperty("benches");
+        Assert.Equal(2, benches.GetArrayLength());
+        Assert.Equal("DCOpPoint", benches[0].GetString());
+        Assert.Equal("ACSmallSignal", benches[1].GetString());
+    }
+
+    [Fact]
+    public void RoundTrip_WithNets_PreservesNets()
+    {
+        var original = CreateCircuitWithNets();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var roundTripped = AcirJsonConverter.FromJson(json);
+
+        Assert.NotNull(roundTripped.Circuits[0].Fill);
+        Assert.Equal(2, roundTripped.Circuits[0].Fill!.Nets.Count);
+        Assert.Equal("tnode", roundTripped.Circuits[0].Fill!.Nets[0].Id);
+        Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[0].Domain);
+        Assert.Equal("bias_node", roundTripped.Circuits[0].Fill!.Nets[1].Id);
+        Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[1].Domain);
+    }
+
+    [Fact]
+    public void ToJson_WithNets_EmitsNetsArray()
+    {
+        var doc = CreateCircuitWithNets();
+
+        var json = AcirJsonConverter.ToJson(doc);
+        var parsed = JsonDocument.Parse(json);
+
+        var nets = parsed.RootElement.GetProperty("nets");
+        Assert.Equal(2, nets.GetArrayLength());
+        Assert.Equal("tnode", nets[0].GetProperty("name").GetString());
+        Assert.Equal("analog", nets[0].GetProperty("kind").GetString());
+        Assert.Equal("bias_node", nets[1].GetProperty("name").GetString());
+        Assert.Equal("analog", nets[1].GetProperty("kind").GetString());
+    }
+
+    private static ACIRDocument CreateSimpleElCircuit()
+    {
+        return new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "OTA5T",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports =
+                    [
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    ],
+                    Fill = new FillBlock
+                    {
+                        Devices =
+                        [
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M1",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["G"] = "IN",
+                                    ["D"] = "OUT",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                                Params = new Dictionary<string, string>
+                                {
+                                    ["W"] = "1u",
+                                    ["L"] = "180n",
+                                },
+                                PdkDevice = "nmos",
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+    }
+
+    private static ACIRDocument CreateCircuitWithConstraints()
+    {
+        return new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "OTA5T",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports =
+                    [
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    ],
+                    Fill = new FillBlock { Devices = [] },
+                    Constraints = new ConstraintsBlock
+                    {
+                        Numeric =
+                        [
+                            new NumericConstraint
+                            {
+                                Id = "c_gbw",
+                                Metric = "GainBandwidth",
+                                Node = "OUT",
+                                Op = ">=",
+                                Value = "20M",
+                                Unit = "Hz",
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+    }
+
+    private static ACIRDocument CreateCircuitWithBenches()
+    {
+        return new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports = [],
+                    Fill = new FillBlock { Devices = [] },
+                    Benches = new BenchesBlock
+                    {
+                        Benches =
+                        [
+                            new BenchConfig { Name = "DCOpPoint" },
+                            new BenchConfig { Name = "ACSmallSignal" },
+                        ],
+                    },
+                },
+            ],
+        };
+    }
+
+    private static ACIRDocument CreateCircuitWithNets()
+    {
+        return new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = ["VDD"],
+                    Grounds = ["GND"],
+                    Ports = [],
+                    Fill = new FillBlock
+                    {
+                        Nets =
+                        [
+                            new NetDeclaration { Id = "tnode", Domain = "analog" },
+                            new NetDeclaration { Id = "bias_node", Domain = "analog" },
+                        ],
+                        Devices = [],
+                    },
+                },
+            ],
+        };
+    }
+}

@@ -164,6 +164,14 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
+        if (doc.VersionMajor != ACIRVersion.Major)
+        {
+            _state.AddMessage(
+                $"ACIR major version {doc.VersionMajor} not supported. Expected major version {ACIRVersion.Major}."
+            );
+            return new CommandResult(2, false);
+        }
+
         using var writer = new StringWriter();
         ACIRWriter.Write(doc, writer);
         var acirText = writer.ToString();
@@ -213,8 +221,19 @@ internal sealed class ConvertCommandModule : ICommandModule
             {
                 toStdout = true;
             }
-            else if ((arg == "-o" || arg == "--output") && i + 1 < args.Length)
+            else if (arg == "-o" || arg == "--output")
             {
+                if (i + 1 >= args.Length)
+                {
+                    return (
+                        string.Empty,
+                        false,
+                        false,
+                        null,
+                        false,
+                        "Output path required after -o/--output"
+                    );
+                }
                 outputPath = args[++i];
             }
             else if (!arg.StartsWith("-"))

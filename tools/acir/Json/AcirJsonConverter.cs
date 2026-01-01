@@ -80,8 +80,8 @@ public static class AcirJsonConverter
             Name = jsonDoc.Circuit.Name,
             Traits = jsonDoc.Circuit.Traits?.ToList(),
             Level = ACIRLevel.EL,
-            Supplies = jsonDoc.Supply != null ? [jsonDoc.Supply] : [],
-            Grounds = jsonDoc.Ground != null ? [jsonDoc.Ground] : [],
+            Supplies = jsonDoc.Supplies.ToList(),
+            Grounds = jsonDoc.Grounds.ToList(),
             Ports = jsonDoc
                 .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
                 .ToList(),
@@ -130,8 +130,8 @@ public static class AcirJsonConverter
                 Traits = circuit.Traits?.Count > 0 ? circuit.Traits : null,
                 Level = "EL",
             },
-            Supply = circuit.Supplies.FirstOrDefault(),
-            Ground = circuit.Grounds.FirstOrDefault(),
+            Supplies = circuit.Supplies,
+            Grounds = circuit.Grounds,
             Ports = circuit
                 .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
                 .ToList(),
@@ -264,22 +264,22 @@ public static class AcirJsonConverter
 
     private static AcirJsonHarnessLoad ConvertLoad(LoadValue load)
     {
-        double capacitance = 0;
-        double resistance = 0;
+        var capacitances = new List<double>();
+        var resistances = new List<double>();
 
         foreach (var element in load.Elements)
         {
             if (element.Type == "C")
-                capacitance = ParseHarnessValue(element.Value);
+                capacitances.Add(ParseHarnessValue(element.Value));
             else if (element.Type == "R")
-                resistance = ParseHarnessValue(element.Value);
+                resistances.Add(ParseHarnessValue(element.Value));
         }
 
         return new AcirJsonHarnessLoad
         {
             Net = load.Net,
-            Capacitance = capacitance,
-            Resistance = resistance,
+            Capacitances = capacitances,
+            Resistances = resistances,
         };
     }
 
@@ -314,13 +314,29 @@ public static class AcirJsonConverter
     private static (int major, int minor) ParseVersion(string version)
     {
         var parts = version.Split('.');
-        if (
-            parts.Length >= 2
-            && int.TryParse(parts[0], out var major)
-            && int.TryParse(parts[1], out var minor)
-        )
-            return (major, minor);
-        return (ACIRVersion.Major, ACIRVersion.Minor);
+
+        if (parts.Length < 2)
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        if (!int.TryParse(parts[0], out var major))
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Major version '{parts[0]}' is not a valid integer. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        if (!int.TryParse(parts[1], out var minor))
+        {
+            throw new FormatException(
+                $"Invalid ACIR version format: '{version}'. Minor version '{parts[1]}' is not a valid integer. Expected format: 'MAJOR.MINOR' (e.g., '1.0')."
+            );
+        }
+
+        return (major, minor);
     }
 
     private static FillBlock BuildFillBlock(AcirJsonDocument jsonDoc)
@@ -424,10 +440,16 @@ public static class AcirJsonConverter
     private static LoadValue BuildLoadValue(AcirJsonHarnessLoad load)
     {
         var elements = new List<LoadElement>();
-        if (load.Capacitance != 0)
-            elements.Add(new LoadElement("C", FormatCapacitance(load.Capacitance)));
-        if (load.Resistance != 0)
-            elements.Add(new LoadElement("R", FormatResistance(load.Resistance)));
+        foreach (var capacitance in load.Capacitances)
+        {
+            if (capacitance != 0)
+                elements.Add(new LoadElement("C", FormatCapacitance(capacitance)));
+        }
+        foreach (var resistance in load.Resistances)
+        {
+            if (resistance != 0)
+                elements.Add(new LoadElement("R", FormatResistance(resistance)));
+        }
 
         return new LoadValue { Net = load.Net, Elements = elements };
     }
@@ -450,6 +472,6 @@ public static class AcirJsonConverter
 
     private static string FormatResistance(double value)
     {
-        return $"{ACIRBenchAdapter.FormatSIValue(value)}";
+        return $"{ACIRBenchAdapter.FormatSIValue(value)}Ohm";
     }
 }

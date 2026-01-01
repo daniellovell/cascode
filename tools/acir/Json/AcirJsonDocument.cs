@@ -14,13 +14,11 @@ public sealed record AcirJsonDocument
     [JsonPropertyName("circuit")]
     public required AcirJsonCircuitInfo Circuit { get; init; }
 
-    [JsonPropertyName("supply")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Supply { get; init; }
+    [JsonPropertyName("supplies")]
+    public IReadOnlyList<string> Supplies { get; init; } = [];
 
-    [JsonPropertyName("ground")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Ground { get; init; }
+    [JsonPropertyName("grounds")]
+    public IReadOnlyList<string> Grounds { get; init; } = [];
 
     [JsonPropertyName("ports")]
     public IReadOnlyList<AcirJsonPort> Ports { get; init; } = [];
@@ -239,13 +237,13 @@ public sealed record AcirJsonHarnessLoad
     [JsonPropertyName("net")]
     public required string Net { get; init; }
 
-    [JsonPropertyName("capacitance")]
+    [JsonPropertyName("capacitances")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public double Capacitance { get; init; }
+    public IReadOnlyList<double> Capacitances { get; init; } = Array.Empty<double>();
 
-    [JsonPropertyName("resistance")]
+    [JsonPropertyName("resistances")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
-    public double Resistance { get; init; }
+    public IReadOnlyList<double> Resistances { get; init; } = Array.Empty<double>();
 }
 
 /// <summary>
