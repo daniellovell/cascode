@@ -26,17 +26,7 @@ public sealed class RenderOptions
 /// </summary>
 public sealed class SvgRenderer
 {
-    private const double MosfetWidth = 17;
-    private const double MosfetHeight = 26;
-    private const double PassiveWidth = 26;
-    private const double PassiveHeight = 9;
     private const double Margin = 40;
-    private const double PortSymbolWidth = 13.5;
-    private const double PortSymbolHeight = 5.0;
-
-    private const int CellWidth = 60;
-    private const int CellHeight = 50;
-    private const int RailMarginConst = 15;
 
     /// <summary>
     /// Renders the circuit to SVG using the placement and routing system.
@@ -49,7 +39,9 @@ public sealed class SvgRenderer
         RenderOptions options
     )
     {
-        var width = options.ExplicitWidth ?? routing.CanvasWidth + (int)(2 * Margin);
+        var extraRightMargin = graph.OutputPorts.Count > 0 ? 30 : 0;
+        var width =
+            options.ExplicitWidth ?? routing.CanvasWidth + (int)(2 * Margin) + extraRightMargin;
         var height = options.ExplicitHeight ?? routing.CanvasHeight + (int)(2 * Margin);
 
         var sb = new StringBuilder();
@@ -101,17 +93,17 @@ public sealed class SvgRenderer
         {
             var supply = graph.Supplies.First();
             sb.AppendLine(
-                $@"<line class=""rail"" data-net=""{EscapeXml(supply)}"" x1=""0"" y1=""{RailMarginConst / 2}"" x2=""{routing.CanvasWidth}"" y2=""{RailMarginConst / 2}"" />"
+                $@"<line class=""rail"" data-net=""{EscapeXml(supply)}"" x1=""0"" y1=""{DeviceGeometry.RailMargin / 2}"" x2=""{routing.CanvasWidth}"" y2=""{DeviceGeometry.RailMargin / 2}"" />"
             );
             sb.AppendLine(
-                $@"<text class=""port-label"" x=""0"" y=""{RailMarginConst / 2 - 5}"">{EscapeXml(supply)}</text>"
+                $@"<text class=""port-label"" x=""0"" y=""{DeviceGeometry.RailMargin / 2 - 5}"">{EscapeXml(supply)}</text>"
             );
         }
 
         if (graph.Grounds.Count > 0)
         {
             var ground = graph.Grounds.First();
-            var gndY = routing.CanvasHeight - RailMarginConst / 2;
+            var gndY = routing.CanvasHeight - DeviceGeometry.RailMargin / 2;
             sb.AppendLine(
                 $@"<line class=""rail"" data-net=""{EscapeXml(ground)}"" x1=""0"" y1=""{gndY}"" x2=""{routing.CanvasWidth}"" y2=""{gndY}"" />"
             );
@@ -179,25 +171,23 @@ public sealed class SvgRenderer
 
             double x,
                 y;
-            // Compute the vertical axis X (where drain/source/passive terminals connect)
-            // This must align with the routing grid (pitch 10)
-            var rawAxisX = cell.Column * CellWidth + CellWidth / 2 + (int)(MosfetWidth / 2.0);
-            var verticalAxisX = SnapToRoutingGrid(rawAxisX);
 
             if (deviceType is "resistor" or "capacitor")
             {
-                // After rotation, passive terminal axis is at x + PassiveHeight/2
-                x = verticalAxisX - PassiveHeight / 2.0;
-                y = cell.Row * CellHeight + RailMarginConst + CellHeight / 2 - PassiveWidth / 2;
+                var placementInfo = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+                x = placementInfo.X;
+                y = placementInfo.Y;
                 orientation = DeviceOrientation.Vertical;
             }
             else
             {
-                // For non-mirrored MOSFET, drain/source is at x + 16.5
-                // For mirrored MOSFET, drain/source is at x + 0.5 (MosfetWidth - 16.5)
-                var drainOffset = cell.MirrorX ? 0.5 : 16.5;
-                x = verticalAxisX - drainOffset;
-                y = cell.Row * CellHeight + RailMarginConst + CellHeight / 2 - MosfetHeight / 2;
+                var placementInfo = DeviceGeometry.GetMosfetPlacement(
+                    cell.Row,
+                    cell.Column,
+                    cell.MirrorX
+                );
+                x = placementInfo.X;
+                y = placementInfo.Y;
             }
 
             sb.AppendLine(
@@ -256,20 +246,21 @@ public sealed class SvgRenderer
 
         // Input/bias ports on left side - align to gate Y positions
         var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
-        var leftPortYs = ComputePortYPositions(leftPorts, terminalYByNet, "G");
+        var leftPortYs = ComputePortYPositions(leftPorts, terminalYByNet, "G", preferMaxY: false);
 
         foreach (var portName in leftPorts)
         {
-            var x = -PortSymbolWidth;
-            var y = leftPortYs.GetValueOrDefault(portName, RailMarginConst + 20.0);
+            var x = -DeviceGeometry.PortPinX;
+            var y = leftPortYs.GetValueOrDefault(portName, DeviceGeometry.RailMargin + 20.0);
+            var originY = y - DeviceGeometry.PortPinY;
 
             sb.AppendLine(
-                $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(y)})"">"
+                $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(originY)})"">"
             );
             sb.AppendLine(symbol);
 
             var labelX = -5.0;
-            var labelY = PortSymbolHeight / 2 + 3;
+            var labelY = DeviceGeometry.PortHeight / 2 + 3;
             sb.AppendLine(
                 $@"<text class=""port-label"" x=""{F(labelX)}"" y=""{F(labelY)}"" text-anchor=""end"">{EscapeXml(portName)}</text>"
             );
@@ -279,22 +270,23 @@ public sealed class SvgRenderer
 
         // Output ports on right side - align to mean drain Y positions
         var rightPorts = graph.OutputPorts.ToList();
-        var rightPortYs = ComputePortYPositions(rightPorts, terminalYByNet, "D");
+        var rightPortYs = ComputePortYPositions(rightPorts, terminalYByNet, "D", preferMaxY: true);
 
         foreach (var portName in rightPorts)
         {
             var x = (double)routing.CanvasWidth;
-            var y = rightPortYs.GetValueOrDefault(portName, RailMarginConst + 20.0);
+            var y = rightPortYs.GetValueOrDefault(portName, DeviceGeometry.RailMargin + 20.0);
+            var originY = y - DeviceGeometry.PortPinY;
 
             sb.AppendLine(
-                $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(y)})"">"
+                $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(originY)})"">"
             );
             sb.AppendLine(
-                $@"<g transform=""translate({F(PortSymbolWidth)}, 0) scale(-1, 1)"">{symbol}</g>"
+                $@"<g transform=""translate({F(DeviceGeometry.PortPinX)}, 0) scale(-1, 1)"">{symbol}</g>"
             );
 
-            var labelX = PortSymbolWidth + 5;
-            var labelY = PortSymbolHeight / 2 + 3;
+            var labelX = DeviceGeometry.PortWidth + 5;
+            var labelY = DeviceGeometry.PortHeight / 2 + 3;
             sb.AppendLine(
                 $@"<text class=""port-label"" x=""{F(labelX)}"" y=""{F(labelY)}"" text-anchor=""start"">{EscapeXml(portName)}</text>"
             );
@@ -324,17 +316,31 @@ public sealed class SvgRenderer
             }
 
             var deviceType = device.DeviceType.ToLowerInvariant();
-            var baseY = cell.Row * CellHeight + RailMarginConst + CellHeight / 2.0;
 
             if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
             {
-                var gateY = baseY;
-                var drainY = baseY - MosfetHeight / 3;
-                var sourceY = baseY + MosfetHeight / 3;
+                var isPmos = deviceType is "pmos" or "pfet";
+                var placementInfo = DeviceGeometry.GetMosfetPlacement(
+                    cell.Row,
+                    cell.Column,
+                    cell.MirrorX
+                );
 
-                AddTerminalY(result, graph, deviceId, "G", gateY);
-                AddTerminalY(result, graph, deviceId, "D", drainY);
-                AddTerminalY(result, graph, deviceId, "S", sourceY);
+                AddTerminalY(result, graph, deviceId, "G", placementInfo.GateY);
+                AddTerminalY(
+                    result,
+                    graph,
+                    deviceId,
+                    "D",
+                    isPmos ? placementInfo.SourceY : placementInfo.DrainY
+                );
+                AddTerminalY(
+                    result,
+                    graph,
+                    deviceId,
+                    "S",
+                    isPmos ? placementInfo.DrainY : placementInfo.SourceY
+                );
             }
         }
 
@@ -371,7 +377,8 @@ public sealed class SvgRenderer
     private static Dictionary<string, double> ComputePortYPositions(
         List<string> portNames,
         Dictionary<string, List<(string Terminal, double Y)>> terminalYByNet,
-        string preferredTerminal
+        string preferredTerminal,
+        bool preferMaxY
     )
     {
         var portYs = new Dictionary<string, double>();
@@ -390,19 +397,21 @@ public sealed class SvgRenderer
 
                 if (matchingTerminals.Count > 0)
                 {
-                    // Use mean Y of matching terminals
-                    y = matchingTerminals.Average(t => t.Y);
+                    // Use mean or max Y of matching terminals
+                    y = preferMaxY
+                        ? matchingTerminals.Max(t => t.Y)
+                        : matchingTerminals.Average(t => t.Y);
                 }
                 else
                 {
-                    // Fallback to mean of all terminals on this net
-                    y = terminals.Average(t => t.Y);
+                    // Fallback to mean or max of all terminals on this net
+                    y = preferMaxY ? terminals.Max(t => t.Y) : terminals.Average(t => t.Y);
                 }
             }
             else
             {
                 // No terminals found, use default position
-                y = RailMarginConst + 20.0 + usedYs.Count * 20;
+                y = DeviceGeometry.RailMargin + 20.0 + usedYs.Count * 20;
             }
 
             // Resolve collisions - if Y is too close to an existing port, offset it
@@ -478,9 +487,9 @@ public sealed class SvgRenderer
         var type = deviceType.ToLowerInvariant();
         if (type is "nmos" or "pmos" or "nfet" or "pfet")
         {
-            return (MosfetWidth, MosfetHeight);
+            return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
         }
-        return (PassiveWidth, PassiveHeight);
+        return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
     }
 
     private static (double X, double Y) GetLabelPosition(string deviceType)
@@ -543,15 +552,5 @@ public sealed class SvgRenderer
             .Replace(">", "&gt;")
             .Replace("\"", "&quot;")
             .Replace("'", "&apos;");
-    }
-
-    /// <summary>
-    /// Snaps a value to the routing grid (pitch 10) using round-to-nearest.
-    /// Must match FineGridRouter.SnapToGrid for wire/terminal alignment.
-    /// </summary>
-    private static int SnapToRoutingGrid(int value)
-    {
-        const int routingPitch = 10;
-        return ((value + routingPitch / 2) / routingPitch) * routingPitch;
     }
 }

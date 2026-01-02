@@ -120,8 +120,8 @@ internal sealed class RenderCommandModule : ICommandModule
             // Coarse grid placement using SAT solver
             var placement = CoarseGridPlacer.Place(topology, graph);
 
-            // Fine grid wire routing
-            var routing = FineGridRouter.Route(placement, graph);
+            // Wire routing using maze router
+            var routing = MazeRouter.Route(placement, graph);
 
             // Get style
             var style = StyleSheet.GetByName(options.StyleName ?? "default");

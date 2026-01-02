@@ -1,6 +1,7 @@
 namespace Cascode.Render.Placement;
 
 using Cascode.Render.Analysis;
+using Cascode.Render.OrTools;
 using Google.OrTools.Sat;
 
 /// <summary>
@@ -73,7 +74,7 @@ public static class CoarseGridPlacer
         }
 
         var solver = new CpSolver();
-        solver.StringParameters = $"max_time_in_seconds:{MaxSolveTimeSeconds}";
+        solver.StringParameters = OrToolsSolverDefaults.BuildSolverParameters(MaxSolveTimeSeconds);
         var status = solver.Solve(model);
 
         if (status != CpSolverStatus.Optimal && status != CpSolverStatus.Feasible)
@@ -81,7 +82,7 @@ public static class CoarseGridPlacer
             return FallbackPlacement(topology, estimatedColumns, symmetryAxis);
         }
 
-        var placements = ExtractPlacements(solver, deviceColumn, topology, symmetryAxis);
+        var placements = ExtractPlacements(solver, deviceColumn, topology, symmetryAxis, graph);
         var actualColumnCount = placements.Values.Max(c => c.Column) + 1;
 
         return new CoarseGridResult
@@ -282,21 +283,82 @@ public static class CoarseGridPlacer
 
     /// <summary>
     /// Extracts placements from the solved model.
+    /// For input differential pairs, gates face outward (away from axis).
+    /// For other symmetric groups (current mirrors, load pairs), gates face inward (toward axis).
     /// </summary>
     private static Dictionary<string, GridCell> ExtractPlacements(
         CpSolver solver,
         Dictionary<string, IntVar> deviceColumn,
         TopologyResult topology,
-        int symmetryAxis
+        int symmetryAxis,
+        CircuitGraph graph
     )
     {
         var placements = new Dictionary<string, GridCell>();
+
+        // Build a set of devices that are part of input differential pairs
+        var inputDiffPairDevices = new HashSet<string>();
+        var otherSymmetricDevices = new HashSet<string>();
+
+        foreach (var group in topology.SymmetricGroups)
+        {
+            if (group.Type == SymmetryType.DiffPair)
+            {
+                // Check if this diff pair has gates connected to input ports
+                var hasInputGate = group.DeviceIds.Any(deviceId =>
+                {
+                    var gateNet = graph.GetNetForTerminal(deviceId, "G");
+                    return gateNet != null && graph.InputPorts.Contains(gateNet);
+                });
+
+                if (hasInputGate)
+                {
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        inputDiffPairDevices.Add(deviceId);
+                    }
+                }
+                else
+                {
+                    foreach (var deviceId in group.DeviceIds)
+                    {
+                        otherSymmetricDevices.Add(deviceId);
+                    }
+                }
+            }
+            else
+            {
+                // Current mirrors and load pairs: gates face inward
+                foreach (var deviceId in group.DeviceIds)
+                {
+                    otherSymmetricDevices.Add(deviceId);
+                }
+            }
+        }
 
         foreach (var (deviceId, colVar) in deviceColumn)
         {
             var col = (int)solver.Value(colVar);
             var row = topology.DeviceRows.GetValueOrDefault(deviceId, 0);
-            var mirrorX = col > symmetryAxis;
+
+            bool mirrorX;
+            if (inputDiffPairDevices.Contains(deviceId))
+            {
+                // Input diff pair: gates face outward (away from axis)
+                // Left of axis: gate left (mirrorX=false), right of axis: gate right (mirrorX=true)
+                mirrorX = col > symmetryAxis;
+            }
+            else if (otherSymmetricDevices.Contains(deviceId))
+            {
+                // Other symmetric groups: gates face inward (toward axis)
+                // Left of axis: gate right (mirrorX=true), right of axis: gate left (mirrorX=false)
+                mirrorX = col < symmetryAxis;
+            }
+            else
+            {
+                // Non-symmetric devices: default to gates facing left
+                mirrorX = false;
+            }
 
             placements[deviceId] = new GridCell(row, col, mirrorX);
         }
