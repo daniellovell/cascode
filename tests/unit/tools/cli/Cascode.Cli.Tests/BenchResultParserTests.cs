@@ -76,4 +76,3 @@ RESULT: PhaseMargin = 60.5 deg
         Assert.Equal(60.5, result.Measurements["PhaseMargin"].Value);
     }
 }
-
