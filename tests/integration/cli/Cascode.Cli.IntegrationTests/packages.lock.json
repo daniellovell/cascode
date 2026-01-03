@@ -352,8 +352,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[0.2.2, )",
-          "Cascode.Parser": "[0.2.2, )"
+          "Cascode.Bench": "[0.3.0, )",
+          "Cascode.Parser": "[0.3.0, )"
         }
       },
       "cascode.bench": {
@@ -367,11 +367,11 @@
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.2.2, )",
-          "Cascode.Bench": "[0.2.2, )",
-          "Cascode.Compiler": "[0.2.2, )",
-          "Cascode.Render": "[0.2.2, )",
-          "Cascode.Workspace": "[0.2.2, )",
+          "Cascode.ACIR": "[0.3.0, )",
+          "Cascode.Bench": "[0.3.0, )",
+          "Cascode.Compiler": "[0.3.0, )",
+          "Cascode.Render": "[0.3.0, )",
+          "Cascode.Workspace": "[0.3.0, )",
           "Microsoft.Extensions.Logging": "[8.0.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[8.0.0, )",
           "Microsoft.Extensions.Logging.Console": "[8.0.0, )",
@@ -382,8 +382,8 @@
       "cascode.compiler": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.2.2, )",
-          "Cascode.Parser": "[0.2.2, )"
+          "Cascode.ACIR": "[0.3.0, )",
+          "Cascode.Parser": "[0.3.0, )"
         }
       },
       "cascode.parser": {
@@ -395,7 +395,7 @@
       "cascode.render": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.2.2, )",
+          "Cascode.ACIR": "[0.3.0, )",
           "Google.OrTools": "[9.10.4067, )"
         }
       },

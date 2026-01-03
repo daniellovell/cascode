@@ -65,8 +65,8 @@ cascode --help
   - dotnet tool: `dotnet tool install -g Cascode.Cli`
 
 - Pre-release (release candidates, nightly tags):
-  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.2.2-rc.1`)
-  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.2.2-rc.1`
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.3.0-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.3.0-rc.1`
   - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---

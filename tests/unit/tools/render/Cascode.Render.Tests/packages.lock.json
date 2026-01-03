@@ -189,8 +189,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[0.2.2, )",
-          "Cascode.Parser": "[0.2.2, )"
+          "Cascode.Bench": "[0.3.0, )",
+          "Cascode.Parser": "[0.3.0, )"
         }
       },
       "cascode.bench": {
@@ -210,7 +210,7 @@
       "cascode.render": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.2.2, )",
+          "Cascode.ACIR": "[0.3.0, )",
           "Google.OrTools": "[9.10.4067, )"
         }
       }
