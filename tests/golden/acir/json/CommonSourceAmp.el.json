@@ -1,0 +1,124 @@
+{
+  "acirVersion": "1.1",
+  "circuit": {
+    "name": "CommonSourceAmp",
+    "traits": [
+      "SingleEndedAmp"
+    ],
+    "level": "EL"
+  },
+  "supplies": [
+    "VDD"
+  ],
+  "grounds": [
+    "GND"
+  ],
+  "ports": [
+    {
+      "name": "IN",
+      "kind": "analog"
+    },
+    {
+      "name": "OUT",
+      "kind": "analog"
+    },
+    {
+      "name": "VBIAS",
+      "kind": "bias"
+    }
+  ],
+  "nets": [],
+  "components": [
+    {
+      "kind": "nmos",
+      "name": "M_in",
+      "connections": {
+        "D": "OUT",
+        "G": "IN",
+        "S": "GND",
+        "B": "GND"
+      },
+      "params": {
+        "W": "10u",
+        "L": "180n",
+        "M": "1"
+      },
+      "process": "nmos"
+    },
+    {
+      "kind": "pmos",
+      "name": "load.M",
+      "connections": {
+        "D": "OUT",
+        "G": "VBIAS",
+        "S": "VDD",
+        "B": "VDD"
+      },
+      "params": {
+        "W": "20u",
+        "L": "180n",
+        "M": "1"
+      },
+      "process": "pmos"
+    }
+  ],
+  "constraints": {
+    "numeric": [
+      {
+        "id": "c_gbw",
+        "metric": "GainBandwidth",
+        "node": "OUT",
+        "op": "\u003E=",
+        "value": 50000000,
+        "unit": "Hz"
+      },
+      {
+        "id": "c_gain",
+        "metric": "PassbandGain",
+        "node": "OUT",
+        "op": "\u003E=",
+        "value": 30,
+        "unit": "dB"
+      }
+    ],
+    "tech": [],
+    "measure": [
+      {
+        "id": "m_gbw",
+        "bench": "SEAmpACBench",
+        "metric": "GainBandwidth",
+        "node": "OUT"
+      },
+      {
+        "id": "m_gain",
+        "bench": "SEAmpACBench",
+        "metric": "PassbandGain",
+        "node": "OUT"
+      }
+    ]
+  },
+  "harness": {
+    "supply": {
+      "net": "VDD",
+      "voltage": 1.8
+    },
+    "biases": [
+      {
+        "net": "VBIAS",
+        "voltage": 0.7
+      }
+    ],
+    "loads": [
+      {
+        "net": "OUT",
+        "capacitances": [
+          1E-12
+        ]
+      }
+    ],
+    "sweeps": []
+  },
+  "benches": [
+    "SEAmpACBench"
+  ]
+}

@@ -102,6 +102,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - **Minor bump**: additive-only changes - reader accepts any minor within same major
 - YOU MUST bump version when changing: `ACIRDocument.cs`, `ACIRReader.cs`, `ACIRWriter.cs`, `ACIRBenchAdapter.cs`, `ACIRTemplateHarness.cs`, or template data contracts
 - On bump: update all `tests/golden/acir/**/*.cir` headers to latest MAJOR.MINOR
+- On bump: inspect and update all ACIR versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
 
 ## Anti‑Patterns
