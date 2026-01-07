@@ -18,7 +18,7 @@ ACIR is produced at three elaboration levels that describe how far the front end
 - ML (Mid Level): all slots have been bound to concrete motif types and all pins are connected; parameters may still be symbolic, and the representation remains PDK-agnostic.
 - EL (Electrical Level): parameters are numeric wherever required by the spec, all pins are connected, and PDK-specific device choices have been recorded so that the document is SPICE-ready. EL supports both fully flattened form (primitive devices only) and hierarchical form (circuit instances with attach-based composition).
 
-Rules in the rest of this chapter tighten as you move from HL to ML to EL; §3.7 lists the exact invariants per level.
+Rules in the rest of this chapter tighten as you move from HL to ML to EL; [§3.7](#37-elaboration-levels) lists the exact invariants per level.
 
 ---
 
@@ -30,7 +30,7 @@ ACIR optionally carries higher-level connectivity constraints expressed through 
 
 Text output is deterministic. Instance and net orderings follow stable rules, and formatting is consistent across serialization runs. This guarantees diff stability and allows CI pipelines to compare golden files directly.
 
-Elaboration proceeds through three levels: HL (High Level) permits open slots and symbolic sizing, ML (Mid Level) requires all slots bound to concrete motifs while allowing symbolic parameters, and EL (Electrical Level) demands numeric values and PDK-specific device choices so that the document is SPICE-ready. Pin-coverage rules tighten at each level, and §3.7 enumerates the exact invariants.
+Elaboration proceeds through three levels: HL (High Level) permits open slots and symbolic sizing, ML (Mid Level) requires all slots bound to concrete motifs while allowing symbolic parameters, and EL (Electrical Level) demands numeric values and PDK-specific device choices so that the document is SPICE-ready. Pin-coverage rules tighten at each level, and [§3.7](#37-elaboration-levels) enumerates the exact invariants.
 
 The format is line-oriented. Each statement occupies one logical line, which simplifies grep-based searches, improves LLM comprehension, and produces clean unified diffs.
 
@@ -459,7 +459,7 @@ Parameter references in device sizing use the `$` prefix for clarity: `W=$W_inpu
 
 **Rationale for sizing parameters in EL:** Although EL represents sizing-complete circuits where device dimensions are finalized, some circuits have inherent structural ratios fundamental to their operation. For example, a current mirror may have a fixed 2:1 ratio between sense and tap transistors that is part of the circuit's topological identity, not a sizing decision. These ratio relationships are preserved as parameters even in EL because they represent architectural intent rather than optimization variables.
 
-**Topological vs. sizing parameters:** Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name before ACIR emission. Only sizing parameters (W, L, ratios) remain as runtime parameters. See §3.3.12 for monomorphization rules.
+**Topological vs. sizing parameters:** Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name before ACIR emission. Only sizing parameters (W, L, ratios) remain as runtime parameters. See [§3.3.12](#3312-topological-monomorphization) for monomorphization rules.
 
 ### 3.3.8 The `inline` Annotation
 
@@ -652,7 +652,7 @@ attach m to c via TraitB::TraitC    // uses TraitB's connector (Y -> Z)
 // Without 'via', ambiguous which connector applies
 ```
 
-Attach statements are resolved during SPICE emission using a union-find algorithm that computes equivalence classes over nets and terminal endpoints. See §3.13.3 for the detailed resolution algorithm and §3.13.4 for net unification semantics.
+Attach statements are resolved during SPICE emission using a union-find algorithm that computes equivalence classes over nets and terminal endpoints. See [§3.13.3](#3133-connectivity-resolution) for the detailed resolution algorithm and [§3.13.4](#3134-net-unification-semantics) for net unification semantics.
 
 #### 3.3.11.3 Trait Definitions (In-Document)
 
@@ -671,13 +671,13 @@ trait <TraitName>:
       ...
 ```
 
-Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `TAP[*]`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see §3.3.12).
+Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `TAP[*]`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see [§3.3.12](#3312-topological-monomorphization)).
 
 Connectors define how instances of one trait connect to instances of another. The connector `to DiffPairLike` on `CurrentMirrorLike` is referenced as `CurrentMirrorLike::DiffPairLike` in attach statements.
 
 #### 3.3.11.4 Error Conditions
 
-Each error condition corresponds to a diagnostic code defined in §3.10.
+Each error condition corresponds to a diagnostic code defined in [§3.10](#310-diagnostics).
 
 - **Named net merge (ACIR0020):** `error: attach would merge distinct named nets 'net_a' and 'net_b'; use explicit 'connect' to unify`
 - **Connector not found (ACIR0021):** `error: no connector CurrentMirrorLike::ResistorLoad in document`
@@ -706,7 +706,7 @@ ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditiona
 
 **Naming convention:**
 
-```
+```text
 <BaseName>_<param1>_<value1>[_<param2>_<value2>...]
 ```
 
@@ -714,7 +714,7 @@ Topological parameters appear alphabetically: `DiffPair_hasTail_true_p_NMOS`
 
 **Instance references MUST use the specialized name:**
 
-```
+```acir
 // Correct
 inst dp : DiffPair_hasTail_true_p_NMOS
   param W_input = 4u
@@ -1034,7 +1034,7 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   ...
 ```
 
-Hierarchical EL documents contain multiple circuits; the top-level circuit appears first. Child circuits marked `inline` are expanded during SPICE emission. See §3.3.6 for circuit instantiation and §3.3.8 for the `inline` annotation.
+Hierarchical EL documents contain multiple circuits; the top-level circuit appears first. Child circuits marked `inline` are expanded during SPICE emission. See [§3.3.6](#336-instance-declarations-ml-and-el) for circuit instantiation and [§3.3.8](#338-the-inline-annotation) for the `inline` annotation.
 
 ---
 
@@ -1502,7 +1502,7 @@ Primitive transistor devices emit as SPICE M-devices. The PDK device name become
 
 ### 3.13.2 Hierarchical Emission
 
-For hierarchical EL documents containing circuit instances, the emitter first resolves all attach statements using the union-find algorithm described in §3.13.3, then processes circuits according to their `inline` annotation.
+For hierarchical EL documents containing circuit instances, the emitter first resolves all attach statements using the union-find algorithm described in [§3.13.3](#3133-connectivity-resolution), then processes circuits according to their `inline` annotation.
 
 Circuits not marked `inline` become separate `.subckt` definitions. The emitter orders these by dependency: leaf circuits (those with no circuit instances) emit first, followed by circuits that instantiate only leaves, continuing up the dependency tree. The top-level circuit emits last. This ordering ensures each `.subckt` is defined before any `X` element references it.
 
@@ -1786,8 +1786,7 @@ slotBody     = paramAssign ;
 fillBlock    = "fill:" NL (INDENT INDENT fillContent NL)* ;
 fillContent  = netDecl | instDecl | deviceDecl | attachStmt | connectStmt ;
 
-// Symbols are used for ids where hierarchical dot-separated names are allowed.
-symbol       = IDENT ("." IDENT)* ;
+symbol       = IDENT ("." IDENT)* ;  (* hierarchical name for nets, device ids *)
 netDecl      = "net" symbol ":" domain source? ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
@@ -1846,5 +1845,7 @@ STRING       = [^\]]+ ;
 NL           = "\n" ;
 INDENT       = "  " ;
 ```
+
+The `paramExpr` production supports only the four binary arithmetic operators (`*`, `/`, `+`, `-`). No unary operators are permitted; negation must be expressed as `0 - x`. The grammar is intentionally flat with no precedence hierarchy; evaluation proceeds left-to-right. Parameter expressions may include SI-suffixed values as operands (see [§3.2.4](#324-lexical-elements) for the prefix table).
 
 This grammar is informative; the normative specification is the prose in this chapter.
