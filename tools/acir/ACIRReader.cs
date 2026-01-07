@@ -165,6 +165,10 @@ public static partial class ACIRReader
             {
                 i = ParseBundle(lines, i, doc.BundleTypes);
             }
+            else if (line.StartsWith("trait "))
+            {
+                i = ParseTrait(lines, i, doc.Traits);
+            }
             else if (line.StartsWith("circuit "))
             {
                 i = ParseCircuit(lines, i, doc.Circuits);
@@ -269,6 +273,10 @@ public static partial class ACIRReader
             {
                 i = ParseBundleWithDiagnostics(lines, i, doc.BundleTypes, filePath, diagnostics);
             }
+            else if (line.StartsWith("trait "))
+            {
+                i = ParseTraitWithDiagnostics(lines, i, doc.Traits, filePath, diagnostics);
+            }
             else if (line.StartsWith("circuit "))
             {
                 i = ParseCircuitWithDiagnostics(lines, i, doc.Circuits, filePath, diagnostics);
@@ -331,6 +339,215 @@ public static partial class ACIRReader
     }
 
     /// <summary>
+    /// Parses a trait definition (non-diagnostic version).
+    /// </summary>
+    private static int ParseTrait(
+        IReadOnlyList<string> lines,
+        int start,
+        List<TraitDefinition> traits
+    )
+    {
+        var line = lines[start].Trim();
+        var match = TraitDeclarationPattern().Match(line);
+        if (!match.Success)
+            return start + 1;
+
+        var trait = new TraitDefinition { Name = match.Groups[1].Value };
+        var i = start + 1;
+        TraitConnector? currentConnector = null;
+
+        while (i < lines.Count)
+        {
+            var currentLine = lines[i];
+            if (!currentLine.StartsWith("  ") || string.IsNullOrWhiteSpace(currentLine))
+                break;
+
+            var trimmed = currentLine.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connectors: block (2 spaces)
+            if (currentLine.StartsWith("  ") && trimmed == "connectors:")
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connector target (4 spaces): "to TargetTrait:"
+            if (
+                currentLine.StartsWith("    ")
+                && trimmed.StartsWith("to ")
+                && trimmed.EndsWith(":")
+            )
+            {
+                if (currentConnector is not null)
+                    trait.Connectors.Add(currentConnector);
+
+                var targetName = trimmed[3..^1].Trim();
+                currentConnector = new TraitConnector { TargetTrait = targetName };
+                i++;
+                continue;
+            }
+
+            // Check for connector mapping (6 spaces): "SOURCE -> TARGET"
+            if (currentLine.StartsWith("      ") && currentConnector is not null)
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    currentConnector.Mappings.Add(
+                        new ConnectorMapping
+                        {
+                            SourcePort = mappingMatch.Groups[1].Value,
+                            TargetPort = mappingMatch.Groups[2].Value,
+                        }
+                    );
+                }
+                i++;
+                continue;
+            }
+
+            // Port declaration (2 spaces)
+            if (trimmed.StartsWith("port "))
+            {
+                var portMatch = PortDeclarationPattern().Match(trimmed);
+                if (portMatch.Success)
+                {
+                    trait.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Name = portMatch.Groups[1].Value,
+                            Type = portMatch.Groups[2].Value,
+                        }
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        if (currentConnector is not null)
+            trait.Connectors.Add(currentConnector);
+
+        traits.Add(trait);
+        return i;
+    }
+
+    /// <summary>
+    /// Parses a trait definition with diagnostic collection.
+    /// </summary>
+    private static int ParseTraitWithDiagnostics(
+        IReadOnlyList<string> lines,
+        int start,
+        List<TraitDefinition> traits,
+        string filePath,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var line = lines[start].Trim();
+        var match = TraitDeclarationPattern().Match(line);
+        if (!match.Success)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0003: Malformed trait declaration '{line}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    start + 1,
+                    1
+                )
+            );
+            return start + 1;
+        }
+
+        var trait = new TraitDefinition { Name = match.Groups[1].Value };
+        var i = start + 1;
+        TraitConnector? currentConnector = null;
+
+        while (i < lines.Count)
+        {
+            var currentLine = lines[i];
+            if (!currentLine.StartsWith("  ") || string.IsNullOrWhiteSpace(currentLine))
+                break;
+
+            var trimmed = currentLine.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connectors: block (2 spaces)
+            if (currentLine.StartsWith("  ") && trimmed == "connectors:")
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connector target (4 spaces): "to TargetTrait:"
+            if (
+                currentLine.StartsWith("    ")
+                && trimmed.StartsWith("to ")
+                && trimmed.EndsWith(":")
+            )
+            {
+                if (currentConnector is not null)
+                    trait.Connectors.Add(currentConnector);
+
+                var targetName = trimmed[3..^1].Trim();
+                currentConnector = new TraitConnector { TargetTrait = targetName };
+                i++;
+                continue;
+            }
+
+            // Check for connector mapping (6 spaces): "SOURCE -> TARGET"
+            if (currentLine.StartsWith("      ") && currentConnector is not null)
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    currentConnector.Mappings.Add(
+                        new ConnectorMapping
+                        {
+                            SourcePort = mappingMatch.Groups[1].Value,
+                            TargetPort = mappingMatch.Groups[2].Value,
+                        }
+                    );
+                }
+                i++;
+                continue;
+            }
+
+            // Port declaration (2 spaces)
+            if (trimmed.StartsWith("port "))
+            {
+                var portMatch = PortDeclarationPattern().Match(trimmed);
+                if (portMatch.Success)
+                {
+                    trait.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Name = portMatch.Groups[1].Value,
+                            Type = portMatch.Groups[2].Value,
+                        }
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        if (currentConnector is not null)
+            trait.Connectors.Add(currentConnector);
+
+        traits.Add(trait);
+        return i;
+    }
+
+    /// <summary>
     /// Parses a circuit definition with diagnostic collection.
     /// </summary>
     private static int ParseCircuitWithDiagnostics(
@@ -372,6 +589,8 @@ public static partial class ACIRReader
         HarnessBlock? harnessBlock = null;
         BenchesBlock? benchesBlock = null;
 
+        var isInline = false;
+        var parameters = new List<CircuitParameter>();
         FillBlock? currentFill = null;
         ConstraintsBlock? currentConstraints = null;
         HarnessBlock? currentHarness = null;
@@ -568,6 +787,35 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed == "inline")
+            {
+                isInline = true;
+            }
+            else if (contentTrimmed.StartsWith("param "))
+            {
+                var paramMatch = CircuitParameterPattern().Match(contentTrimmed);
+                if (paramMatch.Success)
+                {
+                    var paramName = paramMatch.Groups[1].Value;
+                    var paramType = paramMatch.Groups[2].Value;
+                    ParamValue? defaultValue = null;
+
+                    if (paramMatch.Groups[3].Success)
+                    {
+                        var defaultStr = paramMatch.Groups[3].Value.Trim();
+                        defaultValue = ParseParamValue(defaultStr);
+                    }
+
+                    parameters.Add(
+                        new CircuitParameter
+                        {
+                            Name = paramName,
+                            Type = paramType,
+                            Default = defaultValue,
+                        }
+                    );
+                }
+            }
 
             i++;
         }
@@ -587,6 +835,8 @@ public static partial class ACIRReader
         {
             Name = name,
             Level = level,
+            Inline = isInline,
+            Parameters = parameters,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -639,6 +889,107 @@ public static partial class ACIRReader
             if (device is not null)
                 fill.Devices.Add(device);
         }
+        else if (line.StartsWith("inst "))
+        {
+            var instance = ParseInstanceWithDiagnostics(line, filePath, lineNumber, diagnostics);
+            if (instance is not null)
+                fill.Instances.Add(instance);
+        }
+        else if (line.StartsWith("attach "))
+        {
+            var attach = ParseAttachWithDiagnostics(line, filePath, lineNumber, diagnostics);
+            if (attach is not null)
+                fill.Attaches.Add(attach);
+        }
+    }
+
+    /// <summary>
+    /// Parses an instance declaration with diagnostic collection.
+    /// </summary>
+    private static InstanceDeclaration? ParseInstanceWithDiagnostics(
+        string line,
+        string filePath,
+        int lineNumber,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var match = InstanceDeclarationPattern().Match(line);
+        if (!match.Success)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0015: Invalid instance declaration syntax '{line}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    lineNumber,
+                    1
+                )
+            );
+            return null;
+        }
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                }
+            }
+        }
+
+        return new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
+        };
+    }
+
+    /// <summary>
+    /// Parses an attach statement with diagnostic collection.
+    /// </summary>
+    private static AttachStatement? ParseAttachWithDiagnostics(
+        string line,
+        string filePath,
+        int lineNumber,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var match = AttachStatementPattern().Match(line);
+        if (!match.Success)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0016: Invalid attach statement syntax '{line}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    lineNumber,
+                    1
+                )
+            );
+            return null;
+        }
+
+        var sourceInstance = match.Groups[1].Value;
+        var targetInstance = match.Groups[2].Value;
+        var sourceTrait = match.Groups[3].Value;
+        var targetTrait = match.Groups[4].Value;
+        var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
+
+        return new AttachStatement
+        {
+            SourceInstance = sourceInstance,
+            TargetInstance = targetInstance,
+            Via = $"{sourceTrait}::{targetTrait}",
+            Anchor = anchor,
+        };
     }
 
     /// <summary>
@@ -778,6 +1129,8 @@ public static partial class ACIRReader
 
         var i = start + 1;
         var level = ACIRLevel.ML;
+        var isInline = false;
+        var parameters = new List<CircuitParameter>();
         var supplies = new List<string>();
         var grounds = new List<string>();
         var ports = new List<PortDeclaration>();
@@ -970,6 +1323,35 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed == "inline")
+            {
+                isInline = true;
+            }
+            else if (contentTrimmed.StartsWith("param "))
+            {
+                var paramMatch = CircuitParameterPattern().Match(contentTrimmed);
+                if (paramMatch.Success)
+                {
+                    var paramName = paramMatch.Groups[1].Value;
+                    var paramType = paramMatch.Groups[2].Value;
+                    ParamValue? defaultValue = null;
+
+                    if (paramMatch.Groups[3].Success)
+                    {
+                        var defaultStr = paramMatch.Groups[3].Value.Trim();
+                        defaultValue = ParseParamValue(defaultStr);
+                    }
+
+                    parameters.Add(
+                        new CircuitParameter
+                        {
+                            Name = paramName,
+                            Type = paramType,
+                            Default = defaultValue,
+                        }
+                    );
+                }
+            }
 
             i++;
         }
@@ -989,6 +1371,8 @@ public static partial class ACIRReader
         {
             Name = name,
             Level = level,
+            Inline = isInline,
+            Parameters = parameters,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -1163,6 +1547,18 @@ public static partial class ACIRReader
             if (device is not null)
                 fill.Devices.Add(device);
         }
+        else if (line.StartsWith("inst "))
+        {
+            var instance = ParseInstance(line);
+            if (instance is not null)
+                fill.Instances.Add(instance);
+        }
+        else if (line.StartsWith("attach "))
+        {
+            var attach = ParseAttach(line);
+            if (attach is not null)
+                fill.Attaches.Add(attach);
+        }
     }
 
     /// <summary>
@@ -1219,6 +1615,89 @@ public static partial class ACIRReader
             Params = deviceParams,
             PdkDevice = pdkDevice,
         };
+    }
+
+    /// <summary>
+    /// Parses an instance declaration line.
+    /// </summary>
+    /// <param name="line">Instance declaration line.</param>
+    /// <returns>Parsed instance declaration, or null if the line doesn't match.</returns>
+    private static InstanceDeclaration? ParseInstance(string line)
+    {
+        var match = InstanceDeclarationPattern().Match(line);
+        if (!match.Success)
+            return null;
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                }
+            }
+        }
+
+        return new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
+        };
+    }
+
+    /// <summary>
+    /// Parses an attach statement line.
+    /// </summary>
+    /// <param name="line">Attach statement line.</param>
+    /// <returns>Parsed attach statement, or null if the line doesn't match.</returns>
+    private static AttachStatement? ParseAttach(string line)
+    {
+        var match = AttachStatementPattern().Match(line);
+        if (!match.Success)
+            return null;
+
+        var sourceInstance = match.Groups[1].Value;
+        var targetInstance = match.Groups[2].Value;
+        var sourceTrait = match.Groups[3].Value;
+        var targetTrait = match.Groups[4].Value;
+        var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
+
+        return new AttachStatement
+        {
+            SourceInstance = sourceInstance,
+            TargetInstance = targetInstance,
+            Via = $"{sourceTrait}::{targetTrait}",
+            Anchor = anchor,
+        };
+    }
+
+    /// <summary>
+    /// Parses a parameter value string into a ParamValue object.
+    /// </summary>
+    /// <param name="value">The value string to parse.</param>
+    /// <returns>A ParamValue with the appropriate field set.</returns>
+    private static ParamValue ParseParamValue(string value)
+    {
+        if (value.StartsWith('$'))
+        {
+            return new ParamValue { Symbolic = value };
+        }
+
+        // Check if it's a numeric value (digits, decimal point, or SI suffix)
+        if (NumericValuePattern().IsMatch(value))
+        {
+            return new ParamValue { Numeric = value };
+        }
+
+        // Otherwise treat as literal
+        return new ParamValue { Literal = value };
     }
 
     /// <summary>
@@ -1656,4 +2135,22 @@ public static partial class ACIRReader
 
     [GeneratedRegex(@"^(\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?$")]
     private static partial Regex UnitValuePattern();
+
+    [GeneratedRegex(@"^trait\s+(\w+)\s*:")]
+    private static partial Regex TraitDeclarationPattern();
+
+    [GeneratedRegex(@"^([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
+    private static partial Regex ConnectorMappingPattern();
+
+    [GeneratedRegex(@"^param\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?$")]
+    private static partial Regex CircuitParameterPattern();
+
+    [GeneratedRegex(@"^-?\d+\.?\d*[fpnumkMGT]?[A-Za-z]*$")]
+    private static partial Regex NumericValuePattern();
+
+    [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
+    private static partial Regex InstanceDeclarationPattern();
+
+    [GeneratedRegex(@"^attach\s+(\w+)\s+to\s+(\w+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?$")]
+    private static partial Regex AttachStatementPattern();
 }
