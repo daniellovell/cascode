@@ -222,7 +222,7 @@ public class HierarchyValidatorTests
                             new AttachStatement
                             {
                                 SourceInstance = "nonexistent1",
-                                TargetInstance = "nonexistent2",
+                                TargetInstances = new List<string> { "nonexistent2" },
                                 Via = "SomeTrait::OtherTrait",
                             },
                         },
@@ -353,7 +353,7 @@ public class HierarchyValidatorTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::LoadBranch",
                             },
                         },
@@ -562,7 +562,7 @@ public class HierarchyValidatorTests
                             new AttachStatement
                             {
                                 SourceInstance = "drv1",
-                                TargetInstance = "rcv1",
+                                TargetInstances = new List<string> { "rcv1" },
                                 Via = "Driver::Receiver",
                             },
                         },

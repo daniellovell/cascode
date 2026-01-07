@@ -272,7 +272,7 @@ public static class AcirJsonConverter
             .Attaches.Select(a => new AcirJsonAttach
             {
                 SourceInstance = a.SourceInstance,
-                TargetInstance = a.TargetInstance,
+                TargetInstances = a.TargetInstances,
                 Via = a.Via,
                 Anchor = a.Anchor,
                 Overrides =
@@ -495,7 +495,7 @@ public static class AcirJsonConverter
                     .Attaches?.Select(a => new AttachStatement
                     {
                         SourceInstance = a.SourceInstance,
-                        TargetInstance = a.TargetInstance,
+                        TargetInstances = a.TargetInstances.ToList(),
                         Via = a.Via,
                         Anchor = a.Anchor,
                         Overrides = a

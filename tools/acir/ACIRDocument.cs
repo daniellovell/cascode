@@ -513,8 +513,8 @@ public sealed class AttachStatement
     /// <summary>Source instance identifier.</summary>
     public required string SourceInstance { get; init; }
 
-    /// <summary>Target instance identifier.</summary>
-    public required string TargetInstance { get; init; }
+    /// <summary>Target instance identifiers (in chain order).</summary>
+    public required List<string> TargetInstances { get; init; }
 
     /// <summary>Connector reference in "TraitName::TargetTrait" format.</summary>
     public required string Via { get; init; }

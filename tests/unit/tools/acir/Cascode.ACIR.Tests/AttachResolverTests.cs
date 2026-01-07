@@ -206,7 +206,7 @@ public class AttachResolverTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::LoadBranch",
                             },
                         },
@@ -267,7 +267,7 @@ public class AttachResolverTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::LoadBranch",
                                 Anchor = "bias",
                             },
@@ -285,6 +285,142 @@ public class AttachResolverTests
         var attach = circuitResult.AttachBindings.Keys.First();
         var bindings = circuitResult.AttachBindings[attach];
         Assert.Contains("bias_OUT", bindings.Values);
+    }
+
+    [Fact]
+    public void Resolve_AttachChain_AppliesPairwise()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Traits = new List<TraitDefinition>
+            {
+                new TraitDefinition
+                {
+                    Name = "CurrentMirror",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                    Connectors = new List<TraitConnector>
+                    {
+                        new TraitConnector
+                        {
+                            TargetTrait = "LoadBranch",
+                            Mappings = new List<ConnectorMapping>
+                            {
+                                new ConnectorMapping { SourcePort = "OUT", TargetPort = "IN" },
+                            },
+                        },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "a",
+                                TargetInstances = new List<string> { "b", "c" },
+                                Via = "CurrentMirror::LoadBranch",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.True(result.Success);
+        var circuitResult = result.CircuitResults["TestCircuit"];
+        var attach = circuitResult.AttachBindings.Keys.First();
+        var bindings = circuitResult.AttachBindings[attach];
+        Assert.Equal("a_b_OUT", bindings["a.OUT"]);
+        Assert.Equal("b_c_OUT", bindings["b.OUT"]);
+    }
+
+    [Fact]
+    public void Resolve_AttachWithOverrides_AppliesOverrideMappings()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Traits = new List<TraitDefinition>
+            {
+                new TraitDefinition
+                {
+                    Name = "CurrentMirror",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                    Connectors = new List<TraitConnector>
+                    {
+                        new TraitConnector
+                        {
+                            TargetTrait = "LoadBranch",
+                            Mappings = new List<ConnectorMapping>
+                            {
+                                new ConnectorMapping { SourcePort = "OUT", TargetPort = "IN" },
+                            },
+                        },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "cm1",
+                                TargetInstances = new List<string> { "load1" },
+                                Via = "CurrentMirror::LoadBranch",
+                                Overrides = new List<ConnectorMapping>
+                                {
+                                    new ConnectorMapping
+                                    {
+                                        SourcePort = "OUT",
+                                        TargetPort = "OUT.N",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.True(result.Success);
+        var circuitResult = result.CircuitResults["TestCircuit"];
+        var attach = circuitResult.AttachBindings.Keys.First();
+        var bindings = circuitResult.AttachBindings[attach];
+        Assert.True(bindings.ContainsKey("load1.OUT.N"));
+        Assert.Equal("cm1_load1_OUT", bindings["OUT"]);
     }
 
     [Fact]
@@ -309,7 +445,7 @@ public class AttachResolverTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "UndefinedTrait::LoadBranch",
                             },
                         },
@@ -361,7 +497,7 @@ public class AttachResolverTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::NonExistentTarget",
                             },
                         },

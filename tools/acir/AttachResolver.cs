@@ -249,37 +249,46 @@ public sealed class AttachResolver
             return null;
         }
 
-        // Apply connector mappings
         var bindings = new Dictionary<string, string>();
-        foreach (var mapping in connector.Mappings)
+        var instanceChain = new List<string> { attach.SourceInstance };
+        instanceChain.AddRange(attach.TargetInstances);
+
+        for (var pairIndex = 0; pairIndex < instanceChain.Count - 1; pairIndex++)
         {
-            // Override with attach.Overrides if present
-            var sourcePort = mapping.SourcePort;
-            var targetPort = mapping.TargetPort;
+            var fromInstance = instanceChain[pairIndex];
+            var toInstance = instanceChain[pairIndex + 1];
 
-            if (attach.Overrides is not null)
+            foreach (var mapping in connector.Mappings)
             {
-                var overrideMapping = attach.Overrides.FirstOrDefault(o =>
-                    o.SourcePort == sourcePort
-                );
-                if (overrideMapping is not null)
+                var sourcePort = mapping.SourcePort;
+                var targetPort = mapping.TargetPort;
+
+                if (attach.Overrides is not null)
                 {
-                    targetPort = overrideMapping.TargetPort;
+                    var overrideMapping = attach.Overrides.FirstOrDefault(o =>
+                        o.SourcePort == sourcePort
+                    );
+                    if (overrideMapping is not null)
+                    {
+                        targetPort = overrideMapping.TargetPort;
+                    }
                 }
+
+                var netName = attach.Anchor is not null
+                    ? $"{attach.Anchor}_{sourcePort}"
+                    : $"{fromInstance}_{toInstance}_{sourcePort}";
+
+                if (!unionFind.Contains(netName))
+                {
+                    unionFind.MakeSet(netName);
+                    netDomains[netName] = "analog";
+                }
+
+                var bindingKey =
+                    attach.TargetInstances.Count == 1 ? sourcePort : $"{fromInstance}.{sourcePort}";
+                bindings[bindingKey] = netName;
+                bindings[$"{toInstance}.{targetPort}"] = netName;
             }
-
-            // Generate net name for this connection
-            var netName = attach.Anchor is not null
-                ? $"{attach.Anchor}_{sourcePort}"
-                : $"{attach.SourceInstance}_{attach.TargetInstance}_{sourcePort}";
-
-            if (!unionFind.Contains(netName))
-            {
-                unionFind.MakeSet(netName);
-                netDomains[netName] = "analog";
-            }
-
-            bindings[sourcePort] = netName;
         }
 
         return bindings;
