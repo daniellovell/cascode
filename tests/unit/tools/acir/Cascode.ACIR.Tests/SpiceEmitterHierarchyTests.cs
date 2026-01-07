@@ -640,21 +640,13 @@ public class SpiceEmitterHierarchyTests
             },
         };
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"SpiceEmitterTest_{Guid.NewGuid()}");
-        try
-        {
-            var result = SpiceEmitter.ValidateAndEmit(doc, tempDir);
+        using var cascodeHome = CascodeHome.CreateInTemp("SpiceEmitterTest");
+        var tempDir = cascodeHome.Path;
 
-            Assert.False(result.Success);
-            Assert.Contains(result.Validation.GetErrors(), e => e.Code == "HIER-001");
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+        var result = SpiceEmitter.ValidateAndEmit(doc, tempDir);
+
+        Assert.False(result.Success);
+        Assert.Contains(result.Validation.GetErrors(), e => e.Code == "HIER-001");
     }
 
     [Fact]
@@ -700,31 +692,23 @@ public class SpiceEmitterHierarchyTests
             },
         };
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"SpiceEmitterTest_{Guid.NewGuid()}");
-        try
-        {
-            var result = SpiceEmitter.Emit(doc, tempDir);
+        using var cascodeHome = CascodeHome.CreateInTemp("SpiceEmitterTest");
+        var tempDir = cascodeHome.Path;
 
-            // Both circuits should be emitted
-            Assert.Equal(2, result.DesignPaths.Count);
+        var result = SpiceEmitter.Emit(doc, tempDir);
 
-            // Check order of files: ChildCircuit should come before TopLevel
-            var childPath = result.DesignPaths.FirstOrDefault(p => p.Contains("ChildCircuit"));
-            var topPath = result.DesignPaths.FirstOrDefault(p => p.Contains("TopLevel"));
-            Assert.NotNull(childPath);
-            Assert.NotNull(topPath);
+        // Both circuits should be emitted
+        Assert.Equal(2, result.DesignPaths.Count);
 
-            var childIndex = result.DesignPaths.IndexOf(childPath);
-            var topIndex = result.DesignPaths.IndexOf(topPath);
-            Assert.True(childIndex < topIndex, "Child circuit should be emitted before top-level");
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+        // Check order of files: ChildCircuit should come before TopLevel
+        var childPath = result.DesignPaths.FirstOrDefault(p => p.Contains("ChildCircuit"));
+        var topPath = result.DesignPaths.FirstOrDefault(p => p.Contains("TopLevel"));
+        Assert.NotNull(childPath);
+        Assert.NotNull(topPath);
+
+        var childIndex = result.DesignPaths.IndexOf(childPath);
+        var topIndex = result.DesignPaths.IndexOf(topPath);
+        Assert.True(childIndex < topIndex, "Child circuit should be emitted before top-level");
     }
 
     [Fact]
@@ -760,23 +744,15 @@ public class SpiceEmitterHierarchyTests
             },
         };
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"SpiceEmitterTest_{Guid.NewGuid()}");
-        try
-        {
-            var result = SpiceEmitter.Emit(doc, tempDir);
+        using var cascodeHome = CascodeHome.CreateInTemp("SpiceEmitterTest");
+        var tempDir = cascodeHome.Path;
 
-            Assert.Equal(3, result.DesignPaths.Count);
-            Assert.True(File.Exists(Path.Combine(tempDir, "CircuitA.sp")));
-            Assert.True(File.Exists(Path.Combine(tempDir, "CircuitB.sp")));
-            Assert.True(File.Exists(Path.Combine(tempDir, "CircuitC.sp")));
-        }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+        var result = SpiceEmitter.Emit(doc, tempDir);
+
+        Assert.Equal(3, result.DesignPaths.Count);
+        Assert.True(File.Exists(Path.Combine(tempDir, "CircuitA.sp")));
+        Assert.True(File.Exists(Path.Combine(tempDir, "CircuitB.sp")));
+        Assert.True(File.Exists(Path.Combine(tempDir, "CircuitC.sp")));
     }
 
     // Integration tests using golden files
@@ -922,45 +898,35 @@ public class SpiceEmitterHierarchyTests
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);
 
-        var tempDir = Path.Combine(Path.GetTempPath(), $"SpiceEmitterTest_{Guid.NewGuid()}");
-        try
+        using var cascodeHome = CascodeHome.CreateInTemp("SpiceEmitterTest");
+        var tempDir = cascodeHome.Path;
+
+        // Emit each non-inline circuit manually
+        var designPaths = new List<string>();
+        foreach (var circuit in doc.Circuits.Where(c => !c.Inline))
         {
-            Directory.CreateDirectory(tempDir);
-
-            // Emit each non-inline circuit manually
-            var designPaths = new List<string>();
-            foreach (var circuit in doc.Circuits.Where(c => !c.Inline))
-            {
-                var path = Path.Combine(tempDir, $"{circuit.Name}.sp");
-                using var writer = File.CreateText(path);
-                SpiceEmitter.EmitDesign(circuit, writer, document: doc);
-                designPaths.Add(path);
-            }
-
-            // Non-inline circuits should each produce a .sp file
-            // OTA5T_Hierarchical and CurrentMirror are non-inline
-            Assert.Contains(designPaths, p => p.Contains("OTA5T_Hierarchical.sp"));
-            Assert.Contains(designPaths, p => p.Contains("CurrentMirror.sp"));
-
-            // Read top-level file and verify structure
-            var topLevelPath = designPaths.First(p => p.Contains("OTA5T_Hierarchical.sp"));
-            var spiceContent = File.ReadAllText(topLevelPath);
-
-            // Should have subckt declaration
-            Assert.Contains(".subckt OTA5T_Hierarchical", spiceContent);
-            Assert.Contains(".ends OTA5T_Hierarchical", spiceContent);
-
-            // Should reference CurrentMirror as X-element
-            Assert.Contains("Xcm", spiceContent);
-            Assert.Contains("CurrentMirror", spiceContent);
+            var path = Path.Combine(tempDir, $"{circuit.Name}.sp");
+            using var writer = File.CreateText(path);
+            SpiceEmitter.EmitDesign(circuit, writer, document: doc);
+            designPaths.Add(path);
         }
-        finally
-        {
-            if (Directory.Exists(tempDir))
-            {
-                Directory.Delete(tempDir, recursive: true);
-            }
-        }
+
+        // Non-inline circuits should each produce a .sp file
+        // OTA5T_Hierarchical and CurrentMirror are non-inline
+        Assert.Contains(designPaths, p => p.Contains("OTA5T_Hierarchical.sp"));
+        Assert.Contains(designPaths, p => p.Contains("CurrentMirror.sp"));
+
+        // Read top-level file and verify structure
+        var topLevelPath = designPaths.First(p => p.Contains("OTA5T_Hierarchical.sp"));
+        var spiceContent = File.ReadAllText(topLevelPath);
+
+        // Should have subckt declaration
+        Assert.Contains(".subckt OTA5T_Hierarchical", spiceContent);
+        Assert.Contains(".ends OTA5T_Hierarchical", spiceContent);
+
+        // Should reference CurrentMirror as X-element
+        Assert.Contains("Xcm", spiceContent);
+        Assert.Contains("CurrentMirror", spiceContent);
     }
 
     [Fact]
