@@ -161,7 +161,7 @@ internal sealed class ConvertCommandModule : ICommandModule
                 var diag in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
             )
             {
-                _state.AddMessage($"{diag.FilePath}: {diag.Message}");
+                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return new CommandResult(2, false);
         }

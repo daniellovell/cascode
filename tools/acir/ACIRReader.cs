@@ -770,6 +770,8 @@ public static partial class ACIRReader
                 }
                 else
                 {
+                    // No fallback: the error diagnostic causes Success=false, so callers
+                    // must not use the document. The initialized value of 'level' is irrelevant.
                     diagnostics.Add(
                         new Diagnostic(
                             $"ACIR0008: Invalid level '{levelStr}' - expected HL, ML, or EL",
