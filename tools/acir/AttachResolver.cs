@@ -59,6 +59,7 @@ public sealed partial class AttachResolver
     private CircuitResolutionResult ResolveCircuit(Circuit circuit)
     {
         var result = new CircuitResolutionResult();
+        // Defensive: Resolve() pre-filters null Fill, but guard here for direct calls.
         if (circuit.Fill is null)
         {
             return result;
@@ -75,5 +76,12 @@ public sealed partial class AttachResolver
         PopulateAttachBindings(circuit, context, result);
 
         return result;
+    }
+
+    private static List<string> BuildInstanceChain(AttachStatement attach)
+    {
+        var chain = new List<string>(1 + attach.TargetInstances.Count) { attach.SourceInstance };
+        chain.AddRange(attach.TargetInstances);
+        return chain;
     }
 }

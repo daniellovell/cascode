@@ -114,8 +114,7 @@ public sealed partial class AttachResolver
     )
     {
         var createdAutoNets = new List<string>();
-        var instanceChain = new List<string> { attach.SourceInstance };
-        instanceChain.AddRange(attach.TargetInstances);
+        var instanceChain = BuildInstanceChain(attach);
 
         for (var pairIndex = 0; pairIndex < instanceChain.Count - 1; pairIndex++)
         {
@@ -174,26 +173,22 @@ public sealed partial class AttachResolver
 
         if (ShouldCreateAutoNet(context, fromEndpoint, toEndpoint))
         {
-            if (
-                TryCreateAutoNet(
-                    circuit,
-                    attachIndex,
-                    createdAutoNets,
-                    context,
-                    diagnostics,
-                    fromEndpoint,
-                    toEndpoint
-                )
-            )
-            {
-                return;
-            }
+            CreateAutoNetOrReportDiagnostic(
+                circuit,
+                attachIndex,
+                createdAutoNets,
+                context,
+                diagnostics,
+                fromEndpoint,
+                toEndpoint
+            );
+            return;
         }
 
         TryUnion(context, fromEndpoint, toEndpoint, diagnostics, circuit.Name);
     }
 
-    private static bool TryCreateAutoNet(
+    private static void CreateAutoNetOrReportDiagnostic(
         Circuit circuit,
         int attachIndex,
         List<string> createdAutoNets,
@@ -206,7 +201,7 @@ public sealed partial class AttachResolver
         var domain = context.DomainByRoot[context.UnionFind.Find(fromEndpoint)];
         if (!TryEnsureDomainMatch(domain, toEndpoint, context, diagnostics, circuit.Name))
         {
-            return true;
+            return;
         }
 
         if (domain is PowerDomain or GroundDomain)
@@ -220,7 +215,7 @@ public sealed partial class AttachResolver
                     1
                 )
             );
-            return true;
+            return;
         }
 
         var autoNetId = $"__auto_attach{attachIndex}_net{createdAutoNets.Count}";
@@ -228,7 +223,6 @@ public sealed partial class AttachResolver
         createdAutoNets.Add(autoNetId);
         TryUnion(context, fromEndpoint, autoNetId, diagnostics, circuit.Name);
         TryUnion(context, toEndpoint, autoNetId, diagnostics, circuit.Name);
-        return true;
     }
 
     private static bool TryEnsureDomainMatch(

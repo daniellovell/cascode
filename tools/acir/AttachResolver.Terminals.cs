@@ -64,12 +64,12 @@ public sealed partial class AttachResolver
             return port.Type;
         }
 
-        return ResolveBundleFieldDomain(port.Type, parts[1..]);
+        return ResolveBundleFieldDomain(port.Type, parts, 1);
     }
 
-    private string? ResolveBundleFieldDomain(string typeName, string[] pathSegments)
+    private string? ResolveBundleFieldDomain(string typeName, string[] pathSegments, int index)
     {
-        if (pathSegments.Length == 0)
+        if (index >= pathSegments.Length)
         {
             return typeName;
         }
@@ -79,13 +79,13 @@ public sealed partial class AttachResolver
             return null;
         }
 
-        var fieldName = pathSegments[0];
+        var fieldName = pathSegments[index];
         if (!bundle.Fields.TryGetValue(fieldName, out var fieldType))
         {
             return null;
         }
 
-        return ResolveBundleFieldDomain(fieldType, pathSegments[1..]);
+        return ResolveBundleFieldDomain(fieldType, pathSegments, index + 1);
     }
 
     private IEnumerable<(string TerminalPath, string Domain)> ExpandPortTerminalPaths(

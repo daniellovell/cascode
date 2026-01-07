@@ -111,6 +111,11 @@ public sealed partial class AttachResolver
 
     private static string SelectRepresentative(List<string> nets, Dictionary<string, NetTier> tiers)
     {
+        if (nets is null || nets.Count == 0)
+        {
+            throw new ArgumentException("nets must be non-empty", nameof(nets));
+        }
+
         var grouped = nets.GroupBy(net => tiers[net]).OrderBy(group => group.Key);
         var bestGroup = grouped.First();
         return bestGroup.Min(StringComparer.Ordinal)!;
@@ -222,8 +227,7 @@ public sealed partial class AttachResolver
             }
 
             var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
-            var instanceChain = new List<string> { attach.SourceInstance };
-            instanceChain.AddRange(attach.TargetInstances);
+            var instanceChain = BuildInstanceChain(attach);
 
             for (var pairIndex = 0; pairIndex < instanceChain.Count - 1; pairIndex++)
             {
