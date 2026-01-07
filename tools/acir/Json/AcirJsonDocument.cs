@@ -373,8 +373,8 @@ public sealed record AcirJsonAttach
     [JsonPropertyName("sourceInstance")]
     public required string SourceInstance { get; init; }
 
-    [JsonPropertyName("targetInstance")]
-    public required string TargetInstance { get; init; }
+    [JsonPropertyName("targetInstances")]
+    public required IReadOnlyList<string> TargetInstances { get; init; }
 
     [JsonPropertyName("via")]
     public required string Via { get; init; }

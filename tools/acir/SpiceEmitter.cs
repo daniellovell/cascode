@@ -565,6 +565,15 @@ public static class SpiceEmitter
                     resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
                     ?? boundNet;
             }
+            else if (
+                resolution?.TerminalToNet.TryGetValue(
+                    $"{instance.Id}.{portName}",
+                    out var resolvedNet
+                ) == true
+            )
+            {
+                netName = resolvedNet;
+            }
             else
             {
                 // Port not bound - use the port name itself (may be auto-connected)
@@ -603,7 +612,7 @@ public static class SpiceEmitter
     )
     {
         // Build port-to-net substitution map
-        var netSubstitutions = BuildNetSubstitutions(instance, inlineCircuit);
+        var netSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
 
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
@@ -640,7 +649,8 @@ public static class SpiceEmitter
     /// </summary>
     private static Dictionary<string, string> BuildNetSubstitutions(
         InstanceDeclaration instance,
-        Circuit inlineCircuit
+        Circuit inlineCircuit,
+        CircuitResolutionResult? resolution
     )
     {
         var substitutions = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -650,7 +660,18 @@ public static class SpiceEmitter
         {
             if (instance.Bindings.TryGetValue(port.Name, out var boundNet))
             {
-                substitutions[port.Name] = boundNet;
+                substitutions[port.Name] =
+                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
+                    ?? boundNet;
+            }
+            else if (
+                resolution?.TerminalToNet.TryGetValue(
+                    $"{instance.Id}.{port.Name}",
+                    out var resolvedNet
+                ) == true
+            )
+            {
+                substitutions[port.Name] = resolvedNet;
             }
         }
 
@@ -659,7 +680,18 @@ public static class SpiceEmitter
         {
             if (instance.Bindings.TryGetValue(supply, out var boundNet))
             {
-                substitutions[supply] = boundNet;
+                substitutions[supply] =
+                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
+                    ?? boundNet;
+            }
+            else if (
+                resolution?.TerminalToNet.TryGetValue(
+                    $"{instance.Id}.{supply}",
+                    out var resolvedNet
+                ) == true
+            )
+            {
+                substitutions[supply] = resolvedNet;
             }
         }
 
@@ -668,7 +700,18 @@ public static class SpiceEmitter
         {
             if (instance.Bindings.TryGetValue(ground, out var boundNet))
             {
-                substitutions[ground] = boundNet;
+                substitutions[ground] =
+                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
+                    ?? boundNet;
+            }
+            else if (
+                resolution?.TerminalToNet.TryGetValue(
+                    $"{instance.Id}.{ground}",
+                    out var resolvedNet
+                ) == true
+            )
+            {
+                substitutions[ground] = resolvedNet;
             }
         }
 
