@@ -597,6 +597,9 @@ public static partial class ACIRReader
         BenchesBlock? currentBenches = null;
         string? constraintSubSection = null;
 
+        // State for multi-line attach blocks with overrides
+        AttachStatement? pendingAttach = null;
+
         while (i < lines.Count)
         {
             var currentLine = lines[i];
@@ -658,12 +661,51 @@ public static partial class ACIRReader
             {
                 ParseConstraintContent(contentTrimmed, currentConstraints, constraintSubSection);
             }
+            // Check for attach override lines (6 spaces inside fill block)
+            else if (
+                currentLine.StartsWith("      ")
+                && currentFill is not null
+                && pendingAttach is not null
+            )
+            {
+                // Parse as override mapping or closing brace
+                if (contentTrimmed == "}")
+                {
+                    // Finalize the pending attach
+                    currentFill.Attaches.Add(pendingAttach);
+                    pendingAttach = null;
+                }
+                else
+                {
+                    // Parse as override mapping (use ConnectorMappingPattern which allows dots and spaces)
+                    var mappingMatch = ConnectorMappingPattern().Match(contentTrimmed);
+                    if (mappingMatch.Success)
+                    {
+                        pendingAttach.Overrides ??= new List<ConnectorMapping>();
+                        pendingAttach.Overrides.Add(
+                            new ConnectorMapping
+                            {
+                                SourcePort = mappingMatch.Groups[1].Value,
+                                TargetPort = mappingMatch.Groups[2].Value,
+                            }
+                        );
+                    }
+                }
+            }
             // Check for section content
             else if (currentLine.StartsWith("    "))
             {
+                // If we have a pending attach and we're now at a non-indented fill line,
+                // finalize the pending attach (handles case where } is missing)
+                if (pendingAttach is not null && currentFill is not null)
+                {
+                    currentFill.Attaches.Add(pendingAttach);
+                    pendingAttach = null;
+                }
+
                 if (currentFill is not null)
                 {
-                    ParseFillContentWithDiagnostics(
+                    pendingAttach = ParseFillContentWithDiagnosticsAndGetAttach(
                         contentTrimmed,
                         currentFill,
                         filePath,
@@ -871,8 +913,10 @@ public static partial class ACIRReader
 
     /// <summary>
     /// Parses fill content with diagnostic collection.
+    /// Returns a pending attach statement if the line starts an attach block with overrides (has `{`).
+    /// Otherwise, returns null and adds the parsed content directly to the fill block.
     /// </summary>
-    private static void ParseFillContentWithDiagnostics(
+    private static AttachStatement? ParseFillContentWithDiagnosticsAndGetAttach(
         string line,
         FillBlock fill,
         string filePath,
@@ -915,10 +959,43 @@ public static partial class ACIRReader
         }
         else if (line.StartsWith("attach "))
         {
-            var attach = ParseAttachWithDiagnostics(line, filePath, lineNumber, diagnostics);
+            var (attach, hasBrace) = ParseAttachWithDiagnostics(
+                line,
+                filePath,
+                lineNumber,
+                diagnostics
+            );
             if (attach is not null)
-                fill.Attaches.Add(attach);
+            {
+                if (hasBrace)
+                {
+                    // Return as pending attach - caller will collect override lines
+                    return attach;
+                }
+                else
+                {
+                    // No brace - add directly to fill
+                    fill.Attaches.Add(attach);
+                }
+            }
         }
+        else if (line.StartsWith("connect "))
+        {
+            // Parse connection statement
+            var connectMatch = ConnectionPattern().Match(line.Substring("connect ".Length));
+            if (connectMatch.Success)
+            {
+                fill.Connections.Add(
+                    new ConnectionStatement
+                    {
+                        From = connectMatch.Groups[1].Value,
+                        To = connectMatch.Groups[2].Value,
+                    }
+                );
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -972,8 +1049,9 @@ public static partial class ACIRReader
 
     /// <summary>
     /// Parses an attach statement with diagnostic collection.
+    /// Returns the attach statement and whether it has an opening brace (indicating multi-line overrides).
     /// </summary>
-    private static AttachStatement? ParseAttachWithDiagnostics(
+    private static (AttachStatement? attach, bool hasBrace) ParseAttachWithDiagnostics(
         string line,
         string filePath,
         int lineNumber,
@@ -992,7 +1070,7 @@ public static partial class ACIRReader
                     1
                 )
             );
-            return null;
+            return (null, false);
         }
 
         var sourceInstance = match.Groups[1].Value;
@@ -1000,14 +1078,17 @@ public static partial class ACIRReader
         var sourceTrait = match.Groups[3].Value;
         var targetTrait = match.Groups[4].Value;
         var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
+        var hasBrace = match.Groups[6].Success; // Group 6 is the optional `{`
 
-        return new AttachStatement
+        var attach = new AttachStatement
         {
             SourceInstance = sourceInstance,
             TargetInstance = targetInstance,
             Via = $"{sourceTrait}::{targetTrait}",
             Anchor = anchor,
         };
+
+        return (attach, hasBrace);
     }
 
     /// <summary>
@@ -2144,6 +2225,8 @@ public static partial class ACIRReader
     [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
     private static partial Regex InstanceDeclarationPattern();
 
-    [GeneratedRegex(@"^attach\s+(\w+)\s+to\s+(\w+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?$")]
+    [GeneratedRegex(
+        @"^attach\s+(\w+)\s+to\s+(\w+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?(?:\s*(\{))?$"
+    )]
     private static partial Regex AttachStatementPattern();
 }

@@ -249,8 +249,34 @@ public sealed class AttachResolver
             return null;
         }
 
+        // Look up target trait for domain validation
+        _traitsByName.TryGetValue(targetTraitName, out var targetTrait);
+
+        // Validate override ports exist in connector
+        if (attach.Overrides is not null)
+        {
+            var connectorSourcePorts = connector.Mappings.Select(m => m.SourcePort).ToHashSet();
+            foreach (var ov in attach.Overrides)
+            {
+                if (!connectorSourcePorts.Contains(ov.SourcePort))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"Override source port '{ov.SourcePort}' not found in connector {attach.Via}",
+                            DiagnosticSeverity.Warning,
+                            circuit.Name,
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+        }
+
         // Apply connector mappings
         var bindings = new Dictionary<string, string>();
+        var hasError = false;
+
         foreach (var mapping in connector.Mappings)
         {
             // Override with attach.Overrides if present
@@ -268,6 +294,26 @@ public sealed class AttachResolver
                 }
             }
 
+            // Domain validation: check source and target port domains match
+            var sourcePortDomain =
+                sourceTrait.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type ?? "analog";
+            var targetPortDomain =
+                targetTrait?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type ?? "analog";
+
+            if (!AreDomainsCompatible(sourcePortDomain, targetPortDomain))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0024: Domain mismatch in attach: {sourcePort} ({sourcePortDomain}) vs {targetPort} ({targetPortDomain})",
+                        DiagnosticSeverity.Error,
+                        circuit.Name,
+                        1,
+                        1
+                    )
+                );
+                hasError = true;
+            }
+
             // Generate net name for this connection
             var netName = attach.Anchor is not null
                 ? $"{attach.Anchor}_{sourcePort}"
@@ -276,13 +322,13 @@ public sealed class AttachResolver
             if (!unionFind.Contains(netName))
             {
                 unionFind.MakeSet(netName);
-                netDomains[netName] = "analog";
+                netDomains[netName] = sourcePortDomain;
             }
 
             bindings[sourcePort] = netName;
         }
 
-        return bindings;
+        return hasError ? null : bindings;
     }
 
     /// <summary>
@@ -327,27 +373,13 @@ public sealed class AttachResolver
 
     /// <summary>
     /// Checks if two domains are compatible for merging.
+    /// Per spec §3.13.4: "All endpoints in an equivalence class must have
+    /// identical domains (exact matching, no supertype inference)."
     /// </summary>
     private static bool AreDomainsCompatible(string domain1, string domain2)
     {
-        // Same domain is always compatible
-        if (domain1 == domain2)
-            return true;
-
-        // analog is compatible with most domains
-        if (domain1 == "analog" || domain2 == "analog")
-            return true;
-
-        // power and ground are not compatible with each other
-        if (
-            (domain1 == "power" && domain2 == "ground")
-            || (domain1 == "ground" && domain2 == "power")
-        )
-        {
-            return false;
-        }
-
-        return true;
+        // Strict exact matching per spec
+        return domain1 == domain2;
     }
 }
 

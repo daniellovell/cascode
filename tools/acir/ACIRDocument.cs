@@ -523,5 +523,5 @@ public sealed class AttachStatement
     public string? Anchor { get; init; }
 
     /// <summary>Optional inline override mappings.</summary>
-    public List<ConnectorMapping>? Overrides { get; init; }
+    public List<ConnectorMapping>? Overrides { get; set; }
 }
