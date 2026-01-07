@@ -241,21 +241,32 @@ public static class ACIRWriter
     private static void WriteAttach(AttachStatement attach, TextWriter writer)
     {
         var viaParts = attach.Via.Split("::");
-        var header =
-            $"    attach {attach.SourceInstance} to {attach.TargetInstance} via {viaParts[0]}::{viaParts[1]}";
+        var header = new StringBuilder();
+        header.Append($"    attach {attach.SourceInstance}");
+        foreach (var target in attach.TargetInstances)
+        {
+            header.Append($" to {target}");
+        }
+        header.Append($" via {viaParts[0]}::{viaParts[1]}");
         if (!string.IsNullOrEmpty(attach.Anchor))
         {
-            header += $" as {attach.Anchor}";
+            header.Append($" as {attach.Anchor}");
         }
-        writer.WriteLine(header);
 
-        // Inline overrides if present
         if (attach.Overrides is { Count: > 0 })
         {
-            foreach (var mapping in attach.Overrides)
+            writer.WriteLine($"{header} {{");
+            foreach (
+                var mapping in attach.Overrides.OrderBy(m => m.SourcePort, StringComparer.Ordinal)
+            )
             {
                 writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
             }
+            writer.WriteLine("    }");
+        }
+        else
+        {
+            writer.WriteLine(header.ToString());
         }
     }
 

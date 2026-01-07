@@ -663,6 +663,19 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            filePath,
+                            diagnostics
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContentWithDiagnostics(
                         contentTrimmed,
                         currentFill,
@@ -913,12 +926,6 @@ public static partial class ACIRReader
             if (instance is not null)
                 fill.Instances.Add(instance);
         }
-        else if (line.StartsWith("attach "))
-        {
-            var attach = ParseAttachWithDiagnostics(line, filePath, lineNumber, diagnostics);
-            if (attach is not null)
-                fill.Attaches.Add(attach);
-        }
     }
 
     /// <summary>
@@ -971,43 +978,181 @@ public static partial class ACIRReader
     }
 
     /// <summary>
-    /// Parses an attach statement with diagnostic collection.
+    /// Parses an attach statement, including optional inline override blocks.
     /// </summary>
-    private static AttachStatement? ParseAttachWithDiagnostics(
-        string line,
+    private static (AttachStatement? Attach, int NextIndex) ParseAttachWithOverrides(
+        IReadOnlyList<string> lines,
+        int startIndex,
         string filePath,
-        int lineNumber,
-        List<Diagnostic> diagnostics
+        List<Diagnostic>? diagnostics
     )
     {
-        var match = AttachStatementPattern().Match(line);
+        string StripComment(string value)
+        {
+            var commentIndex = value.IndexOf("//", StringComparison.Ordinal);
+            return commentIndex >= 0 ? value[..commentIndex] : value;
+        }
+
+        var lineNumber = startIndex + 1;
+        var rawLine = StripComment(lines[startIndex]).Trim();
+        var braceIndex = rawLine.IndexOf('{');
+        var headerLine = braceIndex >= 0 ? rawLine[..braceIndex].TrimEnd() : rawLine;
+        var afterBrace = braceIndex >= 0 ? rawLine[(braceIndex + 1)..].Trim() : string.Empty;
+        var hasOpeningBrace = braceIndex >= 0;
+        var inlineOverrides =
+            hasOpeningBrace && afterBrace.EndsWith("}", StringComparison.Ordinal)
+                ? afterBrace[..^1].Trim()
+                : afterBrace;
+
+        var match = AttachStatementPattern().Match(headerLine);
         if (!match.Success)
         {
-            diagnostics.Add(
-                new Diagnostic(
-                    $"ACIR0016: Invalid attach statement syntax '{line}'",
-                    DiagnosticSeverity.Error,
-                    filePath,
-                    lineNumber,
-                    1
-                )
-            );
-            return null;
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
         }
 
         var sourceInstance = match.Groups[1].Value;
-        var targetInstance = match.Groups[2].Value;
+        var targetSegment = match.Groups[2].Value;
         var sourceTrait = match.Groups[3].Value;
         var targetTrait = match.Groups[4].Value;
         var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
 
-        return new AttachStatement
+        var targetInstances = Regex
+            .Matches(targetSegment, @"\s+to\s+(\w+)")
+            .Select(match => match.Groups[1].Value)
+            .ToList();
+        if (targetInstances.Count == 0)
         {
-            SourceInstance = sourceInstance,
-            TargetInstance = targetInstance,
-            Via = $"{sourceTrait}::{targetTrait}",
-            Anchor = anchor,
-        };
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
+        }
+
+        List<ConnectorMapping>? overrides = null;
+
+        void AddOverride(string mappingLine, int mappingLineNumber)
+        {
+            var mappingMatch = ConnectorMappingPattern().Match(mappingLine);
+            if (mappingMatch.Success)
+            {
+                overrides ??= new List<ConnectorMapping>();
+                overrides.Add(
+                    new ConnectorMapping
+                    {
+                        SourcePort = mappingMatch.Groups[1].Value,
+                        TargetPort = mappingMatch.Groups[2].Value,
+                    }
+                );
+            }
+            else if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach override syntax '{mappingLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        mappingLineNumber,
+                        1
+                    )
+                );
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(inlineOverrides))
+        {
+            AddOverride(inlineOverrides, lineNumber);
+        }
+
+        if (hasOpeningBrace && !afterBrace.EndsWith("}", StringComparison.Ordinal))
+        {
+            var i = startIndex + 1;
+            while (i < lines.Count)
+            {
+                var content = StripComment(lines[i]);
+                var trimmed = content.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (trimmed == "}")
+                {
+                    return (
+                        new AttachStatement
+                        {
+                            SourceInstance = sourceInstance,
+                            TargetInstances = targetInstances,
+                            Via = $"{sourceTrait}::{targetTrait}",
+                            Anchor = anchor,
+                            Overrides = overrides,
+                        },
+                        i + 1
+                    );
+                }
+
+                AddOverride(trimmed, i + 1);
+                i++;
+            }
+
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "ACIR0016: Unterminated attach override block",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+
+            return (
+                new AttachStatement
+                {
+                    SourceInstance = sourceInstance,
+                    TargetInstances = targetInstances,
+                    Via = $"{sourceTrait}::{targetTrait}",
+                    Anchor = anchor,
+                    Overrides = overrides,
+                },
+                lines.Count
+            );
+        }
+
+        return (
+            new AttachStatement
+            {
+                SourceInstance = sourceInstance,
+                TargetInstances = targetInstances,
+                Via = $"{sourceTrait}::{targetTrait}",
+                Anchor = anchor,
+                Overrides = overrides,
+            },
+            startIndex + 1
+        );
     }
 
     /// <summary>
@@ -1229,6 +1374,19 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            string.Empty,
+                            null
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContent(contentTrimmed, currentFill);
                 }
                 else if (currentHarness is not null)
@@ -1571,12 +1729,6 @@ public static partial class ACIRReader
             if (instance is not null)
                 fill.Instances.Add(instance);
         }
-        else if (line.StartsWith("attach "))
-        {
-            var attach = ParseAttach(line);
-            if (attach is not null)
-                fill.Attaches.Add(attach);
-        }
     }
 
     /// <summary>
@@ -1671,29 +1823,13 @@ public static partial class ACIRReader
     }
 
     /// <summary>
-    /// Parses an attach statement line.
+    /// Parses a parameter value string into a ParamValue object.
     /// </summary>
-    /// <param name="line">Attach statement line.</param>
-    /// <returns>Parsed attach statement, or null if the line doesn't match.</returns>
-    private static AttachStatement? ParseAttach(string line)
+    /// <param name="value">The value string to parse.</param>
+    /// <returns>A ParamValue with the appropriate field set.</returns>
+    private static ParamValue ParseParamValue(string value)
     {
-        var match = AttachStatementPattern().Match(line);
-        if (!match.Success)
-            return null;
-
-        var sourceInstance = match.Groups[1].Value;
-        var targetInstance = match.Groups[2].Value;
-        var sourceTrait = match.Groups[3].Value;
-        var targetTrait = match.Groups[4].Value;
-        var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
-
-        return new AttachStatement
-        {
-            SourceInstance = sourceInstance,
-            TargetInstance = targetInstance,
-            Via = $"{sourceTrait}::{targetTrait}",
-            Anchor = anchor,
-        };
+        return ParamValueParser.Parse(value);
     }
 
     /// <summary>
@@ -2144,6 +2280,8 @@ public static partial class ACIRReader
     [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
     private static partial Regex InstanceDeclarationPattern();
 
-    [GeneratedRegex(@"^attach\s+(\w+)\s+to\s+(\w+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?$")]
+    [GeneratedRegex(
+        @"^attach\s+(\w+)((?:\s+to\s+\w+)+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?(?:\s*\{)?$"
+    )]
     private static partial Regex AttachStatementPattern();
 }
