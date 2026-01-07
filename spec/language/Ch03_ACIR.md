@@ -48,7 +48,7 @@ Extension and dialect fields belong in dedicated extension blocks. Vendor-specif
 
 ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line, with continuation indicated by indentation for nested content. Comments begin with `//` and extend to end of line.
 
-```text
+```acir
 // This is a comment
 ACIR 2.0  // Version declaration with inline comment
 ```
@@ -57,7 +57,7 @@ ACIR 2.0  // Version declaration with inline comment
 
 An ACIR document begins with a version declaration, followed by optional bundle type definitions, optional trait definitions, then one or more circuit blocks.
 
-```text
+```acir
 ACIR <major>.<minor>
 
 [bundle definitions]
@@ -124,7 +124,7 @@ The SI prefix table:
 
 Statements may optionally include source attribution in the form `@[file:line]` or `@[file:line:column]`. Source attribution is **not required** and should be omitted in most cases. It is primarily useful for debugging, error messages, and tracing elaborated designs back to their ADL source.
 
-```
+```acir
 port OUT : analog @[OTA.cas:7]
 nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : W=1u L=100n @[DiffPair.cas:12]
 inst dp (IN.P->IN_P) : DiffPair @[OTA.cas:9]
@@ -139,7 +139,7 @@ When present, source attribution enables error messages to reference original so
 
 ACIR models the circuit as a bipartite graph. Instance terminals connect to nets. The authoritative mapping is:
 
-```
+```acir
 f: (instanceId, terminalPath) -> netId
 ```
 
@@ -147,7 +147,7 @@ f: (instanceId, terminalPath) -> netId
 
 Nets represent electrical nodes in the circuit. Each net has a unique identifier within the circuit and a domain classification.
 
-```
+```acir
 net <id> : <domain> [<attributes>]
 ```
 
@@ -171,7 +171,7 @@ The domain field specifies one of:
 
 Examples:
 
-```
+```acir
 net VDD : supply
 net GND : ground
 net tnode : analog  // internal tail node
@@ -188,14 +188,14 @@ net EN : digital
 
 Supplies and grounds are specialized net declarations that serve as power rails. Voltage values are specified in the harness, not in the circuit definition.
 
-```
+```acir
 supply <id>
 ground <id>
 ```
 
 Examples:
 
-```
+```acir
 supply VDD
 supply VDDIO
 ground GND
@@ -208,7 +208,7 @@ Supply declarations implicitly create nets with domain `supply`. Ground declarat
 
 Bundles group related nets for convenience, most commonly differential pairs. Bundle types are declared at the file level before circuits.
 
-```
+```acir
 bundle <TypeName>:
   <field> : <domain>
   <field> : <domain>
@@ -217,7 +217,7 @@ bundle <TypeName>:
 
 Example:
 
-```
+```acir
 bundle Diff:
   P : analog
   N : analog
@@ -235,13 +235,13 @@ bundle QuadIQ:
 
 Ports declare the external interface of a circuit. Each port has a name, a domain or bundle type, and optional source attribution.
 
-```
+```acir
 port <name> : <domain|BundleType>
 ```
 
 Examples:
 
-```
+```acir
 port VIN : analog
 port IN : Diff
 port OUT : analog
@@ -257,7 +257,7 @@ At HL (High Level), slots represent placeholders for circuit components that wil
 
 **Syntax:**
 
-```
+```acir
 slot <id> [(<connections>)] : <Trait>
   param <key> = <value>
   ...
@@ -271,7 +271,7 @@ When a single trait is required, it appears directly after the colon. When multi
 
 **Examples:**
 
-```
+```acir
 slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
 
 slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
@@ -284,7 +284,7 @@ slot driver (IN->sig, OUT->pad) : [BufferLike, HighDrive]
 
 During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular `inst` declaration:
 
-```
+```acir
 // HL
 slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
 
@@ -304,7 +304,7 @@ At ML level, instances reference motif types. At EL level, instances may referen
 
 **Syntax:**
 
-```
+```acir
 fill:
   inst <id> [(<connections>)] : <CircuitOrMotifType>
     param <key> = <value>
@@ -319,7 +319,7 @@ The terminal bindings use arrow syntax (`terminal -> net`) to show the mapping f
 
 When an instance has few connections or they fit naturally on one line, use inline syntax:
 
-```
+```acir
 fill:
   inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
     param p = PMOS
@@ -330,7 +330,7 @@ fill:
 
 For readability with many connections or when combined with parameters, break across lines:
 
-```
+```acir
 fill:
   inst dp : DiffPair
     param p = NMOS
@@ -347,7 +347,7 @@ fill:
 
 When a terminal and a net both share the same bundle type, a single binding connects all constituent fields recursively:
 
-```
+```acir
 fill:
   net sig_in : Diff
   net sig_out : Diff
@@ -359,7 +359,7 @@ fill:
 
 **Terminal path grammar:**
 
-```
+```acir
 terminalPath = ident ( "." ident | "[" int "]" )*
 ident = [A-Za-z_][A-Za-z0-9_]*
 int = [0-9]+
@@ -373,7 +373,7 @@ int = [0-9]+
 
 At EL level, instances may reference other circuits defined in the same ACIR document. This enables hierarchical composition where a top-level circuit instantiates child circuits, each of which may contain primitive devices or further circuit instances.
 
-```
+```acir
 circuit OTA5TSingleEnded
   level EL
 
@@ -421,7 +421,7 @@ Circuits may declare parameters that affect device sizing within the circuit. Pa
 
 **Syntax:**
 
-```
+```acir
 circuit <name>
   level EL
 
@@ -433,7 +433,7 @@ Supported types are `real` and `int`. Parameters with defaults are optional at i
 
 **Example:**
 
-```
+```acir
 circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   level EL
   inline
@@ -467,7 +467,7 @@ Circuits may be marked with the `inline` annotation to control SPICE emission be
 
 **Syntax:**
 
-```
+```acir
 circuit <name>
   level EL
   inline
@@ -498,7 +498,7 @@ At EL (Electrical Level), primitive devices replace motif instances. Device decl
 
 **Transistors:**
 
-```
+```acir
 fill:
   nmos <id> [(<connections>)] : <parameters>
     <terminal> -> <net>
@@ -513,7 +513,7 @@ Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and
 
 Example:
 
-```
+```acir
 fill:
   nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=1u L=100n M=1 sky130_fd_pr__nfet_01v8
 
@@ -522,7 +522,7 @@ fill:
 
 **Passives:**
 
-```
+```acir
 fill:
   resistor <id> [(<connections>)] : R=<value>
     P -> <net>
@@ -539,7 +539,7 @@ fill:
 
 Example:
 
-```
+```acir
 fill:
   capacitor Cc (P->comp_out, N->stage2_in) : C=1p
 
@@ -548,7 +548,7 @@ fill:
 
 **Diodes:**
 
-```
+```acir
 diode <id> [(<connections>)] : <model>
   A -> <net>
   K -> <net>
@@ -558,14 +558,14 @@ diode <id> [(<connections>)] : <model>
 
 Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings. Connection statements appear within the `fill:` block.
 
-```
+```acir
 fill:
   connect <source> -> <dest>
 ```
 
 Example:
 
-```
+```acir
 fill:
   connect dp.OUT.N -> OUT
 ```
@@ -580,13 +580,13 @@ The `via` clause is **required** in ACIR-EL, ensuring deterministic resolution i
 
 **Basic syntax:**
 
-```
+```acir
 attach <inst1> to <inst2> via <TraitName>::<TargetTrait>
 ```
 
 **With net anchor** (deterministic naming for created nets):
 
-```
+```acir
 attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
 ```
 
@@ -594,7 +594,7 @@ When the connector creates nets, they are named using the anchor: `mirror_node` 
 
 **Inline override** (modify or extend connector mappings):
 
-```
+```acir
 attach cm to dp via CurrentMirrorLike::DiffPairLike {
   SENSE -> OUT.N   // override: use OUT.N instead of OUT.P
 }
@@ -602,7 +602,7 @@ attach cm to dp via CurrentMirrorLike::DiffPairLike {
 
 **Combined form** (anchor + overrides):
 
-```
+```acir
 attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {
   SENSE -> OUT.N
 }
@@ -614,7 +614,7 @@ Connectors are defined on interface traits in the Cascode language (Chapter 2). 
 
 Circuits implement traits by listing them after the circuit name:
 
-```
+```acir
 circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   level EL
   ...
@@ -628,7 +628,7 @@ If `via` were optional (as it might be in higher-level ADL), and multiple valid 
 
 **Example:**
 
-```
+```acir
 trait TraitA:
   port X : analog
   connectors:
@@ -660,7 +660,7 @@ Traits declare interface contracts and connectors. Trait definitions appear at t
 
 **Syntax:**
 
-```
+```acir
 trait <TraitName>:
   port <name> : <domain|BundleType>
   ...
@@ -730,7 +730,7 @@ The `fill:` block groups all synthesized and elaborated content, separating the 
 
 **Syntax:**
 
-```
+```acir
 fill:
   <net declarations>
   <instance declarations>
@@ -752,7 +752,7 @@ fill:
 
 **Example:**
 
-```
+```acir
 circuit SimpleAmp
   level EL
 
@@ -775,7 +775,7 @@ The `fill:` block creates a clear structural separation between what the circuit
 
 Tools routinely need fast graph queries. ACIR allows serializing derived views in an optional indices block. They are informative only and must match resolved connectivity exactly.
 
-```
+```acir
 indices:
   hash sha256:abc123...
   pin_to_net dp.IN.P -> VINP
@@ -793,7 +793,7 @@ The hash is computed from a canonical serialization of the resolved terminal-to-
 
 Constraints live alongside the graph and come in four main kinds. They are evaluated during synthesis, sizing, and verification.
 
-```
+```acir
 constraints:
   numeric:
     c_gbw : GainBandwidth @ OUT >= 100M Hz
@@ -817,7 +817,7 @@ constraints:
 
 Numeric constraints express inequalities over metrics with explicit units and scope.
 
-```
+```acir
 <id> : <metric> @ <node> <op> <value> <unit>
 ```
 
@@ -827,7 +827,7 @@ Operators: `>=`, `<=`, `==`, `>`, `<`
 
 Technology constraints express limits on device parameters.
 
-```
+```acir
 <id> : <param> <op> <value> <unit> on <scope>
 ```
 
@@ -837,7 +837,7 @@ Scope may be `*` (all devices), a type selector, or an instance id.
 
 Graph constraints express structural properties of the circuit graph.
 
-```
+```acir
 <id> : cardinality <selector> in [<min>, <max>]
 <id> : path_exists <from> -> <to> [through <type>]
 <id> : fanout <net> in [<min>, <max>]
@@ -847,7 +847,7 @@ Graph constraints express structural properties of the circuit graph.
 
 Measurement intents specify what metrics should be extracted from simulation.
 
-```
+```acir
 <id> : <bench> <metric> @ <node>
 ```
 
@@ -859,7 +859,7 @@ Measurement intents specify what metrics should be extracted from simulation.
 
 The harness holds bench-only elements derived from ADL env blocks: supply values, bias voltages, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS.
 
-```
+```acir
 harness:
   supply VDD = 1.8V
   supply VDDIO = 3.3V
@@ -877,7 +877,7 @@ The `sweep` directive specifies DC bias conditions that vary across a range duri
 
 **Syntax:**
 
-```
+```acir
 sweep <ConditionName> [<start>:<step>:<stop>]     // explicit step
 sweep <ConditionName> [<start>:<stop>]            // automatic step
 sweep <ConditionName> [Auto]                      // synthesis chooses range (HL/ML only)
@@ -885,7 +885,7 @@ sweep <ConditionName> [Auto]                      // synthesis chooses range (HL
 
 **Examples:**
 
-```
+```acir
 sweep InputDCBias [0.3V:100mV:1.5V]           // SEAmp: sweep input bias with explicit step
 sweep InputDCCommonMode [0.3V:1.5V]           // SEOpAmp: sweep ICMR with auto step
 sweep OutputDCCommonMode [0.5V:50mV:1.3V]     // FDOpAmp: sweep OCMR with explicit step
@@ -929,7 +929,7 @@ For example, a common-source amplifier with a PMOS active load requires a gate b
 
 ACIR lists selected benches and their configurations for reproducibility.
 
-```
+```acir
 benches:
   SEOpAmpACBench
   StepToggle:
@@ -953,7 +953,7 @@ Slots are declared using the `slot` keyword followed by an identifier, connectio
 
 All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
-```
+```acir
 circuit OTA : SingleEndedOpAmp
   level HL
   ...
@@ -963,7 +963,7 @@ circuit OTA : SingleEndedOpAmp
 
 **Syntax:**
 
-```
+```acir
 slot <id> [(<connections>)] : <Trait>
 slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
 ```
@@ -974,7 +974,7 @@ The slot declaration captures the interface contract (connections) and the behav
 
 Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
 
-```
+```acir
 circuit OTA : SingleEndedOpAmp
   level ML
   ...
@@ -1006,7 +1006,7 @@ EL supports two forms:
 
 **Flattened form:**
 
-```
+```acir
 circuit OTA
   level EL
   ...
@@ -1016,7 +1016,7 @@ circuit OTA
 
 **Hierarchical form:**
 
-```
+```acir
 circuit OTA5TSingleEnded
   level EL
   ...
@@ -1042,7 +1042,7 @@ Hierarchical EL documents contain multiple circuits; the top-level circuit appea
 
 Provenance links IR elements back to ADL source and records transformation steps. This enables precise diagnostics and reproducibility.
 
-```
+```acir
 provenance:
   sources:
     examples/OTA5T.cas [1:120]
@@ -1153,7 +1153,7 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output.
 
-```
+```acir
 ACIR 2.0
 
 bundle Diff:
@@ -1232,7 +1232,7 @@ circuit CurrentMirror : CurrentMirrorLike
 
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
-```
+```acir
 ACIR 2.0
 
 circuit OTA5TSingleEnded
@@ -1287,7 +1287,7 @@ circuit OTA5TSingleEnded
 
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
-```
+```acir
 ACIR 2.0
 
 circuit LatchPadBuffer
@@ -1329,7 +1329,7 @@ circuit LatchPadBuffer
 
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
-```
+```acir
 ACIR 2.0
 
 circuit CSAmplifier
@@ -1378,7 +1378,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 
 This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via trait-scoped connectors.
 
-```
+```acir
 ACIR 2.0
 
 bundle Diff:
@@ -1556,7 +1556,7 @@ Unifying distinct supply nets or distinct ground nets remains an error even with
 
 **Example:**
 
-```
+```acir
 // Error: attach would merge net_a and net_b (both explicitly named)
 inst a : CircuitA
   PORT_X -> net_a
@@ -1577,7 +1577,7 @@ attach a to b via TraitA::TraitB // OK: both sides now in same equivalence class
 
 ACIR uses named binding; SPICE requires positional `.subckt` pin order. The canonical pin order follows declaration order in ACIR: supplies first (in declaration order), then grounds (in declaration order), then ports (in declaration order, with bundles expanded field-by-field).
 
-```
+```acir
 circuit OTA5TSingleEnded
   supply VDD
   ground GND
@@ -1614,13 +1614,13 @@ When emitting SPICE subckts for parameterized circuits, the subckt name encodes 
 
 **Format:** The subckt name follows the pattern:
 
-```
+```acir
 <CircuitName>_<param1>_<value1>_<param2>_<value2>...
 ```
 
 **Length limit:** SPICE subckt names must not exceed 64 characters. If the generated name exceeds this limit, use a hash fallback:
 
-```
+```acir
 <CircuitName>_<sha256_prefix_8>
 ```
 
@@ -1628,7 +1628,7 @@ The hash is computed over the full canonical name (before truncation) and uses t
 
 **Examples:**
 
-```
+```acir
 CurrentMirror_p_PMOS_taps_2        // alphabetical: p before taps
 DiffPair_hasTail_true_p_NMOS      // alphabetical: hasTail before p
 VeryLongCircuitNameWithManyParams_abc123de   // hash fallback (exceeds 64 chars)
@@ -1661,7 +1661,7 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 Vendor or dialect additions live under extension blocks. Extensions must not redefine core keywords. If an extension affects connectivity semantics, it must include a versioned schema and a compatibility note.
 
-```
+```acir
 circuit MyCircuit
   level EL
   ...
