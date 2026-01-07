@@ -819,7 +819,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -1355,7 +1355,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -1692,28 +1692,6 @@ public static partial class ACIRReader
             Via = $"{sourceTrait}::{targetTrait}",
             Anchor = anchor,
         };
-    }
-
-    /// <summary>
-    /// Parses a parameter value string into a ParamValue object.
-    /// </summary>
-    /// <param name="value">The value string to parse.</param>
-    /// <returns>A ParamValue with the appropriate field set.</returns>
-    private static ParamValue ParseParamValue(string value)
-    {
-        if (value.StartsWith('$'))
-        {
-            return new ParamValue { Symbolic = value };
-        }
-
-        // Check if it's a numeric value (digits, decimal point, or SI suffix)
-        if (NumericValuePattern().IsMatch(value))
-        {
-            return new ParamValue { Numeric = value };
-        }
-
-        // Otherwise treat as literal
-        return new ParamValue { Literal = value };
     }
 
     /// <summary>
@@ -2160,9 +2138,6 @@ public static partial class ACIRReader
 
     [GeneratedRegex(@"^param\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?$")]
     private static partial Regex CircuitParameterPattern();
-
-    [GeneratedRegex(@"^-?\d+\.?\d*[fpnumkMGT]?[A-Za-z]*$")]
-    private static partial Regex NumericValuePattern();
 
     [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
     private static partial Regex InstanceDeclarationPattern();

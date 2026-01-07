@@ -568,7 +568,7 @@ public static class AcirJsonConverter
                         Type = i.Type,
                         Bindings = new Dictionary<string, string>(i.Bindings),
                         Params =
-                            i.Params?.ToDictionary(p => p.Key, p => ParseParamValue(p.Value))
+                            i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))
                             ?? new Dictionary<string, ParamValue>(),
                     })
                     .ToList()
@@ -636,20 +636,9 @@ public static class AcirJsonConverter
             {
                 Name = p.Name,
                 Type = p.Type,
-                Default = p.Default is not null ? ParseParamValue(p.Default) : null,
+                Default = p.Default is not null ? ParamValueParser.Parse(p.Default) : null,
             })
             .ToList();
-    }
-
-    private static ParamValue ParseParamValue(string value)
-    {
-        if (value.StartsWith('$'))
-            return new ParamValue { Symbolic = value };
-
-        if (double.TryParse(value, out _) || value.Any(char.IsDigit))
-            return new ParamValue { Numeric = value };
-
-        return new ParamValue { Literal = value };
     }
 
     private static ConstraintsBlock? BuildConstraintsBlock(AcirJsonConstraints? constraints)
