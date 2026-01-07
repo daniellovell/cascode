@@ -59,7 +59,9 @@ public class AcirJsonConverterEdgeCaseTests
         };
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal("Empty", roundTripped.Circuits[0].Name);
         Assert.Empty(roundTripped.Circuits[0].Supplies);
@@ -95,7 +97,9 @@ public class AcirJsonConverterEdgeCaseTests
         var original = CreateMinimalCircuit();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal("Min", roundTripped.Circuits[0].Name);
         Assert.Equal(ACIRLevel.EL, roundTripped.Circuits[0].Level);
@@ -239,7 +243,9 @@ public class AcirJsonConverterEdgeCaseTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         Assert.Empty(doc.Circuits[0].Supplies);
         Assert.Empty(doc.Circuits[0].Grounds);

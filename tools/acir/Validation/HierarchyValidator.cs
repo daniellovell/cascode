@@ -13,6 +13,7 @@ namespace Cascode.ACIR.Validation;
 /// - HIER-002: Missing required parameter (no default, not provided at instantiation)
 /// - HIER-003: Instance port not covered (not bound directly nor by attach)
 /// - HIER-004: Circular instantiation dependency
+/// - HIER-005: Duplicate circuit name
 /// - HIER-006: Unknown instance in attach statement
 /// </remarks>
 public static class HierarchyValidator
@@ -28,20 +29,60 @@ public static class HierarchyValidator
 
         var result = new ValidationResult();
 
+        // HIER-005: Check for duplicate circuit names
+        var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var circuit in doc.Circuits)
+        {
+            if (!seenNames.Add(circuit.Name))
+            {
+                result.AddError(
+                    "HIER-005",
+                    $"Duplicate circuit name '{circuit.Name}'",
+                    $"circuit {circuit.Name}",
+                    "Each circuit must have a unique name"
+                );
+            }
+        }
+
         // Build lookup dictionary for O(1) circuit resolution
-        var circuitsByName = doc.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var circuitsByName = new Dictionary<string, Circuit>(StringComparer.Ordinal);
+        foreach (var circuit in doc.Circuits)
+        {
+            // Only add first occurrence to avoid dictionary exception
+            if (!circuitsByName.ContainsKey(circuit.Name))
+            {
+                circuitsByName[circuit.Name] = circuit;
+            }
+        }
 
         // Validate each circuit's hierarchy
         foreach (var circuit in doc.Circuits)
         {
-            ValidateCircuitInstances(circuit, circuitsByName, doc.Traits, result);
-            ValidateAttachStatements(circuit, result);
+            var instanceIds = BuildInstanceIds(circuit);
+            ValidateCircuitInstances(circuit, circuitsByName, doc.Traits, instanceIds, result);
+            ValidateAttachStatements(circuit, instanceIds, result);
         }
 
         // Detect circular dependencies across the document
-        DetectCircularDependencies(doc.Circuits, circuitsByName, result);
+        DetectCircularDependencies(doc.Circuits, result);
 
         return result;
+    }
+
+    /// <summary>
+    /// Builds a set of instance IDs for a circuit.
+    /// </summary>
+    private static HashSet<string> BuildInstanceIds(Circuit circuit)
+    {
+        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
+        if (circuit.Fill?.Instances is not null)
+        {
+            foreach (var inst in circuit.Fill.Instances)
+            {
+                instanceIds.Add(inst.Id);
+            }
+        }
+        return instanceIds;
     }
 
     /// <summary>
@@ -51,18 +92,13 @@ public static class HierarchyValidator
         Circuit circuit,
         Dictionary<string, Circuit> circuitsByName,
         List<TraitDefinition> traits,
+        HashSet<string> instanceIds,
         ValidationResult result
     )
     {
         if (circuit.Fill?.Instances is null || circuit.Fill.Instances.Count == 0)
         {
             return;
-        }
-
-        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var inst in circuit.Fill.Instances)
-        {
-            instanceIds.Add(inst.Id);
         }
 
         foreach (var instance in circuit.Fill.Instances)
@@ -83,14 +119,7 @@ public static class HierarchyValidator
             ValidateInstanceParameters(instance, targetCircuit, circuit.Name, result);
 
             // HIER-003: Validate port coverage (bindings + attach)
-            ValidateInstancePortCoverage(
-                instance,
-                targetCircuit,
-                circuit,
-                instanceIds,
-                traits,
-                result
-            );
+            ValidateInstancePortCoverage(instance, targetCircuit, circuit, traits, result);
         }
     }
 
@@ -132,7 +161,6 @@ public static class HierarchyValidator
         InstanceDeclaration instance,
         Circuit targetCircuit,
         Circuit parentCircuit,
-        HashSet<string> instanceIds,
         List<TraitDefinition> traits,
         ValidationResult result
     )
@@ -276,21 +304,15 @@ public static class HierarchyValidator
     /// <summary>
     /// Validates attach statements reference valid instances.
     /// </summary>
-    private static void ValidateAttachStatements(Circuit circuit, ValidationResult result)
+    private static void ValidateAttachStatements(
+        Circuit circuit,
+        HashSet<string> instanceIds,
+        ValidationResult result
+    )
     {
         if (circuit.Fill?.Attaches is null || circuit.Fill.Attaches.Count == 0)
         {
             return;
-        }
-
-        // Build set of valid instance IDs
-        var instanceIds = new HashSet<string>(StringComparer.Ordinal);
-        if (circuit.Fill.Instances is not null)
-        {
-            foreach (var inst in circuit.Fill.Instances)
-            {
-                instanceIds.Add(inst.Id);
-            }
         }
 
         foreach (var attach in circuit.Fill.Attaches)
@@ -333,11 +355,7 @@ public static class HierarchyValidator
     /// <summary>
     /// Detects circular instantiation dependencies using DFS.
     /// </summary>
-    private static void DetectCircularDependencies(
-        List<Circuit> circuits,
-        Dictionary<string, Circuit> circuitsByName,
-        ValidationResult result
-    )
+    private static void DetectCircularDependencies(List<Circuit> circuits, ValidationResult result)
     {
         // Build dependency graph: circuit name -> set of circuit names it instantiates
         var dependencies = BuildDependencyGraph(circuits);

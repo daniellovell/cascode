@@ -683,4 +683,49 @@ public class AttachResolverTests
             d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0024")
         );
     }
+
+    [Theory]
+    [InlineData("MalformedViaWithoutSeparator")]
+    [InlineData("")]
+    [InlineData("Single:Colon")]
+    [InlineData("A::B::C")]
+    public void Resolve_MalformedViaClause_ReturnsError(string malformedVia)
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "cm1",
+                                TargetInstance = "load1",
+                                Via = malformedVia,
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0022")
+        );
+    }
 }

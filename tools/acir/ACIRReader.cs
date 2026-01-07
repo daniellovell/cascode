@@ -776,7 +776,25 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                var parsedLevel = TryParseLevel(levelStr);
+                if (parsedLevel.HasValue)
+                {
+                    level = parsedLevel.Value;
+                }
+                else
+                {
+                    // No fallback: the error diagnostic causes Success=false, so callers
+                    // must not use the document. The initialized value of 'level' is irrelevant.
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0008: Invalid level '{levelStr}' - expected HL, ML, or EL",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -816,7 +834,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -1457,7 +1475,7 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                level = TryParseLevel(levelStr) ?? ACIRLevel.ML;
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -1497,7 +1515,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -1811,19 +1829,7 @@ public static partial class ACIRReader
     /// <returns>A ParamValue with the appropriate field set.</returns>
     private static ParamValue ParseParamValue(string value)
     {
-        if (value.StartsWith('$'))
-        {
-            return new ParamValue { Symbolic = value };
-        }
-
-        // Check if it's a numeric value (digits, decimal point, or SI suffix)
-        if (NumericValuePattern().IsMatch(value))
-        {
-            return new ParamValue { Numeric = value };
-        }
-
-        // Otherwise treat as literal
-        return new ParamValue { Literal = value };
+        return ParamValueParser.Parse(value);
     }
 
     /// <summary>
@@ -2180,15 +2186,15 @@ public static partial class ACIRReader
     /// Parses an ACIR level string (HL, ML, or EL) into the corresponding enum value.
     /// </summary>
     /// <param name="level">Level string.</param>
-    /// <returns>Parsed ACIR level, defaulting to ML if unrecognized.</returns>
-    private static ACIRLevel ParseLevel(string level)
+    /// <returns>Parsed ACIR level, or null if unrecognized.</returns>
+    private static ACIRLevel? TryParseLevel(string level)
     {
         return level.ToUpperInvariant() switch
         {
             "HL" => ACIRLevel.HL,
             "ML" => ACIRLevel.ML,
             "EL" => ACIRLevel.EL,
-            _ => ACIRLevel.ML,
+            _ => null,
         };
     }
 
@@ -2270,9 +2276,6 @@ public static partial class ACIRReader
 
     [GeneratedRegex(@"^param\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?$")]
     private static partial Regex CircuitParameterPattern();
-
-    [GeneratedRegex(@"^-?\d+\.?\d*[fpnumkMGT]?[A-Za-z]*$")]
-    private static partial Regex NumericValuePattern();
 
     [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
     private static partial Regex InstanceDeclarationPattern();

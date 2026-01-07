@@ -462,6 +462,122 @@ public class HierarchyValidatorTests
     }
 
     [Fact]
+    public void EmptyDocument_ShouldReportNoCircuits()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>(),
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.GetErrors());
+    }
+
+    [Fact]
+    public void DuplicateCircuitNames_ShouldReportError()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "DuplicateName",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+                new Circuit
+                {
+                    Name = "DuplicateName",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+            },
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.GetErrors(), e => e.Code == "HIER-005");
+    }
+
+    [Fact]
+    public void MultipleErrors_ShouldReportAllErrors()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "ChildCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = ACIRLevel.ML,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "child1",
+                                Type = "UndefinedCircuit",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                            new InstanceDeclaration
+                            {
+                                Id = "child2",
+                                Type = "ChildCircuit",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                    ["IN"] = "sig_in",
+                                    // OUT not bound - HIER-003
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = HierarchyValidator.Validate(doc);
+
+        Assert.False(result.IsValid);
+        var errors = result.GetErrors().ToList();
+        Assert.True(errors.Count >= 2);
+        Assert.Contains(errors, e => e.Code == "HIER-001");
+        Assert.Contains(errors, e => e.Code == "HIER-003");
+    }
+
+    [Fact]
     public void Validate_PortCoveredByAttach_NotReportedAsUnbound()
     {
         var doc = new ACIRDocument

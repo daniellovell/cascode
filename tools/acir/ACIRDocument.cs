@@ -63,7 +63,7 @@ public sealed class Circuit
     /// Whether this circuit should be inlined during SPICE emission.
     /// When true, devices and nets merge into parent with hierarchical naming.
     /// </summary>
-    public bool Inline { get; init; } = false;
+    public bool Inline { get; init; }
 
     /// <summary>Optional package path.</summary>
     public string? Package { get; init; }

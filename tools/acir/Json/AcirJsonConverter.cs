@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Cascode.Parser;
 
 namespace Cascode.ACIR.Json;
 
@@ -53,30 +54,110 @@ public static class AcirJsonConverter
     }
 
     /// <summary>
-    /// Parses JSON string into an ACIRDocument.
+    /// Parses JSON string into an ACIRDocument with structured error handling.
     /// </summary>
     /// <param name="json">The JSON string to parse.</param>
-    /// <returns>The ACIR document.</returns>
-    /// <exception cref="ArgumentException">If parsing fails.</exception>
-    public static ACIRDocument FromJson(string json)
+    /// <param name="filePath">Optional file path for diagnostic messages.</param>
+    /// <returns>Read result containing the document and any diagnostics.</returns>
+    public static ACIRReadResult FromJson(string json, string filePath = "<json>")
     {
-        var jsonDoc =
-            JsonSerializer.Deserialize<AcirJsonDocument>(json, JsonOptions)
-            ?? throw new ArgumentException("Failed to parse JSON document.");
-        return FromJsonDocument(jsonDoc);
+        var diagnostics = new List<Diagnostic>();
+
+        AcirJsonDocument? jsonDoc;
+        try
+        {
+            jsonDoc = JsonSerializer.Deserialize<AcirJsonDocument>(json, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0009: JSON parse error: {ex.Message}",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        if (jsonDoc == null)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    "ACIR0009: Failed to parse JSON document (null result)",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        return FromJsonDocument(jsonDoc, filePath, diagnostics);
     }
 
     /// <summary>
-    /// Converts AcirJsonDocument back to ACIRDocument.
+    /// Converts AcirJsonDocument back to ACIRDocument with structured error handling.
     /// </summary>
     /// <param name="jsonDoc">The JSON document to convert.</param>
-    /// <returns>The ACIR document.</returns>
-    public static ACIRDocument FromJsonDocument(AcirJsonDocument jsonDoc)
+    /// <param name="filePath">Optional file path for diagnostic messages.</param>
+    /// <param name="diagnostics">Optional diagnostics list to append to.</param>
+    /// <returns>Read result containing the document and any diagnostics.</returns>
+    public static ACIRReadResult FromJsonDocument(
+        AcirJsonDocument jsonDoc,
+        string filePath = "<json>",
+        List<Diagnostic>? diagnostics = null
+    )
     {
-        var version = ParseVersion(jsonDoc.AcirVersion);
-        var level = Enum.TryParse<ACIRLevel>(jsonDoc.Circuit.Level, out var parsedLevel)
-            ? parsedLevel
-            : ACIRLevel.EL;
+        diagnostics ??= new List<Diagnostic>();
+
+        // Parse version with error handling
+        int major,
+            minor;
+        try
+        {
+            (major, minor) = ParseVersion(jsonDoc.AcirVersion);
+        }
+        catch (FormatException ex)
+        {
+            diagnostics.Add(
+                new Diagnostic($"ACIR0002: {ex.Message}", DiagnosticSeverity.Error, filePath, 1, 1)
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        // Validate major version
+        if (major != ACIRVersion.Major)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        // Parse level with error handling - NO FALLBACK
+        if (!Enum.TryParse<ACIRLevel>(jsonDoc.Circuit.Level, ignoreCase: true, out var level))
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0008: Invalid level '{jsonDoc.Circuit.Level}' - expected HL, ML, or EL",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
 
         var circuit = new Circuit
         {
@@ -104,13 +185,15 @@ public static class AcirJsonConverter
                     : null,
         };
 
-        return new ACIRDocument
+        var doc = new ACIRDocument
         {
-            VersionMajor = version.major,
-            VersionMinor = version.minor,
+            VersionMajor = major,
+            VersionMinor = minor,
             Traits = BuildTraits(jsonDoc.Traits),
             Circuits = [circuit],
         };
+
+        return new ACIRReadResult { Document = doc, Diagnostics = diagnostics };
     }
 
     private static Circuit? FindElCircuit(ACIRDocument document, string? circuitName)
@@ -485,7 +568,7 @@ public static class AcirJsonConverter
                         Type = i.Type,
                         Bindings = new Dictionary<string, string>(i.Bindings),
                         Params =
-                            i.Params?.ToDictionary(p => p.Key, p => ParseParamValue(p.Value))
+                            i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))
                             ?? new Dictionary<string, ParamValue>(),
                     })
                     .ToList()
@@ -553,20 +636,9 @@ public static class AcirJsonConverter
             {
                 Name = p.Name,
                 Type = p.Type,
-                Default = p.Default is not null ? ParseParamValue(p.Default) : null,
+                Default = p.Default is not null ? ParamValueParser.Parse(p.Default) : null,
             })
             .ToList();
-    }
-
-    private static ParamValue ParseParamValue(string value)
-    {
-        if (value.StartsWith('$'))
-            return new ParamValue { Symbolic = value };
-
-        if (double.TryParse(value, out _) || value.Any(char.IsDigit))
-            return new ParamValue { Numeric = value };
-
-        return new ParamValue { Literal = value };
     }
 
     private static ConstraintsBlock? BuildConstraintsBlock(AcirJsonConstraints? constraints)
