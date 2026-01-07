@@ -41,6 +41,8 @@ public static class SpiceEmitter
     /// <param name="circuit">The circuit to emit (must be EL level).</param>
     /// <param name="writer">Text writer for output.</param>
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
+    /// <param name="document">Optional ACIR document for resolving instance types.</param>
+    /// <param name="resolution">Optional attach resolution result for resolved net names.</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
     /// Output format:
@@ -49,6 +51,7 @@ public static class SpiceEmitter
     /// .subckt CircuitName port1 port2 ... supply1 ... ground1 ...
     /// * Internal nets: net1, net2, ...
     /// M... (device instances)
+    /// X... (circuit instances)
     /// .ends CircuitName
     /// </code>
     /// Port ordering: declared ports, then supplies, then grounds.
@@ -56,7 +59,9 @@ public static class SpiceEmitter
     public static void EmitDesign(
         Circuit circuit,
         TextWriter writer,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null,
+        ACIRDocument? document = null,
+        CircuitResolutionResult? resolution = null
     )
     {
         if (circuit.Level != ACIRLevel.EL)
@@ -104,6 +109,44 @@ public static class SpiceEmitter
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
                 EmitDevice(device, writer, deviceModelMap);
+            }
+        }
+
+        // Emit circuit instances as X-elements or inline expansion
+        if (circuit.Fill?.Instances.Count > 0 && document is not null)
+        {
+            var circuitsByName = document.Circuits.ToDictionary(
+                c => c.Name,
+                StringComparer.Ordinal
+            );
+
+            foreach (
+                var instance in circuit.Fill.Instances.OrderBy(i => i.Id, StringComparer.Ordinal)
+            )
+            {
+                if (circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+                {
+                    if (targetCircuit.Inline)
+                    {
+                        // Inline expansion: embed devices with hierarchical naming
+                        writer.WriteLine();
+                        writer.WriteLine($"* Inline expansion of {instance.Id} : {instance.Type}");
+                        ExpandInlineCircuit(
+                            instance,
+                            targetCircuit,
+                            resolution,
+                            deviceModelMap,
+                            writer
+                        );
+                    }
+                    else
+                    {
+                        // Non-inline: emit as X-element
+                        writer.WriteLine();
+                        writer.WriteLine("* Circuit instances");
+                        EmitInstance(instance, targetCircuit, resolution, writer);
+                    }
+                }
             }
         }
 
@@ -188,10 +231,11 @@ public static class SpiceEmitter
     /// <returns>Result containing paths to generated files.</returns>
     /// <remarks>
     /// Processes all EL-level circuits in the document:
-    /// - Generates {CircuitName}.sp for each circuit
+    /// - Generates {CircuitName}.sp for each circuit in dependency order
     /// - Generates {CircuitName}_{BenchName}.sp for each bench using templates
     /// Output directory is created if it doesn't exist.
     /// Non-EL circuits are silently skipped.
+    /// Dependency order ensures .subckt definitions appear before X-element references.
     /// </remarks>
     public static SpiceEmitResult Emit(
         ACIRDocument doc,
@@ -207,7 +251,14 @@ public static class SpiceEmitter
         var result = new SpiceEmitResult();
         Directory.CreateDirectory(outputDir);
 
-        foreach (var circuit in doc.Circuits)
+        // Resolve attach statements for net connectivity
+        var attachResolver = new AttachResolver(doc);
+        var attachResult = attachResolver.Resolve();
+
+        // Order circuits by dependency (leaves first, top-level last)
+        var orderedCircuits = OrderByDependency(doc);
+
+        foreach (var circuit in orderedCircuits)
         {
             if (circuit.Level != ACIRLevel.EL)
             {
@@ -215,12 +266,19 @@ public static class SpiceEmitter
             }
 
             var includeResolution = includeResolver?.Resolve(circuit, backend);
+            var circuitResolution = attachResult.CircuitResults.GetValueOrDefault(circuit.Name);
 
             // Emit design netlist
             var designPath = Path.Combine(outputDir, $"{circuit.Name}.sp");
             using (var writer = File.CreateText(designPath))
             {
-                EmitDesign(circuit, writer, includeResolution?.DeviceModelMap);
+                EmitDesign(
+                    circuit,
+                    writer,
+                    includeResolution?.DeviceModelMap,
+                    doc,
+                    circuitResolution
+                );
             }
             result.DesignPaths.Add(designPath);
 
@@ -254,7 +312,7 @@ public static class SpiceEmitter
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
     /// <returns>Result containing paths to generated files and validation result.</returns>
     /// <remarks>
-    /// Runs emission validation before attempting SPICE generation.
+    /// Runs hierarchy validation and emission validation before attempting SPICE generation.
     /// If validation fails, no files are written and the validation errors are returned.
     /// </remarks>
     public static ValidatedEmitResult ValidateAndEmit(
@@ -270,7 +328,11 @@ public static class SpiceEmitter
 
         var validationResult = new ValidationResult();
 
-        // Validate all EL circuits first
+        // Validate hierarchy first (circuit references, parameters, ports, cycles)
+        var hierarchyValidation = HierarchyValidator.Validate(doc);
+        validationResult.Merge(hierarchyValidation);
+
+        // Validate all EL circuits for emission requirements
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         foreach (var circuit in elCircuits)
         {
@@ -292,6 +354,97 @@ public static class SpiceEmitter
         var emitResult = Emit(doc, outputDir, backend, workspaceRoot, includeResolver);
 
         return new ValidatedEmitResult { Validation = validationResult, Emit = emitResult };
+    }
+
+    /// <summary>
+    /// Orders circuits by dependency using topological sort.
+    /// </summary>
+    /// <param name="doc">The ACIR document.</param>
+    /// <returns>Circuits ordered with leaf circuits first, top-level last.</returns>
+    /// <remarks>
+    /// Required for SPICE: .subckt must be defined before X-element reference.
+    /// Uses Kahn's algorithm for topological sort.
+    /// </remarks>
+    private static List<Circuit> OrderByDependency(ACIRDocument doc)
+    {
+        var circuits = doc.Circuits;
+        var circuitsByName = circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+
+        // Build dependency graph: circuit -> circuits it depends on (instantiates)
+        var dependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var circuit in circuits)
+        {
+            dependencies[circuit.Name] = new HashSet<string>(StringComparer.Ordinal);
+            if (circuit.Fill?.Instances is not null)
+            {
+                foreach (var instance in circuit.Fill.Instances)
+                {
+                    // Only add dependency if the type exists in document and is not inline
+                    if (circuitsByName.TryGetValue(instance.Type, out var target) && !target.Inline)
+                    {
+                        dependencies[circuit.Name].Add(instance.Type);
+                    }
+                }
+            }
+        }
+
+        // Compute in-degrees (how many circuits depend on each circuit)
+        var inDegree = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var circuit in circuits)
+        {
+            inDegree[circuit.Name] = 0;
+        }
+        foreach (var deps in dependencies.Values)
+        {
+            foreach (var dep in deps)
+            {
+                if (inDegree.ContainsKey(dep))
+                {
+                    inDegree[dep]++;
+                }
+            }
+        }
+
+        // Kahn's algorithm: start with nodes that have no dependents
+        var queue = new Queue<string>();
+        foreach (var circuit in circuits)
+        {
+            if (inDegree[circuit.Name] == 0)
+            {
+                queue.Enqueue(circuit.Name);
+            }
+        }
+
+        var result = new List<Circuit>();
+        while (queue.Count > 0)
+        {
+            var name = queue.Dequeue();
+            result.Add(circuitsByName[name]);
+
+            // Reduce in-degree for circuits this one depends on
+            foreach (var dep in dependencies[name])
+            {
+                if (inDegree.ContainsKey(dep))
+                {
+                    inDegree[dep]--;
+                    if (inDegree[dep] == 0)
+                    {
+                        queue.Enqueue(dep);
+                    }
+                }
+            }
+        }
+
+        // If not all circuits were processed, there's a cycle (already caught by HierarchyValidator)
+        // Just return circuits in original order as fallback
+        if (result.Count < circuits.Count)
+        {
+            return circuits;
+        }
+
+        // Reverse to get dependency order (leaves first)
+        result.Reverse();
+        return result;
     }
 
     /// <summary>
@@ -361,6 +514,387 @@ public static class SpiceEmitter
         }
 
         writer.WriteLine(sb.ToString().TrimEnd());
+    }
+
+    /// <summary>
+    /// Emits a circuit instance as a SPICE X-element.
+    /// </summary>
+    /// <param name="instance">Instance declaration.</param>
+    /// <param name="targetCircuit">The circuit being instantiated.</param>
+    /// <param name="resolution">Optional attach resolution for net name mapping.</param>
+    /// <param name="writer">Text writer for output.</param>
+    /// <remarks>
+    /// Output format: X{id} {port1} {port2} ... {supply1} ... {ground1} ... {subckt_name}
+    /// Port ordering matches subcircuit declaration: ports, supplies, grounds.
+    /// </remarks>
+    private static void EmitInstance(
+        InstanceDeclaration instance,
+        Circuit targetCircuit,
+        CircuitResolutionResult? resolution,
+        TextWriter writer
+    )
+    {
+        var sb = new StringBuilder();
+        sb.Append('X');
+        sb.Append(instance.Id);
+        sb.Append(' ');
+
+        // Build port order: ports, supplies, grounds (matching subcircuit declaration)
+        var portOrder = new List<string>();
+        foreach (var port in targetCircuit.Ports)
+        {
+            portOrder.Add(port.Name);
+        }
+        foreach (var supply in targetCircuit.Supplies)
+        {
+            portOrder.Add(supply);
+        }
+        foreach (var ground in targetCircuit.Grounds)
+        {
+            portOrder.Add(ground);
+        }
+
+        // Emit port bindings in order
+        foreach (var portName in portOrder)
+        {
+            string netName;
+            if (instance.Bindings.TryGetValue(portName, out var boundNet))
+            {
+                // Use resolved net name if available
+                netName =
+                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
+                    ?? boundNet;
+            }
+            else
+            {
+                // Port not bound - use the port name itself (may be auto-connected)
+                netName = portName;
+            }
+            sb.Append(netName);
+            sb.Append(' ');
+        }
+
+        // Subcircuit name
+        sb.Append(targetCircuit.Name);
+
+        writer.WriteLine(sb.ToString().TrimEnd());
+    }
+
+    /// <summary>
+    /// Expands an inline circuit by embedding its devices with hierarchical naming.
+    /// </summary>
+    /// <param name="instance">Instance declaration being expanded.</param>
+    /// <param name="inlineCircuit">The inline circuit to expand.</param>
+    /// <param name="resolution">Optional attach resolution for net name mapping.</param>
+    /// <param name="deviceModelMap">Optional device model resolution map.</param>
+    /// <param name="writer">Text writer for output.</param>
+    /// <remarks>
+    /// Naming conventions:
+    /// - Device IDs: {instanceId}__{deviceId} (e.g., dp__M_N becomes M_dp__M_N)
+    /// - Internal nets: {instanceId}__{netId}
+    /// - Port bindings: substituted with parent-level nets
+    /// </remarks>
+    private static void ExpandInlineCircuit(
+        InstanceDeclaration instance,
+        Circuit inlineCircuit,
+        CircuitResolutionResult? resolution,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        TextWriter writer
+    )
+    {
+        // Build port-to-net substitution map
+        var netSubstitutions = BuildNetSubstitutions(instance, inlineCircuit);
+
+        // Build set of internal nets (not ports, supplies, or grounds)
+        var internalNets = new HashSet<string>(StringComparer.Ordinal);
+        if (inlineCircuit.Fill?.Nets is not null)
+        {
+            foreach (var net in inlineCircuit.Fill.Nets)
+            {
+                internalNets.Add(net.Id);
+            }
+        }
+
+        // Emit devices with hierarchical naming
+        if (inlineCircuit.Fill?.Devices is not null)
+        {
+            foreach (
+                var device in inlineCircuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal)
+            )
+            {
+                EmitInlineDevice(
+                    device,
+                    instance.Id,
+                    netSubstitutions,
+                    internalNets,
+                    resolution,
+                    deviceModelMap,
+                    writer
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds net name substitution map for inline expansion.
+    /// </summary>
+    private static Dictionary<string, string> BuildNetSubstitutions(
+        InstanceDeclaration instance,
+        Circuit inlineCircuit
+    )
+    {
+        var substitutions = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // Map port names to bound nets
+        foreach (var port in inlineCircuit.Ports)
+        {
+            if (instance.Bindings.TryGetValue(port.Name, out var boundNet))
+            {
+                substitutions[port.Name] = boundNet;
+            }
+        }
+
+        // Map supplies to bound nets
+        foreach (var supply in inlineCircuit.Supplies)
+        {
+            if (instance.Bindings.TryGetValue(supply, out var boundNet))
+            {
+                substitutions[supply] = boundNet;
+            }
+        }
+
+        // Map grounds to bound nets
+        foreach (var ground in inlineCircuit.Grounds)
+        {
+            if (instance.Bindings.TryGetValue(ground, out var boundNet))
+            {
+                substitutions[ground] = boundNet;
+            }
+        }
+
+        return substitutions;
+    }
+
+    /// <summary>
+    /// Emits a device from an inline circuit with hierarchical naming.
+    /// </summary>
+    private static void EmitInlineDevice(
+        DeviceDeclaration device,
+        string instanceId,
+        Dictionary<string, string> netSubstitutions,
+        HashSet<string> internalNets,
+        CircuitResolutionResult? resolution,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        TextWriter writer
+    )
+    {
+        var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
+        var useSubckt = resolvedModel?.IsSubckt ?? false;
+
+        var spiceType = device.DeviceType.ToLowerInvariant() switch
+        {
+            "nmos" or "pmos" => useSubckt ? "X" : "M",
+            "resistor" => "R",
+            "capacitor" => "C",
+            "inductor" => "L",
+            "diode" => "D",
+            _ => throw new InvalidOperationException($"Unknown device type: {device.DeviceType}"),
+        };
+
+        var sb = new StringBuilder();
+        sb.Append(spiceType);
+        sb.Append(instanceId);
+        sb.Append("__");
+        sb.Append(device.Id);
+        sb.Append(' ');
+
+        // Emit terminals with net substitution
+        if (spiceType is "M" or "X")
+        {
+            EmitInlineMosfetTerminalsAndParams(
+                device,
+                instanceId,
+                netSubstitutions,
+                internalNets,
+                resolution,
+                sb,
+                deviceModelMap,
+                useSubckt
+            );
+        }
+        else if (spiceType is "R" or "C" or "L")
+        {
+            // Two-terminal: P N
+            sb.Append(
+                SubstituteNet(
+                    GetBinding(device, "P"),
+                    instanceId,
+                    netSubstitutions,
+                    internalNets,
+                    resolution
+                )
+            );
+            sb.Append(' ');
+            sb.Append(
+                SubstituteNet(
+                    GetBinding(device, "N"),
+                    instanceId,
+                    netSubstitutions,
+                    internalNets,
+                    resolution
+                )
+            );
+            sb.Append(' ');
+
+            var valueKey = spiceType switch
+            {
+                "R" => "R",
+                "C" => "C",
+                "L" => "L",
+                _ => throw new InvalidOperationException(),
+            };
+            if (device.Params.TryGetValue(valueKey, out var value))
+            {
+                sb.Append(value);
+            }
+        }
+        else if (spiceType == "D")
+        {
+            // Diode: A K
+            sb.Append(
+                SubstituteNet(
+                    GetBinding(device, "A"),
+                    instanceId,
+                    netSubstitutions,
+                    internalNets,
+                    resolution
+                )
+            );
+            sb.Append(' ');
+            sb.Append(
+                SubstituteNet(
+                    GetBinding(device, "K"),
+                    instanceId,
+                    netSubstitutions,
+                    internalNets,
+                    resolution
+                )
+            );
+            sb.Append(' ');
+            sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: "D"));
+        }
+
+        writer.WriteLine(sb.ToString().TrimEnd());
+    }
+
+    /// <summary>
+    /// Emits MOSFET terminals and params for inline expansion.
+    /// </summary>
+    private static void EmitInlineMosfetTerminalsAndParams(
+        DeviceDeclaration device,
+        string instanceId,
+        Dictionary<string, string> netSubstitutions,
+        HashSet<string> internalNets,
+        CircuitResolutionResult? resolution,
+        StringBuilder sb,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        bool useSubckt
+    )
+    {
+        // MOSFET terminal ordering: D G S B
+        sb.Append(
+            SubstituteNet(
+                GetBinding(device, "D"),
+                instanceId,
+                netSubstitutions,
+                internalNets,
+                resolution
+            )
+        );
+        sb.Append(' ');
+        sb.Append(
+            SubstituteNet(
+                GetBinding(device, "G"),
+                instanceId,
+                netSubstitutions,
+                internalNets,
+                resolution
+            )
+        );
+        sb.Append(' ');
+        sb.Append(
+            SubstituteNet(
+                GetBinding(device, "S"),
+                instanceId,
+                netSubstitutions,
+                internalNets,
+                resolution
+            )
+        );
+        sb.Append(' ');
+        sb.Append(
+            SubstituteNet(
+                GetBinding(device, "B"),
+                instanceId,
+                netSubstitutions,
+                internalNets,
+                resolution
+            )
+        );
+        sb.Append(' ');
+
+        // Model name
+        sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
+        sb.Append(' ');
+
+        // Parameters: W, L, m
+        if (device.Params.TryGetValue("W", out var w))
+        {
+            sb.Append(useSubckt ? $"w={w} " : $"W={w} ");
+        }
+        if (device.Params.TryGetValue("L", out var l))
+        {
+            sb.Append(useSubckt ? $"l={l} " : $"L={l} ");
+        }
+        if (device.Params.TryGetValue("M", out var m))
+        {
+            sb.Append(useSubckt ? $"mult={m}" : $"m={m}");
+        }
+    }
+
+    /// <summary>
+    /// Substitutes a net name for inline expansion.
+    /// </summary>
+    /// <param name="netName">Original net name from inline circuit.</param>
+    /// <param name="instanceId">Instance ID for hierarchical prefix.</param>
+    /// <param name="substitutions">Port/supply/ground substitution map.</param>
+    /// <param name="internalNets">Set of internal net names in the inline circuit.</param>
+    /// <param name="resolution">Optional attach resolution.</param>
+    /// <returns>Substituted net name.</returns>
+    private static string SubstituteNet(
+        string netName,
+        string instanceId,
+        Dictionary<string, string> substitutions,
+        HashSet<string> internalNets,
+        CircuitResolutionResult? resolution
+    )
+    {
+        // Check if this is a port/supply/ground that should be substituted
+        if (substitutions.TryGetValue(netName, out var boundNet))
+        {
+            // Use resolved net name if available
+            return resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
+                ?? boundNet;
+        }
+
+        // Internal net: prefix with instance ID
+        if (internalNets.Contains(netName))
+        {
+            return $"{instanceId}__{netName}";
+        }
+
+        // Unknown net - pass through (shouldn't happen in valid circuits)
+        return netName;
     }
 
     /// <summary>
