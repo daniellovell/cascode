@@ -63,7 +63,7 @@ circuit <name> ...
 
 A single ACIR file may contain multiple circuits, supporting compilation of related motifs together as a single unit. At EL level, circuits may instantiate other circuits defined in the same document, enabling hierarchical composition while maintaining a single-file representation.
 
-**Circuit ordering:** When a document contains multiple circuits with instantiation relationships, the top-level circuit (the one not instantiated by any other circuit in the document) appears FIRST in the file, followed by its child circuits. This convention follows the FIRRTL/CIRCT model and ensures readers encounter the design's entry point immediately.
+**Circuit ordering:** When a document contains multiple circuits with instantiation relationships, the top-level circuit (the one not instantiated by any other circuit in the document) appears FIRST in the file, followed by its child circuits. This top-first ordering ensures readers encounter the design's entry point immediately.
 
 The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill:` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
 
