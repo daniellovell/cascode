@@ -46,8 +46,8 @@ public sealed partial class AttachResolver
             }
 
             var circuitResult = ResolveCircuit(circuit);
-            result.CircuitResults[circuit.Name] = circuitResult;
-            result.Diagnostics.AddRange(circuitResult.Diagnostics);
+            result._circuitResults[circuit.Name] = circuitResult;
+            result._diagnostics.AddRange(circuitResult.Diagnostics);
         }
 
         return result;
@@ -69,9 +69,9 @@ public sealed partial class AttachResolver
         InitializeNetAtoms(circuit, context);
         InitializeInstanceEndpoints(circuit, context);
         ApplyDeviceBindings(circuit, context);
-        ApplyInstanceBindings(circuit, context, result.Diagnostics);
-        ApplyConnectStatements(circuit, context, result.Diagnostics);
-        ApplyAttachStatements(circuit, context, result.Diagnostics);
+        ApplyInstanceBindings(circuit, context, result._diagnostics);
+        ApplyConnectStatements(circuit, context, result._diagnostics);
+        ApplyAttachStatements(circuit, context, result._diagnostics);
         FinalizeResolution(context, result);
         PopulateAttachBindings(circuit, context, result);
 

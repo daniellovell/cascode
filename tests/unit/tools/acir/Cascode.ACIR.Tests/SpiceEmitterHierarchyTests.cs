@@ -184,7 +184,7 @@ public class SpiceEmitterHierarchyTests
 
         // Create a resolution that maps internal_net to a different representative
         var resolution = new CircuitResolutionResult();
-        resolution.NetToRepresentative["internal_net"] = "resolved_output";
+        resolution._netToRepresentative["internal_net"] = "resolved_output";
 
         using var writer = new StringWriter();
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc, resolution: resolution);

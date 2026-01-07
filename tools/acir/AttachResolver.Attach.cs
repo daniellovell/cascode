@@ -119,8 +119,8 @@ public sealed partial class AttachResolver
         // Validate override source ports exist in connector
         if (attach.Overrides is { Count: > 0 })
         {
-            var connectorSourcePorts = connector.Mappings
-                .Select(m => m.SourcePort)
+            var connectorSourcePorts = connector
+                .Mappings.Select(m => m.SourcePort)
                 .ToHashSet(StringComparer.Ordinal);
 
             foreach (var ov in attach.Overrides)
@@ -152,10 +152,12 @@ public sealed partial class AttachResolver
 
             foreach (var (sourcePort, targetPort) in EnumerateConnectorMappings(attach, connector))
             {
-                var sourcePortDomain = sourceTrait?.Ports
-                    .FirstOrDefault(p => p.Name == sourcePort)?.Type ?? DefaultDomain;
-                var targetPortDomain = targetTrait?.Ports
-                    .FirstOrDefault(p => p.Name == targetPort)?.Type ?? DefaultDomain;
+                var sourcePortDomain =
+                    sourceTrait?.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type
+                    ?? DefaultDomain;
+                var targetPortDomain =
+                    targetTrait?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type
+                    ?? DefaultDomain;
 
                 if (!string.Equals(sourcePortDomain, targetPortDomain, StringComparison.Ordinal))
                 {

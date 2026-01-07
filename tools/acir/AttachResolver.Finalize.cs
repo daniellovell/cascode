@@ -154,7 +154,7 @@ public sealed partial class AttachResolver
         foreach (var net in context.ExplicitNetNodes)
         {
             var root = context.UnionFind.Find(net);
-            result.NetToRepresentative[net] = representatives[root];
+            result._netToRepresentative[net] = representatives[root];
         }
 
         foreach (var (root, nets) in netNodesByRoot)
@@ -163,7 +163,7 @@ public sealed partial class AttachResolver
             var names = BuildEquivalenceNames(nets, representative, context);
             if (names.Count > 0)
             {
-                result.NetEquivalences[representative] = names;
+                result._netEquivalences[representative] = names;
             }
         }
     }
@@ -204,7 +204,7 @@ public sealed partial class AttachResolver
         foreach (var endpoint in context.EndpointNodes)
         {
             var root = context.UnionFind.Find(endpoint);
-            result.TerminalToNet[endpoint] = representatives[root];
+            result._terminalToNet[endpoint] = representatives[root];
         }
     }
 
@@ -259,7 +259,7 @@ public sealed partial class AttachResolver
 
             if (bindings.Count > 0)
             {
-                result.AttachBindings[attach] = bindings;
+                result._attachBindings[attach] = bindings;
             }
         }
     }
