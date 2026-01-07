@@ -79,7 +79,7 @@ circuit <name> ...
 
 A single ACIR file may contain multiple circuits, supporting compilation of related motifs together as a single unit. At EL level, circuits may instantiate other circuits defined in the same document, enabling hierarchical composition while maintaining a single-file representation.
 
-**Circuit ordering:** When a document contains multiple circuits with instantiation relationships, the top-level circuit (the one not instantiated by any other circuit in the document) appears FIRST in the file, followed by its child circuits. This top-first ordering ensures readers encounter the design's entry point immediately.
+Circuit ordering: When a document contains multiple circuits with instantiation relationships, the top-level circuit (the one not instantiated by any other circuit in the document) appears FIRST in the file, followed by its child circuits. This top-first ordering ensures readers encounter the design's entry point immediately.
 
 The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill:` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
 
@@ -165,7 +165,7 @@ The domain field specifies one of:
 | `clock` | Clock signal | Sampling clocks |
 | `rf` | Radio frequency signal | High-frequency paths |
 
-**Net placement:**
+Net placement:
 
 - Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not require explicit declaration.
 - Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block at ML and EL levels.
@@ -181,7 +181,7 @@ net VTAIL : bias
 net EN : digital
 ```
 
-**Invariants:**
+Invariants:
 
 - A net id is unique within the circuit.
 - Supply and ground nets referenced by instances must correspond to exactly one canonical net per name within the circuit.
@@ -231,7 +231,7 @@ bundle QuadIQ:
   QN : analog
 ```
 
-**Built-in bundle type:** The `Diff` bundle is predefined with fields `P` and `N`, both of domain `analog`.
+Built-in bundle type: The `Diff` bundle is predefined with fields `P` and `N`, both of domain `analog`.
 
 ### 3.3.4 Port Declarations
 
@@ -251,13 +251,13 @@ port EN : digital
 port VTAIL : bias
 ```
 
-**Bundle port expansion:** A port declared with a bundle type expands to multiple underlying nets. For `port IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
+Bundle port expansion: A port declared with a bundle type expands to multiple underlying nets. For `port IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
 
 ### 3.3.5 Slot Declarations (HL)
 
 At HL (High Level), slots represent placeholders for circuit components that will be resolved during synthesis. A slot declares the interface contract (terminal connections) and the behavioral requirements (traits) without specifying a concrete implementation.
 
-**Syntax:**
+Syntax:
 
 ```acir
 slot <id> [(<connections>)] : <Trait>
@@ -271,7 +271,7 @@ slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
 
 When a single trait is required, it appears directly after the colon. When multiple traits are required, they are enclosed in square brackets as a comma-separated list.
 
-**Examples:**
+Examples:
 
 ```acir
 slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
@@ -282,7 +282,7 @@ slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : SingleEndedOpAmp
 slot driver (IN->sig, OUT->pad) : [BufferLike, HighDrive]
 ```
 
-**Slot-to-Instance Resolution:**
+Slot-to-Instance Resolution:
 
 During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular `inst` declaration:
 
@@ -304,7 +304,7 @@ Instances represent circuit or motif instantiations with type, parameters, and t
 
 At ML level, instances reference motif types. At EL level, instances may reference other circuits defined in the same ACIR document, enabling hierarchical composition while maintaining explicit connectivity.
 
-**Syntax:**
+Syntax:
 
 ```acir
 fill:
@@ -317,7 +317,7 @@ fill:
 
 The terminal bindings use arrow syntax (`terminal -> net`) to show the mapping from instance terminal to net. Connections may be specified inline in parentheses immediately following the instance identifier, or in the indented body, or both.
 
-**Inline Connections:**
+Inline Connections:
 
 When an instance has few connections or they fit naturally on one line, use inline syntax:
 
@@ -328,7 +328,7 @@ fill:
     param taps = 1
 ```
 
-**Multiline Connections:**
+Multiline Connections:
 
 For readability with many connections or when combined with parameters, break across lines:
 
@@ -345,7 +345,7 @@ fill:
     BIAS -> VTAIL
 ```
 
-**Bundle Connections:**
+Bundle Connections:
 
 When a terminal and a net both share the same bundle type, a single binding connects all constituent fields recursively:
 
@@ -359,7 +359,7 @@ fill:
     param p = NMOS
 ```
 
-**Terminal path grammar:**
+Terminal path grammar:
 
 ```acir
 terminalPath = ident ( "." ident | "[" int "]" )*
@@ -367,9 +367,9 @@ ident = [A-Za-z_][A-Za-z0-9_]*
 int = [0-9]+
 ```
 
-**Guidance:** External connectivity should prefer stable, named sub-terminals over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical terminal path; bracket segments are not array lookups but syntactic components of the path.
+Guidance: External connectivity should prefer stable, named sub-terminals over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical terminal path; bracket segments are not array lookups but syntactic components of the path.
 
-**Inline vs. Multiline Guidance:** Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
+Inline vs. Multiline Guidance: Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
 
 #### Circuit-to-Circuit Instantiation (EL)
 
@@ -421,7 +421,7 @@ All referenced circuit types MUST be defined in the same document. Supplies and 
 
 Circuits may declare parameters that affect device sizing within the circuit. Parameter declarations appear after the level declaration and before port declarations.
 
-**Syntax:**
+Syntax:
 
 ```acir
 circuit <name>
@@ -433,7 +433,7 @@ circuit <name>
 
 Supported types are `real` and `int`. Parameters with defaults are optional at instantiation; parameters without defaults are required.
 
-**Example:**
+Example:
 
 ```acir
 circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
@@ -459,20 +459,20 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
 
 Parameter references in device sizing use the `$` prefix for clarity: `W=$W_input`, `L=$L`, `W=$W_input*$tail_ratio`.
 
-**Rationale for sizing parameters in EL:** Although EL represents sizing-complete circuits where device dimensions are finalized, some circuits have inherent structural ratios fundamental to their operation. For example, a current mirror may have a fixed 2:1 ratio between sense and tap transistors that is part of the circuit's topological identity, not a sizing decision. These ratio relationships are preserved as parameters even in EL because they represent architectural intent rather than optimization variables.
+Rationale for sizing parameters in EL: Although EL represents sizing-complete circuits where device dimensions are finalized, some circuits have inherent structural ratios fundamental to their operation. For example, a current mirror may have a fixed 2:1 ratio between sense and tap transistors that is part of the circuit's topological identity, not a sizing decision. These ratio relationships are preserved as parameters even in EL because they represent architectural intent rather than optimization variables.
 
-**Topological vs. sizing parameters:** Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name during HL→ML elaboration. Only sizing parameters (W, L, ratios) remain as runtime parameters. See [§3.3.12](#3312-topological-monomorphization) for monomorphization rules.
+Topological vs. sizing parameters: Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name during HL→ML elaboration. Only sizing parameters (W, L, ratios) remain as runtime parameters. See [§3.3.12](#3312-topological-monomorphization) for monomorphization rules.
 
-**Definition vs instantiation semantics:** Circuit parameter declarations define the interface; instance parameter assignments provide values. This follows class/object semantics:
+Definition vs instantiation semantics: Circuit parameter declarations define the interface; instance parameter assignments provide values. This follows class/object semantics:
 
 - Parameters without defaults MUST be provided at instantiation
 - Parameters with concrete defaults MAY be omitted at instantiation
-- The `<#>` placeholder MUST appear only at instantiation sites, indicating the sizing engine will determine the value during ML→EL elaboration
-- Circuit parameter defaults MUST be concrete values; `<#>` MUST NOT appear as a default in circuit definitions
+- The `??` placeholder MUST appear only at instantiation sites, indicating the sizing engine will determine the value during ML→EL elaboration
+- Circuit parameter defaults MUST be concrete values; `??` MUST NOT appear as a default in circuit definitions
 
-At ML level, sizing parameters are typically declared without defaults (required) and assigned `<#>` at instantiation. At EL level, all sizing values MUST be concrete.
+At ML level, sizing parameters are typically declared without defaults (required) and assigned `??` at instantiation. At EL level, all sizing values MUST be concrete.
 
-**Example (ML):**
+Example (ML):
 
 ```acir
 circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
@@ -483,8 +483,8 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
 
 // At instantiation:
 inst dp : DiffPair_hasTail_true_p_NMOS
-  param W_input = <#>     // auto-size
-  param L = <#>           // auto-size
+  param W_input = ??     // auto-size
+  param L = ??           // auto-size
   // tail_ratio omitted → uses default 2
 ```
 
@@ -492,7 +492,7 @@ inst dp : DiffPair_hasTail_true_p_NMOS
 
 Circuits may be marked with the `inline` annotation to control SPICE emission behavior.
 
-**Syntax:**
+Syntax:
 
 ```acir
 circuit <name>
@@ -501,12 +501,12 @@ circuit <name>
   ...
 ```
 
-**Semantics:**
+Semantics:
 
 - Without `inline`: The circuit becomes a `.subckt` in SPICE, and instances become `X` element calls.
 - With `inline`: During SPICE emission, the circuit's devices and internal nets are merged into the parent circuit with hierarchical naming. No `.subckt` is generated.
 
-**Inline expansion uniquification:**
+Inline expansion uniquification:
 
 When inlining, device IDs and internal net IDs are uniquified to avoid collisions:
 
@@ -517,13 +517,13 @@ When inlining, device IDs and internal net IDs are uniquified to avoid collision
 
 Child ports are replaced by their bound nets from the parent. Internal nets are uniquified; external port bindings are substituted.
 
-**Top-level handling:** If the top-level circuit is marked `inline`, the annotation is ignored (not an error). The top-level circuit always emits as a `.subckt` because there is no parent to inline into.
+Top-level handling: If the top-level circuit is marked `inline`, the annotation is ignored (not an error). The top-level circuit always emits as a `.subckt` because there is no parent to inline into.
 
 ### 3.3.9 Device Declarations (EL)
 
 At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections. Device declarations appear within the `fill:` block.
 
-**Transistors:**
+Transistors:
 
 ```acir
 fill:
@@ -547,7 +547,7 @@ fill:
   pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 sky130_fd_pr__pfet_01v8
 ```
 
-**Passives:**
+Passives:
 
 ```acir
 fill:
@@ -573,7 +573,7 @@ fill:
   resistor Rz (P->comp_out, N->stage2_in) : R=10k
 ```
 
-**Diodes:**
+Diodes:
 
 ```acir
 diode <id> [(<connections>)] : <model>
@@ -605,7 +605,7 @@ At EL level, ACIR supports explicit `attach` statements that provide higher-leve
 
 The `via` clause is **required** in ACIR-EL, ensuring deterministic resolution independent of trait inheritance changes.
 
-**Basic syntax:**
+Basic syntax:
 
 ```acir
 attach <inst1> to <inst2> via <TraitName>::<TargetTrait>
@@ -649,11 +649,11 @@ circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
 
 Attach resolution looks up the referenced connector in the document's trait definitions at validation/emission time.
 
-**Connector disambiguation:** A circuit may implement multiple traits, and different traits may define connectors to the same target trait. The `via` clause explicitly selects which connector to use, eliminating ambiguity. In ACIR-EL, the `via` clause is required precisely to ensure deterministic connector selection.
+Connector disambiguation: A circuit may implement multiple traits, and different traits may define connectors to the same target trait. The `via` clause explicitly selects which connector to use, eliminating ambiguity. In ACIR-EL, the `via` clause is required precisely to ensure deterministic connector selection.
 
 If `via` were optional (as it might be in higher-level ADL), and multiple valid connectors existed for a given attach, the result would be ambiguous. ACIR-EL's required `via` clause prevents this situation entirely.
 
-**Example:**
+Example:
 
 ```acir
 trait TraitA:
@@ -685,7 +685,7 @@ Attach statements are resolved during SPICE emission using a union-find algorith
 
 Traits declare interface contracts and connectors. Trait definitions appear at the document level, after bundle definitions and before circuits.
 
-**Syntax:**
+Syntax:
 
 ```acir
 trait <TraitName>:
@@ -717,11 +717,11 @@ Each error condition corresponds to a diagnostic code defined in [§3.10](#310-d
 
 ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditionally. Parameters that affect port shape or device topology require **monomorphization** during the HL→ML transition.
 
-**When monomorphization occurs:** Topological parameters are resolved during HL→ML elaboration ("topology selection"). By the time a circuit reaches ML level, all topology-affecting parameters are baked into the circuit name. The subsequent ML→EL transition ("circuit sizing") resolves only sizing parameters to numeric values.
+When monomorphization occurs: Topological parameters are resolved during HL→ML elaboration ("topology selection"). By the time a circuit reaches ML level, all topology-affecting parameters are baked into the circuit name. The subsequent ML→EL transition ("circuit sizing") resolves only sizing parameters to numeric values.
 
-**Port-Shape Specialization Rule:** If a parameter can change the set of ports (adding, removing, or changing port count), then each realized port set MUST become a distinct circuit definition at ML.
+Port-Shape Specialization Rule: If a parameter can change the set of ports (adding, removing, or changing port count), then each realized port set MUST become a distinct circuit definition at ML.
 
-**Two categories of parameters:**
+Two categories of parameters:
 
 1. **Topological parameters** (resolved at HL→ML, baked into circuit name):
    - Boolean flags (e.g., `hasTail`): Adds/removes ports → `DiffPair_hasTail_true`, `DiffPair_hasTail_false`
@@ -729,11 +729,11 @@ ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditiona
    - Polarity (`p`): Determines PDK primitive → `_p_NMOS`, `_p_PMOS`
 
 2. **Sizing parameters** (resolved at ML→EL, remain as runtime parameters at ML):
-   - Device dimensions (W, L, mult) — use `<#>` placeholder at ML
+   - Device dimensions (W, L, mult) — use `??` placeholder at ML
    - Architectural ratios (tail_ratio, mirror_ratio)
    - Expression support: `W=$W_input*$tail_ratio`
 
-**Naming convention:**
+Naming convention:
 
 ```text
 <BaseName>_<param1>_<value1>[_<param2>_<value2>...]
@@ -741,7 +741,7 @@ ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditiona
 
 Topological parameters appear alphabetically: `DiffPair_hasTail_true_p_NMOS`
 
-**Instance references MUST use the specialized name:**
+Instance references MUST use the specialized name:
 
 ```acir
 // Correct
@@ -757,7 +757,7 @@ inst dp : DiffPair
 
 The `fill:` block groups all synthesized and elaborated content, separating the circuit's **declared interface** (ports, supplies, grounds) from its **implementation** (instances, devices, internal nets).
 
-**Syntax:**
+Syntax:
 
 ```acir
 fill:
@@ -768,18 +768,18 @@ fill:
   <connection statements>
 ```
 
-**Semantics:**
+Semantics:
 
 - At **ML level**, the `fill:` block contains internal `net` declarations and `inst` declarations resulting from slot resolution and elaboration.  
 - **EL level** uses the `fill:` block for internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).  
 - **HL level** does not use the `fill:` block; instead, slots remain at the circuit body level, representing requirements and contracts rather than synthesized implementations.
 
-**Net placement:**
+Net placement:
 
 - Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not appear in the `fill:` block.
 - Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block.
 
-**Example:**
+Example:
 
 ```acir
 circuit SimpleAmp
@@ -880,7 +880,7 @@ Measurement intents specify what metrics should be extracted from simulation.
 <id> : <bench> <metric> @ <node>
 ```
 
-**Guidance:** Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints and measurement intents carry explicit units, with sizing tools responsible for conversion to internal SI base units.
+Guidance: Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints and measurement intents carry explicit units, with sizing tools responsible for conversion to internal SI base units.
 
 ---
 
@@ -904,7 +904,7 @@ harness:
 
 The `sweep` directive specifies DC bias conditions that vary across a range during bench execution. When present, all benches execute their analyses at each sweep point and report worst-case values.
 
-**Syntax:**
+Syntax:
 
 ```acir
 sweep <ConditionName> [<start>:<step>:<stop>]     // explicit step
@@ -912,7 +912,7 @@ sweep <ConditionName> [<start>:<stop>]            // automatic step
 sweep <ConditionName> [Auto]                      // synthesis chooses range (HL/ML only)
 ```
 
-**Examples:**
+Examples:
 
 ```acir
 sweep InputDCBias [0.3V:100mV:1.5V]           // SEAmp: sweep input bias with explicit step
@@ -920,21 +920,21 @@ sweep InputDCCommonMode [0.3V:1.5V]           // SEOpAmp: sweep ICMR with auto s
 sweep OutputDCCommonMode [0.5V:50mV:1.3V]     // FDOpAmp: sweep OCMR with explicit step
 ```
 
-**Automatic step sizing:** When the step parameter is omitted, the toolchain computes `step = (stop - start) / 20` clamped to the range [10mV, 100mV].
+Automatic step sizing: When the step parameter is omitted, the toolchain computes `step = (stop - start) / 20` clamped to the range [10mV, 100mV].
 
-**Semantics:**
+Semantics:
 
 - The condition name (`InputDCBias`, `InputDCCommonMode`, `OutputDCCommonMode`) is topology-specific and must match the swept condition declared in the design's specification
 - All benches listed in the `benches:` block must respect the sweep and execute analyses at each point
 - Benches report worst-case values according to constraint directionality (minimum for `>=` constraints, maximum for `<=` constraints)
 - For range constraints `in [X..Y]`, benches report both `_min` and `_max` metric values
 
-**Resolution level (normative):**
+Resolution level (normative):
 
 - At EL, sweep ranges must be fully concrete (numeric start/stop/step). `sweep <ConditionName> [Auto]` must not appear in ACIR-EL.
 - At HL (and optionally ML), `sweep <ConditionName> [Auto]` is permitted only as an explicit request for synthesis to choose an execution envelope. During lowering to EL, synthesis must resolve `[Auto]` to a concrete range and record that range in the EL harness for reproducibility.
 
-**Example (underconstrained but explicit):**
+Example (underconstrained but explicit):
 
 ```acir
 // HL or ML: author requests that synthesis choose a sweep envelope
@@ -990,7 +990,7 @@ circuit OTA : SingleEndedOpAmp
   slot amp (IN->IN, OUT->OUT, VDD->VDD, VSS->VSS) : [SingleEndedOpAmp, LowPower]
 ```
 
-**Syntax:**
+Syntax:
 
 ```acir
 slot <id> [(<connections>)] : <Trait>
@@ -1009,21 +1009,21 @@ circuit OTA : SingleEndedOpAmp
   ...
   fill:
     inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad_p_PMOS
-      param W = <#>
-      param L = <#>
+      param W = ??
+      param L = ??
 
     inst dp : DiffPair_hasTail_true_p_NMOS
-      param W_input = <#>
-      param L = <#>
+      param W_input = ??
+      param L = ??
       param tail_ratio = 2
       ...
 ```
 
 At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad_p_PMOS` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` trait.
 
-**Auto-sizing placeholder (`<#>`):** At ML level, sizing parameters at **instantiation** may use the `<#>` placeholder to indicate values the sizing engine will determine during ML→EL elaboration. The `<#>` token appears only at instantiation sites, not in circuit parameter defaults. Circuit definitions declare parameter types and may provide concrete architectural defaults (e.g., `tail_ratio = 2`), but sizing parameters that need auto-determination are left without defaults and assigned `<#>` at instantiation. See [§3.3.7](#337-circuit-parameter-declarations) for the full parameter semantics.
+Auto-sizing placeholder (`??`): At ML level, sizing parameters at **instantiation** may use the `??` placeholder to indicate values the sizing engine will determine during ML→EL elaboration. The `??` token appears only at instantiation sites, not in circuit parameter defaults. Circuit definitions declare parameter types and may provide concrete architectural defaults (e.g., `tail_ratio = 2`), but sizing parameters that need auto-determination are left without defaults and assigned `??` at instantiation. See [§3.3.7](#337-circuit-parameter-declarations) for the full parameter semantics.
 
-Symbolic parameters use the `$` prefix for named references: `$ratio`, `$W_input`. The `<#>` token is reserved and cannot be used as an identifier.
+Symbolic parameters use the `$` prefix for named references: `$ratio`, `$W_input`. The `??` token is reserved and cannot be used as an identifier.
 
 ### 3.7.3 EL - Electrical Level
 
@@ -1034,7 +1034,7 @@ EL supports two forms:
 1. **Fully flattened:** Primitive devices only, with hierarchical naming preserved for traceability.
 2. **Hierarchical:** Circuit instances referencing other circuits in the same document, with primitive devices at leaves.
 
-**Flattened form:**
+Flattened form:
 
 ```acir
 circuit OTA
@@ -1044,7 +1044,7 @@ circuit OTA
     nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 sky130_fd_pr__nfet_01v8
 ```
 
-**Hierarchical form:**
+Hierarchical form:
 
 ```acir
 circuit OTA5TSingleEnded
@@ -1093,7 +1093,7 @@ ACIR validation executes after build completion and before consumption by downst
 
 - **Terminal coverage:** every required terminal path for every instance appears exactly once at ML and EL, either via explicit binding or attach resolution.
 - **Bundle completeness:** any referenced bundle field resolves to a concrete net id at ML and EL.
-- **Domain compatibility:** terminal kind and net domain are compatible according to the library schema. Attach resolution requires exact domain matching across unified endpoints.
+- Domain compatibility: terminal kind and net domain are compatible according to the library schema. Attach resolution requires exact domain matching across unified endpoints.
 - **Device selection at EL:** primitive device declarations MUST include the PDK device name.
 - **Rail uniqueness:** each named rail such as VDD or GND maps to one net id across the circuit.
 - **No dangling nets:** any net with zero incident terminals is pruned unless referenced by harness.
@@ -1181,7 +1181,7 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 
 ### 3.12.1 ML ACIR for OTA5TSingleEnded
 
-This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `<#>` placeholder.
+This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `??` placeholder.
 
 ```acir
 ACIR 2.0
@@ -1206,13 +1206,13 @@ circuit OTA5TSingleEnded : SingleEndedOpAmp
     net tnode : analog
 
     inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair_hasTail_true_p_NMOS
-      param W_input = <#>
-      param L = <#>
+      param W_input = ??
+      param L = ??
       param tail_ratio = 2
 
     inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror_taps_1_p_PMOS
-      param W_sense = <#>
-      param L = <#>
+      param W_sense = ??
+      param L = ??
 
 
 circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
@@ -1560,7 +1560,7 @@ ACIR-EL connectivity is computed by solving a constraint system over **net atoms
 2. Connect statements (`connect a -> b`)
 3. Attach statements (bulk binding via connector mappings)
 
-**Resolution algorithm:**
+Resolution algorithm:
 1. Initialize union-find with all net atoms
 2. For each explicit binding, union the terminal with its bound net
 3. For each connect statement, union the two endpoints
@@ -1579,19 +1579,19 @@ Each connector mapping is treated as **net unification**, not "skip if pre-bound
 3. **Both sides bound to different nets:** Error
 4. **Neither side bound:** Create a net using the `as` anchor (or auto-name if no anchor)
 
-**Representative net selection** follows priority order:
+Representative net selection follows priority order:
 1. Supply/ground nets declared in circuit header
 2. Port-expansion nets (from bundle expansion)
 3. Explicitly declared nets (`net foo : analog` in fill block)
 4. Auto-generated net (when class contains only unbound terminals)
 
-**Strict net conflict rule:** Attach resolution must not implicitly merge two distinct named nets. If an attach statement would place two explicitly named nets (declared nets, port-expansion nets, or supply/ground nets) into the same equivalence class, this is an error. The error message identifies both nets and suggests using explicit `connect` for intentional unification.
+Strict net conflict rule: Attach resolution must not implicitly merge two distinct named nets. If an attach statement would place two explicitly named nets (declared nets, port-expansion nets, or supply/ground nets) into the same equivalence class, this is an error. The error message identifies both nets and suggests using explicit `connect` for intentional unification.
 
 Explicit `connect` statements allow intentional unification of named nets. When multiple named nets are unified via `connect`, representative selection follows the priority order above, with ties within a tier broken by choosing the lexicographically smallest net id.
 
 Unifying distinct supply nets or distinct ground nets remains an error even with explicit `connect`.
 
-**Example:**
+Example:
 
 ```acir
 // Error: attach would merge net_a and net_b (both explicitly named)
@@ -1606,9 +1606,9 @@ connect net_a -> net_b           // intentional unification
 attach a to b via TraitA::TraitB // OK: both sides now in same equivalence class
 ```
 
-**Auto-net naming:** If no `as` anchor is provided, auto-generate: `_auto_<term1>__<term2>` where terms are lexicographically-sorted terminal paths with `.` replaced by `_`.
+Auto-net naming: If no `as` anchor is provided, auto-generate: `_auto_<term1>__<term2>` where terms are lexicographically-sorted terminal paths with `.` replaced by `_`.
 
-**Domain compatibility:** All endpoints in an equivalence class must have identical domains (exact matching, no supertype inference). Auto-created nets cannot have supply or ground domain; rails must be bound explicitly.
+Domain compatibility: All endpoints in an equivalence class must have identical domains (exact matching, no supertype inference). Auto-created nets cannot have supply or ground domain; rails must be bound explicitly.
 
 ### 3.13.5 Port Ordering
 
@@ -1638,9 +1638,9 @@ ACIR instance IDs map to SPICE element IDs with sanitization. The element type p
 
 When emitting SPICE subckts for parameterized circuits, the subckt name encodes topological parameter values to ensure each unique parameterization produces a distinct subckt definition. The naming algorithm is normative to ensure reproducible output across implementations.
 
-**Parameter ordering:** Parameters appear alphabetically by name. This guarantees deterministic naming regardless of declaration order in source.
+Parameter ordering: Parameters appear alphabetically by name. This guarantees deterministic naming regardless of declaration order in source.
 
-**Value rendering:** Each parameter type renders to a canonical string form:
+Value rendering: Each parameter type renders to a canonical string form:
 
 | Type | Rendering | Example |
 |------|-----------|---------|
@@ -1649,13 +1649,13 @@ When emitting SPICE subckts for parameterized circuits, the subckt name encodes 
 | real | Scientific notation, mantissa normalized to one digit before decimal | `_W_2e-6` |
 | polarity | `NMOS` or `PMOS` | `_p_NMOS` |
 
-**Format:** The subckt name follows the pattern:
+Format: The subckt name follows the pattern:
 
 ```acir
 <CircuitName>_<param1>_<value1>_<param2>_<value2>...
 ```
 
-**Length limit:** SPICE subckt names must not exceed 64 characters. If the generated name exceeds this limit, use a hash fallback:
+Length limit: SPICE subckt names must not exceed 64 characters. If the generated name exceeds this limit, use a hash fallback:
 
 ```acir
 <CircuitName>_<sha256_prefix_8>
@@ -1663,7 +1663,7 @@ When emitting SPICE subckts for parameterized circuits, the subckt name encodes 
 
 The hash is computed over the full canonical name (before truncation) and uses the first 8 hexadecimal characters of the SHA-256 digest.
 
-**Examples:**
+Examples:
 
 ```acir
 CurrentMirror_p_PMOS_taps_2        // alphabetical: p before taps
@@ -1871,7 +1871,7 @@ value        = NUMBER SIUNIT? ;
 SIUNIT       = SIPREFIX? BASEUNIT ;
 SIPREFIX     = "f" | "p" | "n" | "u" | "m" | "k" | "M" | "G" | "T" ;
 BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" ;
-paramValue   = value | "$" IDENT | "<#>" | IDENT ;
+paramValue   = value | "$" IDENT | "??" | IDENT ;
 source       = "@[" STRING "]" ;
 
 IDENT        = [A-Za-z_][A-Za-z0-9_]* ;
