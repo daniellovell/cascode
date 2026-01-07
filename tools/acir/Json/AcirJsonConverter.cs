@@ -74,12 +74,17 @@ public static class AcirJsonConverter
     public static ACIRDocument FromJsonDocument(AcirJsonDocument jsonDoc)
     {
         var version = ParseVersion(jsonDoc.AcirVersion);
+        var level = Enum.TryParse<ACIRLevel>(jsonDoc.Circuit.Level, out var parsedLevel)
+            ? parsedLevel
+            : ACIRLevel.EL;
 
         var circuit = new Circuit
         {
             Name = jsonDoc.Circuit.Name,
             Traits = jsonDoc.Circuit.Traits?.ToList(),
-            Level = ACIRLevel.EL,
+            Level = level,
+            Inline = jsonDoc.Circuit.Inline,
+            Parameters = BuildCircuitParameters(jsonDoc.Circuit.Parameters),
             Supplies = jsonDoc.Supplies.ToList(),
             Grounds = jsonDoc.Grounds.ToList(),
             Ports = jsonDoc
@@ -103,6 +108,7 @@ public static class AcirJsonConverter
         {
             VersionMajor = version.major,
             VersionMinor = version.minor,
+            Traits = BuildTraits(jsonDoc.Traits),
             Circuits = [circuit],
         };
     }
@@ -124,11 +130,14 @@ public static class AcirJsonConverter
         return new AcirJsonDocument
         {
             AcirVersion = $"{document.VersionMajor}.{document.VersionMinor}",
+            Traits = ConvertTraits(document.Traits),
             Circuit = new AcirJsonCircuitInfo
             {
                 Name = circuit.Name,
                 Traits = circuit.Traits?.Count > 0 ? circuit.Traits : null,
-                Level = "EL",
+                Level = circuit.Level.ToString(),
+                Inline = circuit.Inline,
+                Parameters = ConvertCircuitParameters(circuit.Parameters),
             },
             Supplies = circuit.Supplies,
             Grounds = circuit.Grounds,
@@ -137,6 +146,8 @@ public static class AcirJsonConverter
                 .ToList(),
             Nets = ConvertNets(circuit.Fill),
             Components = ConvertDevices(circuit.Fill),
+            Instances = ConvertInstances(circuit.Fill),
+            Attaches = ConvertAttaches(circuit.Fill),
             Constraints = ConvertConstraints(circuit.Constraints),
             Harness = ConvertHarness(circuit.Harness),
             Benches = circuit.Benches?.Benches.Select(b => b.Name).ToList() ?? [],
@@ -164,6 +175,116 @@ public static class AcirJsonConverter
                 Connections = d.Bindings,
                 Params = d.Params,
                 Process = d.PdkDevice,
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonTrait>? ConvertTraits(List<TraitDefinition> traits)
+    {
+        if (traits.Count == 0)
+            return null;
+
+        return traits
+            .Select(t => new AcirJsonTrait
+            {
+                Name = t.Name,
+                Ports = t
+                    .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
+                    .ToList(),
+                Connectors =
+                    t.Connectors.Count > 0
+                        ? t
+                            .Connectors.Select(c => new AcirJsonConnector
+                            {
+                                TargetTrait = c.TargetTrait,
+                                Mappings = c
+                                    .Mappings.Select(m => new AcirJsonMapping
+                                    {
+                                        Source = m.SourcePort,
+                                        Target = m.TargetPort,
+                                    })
+                                    .ToList(),
+                            })
+                            .ToList()
+                        : null,
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonCircuitParameter>? ConvertCircuitParameters(
+        List<CircuitParameter> parameters
+    )
+    {
+        if (parameters.Count == 0)
+            return null;
+
+        return parameters
+            .Select(p => new AcirJsonCircuitParameter
+            {
+                Name = p.Name,
+                Type = p.Type,
+                Default = p.Default switch
+                {
+                    { Symbolic: not null } => p.Default.Symbolic,
+                    { Numeric: not null } => p.Default.Numeric,
+                    { Literal: not null } => p.Default.Literal,
+                    _ => null,
+                },
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonInstance>? ConvertInstances(FillBlock? fill)
+    {
+        if (fill?.Instances.Count is null or 0)
+            return null;
+
+        return fill
+            .Instances.Select(i => new AcirJsonInstance
+            {
+                Id = i.Id,
+                Type = i.Type,
+                Bindings = i.Bindings,
+                Params =
+                    i.Params.Count > 0
+                        ? i.Params.ToDictionary(
+                            p => p.Key,
+                            p =>
+                                p.Value switch
+                                {
+                                    { Symbolic: not null } => p.Value.Symbolic,
+                                    { Numeric: not null } => p.Value.Numeric,
+                                    { Literal: not null } => p.Value.Literal!,
+                                    _ => "",
+                                }
+                        )
+                        : null,
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonAttach>? ConvertAttaches(FillBlock? fill)
+    {
+        if (fill?.Attaches.Count is null or 0)
+            return null;
+
+        return fill
+            .Attaches.Select(a => new AcirJsonAttach
+            {
+                SourceInstance = a.SourceInstance,
+                TargetInstance = a.TargetInstance,
+                Via = a.Via,
+                Anchor = a.Anchor,
+                Overrides =
+                    a.Overrides?.Count > 0
+                        ? a
+                            .Overrides.Select(o => new AcirJsonMapping
+                            {
+                                Source = o.SourcePort,
+                                Target = o.TargetPort,
+                            })
+                            .ToList()
+                        : null,
             })
             .ToList();
     }
@@ -356,7 +477,96 @@ public static class AcirJsonConverter
                     PdkDevice = c.Process,
                 })
                 .ToList(),
+            Instances =
+                jsonDoc
+                    .Instances?.Select(i => new InstanceDeclaration
+                    {
+                        Id = i.Id,
+                        Type = i.Type,
+                        Bindings = new Dictionary<string, string>(i.Bindings),
+                        Params =
+                            i.Params?.ToDictionary(p => p.Key, p => ParseParamValue(p.Value))
+                            ?? new Dictionary<string, ParamValue>(),
+                    })
+                    .ToList()
+                ?? [],
+            Attaches =
+                jsonDoc
+                    .Attaches?.Select(a => new AttachStatement
+                    {
+                        SourceInstance = a.SourceInstance,
+                        TargetInstance = a.TargetInstance,
+                        Via = a.Via,
+                        Anchor = a.Anchor,
+                        Overrides = a
+                            .Overrides?.Select(o => new ConnectorMapping
+                            {
+                                SourcePort = o.Source,
+                                TargetPort = o.Target,
+                            })
+                            .ToList(),
+                    })
+                    .ToList()
+                ?? [],
         };
+    }
+
+    private static List<TraitDefinition> BuildTraits(IReadOnlyList<AcirJsonTrait>? traits)
+    {
+        if (traits is null or { Count: 0 })
+            return [];
+
+        return traits
+            .Select(t => new TraitDefinition
+            {
+                Name = t.Name,
+                Ports = t
+                    .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
+                    .ToList(),
+                Connectors =
+                    t.Connectors?.Select(c => new TraitConnector
+                        {
+                            TargetTrait = c.TargetTrait,
+                            Mappings = c
+                                .Mappings.Select(m => new ConnectorMapping
+                                {
+                                    SourcePort = m.Source,
+                                    TargetPort = m.Target,
+                                })
+                                .ToList(),
+                        })
+                        .ToList()
+                    ?? [],
+            })
+            .ToList();
+    }
+
+    private static List<CircuitParameter> BuildCircuitParameters(
+        IReadOnlyList<AcirJsonCircuitParameter>? parameters
+    )
+    {
+        if (parameters is null or { Count: 0 })
+            return [];
+
+        return parameters
+            .Select(p => new CircuitParameter
+            {
+                Name = p.Name,
+                Type = p.Type,
+                Default = p.Default is not null ? ParseParamValue(p.Default) : null,
+            })
+            .ToList();
+    }
+
+    private static ParamValue ParseParamValue(string value)
+    {
+        if (value.StartsWith('$'))
+            return new ParamValue { Symbolic = value };
+
+        if (double.TryParse(value, out _) || value.Any(char.IsDigit))
+            return new ParamValue { Numeric = value };
+
+        return new ParamValue { Literal = value };
     }
 
     private static ConstraintsBlock? BuildConstraintsBlock(AcirJsonConstraints? constraints)
