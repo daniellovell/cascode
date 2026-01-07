@@ -710,7 +710,7 @@ public class AttachResolverTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = malformedVia,
                             },
                         },
