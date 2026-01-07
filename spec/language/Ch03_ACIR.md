@@ -24,7 +24,21 @@ Rules in the rest of this chapter tighten as you move from HL to ML to EL; §3.7
 
 ## 3.1 Design Principles
 
-The ACIR design prioritizes connectivity as the primary concern, representing electrical structure as a mapping from instance terminals to nets and deliberately avoiding redundant encodings in the resolved form. ACIR may optionally include higher-level connectivity constraints such as `attach` and `connect`; when present, tools must resolve them deterministically into a concrete terminal-to-net mapping before validation, indexing, and SPICE emission. Deterministic text output maintains stability by using consistent ordering and formatting, ensuring diff stability and CI compatibility. Elaboration levels provide flexibility through three distinct modes: HL (High Level, with `slot` declarations and symbolic sizing), ML (Mid Level, concrete motifs with possible symbolic parameters), and EL (Electrical Level, numeric and SPICE-ready), with pin coverage rules becoming more stringent at each level. Line-oriented format ensures that each statement occupies one logical line, facilitating grep operations, LLM comprehension, and unified diffs. Compact inline connections using `terminal->net` syntax within parentheses reduce verbosity while maintaining explicit keyword-argument clarity, avoiding the fragility of positional syntax. Source attribution via `@[file:line]` annotations enables precise error messages and debugging. Finally, the extensible non-leaky architecture places vendor or dialect fields under extension blocks, avoiding special-purpose modifications to the core model.
+Connectivity is the primary concern of ACIR. Every electrical relationship is expressed as a mapping from instance terminals to nets, and the resolved form deliberately avoids redundant encodings; a terminal binds to exactly one net, and that binding is the single source of truth for downstream tools.
+
+ACIR optionally carries higher-level connectivity constraints expressed through `attach` and `connect` statements. When present, these constraints must be resolved deterministically into a concrete terminal-to-net mapping before validation, indexing, or SPICE emission proceeds.
+
+Text output is deterministic. Instance and net orderings follow stable rules, and formatting is consistent across serialization runs. This guarantees diff stability and allows CI pipelines to compare golden files directly.
+
+Elaboration proceeds through three levels: HL (High Level) permits open slots and symbolic sizing, ML (Mid Level) requires all slots bound to concrete motifs while allowing symbolic parameters, and EL (Electrical Level) demands numeric values and PDK-specific device choices so that the document is SPICE-ready. Pin-coverage rules tighten at each level, and §3.7 enumerates the exact invariants.
+
+The format is line-oriented. Each statement occupies one logical line, which simplifies grep-based searches, improves LLM comprehension, and produces clean unified diffs.
+
+Inline connection syntax of the form `terminal->net` reduces verbosity while preserving explicit keyword-argument clarity. This avoids the fragility inherent in positional port orderings.
+
+Source attribution annotations (`@[file:line]`) trace each ACIR element back to its origin in the ADL source, enabling precise error messages and efficient debugging.
+
+Extension and dialect fields belong in dedicated extension blocks. Vendor-specific or experimental features must not modify the core model, keeping the base representation stable and portable.
 
 ---
 
@@ -638,72 +652,9 @@ attach m to c via TraitB::TraitC    // uses TraitB's connector (Y -> Z)
 // Without 'via', ambiguous which connector applies
 ```
 
-#### 3.3.11.3 Connectivity Resolution
+Attach statements are resolved during SPICE emission using a union-find algorithm that computes equivalence classes over nets and terminal endpoints. See §3.13.3 for the detailed resolution algorithm and §3.13.4 for net unification semantics.
 
-ACIR-EL connectivity is computed by solving a constraint system over **net atoms** using union-find. This ensures deterministic resolution regardless of statement order.
-
-**Net atoms** include:
-- Declared nets (explicit `net` declarations in fill block)
-- Port-expansion nets (from bundle expansion, e.g., `IN_P`, `IN_N`)
-- Supply/ground nets (from circuit header)
-- Unbound terminal endpoints
-
-**Constraints** come from:
-1. Explicit terminal bindings (`port -> net`)
-2. Connect statements (`connect a -> b`)
-3. Attach statements (bulk binding via connector mappings)
-
-**Resolution algorithm:**
-1. Initialize union-find with all net atoms
-2. For each explicit binding, union the terminal with its bound net
-3. For each connect statement, union the two endpoints
-4. For each attach statement:
-   - Look up connector from trait
-   - For each mapping in connector, union source endpoint with target endpoint
-5. Compute equivalence classes
-6. Assign representative net to each class
-
-#### 3.3.11.4 Net Unification Semantics
-
-Each connector mapping is treated as **net unification**, not "skip if pre-bound". For each mapping `A -> B`:
-
-1. **One side bound, other unbound:** Bind the unbound side to the same net
-2. **Both sides bound to the same net:** No-op (already unified)
-3. **Both sides bound to different nets:** Error
-4. **Neither side bound:** Create a net using the `as` anchor (or auto-name if no anchor)
-
-**Representative net selection** follows priority order:
-1. Supply/ground nets declared in circuit header
-2. Port-expansion nets (from bundle expansion)
-3. Explicitly declared nets (`net foo : analog` in fill block)
-4. Auto-generated net (when class contains only unbound terminals)
-
-**Strict net conflict rule:** Attach resolution must not implicitly merge two distinct named nets. If an attach statement would place two explicitly named nets (declared nets, port-expansion nets, or supply/ground nets) into the same equivalence class, this is an error. The error message identifies both nets and suggests using explicit `connect` for intentional unification.
-
-Explicit `connect` statements allow intentional unification of named nets. When multiple named nets are unified via `connect`, representative selection follows the priority order above, with ties within a tier broken by choosing the lexicographically smallest net id.
-
-Unifying distinct supply nets or distinct ground nets remains an error even with explicit `connect`.
-
-**Example:**
-
-```
-// Error: attach would merge net_a and net_b (both explicitly named)
-inst a : CircuitA
-  PORT_X -> net_a
-inst b : CircuitB
-  PORT_Y -> net_b
-attach a to b via TraitA::TraitB  // error if connector maps PORT_X to PORT_Y
-
-// Solution: use explicit connect
-connect net_a -> net_b           // intentional unification
-attach a to b via TraitA::TraitB // OK: both sides now in same equivalence class
-```
-
-**Auto-net naming:** If no `as` anchor is provided, auto-generate: `_auto_<term1>__<term2>` where terms are lexicographically-sorted terminal paths with `.` replaced by `_`.
-
-**Domain compatibility:** All endpoints in an equivalence class must have identical domains (exact matching, no supertype inference). Auto-created nets cannot have supply or ground domain; rails must be bound explicitly.
-
-#### 3.3.11.5 Trait Definitions (In-Document)
+#### 3.3.11.3 Trait Definitions (In-Document)
 
 Traits declare interface contracts and connectors. Trait definitions appear at the document level, after bundle definitions and before circuits.
 
@@ -724,7 +675,7 @@ Trait port declarations may use the family wildcard form `NAME[*]` to indicate a
 
 Connectors define how instances of one trait connect to instances of another. The connector `to DiffPairLike` on `CurrentMirrorLike` is referenced as `CurrentMirrorLike::DiffPairLike` in attach statements.
 
-#### 3.3.11.6 Error Conditions
+#### 3.3.11.4 Error Conditions
 
 Each error condition corresponds to a diagnostic code defined in §3.10.
 
@@ -1551,13 +1502,78 @@ Primitive transistor devices emit as SPICE M-devices. The PDK device name become
 
 ### 3.13.2 Hierarchical Emission
 
-For hierarchical EL documents containing circuit instances, the emitter first resolves all attach statements using the union-find algorithm described in §3.3.11.3, then processes circuits according to their `inline` annotation.
+For hierarchical EL documents containing circuit instances, the emitter first resolves all attach statements using the union-find algorithm described in §3.13.3, then processes circuits according to their `inline` annotation.
 
 Circuits not marked `inline` become separate `.subckt` definitions. The emitter orders these by dependency: leaf circuits (those with no circuit instances) emit first, followed by circuits that instantiate only leaves, continuing up the dependency tree. The top-level circuit emits last. This ordering ensures each `.subckt` is defined before any `X` element references it.
 
 Circuits marked `inline` do not generate `.subckt` definitions. Instead, their devices and internal nets merge into the parent circuit during emission. Device IDs and internal net IDs are uniquified using the instance path: device `M_N` under instance `dp` becomes `M_dp__M_N`, and net `tnode` becomes `dp__tnode`. Child port bindings are substituted with the parent's bound nets.
 
-### 3.13.3 Port Ordering
+### 3.13.3 Connectivity Resolution
+
+ACIR-EL connectivity is computed by solving a constraint system over **net atoms** using union-find. This ensures deterministic resolution regardless of statement order.
+
+**Net atoms** include:
+- Declared nets (explicit `net` declarations in fill block)
+- Port-expansion nets (from bundle expansion, e.g., `IN_P`, `IN_N`)
+- Supply/ground nets (from circuit header)
+- Unbound terminal endpoints
+
+**Constraints** come from:
+1. Explicit terminal bindings (`port -> net`)
+2. Connect statements (`connect a -> b`)
+3. Attach statements (bulk binding via connector mappings)
+
+**Resolution algorithm:**
+1. Initialize union-find with all net atoms
+2. For each explicit binding, union the terminal with its bound net
+3. For each connect statement, union the two endpoints
+4. For each attach statement:
+   - Look up connector from trait
+   - For each mapping in connector, union source endpoint with target endpoint
+5. Compute equivalence classes
+6. Assign representative net to each class
+
+### 3.13.4 Net Unification Semantics
+
+Each connector mapping is treated as **net unification**, not "skip if pre-bound". For each mapping `A -> B`:
+
+1. **One side bound, other unbound:** Bind the unbound side to the same net
+2. **Both sides bound to the same net:** No-op (already unified)
+3. **Both sides bound to different nets:** Error
+4. **Neither side bound:** Create a net using the `as` anchor (or auto-name if no anchor)
+
+**Representative net selection** follows priority order:
+1. Supply/ground nets declared in circuit header
+2. Port-expansion nets (from bundle expansion)
+3. Explicitly declared nets (`net foo : analog` in fill block)
+4. Auto-generated net (when class contains only unbound terminals)
+
+**Strict net conflict rule:** Attach resolution must not implicitly merge two distinct named nets. If an attach statement would place two explicitly named nets (declared nets, port-expansion nets, or supply/ground nets) into the same equivalence class, this is an error. The error message identifies both nets and suggests using explicit `connect` for intentional unification.
+
+Explicit `connect` statements allow intentional unification of named nets. When multiple named nets are unified via `connect`, representative selection follows the priority order above, with ties within a tier broken by choosing the lexicographically smallest net id.
+
+Unifying distinct supply nets or distinct ground nets remains an error even with explicit `connect`.
+
+**Example:**
+
+```
+// Error: attach would merge net_a and net_b (both explicitly named)
+inst a : CircuitA
+  PORT_X -> net_a
+inst b : CircuitB
+  PORT_Y -> net_b
+attach a to b via TraitA::TraitB  // error if connector maps PORT_X to PORT_Y
+
+// Solution: use explicit connect
+connect net_a -> net_b           // intentional unification
+attach a to b via TraitA::TraitB // OK: both sides now in same equivalence class
+```
+
+**Auto-net naming:** If no `as` anchor is provided, auto-generate: `_auto_<term1>__<term2>` where terms are lexicographically-sorted terminal paths with `.` replaced by `_`.
+
+**Domain compatibility:** All endpoints in an equivalence class must have identical domains (exact matching, no supertype inference). Auto-created nets cannot have supply or ground domain; rails must be bound explicitly.
+
+### 3.13.5 Port Ordering
 
 ACIR uses named binding; SPICE requires positional `.subckt` pin order. The canonical pin order follows declaration order in ACIR: supplies first (in declaration order), then grounds (in declaration order), then ports (in declaration order, with bundles expanded field-by-field).
 
@@ -1573,15 +1589,15 @@ circuit OTA5TSingleEnded
 .subckt OTA5TSingleEnded VDD GND IN_P IN_N OUT VTAIL
 ```
 
-### 3.13.4 Parameter Substitution
+### 3.13.6 Parameter Substitution
 
 When emitting devices from parameterized circuits, sizing parameter references are substituted with their bound values. The expression `W=$W_input*$tail_ratio` with `W_input=2u` and `tail_ratio=2` emits as `W=4u`. Parameter expressions support multiplication, division, addition, and subtraction.
 
-### 3.13.5 Instance Naming
+### 3.13.7 Instance Naming
 
 ACIR instance IDs map to SPICE element IDs with sanitization. The element type prefix is determined by the target: `M` for MOSFETs, `R` for resistors, `C` for capacitors, `X` for subckt instances. The hierarchical separator `.` in ACIR becomes `__` (double underscore) in SPICE. Any SPICE-illegal characters are replaced with `_`.
 
-### 3.13.6 Subckt Naming for Parameterized Circuits
+### 3.13.8 Subckt Naming for Parameterized Circuits
 
 When emitting SPICE subckts for parameterized circuits, the subckt name encodes topological parameter values to ensure each unique parameterization produces a distinct subckt definition. The naming algorithm is normative to ensure reproducible output across implementations.
 
