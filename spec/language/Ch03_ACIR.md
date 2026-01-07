@@ -2,6 +2,8 @@
 
 > This chapter defines ACIR as a data model and text-based format that carries circuit connectivity and analysis intent from Cascode ADL to synthesis, sizing, verification, and SPICE emission.
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
+
 ---
 
 ## 3.0 Summary
@@ -459,7 +461,32 @@ Parameter references in device sizing use the `$` prefix for clarity: `W=$W_inpu
 
 **Rationale for sizing parameters in EL:** Although EL represents sizing-complete circuits where device dimensions are finalized, some circuits have inherent structural ratios fundamental to their operation. For example, a current mirror may have a fixed 2:1 ratio between sense and tap transistors that is part of the circuit's topological identity, not a sizing decision. These ratio relationships are preserved as parameters even in EL because they represent architectural intent rather than optimization variables.
 
-**Topological vs. sizing parameters:** Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name before ACIR emission. Only sizing parameters (W, L, ratios) remain as runtime parameters. See [§3.3.12](#3312-topological-monomorphization) for monomorphization rules.
+**Topological vs. sizing parameters:** Parameters that affect port shape, device topology, or PDK primitive selection (polarity, hasTail, taps) are monomorphized into the circuit name during HL→ML elaboration. Only sizing parameters (W, L, ratios) remain as runtime parameters. See [§3.3.12](#3312-topological-monomorphization) for monomorphization rules.
+
+**Definition vs instantiation semantics:** Circuit parameter declarations define the interface; instance parameter assignments provide values. This follows class/object semantics:
+
+- Parameters without defaults MUST be provided at instantiation
+- Parameters with concrete defaults MAY be omitted at instantiation
+- The `<#>` placeholder MUST appear only at instantiation sites, indicating the sizing engine will determine the value during ML→EL elaboration
+- Circuit parameter defaults MUST be concrete values; `<#>` MUST NOT appear as a default in circuit definitions
+
+At ML level, sizing parameters are typically declared without defaults (required) and assigned `<#>` at instantiation. At EL level, all sizing values MUST be concrete.
+
+**Example (ML):**
+
+```acir
+circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+  level ML
+  param W_input : real           // required - caller must provide
+  param L : real                 // required - caller must provide
+  param tail_ratio : real = 2    // optional - architectural default
+
+// At instantiation:
+inst dp : DiffPair_hasTail_true_p_NMOS
+  param W_input = <#>     // auto-size
+  param L = <#>           // auto-size
+  // tail_ratio omitted → uses default 2
+```
 
 ### 3.3.8 The `inline` Annotation
 
@@ -688,19 +715,21 @@ Each error condition corresponds to a diagnostic code defined in [§3.10](#310-d
 
 ### 3.3.12 Topological Monomorphization
 
-ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditionally. Parameters that affect port shape require **monomorphization** before ACIR emission.
+ACIR requires fixed circuit signatures; a circuit's ports cannot vary conditionally. Parameters that affect port shape or device topology require **monomorphization** during the HL→ML transition.
 
-**Port-Shape Specialization Rule:** If a parameter can change the set of ports (adding, removing, or changing port count), then each realized port set MUST become a distinct circuit definition before EL emission.
+**When monomorphization occurs:** Topological parameters are resolved during HL→ML elaboration ("topology selection"). By the time a circuit reaches ML level, all topology-affecting parameters are baked into the circuit name. The subsequent ML→EL transition ("circuit sizing") resolves only sizing parameters to numeric values.
+
+**Port-Shape Specialization Rule:** If a parameter can change the set of ports (adding, removing, or changing port count), then each realized port set MUST become a distinct circuit definition at ML.
 
 **Two categories of parameters:**
 
-1. **Topological parameters** (monomorphized into circuit name):
+1. **Topological parameters** (resolved at HL→ML, baked into circuit name):
    - Boolean flags (e.g., `hasTail`): Adds/removes ports → `DiffPair_hasTail_true`, `DiffPair_hasTail_false`
    - Port-family counts (e.g., `taps`): Changes port count → `CurrentMirror_taps_1`, `CurrentMirror_taps_2`
    - Polarity (`p`): Determines PDK primitive → `_p_NMOS`, `_p_PMOS`
 
-2. **Sizing parameters** (remain as runtime parameters):
-   - Device dimensions (W, L, mult)
+2. **Sizing parameters** (resolved at ML→EL, remain as runtime parameters at ML):
+   - Device dimensions (W, L, mult) — use `<#>` placeholder at ML
    - Architectural ratios (tail_ratio, mirror_ratio)
    - Expression support: `W=$W_input*$tail_ratio`
 
@@ -972,28 +1001,29 @@ The slot declaration captures the interface contract (connections) and the behav
 
 ### 3.7.2 ML - Mid Level
 
-Slots are resolved to concrete motif types and become regular `inst` declarations. All terminals are connected to nets. Parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
+Slots are resolved to concrete motif types and become regular `inst` declarations. Topological parameters (polarity, hasTail, taps) are resolved during HL→ML and baked into monomorphized circuit names. All terminals are connected to nets. Sizing parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
 
 ```acir
 circuit OTA : SingleEndedOpAmp
   level ML
   ...
   fill:
-    inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad
-      param p = PMOS
-      param W = $Auto
-      param L = $Auto
+    inst load (node->vout, bias->vb1, vref->VDD) : ActiveLoad_p_PMOS
+      param W = <#>
+      param L = <#>
 
-    inst dp : DiffPair
-      param p = NMOS
-      param W = $Auto
-      param L = $Auto
+    inst dp : DiffPair_hasTail_true_p_NMOS
+      param W_input = <#>
+      param L = <#>
+      param tail_ratio = 2
       ...
 ```
 
-At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad` once the synthesis engine selects a concrete motif that satisfies the `LoadDevice` trait.
+At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad_p_PMOS` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` trait.
 
-Symbolic parameters use the `$` prefix: `$Auto`, `$ratio`, `$W_input`.
+**Auto-sizing placeholder (`<#>`):** At ML level, sizing parameters at **instantiation** may use the `<#>` placeholder to indicate values the sizing engine will determine during ML→EL elaboration. The `<#>` token appears only at instantiation sites, not in circuit parameter defaults. Circuit definitions declare parameter types and may provide concrete architectural defaults (e.g., `tail_ratio = 2`), but sizing parameters that need auto-determination are left without defaults and assigned `<#>` at instantiation. See [§3.3.7](#337-circuit-parameter-declarations) for the full parameter semantics.
+
+Symbolic parameters use the `$` prefix for named references: `$ratio`, `$W_input`. The `<#>` token is reserved and cannot be used as an identifier.
 
 ### 3.7.3 EL - Electrical Level
 
@@ -1151,7 +1181,7 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 
 ### 3.12.1 ML ACIR for OTA5TSingleEnded
 
-This example shows the ML representation of a five-transistor OTA with differential input and single-ended output.
+This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `<#>` placeholder.
 
 ```acir
 ACIR 2.0
@@ -1172,23 +1202,26 @@ circuit OTA5TSingleEnded : SingleEndedOpAmp
   port VTAIL : bias
 
   fill:
-    net mirror_gate : analog  // dp.OUT.P = cm.SENSE via attach
-    net tnode : analog        // internal tail node from dp
+    net mirror_gate : analog
+    net tnode : analog
 
-    inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair
-      param p = NMOS
-      param hasTail = true
+    inst dp (IN->IN, OUT.N->OUT, BASE->GND, BIAS->VTAIL, OUT.P->mirror_gate) : DiffPair_hasTail_true_p_NMOS
+      param W_input = <#>
+      param L = <#>
+      param tail_ratio = 2
 
-    inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror
-      param p = PMOS
-      param taps = 1
-
-    // attach cm -> dp elaborated into shared mirror_gate net
+    inst cm (RAIL->VDD, SENSE->mirror_gate, TAP[0]->OUT) : CurrentMirror_taps_1_p_PMOS
+      param W_sense = <#>
+      param L = <#>
 
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   level ML
   package lib.std.prim
+
+  param W_input : real
+  param L : real
+  param tail_ratio : real = 2
 
   port IN : Diff
   port OUT : Diff
@@ -1196,36 +1229,40 @@ circuit DiffPair : DiffPairLike
   port BIAS : bias
 
   fill:
-    net IN_P : analog
-    net IN_N : analog
-    net OUT_P : analog
-    net OUT_N : analog
     net tnode : analog
 
-    inst M_N (G->IN_P, D->OUT_N, S->tnode) : MOS
-      param p = $p
+    inst M_N (G->IN.P, D->OUT.N, S->tnode) : MOS_NMOS
+      param W = $W_input
+      param L = $L
 
-    inst M_P (G->IN_N, D->OUT_P, S->tnode) : MOS
-      param p = $p
+    inst M_P (G->IN.N, D->OUT.P, S->tnode) : MOS_NMOS
+      param W = $W_input
+      param L = $L
 
-    inst M_TAIL (G->BIAS, D->tnode, S->BASE) : MOS
-      param p = $p
+    inst M_TAIL (G->BIAS, D->tnode, S->BASE) : MOS_NMOS
+      param W = $W_input * $tail_ratio
+      param L = $L
 
 
-circuit CurrentMirror : CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   level ML
   package lib.std.prim
+
+  param W_sense : real
+  param L : real
 
   port RAIL : supply
   port SENSE : analog
   port TAP[0] : analog
 
   fill:
-    inst M_SENSE (G->SENSE, D->SENSE, S->RAIL) : MOS
-      param p = $p
+    inst M_SENSE (G->SENSE, D->SENSE, S->RAIL) : MOS_PMOS
+      param W = $W_sense
+      param L = $L
 
-    inst M_TAP0 (G->SENSE, D->TAP[0], S->RAIL) : MOS
-      param p = $p
+    inst M_TAP0 (G->SENSE, D->TAP[0], S->RAIL) : MOS_PMOS
+      param W = $W_sense
+      param L = $L
 ```
 
 ### 3.12.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
@@ -1834,7 +1871,7 @@ value        = NUMBER SIUNIT? ;
 SIUNIT       = SIPREFIX? BASEUNIT ;
 SIPREFIX     = "f" | "p" | "n" | "u" | "m" | "k" | "M" | "G" | "T" ;
 BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" ;
-paramValue   = value | "$" IDENT | IDENT ;
+paramValue   = value | "$" IDENT | "<#>" | IDENT ;
 source       = "@[" STRING "]" ;
 
 IDENT        = [A-Za-z_][A-Za-z0-9_]* ;
