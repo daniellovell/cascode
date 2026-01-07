@@ -202,6 +202,30 @@ circuit TestCircuit
     }
 
     [Fact]
+    public void TryParse_InvalidLevel_EmitsACIR0008()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit Test
+  level XL
+  supply VDD
+  ground GND
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0008")
+                && d.Message.Contains("XL")
+        );
+    }
+
+    [Fact]
     public void ACIRReadResult_ErrorCount_ReflectsErrors()
     {
         var acir =

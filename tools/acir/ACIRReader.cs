@@ -763,7 +763,23 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                var parsedLevel = TryParseLevel(levelStr);
+                if (parsedLevel.HasValue)
+                {
+                    level = parsedLevel.Value;
+                }
+                else
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0008: Invalid level '{levelStr}' - expected HL, ML, or EL",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -1299,7 +1315,7 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                level = TryParseLevel(levelStr) ?? ACIRLevel.ML;
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -2054,15 +2070,15 @@ public static partial class ACIRReader
     /// Parses an ACIR level string (HL, ML, or EL) into the corresponding enum value.
     /// </summary>
     /// <param name="level">Level string.</param>
-    /// <returns>Parsed ACIR level, defaulting to ML if unrecognized.</returns>
-    private static ACIRLevel ParseLevel(string level)
+    /// <returns>Parsed ACIR level, or null if unrecognized.</returns>
+    private static ACIRLevel? TryParseLevel(string level)
     {
         return level.ToUpperInvariant() switch
         {
             "HL" => ACIRLevel.HL,
             "ML" => ACIRLevel.ML,
             "EL" => ACIRLevel.EL,
-            _ => ACIRLevel.ML,
+            _ => null,
         };
     }
 
