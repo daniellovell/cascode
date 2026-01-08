@@ -55,7 +55,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - ≤400 added LOC per patch; split if larger.
 - ≤500 LOC/file; ≤80 LOC/method (justify rare exceptions).
 - No dead/unreferenced code or files; remove in the same work.
-- Warnings‑as‑errors + nullable enabled for `tools/*`.
+- `Directory.Build.props` enforces `TreatWarningsAsErrors`, `Nullable=enable`, and `EnableNETAnalyzers` for `tools/*`. Do not duplicate these in individual csproj files.
 - No legacy toggles/shims; migrate and delete.
 - Build artifacts live in `build/` only.
 - Safety: NEVER run `git restore`.

@@ -7,7 +7,7 @@ csproj="$repo_root/tools/cli/Cascode.Cli.csproj"
 nupkg_dir="$repo_root/build/nupkg"
 
 if ! command -v dotnet >/dev/null 2>&1; then
-  echo "dotnet SDK (8+) is required to build and install cascode." >&2
+  echo "dotnet SDK (10+) is required to build and install cascode." >&2
   exit 1
 fi
 
