@@ -109,7 +109,9 @@ public class AcirJsonConverterBasicTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         Assert.NotNull(doc);
         Assert.Single(doc.Circuits);
@@ -139,7 +141,9 @@ public class AcirJsonConverterBasicTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         var device = doc.Circuits[0].Fill!.Devices[0];
         Assert.Equal("nmos", device.DeviceType);
@@ -164,7 +168,9 @@ public class AcirJsonConverterBasicTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         Assert.Equal(3, doc.Circuits[0].Supplies.Count);
         Assert.Equal("VDD", doc.Circuits[0].Supplies[0]);

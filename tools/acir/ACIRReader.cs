@@ -663,6 +663,19 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            filePath,
+                            diagnostics
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContentWithDiagnostics(
                         contentTrimmed,
                         currentFill,
@@ -763,7 +776,25 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                var parsedLevel = TryParseLevel(levelStr);
+                if (parsedLevel.HasValue)
+                {
+                    level = parsedLevel.Value;
+                }
+                else
+                {
+                    // No fallback: the error diagnostic causes Success=false, so callers
+                    // must not use the document. The initialized value of 'level' is irrelevant.
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0008: Invalid level '{levelStr}' - expected HL, ML, or EL",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -803,7 +834,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -895,12 +926,6 @@ public static partial class ACIRReader
             if (instance is not null)
                 fill.Instances.Add(instance);
         }
-        else if (line.StartsWith("attach "))
-        {
-            var attach = ParseAttachWithDiagnostics(line, filePath, lineNumber, diagnostics);
-            if (attach is not null)
-                fill.Attaches.Add(attach);
-        }
     }
 
     /// <summary>
@@ -953,43 +978,182 @@ public static partial class ACIRReader
     }
 
     /// <summary>
-    /// Parses an attach statement with diagnostic collection.
+    /// Parses an attach statement, including optional inline override blocks.
     /// </summary>
-    private static AttachStatement? ParseAttachWithDiagnostics(
-        string line,
+    private static (AttachStatement? Attach, int NextIndex) ParseAttachWithOverrides(
+        IReadOnlyList<string> lines,
+        int startIndex,
         string filePath,
-        int lineNumber,
-        List<Diagnostic> diagnostics
+        List<Diagnostic>? diagnostics
     )
     {
-        var match = AttachStatementPattern().Match(line);
+        string StripComment(string value)
+        {
+            var commentIndex = value.IndexOf("//", StringComparison.Ordinal);
+            return commentIndex >= 0 ? value[..commentIndex] : value;
+        }
+
+        var lineNumber = startIndex + 1;
+        var rawLine = StripComment(lines[startIndex]).Trim();
+        var braceIndex = rawLine.IndexOf('{');
+        var headerLine = braceIndex >= 0 ? rawLine[..braceIndex].TrimEnd() : rawLine;
+        var afterBrace = braceIndex >= 0 ? rawLine[(braceIndex + 1)..].Trim() : string.Empty;
+        var hasOpeningBrace = braceIndex >= 0;
+        var inlineOverrides =
+            hasOpeningBrace && afterBrace.EndsWith("}", StringComparison.Ordinal)
+                ? afterBrace[..^1].Trim()
+                : afterBrace;
+
+        var match = AttachStatementPattern().Match(headerLine);
         if (!match.Success)
         {
-            diagnostics.Add(
-                new Diagnostic(
-                    $"ACIR0016: Invalid attach statement syntax '{line}'",
-                    DiagnosticSeverity.Error,
-                    filePath,
-                    lineNumber,
-                    1
-                )
-            );
-            return null;
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
         }
 
         var sourceInstance = match.Groups[1].Value;
-        var targetInstance = match.Groups[2].Value;
+        var targetSegment = match.Groups[2].Value;
         var sourceTrait = match.Groups[3].Value;
         var targetTrait = match.Groups[4].Value;
         var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
 
-        return new AttachStatement
+        var targetInstances = targetSegment
+            .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+        if (targetInstances.Count == 0)
         {
-            SourceInstance = sourceInstance,
-            TargetInstance = targetInstance,
-            Via = $"{sourceTrait}::{targetTrait}",
-            Anchor = anchor,
-        };
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
+        }
+
+        List<ConnectorMapping>? overrides = null;
+
+        void AddOverride(string mappingLine, int mappingLineNumber)
+        {
+            var mappingMatch = ConnectorMappingPattern().Match(mappingLine);
+            if (mappingMatch.Success)
+            {
+                overrides ??= new List<ConnectorMapping>();
+                overrides.Add(
+                    new ConnectorMapping
+                    {
+                        SourcePort = mappingMatch.Groups[1].Value,
+                        TargetPort = mappingMatch.Groups[2].Value,
+                    }
+                );
+            }
+            else if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach override syntax '{mappingLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        mappingLineNumber,
+                        1
+                    )
+                );
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(inlineOverrides))
+        {
+            AddOverride(inlineOverrides, lineNumber);
+        }
+
+        if (hasOpeningBrace && !afterBrace.EndsWith("}", StringComparison.Ordinal))
+        {
+            var i = startIndex + 1;
+            while (i < lines.Count)
+            {
+                var content = StripComment(lines[i]);
+                var trimmed = content.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (trimmed == "}")
+                {
+                    return (
+                        new AttachStatement
+                        {
+                            SourceInstance = sourceInstance,
+                            TargetInstances = targetInstances,
+                            Via = $"{sourceTrait}::{targetTrait}",
+                            Anchor = anchor,
+                            Overrides = overrides,
+                        },
+                        i + 1
+                    );
+                }
+
+                AddOverride(trimmed, i + 1);
+                i++;
+            }
+
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "ACIR0016: Unterminated attach override block",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+
+            return (
+                new AttachStatement
+                {
+                    SourceInstance = sourceInstance,
+                    TargetInstances = targetInstances,
+                    Via = $"{sourceTrait}::{targetTrait}",
+                    Anchor = anchor,
+                    Overrides = overrides,
+                },
+                lines.Count
+            );
+        }
+
+        return (
+            new AttachStatement
+            {
+                SourceInstance = sourceInstance,
+                TargetInstances = targetInstances,
+                Via = $"{sourceTrait}::{targetTrait}",
+                Anchor = anchor,
+                Overrides = overrides,
+            },
+            startIndex + 1
+        );
     }
 
     /// <summary>
@@ -1211,6 +1375,19 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            string.Empty,
+                            null
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContent(contentTrimmed, currentFill);
                 }
                 else if (currentHarness is not null)
@@ -1299,7 +1476,7 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                level = TryParseLevel(levelStr) ?? ACIRLevel.ML;
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -1339,7 +1516,7 @@ public static partial class ACIRReader
                     if (paramMatch.Groups[3].Success)
                     {
                         var defaultStr = paramMatch.Groups[3].Value.Trim();
-                        defaultValue = ParseParamValue(defaultStr);
+                        defaultValue = ParamValueParser.Parse(defaultStr);
                     }
 
                     parameters.Add(
@@ -1553,12 +1730,6 @@ public static partial class ACIRReader
             if (instance is not null)
                 fill.Instances.Add(instance);
         }
-        else if (line.StartsWith("attach "))
-        {
-            var attach = ParseAttach(line);
-            if (attach is not null)
-                fill.Attaches.Add(attach);
-        }
     }
 
     /// <summary>
@@ -1650,54 +1821,6 @@ public static partial class ACIRReader
             Type = type,
             Bindings = bindings,
         };
-    }
-
-    /// <summary>
-    /// Parses an attach statement line.
-    /// </summary>
-    /// <param name="line">Attach statement line.</param>
-    /// <returns>Parsed attach statement, or null if the line doesn't match.</returns>
-    private static AttachStatement? ParseAttach(string line)
-    {
-        var match = AttachStatementPattern().Match(line);
-        if (!match.Success)
-            return null;
-
-        var sourceInstance = match.Groups[1].Value;
-        var targetInstance = match.Groups[2].Value;
-        var sourceTrait = match.Groups[3].Value;
-        var targetTrait = match.Groups[4].Value;
-        var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
-
-        return new AttachStatement
-        {
-            SourceInstance = sourceInstance,
-            TargetInstance = targetInstance,
-            Via = $"{sourceTrait}::{targetTrait}",
-            Anchor = anchor,
-        };
-    }
-
-    /// <summary>
-    /// Parses a parameter value string into a ParamValue object.
-    /// </summary>
-    /// <param name="value">The value string to parse.</param>
-    /// <returns>A ParamValue with the appropriate field set.</returns>
-    private static ParamValue ParseParamValue(string value)
-    {
-        if (value.StartsWith('$'))
-        {
-            return new ParamValue { Symbolic = value };
-        }
-
-        // Check if it's a numeric value (digits, decimal point, or SI suffix)
-        if (NumericValuePattern().IsMatch(value))
-        {
-            return new ParamValue { Numeric = value };
-        }
-
-        // Otherwise treat as literal
-        return new ParamValue { Literal = value };
     }
 
     /// <summary>
@@ -2054,15 +2177,15 @@ public static partial class ACIRReader
     /// Parses an ACIR level string (HL, ML, or EL) into the corresponding enum value.
     /// </summary>
     /// <param name="level">Level string.</param>
-    /// <returns>Parsed ACIR level, defaulting to ML if unrecognized.</returns>
-    private static ACIRLevel ParseLevel(string level)
+    /// <returns>Parsed ACIR level, or null if unrecognized.</returns>
+    private static ACIRLevel? TryParseLevel(string level)
     {
         return level.ToUpperInvariant() switch
         {
             "HL" => ACIRLevel.HL,
             "ML" => ACIRLevel.ML,
             "EL" => ACIRLevel.EL,
-            _ => ACIRLevel.ML,
+            _ => null,
         };
     }
 
@@ -2145,12 +2268,11 @@ public static partial class ACIRReader
     [GeneratedRegex(@"^param\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?$")]
     private static partial Regex CircuitParameterPattern();
 
-    [GeneratedRegex(@"^-?\d+\.?\d*[fpnumkMGT]?[A-Za-z]*$")]
-    private static partial Regex NumericValuePattern();
-
     [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
     private static partial Regex InstanceDeclarationPattern();
 
-    [GeneratedRegex(@"^attach\s+(\w+)\s+to\s+(\w+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?$")]
+    [GeneratedRegex(
+        @"^attach\s+(\w+)((?:\s+to\s+\w+)+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?(?:\s*\{)?$"
+    )]
     private static partial Regex AttachStatementPattern();
 }

@@ -202,6 +202,30 @@ circuit TestCircuit
     }
 
     [Fact]
+    public void TryParse_InvalidLevel_EmitsACIR0008()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit Test
+  level XL
+  supply VDD
+  ground GND
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0008")
+                && d.Message.Contains("XL")
+        );
+    }
+
+    [Fact]
     public void ACIRReadResult_ErrorCount_ReflectsErrors()
     {
         var acir =
@@ -243,4 +267,179 @@ circuit TestCircuit
         Assert.True(result.HasWarnings);
         Assert.True(result.WarningCount >= 2);
     }
+
+    #region Attach Override Parsing
+
+    [Fact]
+    public void TryRead_AttachWithInlineOverrides_ParsesOverrides()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  connectors:
+    to DiffPairLike:
+      SENSE -> OUT.P
+
+trait DiffPairLike:
+  port OUT.P : analog
+  port OUT.N : analog
+
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm to dp via CurrentMirrorLike::DiffPairLike {{
+      SENSE -> OUT.N
+    }}
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        Assert.NotNull(circuit.Fill);
+        Assert.Single(circuit.Fill!.Attaches);
+
+        var attach = circuit.Fill.Attaches[0];
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides);
+        Assert.Equal("SENSE", attach.Overrides[0].SourcePort);
+        Assert.Equal("OUT.N", attach.Overrides[0].TargetPort);
+    }
+
+    [Fact]
+    public void TryRead_AttachWithAnchorAndOverrides_ParsesBoth()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  connectors:
+    to DiffPairLike:
+      SENSE -> OUT.P
+
+trait DiffPairLike:
+  port OUT.P : analog
+  port OUT.N : analog
+
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {{
+      SENSE -> OUT.N
+    }}
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        var attach = circuit.Fill!.Attaches[0];
+
+        Assert.Equal("mirror_node", attach.Anchor);
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides);
+        Assert.Equal("SENSE", attach.Overrides[0].SourcePort);
+        Assert.Equal("OUT.N", attach.Overrides[0].TargetPort);
+    }
+
+    [Fact]
+    public void TryRead_AttachWithMultipleOverrides_ParsesAll()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  port TAP : analog
+  connectors:
+    to DiffPairLike:
+      SENSE -> OUT.P
+      TAP -> OUT.N
+
+trait DiffPairLike:
+  port OUT.P : analog
+  port OUT.N : analog
+
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm to dp via CurrentMirrorLike::DiffPairLike {{
+      SENSE -> OUT.N
+      TAP -> OUT.P
+    }}
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        var attach = circuit.Fill!.Attaches[0];
+
+        Assert.NotNull(attach.Overrides);
+        Assert.Equal(2, attach.Overrides.Count);
+    }
+
+    [Fact]
+    public void TryRead_AttachWithoutOverrides_HasNullOverrides()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  connectors:
+    to DiffPairLike:
+      SENSE -> OUT.P
+
+trait DiffPairLike:
+  port OUT.P : analog
+
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm to dp via CurrentMirrorLike::DiffPairLike
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        var attach = circuit.Fill!.Attaches[0];
+
+        Assert.Null(attach.Overrides);
+    }
+
+    #endregion
 }

@@ -1,0 +1,24 @@
+ACIR 2.0
+
+trait CurrentMirrorTrait:
+  port IN : analog
+  port OUT : analog
+  connectors:
+    to LoadBranch:
+      OUT -> IN
+
+circuit CurrentMirror : CurrentMirrorTrait
+  level EL
+  param ratio : real = 1
+  param W : real = 2u
+  param L : real = 180n
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  fill:
+    pmos M_SENSE (B->VDD, D->IN, G->IN, S->VDD) : L=$L M=1 W=$W pmos
+    pmos M_TAP0 (B->VDD, D->OUT, G->IN, S->VDD) : L=$L M=$ratio W=$W pmos
+  constraints:
+    tech:
+      t_lmin : L >= 180n m on *

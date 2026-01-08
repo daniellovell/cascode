@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Cascode.ACIR;
 using Cascode.Parser;
 
@@ -244,7 +245,7 @@ circuit TestCircuit
         Assert.Single(result.Document.Circuits[0].Fill!.Attaches);
         var attach = result.Document.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("cm1", attach.SourceInstance);
-        Assert.Equal("load1", attach.TargetInstance);
+        Assert.Equal("load1", attach.TargetInstances.Single());
         Assert.Equal("CurrentMirror::LoadBranch", attach.Via);
         Assert.Null(attach.Anchor);
     }
@@ -269,6 +270,154 @@ circuit TestCircuit
         Assert.NotNull(result.Document);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("bias_net", attach.Anchor);
+    }
+
+    [Fact]
+    public void TryRead_AttachWithInlineOverrides_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm1 to load1 via CurrentMirror::LoadBranch {{ SENSE -> OUT.N }}
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides!);
+        Assert.Equal("SENSE", attach.Overrides![0].SourcePort);
+        Assert.Equal("OUT.N", attach.Overrides![0].TargetPort);
+    }
+
+    [Fact]
+    public void TryRead_AttachWithMultilineOverrides_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm1 to load1 via CurrentMirror::LoadBranch {{
+      SENSE -> OUT.N
+      OUT -> IN
+    }}
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.NotNull(attach.Overrides);
+        Assert.Equal(2, attach.Overrides!.Count);
+        Assert.Equal("SENSE", attach.Overrides![0].SourcePort);
+        Assert.Equal("OUT.N", attach.Overrides![0].TargetPort);
+        Assert.Equal("OUT", attach.Overrides![1].SourcePort);
+        Assert.Equal("IN", attach.Overrides![1].TargetPort);
+    }
+
+    [Fact]
+    public void TryRead_AttachChain_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("a", attach.SourceInstance);
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+    }
+
+    [Fact]
+    public void TryRead_AttachChainWithAnchor_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch as bias_net
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("bias_net", attach.Anchor);
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+    }
+
+    [Fact]
+    public void TryRead_AttachChainWithOverrides_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch {{
+      SENSE -> OUT.N
+    }}
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides!);
+    }
+
+    [Fact]
+    public void TryRead_AttachCombined_ParsesSuccessfully()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch as bias_net {{
+      SENSE -> OUT.N
+    }}
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(result.Success);
+        var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("bias_net", attach.Anchor);
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides!);
     }
 
     [Fact]

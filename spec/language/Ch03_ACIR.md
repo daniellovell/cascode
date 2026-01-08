@@ -1123,11 +1123,15 @@ The ACIR reader emits structured diagnostics when parsing fails or encounters ma
 | ACIR0005 | Warning | Malformed binding syntax; expects `TERMINAL->NET` |
 | ACIR0006 | Error | Invalid sweep range specification; expects `[start:stop]` or `[start:step:stop]` |
 | ACIR0007 | Error | ACIR major version mismatch; reader rejects different major versions |
+| ACIR0008 | Error | Invalid level declaration; expects `HL`, `ML`, or `EL` |
+| ACIR0009 | Error | JSON parse error when reading ACIR from JSON format |
 | ACIR0010 | Error | Parallel load specification missing parentheses; expects `(C=... \|\| R=...)` |
 | ACIR0011 | Error | Parallel load specification missing `\|\|` operator between elements |
 | ACIR0012 | Error | Parallel load specification missing first element (before `\|\|`) |
 | ACIR0013 | Error | Parallel load specification missing second element (after `\|\|`) |
 | ACIR0014 | Error | Parallel load element missing value; expects `C=<value>` or `R=<value>` |
+| ACIR0015 | Error | Invalid instance declaration syntax |
+| ACIR0016 | Error | Invalid attach statement syntax; includes malformed attach, unterminated override block, or invalid override syntax |
 
 ### Semantic Validation Codes
 
@@ -1141,6 +1145,8 @@ The following codes apply during semantic analysis, particularly attach resoluti
 | ACIR0023 | Error | Conflicting binding; cannot unify nets already bound to different named nets |
 | ACIR0024 | Error | Domain mismatch between terminals being connected |
 | ACIR0025 | Error | Cannot auto-create supply/ground net; bind rails explicitly |
+| ACIR0026 | Warning | Source trait not found in trait registry; using default domain for port domain resolution |
+| ACIR0027 | Warning | Target trait not found in trait registry; using default domain for port domain resolution |
 
 ### Programmatic Access
 
