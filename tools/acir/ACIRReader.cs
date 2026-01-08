@@ -1027,7 +1027,6 @@ public static partial class ACIRReader
         var sourceTrait = match.Groups[3].Value;
         var targetTrait = match.Groups[4].Value;
         var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
-        var hasBrace = match.Groups[6].Success; // Group 6 is the optional `{`
 
         var targetInstances = targetSegment
             .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries)

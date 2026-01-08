@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Cascode.ACIR;
@@ -163,7 +164,7 @@ public sealed partial class AttachResolver
             var names = BuildEquivalenceNames(nets, representative, context);
             if (names.Count > 0)
             {
-                result._netEquivalences[representative] = names;
+                result._netEquivalences[representative] = names.AsReadOnly();
             }
         }
     }
@@ -260,7 +261,7 @@ public sealed partial class AttachResolver
 
             if (bindings.Count > 0)
             {
-                result._attachBindings[attach] = bindings;
+                result._attachBindings[attach] = new ReadOnlyDictionary<string, string>(bindings);
             }
         }
     }

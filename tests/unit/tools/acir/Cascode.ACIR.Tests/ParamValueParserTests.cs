@@ -125,6 +125,16 @@ public class ParamValueParserTests
     }
 
     [Fact]
+    public void Parse_LeadingZeroDecimal_ReturnsNumeric()
+    {
+        var result = ParamValueParser.Parse("0.5");
+
+        Assert.NotNull(result.Numeric);
+        Assert.Null(result.Literal);
+        Assert.Null(result.Symbolic);
+    }
+
+    [Fact]
     public void Parse_NumberWithUnusualUnit_ReturnsNumeric()
     {
         // "10x" - even with non-standard unit, if it starts with digit it's numeric

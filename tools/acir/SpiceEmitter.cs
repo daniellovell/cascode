@@ -120,6 +120,8 @@ public static class SpiceEmitter
                 StringComparer.Ordinal
             );
 
+            bool hasEmittedCircuitInstancesHeader = false;
+
             foreach (
                 var instance in circuit.Fill.Instances.OrderBy(i => i.Id, StringComparer.Ordinal)
             )
@@ -142,8 +144,12 @@ public static class SpiceEmitter
                     else
                     {
                         // Non-inline: emit as X-element
-                        writer.WriteLine();
-                        writer.WriteLine("* Circuit instances");
+                        if (!hasEmittedCircuitInstancesHeader)
+                        {
+                            writer.WriteLine();
+                            writer.WriteLine("* Circuit instances");
+                            hasEmittedCircuitInstancesHeader = true;
+                        }
                         EmitInstance(instance, targetCircuit, resolution, writer);
                     }
                 }
@@ -656,66 +662,48 @@ public static class SpiceEmitter
         var substitutions = new Dictionary<string, string>(StringComparer.Ordinal);
 
         // Map port names to bound nets
-        foreach (var port in inlineCircuit.Ports)
-        {
-            if (instance.Bindings.TryGetValue(port.Name, out var boundNet))
-            {
-                substitutions[port.Name] =
-                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
-                    ?? boundNet;
-            }
-            else if (
-                resolution?.TerminalToNet.TryGetValue(
-                    $"{instance.Id}.{port.Name}",
-                    out var resolvedNet
-                ) == true
-            )
-            {
-                substitutions[port.Name] = resolvedNet;
-            }
-        }
+        ResolveBindings(
+            inlineCircuit.Ports.Select(p => p.Name),
+            instance,
+            resolution,
+            substitutions
+        );
 
         // Map supplies to bound nets
-        foreach (var supply in inlineCircuit.Supplies)
-        {
-            if (instance.Bindings.TryGetValue(supply, out var boundNet))
-            {
-                substitutions[supply] =
-                    resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
-                    ?? boundNet;
-            }
-            else if (
-                resolution?.TerminalToNet.TryGetValue(
-                    $"{instance.Id}.{supply}",
-                    out var resolvedNet
-                ) == true
-            )
-            {
-                substitutions[supply] = resolvedNet;
-            }
-        }
+        ResolveBindings(inlineCircuit.Supplies, instance, resolution, substitutions);
 
         // Map grounds to bound nets
-        foreach (var ground in inlineCircuit.Grounds)
+        ResolveBindings(inlineCircuit.Grounds, instance, resolution, substitutions);
+
+        return substitutions;
+    }
+
+    /// <summary>
+    /// Resolves bindings for a collection of names and adds them to the substitutions map.
+    /// </summary>
+    private static void ResolveBindings(
+        IEnumerable<string> names,
+        InstanceDeclaration instance,
+        CircuitResolutionResult? resolution,
+        Dictionary<string, string> substitutions
+    )
+    {
+        foreach (var name in names)
         {
-            if (instance.Bindings.TryGetValue(ground, out var boundNet))
+            if (instance.Bindings.TryGetValue(name, out var boundNet))
             {
-                substitutions[ground] =
+                substitutions[name] =
                     resolution?.NetToRepresentative.GetValueOrDefault(boundNet, boundNet)
                     ?? boundNet;
             }
             else if (
-                resolution?.TerminalToNet.TryGetValue(
-                    $"{instance.Id}.{ground}",
-                    out var resolvedNet
-                ) == true
+                resolution?.TerminalToNet.TryGetValue($"{instance.Id}.{name}", out var resolvedNet)
+                == true
             )
             {
-                substitutions[ground] = resolvedNet;
+                substitutions[name] = resolvedNet;
             }
         }
-
-        return substitutions;
     }
 
     /// <summary>
