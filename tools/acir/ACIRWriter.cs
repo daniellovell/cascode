@@ -29,6 +29,13 @@ public static class ACIRWriter
             writer.WriteLine();
         }
 
+        // Trait definitions
+        foreach (var trait in document.Traits.OrderBy(t => t.Name, StringComparer.Ordinal))
+        {
+            WriteTrait(trait, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -46,6 +53,36 @@ public static class ACIRWriter
         }
     }
 
+    private static void WriteTrait(TraitDefinition trait, TextWriter writer)
+    {
+        writer.WriteLine($"trait {trait.Name}:");
+
+        // Ports
+        foreach (var port in trait.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"  port {port.Name} : {port.Type}");
+        }
+
+        // Connectors
+        if (trait.Connectors.Count > 0)
+        {
+            writer.WriteLine("  connectors:");
+            foreach (
+                var connector in trait.Connectors.OrderBy(
+                    c => c.TargetTrait,
+                    StringComparer.Ordinal
+                )
+            )
+            {
+                writer.WriteLine($"    to {connector.TargetTrait}:");
+                foreach (var mapping in connector.Mappings)
+                {
+                    writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+                }
+            }
+        }
+    }
+
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header
@@ -58,6 +95,21 @@ public static class ACIRWriter
 
         // Level
         writer.WriteLine($"  level {circuit.Level}");
+
+        // Inline
+        if (circuit.Inline)
+        {
+            writer.WriteLine("  inline");
+        }
+
+        // Parameters
+        foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            var defaultPart = param.Default is not null
+                ? $" = {FormatParamValue(param.Default)}"
+                : "";
+            writer.WriteLine($"  param {param.Name} : {param.Type}{defaultPart}");
+        }
 
         // Package
         if (!string.IsNullOrEmpty(circuit.Package))
@@ -177,6 +229,44 @@ public static class ACIRWriter
         foreach (var conn in fill.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
         {
             writer.WriteLine($"    connect {conn.From} -> {conn.To}");
+        }
+
+        // Attach statements (EL level)
+        foreach (var attach in fill.Attaches.OrderBy(a => a.SourceInstance, StringComparer.Ordinal))
+        {
+            WriteAttach(attach, writer);
+        }
+    }
+
+    private static void WriteAttach(AttachStatement attach, TextWriter writer)
+    {
+        var viaParts = attach.Via.Split("::");
+        var header = new StringBuilder();
+        header.Append($"    attach {attach.SourceInstance}");
+        foreach (var target in attach.TargetInstances)
+        {
+            header.Append($" to {target}");
+        }
+        header.Append($" via {viaParts[0]}::{viaParts[1]}");
+        if (!string.IsNullOrEmpty(attach.Anchor))
+        {
+            header.Append($" as {attach.Anchor}");
+        }
+
+        if (attach.Overrides is { Count: > 0 })
+        {
+            writer.WriteLine($"{header} {{");
+            foreach (
+                var mapping in attach.Overrides.OrderBy(m => m.SourcePort, StringComparer.Ordinal)
+            )
+            {
+                writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+            }
+            writer.WriteLine("    }");
+        }
+        else
+        {
+            writer.WriteLine(header.ToString());
         }
     }
 

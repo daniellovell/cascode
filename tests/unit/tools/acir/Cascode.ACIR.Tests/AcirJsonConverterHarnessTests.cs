@@ -118,7 +118,9 @@ public class AcirJsonConverterHarnessTests
         };
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var load = roundTripped.Circuits[0].Harness!.Loads[0];
         Assert.Equal("OUT", load.Net);
@@ -177,7 +179,9 @@ public class AcirJsonConverterHarnessTests
         };
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var harness = roundTripped.Circuits[0].Harness!;
         Assert.Equal(2, harness.Biases.Count);
