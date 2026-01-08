@@ -104,8 +104,8 @@ public class SpiceEmitterTests
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);
 
-        Assert.Equal(1, doc.VersionMajor);
-        Assert.Equal(1, doc.VersionMinor);
+        Assert.Equal(ACIRVersion.Major, doc.VersionMajor);
+        Assert.Equal(ACIRVersion.Minor, doc.VersionMinor);
         Assert.Single(doc.Circuits);
 
         var circuit = doc.Circuits[0];

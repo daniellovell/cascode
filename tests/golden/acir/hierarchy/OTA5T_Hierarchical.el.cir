@@ -1,0 +1,91 @@
+ACIR 2.0
+
+trait CurrentMirrorTrait:
+  port IN : analog
+  port OUT : analog
+  connectors:
+    to LoadBranch:
+      OUT -> IN
+
+trait LoadBranch:
+  port IN : analog
+
+trait DiffPairTrait:
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port TAIL : analog
+
+circuit DiffPair : DiffPairTrait
+  level EL
+  inline
+  param W : real = 2u
+  param L : real = 180n
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port TAIL : analog
+  fill:
+    net tnode : analog
+    nmos M_N (B->GND, D->OUT_P, G->IN_P, S->tnode) : L=$L M=1 W=$W nmos
+    nmos M_P (B->GND, D->OUT_N, G->IN_N, S->tnode) : L=$L M=1 W=$W nmos
+    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : L=$L M=1 W=4u nmos
+
+circuit ActiveLoad : LoadBranch
+  level EL
+  inline
+  param W : real = 2u
+  param L : real = 180n
+  supply VDD
+  ground GND
+  port IN : analog
+  fill:
+    pmos M_LOAD (B->VDD, D->IN, G->IN, S->VDD) : L=$L M=1 W=$W pmos
+
+circuit OTA5T_Hierarchical
+  level EL
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT : analog
+  port VTAIL : bias
+  fill:
+    inst dp (IN_P->IN_P, IN_N->IN_N, OUT_P->mirror_gate, OUT_N->OUT, TAIL->VTAIL, VDD->VDD, GND->GND) : DiffPair
+      param W = 2u
+      param L = 180n
+    inst cm (IN->mirror_gate, OUT->OUT, VDD->VDD, GND->GND) : CurrentMirror
+      param ratio = 1
+    inst load (IN->mirror_gate, VDD->VDD, GND->GND) : ActiveLoad
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 20M Hz
+      c_gain : PassbandGain @ OUT >= 40 dB
+      c_pm : PhaseMargin @ OUT >= 60 deg
+    measure:
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
+      m_gain : SEOpAmpACBench PassbandGain @ OUT
+      m_pm : SEOpAmpACBench PhaseMargin @ OUT
+  harness:
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  benches:
+    SEOpAmpACBench
+
+circuit CurrentMirror : CurrentMirrorTrait
+  level EL
+  param ratio : real = 1
+  param W : real = 2u
+  param L : real = 180n
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  fill:
+    pmos M_SENSE (B->VDD, D->IN, G->IN, S->VDD) : L=$L M=1 W=$W pmos
+    pmos M_TAP0 (B->VDD, D->OUT, G->IN, S->VDD) : L=$L M=$ratio W=$W pmos

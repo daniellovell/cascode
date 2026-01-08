@@ -13,7 +13,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateSimpleElCircuit();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal(original.Circuits[0].Name, roundTripped.Circuits[0].Name);
     }
@@ -24,7 +26,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateSimpleElCircuit();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var originalDevice = original.Circuits[0].Fill!.Devices[0];
         var roundTrippedDevice = roundTripped.Circuits[0].Fill!.Devices[0];
@@ -40,7 +44,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithConstraints();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var originalConstraint = original.Circuits[0].Constraints!.Numeric[0];
         var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Numeric[0];
@@ -74,7 +80,9 @@ public class AcirJsonConverterRoundTripTests
         };
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal(2, roundTripped.Circuits[0].Supplies.Count);
         Assert.Equal("VDD", roundTripped.Circuits[0].Supplies[0]);
@@ -90,7 +98,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithBenches();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.NotNull(roundTripped.Circuits[0].Benches);
         Assert.Equal(2, roundTripped.Circuits[0].Benches!.Benches.Count);
@@ -118,7 +128,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithNets();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.NotNull(roundTripped.Circuits[0].Fill);
         Assert.Equal(2, roundTripped.Circuits[0].Fill!.Nets.Count);
