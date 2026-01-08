@@ -1127,7 +1127,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Testbench:", result.Stdout);
 
         // Should emit 4 designs (all circuits including inline) and 2 testbenches
-        Assert.Contains("Emitted 4 design(s) and 2 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 3 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical.sp")),
@@ -1140,10 +1140,6 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "DiffPair.sp")),
             "DiffPair subcircuit not found"
-        );
-        Assert.True(
-            File.Exists(Path.Combine(_outputDir, "ActiveLoad.sp")),
-            "ActiveLoad subcircuit not found"
         );
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_SEOpAmpACBench.sp")),

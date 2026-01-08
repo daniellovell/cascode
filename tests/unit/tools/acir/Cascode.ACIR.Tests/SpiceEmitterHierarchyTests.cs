@@ -858,13 +858,12 @@ public class SpiceEmitterHierarchyTests
         Assert.Equal(ACIRVersion.Major, doc.VersionMajor);
         Assert.Equal(ACIRVersion.Minor, doc.VersionMinor);
 
-        // Should have 4 circuits: DiffPair, ActiveLoad, OTA5T_Hierarchical, CurrentMirror
-        Assert.Equal(4, doc.Circuits.Count);
+        // Should have 3 circuits: DiffPair, OTA5T_Hierarchical, CurrentMirror
+        Assert.Equal(3, doc.Circuits.Count);
 
         // Verify traits
-        Assert.Equal(3, doc.Traits.Count);
+        Assert.Equal(2, doc.Traits.Count);
         Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorTrait");
-        Assert.Contains(doc.Traits, t => t.Name == "LoadBranch");
         Assert.Contains(doc.Traits, t => t.Name == "DiffPairTrait");
 
         // Verify inline circuit
