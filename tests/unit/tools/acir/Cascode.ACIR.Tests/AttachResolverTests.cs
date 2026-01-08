@@ -1074,7 +1074,7 @@ public class AttachResolverTests
 
         Assert.True(result.Success);
         var circuitResult = result.CircuitResults["TestCircuit"];
-        var attach = circuitResult.AttachBindings.Keys.First();
+        var attach = Assert.Single(circuitResult.AttachBindings.Keys);
         var bindings = circuitResult.AttachBindings[attach];
 
         // The net should reflect the overridden target (OUT.N) instead of the default (OUT.P)

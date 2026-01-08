@@ -1824,16 +1824,6 @@ public static partial class ACIRReader
     }
 
     /// <summary>
-    /// Parses a parameter value string into a ParamValue object.
-    /// </summary>
-    /// <param name="value">The value string to parse.</param>
-    /// <returns>A ParamValue with the appropriate field set.</returns>
-    private static ParamValue ParseParamValue(string value)
-    {
-        return ParamValueParser.Parse(value);
-    }
-
-    /// <summary>
     /// Parses a line within a harness block (supply, load, source, bias, or sweep) with diagnostic collection.
     /// </summary>
     /// <param name="line">Trimmed line content.</param>

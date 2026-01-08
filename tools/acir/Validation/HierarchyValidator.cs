@@ -347,8 +347,7 @@ public static class HierarchyValidator
 
     private static string FormatAttachChain(AttachStatement attach)
     {
-        var instanceChain = new List<string> { attach.SourceInstance };
-        instanceChain.AddRange(attach.TargetInstances);
+        var instanceChain = AttachResolver.BuildInstanceChain(attach);
         return string.Join(" to ", instanceChain);
     }
 

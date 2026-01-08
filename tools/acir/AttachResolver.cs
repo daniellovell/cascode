@@ -90,7 +90,7 @@ public sealed partial class AttachResolver
         return result;
     }
 
-    private static List<string> BuildInstanceChain(AttachStatement attach)
+    internal static List<string> BuildInstanceChain(AttachStatement attach)
     {
         var chain = new List<string>(1 + attach.TargetInstances.Count) { attach.SourceInstance };
         chain.AddRange(attach.TargetInstances);
