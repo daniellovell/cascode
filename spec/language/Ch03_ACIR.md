@@ -1438,8 +1438,8 @@ trait CurrentMirrorLike:
 
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
-      TAP[0] -> OUT.N
+      SENSE -> OUT.N
+      TAP[0] -> OUT.P
 
 // Top-level circuit appears first
 circuit OTA5TSingleEnded

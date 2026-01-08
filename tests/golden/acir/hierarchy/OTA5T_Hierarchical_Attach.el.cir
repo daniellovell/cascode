@@ -16,6 +16,46 @@ trait DiffPairLike:
   port OUT.P : analog
   port OUT.N : analog
 
+circuit OTA5T_Hierarchical_Attach
+  level EL
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT : analog
+  port VTAIL : bias
+  fill:
+    inst dp (GND->GND, IN_N->IN_N, IN_P->IN_P, OUT.N->OUT, TAIL->VTAIL, VDD->VDD) : DiffPair
+      param Win = 2u
+      param Lin = 180n
+      param Min = 1
+      param Wtail = 4u
+      param Ltail = 180n
+      param Mtail = 1
+    inst cm (GND->GND, TAP[0]->OUT, VDD->VDD) : CurrentMirror
+      param W = 2u
+      param L = 180n
+      param ratio = 1
+    attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth @ OUT >= 20M Hz
+      c_gain : PassbandGain @ OUT >= 40 dB
+      c_pm : PhaseMargin @ OUT >= 60 deg
+      c_pwr : QuiescentPower <= 500u W
+    measure:
+      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
+      m_gain : SEOpAmpACBench PassbandGain @ OUT
+      m_pm : SEOpAmpACBench PhaseMargin @ OUT
+      m_pwr : SEOpAmpDCBench QuiescentPower
+  harness:
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  benches:
+    SEOpAmpACBench
+    SEOpAmpDCBench
+
 circuit DiffPair : DiffPairLike
   level EL
   inline
@@ -37,45 +77,6 @@ circuit DiffPair : DiffPairLike
     nmos M_N (B->GND, D->OUT.P, G->IN_P, S->tnode) : L=$Lin M=$Min W=$Win nmos
     nmos M_P (B->GND, D->OUT.N, G->IN_N, S->tnode) : L=$Lin M=$Min W=$Win nmos
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : L=$Ltail M=$Mtail W=$Wtail nmos
-
-circuit OTA5T_Hierarchical
-  level EL
-  supply VDD
-  ground GND
-  port IN_P : analog
-  port IN_N : analog
-  port OUT : analog
-  port VTAIL : bias
-  fill:
-    inst dp (IN_P->IN_P, IN_N->IN_N, OUT.P->mirror_gate, OUT.N->OUT, TAIL->VTAIL, VDD->VDD, GND->GND) : DiffPair
-      param Win = 2u
-      param Lin = 180n
-      param Min = 1
-      param Wtail = 4u
-      param Ltail = 180n
-      param Mtail = 1
-    inst cm (SENSE->mirror_gate, TAP[0]->OUT, VDD->VDD, GND->GND) : CurrentMirror
-      param W = 2u
-      param L = 180n
-      param ratio = 1
-  constraints:
-    numeric:
-      c_gbw : GainBandwidth @ OUT >= 20M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : QuiescentPower <= 500u W
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
-      m_pwr : SEOpAmpDCBench QuiescentPower
-  harness:
-    supply VDD = 1.8V
-    bias VTAIL = 0.6V
-    load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
 
 circuit CurrentMirror : CurrentMirrorLike
   level EL

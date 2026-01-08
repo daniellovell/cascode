@@ -1187,6 +1187,90 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Matches(CreateNumericResultRegex("PhaseMargin"), ngspiceResult.Stdout);
     }
 
+    [Fact]
+    public async Task Emit_OTA5T_Hierarchical_Attach_GeneratesDesignAndTestbench()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+        Assert.Contains("Design netlist:", result.Stdout);
+        Assert.Contains("Testbench:", result.Stdout);
+
+        // Should emit 3 designs (top-level + 2 child circuits) and 2 testbenches
+        Assert.Contains("Emitted 3 design(s) and 2 testbench(es)", result.Stdout);
+
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach.sp")),
+            "Design netlist not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "CurrentMirror.sp")),
+            "CurrentMirror subcircuit not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "DiffPair.sp")),
+            "DiffPair subcircuit not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpACBench.sp")),
+            "AC testbench not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpDCBench.sp")),
+            "DC testbench not found"
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_OTA5T_Hierarchical_Attach_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+        );
+
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpACBench.sp");
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
+
+        Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("GainBandwidth"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PhaseMargin"), ngspiceResult.Stdout);
+    }
+
     /// <summary>
     /// Creates a regex pattern for matching RESULT lines with numeric values.
     /// </summary>
