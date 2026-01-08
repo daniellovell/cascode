@@ -184,7 +184,7 @@ public class SpiceEmitterHierarchyTests
 
         // Create a resolution that maps internal_net to a different representative
         var resolution = new CircuitResolutionResult();
-        resolution.NetToRepresentative["internal_net"] = "resolved_output";
+        resolution._netToRepresentative["internal_net"] = "resolved_output";
 
         using var writer = new StringWriter();
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc, resolution: resolution);
@@ -193,6 +193,92 @@ public class SpiceEmitterHierarchyTests
         // Should use resolved net name
         Assert.Contains("resolved_output", output);
         Assert.DoesNotContain("internal_net", output);
+    }
+
+    [Fact]
+    public void EmitDesign_AttachResolution_UsesTerminalToNet()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Traits = new List<TraitDefinition>
+            {
+                new TraitDefinition
+                {
+                    Name = "TraitA",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                    Connectors = new List<TraitConnector>
+                    {
+                        new TraitConnector
+                        {
+                            TargetTrait = "TraitB",
+                            Mappings = new List<ConnectorMapping>
+                            {
+                                new ConnectorMapping { SourcePort = "OUT", TargetPort = "IN" },
+                            },
+                        },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "Source",
+                    Level = ACIRLevel.EL,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Target",
+                    Level = ACIRLevel.EL,
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = ACIRLevel.EL,
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration { Id = "a", Type = "Source" },
+                            new InstanceDeclaration { Id = "b", Type = "Target" },
+                        },
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "a",
+                                TargetInstances = new List<string> { "b" },
+                                Via = "TraitA::TraitB",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var resolution = resolver.Resolve().CircuitResults["Top"];
+        var topLevel = doc.Circuits.First(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc, resolution: resolution);
+        var output = writer.ToString();
+
+        Assert.Contains("Xa _auto_a_OUT__b_IN Source", output);
+        Assert.Contains("Xb _auto_a_OUT__b_IN Target", output);
     }
 
     [Fact]

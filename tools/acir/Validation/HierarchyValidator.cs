@@ -200,13 +200,6 @@ public static class HierarchyValidator
         {
             foreach (var attach in parentCircuit.Fill.Attaches)
             {
-                // Check if this attach involves our instance
-                if (attach.SourceInstance != instance.Id && attach.TargetInstance != instance.Id)
-                {
-                    continue;
-                }
-
-                // Find the connector and determine which ports are covered
                 var coveredPorts = GetPortsCoveredByAttach(attach, instance, targetCircuit, traits);
                 foreach (var port in coveredPorts)
                 {
@@ -267,23 +260,41 @@ public static class HierarchyValidator
             return coveredPorts;
         }
 
-        // Determine if this instance is source or target in the attach
-        if (attach.SourceInstance == instance.Id)
+        var instanceChain = new List<string> { attach.SourceInstance };
+        instanceChain.AddRange(attach.TargetInstances);
+
+        for (var pairIndex = 0; pairIndex < instanceChain.Count - 1; pairIndex++)
         {
-            // Instance is source - connector source ports are covered
+            var fromInstance = instanceChain[pairIndex];
+            var toInstance = instanceChain[pairIndex + 1];
+
             foreach (var mapping in connector.Mappings)
             {
-                var portName = mapping.SourcePort.Split('.')[0];
-                coveredPorts.Add(portName);
-            }
-        }
-        else if (attach.TargetInstance == instance.Id)
-        {
-            // Instance is target - connector target ports are covered
-            foreach (var mapping in connector.Mappings)
-            {
-                var portName = mapping.TargetPort.Split('.')[0];
-                coveredPorts.Add(portName);
+                var sourcePort = mapping.SourcePort;
+                var targetPort = mapping.TargetPort;
+
+                if (attach.Overrides is not null)
+                {
+                    var overrideMapping = attach.Overrides.FirstOrDefault(o =>
+                        o.SourcePort == sourcePort
+                    );
+                    if (overrideMapping is not null)
+                    {
+                        targetPort = overrideMapping.TargetPort;
+                    }
+                }
+
+                if (fromInstance == instance.Id)
+                {
+                    var portName = sourcePort.Split('.')[0];
+                    coveredPorts.Add(portName);
+                }
+
+                if (toInstance == instance.Id)
+                {
+                    var portName = targetPort.Split('.')[0];
+                    coveredPorts.Add(portName);
+                }
             }
         }
 
@@ -306,28 +317,39 @@ public static class HierarchyValidator
 
         foreach (var attach in circuit.Fill.Attaches)
         {
+            var attachChain = FormatAttachChain(attach);
             // HIER-006: Validate source instance exists
             if (!instanceIds.Contains(attach.SourceInstance))
             {
                 result.AddError(
                     "HIER-006",
                     $"Attach references unknown instance '{attach.SourceInstance}'",
-                    $"circuit {circuit.Name}, attach {attach.SourceInstance} to {attach.TargetInstance}",
+                    $"circuit {circuit.Name}, attach {attachChain}",
                     $"Check instance name or add 'inst {attach.SourceInstance} : <type>' declaration"
                 );
             }
 
             // HIER-006: Validate target instance exists
-            if (!instanceIds.Contains(attach.TargetInstance))
+            foreach (var targetInstance in attach.TargetInstances)
             {
-                result.AddError(
-                    "HIER-006",
-                    $"Attach references unknown instance '{attach.TargetInstance}'",
-                    $"circuit {circuit.Name}, attach {attach.SourceInstance} to {attach.TargetInstance}",
-                    $"Check instance name or add 'inst {attach.TargetInstance} : <type>' declaration"
-                );
+                if (!instanceIds.Contains(targetInstance))
+                {
+                    result.AddError(
+                        "HIER-006",
+                        $"Attach references unknown instance '{targetInstance}'",
+                        $"circuit {circuit.Name}, attach {attachChain}",
+                        $"Check instance name or add 'inst {targetInstance} : <type>' declaration"
+                    );
+                }
             }
         }
+    }
+
+    private static string FormatAttachChain(AttachStatement attach)
+    {
+        var instanceChain = new List<string> { attach.SourceInstance };
+        instanceChain.AddRange(attach.TargetInstances);
+        return string.Join(" to ", instanceChain);
     }
 
     /// <summary>
