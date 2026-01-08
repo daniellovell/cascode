@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Cascode.ACIR;
 
@@ -496,7 +498,7 @@ public sealed class TraitConnector
 /// <summary>
 /// A single port-to-port mapping in a connector.
 /// </summary>
-public sealed class ConnectorMapping
+public sealed record ConnectorMapping
 {
     /// <summary>Source port (on the trait defining the connector).</summary>
     public required string SourcePort { get; init; }
@@ -508,13 +510,13 @@ public sealed class ConnectorMapping
 /// <summary>
 /// Attach statement for trait-based composition at EL level.
 /// </summary>
-public sealed class AttachStatement
+public sealed record AttachStatement
 {
     /// <summary>Source instance identifier.</summary>
     public required string SourceInstance { get; init; }
 
-    /// <summary>Target instance identifier.</summary>
-    public required string TargetInstance { get; init; }
+    /// <summary>Target instance identifiers (in chain order).</summary>
+    public required IReadOnlyList<string> TargetInstances { get; init; }
 
     /// <summary>Connector reference in "TraitName::TargetTrait" format.</summary>
     public required string Via { get; init; }
@@ -523,5 +525,66 @@ public sealed class AttachStatement
     public string? Anchor { get; init; }
 
     /// <summary>Optional inline override mappings.</summary>
-    public List<ConnectorMapping>? Overrides { get; init; }
+    public IReadOnlyList<ConnectorMapping>? Overrides { get; init; }
+
+    /// <inheritdoc />
+    public bool Equals(AttachStatement? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return string.Equals(SourceInstance, other.SourceInstance, StringComparison.Ordinal)
+            && string.Equals(Via, other.Via, StringComparison.Ordinal)
+            && string.Equals(Anchor, other.Anchor, StringComparison.Ordinal)
+            && TargetInstances.SequenceEqual(other.TargetInstances, StringComparer.Ordinal)
+            && OverridesEqual(Overrides, other.Overrides);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(SourceInstance, StringComparer.Ordinal);
+        hash.Add(Via, StringComparer.Ordinal);
+        hash.Add(Anchor, StringComparer.Ordinal);
+        foreach (var target in TargetInstances)
+        {
+            hash.Add(target, StringComparer.Ordinal);
+        }
+
+        if (Overrides is not null)
+        {
+            foreach (var mapping in Overrides)
+            {
+                hash.Add(mapping);
+            }
+        }
+
+        return hash.ToHashCode();
+    }
+
+    private static bool OverridesEqual(
+        IReadOnlyList<ConnectorMapping>? left,
+        IReadOnlyList<ConnectorMapping>? right
+    )
+    {
+        if (left is null && right is null)
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
+    }
 }
