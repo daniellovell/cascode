@@ -1166,4 +1166,166 @@ public class AttachResolverTests
     }
 
     #endregion
+
+    #region Duplicate Name Handling
+
+    [Fact]
+    public void Resolve_DuplicateTraitNames_EmitsWarningAndKeepsFirst()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Traits = new List<TraitDefinition>
+            {
+                new TraitDefinition
+                {
+                    Name = "DuplicateTrait",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "FirstPort", Type = "analog" },
+                    },
+                },
+                new TraitDefinition
+                {
+                    Name = "DuplicateTrait",
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "SecondPort", Type = "analog" },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.True(result.Success);
+        var warning = Assert.Single(
+            result.Diagnostics,
+            d => d.Code == "ACIR0026" && d.Message.Contains("trait")
+        );
+        Assert.Contains("DuplicateTrait", warning.Message);
+        Assert.Contains("keeping first definition", warning.Message);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+    }
+
+    [Fact]
+    public void Resolve_DuplicateCircuitNames_EmitsWarningAndKeepsFirst()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "DuplicateCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Nets = new List<NetDeclaration>
+                        {
+                            new NetDeclaration { Id = "net1", Domain = "analog" },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "DuplicateCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDDA" },
+                    Grounds = new List<string> { "GNDA" },
+                    Fill = new FillBlock
+                    {
+                        Nets = new List<NetDeclaration>
+                        {
+                            new NetDeclaration { Id = "net2", Domain = "analog" },
+                        },
+                    },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.True(result.Success);
+        var warning = Assert.Single(
+            result.Diagnostics,
+            d => d.Code == "ACIR0026" && d.Message.Contains("circuit")
+        );
+        Assert.Contains("DuplicateCircuit", warning.Message);
+        Assert.Contains("keeping first definition", warning.Message);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+    }
+
+    [Fact]
+    public void Resolve_DuplicateBundleTypeNames_EmitsWarningAndKeepsFirst()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            BundleTypes = new List<BundleType>
+            {
+                new BundleType
+                {
+                    Name = "DuplicateBundle",
+                    Fields = new Dictionary<string, string>
+                    {
+                        { "P", "analog" },
+                        { "N", "analog" },
+                    },
+                },
+                new BundleType
+                {
+                    Name = "DuplicateBundle",
+                    Fields = new Dictionary<string, string>
+                    {
+                        { "A", "analog" },
+                        { "B", "analog" },
+                        { "C", "analog" },
+                    },
+                },
+            },
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                },
+            },
+        };
+
+        var resolver = new AttachResolver(doc);
+        var result = resolver.Resolve();
+
+        Assert.True(result.Success);
+        var warning = Assert.Single(
+            result.Diagnostics,
+            d => d.Code == "ACIR0026" && d.Message.Contains("bundle type")
+        );
+        Assert.Contains("DuplicateBundle", warning.Message);
+        Assert.Contains("keeping first definition", warning.Message);
+        Assert.Equal(DiagnosticSeverity.Warning, warning.Severity);
+    }
+
+    #endregion
 }

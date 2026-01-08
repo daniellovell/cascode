@@ -18,6 +18,7 @@ public sealed partial class AttachResolver
     private readonly Dictionary<string, TraitDefinition> _traitsByName;
     private readonly Dictionary<string, Circuit> _circuitsByName;
     private readonly Dictionary<string, BundleType> _bundleTypesByName;
+    private readonly List<Diagnostic> _constructorDiagnostics = new();
 
     /// <summary>
     /// Initializes a new AttachResolver for the given document.
@@ -25,9 +26,19 @@ public sealed partial class AttachResolver
     public AttachResolver(ACIRDocument document)
     {
         _document = document;
-        _traitsByName = document.Traits.ToDictionary(t => t.Name, StringComparer.Ordinal);
-        _circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
-        _bundleTypesByName = document.BundleTypes.ToDictionary(b => b.Name, StringComparer.Ordinal);
+        _traitsByName = BuildLookup(document.Traits, t => t.Name, "trait", _constructorDiagnostics);
+        _circuitsByName = BuildLookup(
+            document.Circuits,
+            c => c.Name,
+            "circuit",
+            _constructorDiagnostics
+        );
+        _bundleTypesByName = BuildLookup(
+            document.BundleTypes,
+            b => b.Name,
+            "bundle type",
+            _constructorDiagnostics
+        );
     }
 
     /// <summary>
@@ -37,6 +48,7 @@ public sealed partial class AttachResolver
     public AttachResolutionResult Resolve()
     {
         var result = new AttachResolutionResult();
+        result._diagnostics.AddRange(_constructorDiagnostics);
 
         foreach (var circuit in _document.Circuits)
         {
@@ -83,5 +95,33 @@ public sealed partial class AttachResolver
         var chain = new List<string>(1 + attach.TargetInstances.Count) { attach.SourceInstance };
         chain.AddRange(attach.TargetInstances);
         return chain;
+    }
+
+    private static Dictionary<string, T> BuildLookup<T>(
+        IEnumerable<T> items,
+        Func<T, string> nameSelector,
+        string itemKind,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var lookup = new Dictionary<string, T>(StringComparer.Ordinal);
+        foreach (var item in items)
+        {
+            var name = nameSelector(item);
+            if (!lookup.TryAdd(name, item))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0026: Duplicate {itemKind} name '{name}'; keeping first definition",
+                        DiagnosticSeverity.Warning,
+                        "<document>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+
+        return lookup;
     }
 }
