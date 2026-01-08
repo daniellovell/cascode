@@ -90,7 +90,27 @@ public static class SpiceEmitter
             portList.Add(ground);
         }
 
-        writer.WriteLine($".subckt {circuit.Name} {string.Join(" ", portList)}");
+        // Build parameter defaults for subcircuit declaration (for non-inline circuits)
+        var paramDefaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        var paramSuffix = "";
+        if (circuit.Parameters.Count > 0)
+        {
+            var paramParts = new List<string>();
+            foreach (var param in circuit.Parameters)
+            {
+                if (param.Default?.Numeric is not null)
+                {
+                    paramParts.Add($"{param.Name}={param.Default.Numeric}");
+                    paramDefaults[param.Name] = param.Default.Numeric;
+                }
+            }
+            if (paramParts.Count > 0)
+            {
+                paramSuffix = " " + string.Join(" ", paramParts);
+            }
+        }
+
+        writer.WriteLine($".subckt {circuit.Name} {string.Join(" ", portList)}{paramSuffix}");
         writer.WriteLine();
 
         // Internal nets comment
@@ -108,7 +128,7 @@ public static class SpiceEmitter
         {
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
-                EmitDevice(device, writer, deviceModelMap);
+                EmitDevice(device, writer, deviceModelMap, paramDefaults);
             }
         }
 
@@ -287,10 +307,14 @@ public static class SpiceEmitter
                 );
             }
             result.DesignPaths.Add(designPath);
+        }
 
-            // Emit testbenches using template-based generation
+        // Emit testbenches after all design files are emitted (for hierarchical dependencies)
+        foreach (var circuit in orderedCircuits.Where(c => c.Level == ACIRLevel.EL))
+        {
             if (circuit.Benches?.Benches.Count > 0)
             {
+                var includeResolution = includeResolver?.Resolve(circuit, backend);
                 foreach (var bench in circuit.Benches.Benches)
                 {
                     var files = ACIRBenchAdapter.GenerateTestbench(
@@ -299,7 +323,9 @@ public static class SpiceEmitter
                         backend,
                         outputDir,
                         workspaceRoot,
-                        includeResolution
+                        includeResolution,
+                        result.DesignPaths,
+                        doc
                     );
                     result.TestbenchPaths.Add(files.NetlistPath);
                 }
@@ -462,7 +488,8 @@ public static class SpiceEmitter
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        IReadOnlyDictionary<string, string>? circuitParams = null
     )
     {
         var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
@@ -486,7 +513,7 @@ public static class SpiceEmitter
         // Terminal ordering and parameters depend on device type
         if (spiceType is "M" or "X")
         {
-            EmitMosfetTerminalsAndParams(device, sb, deviceModelMap, useSubckt);
+            EmitMosfetTerminalsAndParams(device, sb, deviceModelMap, useSubckt, circuitParams);
         }
         else if (spiceType is "R" or "C" or "L")
         {
@@ -506,7 +533,7 @@ public static class SpiceEmitter
             };
             if (device.Params.TryGetValue(valueKey, out var value))
             {
-                sb.Append(value);
+                sb.Append(ConvertParamRef(value, circuitParams));
             }
         }
         else if (spiceType == "D")
@@ -620,6 +647,9 @@ public static class SpiceEmitter
         // Build port-to-net substitution map
         var netSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
 
+        // Build parameter bindings: circuit defaults overridden by instance params
+        var paramBindings = BuildParameterBindings(instance, inlineCircuit);
+
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
         if (inlineCircuit.Fill?.Nets is not null)
@@ -642,12 +672,53 @@ public static class SpiceEmitter
                     instance.Id,
                     netSubstitutions,
                     internalNets,
+                    paramBindings,
                     resolution,
                     deviceModelMap,
                     writer
                 );
             }
         }
+    }
+
+    /// <summary>
+    /// Builds parameter bindings for inline expansion by combining circuit defaults
+    /// with instance parameter overrides.
+    /// </summary>
+    private static IReadOnlyDictionary<string, string> BuildParameterBindings(
+        InstanceDeclaration instance,
+        Circuit inlineCircuit
+    )
+    {
+        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // Start with circuit parameter defaults
+        foreach (var param in inlineCircuit.Parameters)
+        {
+            if (param.Default?.Numeric is not null)
+            {
+                bindings[param.Name] = param.Default.Numeric;
+            }
+        }
+
+        // Override with instance parameters
+        foreach (var (name, paramValue) in instance.Params)
+        {
+            if (paramValue.Numeric is not null)
+            {
+                bindings[name] = paramValue.Numeric;
+            }
+            else if (paramValue.Symbolic is not null)
+            {
+                bindings[name] = paramValue.Symbolic;
+            }
+            else if (paramValue.Literal is not null)
+            {
+                bindings[name] = paramValue.Literal;
+            }
+        }
+
+        return bindings;
     }
 
     /// <summary>
@@ -714,6 +785,7 @@ public static class SpiceEmitter
         string instanceId,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
+        IReadOnlyDictionary<string, string> paramBindings,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         TextWriter writer
@@ -747,6 +819,7 @@ public static class SpiceEmitter
                 instanceId,
                 netSubstitutions,
                 internalNets,
+                paramBindings,
                 resolution,
                 sb,
                 deviceModelMap,
@@ -786,7 +859,7 @@ public static class SpiceEmitter
             };
             if (device.Params.TryGetValue(valueKey, out var value))
             {
-                sb.Append(value);
+                sb.Append(ResolveParameterValue(value, paramBindings));
             }
         }
         else if (spiceType == "D")
@@ -819,6 +892,21 @@ public static class SpiceEmitter
     }
 
     /// <summary>
+    /// Resolves a parameter value, evaluating $param references.
+    /// </summary>
+    private static string ResolveParameterValue(
+        string value,
+        IReadOnlyDictionary<string, string> paramBindings
+    )
+    {
+        if (value.Contains('$'))
+        {
+            return ParameterEvaluator.Evaluate(value, paramBindings);
+        }
+        return value;
+    }
+
+    /// <summary>
     /// Emits MOSFET terminals and params for inline expansion.
     /// </summary>
     private static void EmitInlineMosfetTerminalsAndParams(
@@ -826,6 +914,7 @@ public static class SpiceEmitter
         string instanceId,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
+        IReadOnlyDictionary<string, string> paramBindings,
         CircuitResolutionResult? resolution,
         StringBuilder sb,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
@@ -878,18 +967,21 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m
+        // Parameters: W, L, m (resolve $param references)
         if (device.Params.TryGetValue("W", out var w))
         {
-            sb.Append(useSubckt ? $"w={w} " : $"W={w} ");
+            var resolvedW = ResolveParameterValue(w, paramBindings);
+            sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
         }
         if (device.Params.TryGetValue("L", out var l))
         {
-            sb.Append(useSubckt ? $"l={l} " : $"L={l} ");
+            var resolvedL = ResolveParameterValue(l, paramBindings);
+            sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
         }
         if (device.Params.TryGetValue("M", out var m))
         {
-            sb.Append(useSubckt ? $"mult={m}" : $"m={m}");
+            var resolvedM = ResolveParameterValue(m, paramBindings);
+            sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
         }
     }
 
@@ -934,11 +1026,13 @@ public static class SpiceEmitter
     /// <param name="device">MOSFET device declaration.</param>
     /// <param name="sb">StringBuilder to append to.</param>
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model names.</param>
+    /// <param name="circuitParams">Optional circuit parameters for converting $param references.</param>
     private static void EmitMosfetTerminalsAndParams(
         DeviceDeclaration device,
         StringBuilder sb,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        bool useSubckt
+        bool useSubckt,
+        IReadOnlyDictionary<string, string>? circuitParams = null
     )
     {
         // MOSFET terminal ordering: D G S B
@@ -955,19 +1049,47 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m
+        // Parameters: W, L, m (convert $param to param for subcircuit parameters)
         if (device.Params.TryGetValue("W", out var w))
         {
-            sb.Append(useSubckt ? $"w={w} " : $"W={w} ");
+            var converted = ConvertParamRef(w, circuitParams);
+            sb.Append(useSubckt ? $"w={converted} " : $"W={converted} ");
         }
         if (device.Params.TryGetValue("L", out var l))
         {
-            sb.Append(useSubckt ? $"l={l} " : $"L={l} ");
+            var converted = ConvertParamRef(l, circuitParams);
+            sb.Append(useSubckt ? $"l={converted} " : $"L={converted} ");
         }
         if (device.Params.TryGetValue("M", out var m))
         {
-            sb.Append(useSubckt ? $"mult={m}" : $"m={m}");
+            var converted = ConvertParamRef(m, circuitParams);
+            sb.Append(useSubckt ? $"mult={converted}" : $"m={converted}");
         }
+    }
+
+    /// <summary>
+    /// Converts ACIR parameter references ($param) to SPICE parameter syntax (param).
+    /// For subcircuit parameters, $param becomes param (bare name).
+    /// </summary>
+    private static string ConvertParamRef(
+        string value,
+        IReadOnlyDictionary<string, string>? circuitParams
+    )
+    {
+        if (circuitParams is null || !value.StartsWith('$'))
+        {
+            return value;
+        }
+
+        // Extract parameter name from $param
+        var paramName = value[1..];
+        if (circuitParams.ContainsKey(paramName))
+        {
+            // Return bare parameter name for SPICE to resolve
+            return paramName;
+        }
+
+        return value;
     }
 
     private static DeviceModelResolution? ResolveDeviceModel(

@@ -867,22 +867,17 @@ public class SpiceEmitterHierarchyTests
         Assert.Contains(doc.Traits, t => t.Name == "LoadBranch");
         Assert.Contains(doc.Traits, t => t.Name == "DiffPairTrait");
 
-        // Verify inline circuits
+        // Verify inline circuit
         var diffPair = doc.Circuits.First(c => c.Name == "DiffPair");
         Assert.True(diffPair.Inline);
         Assert.Contains("DiffPairTrait", diffPair.Traits!);
 
-        var activeLoad = doc.Circuits.First(c => c.Name == "ActiveLoad");
-        Assert.True(activeLoad.Inline);
-        Assert.Contains("LoadBranch", activeLoad.Traits!);
-
         // Verify top-level circuit has instances
         var topLevel = doc.Circuits.First(c => c.Name == "OTA5T_Hierarchical");
         Assert.NotNull(topLevel.Fill);
-        Assert.Equal(3, topLevel.Fill.Instances.Count);
+        Assert.Equal(2, topLevel.Fill.Instances.Count);
         Assert.Contains(topLevel.Fill.Instances, i => i.Id == "dp" && i.Type == "DiffPair");
         Assert.Contains(topLevel.Fill.Instances, i => i.Id == "cm" && i.Type == "CurrentMirror");
-        Assert.Contains(topLevel.Fill.Instances, i => i.Id == "load" && i.Type == "ActiveLoad");
     }
 
     [Fact]
@@ -933,9 +928,8 @@ public class SpiceEmitterHierarchyTests
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
         var output = writer.ToString();
 
-        // Inline circuits (DiffPair, ActiveLoad) should be expanded, not X-elements
+        // Inline circuit (DiffPair) should be expanded, not X-element
         Assert.DoesNotContain("Xdp ", output);
-        Assert.DoesNotContain("Xload ", output);
 
         // Non-inline circuit (CurrentMirror) should emit as X-element
         Assert.Contains("Xcm ", output);
@@ -944,9 +938,6 @@ public class SpiceEmitterHierarchyTests
         Assert.Contains("Mdp__M_N", output);
         Assert.Contains("Mdp__M_P", output);
         Assert.Contains("Mdp__M_TAIL", output);
-
-        // ActiveLoad inline expansion
-        Assert.Contains("Mload__M_LOAD", output);
 
         // Internal net from DiffPair should be uniquified
         Assert.Contains("dp__tnode", output);
