@@ -128,9 +128,9 @@ Statements may optionally include source attribution in the form `@[file:line]` 
 
 ```acir
 port OUT : analog @[OTA.cas:7]
-nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : W=1u L=100n @[DiffPair.cas:12]
+nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : size=(W=1u, L=100n, M=1) nfet_01v8 @[DiffPair.cas:12]
 inst dp (IN.P->IN_P) : DiffPair @[OTA.cas:9]
-  param p = NMOS
+  size Input = (W=2u, L=180n, M=1)
 ```
 
 When present, source attribution enables error messages to reference original source locations. However, canonical ACIR output omits source attribution by default to improve readability and reduce noise.
@@ -451,11 +451,14 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   port OUT : Diff
   port BIAS : bias
 
+  size Input
+  size Tail
+
   fill:
     net tnode : analog
-    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : W=$W_input*$tail_ratio L=$L nfet_01v8
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
 ```
 
 Parameter references in device sizing use the `$` prefix for clarity: `W=$W_input`, `L=$L`, `W=$W_input*$tail_ratio`.
@@ -590,16 +593,31 @@ fill:
     ...
 ```
 
-Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and the PDK device name (required at EL).
+Transistor sizing uses size packs (§3.3.7.1), specified either inline or by reference. The PDK device name is required at EL.
 
-Example:
+Inline anonymous size (one-off sizing):
 
 ```acir
 fill:
-  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=1u L=100n M=1 nfet_01v8
-
-  pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 pfet_01v8
+  nmos M_in (G->IN, D->OUT, S->GND, B->GND) : size=(W=12u, L=180n, M=4) nfet_01v8
+  pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=2) pfet_01v8
 ```
+
+Named size reference (reuse or parametrization):
+
+```acir
+circuit DiffPair
+  level EL
+  size Input
+  size Tail
+
+  fill:
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->GND) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->GND) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->GND, B->GND) : size=Tail nfet_01v8
+```
+
+Transistors MUST use `size=Name` (named reference) or `size=(...)` (inline literal). Device-level `W=`, `L=`, `M=` parameters are not permitted.
 
 Passives:
 
@@ -846,8 +864,8 @@ circuit SimpleAmp
 
   fill:
     net tnode : analog
-    nmos M_in (G->IN, D->OUT, S->VSS, B->VSS) : W=8u L=180n M=2 nfet_01v8
-    pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=2 pfet_01v8
+    nmos M_in (G->IN, D->OUT, S->VSS, B->VSS) : size=(W=8u, L=180n, M=2) nfet_01v8
+    pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=2) pfet_01v8
 ```
 
 The `fill:` block creates a clear structural separation between what the circuit promises (its interface) and how it is implemented (the synthesized content).
@@ -1348,13 +1366,13 @@ circuit OTA5TSingleEnded
     net mirror_gate : analog  // dp.OUT.P = cm.SENSE
 
     // DiffPair (dp) - NMOS differential pair with tail
-    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 nfet_01v8
-    nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 nfet_01v8
-    nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 nfet_01v8
+    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : size=(W=2u, L=180n, M=1) nfet_01v8
+    nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : size=(W=2u, L=180n, M=1) nfet_01v8
+    nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : size=(W=4u, L=180n, M=1) nfet_01v8
 
     // CurrentMirror (cm) - PMOS current mirror
-    pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 pfet_01v8
-    pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 pfet_01v8
+    pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
+    pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
 
   constraints:
     numeric:
@@ -1440,9 +1458,9 @@ circuit CSAmplifier
   port vb1 : bias
 
   fill:
-    nmos M_in (G->vin, D->vout, S->GND, B->GND) : W=12u L=180n M=4 nfet_01v8
+    nmos M_in (G->vin, D->vout, S->GND, B->GND) : size=(W=12u, L=180n, M=4) nfet_01v8
 
-    pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : W=4u L=180n M=2 pfet_01v8
+    pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : size=(W=4u, L=180n, M=2) pfet_01v8
 
   constraints:
     numeric:
@@ -1547,11 +1565,14 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   port OUT : Diff
   port BIAS : bias
 
+  size Input
+  size Tail
+
   fill:
     net tnode : analog
-    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : W=$W_input*$tail_ratio L=$L nfet_01v8
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
 
 circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   level EL
@@ -1564,9 +1585,11 @@ circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
 
+  size Sense
+
   fill:
-    pmos M_SENSE (G->SENSE, D->SENSE, S->RAIL, B->RAIL) : W=$W_sense L=$L pfet_01v8
-    pmos M_TAP0 (G->SENSE, D->TAP[0], S->RAIL, B->RAIL) : W=$W_sense L=$L pfet_01v8
+    pmos M_SENSE (G->SENSE, D->SENSE, S->RAIL, B->RAIL) : size=Sense pfet_01v8
+    pmos M_TAP0 (G->SENSE, D->TAP[0], S->RAIL, B->RAIL) : size=Sense pfet_01v8
 ```
 
 The attach statement `attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node` resolves using the referenced connector from the document’s trait definitions. The `as mirror_node` clause names the created nets `mirror_node_0` and `mirror_node_1`. Since both child circuits are marked `inline`, SPICE emission expands them into the top-level circuit with uniquified names.

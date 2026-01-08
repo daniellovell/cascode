@@ -898,11 +898,10 @@ public class SpiceEmitterHierarchyTests
         Assert.Equal("CurrentMirror", circuit.Name);
         Assert.Contains("CurrentMirrorLike", circuit.Traits!);
 
-        // Verify parameters
-        Assert.Equal(3, circuit.Parameters.Count);
+        // Verify parameters (no circuit-level sizes; uses inline anonymous sizes)
+        Assert.Single(circuit.Parameters);
         Assert.Contains(circuit.Parameters, p => p.Name == "ratio" && p.Default?.Numeric == "1");
-        Assert.Contains(circuit.Parameters, p => p.Name == "W" && p.Default?.Numeric == "2u");
-        Assert.Contains(circuit.Parameters, p => p.Name == "L" && p.Default?.Numeric == "180n");
+        Assert.Empty(circuit.Sizes);
 
         // Verify devices
         Assert.NotNull(circuit.Fill);

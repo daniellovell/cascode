@@ -1612,21 +1612,58 @@ public static partial class ACIRReader
             }
         }
 
-        // Parse params
+        // Parse params: handle size=(W=2u, L=180n, M=1) as a single token
         var paramsStr = deviceMatch.Groups[4].Value.Trim();
-        var paramParts = paramsStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in paramParts)
+        var i = 0;
+        while (i < paramsStr.Length)
         {
-            var eqIndex = part.IndexOf('=');
-            if (eqIndex > 0)
+            // Skip whitespace
+            while (i < paramsStr.Length && char.IsWhiteSpace(paramsStr[i]))
+                i++;
+            if (i >= paramsStr.Length)
+                break;
+
+            // Check for key=value or key=(...)
+            var eqIndex = paramsStr.IndexOf('=', i);
+            if (eqIndex > i && eqIndex < paramsStr.Length)
             {
-                var key = part[..eqIndex];
-                var value = part[(eqIndex + 1)..];
-                deviceParams[key] = value;
+                var key = paramsStr[i..eqIndex];
+                i = eqIndex + 1;
+
+                // Check if value starts with '(' - if so, consume until matching ')'
+                if (i < paramsStr.Length && paramsStr[i] == '(')
+                {
+                    var parenStart = i;
+                    var depth = 1;
+                    i++;
+                    while (i < paramsStr.Length && depth > 0)
+                    {
+                        if (paramsStr[i] == '(')
+                            depth++;
+                        else if (paramsStr[i] == ')')
+                            depth--;
+                        i++;
+                    }
+                    var value = paramsStr[parenStart..i];
+                    deviceParams[key] = value;
+                }
+                else
+                {
+                    // Regular value: consume until space
+                    var valueStart = i;
+                    while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                        i++;
+                    var value = paramsStr[valueStart..i];
+                    deviceParams[key] = value;
+                }
             }
-            else if (!string.IsNullOrEmpty(part))
+            else
             {
-                pdkDevice = part;
+                // No '=' found - this is the PDK device name
+                var tokenStart = i;
+                while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                    i++;
+                pdkDevice = paramsStr[tokenStart..i];
             }
         }
 
@@ -2184,22 +2221,58 @@ public static partial class ACIRReader
             }
         }
 
-        // Parse params: L=180n M=1 W=2u pdkDevice
+        // Parse params: handle size=(W=2u, L=180n, M=1) as a single token
         var paramsStr = deviceMatch.Groups[4].Value.Trim();
-        var paramParts = paramsStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in paramParts)
+        var i = 0;
+        while (i < paramsStr.Length)
         {
-            var eqIndex = part.IndexOf('=');
-            if (eqIndex > 0)
+            // Skip whitespace
+            while (i < paramsStr.Length && char.IsWhiteSpace(paramsStr[i]))
+                i++;
+            if (i >= paramsStr.Length)
+                break;
+
+            // Check for key=value or key=(...)
+            var eqIndex = paramsStr.IndexOf('=', i);
+            if (eqIndex > i && eqIndex < paramsStr.Length)
             {
-                var key = part[..eqIndex];
-                var value = part[(eqIndex + 1)..];
-                deviceParams[key] = value;
+                var key = paramsStr[i..eqIndex];
+                i = eqIndex + 1;
+
+                // Check if value starts with '(' - if so, consume until matching ')'
+                if (i < paramsStr.Length && paramsStr[i] == '(')
+                {
+                    var parenStart = i;
+                    var depth = 1;
+                    i++;
+                    while (i < paramsStr.Length && depth > 0)
+                    {
+                        if (paramsStr[i] == '(')
+                            depth++;
+                        else if (paramsStr[i] == ')')
+                            depth--;
+                        i++;
+                    }
+                    var value = paramsStr[parenStart..i];
+                    deviceParams[key] = value;
+                }
+                else
+                {
+                    // Regular value: consume until space
+                    var valueStart = i;
+                    while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                        i++;
+                    var value = paramsStr[valueStart..i];
+                    deviceParams[key] = value;
+                }
             }
-            else if (!string.IsNullOrEmpty(part))
+            else
             {
-                // Last non-param part is PDK device name
-                pdkDevice = part;
+                // No '=' found - this is the PDK device name
+                var tokenStart = i;
+                while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                    i++;
+                pdkDevice = paramsStr[tokenStart..i];
             }
         }
 

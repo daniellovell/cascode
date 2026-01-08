@@ -8,8 +8,8 @@ circuit CommonSourceAmp_Pdk : SingleEndedAmp
   port OUT : analog
   port VBIAS : bias
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : W=10u L=180n M=1 nfet_01v8
-    pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : W=20u L=180n M=1 pfet_01v8
+    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nfet_01v8
+    pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : size=(W=20u, L=180n, M=1) pfet_01v8
   constraints:
     numeric:
       c_gbw : GainBandwidth @ OUT >= 50M Hz

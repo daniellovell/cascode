@@ -7,7 +7,7 @@ circuit InvalidAutoSweep : SingleEndedAmp
   port IN : analog
   port OUT : analog
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : W=10u L=180n M=1 nmos
+    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
   harness:
     supply VDD = 1.8V
     sweep InputDCBias [Auto]

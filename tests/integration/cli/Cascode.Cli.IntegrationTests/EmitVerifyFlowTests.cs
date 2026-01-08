@@ -407,8 +407,8 @@ public partial class EmitVerifyFlowTests : IDisposable
         );
 
         Assert.Equal(2, result.ExitCode);
-        Assert.Contains("EMIT-003", result.Stdout);
-        Assert.Contains("missing required parameter", result.Stdout);
+        Assert.Contains("EMIT-007", result.Stdout);
+        Assert.Contains("missing required size", result.Stdout);
     }
 
     [Fact]

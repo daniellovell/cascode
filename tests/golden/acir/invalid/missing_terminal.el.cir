@@ -13,4 +13,4 @@ circuit MissingTerminalExample
   port OUT : analog
 
   fill:
-    nmos M1 (G->IN, D->OUT, S->GND) : W=1u L=180n nmos
+    nmos M1 (G->IN, D->OUT, S->GND) : size=(W=1u, L=180n, M=1) nmos

@@ -790,40 +790,63 @@ public static class SpiceEmitter
         IReadOnlyDictionary<string, SizePack>? sizeBindings
     )
     {
-        if (sizeBindings is null || !device.Params.TryGetValue("size", out var rawSizeName))
+        if (!device.Params.TryGetValue("size", out var rawSizeValue))
         {
             return device.Params;
         }
 
-        var sizeName = rawSizeName.Trim();
-        if (sizeName.StartsWith('$'))
+        var sizeValue = rawSizeValue.Trim();
+
+        // Handle inline size literal: size=(W=2u, L=180n, M=1)
+        if (sizeValue.StartsWith('(') && sizeValue.EndsWith(')'))
         {
-            sizeName = sizeName[1..];
+            var literalContent = sizeValue[1..^1];
+            if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
+            {
+                throw new InvalidOperationException(
+                    $"Device '{device.Id}' has invalid inline size literal: {error}"
+                );
+            }
+
+            var expanded = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var kvp in pack.Entries)
+            {
+                expanded[kvp.Key] = kvp.Value;
+            }
+            foreach (var (key, value) in device.Params)
+            {
+                if (!string.Equals(key, "size", StringComparison.Ordinal))
+                {
+                    expanded[key] = value;
+                }
+            }
+            return expanded;
         }
 
-        if (!sizeBindings.TryGetValue(sizeName, out var pack))
+        // Handle named size reference: size=PackName or size=$PackName
+        var sizeName = sizeValue.StartsWith('$') ? sizeValue[1..] : sizeValue;
+
+        if (sizeBindings is null || !sizeBindings.TryGetValue(sizeName, out var namedPack))
         {
             throw new InvalidOperationException(
                 $"Device '{device.Id}' references undefined size pack '{sizeName}'"
             );
         }
 
-        var expanded = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var (key, value) in pack.Entries)
+        var expandedNamed = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in namedPack.Entries)
         {
-            expanded[key] = value;
+            expandedNamed[key] = value;
         }
-
         foreach (var (key, value) in device.Params)
         {
             if (!string.Equals(key, "size", StringComparison.Ordinal))
             {
-                expanded[key] = value;
+                expandedNamed[key] = value;
             }
         }
 
-        return expanded;
+        return expandedNamed;
     }
 
     /// <summary>
@@ -1076,22 +1099,18 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m (resolve $param references)
-        if (deviceParams.TryGetValue("W", out var w))
-        {
-            var resolvedW = ResolveParameterValue(w, paramBindings);
-            sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
-        }
-        if (deviceParams.TryGetValue("L", out var l))
-        {
-            var resolvedL = ResolveParameterValue(l, paramBindings);
-            sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
-        }
-        if (deviceParams.TryGetValue("M", out var m))
-        {
-            var resolvedM = ResolveParameterValue(m, paramBindings);
-            sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
-        }
+        // Parameters: W, L, m (must come from size pack expansion)
+        var w = deviceParams["W"];
+        var l = deviceParams["L"];
+        var m = deviceParams.GetValueOrDefault("M", "1");
+
+        var resolvedW = ResolveParameterValue(w, paramBindings);
+        var resolvedL = ResolveParameterValue(l, paramBindings);
+        var resolvedM = ResolveParameterValue(m, paramBindings);
+
+        sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
+        sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
+        sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
     }
 
     /// <summary>
@@ -1157,22 +1176,18 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m (convert $param to param for subcircuit parameters)
-        if (deviceParams.TryGetValue("W", out var w))
-        {
-            var converted = ConvertParamRef(w);
-            sb.Append(useSubckt ? $"w={converted} " : $"W={converted} ");
-        }
-        if (deviceParams.TryGetValue("L", out var l))
-        {
-            var converted = ConvertParamRef(l);
-            sb.Append(useSubckt ? $"l={converted} " : $"L={converted} ");
-        }
-        if (deviceParams.TryGetValue("M", out var m))
-        {
-            var converted = ConvertParamRef(m);
-            sb.Append(useSubckt ? $"mult={converted}" : $"m={converted}");
-        }
+        // Parameters: W, L, m (must come from size pack expansion)
+        var w = deviceParams["W"];
+        var l = deviceParams["L"];
+        var m = deviceParams.GetValueOrDefault("M", "1");
+
+        var converted_w = ConvertParamRef(w);
+        var converted_l = ConvertParamRef(l);
+        var converted_m = ConvertParamRef(m);
+
+        sb.Append(useSubckt ? $"w={converted_w} " : $"W={converted_w} ");
+        sb.Append(useSubckt ? $"l={converted_l} " : $"L={converted_l} ");
+        sb.Append(useSubckt ? $"mult={converted_m}" : $"m={converted_m}");
     }
 
     /// <summary>

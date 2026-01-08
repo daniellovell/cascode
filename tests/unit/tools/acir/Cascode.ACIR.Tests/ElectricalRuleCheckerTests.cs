@@ -46,7 +46,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -87,7 +90,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -131,7 +137,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                     new()
                     {
@@ -144,7 +153,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "VDD" },
                             { "B", "VDD" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "2u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=2u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -183,7 +195,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" }, // Source to GND - SHORT!
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -227,7 +242,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "VDD" }, // Source to VDD - SHORT!
                             { "B", "VDD" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -411,7 +429,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                         PdkDevice = null, // Missing PDK device
                     },
                 },
@@ -453,7 +474,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                         PdkDevice = null, // Missing PDK device
                     },
                 },
@@ -494,7 +518,10 @@ public class ElectricalRuleCheckerTests
                             { "D", "OUT" },
                             // Missing G, S, B
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -696,7 +723,10 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                         PdkDevice = "nmos",
                     },
                 },
@@ -723,7 +753,7 @@ public class ElectricalRuleCheckerTests
                 { "S", source },
                 { "B", bulk },
             },
-            Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+            Params = new Dictionary<string, string> { { "size", "(W=1u, L=180n, M=1)" } },
             PdkDevice = "nmos",
         };
     }

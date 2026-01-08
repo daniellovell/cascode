@@ -74,7 +74,7 @@ circuit SizePackSmoke
   fill:
     net t : analog
     nmos M1 (B->GND, D->OUT, G->IN, S->t) : size=InputPair nmos
-    nmos M2 (B->GND, D->t, G->IN, S->GND) : W=2u L=180n M=1 nmos
+    nmos M2 (B->GND, D->t, G->IN, S->GND) : size=(W=2u, L=180n, M=1) nmos
 ";
 
         var doc = ACIRReader.Parse(acir, "size-smoke.cir");

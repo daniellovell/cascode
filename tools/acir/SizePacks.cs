@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Cascode.ACIR;
@@ -21,4 +22,53 @@ public sealed class SizePack
 {
     /// <summary>Entries in this size pack.</summary>
     public Dictionary<string, string> Entries { get; init; } = new();
+}
+
+/// <summary>
+/// Utility methods for parsing size pack literals.
+/// </summary>
+public static class SizePacks
+{
+    /// <summary>
+    /// Parses a size literal string into a SizePack.
+    /// </summary>
+    /// <param name="literal">Content inside parentheses, e.g., "W=2u, L=180n, M=1"</param>
+    /// <param name="pack">Parsed size pack if successful</param>
+    /// <param name="error">Error message if parsing fails</param>
+    /// <returns>True if parsing succeeded</returns>
+    public static bool TryParseSizeLiteral(string literal, out SizePack pack, out string error)
+    {
+        pack = new SizePack();
+        error = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(literal))
+        {
+            error = "Empty size literal";
+            return false;
+        }
+
+        foreach (var part in literal.Split(','))
+        {
+            var trimmed = part.Trim();
+            var eqIndex = trimmed.IndexOf('=');
+            if (eqIndex <= 0)
+            {
+                error = $"Invalid size entry '{trimmed}' - expected 'key=value'";
+                return false;
+            }
+
+            var key = trimmed[..eqIndex].Trim();
+            var value = trimmed[(eqIndex + 1)..].Trim();
+
+            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value))
+            {
+                error = $"Invalid size entry '{trimmed}' - key or value is empty";
+                return false;
+            }
+
+            pack.Entries[key] = value;
+        }
+
+        return true;
+    }
 }

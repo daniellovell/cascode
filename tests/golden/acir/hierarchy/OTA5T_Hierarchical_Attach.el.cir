@@ -29,8 +29,6 @@ circuit OTA5T_Hierarchical_Attach
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
     inst cm (GND->GND, TAP[0]->OUT, VDD->VDD) : CurrentMirror
-      param W = 2u
-      param L = 180n
       param ratio = 1
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   constraints:
@@ -72,13 +70,12 @@ circuit DiffPair : DiffPairLike
 
 circuit CurrentMirror : CurrentMirrorLike
   level EL
-  param W : real
-  param L : real
   param ratio : real = 1
+  size Sense = (W=2u, L=180n, M=1)
   supply VDD
   ground GND
   port SENSE : analog
   port TAP[0] : analog
   fill:
-    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->VDD) : L=$L M=1 W=$W pmos
-    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : L=$L M=$ratio W=$W pmos
+    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->VDD) : size=Sense pmos
+    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : M=$ratio size=Sense pmos
