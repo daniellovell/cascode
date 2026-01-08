@@ -1029,9 +1029,10 @@ public static partial class ACIRReader
         var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
         var hasBrace = match.Groups[6].Success; // Group 6 is the optional `{`
 
-        var targetInstances = Regex
-            .Matches(targetSegment, @"\s+to\s+(\w+)")
-            .Select(match => match.Groups[1].Value)
+        var targetInstances = targetSegment
+            .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToList();
         if (targetInstances.Count == 0)
         {

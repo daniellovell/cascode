@@ -525,7 +525,7 @@ public sealed record AttachStatement
     public string? Anchor { get; init; }
 
     /// <summary>Optional inline override mappings.</summary>
-    public IReadOnlyList<ConnectorMapping>? Overrides { get; set; }
+    public IReadOnlyList<ConnectorMapping>? Overrides { get; init; }
 
     /// <inheritdoc />
     public bool Equals(AttachStatement? other)

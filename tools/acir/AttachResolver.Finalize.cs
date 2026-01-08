@@ -221,11 +221,12 @@ public sealed partial class AttachResolver
 
         foreach (var attach in circuit.Fill.Attaches)
         {
-            if (!context.ConnectorByAttach.TryGetValue(attach, out var connector))
+            if (!context.ConnectorByAttach.TryGetValue(attach, out var attachInfo))
             {
                 continue;
             }
 
+            var connector = attachInfo.Connector;
             var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
             var instanceChain = BuildInstanceChain(attach);
 

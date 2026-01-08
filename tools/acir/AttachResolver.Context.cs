@@ -5,6 +5,12 @@ namespace Cascode.ACIR;
 
 public sealed partial class AttachResolver
 {
+    private sealed record AttachResolutionInfo(
+        TraitConnector Connector,
+        TraitDefinition? SourceTrait,
+        TraitDefinition? TargetTrait
+    );
+
     private sealed class ResolutionContext
     {
         public UnionFind<string> UnionFind { get; } = new();
@@ -19,7 +25,7 @@ public sealed partial class AttachResolver
         public HashSet<string> EndpointNodes { get; } = new(StringComparer.Ordinal);
         public Dictionary<string, string> AutoNetNameOverrides { get; } =
             new(StringComparer.Ordinal);
-        public Dictionary<AttachStatement, TraitConnector> ConnectorByAttach { get; } = new();
+        public Dictionary<AttachStatement, AttachResolutionInfo> ConnectorByAttach { get; } = new();
     }
 
     private enum NetTier

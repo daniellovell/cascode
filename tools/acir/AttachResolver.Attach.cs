@@ -26,17 +26,17 @@ public sealed partial class AttachResolver
         for (var attachIndex = 0; attachIndex < circuit.Fill.Attaches.Count; attachIndex++)
         {
             var attach = circuit.Fill.Attaches[attachIndex];
-            var connector = ResolveConnector(attach, circuit, diagnostics);
-            if (connector is null)
+            var attachInfo = ResolveConnector(attach, circuit, diagnostics);
+            if (attachInfo is null)
             {
                 continue;
             }
 
-            context.ConnectorByAttach[attach] = connector;
+            context.ConnectorByAttach[attach] = attachInfo;
             ProcessAttach(
                 circuit,
                 attach,
-                connector,
+                attachInfo,
                 attachIndex,
                 instancesById,
                 context,
@@ -45,7 +45,7 @@ public sealed partial class AttachResolver
         }
     }
 
-    private TraitConnector? ResolveConnector(
+    private AttachResolutionInfo? ResolveConnector(
         AttachStatement attach,
         Circuit circuit,
         List<Diagnostic> diagnostics
@@ -100,19 +100,25 @@ public sealed partial class AttachResolver
             return null;
         }
 
-        return connector;
+        _traitsByName.TryGetValue(targetTraitName, out var targetTrait);
+
+        return new AttachResolutionInfo(connector, sourceTrait, targetTrait);
     }
 
     private void ProcessAttach(
         Circuit circuit,
         AttachStatement attach,
-        TraitConnector connector,
+        AttachResolutionInfo attachInfo,
         int attachIndex,
         Dictionary<string, InstanceDeclaration> instancesById,
         ResolutionContext context,
         List<Diagnostic> diagnostics
     )
     {
+        var connector = attachInfo.Connector;
+        var sourceTrait = attachInfo.SourceTrait;
+        var targetTrait = attachInfo.TargetTrait;
+
         var createdAutoNets = new List<string>();
         var instanceChain = BuildInstanceChain(attach);
 
@@ -141,36 +147,24 @@ public sealed partial class AttachResolver
         }
 
         // Validate domain compatibility based on trait port definitions
-        var viaParts = attach.Via.Split("::");
-        if (viaParts.Length == 2)
+        foreach (var (sourcePort, targetPort) in EnumerateConnectorMappings(attach, connector))
         {
-            var sourceTraitName = viaParts[0];
-            var targetTraitName = viaParts[1];
+            var sourcePortDomain =
+                sourceTrait?.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type ?? DefaultDomain;
+            var targetPortDomain =
+                targetTrait?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type ?? DefaultDomain;
 
-            _traitsByName.TryGetValue(sourceTraitName, out var sourceTrait);
-            _traitsByName.TryGetValue(targetTraitName, out var targetTrait);
-
-            foreach (var (sourcePort, targetPort) in EnumerateConnectorMappings(attach, connector))
+            if (!string.Equals(sourcePortDomain, targetPortDomain, StringComparison.Ordinal))
             {
-                var sourcePortDomain =
-                    sourceTrait?.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type
-                    ?? DefaultDomain;
-                var targetPortDomain =
-                    targetTrait?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type
-                    ?? DefaultDomain;
-
-                if (!string.Equals(sourcePortDomain, targetPortDomain, StringComparison.Ordinal))
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"ACIR0024: Domain mismatch in attach: {sourcePort} ({sourcePortDomain}) vs {targetPort} ({targetPortDomain})",
-                            DiagnosticSeverity.Error,
-                            circuit.Name,
-                            1,
-                            1
-                        )
-                    );
-                }
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0024: Domain mismatch in attach: {sourcePort} ({sourcePortDomain}) vs {targetPort} ({targetPortDomain})",
+                        DiagnosticSeverity.Error,
+                        circuit.Name,
+                        1,
+                        1
+                    )
+                );
             }
         }
 
