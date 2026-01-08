@@ -1127,7 +1127,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Testbench:", result.Stdout);
 
         // Should emit 4 designs (all circuits including inline) and 2 testbenches
-        Assert.Contains("Emitted 3 design(s) and 2 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 2 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical.sp")),
@@ -1137,10 +1137,16 @@ public partial class EmitVerifyFlowTests : IDisposable
             File.Exists(Path.Combine(_outputDir, "CurrentMirror.sp")),
             "CurrentMirror subcircuit not found"
         );
-        Assert.True(
+        Assert.False(
             File.Exists(Path.Combine(_outputDir, "DiffPair.sp")),
-            "DiffPair subcircuit not found"
+            "DiffPair should not be emitted as a standalone subcircuit when marked inline"
         );
+
+        var designText = File.ReadAllText(Path.Combine(_outputDir, "OTA5T_Hierarchical.sp"));
+        Assert.Contains("* Inline expansion of dp : DiffPair", designText);
+        Assert.Contains("Mdp__M_N", designText);
+        Assert.Contains("Mdp__M_P", designText);
+        Assert.Contains("Mdp__M_TAIL", designText);
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_SEOpAmpACBench.sp")),
             "AC testbench not found"
@@ -1211,7 +1217,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Testbench:", result.Stdout);
 
         // Should emit 3 designs (top-level + 2 child circuits) and 2 testbenches
-        Assert.Contains("Emitted 3 design(s) and 2 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 2 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach.sp")),
@@ -1221,10 +1227,16 @@ public partial class EmitVerifyFlowTests : IDisposable
             File.Exists(Path.Combine(_outputDir, "CurrentMirror.sp")),
             "CurrentMirror subcircuit not found"
         );
-        Assert.True(
+        Assert.False(
             File.Exists(Path.Combine(_outputDir, "DiffPair.sp")),
-            "DiffPair subcircuit not found"
+            "DiffPair should not be emitted as a standalone subcircuit when marked inline"
         );
+
+        var designText = File.ReadAllText(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach.sp"));
+        Assert.Contains("* Inline expansion of dp : DiffPair", designText);
+        Assert.Contains("Mdp__M_N", designText);
+        Assert.Contains("Mdp__M_P", designText);
+        Assert.Contains("Mdp__M_TAIL", designText);
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpACBench.sp")),
             "AC testbench not found"

@@ -25,13 +25,9 @@ circuit OTA5T_Hierarchical_Attach
   port OUT : analog
   port VTAIL : bias
   fill:
-    inst dp (GND->GND, IN_N->IN_N, IN_P->IN_P, OUT.N->OUT, TAIL->VTAIL, VDD->VDD) : DiffPair
-      param Win = 2u
-      param Lin = 180n
-      param Min = 1
-      param Wtail = 4u
-      param Ltail = 180n
-      param Mtail = 1
+    inst dp (GND->GND, IN_N->IN_N, IN_P->IN_P, OUT.P->OUT, TAIL->VTAIL, VDD->VDD) : DiffPair
+      size InputPair = (W=2u, L=180n, M=1)
+      size Tail = (W=4u, L=180n, M=1)
     inst cm (GND->GND, TAP[0]->OUT, VDD->VDD) : CurrentMirror
       param W = 2u
       param L = 180n
@@ -59,12 +55,8 @@ circuit OTA5T_Hierarchical_Attach
 circuit DiffPair : DiffPairLike
   level EL
   inline
-  param Win : real
-  param Lin : real
-  param Min : real
-  param Wtail : real
-  param Ltail : real
-  param Mtail : real
+  size InputPair
+  size Tail
   supply VDD
   ground GND
   port IN_P : analog
@@ -74,9 +66,9 @@ circuit DiffPair : DiffPairLike
   port TAIL : bias
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.P, G->IN_P, S->tnode) : L=$Lin M=$Min W=$Win nmos
-    nmos M_P (B->GND, D->OUT.N, G->IN_N, S->tnode) : L=$Lin M=$Min W=$Win nmos
-    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : L=$Ltail M=$Mtail W=$Wtail nmos
+    nmos M_N (B->GND, D->OUT.N, G->IN_P, S->tnode) : size=InputPair nmos
+    nmos M_P (B->GND, D->OUT.P, G->IN_N, S->tnode) : size=InputPair nmos
+    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
 
 circuit CurrentMirror : CurrentMirrorLike
   level EL

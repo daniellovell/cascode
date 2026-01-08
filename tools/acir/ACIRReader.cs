@@ -591,6 +591,7 @@ public static partial class ACIRReader
 
         var isInline = false;
         var parameters = new List<CircuitParameter>();
+        var sizes = new List<SizeDeclaration>();
         FillBlock? currentFill = null;
         ConstraintsBlock? currentConstraints = null;
         HarnessBlock? currentHarness = null;
@@ -673,6 +674,19 @@ public static partial class ACIRReader
                         );
                         if (attach is not null)
                             currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
+                    if (contentTrimmed.StartsWith("inst "))
+                    {
+                        var (instance, nextIndex) = ParseInstanceWithBody(
+                            lines,
+                            i,
+                            filePath,
+                            diagnostics
+                        );
+                        if (instance is not null)
+                            currentFill.Instances.Add(instance);
                         i = nextIndex;
                         continue;
                     }
@@ -847,6 +861,31 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed.StartsWith("size "))
+            {
+                if (
+                    TryParseSizeDeclaration(
+                        contentTrimmed,
+                        out var sizeDeclaration,
+                        out var sizeDiagnosticMessage
+                    )
+                )
+                {
+                    sizes.Add(sizeDeclaration);
+                }
+                else
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0017: {sizeDiagnosticMessage}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
 
             i++;
         }
@@ -868,6 +907,7 @@ public static partial class ACIRReader
             Level = level,
             Inline = isInline,
             Parameters = parameters,
+            Sizes = sizes,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -975,6 +1015,369 @@ public static partial class ACIRReader
             Type = type,
             Bindings = bindings,
         };
+    }
+
+    private static (InstanceDeclaration? Instance, int NextIndex) ParseInstanceWithBody(
+        IReadOnlyList<string> lines,
+        int startIndex,
+        string filePath,
+        List<Diagnostic>? diagnostics
+    )
+    {
+        static string StripComment(string value)
+        {
+            var commentIndex = value.IndexOf("//", StringComparison.Ordinal);
+            return commentIndex >= 0 ? value[..commentIndex] : value;
+        }
+
+        var headerLineNumber = startIndex + 1;
+        var rawHeader = StripComment(lines[startIndex]);
+        var headerIndent = GetIndentWidth(rawHeader);
+        var headerTrimmed = rawHeader.Trim();
+
+        var match = InstanceDeclarationPattern().Match(headerTrimmed);
+        if (!match.Success)
+        {
+            diagnostics?.Add(
+                new Diagnostic(
+                    $"ACIR0015: Invalid instance declaration syntax '{headerTrimmed}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    headerLineNumber,
+                    1
+                )
+            );
+            return (null, startIndex + 1);
+        }
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                }
+                else if (diagnostics is not null && !string.IsNullOrWhiteSpace(binding))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0005: Malformed binding syntax '{binding.Trim()}' - expected 'TERMINAL->NET'",
+                            DiagnosticSeverity.Warning,
+                            filePath,
+                            headerLineNumber,
+                            1
+                        )
+                    );
+                }
+            }
+        }
+
+        var instance = new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
+        };
+
+        var i = startIndex + 1;
+        while (i < lines.Count)
+        {
+            var rawLine = StripComment(lines[i]);
+            if (string.IsNullOrWhiteSpace(rawLine))
+            {
+                i++;
+                continue;
+            }
+
+            var indent = GetIndentWidth(rawLine);
+            if (indent <= headerIndent)
+            {
+                break;
+            }
+
+            var trimmed = rawLine.Trim();
+            if (trimmed.StartsWith("param ", StringComparison.Ordinal))
+            {
+                if (
+                    TryParseAssignment(
+                        trimmed,
+                        "param",
+                        out var paramName,
+                        out var paramValue,
+                        out var error
+                    )
+                )
+                {
+                    instance.Params[paramName] = ParamValueParser.Parse(paramValue);
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0015: {error}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else if (trimmed.StartsWith("size ", StringComparison.Ordinal))
+            {
+                if (
+                    TryParseAssignment(
+                        trimmed,
+                        "size",
+                        out var sizeName,
+                        out var sizeValue,
+                        out var error
+                    )
+                )
+                {
+                    if (TryParseSizeLiteral(sizeValue, out var pack, out var packError))
+                    {
+                        instance.Sizes[sizeName] = pack;
+                    }
+                    else
+                    {
+                        diagnostics?.Add(
+                            new Diagnostic(
+                                $"ACIR0017: {packError}",
+                                DiagnosticSeverity.Error,
+                                filePath,
+                                i + 1,
+                                1
+                            )
+                        );
+                    }
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0017: {error}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    instance.Bindings[mappingMatch.Groups[1].Value] = mappingMatch.Groups[2].Value;
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0015: Invalid instance body syntax '{trimmed}'",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        return (instance, i);
+    }
+
+    private static int GetIndentWidth(string line)
+    {
+        var count = 0;
+        foreach (var c in line)
+        {
+            if (c == ' ')
+            {
+                count++;
+                continue;
+            }
+
+            if (c == '\t')
+            {
+                count += 4;
+                continue;
+            }
+
+            break;
+        }
+
+        return count;
+    }
+
+    private static bool TryParseAssignment(
+        string line,
+        string keyword,
+        out string name,
+        out string value,
+        out string errorMessage
+    )
+    {
+        name = string.Empty;
+        value = string.Empty;
+        errorMessage = string.Empty;
+
+        if (!line.StartsWith($"{keyword} ", StringComparison.Ordinal))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}'";
+            return false;
+        }
+
+        var rest = line[(keyword.Length + 1)..].Trim();
+        var eqIndex = rest.IndexOf('=', StringComparison.Ordinal);
+        if (eqIndex <= 0)
+        {
+            errorMessage =
+                $"Invalid {keyword} statement '{line}' - expected '{keyword} <name> = <value>'";
+            return false;
+        }
+
+        name = rest[..eqIndex].Trim();
+        value = rest[(eqIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}' - missing name";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}' - missing value";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseSizeDeclaration(
+        string line,
+        out SizeDeclaration sizeDeclaration,
+        out string errorMessage
+    )
+    {
+        sizeDeclaration = new SizeDeclaration { Name = string.Empty };
+        errorMessage = string.Empty;
+
+        if (!line.StartsWith("size ", StringComparison.Ordinal))
+        {
+            errorMessage = $"Invalid size declaration '{line}'";
+            return false;
+        }
+
+        var rest = line["size ".Length..].Trim();
+        if (string.IsNullOrWhiteSpace(rest))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing name";
+            return false;
+        }
+
+        var eqIndex = rest.IndexOf('=', StringComparison.Ordinal);
+        if (eqIndex < 0)
+        {
+            sizeDeclaration = new SizeDeclaration { Name = rest };
+            return true;
+        }
+
+        var name = rest[..eqIndex].Trim();
+        var literal = rest[(eqIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing name";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(literal))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing default value";
+            return false;
+        }
+
+        if (!TryParseSizeLiteral(literal, out var pack, out var packError))
+        {
+            errorMessage = packError;
+            return false;
+        }
+
+        sizeDeclaration = new SizeDeclaration { Name = name, Default = pack };
+        return true;
+    }
+
+    private static bool TryParseSizeLiteral(
+        string literal,
+        out SizePack pack,
+        out string errorMessage
+    )
+    {
+        pack = new SizePack();
+        errorMessage = string.Empty;
+
+        var trimmed = literal.Trim();
+        if (
+            !trimmed.StartsWith("(", StringComparison.Ordinal)
+            || !trimmed.EndsWith(")", StringComparison.Ordinal)
+        )
+        {
+            errorMessage = $"Invalid size literal '{literal}' - expected '(k=v, ...)'";
+            return false;
+        }
+
+        var inner = trimmed[1..^1].Trim();
+        if (string.IsNullOrWhiteSpace(inner))
+        {
+            errorMessage = $"Invalid size literal '{literal}' - empty size pack";
+            return false;
+        }
+
+        var entries = inner.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        foreach (var entry in entries)
+        {
+            var eqIndex = entry.IndexOf('=', StringComparison.Ordinal);
+            if (eqIndex <= 0)
+            {
+                errorMessage = $"Invalid size entry '{entry}' - expected 'k=v'";
+                return false;
+            }
+
+            var key = entry[..eqIndex].Trim();
+            var value = entry[(eqIndex + 1)..].Trim();
+
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
+            {
+                errorMessage = $"Invalid size entry '{entry}' - expected 'k=v'";
+                return false;
+            }
+
+            if (pack.Entries.ContainsKey(key))
+            {
+                errorMessage = $"Duplicate size key '{key}'";
+                return false;
+            }
+
+            pack.Entries[key] = value;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -1295,6 +1698,7 @@ public static partial class ACIRReader
         var level = ACIRLevel.ML;
         var isInline = false;
         var parameters = new List<CircuitParameter>();
+        var sizes = new List<SizeDeclaration>();
         var supplies = new List<string>();
         var grounds = new List<string>();
         var ports = new List<PortDeclaration>();
@@ -1385,6 +1789,19 @@ public static partial class ACIRReader
                         );
                         if (attach is not null)
                             currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
+                    if (contentTrimmed.StartsWith("inst "))
+                    {
+                        var (instance, nextIndex) = ParseInstanceWithBody(
+                            lines,
+                            i,
+                            string.Empty,
+                            null
+                        );
+                        if (instance is not null)
+                            currentFill.Instances.Add(instance);
                         i = nextIndex;
                         continue;
                     }
@@ -1529,6 +1946,13 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed.StartsWith("size "))
+            {
+                if (TryParseSizeDeclaration(contentTrimmed, out var sizeDeclaration, out _))
+                {
+                    sizes.Add(sizeDeclaration);
+                }
+            }
 
             i++;
         }
@@ -1550,6 +1974,7 @@ public static partial class ACIRReader
             Level = level,
             Inline = isInline,
             Parameters = parameters,
+            Sizes = sizes,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -2209,7 +2634,7 @@ public static partial class ACIRReader
     [GeneratedRegex(@"^circuit\s+(\w+)(?:\s*:\s*(.+))?$")]
     private static partial Regex CircuitDeclarationPattern();
 
-    [GeneratedRegex(@"^port\s+(\w+)\s*:\s*(\w+)")]
+    [GeneratedRegex(@"^port\s+([\w.\[\]\*]+)\s*:\s*(\w+)")]
     private static partial Regex PortDeclarationPattern();
 
     [GeneratedRegex(@"^net\s+(\w+)\s*:\s*(\w+)")]
@@ -2220,7 +2645,7 @@ public static partial class ACIRReader
     )]
     private static partial Regex DeviceDeclarationPattern();
 
-    [GeneratedRegex(@"(\w+)->(\w+)")]
+    [GeneratedRegex(@"([\w.\[\]]+)->([\w.\[\]]+)")]
     private static partial Regex ConnectionPattern();
 
     [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$")]

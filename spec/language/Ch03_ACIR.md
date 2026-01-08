@@ -310,6 +310,7 @@ Syntax:
 fill:
   inst <id> [(<connections>)] : <CircuitOrMotifType>
     param <key> = <value>
+    size <name> = (<key>=<expr>, <key>=<expr>, ...)
     ...
     <terminal> -> <net>
     ...
@@ -487,6 +488,59 @@ inst dp : DiffPair_hasTail_true_p_NMOS
   param L = ??           // auto-size
   // tail_ratio omitted → uses default 2
 ```
+
+### 3.3.7.1 Size Declarations (First-class sizing packs)
+
+Many ML and EL motifs repeatedly carry the same small set of sizing values (for example MOS `W`, `L`, and `M`) across multiple devices and across many instantiation sites. Encoding each quantity as an independent circuit parameter leads to verbose, brittle documents.
+
+ACIR therefore supports a first-class **size** construct: a named, reusable key/value pack intended for sizing bundles. A `size` is not a typed scalar parameter; it is a structured map from keys to parameter expressions.
+
+Syntax (circuit body):
+
+```acir
+size <name>
+size <name> = (<key>=<expr>, <key>=<expr>, ...)
+```
+
+Syntax (instance body):
+
+```acir
+size <name> = (<key>=<expr>, <key>=<expr>, ...)
+```
+
+Semantics:
+
+- A circuit-level `size <name>` declaration introduces a required size pack. If the declaration omits a default (`=` form), callers MUST provide the size at instantiation.
+- A circuit-level `size <name> = (...)` declaration introduces an optional size pack with a concrete default. Callers MAY omit it at instantiation.
+- An instance-level `size <name> = (...)` assignment provides a concrete pack for that specific instantiation.
+- Keys are identifiers. Values are parameter expressions (the same expression grammar used in device parameter lists).
+- For deterministic output, writers MUST serialize tuple keys in sorted order.
+
+Using sizes in device declarations:
+
+Device parameter lists MAY include a `size=<name>` entry. When present, the device’s parameter map is computed by:
+
+1. Copy all key/value pairs from the referenced size pack into the device parameter map.
+2. Apply explicit device parameters (e.g. `W=...`) as overrides (explicit keys win over size keys).
+3. The `size` pseudo-parameter is not emitted to downstream formats; it is an ACIR-level convenience only.
+
+Example (EL, inline leaf):
+
+```acir
+circuit DiffPair : DiffPairLike
+  level EL
+  inline
+
+  size InputPair
+  size Tail
+
+  fill:
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=InputPair nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=InputPair nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
+```
+
+This construct uses `=` for value assignment; in ACIR, `:` introduces a declaration’s type or domain (for example `port OUT : analog` or `param L : real`).
 
 ### 3.3.8 The `inline` Annotation
 
@@ -1686,7 +1740,7 @@ The ACIR writer maintains a mapping from canonical name to hash-based name when 
 To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 - Order circuits with top-level first, then child circuits in dependency order.
-- Within a circuit, order sections: level, inline, package, param declarations, supplies, grounds, ports, fill, constraints, harness, benches, provenance.
+- Within a circuit, order sections: level, inline, param declarations, size declarations, package, supplies, grounds, ports, fill, constraints, harness, benches, provenance.
 - Within the `fill:` block, order: nets, instances, devices, attach statements, connections. Sort each category by id lexicographically.
 - Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
@@ -1809,6 +1863,7 @@ traits       = IDENT ("," IDENT)* ;
 circuitBody  = (INDENT statement NL)* ;
 
 statement    = levelDecl | inlineDecl | packageDecl | circuitParamDecl
+             | sizeDecl
              | supplyDecl | groundDecl | portDecl | slotDecl
              | fillBlock | constraintsBlock | harnessBlock
              | benchesBlock | provenanceBlock | extensionsBlock ;
@@ -1817,6 +1872,7 @@ levelDecl    = "level" ("HL" | "ML" | "EL") ;
 inlineDecl   = "inline" ;
 packageDecl  = "package" qualifiedName ;
 circuitParamDecl = "param" IDENT ":" paramType ("=" paramValue)? ;
+sizeDecl     = "size" IDENT ("=" sizeLiteral)? ;
 paramType    = "real" | "int" ;
 supplyDecl   = "supply" IDENT source? ;
 groundDecl   = "ground" IDENT source? ;
@@ -1833,11 +1889,15 @@ symbol       = IDENT ("." IDENT)* ;  (* hierarchical name for nets, device ids *
 netDecl      = "net" symbol ":" domain source? ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
-instBody     = paramAssign | binding ;
+instBody     = paramAssign | sizeAssign | binding ;
 paramAssign  = "param" IDENT "=" paramValue ;
+sizeAssign   = "size" IDENT "=" sizeLiteral ;
 connectionList = "(" connection ("," connection)* ")" ;
 binding      = terminalPath "->" symbol ;
 connection   = terminalPath "->" symbol ;
+
+sizeLiteral  = "(" sizeEntry ("," sizeEntry)* ")" ;
+sizeEntry    = IDENT "=" paramExpr ;
 
 deviceDecl   = deviceType symbol connectionList? ":" deviceParams pdkDevice source? NL (INDENT binding NL)* ;
 deviceType   = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;

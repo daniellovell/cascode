@@ -221,6 +221,12 @@ public static class EmissionValidator
             {
                 if (!device.Params.ContainsKey(param))
                 {
+                    // Size packs may supply required MOS sizing parameters (e.g., W/L).
+                    if ((deviceType is "nmos" or "pmos") && device.Params.ContainsKey("size"))
+                    {
+                        continue;
+                    }
+
                     var example = param switch
                     {
                         "W" => "W=1u",
