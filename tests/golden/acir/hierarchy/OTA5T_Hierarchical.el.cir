@@ -7,9 +7,6 @@ trait CurrentMirrorTrait:
     to LoadBranch:
       OUT -> IN
 
-trait LoadBranch:
-  port IN : analog
-
 trait DiffPairTrait:
   port IN_P : analog
   port IN_N : analog
@@ -34,17 +31,6 @@ circuit DiffPair : DiffPairTrait
     nmos M_N (B->GND, D->OUT_P, G->IN_P, S->tnode) : L=$L M=1 W=$W nmos
     nmos M_P (B->GND, D->OUT_N, G->IN_N, S->tnode) : L=$L M=1 W=$W nmos
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : L=$L M=1 W=4u nmos
-
-circuit ActiveLoad : LoadBranch
-  level EL
-  inline
-  param W : real = 2u
-  param L : real = 180n
-  supply VDD
-  ground GND
-  port IN : analog
-  fill:
-    pmos M_LOAD (B->VDD, D->IN, G->IN, S->VDD) : L=$L M=1 W=$W pmos
 
 circuit OTA5T_Hierarchical
   level EL
