@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Cascode.ACIR;
 using Cascode.Parser;
 
@@ -214,7 +215,7 @@ public class ACIRWriterHierarchyTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::LoadBranch",
                             },
                         },
@@ -252,7 +253,7 @@ public class ACIRWriterHierarchyTests
                             new AttachStatement
                             {
                                 SourceInstance = "cm1",
-                                TargetInstance = "load1",
+                                TargetInstances = new List<string> { "load1" },
                                 Via = "CurrentMirror::LoadBranch",
                                 Anchor = "bias_net",
                             },
@@ -267,6 +268,92 @@ public class ACIRWriterHierarchyTests
         var output = writer.ToString();
 
         Assert.Contains("attach cm1 to load1 via CurrentMirror::LoadBranch as bias_net", output);
+    }
+
+    [Fact]
+    public void Write_AttachWithOverrides_ProducesValidOutput()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "cm1",
+                                TargetInstances = new List<string> { "load1" },
+                                Via = "CurrentMirror::LoadBranch",
+                                Overrides = new List<ConnectorMapping>
+                                {
+                                    new ConnectorMapping
+                                    {
+                                        SourcePort = "SENSE",
+                                        TargetPort = "OUT.N",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        using var writer = new StringWriter();
+        ACIRWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("attach cm1 to load1 via CurrentMirror::LoadBranch {", output);
+        Assert.Contains("SENSE -> OUT.N", output);
+        Assert.Contains("    }", output);
+    }
+
+    [Fact]
+    public void Write_AttachChain_ProducesValidOutput()
+    {
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "TestCircuit",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Fill = new FillBlock
+                    {
+                        Attaches = new List<AttachStatement>
+                        {
+                            new AttachStatement
+                            {
+                                SourceInstance = "cm1",
+                                TargetInstances = new List<string> { "load1", "load2" },
+                                Via = "CurrentMirror::LoadBranch",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        using var writer = new StringWriter();
+        ACIRWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("attach cm1 to load1 to load2 via CurrentMirror::LoadBranch", output);
     }
 
     [Fact]
@@ -377,9 +464,103 @@ circuit TestCircuit
         Assert.True(reReadResult.Success);
         var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("cm1", attach.SourceInstance);
-        Assert.Equal("load1", attach.TargetInstance);
+        Assert.Equal("load1", attach.TargetInstances.Single());
         Assert.Equal("CurrentMirror::LoadBranch", attach.Via);
         Assert.Equal("bias_net", attach.Anchor);
+    }
+
+    [Fact]
+    public void RoundTrip_AttachWithOverrides_PreservesData()
+    {
+        var original =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach cm1 to load1 via CurrentMirror::LoadBranch {{
+      SENSE -> OUT.N
+    }}
+";
+
+        var readResult = ACIRReader.TryParse(original, "test.cir");
+        Assert.True(readResult.Success);
+
+        using var writer = new StringWriter();
+        ACIRWriter.Write(readResult.Document!, writer);
+        var output = writer.ToString();
+
+        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        Assert.True(reReadResult.Success);
+        var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("cm1", attach.SourceInstance);
+        Assert.Equal("load1", attach.TargetInstances.Single());
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides!);
+        Assert.Equal("SENSE", attach.Overrides![0].SourcePort);
+        Assert.Equal("OUT.N", attach.Overrides![0].TargetPort);
+    }
+
+    [Fact]
+    public void RoundTrip_AttachChain_PreservesData()
+    {
+        var original =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch
+";
+
+        var readResult = ACIRReader.TryParse(original, "test.cir");
+        Assert.True(readResult.Success);
+
+        using var writer = new StringWriter();
+        ACIRWriter.Write(readResult.Document!, writer);
+        var output = writer.ToString();
+
+        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        Assert.True(reReadResult.Success);
+        var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("a", attach.SourceInstance);
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+    }
+
+    [Fact]
+    public void RoundTrip_AttachChainWithOverrides_PreservesData()
+    {
+        var original =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  fill:
+    attach a to b to c via CurrentMirror::LoadBranch {{
+      SENSE -> OUT.N
+    }}
+";
+
+        var readResult = ACIRReader.TryParse(original, "test.cir");
+        Assert.True(readResult.Success);
+
+        using var writer = new StringWriter();
+        ACIRWriter.Write(readResult.Document!, writer);
+        var output = writer.ToString();
+
+        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        Assert.True(reReadResult.Success);
+        var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
+        Assert.Equal("a", attach.SourceInstance);
+        Assert.Equal(new[] { "b", "c" }, attach.TargetInstances);
+        Assert.NotNull(attach.Overrides);
+        Assert.Single(attach.Overrides!);
     }
 
     [Fact]
