@@ -305,7 +305,7 @@ public static class SpiceEmitter
                 continue;
             }
 
-            var includeResolution = includeResolver?.Resolve(circuit, backend);
+            var includeResolution = includeResolver?.Resolve(circuit, backend, doc);
             var circuitResolution = attachResult.CircuitResults.GetValueOrDefault(circuit.Name);
 
             // Emit design netlist
@@ -328,7 +328,7 @@ public static class SpiceEmitter
         {
             if (circuit.Benches?.Benches.Count > 0)
             {
-                var includeResolution = includeResolver?.Resolve(circuit, backend);
+                var includeResolution = includeResolver?.Resolve(circuit, backend, doc);
                 foreach (var bench in circuit.Benches.Benches)
                 {
                     var files = ACIRBenchAdapter.GenerateTestbench(
