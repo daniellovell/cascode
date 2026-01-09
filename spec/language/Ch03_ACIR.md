@@ -856,6 +856,26 @@ Naming convention:
 
 Topological parameters appear alphabetically: `DiffPair_hasTail_true_p_NMOS`
 
+**Simplified polarity-only naming:** When polarity is the only topological parameter, use the short suffix `_N` (NMOS) or `_P` (PMOS) instead of the verbose `_p_NMOS` or `_p_PMOS`:
+
+| Full Form | Simplified Form |
+|-----------|-----------------|
+| `LoadPair_p_NMOS` | `LoadPair_N` |
+| `LoadPair_p_PMOS` | `LoadPair_P` |
+| `CurrentMirror_p_PMOS` | `CurrentMirror_P` |
+| `DiffPair_p_NMOS` | `DiffPair_N` |
+
+When combined with other topological parameters, use semantic ordering (polarity first, then threshold, then others):
+
+```text
+DiffPair_N_LVT          // polarity + threshold
+DiffPair_P_HVT
+CurrentMirror_P_SVT
+LoadPair_N_LVT_hasTail_true   // multiple parameters
+```
+
+This simplified convention improves readability while maintaining clear polarity identification.
+
 Instance references MUST use the specialized name:
 
 ```acir

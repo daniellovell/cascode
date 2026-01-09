@@ -676,6 +676,28 @@ public partial class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    public async Task Erc_ML_TelescopicCascodeSingleEnded_Attach_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach_unsized.ml.cir"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(
+            result,
+            "erc command failed on valid ML hierarchical circuit"
+        );
+        Assert.Contains("ERC passed", result.Stdout);
+    }
+
+    [Fact]
     public async Task Emit_JsonOutput_ReturnsValidJson()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
@@ -1441,6 +1463,106 @@ public partial class EmitVerifyFlowTests : IDisposable
         var benchPath = Path.Combine(
             _outputDir,
             "TelescopicCascodeFullyDiff_Attach_FDOpAmpACBench.sp"
+        );
+        Assert.True(File.Exists(benchPath), "AC testbench not found");
+
+        var ngspiceResult = await RunNgspiceAsync(benchPath);
+        Assert.True(
+            ngspiceResult.Success,
+            $"ngspice simulation failed: {ngspiceResult.ErrorMessage}\nstdout:\n{ngspiceResult.Stdout}\nstderr:\n{ngspiceResult.Stderr}"
+        );
+
+        Assert.Matches(CreateNumericResultRegex("PassbandGain"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("GainBandwidth"), ngspiceResult.Stdout);
+        Assert.Matches(CreateNumericResultRegex("PhaseMargin"), ngspiceResult.Stdout);
+    }
+
+    [Fact]
+    public async Task Emit_TelescopicCascodeSingleEnded_Attach_GeneratesDesignAndTestbench()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cir"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+        Assert.Contains("Design netlist:", result.Stdout);
+        Assert.Contains("Testbench:", result.Stdout);
+
+        // Should emit 1 design (top-level only, all children inline) and 2 testbenches
+        Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
+
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach.sp")),
+            "Design netlist not found"
+        );
+        Assert.False(
+            File.Exists(Path.Combine(_outputDir, "LoadPair_N.sp")),
+            "LoadPair_N should not be emitted as a standalone subcircuit when marked inline"
+        );
+        Assert.False(
+            File.Exists(Path.Combine(_outputDir, "CurrentMirror_P.sp")),
+            "CurrentMirror_P should not be emitted as a standalone subcircuit when marked inline"
+        );
+        Assert.False(
+            File.Exists(Path.Combine(_outputDir, "DiffPair.sp")),
+            "DiffPair should not be emitted as a standalone subcircuit when marked inline"
+        );
+
+        var designText = File.ReadAllText(
+            Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach.sp")
+        );
+        Assert.Contains("* Inline expansion of dp : DiffPair", designText);
+        Assert.True(
+            File.Exists(
+                Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_SEOpAmpACBench.sp")
+            ),
+            "AC testbench not found"
+        );
+        Assert.True(
+            File.Exists(
+                Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_SEOpAmpDCBench.sp")
+            ),
+            "DC testbench not found"
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task Emit_TelescopicCascodeSingleEnded_Attach_SpiceSimulatesSuccessfully()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cir"
+        );
+
+        var emitResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
+
+        var benchPath = Path.Combine(
+            _outputDir,
+            "TelescopicCascodeSingleEnded_Attach_SEOpAmpACBench.sp"
         );
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 

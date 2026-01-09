@@ -11,6 +11,16 @@ if ! command -v dotnet >/dev/null 2>&1; then
   exit 1
 fi
 
+# Determine tools directory: respect DOTNET_TOOLS_PATH, else derive from DOTNET_ROOT
+if [[ -n "${DOTNET_TOOLS_PATH:-}" ]]; then
+  tools_dir="$DOTNET_TOOLS_PATH"
+elif [[ -n "${DOTNET_ROOT:-}" ]]; then
+  # Place tools alongside the SDK installation
+  tools_dir="$(dirname "$DOTNET_ROOT")/.dotnet/tools"
+else
+  tools_dir="$HOME/.dotnet/tools"
+fi
+
 mkdir -p "$nupkg_dir"
 rm -f "$nupkg_dir"/*.nupkg
 
@@ -27,14 +37,15 @@ if [[ -z "$pkg_version" ]]; then
   exit 1
 fi
 
-if dotnet tool list -g 2>/dev/null | awk '{if(tolower($1)=="cascode.cli"){found=1}} END{if(found)exit 0; exit 1}'; then
-  echo "Uninstalling existing Cascode.Cli global tool..."
-  dotnet tool uninstall -g Cascode.Cli
+# Check if tool is already installed at the target path
+if [[ -x "$tools_dir/cascode" ]]; then
+  echo "Uninstalling existing Cascode.Cli tool from $tools_dir..."
+  dotnet tool uninstall --tool-path "$tools_dir" Cascode.Cli || true
 fi
 
-echo "Installing Cascode.Cli $pkg_version from $nupkg_dir..."
-dotnet tool install -g --add-source "$nupkg_dir" --version "$pkg_version" Cascode.Cli
+echo "Installing Cascode.Cli $pkg_version to $tools_dir..."
+dotnet tool install --tool-path "$tools_dir" --add-source "$nupkg_dir" --version "$pkg_version" Cascode.Cli
 
 echo
-echo "cascode is installed as a global tool."
-echo "Ensure ~/.dotnet/tools is on your PATH, then run: cascode --version"
+echo "cascode is installed to: $tools_dir"
+echo "Ensure $tools_dir is on your PATH, then run: cascode --version"

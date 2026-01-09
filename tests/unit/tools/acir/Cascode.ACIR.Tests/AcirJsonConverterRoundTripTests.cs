@@ -173,7 +173,7 @@ public class AcirJsonConverterRoundTripTests
         Assert.Equal("nl", fill.Attaches[1].TargetInstances[1]);
 
         Assert.NotNull(roundTripped.Circuits[0].Harness);
-        Assert.Equal(3, roundTripped.Circuits[0].Harness!.Biases.Count);
+        Assert.Equal(4, roundTripped.Circuits[0].Harness!.Biases.Count);
     }
 
     [Fact]
