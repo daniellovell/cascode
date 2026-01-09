@@ -153,24 +153,20 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
-        ACIRDocument doc;
-        try
+        var result = AcirJsonConverter.FromJson(json, inputPath);
+
+        if (!result.Success)
         {
-            doc = AcirJsonConverter.FromJson(json);
-        }
-        catch (Exception ex)
-        {
-            _state.AddMessage($"Failed to parse JSON: {ex.Message}");
+            foreach (
+                var diag in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
+            )
+            {
+                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+            }
             return new CommandResult(2, false);
         }
 
-        if (doc.VersionMajor != ACIRVersion.Major)
-        {
-            _state.AddMessage(
-                $"ACIR major version {doc.VersionMajor} not supported. Expected major version {ACIRVersion.Major}."
-            );
-            return new CommandResult(2, false);
-        }
+        var doc = result.Document!;
 
         using var writer = new StringWriter();
         ACIRWriter.Write(doc, writer);

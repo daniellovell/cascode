@@ -11,9 +11,11 @@ namespace Cascode.Cli.Commands;
 /// Command module for electrical rule checking (ERC) on ACIR documents.
 /// </summary>
 /// <remarks>
-/// The ERC command validates that an ACIR EL document represents a legal circuit
+/// The ERC command validates that an ACIR EL or ML document represents a legal circuit
 /// that can be simulated. It checks for electrical issues such as floating gates,
-/// VDD-GND shorts, and dangling nets.
+/// VDD-GND shorts, and dangling nets. ERC operates on topology (connectivity) and
+/// does not require concrete sizing values, so both EL (sized) and ML (unsized with ??)
+/// circuits are supported.
 ///
 /// Exit codes:
 ///   0 = ERC passed
@@ -57,10 +59,10 @@ internal sealed class ErcCommandModule : ICommandModule
             return earlyResult.Value;
         }
 
-        // Run ERC on all EL circuits
-        var elCircuits = doc!.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        // Run ERC on all EL and ML circuits (topology-based checks work on both)
+        var circuits = doc!.Circuits.Where(c => c.Level is ACIRLevel.EL or ACIRLevel.ML).ToList();
         var combinedResult = new ValidationResult();
-        foreach (var circuit in elCircuits)
+        foreach (var circuit in circuits)
         {
             var circuitResult = ElectricalRuleChecker.Check(circuit, requirePdk);
             combinedResult.Merge(circuitResult);
@@ -74,7 +76,7 @@ internal sealed class ErcCommandModule : ICommandModule
         }
         else
         {
-            BuildHumanOutput(combinedResult, elCircuits.Count);
+            BuildHumanOutput(combinedResult, circuits.Count);
         }
 
         return new CommandResult(exitCode, false);
@@ -152,22 +154,24 @@ internal sealed class ErcCommandModule : ICommandModule
 
         doc = readResult.Document!;
 
-        // Find EL circuits
-        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
-        if (elCircuits.Count == 0)
+        // Find EL or ML circuits (topology-based ERC works on both)
+        var circuits = doc.Circuits.Where(c => c.Level is ACIRLevel.EL or ACIRLevel.ML).ToList();
+        if (circuits.Count == 0)
         {
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
                 errorResult.AddError(
                     "ERC-PARSE",
-                    "No EL-level circuits found. ERC requires EL-level ACIR."
+                    "No EL or ML level circuits found. ERC requires EL or ML level ACIR."
                 );
                 _state.AddMessage(errorResult.ToJson(2));
             }
             else
             {
-                _state.AddMessage("No EL-level circuits found. ERC requires EL-level ACIR.");
+                _state.AddMessage(
+                    "No EL or ML level circuits found. ERC requires EL or ML level ACIR."
+                );
             }
             earlyResult = new CommandResult(2, false);
             return false;
@@ -181,7 +185,7 @@ internal sealed class ErcCommandModule : ICommandModule
         _state.AddMessage(result.ToJson(exitCode));
     }
 
-    private void BuildHumanOutput(ValidationResult result, int elCircuitCount)
+    private void BuildHumanOutput(ValidationResult result, int circuitCount)
     {
         // Display errors
         foreach (var error in result.GetErrors())
@@ -208,7 +212,7 @@ internal sealed class ErcCommandModule : ICommandModule
         }
         else
         {
-            _state.AddMessage($"ERC passed: {elCircuitCount} circuit(s) validated.");
+            _state.AddMessage($"ERC passed: {circuitCount} circuit(s) validated.");
         }
     }
 
@@ -216,7 +220,9 @@ internal sealed class ErcCommandModule : ICommandModule
     {
         _state.AddMessage("Usage: erc <acir_file> [--require-pdk] [--json]");
         _state.AddMessage("");
-        _state.AddMessage("Runs electrical rule checking on an ACIR EL document.");
+        _state.AddMessage("Runs electrical rule checking on an ACIR EL or ML document.");
+        _state.AddMessage("ERC validates circuit topology and works on both sized (EL) and");
+        _state.AddMessage("unsized (ML with ??) circuits.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
         _state.AddMessage(

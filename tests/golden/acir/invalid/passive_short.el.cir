@@ -1,4 +1,4 @@
-ACIR 1.1
+ACIR 2.0
 
 ; Circuit with passive device bridging supply rails - ERC-007 violation
 ; Resistor R_short directly connects VDD to GND
@@ -13,5 +13,5 @@ circuit PassiveShortExample
   port OUT : analog
 
   fill:
-    nmos M_in (G->IN, D->OUT, S->GND, B->GND) : W=1u L=180n nmos
+    nmos M_in (G->IN, D->OUT, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos
     resistor R_short (P->VDD, N->GND) : R=1k

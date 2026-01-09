@@ -1,4 +1,4 @@
-ACIR 1.1
+ACIR 2.0
 
 circuit CSAmpResistive : SingleEndedAmp
   level EL
@@ -7,7 +7,7 @@ circuit CSAmpResistive : SingleEndedAmp
   port IN : analog
   port OUT : analog
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : W=10u L=180n M=1 nmos
+    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
     resistor R_load (P->VDD, N->OUT) : R=10k
   constraints:
     numeric:

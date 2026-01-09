@@ -415,6 +415,325 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         AssertMeasurementValid(benchResults!, "PhaseMargin@OUT", minValue: 0, maxValue: 360);
     }
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_OTA5T_Hierarchical_MatchesFlatVersion()
+    {
+        // Run bench on flat OTA5TSingleEnded
+        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var flatOutputDir = Path.Combine(_outputDir, "flat");
+        Directory.CreateDirectory(flatOutputDir);
+
+        var flatResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench",
+            "run",
+            flatAcirPath,
+            "-o",
+            flatOutputDir
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(flatResult, "bench run failed for flat OTA5T");
+
+        // Run bench on hierarchical OTA5T_Hierarchical
+        var hierarchicalAcirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+        );
+        var hierarchicalOutputDir = Path.Combine(_outputDir, "hierarchical");
+        Directory.CreateDirectory(hierarchicalOutputDir);
+
+        var hierarchicalResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench",
+            "run",
+            hierarchicalAcirPath,
+            "-o",
+            hierarchicalOutputDir
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(
+            hierarchicalResult,
+            "bench run failed for hierarchical OTA5T"
+        );
+
+        // Load AC bench results for both
+        var flatAcResultsPath = Path.Combine(
+            flatOutputDir,
+            "OTA5TSingleEnded_SEOpAmpACBench_results.json"
+        );
+        var hierarchicalAcResultsPath = Path.Combine(
+            hierarchicalOutputDir,
+            "OTA5T_Hierarchical_SEOpAmpACBench_results.json"
+        );
+
+        Assert.True(File.Exists(flatAcResultsPath), "Flat AC results not found");
+        Assert.True(File.Exists(hierarchicalAcResultsPath), "Hierarchical AC results not found");
+
+        var flatAcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(flatAcResultsPath),
+            s_jsonOptions
+        );
+        var hierarchicalAcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(hierarchicalAcResultsPath),
+            s_jsonOptions
+        );
+
+        Assert.NotNull(flatAcResults);
+        Assert.NotNull(hierarchicalAcResults);
+
+        // Compare AC measurements (5% tolerance)
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            hierarchicalAcResults!,
+            "PassbandGain@OUT",
+            tolerancePercent: 5.0
+        );
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            hierarchicalAcResults!,
+            "GainBandwidth@OUT",
+            tolerancePercent: 5.0
+        );
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            hierarchicalAcResults!,
+            "PhaseMargin@OUT",
+            tolerancePercent: 5.0
+        );
+
+        // Load DC bench results for both
+        var flatDcResultsPath = Path.Combine(
+            flatOutputDir,
+            "OTA5TSingleEnded_SEOpAmpDCBench_results.json"
+        );
+        var hierarchicalDcResultsPath = Path.Combine(
+            hierarchicalOutputDir,
+            "OTA5T_Hierarchical_SEOpAmpDCBench_results.json"
+        );
+
+        Assert.True(File.Exists(flatDcResultsPath), "Flat DC results not found");
+        Assert.True(File.Exists(hierarchicalDcResultsPath), "Hierarchical DC results not found");
+
+        var flatDcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(flatDcResultsPath),
+            s_jsonOptions
+        );
+        var hierarchicalDcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(hierarchicalDcResultsPath),
+            s_jsonOptions
+        );
+
+        Assert.NotNull(flatDcResults);
+        Assert.NotNull(hierarchicalDcResults);
+
+        // Compare DC measurements (5% tolerance)
+        AssertMeasurementsMatch(
+            flatDcResults!,
+            hierarchicalDcResults!,
+            "QuiescentPower",
+            tolerancePercent: 5.0
+        );
+
+        // Verify both pass constraints
+        var flatVerify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify",
+            flatAcirPath,
+            Path.Combine(flatOutputDir, "OTA5TSingleEnded_results.json")
+        );
+        CliIntegrationTestHelper.AssertSuccess(flatVerify, "verify failed for flat OTA5T");
+
+        var hierarchicalVerify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify",
+            hierarchicalAcirPath,
+            Path.Combine(hierarchicalOutputDir, "OTA5T_Hierarchical_results.json")
+        );
+        CliIntegrationTestHelper.AssertSuccess(
+            hierarchicalVerify,
+            "verify failed for hierarchical OTA5T"
+        );
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_OTA5T_Hierarchical_Attach_MatchesFlatVersion()
+    {
+        // Run bench on flat OTA5TSingleEnded
+        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var flatOutputDir = Path.Combine(_outputDir, "flat");
+        Directory.CreateDirectory(flatOutputDir);
+
+        var flatResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench",
+            "run",
+            flatAcirPath,
+            "-o",
+            flatOutputDir
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(flatResult, "bench run failed for flat OTA5T");
+
+        // Run bench on hierarchical-attach OTA5T_Hierarchical_Attach
+        var attachAcirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+        );
+        var attachOutputDir = Path.Combine(_outputDir, "attach");
+        Directory.CreateDirectory(attachOutputDir);
+
+        var attachResult = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench",
+            "run",
+            attachAcirPath,
+            "-o",
+            attachOutputDir
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(
+            attachResult,
+            "bench run failed for hierarchical-attach OTA5T"
+        );
+
+        // Load AC bench results for both
+        var flatAcResultsPath = Path.Combine(
+            flatOutputDir,
+            "OTA5TSingleEnded_SEOpAmpACBench_results.json"
+        );
+        var attachAcResultsPath = Path.Combine(
+            attachOutputDir,
+            "OTA5T_Hierarchical_Attach_SEOpAmpACBench_results.json"
+        );
+
+        Assert.True(File.Exists(flatAcResultsPath), "Flat AC results not found");
+        Assert.True(File.Exists(attachAcResultsPath), "Attach AC results not found");
+
+        var flatAcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(flatAcResultsPath),
+            s_jsonOptions
+        );
+        var attachAcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(attachAcResultsPath),
+            s_jsonOptions
+        );
+
+        Assert.NotNull(flatAcResults);
+        Assert.NotNull(attachAcResults);
+
+        // Compare AC measurements (5% tolerance)
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            attachAcResults!,
+            "PassbandGain@OUT",
+            tolerancePercent: 5.0
+        );
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            attachAcResults!,
+            "GainBandwidth@OUT",
+            tolerancePercent: 5.0
+        );
+        AssertMeasurementsMatch(
+            flatAcResults!,
+            attachAcResults!,
+            "PhaseMargin@OUT",
+            tolerancePercent: 5.0
+        );
+
+        // Load DC bench results for both
+        var flatDcResultsPath = Path.Combine(
+            flatOutputDir,
+            "OTA5TSingleEnded_SEOpAmpDCBench_results.json"
+        );
+        var attachDcResultsPath = Path.Combine(
+            attachOutputDir,
+            "OTA5T_Hierarchical_Attach_SEOpAmpDCBench_results.json"
+        );
+
+        Assert.True(File.Exists(flatDcResultsPath), "Flat DC results not found");
+        Assert.True(File.Exists(attachDcResultsPath), "Attach DC results not found");
+
+        var flatDcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(flatDcResultsPath),
+            s_jsonOptions
+        );
+        var attachDcResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(attachDcResultsPath),
+            s_jsonOptions
+        );
+
+        Assert.NotNull(flatDcResults);
+        Assert.NotNull(attachDcResults);
+
+        // Compare DC measurements (5% tolerance)
+        AssertMeasurementsMatch(
+            flatDcResults!,
+            attachDcResults!,
+            "QuiescentPower",
+            tolerancePercent: 5.0
+        );
+
+        // Verify both pass constraints
+        var flatVerify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify",
+            flatAcirPath,
+            Path.Combine(flatOutputDir, "OTA5TSingleEnded_results.json")
+        );
+        CliIntegrationTestHelper.AssertSuccess(flatVerify, "verify failed for flat OTA5T");
+
+        var attachVerify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "verify",
+            attachAcirPath,
+            Path.Combine(attachOutputDir, "OTA5T_Hierarchical_Attach_results.json")
+        );
+        CliIntegrationTestHelper.AssertSuccess(
+            attachVerify,
+            "verify failed for hierarchical-attach OTA5T"
+        );
+    }
+
+    private static void AssertMeasurementsMatch(
+        BenchResult expected,
+        BenchResult actual,
+        string metric,
+        double tolerancePercent
+    )
+    {
+        Assert.True(
+            expected.Measurements.TryGetValue(metric, out var expectedMeasurement),
+            $"Expected measurement '{metric}' not found in flat results"
+        );
+        Assert.True(
+            actual.Measurements.TryGetValue(metric, out var actualMeasurement),
+            $"Actual measurement '{metric}' not found in hierarchical results"
+        );
+
+        Assert.False(double.IsNaN(expectedMeasurement.Value), $"Expected '{metric}' is NaN");
+        Assert.False(double.IsNaN(actualMeasurement.Value), $"Actual '{metric}' is NaN");
+
+        var difference = Math.Abs(expectedMeasurement.Value - actualMeasurement.Value);
+        var toleranceValue = Math.Abs(expectedMeasurement.Value) * (tolerancePercent / 100.0);
+
+        Assert.True(
+            difference <= toleranceValue,
+            $"Measurement '{metric}' mismatch: flat={expectedMeasurement.Value}, hierarchical={actualMeasurement.Value}, "
+                + $"difference={difference}, tolerance={toleranceValue} ({tolerancePercent}%)"
+        );
+    }
+
     private static void AssertMeasurementValid(
         BenchResult results,
         string metric,

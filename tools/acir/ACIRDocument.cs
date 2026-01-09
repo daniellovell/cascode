@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Cascode.ACIR;
 
@@ -23,6 +25,11 @@ public sealed class ACIRDocument
     public List<BundleType> BundleTypes { get; init; } = new();
 
     /// <summary>
+    /// Trait definitions declared at the file level (after bundles, before circuits).
+    /// </summary>
+    public List<TraitDefinition> Traits { get; init; } = new();
+
+    /// <summary>
     /// Circuit definitions in this document.
     /// </summary>
     public List<Circuit> Circuits { get; init; } = new();
@@ -41,6 +48,61 @@ public sealed class BundleType
 }
 
 /// <summary>
+/// Utility methods for bundle type expansion.
+/// </summary>
+public static class BundleExpander
+{
+    /// <summary>
+    /// Expands a port to its terminal paths, recursively expanding bundle types.
+    /// For example, port "IN" of type "Diff" expands to ["IN.P", "IN.N"].
+    /// Non-bundle types return the original path.
+    /// </summary>
+    /// <param name="basePath">The base path (e.g., port name).</param>
+    /// <param name="typeName">The type of the port (e.g., "Diff", "analog").</param>
+    /// <param name="bundlesByName">Dictionary of bundle types by name.</param>
+    /// <returns>Enumerable of expanded terminal paths.</returns>
+    public static IEnumerable<string> ExpandToTerminalPaths(
+        string basePath,
+        string typeName,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        if (!bundlesByName.TryGetValue(typeName, out var bundle))
+        {
+            // Not a bundle type - return the original path
+            yield return basePath;
+            yield break;
+        }
+
+        // Expand each field of the bundle in declaration order
+        foreach (var field in bundle.Fields)
+        {
+            var fieldPath = $"{basePath}.{field.Key}";
+            foreach (var path in ExpandToTerminalPaths(fieldPath, field.Value, bundlesByName))
+            {
+                yield return path;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts a terminal path to a net name by replacing dots with underscores.
+    /// For example, "IN.P" becomes "IN_P".
+    /// </summary>
+    public static string ToNetName(string terminalPath) => terminalPath.Replace('.', '_');
+
+    /// <summary>
+    /// Builds a dictionary of bundle types by name from an ACIR document.
+    /// Returns an empty dictionary if document is null.
+    /// </summary>
+    public static Dictionary<string, BundleType> GetBundlesByName(ACIRDocument? document)
+    {
+        return document?.BundleTypes.ToDictionary(b => b.Name, StringComparer.Ordinal)
+            ?? new Dictionary<string, BundleType>(StringComparer.Ordinal);
+    }
+}
+
+/// <summary>
 /// Represents a circuit definition in ACIR.
 /// </summary>
 public sealed class Circuit
@@ -54,8 +116,24 @@ public sealed class Circuit
     /// <summary>Elaboration level (HL, ML, or EL).</summary>
     public ACIRLevel Level { get; init; } = ACIRLevel.ML;
 
+    /// <summary>
+    /// Whether this circuit should be inlined during SPICE emission.
+    /// When true, devices and nets merge into parent with hierarchical naming.
+    /// </summary>
+    public bool Inline { get; init; }
+
     /// <summary>Optional package path.</summary>
     public string? Package { get; init; }
+
+    /// <summary>
+    /// Circuit parameter declarations (typed parameters with optional defaults).
+    /// </summary>
+    public List<CircuitParameter> Parameters { get; init; } = new();
+
+    /// <summary>
+    /// Size pack declarations (named key/value maps with optional defaults).
+    /// </summary>
+    public List<SizeDeclaration> Sizes { get; init; } = new();
 
     /// <summary>Supply declarations.</summary>
     public List<string> Supplies { get; init; } = new();
@@ -129,6 +207,9 @@ public sealed class FillBlock
     /// <summary>Device declarations (EL level).</summary>
     public List<DeviceDeclaration> Devices { get; init; } = new();
 
+    /// <summary>Attach statements (EL level, for trait-based composition).</summary>
+    public List<AttachStatement> Attaches { get; init; } = new();
+
     /// <summary>Connection statements.</summary>
     public List<ConnectionStatement> Connections { get; init; } = new();
 }
@@ -161,6 +242,9 @@ public sealed class InstanceDeclaration
 
     /// <summary>Parameter values.</summary>
     public Dictionary<string, ParamValue> Params { get; init; } = new();
+
+    /// <summary>Size pack assignments for this instance.</summary>
+    public Dictionary<string, SizePack> Sizes { get; init; } = new();
 }
 
 /// <summary>
@@ -430,4 +514,140 @@ public sealed class SourceReference
     public string File { get; init; } = string.Empty;
     public int? FromLine { get; init; }
     public int? ToLine { get; init; }
+}
+
+/// <summary>
+/// Circuit parameter declaration with type and optional default.
+/// </summary>
+public sealed class CircuitParameter
+{
+    /// <summary>Parameter name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Parameter type ("real" or "int").</summary>
+    public required string Type { get; init; }
+
+    /// <summary>Optional default value. If null, parameter is required at instantiation.</summary>
+    public ParamValue? Default { get; init; }
+}
+
+/// <summary>
+/// Trait definition declaring interface contract and connectors.
+/// </summary>
+public sealed class TraitDefinition
+{
+    /// <summary>Trait name.</summary>
+    public required string Name { get; init; }
+
+    /// <summary>Port declarations for this trait.</summary>
+    public List<PortDeclaration> Ports { get; init; } = new();
+
+    /// <summary>Connectors to other traits.</summary>
+    public List<TraitConnector> Connectors { get; init; } = new();
+}
+
+/// <summary>
+/// Connector from one trait to another, defining port mappings.
+/// </summary>
+public sealed class TraitConnector
+{
+    /// <summary>Target trait name (the trait being connected to).</summary>
+    public required string TargetTrait { get; init; }
+
+    /// <summary>Port mappings from source trait to target trait.</summary>
+    public List<ConnectorMapping> Mappings { get; init; } = new();
+}
+
+/// <summary>
+/// A single port-to-port mapping in a connector.
+/// </summary>
+public sealed record ConnectorMapping
+{
+    /// <summary>Source port (on the trait defining the connector).</summary>
+    public required string SourcePort { get; init; }
+
+    /// <summary>Target port (on the target trait).</summary>
+    public required string TargetPort { get; init; }
+}
+
+/// <summary>
+/// Attach statement for trait-based composition at EL level.
+/// </summary>
+public sealed record AttachStatement
+{
+    /// <summary>Source instance identifier.</summary>
+    public required string SourceInstance { get; init; }
+
+    /// <summary>Target instance identifiers (in chain order).</summary>
+    public required IReadOnlyList<string> TargetInstances { get; init; }
+
+    /// <summary>Connector reference in "TraitName::TargetTrait" format.</summary>
+    public required string Via { get; init; }
+
+    /// <summary>Optional anchor name for created nets (from "as" clause).</summary>
+    public string? Anchor { get; init; }
+
+    /// <summary>Optional inline override mappings.</summary>
+    public IReadOnlyList<ConnectorMapping>? Overrides { get; init; }
+
+    /// <inheritdoc />
+    public bool Equals(AttachStatement? other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return string.Equals(SourceInstance, other.SourceInstance, StringComparison.Ordinal)
+            && string.Equals(Via, other.Via, StringComparison.Ordinal)
+            && string.Equals(Anchor, other.Anchor, StringComparison.Ordinal)
+            && TargetInstances.SequenceEqual(other.TargetInstances, StringComparer.Ordinal)
+            && OverridesEqual(Overrides, other.Overrides);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(SourceInstance, StringComparer.Ordinal);
+        hash.Add(Via, StringComparer.Ordinal);
+        hash.Add(Anchor, StringComparer.Ordinal);
+        foreach (var target in TargetInstances)
+        {
+            hash.Add(target, StringComparer.Ordinal);
+        }
+
+        if (Overrides is not null)
+        {
+            foreach (var mapping in Overrides)
+            {
+                hash.Add(mapping);
+            }
+        }
+
+        return hash.ToHashCode();
+    }
+
+    private static bool OverridesEqual(
+        IReadOnlyList<ConnectorMapping>? left,
+        IReadOnlyList<ConnectorMapping>? right
+    )
+    {
+        if (left is null && right is null)
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        return left.SequenceEqual(right);
+    }
 }

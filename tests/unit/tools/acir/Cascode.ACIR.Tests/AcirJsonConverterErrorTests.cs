@@ -1,29 +1,42 @@
 using System;
 using System.Text.Json;
 using Cascode.ACIR.Json;
+using Cascode.Parser;
 
 namespace Cascode.ACIR.Tests;
 
 public class AcirJsonConverterErrorTests
 {
     [Fact]
-    public void FromJson_MalformedJson_ThrowsJsonException()
+    public void FromJson_MalformedJson_ReturnsError()
     {
         var json = "{ invalid json";
 
-        Assert.Throws<JsonException>(() => AcirJsonConverter.FromJson(json));
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+        );
     }
 
     [Fact]
-    public void FromJson_MissingRequiredFields_ThrowsJsonException()
+    public void FromJson_MissingRequiredFields_ReturnsError()
     {
         var json = $@"{{ ""acirVersion"": ""{ACIRVersion.Current}"" }}";
 
-        Assert.Throws<JsonException>(() => AcirJsonConverter.FromJson(json));
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+        );
     }
 
     [Fact]
-    public void FromJson_InvalidVersionFormat_ThrowsFormatException()
+    public void FromJson_InvalidVersionFormat_ReturnsError()
     {
         var json =
             @"{
@@ -37,12 +50,17 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }";
 
-        var ex = Assert.Throws<FormatException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Invalid ACIR version", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+        );
     }
 
     [Fact]
-    public void FromJson_NonIntegerMajorVersion_ThrowsFormatException()
+    public void FromJson_NonIntegerMajorVersion_ReturnsError()
     {
         var json =
             @"{
@@ -56,13 +74,20 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }";
 
-        var ex = Assert.Throws<FormatException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Invalid ACIR version", ex.Message);
-        Assert.Contains("abc", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("abc")
+        );
     }
 
     [Fact]
-    public void FromJson_NonIntegerMinorVersion_ThrowsFormatException()
+    public void FromJson_NonIntegerMinorVersion_ReturnsError()
     {
         var json =
             @"{
@@ -76,13 +101,20 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }";
 
-        var ex = Assert.Throws<FormatException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Invalid ACIR version", ex.Message);
-        Assert.Contains("xyz", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("xyz")
+        );
     }
 
     [Fact]
-    public void FromJson_MissingDotSeparator_ThrowsFormatException()
+    public void FromJson_MissingDotSeparator_ReturnsError()
     {
         var json =
             @"{
@@ -96,13 +128,20 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }";
 
-        var ex = Assert.Throws<FormatException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Invalid ACIR version", ex.Message);
-        Assert.Contains("11", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("11")
+        );
     }
 
     [Fact]
-    public void FromJson_EmptyVersionString_ThrowsFormatException()
+    public void FromJson_EmptyVersionString_ReturnsError()
     {
         var json =
             @"{
@@ -116,21 +155,31 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }";
 
-        var ex = Assert.Throws<FormatException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Invalid ACIR version", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+        );
     }
 
     [Fact]
-    public void FromJson_NullDocument_ThrowsArgumentException()
+    public void FromJson_NullDocument_ReturnsError()
     {
         var json = "null";
 
-        var ex = Assert.Throws<ArgumentException>(() => AcirJsonConverter.FromJson(json));
-        Assert.Contains("Failed to parse JSON document", ex.Message);
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+        );
     }
 
     [Fact]
-    public void FromJson_MissingCircuitName_ThrowsJsonException()
+    public void FromJson_MissingCircuitName_ReturnsError()
     {
         var json =
             $@"{{
@@ -144,6 +193,39 @@ public class AcirJsonConverterErrorTests
             ""benches"": []
         }}";
 
-        Assert.Throws<JsonException>(() => AcirJsonConverter.FromJson(json));
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+        );
+    }
+
+    [Fact]
+    public void FromJson_InvalidLevel_ReturnsError()
+    {
+        var json =
+            $@"{{
+            ""acirVersion"": ""{ACIRVersion.Current}"",
+            ""circuit"": {{ ""name"": ""Test"", ""level"": ""XL"" }},
+            ""supplies"": [],
+            ""grounds"": [],
+            ""ports"": [],
+            ""nets"": [],
+            ""components"": [],
+            ""benches"": []
+        }}";
+
+        var result = AcirJsonConverter.FromJson(json);
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains("ACIR0008")
+                && d.Message.Contains("XL")
+        );
     }
 }

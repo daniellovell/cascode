@@ -36,16 +36,13 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         _corner = string.IsNullOrWhiteSpace(corner) ? null : corner;
     }
 
-    public BenchIncludeResolution Resolve(Circuit circuit, BenchBackendType backend)
+    public BenchIncludeResolution Resolve(
+        Circuit circuit,
+        BenchBackendType backend,
+        ACIRDocument? document = null
+    )
     {
-        var pdkDevices =
-            circuit
-                .Fill?.Devices.Select(d => d.PdkDevice)
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Select(n => n!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray()
-            ?? Array.Empty<string>();
+        var pdkDevices = CollectPdkDevicesRecursively(circuit, document);
 
         if (pdkDevices.Length == 0)
         {
@@ -150,6 +147,68 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         {
             DeviceModelMap = deviceModelMap,
         };
+    }
+
+    /// <summary>
+    /// Recursively collects PDK device names from a circuit and its inline dependencies.
+    /// </summary>
+    private static string[] CollectPdkDevicesRecursively(Circuit circuit, ACIRDocument? document)
+    {
+        var pdkDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var circuitsByName = document?.Circuits.ToDictionary(
+            c => c.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        CollectPdkDevicesFromCircuit(circuit, circuitsByName, pdkDevices, visited);
+
+        return pdkDevices.ToArray();
+    }
+
+    private static void CollectPdkDevicesFromCircuit(
+        Circuit circuit,
+        IReadOnlyDictionary<string, Circuit>? circuitsByName,
+        HashSet<string> pdkDevices,
+        HashSet<string> visited
+    )
+    {
+        if (!visited.Add(circuit.Name))
+        {
+            return;
+        }
+
+        // Collect PDK devices directly in this circuit
+        if (circuit.Fill?.Devices is not null)
+        {
+            foreach (var device in circuit.Fill.Devices)
+            {
+                if (!string.IsNullOrWhiteSpace(device.PdkDevice))
+                {
+                    pdkDevices.Add(device.PdkDevice);
+                }
+            }
+        }
+
+        // Recursively collect from inline circuit instances
+        if (circuit.Fill?.Instances is not null && circuitsByName is not null)
+        {
+            foreach (var instance in circuit.Fill.Instances)
+            {
+                if (
+                    circuitsByName.TryGetValue(instance.Type, out var targetCircuit)
+                    && targetCircuit.Inline
+                )
+                {
+                    CollectPdkDevicesFromCircuit(
+                        targetCircuit,
+                        circuitsByName,
+                        pdkDevices,
+                        visited
+                    );
+                }
+            }
+        }
     }
 
     private static Device BuildDevice(string name)

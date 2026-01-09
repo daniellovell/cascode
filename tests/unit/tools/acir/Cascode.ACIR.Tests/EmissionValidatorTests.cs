@@ -57,7 +57,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -98,7 +101,10 @@ public class EmissionValidatorTests
                             { "S", "VDD" },
                             // Missing B
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -139,7 +145,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -155,7 +164,7 @@ public class EmissionValidatorTests
     }
 
     [Fact]
-    public void Validate_MissingWidthParam_ReturnsEMIT003()
+    public void Validate_MissingSizeReference_ReturnsEMIT007()
     {
         var circuit = new Circuit
         {
@@ -183,11 +192,7 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            // Missing W
-                            { "L", "180n" },
-                        },
+                        Params = new Dictionary<string, string>(),
                     },
                 },
             },
@@ -196,11 +201,14 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'W'"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-007" && e.Message.Contains("size")
+        );
     }
 
     [Fact]
-    public void Validate_MissingLengthParam_ReturnsEMIT003()
+    public void Validate_NamedSizePackMissingWOrL_ReturnsEMIT007()
     {
         var circuit = new Circuit
         {
@@ -213,26 +221,33 @@ public class EmissionValidatorTests
                 new() { Name = "IN", Type = "analog" },
                 new() { Name = "OUT", Type = "analog" },
             },
+            Sizes = new List<SizeDeclaration>
+            {
+                new()
+                {
+                    Name = "Small",
+                    Default = new SizePack
+                    {
+                        Entries = new Dictionary<string, string> { { "L", "180n" } },
+                    },
+                },
+            },
             Fill = new FillBlock
             {
                 Devices = new List<DeviceDeclaration>
                 {
                     new()
                     {
-                        DeviceType = "pmos",
+                        DeviceType = "nmos",
                         Id = "M1",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
                             { "G", "IN" },
-                            { "S", "VDD" },
-                            { "B", "VDD" },
+                            { "S", "GND" },
+                            { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
-                        {
-                            { "W", "2u" },
-                            // Missing L
-                        },
+                        Params = new Dictionary<string, string> { { "size", "Small" } },
                     },
                 },
             },
@@ -241,7 +256,10 @@ public class EmissionValidatorTests
         var result = EmissionValidator.Validate(circuit);
 
         Assert.False(result.IsValid);
-        Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'L'"));
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-007" && e.Message.Contains("missing required W or L")
+        );
     }
 
     [Fact]
@@ -429,7 +447,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -520,7 +541,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -574,7 +598,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                     },
                 },
             },
@@ -612,7 +639,10 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "W", "1u" }, { "L", "180n" } },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=1u, L=180n, M=1)" },
+                        },
                         PdkDevice = "nmos",
                     },
                 },

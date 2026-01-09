@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Cascode.Parser;
 
 namespace Cascode.ACIR.Json;
 
@@ -53,33 +54,119 @@ public static class AcirJsonConverter
     }
 
     /// <summary>
-    /// Parses JSON string into an ACIRDocument.
+    /// Parses JSON string into an ACIRDocument with structured error handling.
     /// </summary>
     /// <param name="json">The JSON string to parse.</param>
-    /// <returns>The ACIR document.</returns>
-    /// <exception cref="ArgumentException">If parsing fails.</exception>
-    public static ACIRDocument FromJson(string json)
+    /// <param name="filePath">Optional file path for diagnostic messages.</param>
+    /// <returns>Read result containing the document and any diagnostics.</returns>
+    public static ACIRReadResult FromJson(string json, string filePath = "<json>")
     {
-        var jsonDoc =
-            JsonSerializer.Deserialize<AcirJsonDocument>(json, JsonOptions)
-            ?? throw new ArgumentException("Failed to parse JSON document.");
-        return FromJsonDocument(jsonDoc);
+        var diagnostics = new List<Diagnostic>();
+
+        AcirJsonDocument? jsonDoc;
+        try
+        {
+            jsonDoc = JsonSerializer.Deserialize<AcirJsonDocument>(json, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0009: JSON parse error: {ex.Message}",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        if (jsonDoc == null)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    "ACIR0009: Failed to parse JSON document (null result)",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        return FromJsonDocument(jsonDoc, filePath, diagnostics);
     }
 
     /// <summary>
-    /// Converts AcirJsonDocument back to ACIRDocument.
+    /// Converts AcirJsonDocument back to ACIRDocument with structured error handling.
     /// </summary>
     /// <param name="jsonDoc">The JSON document to convert.</param>
-    /// <returns>The ACIR document.</returns>
-    public static ACIRDocument FromJsonDocument(AcirJsonDocument jsonDoc)
+    /// <param name="filePath">Optional file path for diagnostic messages.</param>
+    /// <param name="diagnostics">Optional diagnostics list to append to.</param>
+    /// <returns>Read result containing the document and any diagnostics.</returns>
+    public static ACIRReadResult FromJsonDocument(
+        AcirJsonDocument jsonDoc,
+        string filePath = "<json>",
+        List<Diagnostic>? diagnostics = null
+    )
     {
-        var version = ParseVersion(jsonDoc.AcirVersion);
+        diagnostics ??= new List<Diagnostic>();
+
+        // Parse version with error handling
+        int major,
+            minor;
+        try
+        {
+            (major, minor) = ParseVersion(jsonDoc.AcirVersion);
+        }
+        catch (FormatException ex)
+        {
+            diagnostics.Add(
+                new Diagnostic($"ACIR0002: {ex.Message}", DiagnosticSeverity.Error, filePath, 1, 1)
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        // Validate major version
+        if (major != ACIRVersion.Major)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
+        // Parse level with error handling - NO FALLBACK
+        if (!Enum.TryParse<ACIRLevel>(jsonDoc.Circuit.Level, ignoreCase: true, out var level))
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0008: Invalid level '{jsonDoc.Circuit.Level}' - expected HL, ML, or EL",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    1,
+                    1
+                )
+            );
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
 
         var circuit = new Circuit
         {
             Name = jsonDoc.Circuit.Name,
             Traits = jsonDoc.Circuit.Traits?.ToList(),
-            Level = ACIRLevel.EL,
+            Level = level,
+            Inline = jsonDoc.Circuit.Inline,
+            Parameters = BuildCircuitParameters(jsonDoc.Circuit.Parameters),
+            Sizes = BuildCircuitSizes(jsonDoc.Circuit.Sizes),
             Supplies = jsonDoc.Supplies.ToList(),
             Grounds = jsonDoc.Grounds.ToList(),
             Ports = jsonDoc
@@ -99,12 +186,15 @@ public static class AcirJsonConverter
                     : null,
         };
 
-        return new ACIRDocument
+        var doc = new ACIRDocument
         {
-            VersionMajor = version.major,
-            VersionMinor = version.minor,
+            VersionMajor = major,
+            VersionMinor = minor,
+            Traits = BuildTraits(jsonDoc.Traits),
             Circuits = [circuit],
         };
+
+        return new ACIRReadResult { Document = doc, Diagnostics = diagnostics };
     }
 
     private static Circuit? FindElCircuit(ACIRDocument document, string? circuitName)
@@ -124,11 +214,15 @@ public static class AcirJsonConverter
         return new AcirJsonDocument
         {
             AcirVersion = $"{document.VersionMajor}.{document.VersionMinor}",
+            Traits = ConvertTraits(document.Traits),
             Circuit = new AcirJsonCircuitInfo
             {
                 Name = circuit.Name,
                 Traits = circuit.Traits?.Count > 0 ? circuit.Traits : null,
-                Level = "EL",
+                Level = circuit.Level.ToString(),
+                Inline = circuit.Inline,
+                Parameters = ConvertCircuitParameters(circuit.Parameters),
+                Sizes = ConvertCircuitSizes(circuit.Sizes),
             },
             Supplies = circuit.Supplies,
             Grounds = circuit.Grounds,
@@ -137,6 +231,8 @@ public static class AcirJsonConverter
                 .ToList(),
             Nets = ConvertNets(circuit.Fill),
             Components = ConvertDevices(circuit.Fill),
+            Instances = ConvertInstances(circuit.Fill),
+            Attaches = ConvertAttaches(circuit.Fill),
             Constraints = ConvertConstraints(circuit.Constraints),
             Harness = ConvertHarness(circuit.Harness),
             Benches = circuit.Benches?.Benches.Select(b => b.Name).ToList() ?? [],
@@ -164,6 +260,162 @@ public static class AcirJsonConverter
                 Connections = d.Bindings,
                 Params = d.Params,
                 Process = d.PdkDevice,
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonTrait>? ConvertTraits(List<TraitDefinition> traits)
+    {
+        if (traits.Count == 0)
+            return null;
+
+        return traits
+            .Select(t => new AcirJsonTrait
+            {
+                Name = t.Name,
+                Ports = t
+                    .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
+                    .ToList(),
+                Connectors =
+                    t.Connectors.Count > 0
+                        ? t
+                            .Connectors.Select(c => new AcirJsonConnector
+                            {
+                                TargetTrait = c.TargetTrait,
+                                Mappings = c
+                                    .Mappings.Select(m => new AcirJsonMapping
+                                    {
+                                        Source = m.SourcePort,
+                                        Target = m.TargetPort,
+                                    })
+                                    .ToList(),
+                            })
+                            .ToList()
+                        : null,
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonCircuitParameter>? ConvertCircuitParameters(
+        List<CircuitParameter> parameters
+    )
+    {
+        if (parameters.Count == 0)
+            return null;
+
+        return parameters
+            .Select(p => new AcirJsonCircuitParameter
+            {
+                Name = p.Name,
+                Type = p.Type,
+                Default = p.Default switch
+                {
+                    { Symbolic: not null } => p.Default.Symbolic,
+                    { Numeric: not null } => p.Default.Numeric,
+                    { Literal: not null } => p.Default.Literal,
+                    _ => null,
+                },
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonSizeDeclaration>? ConvertCircuitSizes(List<SizeDeclaration> sizes)
+    {
+        if (sizes.Count == 0)
+        {
+            return null;
+        }
+
+        return sizes
+            .OrderBy(s => s.Name, StringComparer.Ordinal)
+            .Select(s => new AcirJsonSizeDeclaration
+            {
+                Name = s.Name,
+                Default = s.Default is null
+                    ? null
+                    : new Dictionary<string, string>(s.Default.Entries),
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonInstance>? ConvertInstances(FillBlock? fill)
+    {
+        if (fill?.Instances.Count is null or 0)
+            return null;
+
+        return fill
+            .Instances.Select(i => new AcirJsonInstance
+            {
+                Id = i.Id,
+                Type = i.Type,
+                Bindings = i.Bindings,
+                Params =
+                    i.Params.Count > 0
+                        ? i.Params.ToDictionary(
+                            p => p.Key,
+                            p =>
+                                p.Value switch
+                                {
+                                    { Symbolic: not null } => p.Value.Symbolic,
+                                    { Numeric: not null } => p.Value.Numeric,
+                                    { Literal: not null } => p.Value.Literal!,
+                                    _ => "",
+                                }
+                        )
+                        : null,
+                Sizes =
+                    i.Sizes.Count > 0
+                        ? i.Sizes.ToDictionary(
+                            s => s.Key,
+                            s => (IReadOnlyDictionary<string, string>)s.Value.Entries
+                        )
+                        : null,
+            })
+            .ToList();
+    }
+
+    private static List<SizeDeclaration> BuildCircuitSizes(
+        IReadOnlyList<AcirJsonSizeDeclaration>? sizes
+    )
+    {
+        if (sizes is null || sizes.Count == 0)
+        {
+            return [];
+        }
+
+        return sizes
+            .Select(s => new SizeDeclaration
+            {
+                Name = s.Name,
+                Default = s.Default is null
+                    ? null
+                    : new SizePack { Entries = new Dictionary<string, string>(s.Default) },
+            })
+            .ToList();
+    }
+
+    private static List<AcirJsonAttach>? ConvertAttaches(FillBlock? fill)
+    {
+        if (fill?.Attaches.Count is null or 0)
+            return null;
+
+        return fill
+            .Attaches.Select(a => new AcirJsonAttach
+            {
+                SourceInstance = a.SourceInstance,
+                TargetInstances = a.TargetInstances,
+                Via = a.Via,
+                Anchor = a.Anchor,
+                Overrides =
+                    a.Overrides?.Count > 0
+                        ? a
+                            .Overrides.Select(o => new AcirJsonMapping
+                            {
+                                Source = o.SourcePort,
+                                Target = o.TargetPort,
+                            })
+                            .ToList()
+                        : null,
             })
             .ToList();
     }
@@ -356,7 +608,93 @@ public static class AcirJsonConverter
                     PdkDevice = c.Process,
                 })
                 .ToList(),
+            Instances =
+                jsonDoc
+                    .Instances?.Select(i => new InstanceDeclaration
+                    {
+                        Id = i.Id,
+                        Type = i.Type,
+                        Bindings = new Dictionary<string, string>(i.Bindings),
+                        Params =
+                            i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))
+                            ?? new Dictionary<string, ParamValue>(),
+                        Sizes =
+                            i.Sizes?.ToDictionary(
+                                s => s.Key,
+                                s => new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>(s.Value),
+                                }
+                            ) ?? new Dictionary<string, SizePack>(),
+                    })
+                    .ToList()
+                ?? [],
+            Attaches =
+                jsonDoc
+                    .Attaches?.Select(a => new AttachStatement
+                    {
+                        SourceInstance = a.SourceInstance,
+                        TargetInstances = a.TargetInstances.ToList(),
+                        Via = a.Via,
+                        Anchor = a.Anchor,
+                        Overrides = a
+                            .Overrides?.Select(o => new ConnectorMapping
+                            {
+                                SourcePort = o.Source,
+                                TargetPort = o.Target,
+                            })
+                            .ToList(),
+                    })
+                    .ToList()
+                ?? [],
         };
+    }
+
+    private static List<TraitDefinition> BuildTraits(IReadOnlyList<AcirJsonTrait>? traits)
+    {
+        if (traits is null or { Count: 0 })
+            return [];
+
+        return traits
+            .Select(t => new TraitDefinition
+            {
+                Name = t.Name,
+                Ports = t
+                    .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
+                    .ToList(),
+                Connectors =
+                    t.Connectors?.Select(c => new TraitConnector
+                        {
+                            TargetTrait = c.TargetTrait,
+                            Mappings = c
+                                .Mappings.Select(m => new ConnectorMapping
+                                {
+                                    SourcePort = m.Source,
+                                    TargetPort = m.Target,
+                                })
+                                .ToList(),
+                        })
+                        .ToList()
+                    ?? [],
+            })
+            .ToList();
+    }
+
+    private static List<CircuitParameter> BuildCircuitParameters(
+        IReadOnlyList<AcirJsonCircuitParameter>? parameters
+    )
+    {
+        if (parameters is null or { Count: 0 })
+            return [];
+
+        return parameters
+            .Select(p => new CircuitParameter
+            {
+                Name = p.Name,
+                Type = p.Type,
+                Default = p.Default is not null ? ParamValueParser.Parse(p.Default) : null,
+            })
+            .ToList();
     }
 
     private static ConstraintsBlock? BuildConstraintsBlock(AcirJsonConstraints? constraints)

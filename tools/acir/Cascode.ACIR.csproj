@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Cascode.ACIR.Tests" />
+    <InternalsVisibleTo Include="Cascode.Cli" />
   </ItemGroup>
 
   <ItemGroup>

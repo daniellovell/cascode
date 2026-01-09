@@ -65,9 +65,12 @@ internal sealed class BenchCommandModule : ICommandModule
         {
             _state.AddMessage(error);
             _state.AddMessage(
-                "Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
+                "Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
             );
-            _state.AddMessage("If <bench> is omitted, runs all benches declared by the circuit.");
+            _state.AddMessage(
+                "Runs all benches for all circuits with benches (in dependency order)."
+            );
+            _state.AddMessage("Use --circuit to run benches for a specific circuit only.");
             return CommandResult.Failure;
         }
 
@@ -88,8 +91,9 @@ internal sealed class BenchCommandModule : ICommandModule
                 );
 
             var service = new BenchRunService(loggerFactory.CreateLogger<BenchRunService>());
-            var result = service.Run(_state.WorkspaceRoot, _state.PdkRoot, parsed);
-            WriteBenchRunSummary(result.Summary, parsed.Verbose);
+            var result = service.RunAll(_state.WorkspaceRoot, _state.PdkRoot, parsed);
+            WriteMultiCircuitBenchRunSummary(result.Summary, parsed.Verbose);
+
             localFactory?.Dispose();
             return result.ExitCode == 0
                 ? CommandResult.Success
@@ -173,20 +177,6 @@ internal sealed class BenchCommandModule : ICommandModule
             $"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
         );
 
-        // Helper to format a constraint result
-        string FormatConstraint(ConstraintResult result)
-        {
-            var where = string.IsNullOrWhiteSpace(result.Node)
-                ? result.Metric
-                : $"{result.Metric}@{result.Node}";
-            var expected =
-                $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
-            var actual = result.Actual is null
-                ? "missing"
-                : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
-            return $"  {result.Id}: {where} {expected} (actual {actual})";
-        }
-
         var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
         var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
 
@@ -209,6 +199,138 @@ internal sealed class BenchCommandModule : ICommandModule
         }
     }
 
+    private void WriteMultiCircuitBenchRunSummary(
+        BenchRunService.MultiCircuitBenchRunSummary summary,
+        bool verbose
+    )
+    {
+        // Single circuit: use simpler format matching old behavior
+        if (summary.CircuitSummaries.Count == 1)
+        {
+            var circuitSummary = summary.CircuitSummaries[0];
+            _state.AddMessage(
+                $"Circuit: {circuitSummary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})"
+            );
+            _state.AddMessage($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
+
+            var succeeded = circuitSummary
+                .Benches.Where(b => b.Succeeded)
+                .Select(b => b.Name)
+                .ToArray();
+            var failed = circuitSummary
+                .Benches.Where(b => !b.Succeeded)
+                .Select(b => b.Name)
+                .ToArray();
+
+            if (succeeded.Length > 0)
+            {
+                _state.AddMessage($"Ran: {string.Join(", ", succeeded)}");
+            }
+
+            if (failed.Length > 0)
+            {
+                _state.AddMessage($"Simulation: FAIL ({string.Join(", ", failed)})");
+            }
+
+            var compliance = circuitSummary.Compliance;
+            var passPercentage =
+                compliance.TotalCount > 0
+                    ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
+                    : 0;
+            _state.AddMessage(
+                $"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
+            );
+
+            var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
+            var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
+
+            if (passedConstraints.Length > 0)
+            {
+                _state.AddMessage("PASS:");
+                foreach (var pass in passedConstraints)
+                {
+                    _state.AddMessage(FormatConstraint(pass));
+                }
+            }
+
+            if (failedConstraints.Length > 0)
+            {
+                _state.AddMessage("FAIL:");
+                foreach (var failure in failedConstraints)
+                {
+                    _state.AddMessage(FormatConstraint(failure));
+                }
+            }
+            return;
+        }
+
+        // Multiple circuits: use multi-circuit format
+        _state.AddMessage($"Backend: {summary.Backend.ToString().ToLowerInvariant()}");
+        _state.AddMessage($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
+        _state.AddMessage($"Circuits: {summary.CircuitSummaries.Count}");
+        _state.AddMessage("");
+
+        foreach (var circuitSummary in summary.CircuitSummaries)
+        {
+            _state.AddMessage($"=== {circuitSummary.CircuitName} ===");
+
+            var succeeded = circuitSummary
+                .Benches.Where(b => b.Succeeded)
+                .Select(b => b.Name)
+                .ToArray();
+            var failed = circuitSummary
+                .Benches.Where(b => !b.Succeeded)
+                .Select(b => b.Name)
+                .ToArray();
+
+            if (succeeded.Length > 0)
+            {
+                _state.AddMessage($"  Ran: {string.Join(", ", succeeded)}");
+            }
+
+            if (failed.Length > 0)
+            {
+                _state.AddMessage($"  FAILED: {string.Join(", ", failed)}");
+            }
+
+            var compliance = circuitSummary.Compliance;
+            var passPercentage =
+                compliance.TotalCount > 0
+                    ? (int)Math.Round(100.0 * compliance.PassedCount / compliance.TotalCount)
+                    : 0;
+            _state.AddMessage(
+                $"  Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
+            );
+
+            if (verbose)
+            {
+                foreach (var result in compliance.Results.Where(r => !r.Passed))
+                {
+                    var formatted = FormatConstraint(result).TrimStart();
+                    _state.AddMessage($"    FAIL {formatted}");
+                }
+            }
+
+            _state.AddMessage("");
+        }
+
+        // Global summary
+        _state.AddMessage("=== GLOBAL SUMMARY ===");
+        _state.AddMessage(
+            $"Total Benches: {summary.TotalBenchesRun} ({summary.TotalBenchesSucceeded} passed, {summary.TotalBenchesFailed} failed)"
+        );
+
+        var globalCompliance = summary.GlobalCompliance;
+        var globalPassPct =
+            globalCompliance.TotalCount > 0
+                ? (int)
+                    Math.Round(100.0 * globalCompliance.PassedCount / globalCompliance.TotalCount)
+                : 0;
+        _state.AddMessage(
+            $"Global Compliance: {globalCompliance.PassedCount}/{globalCompliance.TotalCount} ({globalPassPct}% PASS)"
+        );
+    }
+
     private static string FormatDir(string path, bool verbose)
     {
         _ = verbose;
@@ -227,6 +349,18 @@ internal sealed class BenchCommandModule : ICommandModule
     {
         // Human-readable without being overly specific; stable across locales.
         return value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatConstraint(ConstraintResult result)
+    {
+        var where = string.IsNullOrWhiteSpace(result.Node)
+            ? result.Metric
+            : $"{result.Metric}@{result.Node}";
+        var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
+        var actual = result.Actual is null
+            ? "missing"
+            : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
+        return $"  {result.Id}: {where} {expected} (actual {actual})";
     }
 
     private CommandResult BenchHarnessListCommand(string[] args)

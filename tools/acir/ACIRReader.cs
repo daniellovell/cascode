@@ -88,7 +88,11 @@ public static partial class ACIRReader
             }
 
             var doc = ParseWithDiagnostics(lines, filePath, diagnostics);
-            return new ACIRReadResult { Document = doc, Diagnostics = diagnostics };
+
+            // Desugar bundle-typed constructs into canonical form
+            var desugared = BundleDesugarer.Desugar(doc);
+
+            return new ACIRReadResult { Document = desugared, Diagnostics = diagnostics };
         }
         catch (Exception ex)
         {
@@ -164,6 +168,10 @@ public static partial class ACIRReader
             if (line.StartsWith("bundle "))
             {
                 i = ParseBundle(lines, i, doc.BundleTypes);
+            }
+            else if (line.StartsWith("trait "))
+            {
+                i = ParseTrait(lines, i, doc.Traits);
             }
             else if (line.StartsWith("circuit "))
             {
@@ -269,6 +277,10 @@ public static partial class ACIRReader
             {
                 i = ParseBundleWithDiagnostics(lines, i, doc.BundleTypes, filePath, diagnostics);
             }
+            else if (line.StartsWith("trait "))
+            {
+                i = ParseTraitWithDiagnostics(lines, i, doc.Traits, filePath, diagnostics);
+            }
             else if (line.StartsWith("circuit "))
             {
                 i = ParseCircuitWithDiagnostics(lines, i, doc.Circuits, filePath, diagnostics);
@@ -331,6 +343,215 @@ public static partial class ACIRReader
     }
 
     /// <summary>
+    /// Parses a trait definition (non-diagnostic version).
+    /// </summary>
+    private static int ParseTrait(
+        IReadOnlyList<string> lines,
+        int start,
+        List<TraitDefinition> traits
+    )
+    {
+        var line = lines[start].Trim();
+        var match = TraitDeclarationPattern().Match(line);
+        if (!match.Success)
+            return start + 1;
+
+        var trait = new TraitDefinition { Name = match.Groups[1].Value };
+        var i = start + 1;
+        TraitConnector? currentConnector = null;
+
+        while (i < lines.Count)
+        {
+            var currentLine = lines[i];
+            if (!currentLine.StartsWith("  ") || string.IsNullOrWhiteSpace(currentLine))
+                break;
+
+            var trimmed = currentLine.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connectors: block (2 spaces)
+            if (currentLine.StartsWith("  ") && trimmed == "connectors:")
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connector target (4 spaces): "to TargetTrait:"
+            if (
+                currentLine.StartsWith("    ")
+                && trimmed.StartsWith("to ")
+                && trimmed.EndsWith(":")
+            )
+            {
+                if (currentConnector is not null)
+                    trait.Connectors.Add(currentConnector);
+
+                var targetName = trimmed[3..^1].Trim();
+                currentConnector = new TraitConnector { TargetTrait = targetName };
+                i++;
+                continue;
+            }
+
+            // Check for connector mapping (6 spaces): "SOURCE -> TARGET"
+            if (currentLine.StartsWith("      ") && currentConnector is not null)
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    currentConnector.Mappings.Add(
+                        new ConnectorMapping
+                        {
+                            SourcePort = mappingMatch.Groups[1].Value,
+                            TargetPort = mappingMatch.Groups[2].Value,
+                        }
+                    );
+                }
+                i++;
+                continue;
+            }
+
+            // Port declaration (2 spaces)
+            if (trimmed.StartsWith("port "))
+            {
+                var portMatch = PortDeclarationPattern().Match(trimmed);
+                if (portMatch.Success)
+                {
+                    trait.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Name = portMatch.Groups[1].Value,
+                            Type = portMatch.Groups[2].Value,
+                        }
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        if (currentConnector is not null)
+            trait.Connectors.Add(currentConnector);
+
+        traits.Add(trait);
+        return i;
+    }
+
+    /// <summary>
+    /// Parses a trait definition with diagnostic collection.
+    /// </summary>
+    private static int ParseTraitWithDiagnostics(
+        IReadOnlyList<string> lines,
+        int start,
+        List<TraitDefinition> traits,
+        string filePath,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var line = lines[start].Trim();
+        var match = TraitDeclarationPattern().Match(line);
+        if (!match.Success)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0003: Malformed trait declaration '{line}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    start + 1,
+                    1
+                )
+            );
+            return start + 1;
+        }
+
+        var trait = new TraitDefinition { Name = match.Groups[1].Value };
+        var i = start + 1;
+        TraitConnector? currentConnector = null;
+
+        while (i < lines.Count)
+        {
+            var currentLine = lines[i];
+            if (!currentLine.StartsWith("  ") || string.IsNullOrWhiteSpace(currentLine))
+                break;
+
+            var trimmed = currentLine.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith("//"))
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connectors: block (2 spaces)
+            if (currentLine.StartsWith("  ") && trimmed == "connectors:")
+            {
+                i++;
+                continue;
+            }
+
+            // Check for connector target (4 spaces): "to TargetTrait:"
+            if (
+                currentLine.StartsWith("    ")
+                && trimmed.StartsWith("to ")
+                && trimmed.EndsWith(":")
+            )
+            {
+                if (currentConnector is not null)
+                    trait.Connectors.Add(currentConnector);
+
+                var targetName = trimmed[3..^1].Trim();
+                currentConnector = new TraitConnector { TargetTrait = targetName };
+                i++;
+                continue;
+            }
+
+            // Check for connector mapping (6 spaces): "SOURCE -> TARGET"
+            if (currentLine.StartsWith("      ") && currentConnector is not null)
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    currentConnector.Mappings.Add(
+                        new ConnectorMapping
+                        {
+                            SourcePort = mappingMatch.Groups[1].Value,
+                            TargetPort = mappingMatch.Groups[2].Value,
+                        }
+                    );
+                }
+                i++;
+                continue;
+            }
+
+            // Port declaration (2 spaces)
+            if (trimmed.StartsWith("port "))
+            {
+                var portMatch = PortDeclarationPattern().Match(trimmed);
+                if (portMatch.Success)
+                {
+                    trait.Ports.Add(
+                        new PortDeclaration
+                        {
+                            Name = portMatch.Groups[1].Value,
+                            Type = portMatch.Groups[2].Value,
+                        }
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        if (currentConnector is not null)
+            trait.Connectors.Add(currentConnector);
+
+        traits.Add(trait);
+        return i;
+    }
+
+    /// <summary>
     /// Parses a circuit definition with diagnostic collection.
     /// </summary>
     private static int ParseCircuitWithDiagnostics(
@@ -372,6 +593,9 @@ public static partial class ACIRReader
         HarnessBlock? harnessBlock = null;
         BenchesBlock? benchesBlock = null;
 
+        var isInline = false;
+        var parameters = new List<CircuitParameter>();
+        var sizes = new List<SizeDeclaration>();
         FillBlock? currentFill = null;
         ConstraintsBlock? currentConstraints = null;
         HarnessBlock? currentHarness = null;
@@ -444,6 +668,33 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            filePath,
+                            diagnostics
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
+                    if (contentTrimmed.StartsWith("inst "))
+                    {
+                        var (instance, nextIndex) = ParseInstanceWithBody(
+                            lines,
+                            i,
+                            filePath,
+                            diagnostics,
+                            currentFill!.Connections
+                        );
+                        if (instance is not null)
+                            currentFill.Instances.Add(instance);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContentWithDiagnostics(
                         contentTrimmed,
                         currentFill,
@@ -544,7 +795,25 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                var parsedLevel = TryParseLevel(levelStr);
+                if (parsedLevel.HasValue)
+                {
+                    level = parsedLevel.Value;
+                }
+                else
+                {
+                    // No fallback: the error diagnostic causes Success=false, so callers
+                    // must not use the document. The initialized value of 'level' is irrelevant.
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0008: Invalid level '{levelStr}' - expected HL, ML, or EL",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -568,6 +837,60 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed == "inline")
+            {
+                isInline = true;
+            }
+            else if (contentTrimmed.StartsWith("param "))
+            {
+                var paramMatch = CircuitParameterPattern().Match(contentTrimmed);
+                if (paramMatch.Success)
+                {
+                    var paramName = paramMatch.Groups[1].Value;
+                    var paramType = paramMatch.Groups[2].Value;
+                    ParamValue? defaultValue = null;
+
+                    if (paramMatch.Groups[3].Success)
+                    {
+                        var defaultStr = paramMatch.Groups[3].Value.Trim();
+                        defaultValue = ParamValueParser.Parse(defaultStr);
+                    }
+
+                    parameters.Add(
+                        new CircuitParameter
+                        {
+                            Name = paramName,
+                            Type = paramType,
+                            Default = defaultValue,
+                        }
+                    );
+                }
+            }
+            else if (contentTrimmed.StartsWith("size "))
+            {
+                if (
+                    TryParseSizeDeclaration(
+                        contentTrimmed,
+                        out var sizeDeclaration,
+                        out var sizeDiagnosticMessage
+                    )
+                )
+                {
+                    sizes.Add(sizeDeclaration);
+                }
+                else
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0017: {sizeDiagnosticMessage}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
 
             i++;
         }
@@ -587,6 +910,9 @@ public static partial class ACIRReader
         {
             Name = name,
             Level = level,
+            Inline = isInline,
+            Parameters = parameters,
+            Sizes = sizes,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -639,6 +965,653 @@ public static partial class ACIRReader
             if (device is not null)
                 fill.Devices.Add(device);
         }
+        else if (line.StartsWith("inst "))
+        {
+            var instance = ParseInstanceWithDiagnostics(line, filePath, lineNumber, diagnostics);
+            if (instance is not null)
+                fill.Instances.Add(instance);
+        }
+        else if (line.StartsWith("connect "))
+        {
+            var match = InstanceConnectPattern().Match(line);
+            if (match.Success)
+            {
+                fill.Connections.Add(
+                    new ConnectionStatement
+                    {
+                        From = match.Groups[1].Value,
+                        To = match.Groups[2].Value,
+                    }
+                );
+            }
+            else
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0030: Invalid connect statement syntax '{line}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Parses an instance declaration with diagnostic collection.
+    /// </summary>
+    private static InstanceDeclaration? ParseInstanceWithDiagnostics(
+        string line,
+        string filePath,
+        int lineNumber,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var match = InstanceDeclarationPattern().Match(line);
+        if (!match.Success)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"ACIR0015: Invalid instance declaration syntax '{line}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    lineNumber,
+                    1
+                )
+            );
+            return null;
+        }
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                }
+            }
+        }
+
+        return new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
+        };
+    }
+
+    private static (InstanceDeclaration? Instance, int NextIndex) ParseInstanceWithBody(
+        IReadOnlyList<string> lines,
+        int startIndex,
+        string filePath,
+        List<Diagnostic>? diagnostics,
+        List<ConnectionStatement>? instanceConnections
+    )
+    {
+        static string StripComment(string value)
+        {
+            var commentIndex = value.IndexOf("//", StringComparison.Ordinal);
+            return commentIndex >= 0 ? value[..commentIndex] : value;
+        }
+
+        var headerLineNumber = startIndex + 1;
+        var rawHeader = StripComment(lines[startIndex]);
+        var headerIndent = GetIndentWidth(rawHeader);
+        var headerTrimmed = rawHeader.Trim();
+
+        var match = InstanceDeclarationPattern().Match(headerTrimmed);
+        if (!match.Success)
+        {
+            diagnostics?.Add(
+                new Diagnostic(
+                    $"ACIR0015: Invalid instance declaration syntax '{headerTrimmed}'",
+                    DiagnosticSeverity.Error,
+                    filePath,
+                    headerLineNumber,
+                    1
+                )
+            );
+            return (null, startIndex + 1);
+        }
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            var instancePrefix = $"{id}.";
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    var terminal = bindMatch.Groups[1].Value;
+                    var net = bindMatch.Groups[2].Value;
+
+                    // Strip instance prefix if present (e.g., "dp.GND" -> "GND")
+                    if (terminal.StartsWith(instancePrefix, StringComparison.Ordinal))
+                    {
+                        terminal = terminal[instancePrefix.Length..];
+                    }
+
+                    bindings[terminal] = net;
+                }
+                else if (diagnostics is not null && !string.IsNullOrWhiteSpace(binding))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"ACIR0005: Malformed binding syntax '{binding.Trim()}' - expected 'TERMINAL->NET'",
+                            DiagnosticSeverity.Warning,
+                            filePath,
+                            headerLineNumber,
+                            1
+                        )
+                    );
+                }
+            }
+        }
+
+        var instance = new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
+        };
+
+        var i = startIndex + 1;
+        while (i < lines.Count)
+        {
+            var rawLine = StripComment(lines[i]);
+            if (string.IsNullOrWhiteSpace(rawLine))
+            {
+                i++;
+                continue;
+            }
+
+            var indent = GetIndentWidth(rawLine);
+            if (indent <= headerIndent)
+            {
+                break;
+            }
+
+            var trimmed = rawLine.Trim();
+            if (trimmed.StartsWith("param ", StringComparison.Ordinal))
+            {
+                if (
+                    TryParseAssignment(
+                        trimmed,
+                        "param",
+                        out var paramName,
+                        out var paramValue,
+                        out var error
+                    )
+                )
+                {
+                    instance.Params[paramName] = ParamValueParser.Parse(paramValue);
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0015: {error}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else if (trimmed.StartsWith("size ", StringComparison.Ordinal))
+            {
+                if (
+                    TryParseAssignment(
+                        trimmed,
+                        "size",
+                        out var sizeName,
+                        out var sizeValue,
+                        out var error
+                    )
+                )
+                {
+                    if (TryParseSizeLiteral(sizeValue, out var pack, out var packError))
+                    {
+                        instance.Sizes[sizeName] = pack;
+                    }
+                    else
+                    {
+                        diagnostics?.Add(
+                            new Diagnostic(
+                                $"ACIR0017: {packError}",
+                                DiagnosticSeverity.Error,
+                                filePath,
+                                i + 1,
+                                1
+                            )
+                        );
+                    }
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0017: {error}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else if (trimmed.StartsWith("connect ", StringComparison.Ordinal))
+            {
+                // Instance-level connect statement
+                var connectMatch = InstanceConnectPattern().Match(trimmed);
+                if (connectMatch.Success)
+                {
+                    var from = connectMatch.Groups[1].Value;
+                    var to = connectMatch.Groups[2].Value;
+
+                    // Validate at least one endpoint references this instance
+                    var instancePrefix = $"{id}.";
+                    var fromHasInstance = from.StartsWith(instancePrefix, StringComparison.Ordinal);
+                    var toHasInstance = to.StartsWith(instancePrefix, StringComparison.Ordinal);
+
+                    if (!fromHasInstance && !toHasInstance)
+                    {
+                        diagnostics?.Add(
+                            new Diagnostic(
+                                $"ACIR0028: Instance connect statement must reference instance '{id}' on at least one side: '{trimmed}'",
+                                DiagnosticSeverity.Error,
+                                filePath,
+                                i + 1,
+                                1
+                            )
+                        );
+                    }
+                    else
+                    {
+                        instanceConnections?.Add(new ConnectionStatement { From = from, To = to });
+                    }
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0029: Invalid connect statement syntax in instance body: '{trimmed}'",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else
+            {
+                var mappingMatch = ConnectorMappingPattern().Match(trimmed);
+                if (mappingMatch.Success)
+                {
+                    instance.Bindings[mappingMatch.Groups[1].Value] = mappingMatch.Groups[2].Value;
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0015: Invalid instance body syntax '{trimmed}'",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+
+            i++;
+        }
+
+        return (instance, i);
+    }
+
+    private static int GetIndentWidth(string line)
+    {
+        var count = 0;
+        foreach (var c in line)
+        {
+            if (c == ' ')
+            {
+                count++;
+                continue;
+            }
+
+            if (c == '\t')
+            {
+                count += 4;
+                continue;
+            }
+
+            break;
+        }
+
+        return count;
+    }
+
+    private static bool TryParseAssignment(
+        string line,
+        string keyword,
+        out string name,
+        out string value,
+        out string errorMessage
+    )
+    {
+        name = string.Empty;
+        value = string.Empty;
+        errorMessage = string.Empty;
+
+        if (!line.StartsWith($"{keyword} ", StringComparison.Ordinal))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}'";
+            return false;
+        }
+
+        var rest = line[(keyword.Length + 1)..].Trim();
+        var eqIndex = rest.IndexOf('=', StringComparison.Ordinal);
+        if (eqIndex <= 0)
+        {
+            errorMessage =
+                $"Invalid {keyword} statement '{line}' - expected '{keyword} <name> = <value>'";
+            return false;
+        }
+
+        name = rest[..eqIndex].Trim();
+        value = rest[(eqIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}' - missing name";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            errorMessage = $"Invalid {keyword} statement '{line}' - missing value";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryParseSizeDeclaration(
+        string line,
+        out SizeDeclaration sizeDeclaration,
+        out string errorMessage
+    )
+    {
+        sizeDeclaration = new SizeDeclaration { Name = string.Empty };
+        errorMessage = string.Empty;
+
+        if (!line.StartsWith("size ", StringComparison.Ordinal))
+        {
+            errorMessage = $"Invalid size declaration '{line}'";
+            return false;
+        }
+
+        var rest = line["size ".Length..].Trim();
+        if (string.IsNullOrWhiteSpace(rest))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing name";
+            return false;
+        }
+
+        var eqIndex = rest.IndexOf('=', StringComparison.Ordinal);
+        if (eqIndex < 0)
+        {
+            sizeDeclaration = new SizeDeclaration { Name = rest };
+            return true;
+        }
+
+        var name = rest[..eqIndex].Trim();
+        var literal = rest[(eqIndex + 1)..].Trim();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing name";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(literal))
+        {
+            errorMessage = $"Invalid size declaration '{line}' - missing default value";
+            return false;
+        }
+
+        if (!TryParseSizeLiteral(literal, out var pack, out var packError))
+        {
+            errorMessage = packError;
+            return false;
+        }
+
+        sizeDeclaration = new SizeDeclaration { Name = name, Default = pack };
+        return true;
+    }
+
+    private static bool TryParseSizeLiteral(
+        string literal,
+        out SizePack pack,
+        out string errorMessage
+    )
+    {
+        pack = new SizePack();
+        errorMessage = string.Empty;
+
+        var trimmed = literal.Trim();
+        if (
+            !trimmed.StartsWith("(", StringComparison.Ordinal)
+            || !trimmed.EndsWith(")", StringComparison.Ordinal)
+        )
+        {
+            errorMessage = $"Invalid size literal '{literal}' - expected '(k=v, ...)'";
+            return false;
+        }
+
+        var inner = trimmed[1..^1].Trim();
+        if (string.IsNullOrWhiteSpace(inner))
+        {
+            errorMessage = $"Invalid size literal '{literal}' - empty size pack";
+            return false;
+        }
+
+        return SizePacks.TryParseSizeLiteral(inner, out pack, out errorMessage);
+    }
+
+    /// <summary>
+    /// Parses an attach statement, including optional inline override blocks.
+    /// </summary>
+    private static (AttachStatement? Attach, int NextIndex) ParseAttachWithOverrides(
+        IReadOnlyList<string> lines,
+        int startIndex,
+        string filePath,
+        List<Diagnostic>? diagnostics
+    )
+    {
+        string StripComment(string value)
+        {
+            var commentIndex = value.IndexOf("//", StringComparison.Ordinal);
+            return commentIndex >= 0 ? value[..commentIndex] : value;
+        }
+
+        var lineNumber = startIndex + 1;
+        var rawLine = StripComment(lines[startIndex]).Trim();
+        var braceIndex = rawLine.IndexOf('{');
+        var headerLine = braceIndex >= 0 ? rawLine[..braceIndex].TrimEnd() : rawLine;
+        var afterBrace = braceIndex >= 0 ? rawLine[(braceIndex + 1)..].Trim() : string.Empty;
+        var hasOpeningBrace = braceIndex >= 0;
+        var inlineOverrides =
+            hasOpeningBrace && afterBrace.EndsWith("}", StringComparison.Ordinal)
+                ? afterBrace[..^1].Trim()
+                : afterBrace;
+
+        var match = AttachStatementPattern().Match(headerLine);
+        if (!match.Success)
+        {
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
+        }
+
+        var sourceInstance = match.Groups[1].Value;
+        var targetSegment = match.Groups[2].Value;
+        var sourceTrait = match.Groups[3].Value;
+        var targetTrait = match.Groups[4].Value;
+        var anchor = match.Groups[5].Success ? match.Groups[5].Value : null;
+
+        var targetInstances = targetSegment
+            .Split(new[] { " to " }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+        if (targetInstances.Count == 0)
+        {
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach statement syntax '{rawLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+            return (null, startIndex + 1);
+        }
+
+        List<ConnectorMapping>? overrides = null;
+
+        void AddOverride(string mappingLine, int mappingLineNumber)
+        {
+            var mappingMatch = ConnectorMappingPattern().Match(mappingLine);
+            if (mappingMatch.Success)
+            {
+                overrides ??= new List<ConnectorMapping>();
+                overrides.Add(
+                    new ConnectorMapping
+                    {
+                        SourcePort = mappingMatch.Groups[1].Value,
+                        TargetPort = mappingMatch.Groups[2].Value,
+                    }
+                );
+            }
+            else if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0016: Invalid attach override syntax '{mappingLine}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        mappingLineNumber,
+                        1
+                    )
+                );
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(inlineOverrides))
+        {
+            AddOverride(inlineOverrides, lineNumber);
+        }
+
+        if (hasOpeningBrace && !afterBrace.EndsWith("}", StringComparison.Ordinal))
+        {
+            var i = startIndex + 1;
+            while (i < lines.Count)
+            {
+                var content = StripComment(lines[i]);
+                var trimmed = content.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed))
+                {
+                    i++;
+                    continue;
+                }
+
+                if (trimmed == "}")
+                {
+                    return (
+                        new AttachStatement
+                        {
+                            SourceInstance = sourceInstance,
+                            TargetInstances = targetInstances,
+                            Via = $"{sourceTrait}::{targetTrait}",
+                            Anchor = anchor,
+                            Overrides = overrides,
+                        },
+                        i + 1
+                    );
+                }
+
+                AddOverride(trimmed, i + 1);
+                i++;
+            }
+
+            if (diagnostics is not null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        "ACIR0016: Unterminated attach override block",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+
+            return (
+                new AttachStatement
+                {
+                    SourceInstance = sourceInstance,
+                    TargetInstances = targetInstances,
+                    Via = $"{sourceTrait}::{targetTrait}",
+                    Anchor = anchor,
+                    Overrides = overrides,
+                },
+                lines.Count
+            );
+        }
+
+        return (
+            new AttachStatement
+            {
+                SourceInstance = sourceInstance,
+                TargetInstances = targetInstances,
+                Via = $"{sourceTrait}::{targetTrait}",
+                Anchor = anchor,
+                Overrides = overrides,
+            },
+            startIndex + 1
+        );
     }
 
     /// <summary>
@@ -694,21 +1667,58 @@ public static partial class ACIRReader
             }
         }
 
-        // Parse params
+        // Parse params: handle size=(W=2u, L=180n, M=1) as a single token
         var paramsStr = deviceMatch.Groups[4].Value.Trim();
-        var paramParts = paramsStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in paramParts)
+        var i = 0;
+        while (i < paramsStr.Length)
         {
-            var eqIndex = part.IndexOf('=');
-            if (eqIndex > 0)
+            // Skip whitespace
+            while (i < paramsStr.Length && char.IsWhiteSpace(paramsStr[i]))
+                i++;
+            if (i >= paramsStr.Length)
+                break;
+
+            // Check for key=value or key=(...)
+            var eqIndex = paramsStr.IndexOf('=', i);
+            if (eqIndex > i && eqIndex < paramsStr.Length)
             {
-                var key = part[..eqIndex];
-                var value = part[(eqIndex + 1)..];
-                deviceParams[key] = value;
+                var key = paramsStr[i..eqIndex];
+                i = eqIndex + 1;
+
+                // Check if value starts with '(' - if so, consume until matching ')'
+                if (i < paramsStr.Length && paramsStr[i] == '(')
+                {
+                    var parenStart = i;
+                    var depth = 1;
+                    i++;
+                    while (i < paramsStr.Length && depth > 0)
+                    {
+                        if (paramsStr[i] == '(')
+                            depth++;
+                        else if (paramsStr[i] == ')')
+                            depth--;
+                        i++;
+                    }
+                    var value = paramsStr[parenStart..i];
+                    deviceParams[key] = value;
+                }
+                else
+                {
+                    // Regular value: consume until space
+                    var valueStart = i;
+                    while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                        i++;
+                    var value = paramsStr[valueStart..i];
+                    deviceParams[key] = value;
+                }
             }
-            else if (!string.IsNullOrEmpty(part))
+            else
             {
-                pdkDevice = part;
+                // No '=' found - this is the PDK device name
+                var tokenStart = i;
+                while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                    i++;
+                pdkDevice = paramsStr[tokenStart..i];
             }
         }
 
@@ -778,6 +1788,9 @@ public static partial class ACIRReader
 
         var i = start + 1;
         var level = ACIRLevel.ML;
+        var isInline = false;
+        var parameters = new List<CircuitParameter>();
+        var sizes = new List<SizeDeclaration>();
         var supplies = new List<string>();
         var grounds = new List<string>();
         var ports = new List<PortDeclaration>();
@@ -858,6 +1871,33 @@ public static partial class ACIRReader
             {
                 if (currentFill is not null)
                 {
+                    if (contentTrimmed.StartsWith("attach "))
+                    {
+                        var (attach, nextIndex) = ParseAttachWithOverrides(
+                            lines,
+                            i,
+                            string.Empty,
+                            null
+                        );
+                        if (attach is not null)
+                            currentFill.Attaches.Add(attach);
+                        i = nextIndex;
+                        continue;
+                    }
+                    if (contentTrimmed.StartsWith("inst "))
+                    {
+                        var (instance, nextIndex) = ParseInstanceWithBody(
+                            lines,
+                            i,
+                            string.Empty,
+                            null,
+                            currentFill!.Connections
+                        );
+                        if (instance is not null)
+                            currentFill.Instances.Add(instance);
+                        i = nextIndex;
+                        continue;
+                    }
                     ParseFillContent(contentTrimmed, currentFill);
                 }
                 else if (currentHarness is not null)
@@ -946,7 +1986,7 @@ public static partial class ACIRReader
             else if (contentTrimmed.StartsWith("level "))
             {
                 var levelStr = contentTrimmed[6..].Trim();
-                level = ParseLevel(levelStr);
+                level = TryParseLevel(levelStr) ?? ACIRLevel.ML;
             }
             else if (contentTrimmed.StartsWith("supply "))
             {
@@ -970,6 +2010,42 @@ public static partial class ACIRReader
                     );
                 }
             }
+            else if (contentTrimmed == "inline")
+            {
+                isInline = true;
+            }
+            else if (contentTrimmed.StartsWith("param "))
+            {
+                var paramMatch = CircuitParameterPattern().Match(contentTrimmed);
+                if (paramMatch.Success)
+                {
+                    var paramName = paramMatch.Groups[1].Value;
+                    var paramType = paramMatch.Groups[2].Value;
+                    ParamValue? defaultValue = null;
+
+                    if (paramMatch.Groups[3].Success)
+                    {
+                        var defaultStr = paramMatch.Groups[3].Value.Trim();
+                        defaultValue = ParamValueParser.Parse(defaultStr);
+                    }
+
+                    parameters.Add(
+                        new CircuitParameter
+                        {
+                            Name = paramName,
+                            Type = paramType,
+                            Default = defaultValue,
+                        }
+                    );
+                }
+            }
+            else if (contentTrimmed.StartsWith("size "))
+            {
+                if (TryParseSizeDeclaration(contentTrimmed, out var sizeDeclaration, out _))
+                {
+                    sizes.Add(sizeDeclaration);
+                }
+            }
 
             i++;
         }
@@ -989,6 +2065,9 @@ public static partial class ACIRReader
         {
             Name = name,
             Level = level,
+            Inline = isInline,
+            Parameters = parameters,
+            Sizes = sizes,
             Traits = traits,
             Supplies = supplies,
             Grounds = grounds,
@@ -1163,6 +2242,26 @@ public static partial class ACIRReader
             if (device is not null)
                 fill.Devices.Add(device);
         }
+        else if (line.StartsWith("inst "))
+        {
+            var instance = ParseInstance(line);
+            if (instance is not null)
+                fill.Instances.Add(instance);
+        }
+        else if (line.StartsWith("connect "))
+        {
+            var match = InstanceConnectPattern().Match(line);
+            if (match.Success)
+            {
+                fill.Connections.Add(
+                    new ConnectionStatement
+                    {
+                        From = match.Groups[1].Value,
+                        To = match.Groups[2].Value,
+                    }
+                );
+            }
+        }
     }
 
     /// <summary>
@@ -1192,22 +2291,58 @@ public static partial class ACIRReader
             }
         }
 
-        // Parse params: L=180n M=1 W=2u pdkDevice
+        // Parse params: handle size=(W=2u, L=180n, M=1) as a single token
         var paramsStr = deviceMatch.Groups[4].Value.Trim();
-        var paramParts = paramsStr.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in paramParts)
+        var i = 0;
+        while (i < paramsStr.Length)
         {
-            var eqIndex = part.IndexOf('=');
-            if (eqIndex > 0)
+            // Skip whitespace
+            while (i < paramsStr.Length && char.IsWhiteSpace(paramsStr[i]))
+                i++;
+            if (i >= paramsStr.Length)
+                break;
+
+            // Check for key=value or key=(...)
+            var eqIndex = paramsStr.IndexOf('=', i);
+            if (eqIndex > i && eqIndex < paramsStr.Length)
             {
-                var key = part[..eqIndex];
-                var value = part[(eqIndex + 1)..];
-                deviceParams[key] = value;
+                var key = paramsStr[i..eqIndex];
+                i = eqIndex + 1;
+
+                // Check if value starts with '(' - if so, consume until matching ')'
+                if (i < paramsStr.Length && paramsStr[i] == '(')
+                {
+                    var parenStart = i;
+                    var depth = 1;
+                    i++;
+                    while (i < paramsStr.Length && depth > 0)
+                    {
+                        if (paramsStr[i] == '(')
+                            depth++;
+                        else if (paramsStr[i] == ')')
+                            depth--;
+                        i++;
+                    }
+                    var value = paramsStr[parenStart..i];
+                    deviceParams[key] = value;
+                }
+                else
+                {
+                    // Regular value: consume until space
+                    var valueStart = i;
+                    while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                        i++;
+                    var value = paramsStr[valueStart..i];
+                    deviceParams[key] = value;
+                }
             }
-            else if (!string.IsNullOrEmpty(part))
+            else
             {
-                // Last non-param part is PDK device name
-                pdkDevice = part;
+                // No '=' found - this is the PDK device name
+                var tokenStart = i;
+                while (i < paramsStr.Length && !char.IsWhiteSpace(paramsStr[i]))
+                    i++;
+                pdkDevice = paramsStr[tokenStart..i];
             }
         }
 
@@ -1218,6 +2353,41 @@ public static partial class ACIRReader
             Bindings = bindings,
             Params = deviceParams,
             PdkDevice = pdkDevice,
+        };
+    }
+
+    /// <summary>
+    /// Parses an instance declaration line.
+    /// </summary>
+    /// <param name="line">Instance declaration line.</param>
+    /// <returns>Parsed instance declaration, or null if the line doesn't match.</returns>
+    private static InstanceDeclaration? ParseInstance(string line)
+    {
+        var match = InstanceDeclarationPattern().Match(line);
+        if (!match.Success)
+            return null;
+
+        var id = match.Groups[1].Value;
+        var type = match.Groups[3].Value;
+        var bindings = new Dictionary<string, string>();
+
+        if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+        {
+            foreach (var binding in match.Groups[2].Value.Split(','))
+            {
+                var bindMatch = ConnectionPattern().Match(binding.Trim());
+                if (bindMatch.Success)
+                {
+                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                }
+            }
+        }
+
+        return new InstanceDeclaration
+        {
+            Id = id,
+            Type = type,
+            Bindings = bindings,
         };
     }
 
@@ -1575,15 +2745,15 @@ public static partial class ACIRReader
     /// Parses an ACIR level string (HL, ML, or EL) into the corresponding enum value.
     /// </summary>
     /// <param name="level">Level string.</param>
-    /// <returns>Parsed ACIR level, defaulting to ML if unrecognized.</returns>
-    private static ACIRLevel ParseLevel(string level)
+    /// <returns>Parsed ACIR level, or null if unrecognized.</returns>
+    private static ACIRLevel? TryParseLevel(string level)
     {
         return level.ToUpperInvariant() switch
         {
             "HL" => ACIRLevel.HL,
             "ML" => ACIRLevel.ML,
             "EL" => ACIRLevel.EL,
-            _ => ACIRLevel.ML,
+            _ => null,
         };
     }
 
@@ -1607,7 +2777,7 @@ public static partial class ACIRReader
     [GeneratedRegex(@"^circuit\s+(\w+)(?:\s*:\s*(.+))?$")]
     private static partial Regex CircuitDeclarationPattern();
 
-    [GeneratedRegex(@"^port\s+(\w+)\s*:\s*(\w+)")]
+    [GeneratedRegex(@"^port\s+([\w.\[\]\*]+)\s*:\s*(\w+)")]
     private static partial Regex PortDeclarationPattern();
 
     [GeneratedRegex(@"^net\s+(\w+)\s*:\s*(\w+)")]
@@ -1618,7 +2788,10 @@ public static partial class ACIRReader
     )]
     private static partial Regex DeviceDeclarationPattern();
 
-    [GeneratedRegex(@"(\w+)->(\w+)")]
+    // Arrow-based connection patterns share the identifier fragment [\w.\[\]]+
+    // All patterns allow optional whitespace around '->' via \s*->\s*
+    // Related: ConnectionPattern, ConnectorMappingPattern, InstanceConnectPattern
+    [GeneratedRegex(@"([\w.\[\]]+)\s*->\s*([\w.\[\]]+)")]
     private static partial Regex ConnectionPattern();
 
     [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$")]
@@ -1656,4 +2829,24 @@ public static partial class ACIRReader
 
     [GeneratedRegex(@"^(\d+\.?\d*)\s*([fpnumkMGT]?)\s*([A-Za-z]+)?$")]
     private static partial Regex UnitValuePattern();
+
+    [GeneratedRegex(@"^trait\s+(\w+)\s*:")]
+    private static partial Regex TraitDeclarationPattern();
+
+    [GeneratedRegex(@"^([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
+    private static partial Regex ConnectorMappingPattern();
+
+    [GeneratedRegex(@"^param\s+(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?$")]
+    private static partial Regex CircuitParameterPattern();
+
+    [GeneratedRegex(@"^inst\s+(\w+)\s*(?:\(([^)]*)\))?\s*:\s*(\w+)")]
+    private static partial Regex InstanceDeclarationPattern();
+
+    [GeneratedRegex(
+        @"^attach\s+(\w+)((?:\s+to\s+\w+)+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?(?:\s*\{)?$"
+    )]
+    private static partial Regex AttachStatementPattern();
+
+    [GeneratedRegex(@"^connect\s+([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
+    private static partial Regex InstanceConnectPattern();
 }
