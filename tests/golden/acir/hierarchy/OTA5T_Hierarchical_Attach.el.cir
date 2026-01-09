@@ -13,8 +13,7 @@ trait CurrentMirrorLike:
       TAP[0] -> OUT.P
 
 trait DiffPairLike:
-  port OUT.P : analog
-  port OUT.N : analog
+  port OUT : Diff
 
 circuit OTA5T_Hierarchical_Attach
   level EL
@@ -60,10 +59,8 @@ circuit DiffPair : DiffPairLike
   size Tail
   supply VDD
   ground GND
-  port IN.P : analog
-  port IN.N : analog
-  port OUT.P : analog
-  port OUT.N : analog
+  port IN : Diff
+  port OUT : Diff
   port TAIL : bias
   fill:
     net tnode : analog

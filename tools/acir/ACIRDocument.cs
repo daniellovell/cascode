@@ -74,8 +74,8 @@ public static class BundleExpander
             yield break;
         }
 
-        // Expand each field of the bundle (alphabetically ordered for consistency)
-        foreach (var field in bundle.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
+        // Expand each field of the bundle in declaration order
+        foreach (var field in bundle.Fields)
         {
             var fieldPath = $"{basePath}.{field.Key}";
             foreach (var path in ExpandToTerminalPaths(fieldPath, field.Value, bundlesByName))

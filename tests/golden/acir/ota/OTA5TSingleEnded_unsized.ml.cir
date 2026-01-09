@@ -3,19 +3,22 @@ ACIR 2.0
 ; ML-level (unsized) version of OTA5TSingleEnded
 ; Same topology as EL version but with ?? placeholders for sizing
 
+bundle Diff:
+  P : analog
+  N : analog
+
 circuit OTA5TSingleEnded
   level ML
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
+  port IN : Diff
   port OUT : analog
   port VTAIL : bias
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN_P, S->tnode) : size=(W=??, L=??, M=??) nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN_N, S->tnode) : size=(W=??, L=??, M=??) nmos
+    nmos dp.M_N (B->GND, D->mirror_gate, G->IN.P, S->tnode) : size=(W=??, L=??, M=??) nmos
+    nmos dp.M_P (B->GND, D->OUT, G->IN.N, S->tnode) : size=(W=??, L=??, M=??) nmos
     nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=??, L=??, M=??) nmos
     pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : size=(W=??, L=??, M=??) pmos
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=??, L=??, M=??) pmos

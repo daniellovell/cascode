@@ -240,12 +240,101 @@ public static class HierarchyValidator
     }
 
     /// <summary>
+    /// Returns circuits in topological order based on instantiation dependencies.
+    /// </summary>
+    /// <param name="circuits">The circuits to order.</param>
+    /// <param name="excludeInline">
+    /// If true, inline circuits are excluded from dependency edges (they are expanded in place).
+    /// </param>
+    /// <returns>Circuits ordered with leaf circuits first, top-level last.</returns>
+    /// <remarks>
+    /// Required for SPICE emission: .subckt must be defined before X-element reference.
+    /// Uses Kahn's algorithm for topological sort.
+    /// If a cycle is detected (graph cannot be fully sorted), returns circuits in original order.
+    /// </remarks>
+    public static List<Circuit> GetTopologicalOrder(List<Circuit> circuits, bool excludeInline = false)
+    {
+        // Build lookup, handling duplicates gracefully (first occurrence wins)
+        var circuitsByName = new Dictionary<string, Circuit>(StringComparer.Ordinal);
+        foreach (var circuit in circuits)
+        {
+            circuitsByName.TryAdd(circuit.Name, circuit);
+        }
+        var dependencies = BuildDependencyGraph(circuits, circuitsByName, excludeInline);
+
+        // Compute in-degrees (how many circuits depend on each circuit)
+        var inDegree = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var circuit in circuits)
+        {
+            inDegree[circuit.Name] = 0;
+        }
+        foreach (var deps in dependencies.Values)
+        {
+            foreach (var dep in deps)
+            {
+                if (inDegree.ContainsKey(dep))
+                {
+                    inDegree[dep]++;
+                }
+            }
+        }
+
+        // Kahn's algorithm: start with nodes that have no dependents
+        var queue = new Queue<string>();
+        foreach (var circuit in circuits)
+        {
+            if (inDegree[circuit.Name] == 0)
+            {
+                queue.Enqueue(circuit.Name);
+            }
+        }
+
+        var result = new List<Circuit>();
+        while (queue.Count > 0)
+        {
+            var name = queue.Dequeue();
+            result.Add(circuitsByName[name]);
+
+            // Reduce in-degree for circuits this one depends on
+            foreach (var dep in dependencies[name])
+            {
+                if (inDegree.ContainsKey(dep))
+                {
+                    inDegree[dep]--;
+                    if (inDegree[dep] == 0)
+                    {
+                        queue.Enqueue(dep);
+                    }
+                }
+            }
+        }
+
+        // If not all circuits were processed, there's a cycle (already caught by Validate)
+        // Just return circuits in original order as fallback
+        if (result.Count < circuits.Count)
+        {
+            return circuits;
+        }
+
+        // Reverse to get dependency order (leaves first)
+        result.Reverse();
+        return result;
+    }
+
+    /// <summary>
     /// Detects circular instantiation dependencies using DFS.
     /// </summary>
     private static void DetectCircularDependencies(List<Circuit> circuits, ValidationResult result)
     {
+        // Build lookup, handling duplicates gracefully (first occurrence wins)
+        var circuitsByName = new Dictionary<string, Circuit>(StringComparer.Ordinal);
+        foreach (var circuit in circuits)
+        {
+            circuitsByName.TryAdd(circuit.Name, circuit);
+        }
+
         // Build dependency graph: circuit name -> set of circuit names it instantiates
-        var dependencies = BuildDependencyGraph(circuits);
+        var dependencies = BuildDependencyGraph(circuits, circuitsByName, excludeInline: false);
 
         // Track visited and currently-in-stack for cycle detection
         var visited = new HashSet<string>(StringComparer.Ordinal);
@@ -263,7 +352,16 @@ public static class HierarchyValidator
     /// <summary>
     /// Builds dependency graph from circuit instantiations.
     /// </summary>
-    private static Dictionary<string, HashSet<string>> BuildDependencyGraph(List<Circuit> circuits)
+    /// <param name="circuits">The circuits to build the graph from.</param>
+    /// <param name="circuitsByName">Lookup dictionary for circuit resolution.</param>
+    /// <param name="excludeInline">
+    /// If true, dependencies on inline circuits are excluded (they are expanded in place).
+    /// </param>
+    private static Dictionary<string, HashSet<string>> BuildDependencyGraph(
+        List<Circuit> circuits,
+        Dictionary<string, Circuit> circuitsByName,
+        bool excludeInline
+    )
     {
         var graph = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
@@ -281,7 +379,21 @@ public static class HierarchyValidator
 
             foreach (var instance in circuit.Fill.Instances)
             {
-                graph[circuit.Name].Add(instance.Type);
+                // Only add dependency if target exists and (if excludeInline) is not inline
+                if (excludeInline)
+                {
+                    if (
+                        circuitsByName.TryGetValue(instance.Type, out var target)
+                        && !target.Inline
+                    )
+                    {
+                        graph[circuit.Name].Add(instance.Type);
+                    }
+                }
+                else
+                {
+                    graph[circuit.Name].Add(instance.Type);
+                }
             }
         }
 

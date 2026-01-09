@@ -399,88 +399,12 @@ public static class SpiceEmitter
     /// <returns>Circuits ordered with leaf circuits first, top-level last.</returns>
     /// <remarks>
     /// Required for SPICE: .subckt must be defined before X-element reference.
-    /// Uses Kahn's algorithm for topological sort.
+    /// Delegates to HierarchyValidator.GetTopologicalOrder with excludeInline=true
+    /// since inline circuits are expanded in place rather than emitted as subcircuits.
     /// </remarks>
     internal static List<Circuit> OrderByDependency(ACIRDocument doc)
     {
-        var circuits = doc.Circuits;
-        var circuitsByName = circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
-
-        // Build dependency graph: circuit -> circuits it depends on (instantiates)
-        var dependencies = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var circuit in circuits)
-        {
-            dependencies[circuit.Name] = new HashSet<string>(StringComparer.Ordinal);
-            if (circuit.Fill?.Instances is not null)
-            {
-                foreach (var instance in circuit.Fill.Instances)
-                {
-                    // Only add dependency if the type exists in document and is not inline
-                    if (circuitsByName.TryGetValue(instance.Type, out var target) && !target.Inline)
-                    {
-                        dependencies[circuit.Name].Add(instance.Type);
-                    }
-                }
-            }
-        }
-
-        // Compute in-degrees (how many circuits depend on each circuit)
-        var inDegree = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var circuit in circuits)
-        {
-            inDegree[circuit.Name] = 0;
-        }
-        foreach (var deps in dependencies.Values)
-        {
-            foreach (var dep in deps)
-            {
-                if (inDegree.ContainsKey(dep))
-                {
-                    inDegree[dep]++;
-                }
-            }
-        }
-
-        // Kahn's algorithm: start with nodes that have no dependents
-        var queue = new Queue<string>();
-        foreach (var circuit in circuits)
-        {
-            if (inDegree[circuit.Name] == 0)
-            {
-                queue.Enqueue(circuit.Name);
-            }
-        }
-
-        var result = new List<Circuit>();
-        while (queue.Count > 0)
-        {
-            var name = queue.Dequeue();
-            result.Add(circuitsByName[name]);
-
-            // Reduce in-degree for circuits this one depends on
-            foreach (var dep in dependencies[name])
-            {
-                if (inDegree.ContainsKey(dep))
-                {
-                    inDegree[dep]--;
-                    if (inDegree[dep] == 0)
-                    {
-                        queue.Enqueue(dep);
-                    }
-                }
-            }
-        }
-
-        // If not all circuits were processed, there's a cycle (already caught by HierarchyValidator)
-        // Just return circuits in original order as fallback
-        if (result.Count < circuits.Count)
-        {
-            return circuits;
-        }
-
-        // Reverse to get dependency order (leaves first)
-        result.Reverse();
-        return result;
+        return HierarchyValidator.GetTopologicalOrder(doc.Circuits, excludeInline: true);
     }
 
     /// <summary>

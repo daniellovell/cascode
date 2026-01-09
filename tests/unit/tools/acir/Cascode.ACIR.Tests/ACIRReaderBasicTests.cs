@@ -442,4 +442,131 @@ circuit Test
     }
 
     #endregion
+
+    #region Arrow Whitespace Tolerance
+
+    [Theory]
+    [InlineData("G->IN", "D->OUT", "S->GND", "B->GND")] // no whitespace (canonical)
+    [InlineData("G -> IN", "D -> OUT", "S -> GND", "B -> GND")] // spaces around arrow
+    [InlineData("G->  IN", "D->  OUT", "S->  GND", "B->  GND")] // trailing space only
+    [InlineData("G  ->IN", "D  ->OUT", "S  ->GND", "B  ->GND")] // leading space only
+    public void TryRead_DeviceBinding_ToleratesWhitespaceAroundArrow(
+        string gBinding,
+        string dBinding,
+        string sBinding,
+        string bBinding
+    )
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  fill:
+    nmos M1 ({gBinding}, {dBinding}, {sBinding}, {bBinding}) : W=1u L=180n nmos
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        Assert.NotNull(circuit.Fill);
+        Assert.Single(circuit.Fill!.Devices);
+
+        var device = circuit.Fill.Devices[0];
+        Assert.Equal("M1", device.Id);
+        Assert.Equal("IN", device.Bindings["G"]);
+        Assert.Equal("OUT", device.Bindings["D"]);
+        Assert.Equal("GND", device.Bindings["S"]);
+        Assert.Equal("GND", device.Bindings["B"]);
+    }
+
+    [Theory]
+    [InlineData("SENSE->OUT.P")] // no whitespace
+    [InlineData("SENSE -> OUT.P")] // spaces around arrow
+    [InlineData("SENSE->  OUT.P")] // trailing space only
+    [InlineData("SENSE  ->OUT.P")] // leading space only
+    public void TryRead_ConnectorMapping_ToleratesWhitespaceAroundArrow(string mapping)
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  connectors:
+    to DiffPairLike:
+      {mapping}
+
+trait DiffPairLike:
+  port OUT.P : analog
+
+circuit Test
+  level EL
+  supply VDD
+  ground GND
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var trait = result.Document!.Traits.First(t => t.Name == "CurrentMirrorLike");
+        Assert.Single(trait.Connectors);
+        Assert.Single(trait.Connectors[0].Mappings);
+        Assert.Equal("SENSE", trait.Connectors[0].Mappings[0].SourcePort);
+        Assert.Equal("OUT.P", trait.Connectors[0].Mappings[0].TargetPort);
+    }
+
+    [Theory]
+    [InlineData("dp.IN->IN")] // no whitespace
+    [InlineData("dp.IN -> IN")] // spaces around arrow
+    [InlineData("dp.IN->  IN")] // trailing space only
+    [InlineData("dp.IN  ->IN")] // leading space only
+    public void TryRead_FillConnect_ToleratesWhitespaceAroundArrow(string connect)
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  fill:
+    inst dp (VDD->VDD, GND->GND) : DiffPair
+      connect {connect}
+";
+
+        var result = ACIRReader.TryParse(acir, "test.cir");
+
+        Assert.True(
+            result.Success,
+            $"Parse failed: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}"
+        );
+        Assert.NotNull(result.Document);
+
+        var circuit = result.Document!.Circuits.First();
+        Assert.NotNull(circuit.Fill);
+        Assert.Single(circuit.Fill!.Instances);
+        Assert.Single(circuit.Fill!.Connections);
+
+        var conn = circuit.Fill.Connections[0];
+        Assert.Equal("dp.IN", conn.From);
+        Assert.Equal("IN", conn.To);
+    }
+
+    #endregion
 }

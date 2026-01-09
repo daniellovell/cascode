@@ -700,19 +700,20 @@ public static class BundleDesugarer
             )
             {
                 // Expand to individual loads for each bundle field
-                foreach (
-                    var terminalPath in BundleExpander.ExpandToTerminalPaths(
-                        load.Net,
-                        portType,
-                        bundlesByName
-                    )
-                )
+                var terminalPaths = BundleExpander
+                    .ExpandToTerminalPaths(load.Net, portType, bundlesByName)
+                    .ToList();
+
+                // Split load evenly across bundle terminals
+                var splitElements = SplitLoadElements(load.Elements, terminalPaths.Count);
+
+                foreach (var terminalPath in terminalPaths)
                 {
                     expanded.Add(
                         new LoadValue
                         {
                             Net = NormalizePath(terminalPath),
-                            Elements = load.Elements,
+                            Elements = splitElements,
                         }
                     );
                 }
@@ -727,6 +728,80 @@ public static class BundleDesugarer
         }
 
         return expanded;
+    }
+
+    /// <summary>
+    /// Splits load elements evenly across multiple terminals.
+    /// For example, a 1pF load split across 2 terminals becomes 500f per terminal.
+    /// </summary>
+    private static List<LoadElement> SplitLoadElements(List<LoadElement> elements, int terminalCount)
+    {
+        if (terminalCount <= 1)
+            return elements;
+
+        var splitElements = new List<LoadElement>();
+
+        foreach (var elem in elements)
+        {
+            // Parse the numeric value and SI prefix
+            if (TryParseValueWithUnit(elem.Value, out var numericValue, out var unit))
+            {
+                var splitValue = numericValue / terminalCount;
+                splitElements.Add(new LoadElement(
+                    elem.Type,
+                    FormatValueWithUnit(splitValue, unit)
+                ));
+            }
+            else
+            {
+                // Can't parse - keep original (shouldn't happen with valid input)
+                splitElements.Add(elem);
+            }
+        }
+
+        return splitElements;
+    }
+
+    /// <summary>
+    /// Parses a value string with optional SI unit suffix.
+    /// </summary>
+    private static bool TryParseValueWithUnit(string valueStr, out double value, out string unit)
+    {
+        value = 0;
+        unit = "";
+
+        if (string.IsNullOrWhiteSpace(valueStr))
+            return false;
+
+        // Try to parse as plain number
+        if (double.TryParse(valueStr, out value))
+        {
+            unit = "";
+            return true;
+        }
+
+        // Extract numeric part and unit
+        var match = System.Text.RegularExpressions.Regex.Match(
+            valueStr,
+            @"^([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s*(.*)$"
+        );
+
+        if (!match.Success)
+            return false;
+
+        if (!double.TryParse(match.Groups[1].Value, out value))
+            return false;
+
+        unit = match.Groups[2].Value.Trim();
+        return true;
+    }
+
+    /// <summary>
+    /// Formats a value with its unit suffix.
+    /// </summary>
+    private static string FormatValueWithUnit(double value, string unit)
+    {
+        return string.IsNullOrEmpty(unit) ? value.ToString() : $"{value}{unit}";
     }
 
     /// <summary>

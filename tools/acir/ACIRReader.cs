@@ -973,7 +973,7 @@ public static partial class ACIRReader
         }
         else if (line.StartsWith("connect "))
         {
-            var match = FillConnectPattern().Match(line);
+            var match = InstanceConnectPattern().Match(line);
             if (match.Success)
             {
                 fill.Connections.Add(
@@ -2250,7 +2250,7 @@ public static partial class ACIRReader
         }
         else if (line.StartsWith("connect "))
         {
-            var match = FillConnectPattern().Match(line);
+            var match = InstanceConnectPattern().Match(line);
             if (match.Success)
             {
                 fill.Connections.Add(
@@ -2788,7 +2788,10 @@ public static partial class ACIRReader
     )]
     private static partial Regex DeviceDeclarationPattern();
 
-    [GeneratedRegex(@"([\w.\[\]]+)->([\w.\[\]]+)")]
+    // Arrow-based connection patterns share the identifier fragment [\w.\[\]]+
+    // All patterns allow optional whitespace around '->' via \s*->\s*
+    // Related: ConnectionPattern, ConnectorMappingPattern, InstanceConnectPattern
+    [GeneratedRegex(@"([\w.\[\]]+)\s*->\s*([\w.\[\]]+)")]
     private static partial Regex ConnectionPattern();
 
     [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$")]
@@ -2846,7 +2849,4 @@ public static partial class ACIRReader
 
     [GeneratedRegex(@"^connect\s+([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
     private static partial Regex InstanceConnectPattern();
-
-    [GeneratedRegex(@"^connect\s+([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
-    private static partial Regex FillConnectPattern();
 }

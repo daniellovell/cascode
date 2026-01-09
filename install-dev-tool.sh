@@ -11,12 +11,11 @@ if ! command -v dotnet >/dev/null 2>&1; then
   exit 1
 fi
 
-# Determine tools directory: respect DOTNET_TOOLS_PATH, else derive from DOTNET_ROOT
-if [[ -n "${DOTNET_TOOLS_PATH:-}" ]]; then
-  tools_dir="$DOTNET_TOOLS_PATH"
-elif [[ -n "${DOTNET_ROOT:-}" ]]; then
-  # Place tools alongside the SDK installation
-  tools_dir="$(dirname "$DOTNET_ROOT")/.dotnet/tools"
+# Tools are placed under $DOTNET_ROOT/tools when DOTNET_ROOT is set, otherwise
+# $HOME/.dotnet/tools. For custom paths, use --tool-path explicitly or document
+# the chosen location in your environment setup.
+if [[ -n "${DOTNET_ROOT:-}" ]]; then
+  tools_dir="$DOTNET_ROOT/tools"
 else
   tools_dir="$HOME/.dotnet/tools"
 fi
