@@ -983,6 +983,10 @@ public partial class EmitVerifyFlowTests : IDisposable
                 "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir",
                 "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp"
             ),
+            (
+                "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cir",
+                "OTA5T_Hierarchical_Attach_Pdk_SEOpAmpACBench.sp"
+            ),
         };
 
         var libPattern = Sky130LibIncludePattern();

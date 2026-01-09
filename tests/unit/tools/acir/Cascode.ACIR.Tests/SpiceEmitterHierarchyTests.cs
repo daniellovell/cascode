@@ -1067,4 +1067,447 @@ public class SpiceEmitterHierarchyTests
         Assert.Equal(c1.Parameters.Count, c2.Parameters.Count);
         Assert.Equal(c1.Fill?.Devices.Count, c2.Fill?.Devices.Count);
     }
+
+    [Fact]
+    public void EmitDesign_NestedInlineCircuits_ExpandsRecursively()
+    {
+        // Tests recursive inline expansion: OuterInline contains InnerInline
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "InnerInline",
+                    Level = ACIRLevel.EL,
+                    Inline = true,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "A", Type = "analog" },
+                        new PortDeclaration { Name = "Z", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Nets = new List<NetDeclaration>
+                        {
+                            new NetDeclaration { Id = "inner_net", Domain = "analog" },
+                        },
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M_INNER",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "Z",
+                                    ["G"] = "A",
+                                    ["S"] = "inner_net",
+                                    ["B"] = "GND",
+                                },
+                                Params = new Dictionary<string, string>
+                                {
+                                    ["W"] = "1u",
+                                    ["L"] = "100n",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "OuterInline",
+                    Level = ACIRLevel.EL,
+                    Inline = true,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Nets = new List<NetDeclaration>
+                        {
+                            new NetDeclaration { Id = "outer_mid", Domain = "analog" },
+                        },
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "pmos",
+                                Id = "M_OUTER",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "outer_mid",
+                                    ["G"] = "IN",
+                                    ["S"] = "VDD",
+                                    ["B"] = "VDD",
+                                },
+                                Params = new Dictionary<string, string>
+                                {
+                                    ["W"] = "2u",
+                                    ["L"] = "100n",
+                                },
+                            },
+                        },
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "inner_inst",
+                                Type = "InnerInline",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["A"] = "outer_mid",
+                                    ["Z"] = "OUT",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "SIG_IN", Type = "analog" },
+                        new PortDeclaration { Name = "SIG_OUT", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "outer_inst",
+                                Type = "OuterInline",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["IN"] = "SIG_IN",
+                                    ["OUT"] = "SIG_OUT",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        // Should expand outer inline's device with hierarchy: outer_inst__M_OUTER
+        Assert.Contains("Mouter_inst__M_OUTER", output);
+
+        // Should recursively expand inner inline's device: outer_inst__inner_inst__M_INNER
+        Assert.Contains("Mouter_inst__inner_inst__M_INNER", output);
+
+        // Outer's internal net should be prefixed: outer_inst__outer_mid
+        Assert.Contains("outer_inst__outer_mid", output);
+
+        // Inner's internal net should be deeply prefixed: outer_inst__inner_inst__inner_net
+        Assert.Contains("outer_inst__inner_inst__inner_net", output);
+
+        // Port substitutions should compose correctly:
+        // Inner's A port connects to outer's outer_mid internal net
+        // Inner's Z port connects to outer's OUT port, which is bound to SIG_OUT at top level
+
+        // Should NOT have any X-elements for inline circuits
+        Assert.DoesNotContain("Xouter_inst", output);
+        Assert.DoesNotContain("Xinner_inst", output);
+    }
+
+    [Fact]
+    public void EmitDesign_InlineCircuitWithNonInlineInstance_EmitsHierarchicalXElement()
+    {
+        // Tests that non-inline instances within inline circuits get hierarchical X-element names
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "SubCircuit",
+                    Level = ACIRLevel.EL,
+                    Inline = false, // NOT inline
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "P", Type = "analog" },
+                        new PortDeclaration { Name = "N", Type = "analog" },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "WrapperInline",
+                    Level = ACIRLevel.EL,
+                    Inline = true, // This IS inline
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Nets = new List<NetDeclaration>
+                        {
+                            new NetDeclaration { Id = "wrapper_net", Domain = "analog" },
+                        },
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M1",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "wrapper_net",
+                                    ["G"] = "IN",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                                Params = new Dictionary<string, string>
+                                {
+                                    ["W"] = "1u",
+                                    ["L"] = "100n",
+                                },
+                            },
+                        },
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "sub1",
+                                Type = "SubCircuit",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["P"] = "wrapper_net",
+                                    ["N"] = "OUT",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "A", Type = "analog" },
+                        new PortDeclaration { Name = "Z", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "wrap",
+                                Type = "WrapperInline",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["IN"] = "A",
+                                    ["OUT"] = "Z",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        // Inline device should be expanded with hierarchical name
+        Assert.Contains("Mwrap__M1", output);
+
+        // Non-inline instance should be emitted as X-element with hierarchical name
+        Assert.Contains("Xwrap__sub1", output);
+
+        // The X-element should reference the subcircuit name
+        Assert.Contains("SubCircuit", output);
+
+        // Internal net should be prefixed
+        Assert.Contains("wrap__wrapper_net", output);
+    }
+
+    [Fact]
+    public void EmitDesign_ThreeLevelNestedInline_ExpandsAllLevels()
+    {
+        // Tests three levels of nested inline circuits
+        var doc = new ACIRDocument
+        {
+            VersionMajor = ACIRVersion.Major,
+            VersionMinor = ACIRVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "Level3",
+                    Level = ACIRLevel.EL,
+                    Inline = true,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "X", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M3",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "X",
+                                    ["G"] = "X",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                                Params = new Dictionary<string, string>
+                                {
+                                    ["W"] = "1u",
+                                    ["L"] = "100n",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Level2",
+                    Level = ACIRLevel.EL,
+                    Inline = true,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "Y", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "l3",
+                                Type = "Level3",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["X"] = "Y",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Level1",
+                    Level = ACIRLevel.EL,
+                    Inline = true,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "Z", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "l2",
+                                Type = "Level2",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["Y"] = "Z",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "TopLevel",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new PortDeclaration { Name = "SIG", Type = "analog" },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "l1",
+                                Type = "Level1",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["Z"] = "SIG",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var topLevel = doc.Circuits.First(c => c.Name == "TopLevel");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
+        var output = writer.ToString();
+
+        // Three-level hierarchical device name
+        Assert.Contains("Ml1__l2__l3__M3", output);
+
+        // The deepest device should connect to the top-level port through port composition
+        // Level3.X -> Level2.Y -> Level1.Z -> TopLevel.SIG
+        Assert.Contains("SIG", output);
+    }
 }

@@ -154,6 +154,17 @@ public static class SpiceEmitter
                         ExpandInlineCircuit(
                             instance,
                             targetCircuit,
+                            hierarchyPath: new List<string>(),
+                            parentNetSubstitutions: new Dictionary<string, string>(
+                                StringComparer.Ordinal
+                            ),
+                            parentParamBindings: new Dictionary<string, string>(
+                                StringComparer.Ordinal
+                            ),
+                            parentSizeBindings: new Dictionary<string, SizePack>(
+                                StringComparer.Ordinal
+                            ),
+                            circuitsByName,
                             resolution,
                             deviceModelMap,
                             writer
@@ -572,35 +583,56 @@ public static class SpiceEmitter
     }
 
     /// <summary>
-    /// Expands an inline circuit by embedding its devices with hierarchical naming.
+    /// Expands an inline circuit by embedding its devices and nested instances with hierarchical naming.
     /// </summary>
     /// <param name="instance">Instance declaration being expanded.</param>
     /// <param name="inlineCircuit">The inline circuit to expand.</param>
+    /// <param name="hierarchyPath">Path of instance IDs leading to this expansion (empty at top level).</param>
+    /// <param name="parentNetSubstitutions">Net substitutions from parent context (for composing through levels).</param>
+    /// <param name="parentParamBindings">Parameter bindings from parent context.</param>
+    /// <param name="parentSizeBindings">Size pack bindings from parent context.</param>
+    /// <param name="circuitsByName">Dictionary of all circuits for resolving nested instance types.</param>
     /// <param name="resolution">Optional attach resolution for net name mapping.</param>
     /// <param name="deviceModelMap">Optional device model resolution map.</param>
     /// <param name="writer">Text writer for output.</param>
     /// <remarks>
     /// Naming conventions:
-    /// - Device IDs: {instanceId}__{deviceId} (e.g., dp__M_N becomes M_dp__M_N)
-    /// - Internal nets: {instanceId}__{netId}
-    /// - Port bindings: substituted with parent-level nets
+    /// - Device IDs: {hierarchy}__{deviceId} (e.g., outer__inner__M1)
+    /// - Internal nets: {hierarchy}__{netId}
+    /// - Port bindings: substituted with parent-level nets, composed through hierarchy
+    ///
+    /// Supports recursive expansion of nested inline circuits.
+    /// Non-inline instances within inline circuits are emitted as X-elements with hierarchical naming.
     /// </remarks>
     private static void ExpandInlineCircuit(
         InstanceDeclaration instance,
         Circuit inlineCircuit,
+        IReadOnlyList<string> hierarchyPath,
+        Dictionary<string, string> parentNetSubstitutions,
+        IReadOnlyDictionary<string, string> parentParamBindings,
+        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
+        Dictionary<string, Circuit> circuitsByName,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         TextWriter writer
     )
     {
-        // Build port-to-net substitution map
-        var netSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
+        // Build current hierarchy path by appending this instance's ID
+        var currentPath = new List<string>(hierarchyPath) { instance.Id };
 
-        // Build parameter bindings: circuit defaults overridden by instance params
-        var paramBindings = BuildParameterBindings(instance, inlineCircuit);
+        // Build port-to-net substitution map, composing with parent substitutions
+        var localSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
+        var netSubstitutions = ComposeNetSubstitutions(parentNetSubstitutions, localSubstitutions);
 
-        // Build size bindings: circuit defaults overridden by instance size assignments
-        var sizeBindings = BuildSizeBindings(instance, inlineCircuit);
+        // Build parameter bindings: compose parent bindings with local overrides
+        var paramBindings = ComposeParameterBindings(
+            instance,
+            inlineCircuit,
+            parentParamBindings
+        );
+
+        // Build size bindings: compose parent bindings with local overrides
+        var sizeBindings = ComposeSizeBindings(instance, inlineCircuit, parentSizeBindings);
 
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
@@ -621,7 +653,7 @@ public static class SpiceEmitter
             {
                 EmitInlineDevice(
                     device,
-                    instance.Id,
+                    currentPath,
                     netSubstitutions,
                     internalNets,
                     paramBindings,
@@ -632,20 +664,105 @@ public static class SpiceEmitter
                 );
             }
         }
+
+        // Process nested instances
+        if (inlineCircuit.Fill?.Instances is not null)
+        {
+            foreach (
+                var nestedInstance in inlineCircuit.Fill.Instances.OrderBy(
+                    i => i.Id,
+                    StringComparer.Ordinal
+                )
+            )
+            {
+                if (!circuitsByName.TryGetValue(nestedInstance.Type, out var nestedCircuit))
+                {
+                    // Unknown circuit type - skip (validation should catch this)
+                    continue;
+                }
+
+                if (nestedCircuit.Inline)
+                {
+                    // Recursively expand nested inline circuit
+                    writer.WriteLine();
+                    writer.WriteLine(
+                        $"* Inline expansion of {BuildHierarchyPrefix(currentPath)}__{nestedInstance.Id} : {nestedInstance.Type}"
+                    );
+                    ExpandInlineCircuit(
+                        nestedInstance,
+                        nestedCircuit,
+                        currentPath,
+                        netSubstitutions,
+                        paramBindings,
+                        sizeBindings,
+                        circuitsByName,
+                        resolution,
+                        deviceModelMap,
+                        writer
+                    );
+                }
+                else
+                {
+                    // Emit non-inline instance as X-element with hierarchical naming
+                    EmitInlineInstance(
+                        nestedInstance,
+                        currentPath,
+                        nestedCircuit,
+                        netSubstitutions,
+                        internalNets,
+                        paramBindings,
+                        resolution,
+                        writer
+                    );
+                }
+            }
+        }
     }
 
     /// <summary>
-    /// Builds parameter bindings for inline expansion by combining circuit defaults
-    /// with instance parameter overrides.
+    /// Composes two net substitution maps. Local substitutions are resolved through parent substitutions.
     /// </summary>
-    private static IReadOnlyDictionary<string, string> BuildParameterBindings(
+    private static Dictionary<string, string> ComposeNetSubstitutions(
+        Dictionary<string, string> parentSubstitutions,
+        Dictionary<string, string> localSubstitutions
+    )
+    {
+        var composed = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (name, boundNet) in localSubstitutions)
+        {
+            // If the bound net is itself in parent substitutions, resolve it
+            if (parentSubstitutions.TryGetValue(boundNet, out var parentBoundNet))
+            {
+                composed[name] = parentBoundNet;
+            }
+            else
+            {
+                composed[name] = boundNet;
+            }
+        }
+
+        return composed;
+    }
+
+    /// <summary>
+    /// Composes parameter bindings by merging parent bindings with local circuit/instance bindings.
+    /// </summary>
+    private static Dictionary<string, string> ComposeParameterBindings(
         InstanceDeclaration instance,
-        Circuit inlineCircuit
+        Circuit inlineCircuit,
+        IReadOnlyDictionary<string, string> parentParamBindings
     )
     {
         var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        // Start with circuit parameter defaults
+        // Start with parent bindings (for $param reference resolution)
+        foreach (var (name, value) in parentParamBindings)
+        {
+            bindings[name] = value;
+        }
+
+        // Add circuit parameter defaults
         foreach (var param in inlineCircuit.Parameters)
         {
             if (param.Default?.Numeric is not null)
@@ -674,6 +791,131 @@ public static class SpiceEmitter
         return bindings;
     }
 
+    /// <summary>
+    /// Composes size pack bindings by merging parent bindings with local circuit/instance bindings.
+    /// </summary>
+    private static Dictionary<string, SizePack> ComposeSizeBindings(
+        InstanceDeclaration instance,
+        Circuit inlineCircuit,
+        IReadOnlyDictionary<string, SizePack> parentSizeBindings
+    )
+    {
+        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+
+        // Start with parent bindings
+        foreach (var (name, pack) in parentSizeBindings)
+        {
+            bindings[name] = pack;
+        }
+
+        // Add circuit size pack defaults
+        foreach (var size in inlineCircuit.Sizes)
+        {
+            if (size.Default is not null)
+            {
+                bindings[size.Name] = size.Default;
+            }
+        }
+
+        // Override with instance size packs
+        foreach (var (name, pack) in instance.Sizes)
+        {
+            bindings[name] = pack;
+        }
+
+        return bindings;
+    }
+
+    /// <summary>
+    /// Emits a non-inline instance within an inline circuit as an X-element with hierarchical naming.
+    /// </summary>
+    private static void EmitInlineInstance(
+        InstanceDeclaration instance,
+        IReadOnlyList<string> hierarchyPath,
+        Circuit targetCircuit,
+        Dictionary<string, string> netSubstitutions,
+        HashSet<string> internalNets,
+        IReadOnlyDictionary<string, string> paramBindings,
+        CircuitResolutionResult? resolution,
+        TextWriter writer
+    )
+    {
+        var sb = new StringBuilder();
+        sb.Append('X');
+        sb.Append(BuildHierarchyPrefix(hierarchyPath));
+        sb.Append("__");
+        sb.Append(instance.Id);
+        sb.Append(' ');
+
+        // Build port order: ports, supplies, grounds (matching subcircuit declaration)
+        var portOrder = new List<string>();
+        foreach (var port in targetCircuit.Ports)
+        {
+            portOrder.Add(port.Name);
+        }
+        foreach (var supply in targetCircuit.Supplies)
+        {
+            portOrder.Add(supply);
+        }
+        foreach (var ground in targetCircuit.Grounds)
+        {
+            portOrder.Add(ground);
+        }
+
+        // Emit port bindings in order, substituting nets
+        foreach (var portName in portOrder)
+        {
+            string netName;
+            if (instance.Bindings.TryGetValue(portName, out var boundNet))
+            {
+                netName = boundNet;
+            }
+            else
+            {
+                // Port not bound - use the port name itself
+                netName = portName;
+            }
+
+            // Substitute the net through the hierarchy
+            var substitutedNet = SubstituteNet(
+                netName,
+                hierarchyPath,
+                netSubstitutions,
+                internalNets,
+                resolution
+            );
+            sb.Append(substitutedNet);
+            sb.Append(' ');
+        }
+
+        // Subcircuit name
+        sb.Append(targetCircuit.Name);
+
+        // Instance parameter overrides (resolve through param bindings)
+        if (instance.Params.Count > 0)
+        {
+            foreach (
+                var (name, value) in instance.Params.OrderBy(p => p.Key, StringComparer.Ordinal)
+            )
+            {
+                var rendered = value.Numeric ?? value.Symbolic ?? value.Literal;
+                if (string.IsNullOrWhiteSpace(rendered))
+                {
+                    continue;
+                }
+
+                // Resolve parameter references
+                var resolvedValue = ResolveParameterValue(rendered, paramBindings);
+                sb.Append(' ');
+                sb.Append(name);
+                sb.Append('=');
+                sb.Append(resolvedValue);
+            }
+        }
+
+        writer.WriteLine(sb.ToString().TrimEnd());
+    }
+
     private static IReadOnlyDictionary<string, SizePack> BuildSizeBindings(Circuit circuit)
     {
         var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
@@ -684,29 +926,6 @@ public static class SpiceEmitter
                 bindings[size.Name] = size.Default;
             }
         }
-        return bindings;
-    }
-
-    private static IReadOnlyDictionary<string, SizePack> BuildSizeBindings(
-        InstanceDeclaration instance,
-        Circuit inlineCircuit
-    )
-    {
-        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-
-        foreach (var size in inlineCircuit.Sizes)
-        {
-            if (size.Default is not null)
-            {
-                bindings[size.Name] = size.Default;
-            }
-        }
-
-        foreach (var (name, pack) in instance.Sizes)
-        {
-            bindings[name] = pack;
-        }
-
         return bindings;
     }
 
@@ -835,7 +1054,7 @@ public static class SpiceEmitter
     /// </summary>
     private static void EmitInlineDevice(
         DeviceDeclaration device,
-        string instanceId,
+        IReadOnlyList<string> hierarchyPath,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
         IReadOnlyDictionary<string, string> paramBindings,
@@ -861,7 +1080,7 @@ public static class SpiceEmitter
 
         var sb = new StringBuilder();
         sb.Append(spiceType);
-        sb.Append(instanceId);
+        sb.Append(BuildHierarchyPrefix(hierarchyPath));
         sb.Append("__");
         sb.Append(device.Id);
         sb.Append(' ');
@@ -872,7 +1091,7 @@ public static class SpiceEmitter
             EmitInlineMosfetTerminalsAndParams(
                 device,
                 deviceParams,
-                instanceId,
+                hierarchyPath,
                 netSubstitutions,
                 internalNets,
                 paramBindings,
@@ -888,7 +1107,7 @@ public static class SpiceEmitter
             sb.Append(
                 SubstituteNet(
                     GetBinding(device, "P"),
-                    instanceId,
+                    hierarchyPath,
                     netSubstitutions,
                     internalNets,
                     resolution
@@ -898,7 +1117,7 @@ public static class SpiceEmitter
             sb.Append(
                 SubstituteNet(
                     GetBinding(device, "N"),
-                    instanceId,
+                    hierarchyPath,
                     netSubstitutions,
                     internalNets,
                     resolution
@@ -924,7 +1143,7 @@ public static class SpiceEmitter
             sb.Append(
                 SubstituteNet(
                     GetBinding(device, "A"),
-                    instanceId,
+                    hierarchyPath,
                     netSubstitutions,
                     internalNets,
                     resolution
@@ -934,7 +1153,7 @@ public static class SpiceEmitter
             sb.Append(
                 SubstituteNet(
                     GetBinding(device, "K"),
-                    instanceId,
+                    hierarchyPath,
                     netSubstitutions,
                     internalNets,
                     resolution
@@ -996,7 +1215,7 @@ public static class SpiceEmitter
     private static void EmitInlineMosfetTerminalsAndParams(
         DeviceDeclaration device,
         IReadOnlyDictionary<string, string> deviceParams,
-        string instanceId,
+        IReadOnlyList<string> hierarchyPath,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
         IReadOnlyDictionary<string, string> paramBindings,
@@ -1010,7 +1229,7 @@ public static class SpiceEmitter
         sb.Append(
             SubstituteNet(
                 GetBinding(device, "D"),
-                instanceId,
+                hierarchyPath,
                 netSubstitutions,
                 internalNets,
                 resolution
@@ -1020,7 +1239,7 @@ public static class SpiceEmitter
         sb.Append(
             SubstituteNet(
                 GetBinding(device, "G"),
-                instanceId,
+                hierarchyPath,
                 netSubstitutions,
                 internalNets,
                 resolution
@@ -1030,7 +1249,7 @@ public static class SpiceEmitter
         sb.Append(
             SubstituteNet(
                 GetBinding(device, "S"),
-                instanceId,
+                hierarchyPath,
                 netSubstitutions,
                 internalNets,
                 resolution
@@ -1040,7 +1259,7 @@ public static class SpiceEmitter
         sb.Append(
             SubstituteNet(
                 GetBinding(device, "B"),
-                instanceId,
+                hierarchyPath,
                 netSubstitutions,
                 internalNets,
                 resolution
@@ -1069,17 +1288,26 @@ public static class SpiceEmitter
     }
 
     /// <summary>
+    /// Composes a hierarchy path into a flat naming prefix.
+    /// E.g., ["outer", "inner"] → "outer__inner"
+    /// </summary>
+    private static string BuildHierarchyPrefix(IReadOnlyList<string> hierarchyPath)
+    {
+        return string.Join("__", hierarchyPath);
+    }
+
+    /// <summary>
     /// Substitutes a net name for inline expansion.
     /// </summary>
     /// <param name="netName">Original net name from inline circuit.</param>
-    /// <param name="instanceId">Instance ID for hierarchical prefix.</param>
+    /// <param name="hierarchyPath">Hierarchy path of instance IDs for hierarchical prefix.</param>
     /// <param name="substitutions">Port/supply/ground substitution map.</param>
     /// <param name="internalNets">Set of internal net names in the inline circuit.</param>
     /// <param name="resolution">Optional attach resolution.</param>
     /// <returns>Substituted net name.</returns>
     private static string SubstituteNet(
         string netName,
-        string instanceId,
+        IReadOnlyList<string> hierarchyPath,
         Dictionary<string, string> substitutions,
         HashSet<string> internalNets,
         CircuitResolutionResult? resolution
@@ -1093,10 +1321,11 @@ public static class SpiceEmitter
                 ?? boundNet;
         }
 
-        // Internal net: prefix with instance ID
+        // Internal net: prefix with hierarchy path
         if (internalNets.Contains(netName))
         {
-            return $"{instanceId}__{netName}";
+            var prefix = BuildHierarchyPrefix(hierarchyPath);
+            return $"{prefix}__{netName}";
         }
 
         // Unknown net - pass through (shouldn't happen in valid circuits)
