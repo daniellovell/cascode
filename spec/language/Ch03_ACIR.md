@@ -128,9 +128,9 @@ Statements may optionally include source attribution in the form `@[file:line]` 
 
 ```acir
 port OUT : analog @[OTA.cas:7]
-nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : W=1u L=100n @[DiffPair.cas:12]
+nmos dp.M_N (G->IN_P, D->OUT_N, S->tnode) : size=(W=1u, L=100n, M=1) nfet_01v8 @[DiffPair.cas:12]
 inst dp (IN.P->IN_P) : DiffPair @[OTA.cas:9]
-  param p = NMOS
+  size Input = (W=2u, L=180n, M=1)
 ```
 
 When present, source attribution enables error messages to reference original source locations. However, canonical ACIR output omits source attribution by default to improve readability and reduce noise.
@@ -310,6 +310,7 @@ Syntax:
 fill:
   inst <id> [(<connections>)] : <CircuitOrMotifType>
     param <key> = <value>
+    size <name> = (<key>=<expr>, <key>=<expr>, ...)
     ...
     <terminal> -> <net>
     ...
@@ -370,6 +371,49 @@ int = [0-9]+
 Guidance: External connectivity should prefer stable, named sub-terminals over numeric indices when a natural name exists (for example, `OUT.P` rather than `OUT[0]`). When a motif legitimately produces an ordered family, indices appear as `name[index]` and become part of the schema contract. Readers MUST treat `TAP[0]` as a single logical terminal path; bracket segments are not array lookups but syntactic components of the path.
 
 Inline vs. Multiline Guidance: Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
+
+#### Instance-Level Connect Statements
+
+Connect statements may appear within an instance body to specify terminal-to-net bindings in a more expressive way than inline bindings. This is particularly useful when connecting bundle ports or when the direction of data flow should be explicit.
+
+Syntax:
+
+```acir
+fill:
+  inst <id> [(<connections>)] : <CircuitOrMotifType>
+    param <key> = <value>
+    size <name> = (key=value, ...)
+    connect <source> -> <dest>
+```
+
+Example:
+
+```acir
+fill:
+  inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
+    size InputPair = (W=2u, L=180n, M=1)
+    connect dp.IN -> IN
+    connect dp.OUT.P -> OUT
+    connect VTAIL -> dp.TAIL
+```
+
+Semantics:
+
+- At least one endpoint MUST reference the current instance (via `<instId>.` prefix)
+- Both `connect dp.X -> Y` and `connect Y -> dp.X` are valid and equivalent
+- Instance-level connect statements are normalized to fill-block level connections during parsing
+- Connect statements are applied after inline bindings during resolution
+
+Instance Prefix in Inline Connections:
+
+Inline connections may optionally include the instance prefix for consistency with connect statements. Both forms are valid:
+
+```acir
+inst dp (GND->GND, VDD->VDD) : DiffPair        // Traditional form
+inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair  // With instance prefix
+```
+
+When the instance prefix is present, it is stripped during parsing. The terminal is stored without the prefix in the instance's bindings.
 
 #### Circuit-to-Circuit Instantiation (EL)
 
@@ -450,11 +494,14 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   port OUT : Diff
   port BIAS : bias
 
+  size Input
+  size Tail
+
   fill:
     net tnode : analog
-    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : W=$W_input*$tail_ratio L=$L nfet_01v8
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
 ```
 
 Parameter references in device sizing use the `$` prefix for clarity: `W=$W_input`, `L=$L`, `W=$W_input*$tail_ratio`.
@@ -487,6 +534,59 @@ inst dp : DiffPair_hasTail_true_p_NMOS
   param L = ??           // auto-size
   // tail_ratio omitted → uses default 2
 ```
+
+### 3.3.7.1 Size Declarations (First-class sizing packs)
+
+Many ML and EL motifs repeatedly carry the same small set of sizing values (for example MOS `W`, `L`, and `M`) across multiple devices and across many instantiation sites. Encoding each quantity as an independent circuit parameter leads to verbose, brittle documents.
+
+ACIR therefore supports a first-class **size** construct: a named, reusable key/value pack intended for sizing bundles. A `size` is not a typed scalar parameter; it is a structured map from keys to parameter expressions.
+
+Syntax (circuit body):
+
+```acir
+size <name>
+size <name> = (<key>=<expr>, <key>=<expr>, ...)
+```
+
+Syntax (instance body):
+
+```acir
+size <name> = (<key>=<expr>, <key>=<expr>, ...)
+```
+
+Semantics:
+
+- A circuit-level `size <name>` declaration introduces a required size pack. If the declaration omits a default (`=` form), callers MUST provide the size at instantiation.
+- A circuit-level `size <name> = (...)` declaration introduces an optional size pack with a concrete default. Callers MAY omit it at instantiation.
+- An instance-level `size <name> = (...)` assignment provides a concrete pack for that specific instantiation.
+- Keys are identifiers. Values are parameter expressions (the same expression grammar used in device parameter lists).
+- For deterministic output, writers MUST serialize tuple keys in sorted order.
+
+Using sizes in device declarations:
+
+Device parameter lists MAY include a `size=<name>` entry. When present, the device’s parameter map is computed by:
+
+1. Copy all key/value pairs from the referenced size pack into the device parameter map.
+2. Apply explicit device parameters (e.g. `W=...`) as overrides (explicit keys win over size keys).
+3. The `size` pseudo-parameter is not emitted to downstream formats; it is an ACIR-level convenience only.
+
+Example (EL, inline leaf):
+
+```acir
+circuit DiffPair : DiffPairLike
+  level EL
+  inline
+
+  size InputPair
+  size Tail
+
+  fill:
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=InputPair nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=InputPair nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
+```
+
+This construct uses `=` for value assignment; in ACIR, `:` introduces a declaration’s type or domain (for example `port OUT : analog` or `param L : real`).
 
 ### 3.3.8 The `inline` Annotation
 
@@ -536,16 +636,31 @@ fill:
     ...
 ```
 
-Transistor parameters include `W` (width), `L` (length), `M` (multiplicity), and the PDK device name (required at EL).
+Transistor sizing uses size packs (§3.3.7.1), specified either inline or by reference. The PDK device name is required at EL.
 
-Example:
+Inline anonymous size (one-off sizing):
 
 ```acir
 fill:
-  nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=1u L=100n M=1 nfet_01v8
-
-  pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=100n M=1 pfet_01v8
+  nmos M_in (G->IN, D->OUT, S->GND, B->GND) : size=(W=12u, L=180n, M=4) nfet_01v8
+  pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=2) pfet_01v8
 ```
+
+Named size reference (reuse or parametrization):
+
+```acir
+circuit DiffPair
+  level EL
+  size Input
+  size Tail
+
+  fill:
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->GND) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->GND) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->GND, B->GND) : size=Tail nfet_01v8
+```
+
+Transistors MUST use `size=Name` (named reference) or `size=(...)` (inline literal). Device-level `W=`, `L=`, `M=` parameters are not permitted.
 
 Passives:
 
@@ -792,8 +907,8 @@ circuit SimpleAmp
 
   fill:
     net tnode : analog
-    nmos M_in (G->IN, D->OUT, S->VSS, B->VSS) : W=8u L=180n M=2 nfet_01v8
-    pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=2 pfet_01v8
+    nmos M_in (G->IN, D->OUT, S->VSS, B->VSS) : size=(W=8u, L=180n, M=2) nfet_01v8
+    pmos M_load (G->OUT, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=2) pfet_01v8
 ```
 
 The `fill:` block creates a clear structural separation between what the circuit promises (its interface) and how it is implemented (the synthesized content).
@@ -1147,6 +1262,8 @@ The following codes apply during semantic analysis, particularly attach resoluti
 | ACIR0025 | Error | Cannot auto-create supply/ground net; bind rails explicitly |
 | ACIR0026 | Warning | Source trait not found in trait registry; using default domain for port domain resolution |
 | ACIR0027 | Warning | Target trait not found in trait registry; using default domain for port domain resolution |
+| ACIR0028 | Error | Instance connect statement must reference the instance on at least one side |
+| ACIR0029 | Error | Invalid connect statement syntax in instance body |
 
 ### Programmatic Access
 
@@ -1294,13 +1411,13 @@ circuit OTA5TSingleEnded
     net mirror_gate : analog  // dp.OUT.P = cm.SENSE
 
     // DiffPair (dp) - NMOS differential pair with tail
-    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : W=2u L=180n M=1 nfet_01v8
-    nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : W=2u L=180n M=1 nfet_01v8
-    nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : W=4u L=180n M=1 nfet_01v8
+    nmos dp.M_N (G->IN_P, D->mirror_gate, S->tnode, B->GND) : size=(W=2u, L=180n, M=1) nfet_01v8
+    nmos dp.M_P (G->IN_N, D->OUT, S->tnode, B->GND) : size=(W=2u, L=180n, M=1) nfet_01v8
+    nmos dp.M_TAIL (G->VTAIL, D->tnode, S->GND, B->GND) : size=(W=4u, L=180n, M=1) nfet_01v8
 
     // CurrentMirror (cm) - PMOS current mirror
-    pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : W=2u L=180n M=1 pfet_01v8
-    pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : W=2u L=180n M=1 pfet_01v8
+    pmos cm.M_SENSE (G->mirror_gate, D->mirror_gate, S->VDD, B->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
+    pmos cm.M_TAP0 (G->mirror_gate, D->OUT, S->VDD, B->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
 
   constraints:
     numeric:
@@ -1386,9 +1503,9 @@ circuit CSAmplifier
   port vb1 : bias
 
   fill:
-    nmos M_in (G->vin, D->vout, S->GND, B->GND) : W=12u L=180n M=4 nfet_01v8
+    nmos M_in (G->vin, D->vout, S->GND, B->GND) : size=(W=12u, L=180n, M=4) nfet_01v8
 
-    pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : W=4u L=180n M=2 pfet_01v8
+    pmos load.M1 (G->vb1, D->vout, S->VDD, B->VDD) : size=(W=4u, L=180n, M=2) pfet_01v8
 
   constraints:
     numeric:
@@ -1438,8 +1555,8 @@ trait CurrentMirrorLike:
 
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
-      TAP[0] -> OUT.N
+      SENSE -> OUT.N
+      TAP[0] -> OUT.P
 
 // Top-level circuit appears first
 circuit OTA5TSingleEnded
@@ -1493,11 +1610,14 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
   port OUT : Diff
   port BIAS : bias
 
+  size Input
+  size Tail
+
   fill:
     net tnode : analog
-    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : W=$W_input L=$L nfet_01v8
-    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : W=$W_input*$tail_ratio L=$L nfet_01v8
+    nmos M_N (G->IN.P, D->OUT.N, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=Input nfet_01v8
+    nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
 
 circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   level EL
@@ -1510,9 +1630,11 @@ circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
 
+  size Sense
+
   fill:
-    pmos M_SENSE (G->SENSE, D->SENSE, S->RAIL, B->RAIL) : W=$W_sense L=$L pfet_01v8
-    pmos M_TAP0 (G->SENSE, D->TAP[0], S->RAIL, B->RAIL) : W=$W_sense L=$L pfet_01v8
+    pmos M_SENSE (G->SENSE, D->SENSE, S->RAIL, B->RAIL) : size=Sense pfet_01v8
+    pmos M_TAP0 (G->SENSE, D->TAP[0], S->RAIL, B->RAIL) : size=Sense pfet_01v8
 ```
 
 The attach statement `attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node` resolves using the referenced connector from the document’s trait definitions. The `as mirror_node` clause names the created nets `mirror_node_0` and `mirror_node_1`. Since both child circuits are marked `inline`, SPICE emission expands them into the top-level circuit with uniquified names.
@@ -1686,7 +1808,7 @@ The ACIR writer maintains a mapping from canonical name to hash-based name when 
 To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 - Order circuits with top-level first, then child circuits in dependency order.
-- Within a circuit, order sections: level, inline, package, param declarations, supplies, grounds, ports, fill, constraints, harness, benches, provenance.
+- Within a circuit, order sections: level, inline, param declarations, size declarations, package, supplies, grounds, ports, fill, constraints, harness, benches, provenance.
 - Within the `fill:` block, order: nets, instances, devices, attach statements, connections. Sort each category by id lexicographically.
 - Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
@@ -1809,6 +1931,7 @@ traits       = IDENT ("," IDENT)* ;
 circuitBody  = (INDENT statement NL)* ;
 
 statement    = levelDecl | inlineDecl | packageDecl | circuitParamDecl
+             | sizeDecl
              | supplyDecl | groundDecl | portDecl | slotDecl
              | fillBlock | constraintsBlock | harnessBlock
              | benchesBlock | provenanceBlock | extensionsBlock ;
@@ -1817,6 +1940,7 @@ levelDecl    = "level" ("HL" | "ML" | "EL") ;
 inlineDecl   = "inline" ;
 packageDecl  = "package" qualifiedName ;
 circuitParamDecl = "param" IDENT ":" paramType ("=" paramValue)? ;
+sizeDecl     = "size" IDENT ("=" sizeLiteral)? ;
 paramType    = "real" | "int" ;
 supplyDecl   = "supply" IDENT source? ;
 groundDecl   = "ground" IDENT source? ;
@@ -1833,11 +1957,16 @@ symbol       = IDENT ("." IDENT)* ;  (* hierarchical name for nets, device ids *
 netDecl      = "net" symbol ":" domain source? ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
-instBody     = paramAssign | binding ;
+instBody     = paramAssign | sizeAssign | binding | instConnectStmt ;
+instConnectStmt = "connect" endpoint "->" endpoint ;
 paramAssign  = "param" IDENT "=" paramValue ;
+sizeAssign   = "size" IDENT "=" sizeLiteral ;
 connectionList = "(" connection ("," connection)* ")" ;
 binding      = terminalPath "->" symbol ;
 connection   = terminalPath "->" symbol ;
+
+sizeLiteral  = "(" sizeEntry ("," sizeEntry)* ")" ;
+sizeEntry    = IDENT "=" paramExpr ;
 
 deviceDecl   = deviceType symbol connectionList? ":" deviceParams pdkDevice source? NL (INDENT binding NL)* ;
 deviceType   = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;

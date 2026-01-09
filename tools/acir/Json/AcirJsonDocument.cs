@@ -75,6 +75,10 @@ public sealed record AcirJsonCircuitInfo
     [JsonPropertyName("parameters")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<AcirJsonCircuitParameter>? Parameters { get; init; }
+
+    [JsonPropertyName("sizes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonSizeDeclaration>? Sizes { get; init; }
 }
 
 /// <summary>
@@ -363,6 +367,20 @@ public sealed record AcirJsonInstance
     [JsonPropertyName("params")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, string>? Params { get; init; }
+
+    [JsonPropertyName("sizes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? Sizes { get; init; }
+}
+
+public sealed record AcirJsonSizeDeclaration
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("default")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Default { get; init; }
 }
 
 /// <summary>

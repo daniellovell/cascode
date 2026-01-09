@@ -166,6 +166,7 @@ public static class AcirJsonConverter
             Level = level,
             Inline = jsonDoc.Circuit.Inline,
             Parameters = BuildCircuitParameters(jsonDoc.Circuit.Parameters),
+            Sizes = BuildCircuitSizes(jsonDoc.Circuit.Sizes),
             Supplies = jsonDoc.Supplies.ToList(),
             Grounds = jsonDoc.Grounds.ToList(),
             Ports = jsonDoc
@@ -221,6 +222,7 @@ public static class AcirJsonConverter
                 Level = circuit.Level.ToString(),
                 Inline = circuit.Inline,
                 Parameters = ConvertCircuitParameters(circuit.Parameters),
+                Sizes = ConvertCircuitSizes(circuit.Sizes),
             },
             Supplies = circuit.Supplies,
             Grounds = circuit.Grounds,
@@ -317,6 +319,25 @@ public static class AcirJsonConverter
             .ToList();
     }
 
+    private static List<AcirJsonSizeDeclaration>? ConvertCircuitSizes(List<SizeDeclaration> sizes)
+    {
+        if (sizes.Count == 0)
+        {
+            return null;
+        }
+
+        return sizes
+            .OrderBy(s => s.Name, StringComparer.Ordinal)
+            .Select(s => new AcirJsonSizeDeclaration
+            {
+                Name = s.Name,
+                Default = s.Default is null
+                    ? null
+                    : new Dictionary<string, string>(s.Default.Entries),
+            })
+            .ToList();
+    }
+
     private static List<AcirJsonInstance>? ConvertInstances(FillBlock? fill)
     {
         if (fill?.Instances.Count is null or 0)
@@ -342,6 +363,33 @@ public static class AcirJsonConverter
                                 }
                         )
                         : null,
+                Sizes =
+                    i.Sizes.Count > 0
+                        ? i.Sizes.ToDictionary(
+                            s => s.Key,
+                            s => (IReadOnlyDictionary<string, string>)s.Value.Entries
+                        )
+                        : null,
+            })
+            .ToList();
+    }
+
+    private static List<SizeDeclaration> BuildCircuitSizes(
+        IReadOnlyList<AcirJsonSizeDeclaration>? sizes
+    )
+    {
+        if (sizes is null || sizes.Count == 0)
+        {
+            return [];
+        }
+
+        return sizes
+            .Select(s => new SizeDeclaration
+            {
+                Name = s.Name,
+                Default = s.Default is null
+                    ? null
+                    : new SizePack { Entries = new Dictionary<string, string>(s.Default) },
             })
             .ToList();
     }
@@ -570,6 +618,14 @@ public static class AcirJsonConverter
                         Params =
                             i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))
                             ?? new Dictionary<string, ParamValue>(),
+                        Sizes =
+                            i.Sizes?.ToDictionary(
+                                s => s.Key,
+                                s => new SizePack
+                                {
+                                    Entries = new Dictionary<string, string>(s.Value),
+                                }
+                            ) ?? new Dictionary<string, SizePack>(),
                     })
                     .ToList()
                 ?? [],

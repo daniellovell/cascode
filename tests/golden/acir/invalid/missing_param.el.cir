@@ -1,7 +1,7 @@
 ACIR 2.0
 
-; Circuit with missing required parameter - EMIT-003 violation
-; Device M1 is missing the W (width) parameter
+; Circuit with missing required size reference - EMIT-007 violation
+; Device M1 is missing the size pack reference
 
 circuit MissingParamExample
   level EL
@@ -13,4 +13,4 @@ circuit MissingParamExample
   port OUT : analog
 
   fill:
-    nmos M1 (G->IN, D->OUT, S->GND, B->GND) : L=180n nmos
+    nmos M1 (G->IN, D->OUT, S->GND, B->GND) : nmos

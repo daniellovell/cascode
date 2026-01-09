@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cascode.ACIR;
 
 namespace Cascode.ACIR.Validation;
 
@@ -11,10 +12,11 @@ namespace Cascode.ACIR.Validation;
 /// Emission-blocking rules:
 /// - EMIT-001: Missing terminal binding (D, G, S, B for MOSFETs; P, N for passives)
 /// - EMIT-002: Invalid net reference (terminal references non-existent net)
-/// - EMIT-003: Missing required parameter (W, L for transistors; R for resistors)
+/// - EMIT-003: Missing required parameter (R for resistors; C for capacitors; L for inductors)
 /// - EMIT-004: Unknown device type
 /// - EMIT-005: Non-EL level circuit
 /// - EMIT-006: Unresolved [Auto] sweep at EL level
+/// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size=...)
 /// </remarks>
 public static class EmissionValidator
 {
@@ -34,8 +36,6 @@ public static class EmissionValidator
         StringComparer.OrdinalIgnoreCase
     )
     {
-        { "nmos", new[] { "W", "L" } },
-        { "pmos", new[] { "W", "L" } },
         { "resistor", new[] { "R" } },
         { "capacitor", new[] { "C" } },
         { "inductor", new[] { "L" } },
@@ -94,12 +94,15 @@ public static class EmissionValidator
         // Build set of valid nets from all sources
         var validNets = BuildValidNetSet(circuit);
 
+        // Build set of valid size pack names
+        var validSizes = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+
         // Validate devices if present
         if (circuit.Fill?.Devices != null)
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                ValidateDevice(device, validNets, result);
+                ValidateDevice(device, validNets, validSizes, result);
             }
         }
 
@@ -149,6 +152,7 @@ public static class EmissionValidator
     private static void ValidateDevice(
         DeviceDeclaration device,
         HashSet<string> validNets,
+        HashSet<string> validSizes,
         ValidationResult result
     )
     {
@@ -214,7 +218,62 @@ public static class EmissionValidator
             }
         }
 
-        // EMIT-003: Missing required parameters
+        // EMIT-007: MOSFETs must use size packs
+        if (deviceType is "nmos" or "pmos")
+        {
+            if (!device.Params.TryGetValue("size", out var sizeValue))
+            {
+                result.AddError(
+                    "EMIT-007",
+                    $"Device '{device.Id}' missing required size reference",
+                    $"device {device.Id}",
+                    "MOSFETs must use size packs: inline 'size=(W=2u, L=180n, M=1)' or named 'size=PackName'"
+                );
+            }
+            else
+            {
+                var trimmed = sizeValue.Trim();
+                // Validate inline literal syntax
+                if (trimmed.StartsWith('(') && trimmed.EndsWith(')'))
+                {
+                    var literalContent = trimmed[1..^1];
+                    if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
+                    {
+                        result.AddError(
+                            "EMIT-007",
+                            $"Device '{device.Id}' has invalid inline size literal: {error}",
+                            $"device {device.Id}",
+                            "Use format 'size=(W=2u, L=180n, M=1)' with comma-separated key=value pairs"
+                        );
+                    }
+                    else if (!pack.Entries.ContainsKey("W") || !pack.Entries.ContainsKey("L"))
+                    {
+                        result.AddError(
+                            "EMIT-007",
+                            $"Device '{device.Id}' inline size literal missing required W or L",
+                            $"device {device.Id}",
+                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
+                        );
+                    }
+                }
+                // Validate named reference
+                else
+                {
+                    var sizeName = trimmed.StartsWith('$') ? trimmed[1..] : trimmed;
+                    if (!validSizes.Contains(sizeName))
+                    {
+                        result.AddError(
+                            "EMIT-007",
+                            $"Device '{device.Id}' references undefined size pack '{sizeName}'",
+                            $"device {device.Id}",
+                            $"Add 'size {sizeName}' or 'size {sizeName} = (...)' declaration at circuit level"
+                        );
+                    }
+                }
+            }
+        }
+
+        // EMIT-003: Missing required parameters (passives only)
         if (RequiredParams.TryGetValue(deviceType, out var requiredParams))
         {
             foreach (var param in requiredParams)
@@ -223,10 +282,9 @@ public static class EmissionValidator
                 {
                     var example = param switch
                     {
-                        "W" => "W=1u",
-                        "L" => "L=180n",
                         "R" => "R=10k",
                         "C" => "C=1p",
+                        "L" => "L=1u",
                         _ => $"{param}=<value>",
                     };
 

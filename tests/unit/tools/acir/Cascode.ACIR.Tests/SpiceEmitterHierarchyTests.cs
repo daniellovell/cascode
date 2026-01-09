@@ -863,13 +863,13 @@ public class SpiceEmitterHierarchyTests
 
         // Verify traits
         Assert.Equal(2, doc.Traits.Count);
-        Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorTrait");
-        Assert.Contains(doc.Traits, t => t.Name == "DiffPairTrait");
+        Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorLike");
+        Assert.Contains(doc.Traits, t => t.Name == "DiffPairLike");
 
         // Verify inline circuit
         var diffPair = doc.Circuits.First(c => c.Name == "DiffPair");
         Assert.True(diffPair.Inline);
-        Assert.Contains("DiffPairTrait", diffPair.Traits!);
+        Assert.Contains("DiffPairLike", diffPair.Traits!);
 
         // Verify top-level circuit has instances
         var topLevel = doc.Circuits.First(c => c.Name == "OTA5T_Hierarchical");
@@ -896,13 +896,12 @@ public class SpiceEmitterHierarchyTests
 
         var circuit = doc.Circuits[0];
         Assert.Equal("CurrentMirror", circuit.Name);
-        Assert.Contains("CurrentMirrorTrait", circuit.Traits!);
+        Assert.Contains("CurrentMirrorLike", circuit.Traits!);
 
-        // Verify parameters
-        Assert.Equal(3, circuit.Parameters.Count);
+        // Verify parameters (no circuit-level sizes; uses inline anonymous sizes)
+        Assert.Single(circuit.Parameters);
         Assert.Contains(circuit.Parameters, p => p.Name == "ratio" && p.Default?.Numeric == "1");
-        Assert.Contains(circuit.Parameters, p => p.Name == "W" && p.Default?.Numeric == "2u");
-        Assert.Contains(circuit.Parameters, p => p.Name == "L" && p.Default?.Numeric == "180n");
+        Assert.Empty(circuit.Sizes);
 
         // Verify devices
         Assert.NotNull(circuit.Fill);
@@ -1018,14 +1017,20 @@ public class SpiceEmitterHierarchyTests
         var doc = ACIRReader.Read(reader);
 
         // Verify trait connector was parsed correctly
-        var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorTrait");
+        var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorLike");
         Assert.Single(mirrorTrait.Connectors);
 
         var connector = mirrorTrait.Connectors[0];
-        Assert.Equal("LoadBranch", connector.TargetTrait);
-        Assert.Single(connector.Mappings);
-        Assert.Equal("OUT", connector.Mappings[0].SourcePort);
-        Assert.Equal("IN", connector.Mappings[0].TargetPort);
+        Assert.Equal("DiffPairLike", connector.TargetTrait);
+        Assert.Equal(2, connector.Mappings.Count);
+        Assert.Contains(
+            connector.Mappings,
+            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT.N"
+        );
+        Assert.Contains(
+            connector.Mappings,
+            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT.P"
+        );
     }
 
     [Fact]

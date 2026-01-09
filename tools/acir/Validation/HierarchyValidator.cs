@@ -15,6 +15,7 @@ namespace Cascode.ACIR.Validation;
 /// - HIER-004: Circular instantiation dependency
 /// - HIER-005: Duplicate circuit name
 /// - HIER-006: Unknown instance in attach statement
+/// - HIER-007: Missing required size pack (no default, not provided at instantiation)
 /// </remarks>
 public static class HierarchyValidator
 {
@@ -118,6 +119,9 @@ public static class HierarchyValidator
             // HIER-002: Validate required parameters
             ValidateInstanceParameters(instance, targetCircuit, circuit.Name, result);
 
+            // HIER-007: Validate required size packs
+            ValidateInstanceSizes(instance, targetCircuit, circuit.Name, result);
+
             // HIER-003: Validate port coverage (bindings + attach)
             ValidateInstancePortCoverage(instance, targetCircuit, circuit, traits, result);
         }
@@ -155,6 +159,36 @@ public static class HierarchyValidator
     }
 
     /// <summary>
+    /// Validates all required size packs are provided at instantiation.
+    /// </summary>
+    private static void ValidateInstanceSizes(
+        InstanceDeclaration instance,
+        Circuit targetCircuit,
+        string parentCircuitName,
+        ValidationResult result
+    )
+    {
+        foreach (var size in targetCircuit.Sizes)
+        {
+            // Skip if size pack has a default value
+            if (size.Default is not null)
+            {
+                continue;
+            }
+
+            if (!instance.Sizes.ContainsKey(size.Name))
+            {
+                result.AddError(
+                    "HIER-007",
+                    $"Instance '{instance.Id}' missing required size pack '{size.Name}'",
+                    $"circuit {parentCircuitName}, inst {instance.Id} : {instance.Type}",
+                    $"Add 'size {size.Name} = (k=v, ...)' to the instance declaration"
+                );
+            }
+        }
+    }
+
+    /// <summary>
     /// Validates all ports on an instance are covered by bindings or attach statements.
     /// </summary>
     private static void ValidateInstancePortCoverage(
@@ -181,6 +215,10 @@ public static class HierarchyValidator
         }
 
         // Add declared ports
+        var declaredPortNames = new HashSet<string>(
+            targetCircuit.Ports.Select(p => p.Name),
+            StringComparer.Ordinal
+        );
         foreach (var port in targetCircuit.Ports)
         {
             requiredPorts.Add(port.Name);
@@ -189,10 +227,29 @@ public static class HierarchyValidator
         // Remove ports covered by direct bindings
         foreach (var binding in instance.Bindings.Keys)
         {
-            // Handle bundle notation: IN.P covers port IN
-            var portName = binding.Split('.')[0];
-            requiredPorts.Remove(portName);
-            requiredPorts.Remove(binding); // Also try exact match
+            requiredPorts.Remove(binding);
+
+            // Handle bundle notation: IN.P covers port IN (but avoid treating '.' as bundle syntax
+            // when the circuit explicitly declares a port with a '.' in its name).
+            if (binding.Contains('.') && !declaredPortNames.Contains(binding))
+            {
+                var portName = binding.Split('.')[0];
+                requiredPorts.Remove(portName);
+            }
+        }
+
+        // Remove ports covered by connect statements
+        if (parentCircuit.Fill?.Connections is not null)
+        {
+            var connectedPorts = GetPortsCoveredByConnects(
+                parentCircuit.Fill.Connections,
+                instance,
+                declaredPortNames
+            );
+            foreach (var port in connectedPorts)
+            {
+                requiredPorts.Remove(port);
+            }
         }
 
         // Remove ports covered by attach statements
@@ -231,6 +288,10 @@ public static class HierarchyValidator
     )
     {
         var coveredPorts = new HashSet<string>(StringComparer.Ordinal);
+        var declaredPortNames = new HashSet<string>(
+            targetCircuit.Ports.Select(p => p.Name),
+            StringComparer.Ordinal
+        );
 
         // Parse the via clause: "TraitName::TargetTrait"
         var viaParts = attach.Via.Split("::");
@@ -286,19 +347,84 @@ public static class HierarchyValidator
 
                 if (fromInstance == instance.Id)
                 {
-                    var portName = sourcePort.Split('.')[0];
-                    coveredPorts.Add(portName);
+                    coveredPorts.Add(
+                        declaredPortNames.Contains(sourcePort)
+                            ? sourcePort
+                            : sourcePort.Split('.')[0]
+                    );
                 }
 
                 if (toInstance == instance.Id)
                 {
-                    var portName = targetPort.Split('.')[0];
-                    coveredPorts.Add(portName);
+                    coveredPorts.Add(
+                        declaredPortNames.Contains(targetPort)
+                            ? targetPort
+                            : targetPort.Split('.')[0]
+                    );
                 }
             }
         }
 
         return coveredPorts;
+    }
+
+    /// <summary>
+    /// Determines which ports on an instance are covered by connect statements.
+    /// </summary>
+    private static HashSet<string> GetPortsCoveredByConnects(
+        IEnumerable<ConnectionStatement> connections,
+        InstanceDeclaration instance,
+        HashSet<string> declaredPortNames
+    )
+    {
+        var coveredPorts = new HashSet<string>(StringComparer.Ordinal);
+        var instancePrefix = $"{instance.Id}.";
+
+        foreach (var conn in connections)
+        {
+            CheckEndpoint(conn.From);
+            CheckEndpoint(conn.To);
+        }
+
+        return coveredPorts;
+
+        void CheckEndpoint(string endpoint)
+        {
+            if (!endpoint.StartsWith(instancePrefix, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var portPath = endpoint[instancePrefix.Length..];
+
+            // If the exact port path is declared, use it
+            if (declaredPortNames.Contains(portPath))
+            {
+                coveredPorts.Add(portPath);
+                return;
+            }
+
+            // Check for bundle expansion: dp.IN should cover IN.P, IN.N if those ports exist
+            var bundlePrefix = $"{portPath}.";
+            var matchingPorts = declaredPortNames
+                .Where(p => p.StartsWith(bundlePrefix, StringComparison.Ordinal))
+                .ToList();
+
+            if (matchingPorts.Count > 0)
+            {
+                // Bundle connection covers all matching ports
+                foreach (var matchedPort in matchingPorts)
+                {
+                    coveredPorts.Add(matchedPort);
+                }
+            }
+            else
+            {
+                // Fallback: extract the root port name (for bundle notation)
+                var rootPort = portPath.Split('.')[0];
+                coveredPorts.Add(rootPort);
+            }
+        }
     }
 
     /// <summary>

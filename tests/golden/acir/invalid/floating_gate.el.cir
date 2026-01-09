@@ -14,4 +14,4 @@ circuit FloatingGateExample
   fill:
     net floating_net : analog
 
-    nmos M1 (G->floating_net, D->OUT, S->GND, B->GND) : W=1u L=180n nmos
+    nmos M1 (G->floating_net, D->OUT, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos

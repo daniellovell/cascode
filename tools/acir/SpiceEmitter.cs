@@ -90,24 +90,20 @@ public static class SpiceEmitter
             portList.Add(ground);
         }
 
-        // Build parameter defaults for subcircuit declaration (for non-inline circuits)
-        var paramDefaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        // Build subcircuit parameter defaults.
+        // ngspice requires parameters to be declared on the .subckt line (params: ...),
+        // even if they will always be overridden at instantiation.
         var paramSuffix = "";
         if (circuit.Parameters.Count > 0)
         {
             var paramParts = new List<string>();
-            foreach (var param in circuit.Parameters)
+            foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
             {
-                if (param.Default?.Numeric is not null)
-                {
-                    paramParts.Add($"{param.Name}={param.Default.Numeric}");
-                    paramDefaults[param.Name] = param.Default.Numeric;
-                }
+                var defaultValue = param.Default?.Numeric ?? "0";
+                paramParts.Add($"{param.Name}={defaultValue}");
             }
-            if (paramParts.Count > 0)
-            {
-                paramSuffix = " " + string.Join(" ", paramParts);
-            }
+
+            paramSuffix = " params: " + string.Join(" ", paramParts);
         }
 
         writer.WriteLine($".subckt {circuit.Name} {string.Join(" ", portList)}{paramSuffix}");
@@ -126,9 +122,10 @@ public static class SpiceEmitter
         // Emit devices
         if (circuit.Fill?.Devices.Count > 0)
         {
+            var sizeBindings = BuildSizeBindings(circuit);
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
-                EmitDevice(device, writer, deviceModelMap, paramDefaults);
+                EmitDevice(device, writer, deviceModelMap, sizeBindings);
             }
         }
 
@@ -287,6 +284,12 @@ public static class SpiceEmitter
         foreach (var circuit in orderedCircuits)
         {
             if (circuit.Level != ACIRLevel.EL)
+            {
+                continue;
+            }
+
+            // Inline circuits are expanded into their parents and do not emit standalone .subckt files.
+            if (circuit.Inline)
             {
                 continue;
             }
@@ -489,9 +492,10 @@ public static class SpiceEmitter
         DeviceDeclaration device,
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        IReadOnlyDictionary<string, string>? circuitParams = null
+        IReadOnlyDictionary<string, SizePack>? sizeBindings
     )
     {
+        var deviceParams = ExpandSizeParams(device, sizeBindings);
         var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
@@ -513,7 +517,7 @@ public static class SpiceEmitter
         // Terminal ordering and parameters depend on device type
         if (spiceType is "M" or "X")
         {
-            EmitMosfetTerminalsAndParams(device, sb, deviceModelMap, useSubckt, circuitParams);
+            EmitMosfetTerminalsAndParams(device, deviceParams, sb, deviceModelMap, useSubckt);
         }
         else if (spiceType is "R" or "C" or "L")
         {
@@ -531,9 +535,9 @@ public static class SpiceEmitter
                 "L" => "L",
                 _ => throw new InvalidOperationException(),
             };
-            if (device.Params.TryGetValue(valueKey, out var value))
+            if (deviceParams.TryGetValue(valueKey, out var value))
             {
-                sb.Append(ConvertParamRef(value, circuitParams));
+                sb.Append(ConvertParamRef(value));
             }
         }
         else if (spiceType == "D")
@@ -619,6 +623,26 @@ public static class SpiceEmitter
         // Subcircuit name
         sb.Append(targetCircuit.Name);
 
+        // Instance parameter overrides
+        if (instance.Params.Count > 0)
+        {
+            foreach (
+                var (name, value) in instance.Params.OrderBy(p => p.Key, StringComparer.Ordinal)
+            )
+            {
+                var rendered = value.Numeric ?? value.Symbolic ?? value.Literal;
+                if (string.IsNullOrWhiteSpace(rendered))
+                {
+                    continue;
+                }
+
+                sb.Append(' ');
+                sb.Append(name);
+                sb.Append('=');
+                sb.Append(rendered);
+            }
+        }
+
         writer.WriteLine(sb.ToString().TrimEnd());
     }
 
@@ -650,6 +674,9 @@ public static class SpiceEmitter
         // Build parameter bindings: circuit defaults overridden by instance params
         var paramBindings = BuildParameterBindings(instance, inlineCircuit);
 
+        // Build size bindings: circuit defaults overridden by instance size assignments
+        var sizeBindings = BuildSizeBindings(instance, inlineCircuit);
+
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
         if (inlineCircuit.Fill?.Nets is not null)
@@ -673,6 +700,7 @@ public static class SpiceEmitter
                     netSubstitutions,
                     internalNets,
                     paramBindings,
+                    sizeBindings,
                     resolution,
                     deviceModelMap,
                     writer
@@ -719,6 +747,106 @@ public static class SpiceEmitter
         }
 
         return bindings;
+    }
+
+    private static IReadOnlyDictionary<string, SizePack> BuildSizeBindings(Circuit circuit)
+    {
+        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+        foreach (var size in circuit.Sizes)
+        {
+            if (size.Default is not null)
+            {
+                bindings[size.Name] = size.Default;
+            }
+        }
+        return bindings;
+    }
+
+    private static IReadOnlyDictionary<string, SizePack> BuildSizeBindings(
+        InstanceDeclaration instance,
+        Circuit inlineCircuit
+    )
+    {
+        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+
+        foreach (var size in inlineCircuit.Sizes)
+        {
+            if (size.Default is not null)
+            {
+                bindings[size.Name] = size.Default;
+            }
+        }
+
+        foreach (var (name, pack) in instance.Sizes)
+        {
+            bindings[name] = pack;
+        }
+
+        return bindings;
+    }
+
+    private static IReadOnlyDictionary<string, string> ExpandSizeParams(
+        DeviceDeclaration device,
+        IReadOnlyDictionary<string, SizePack>? sizeBindings
+    )
+    {
+        if (!device.Params.TryGetValue("size", out var rawSizeValue))
+        {
+            return device.Params;
+        }
+
+        var sizeValue = rawSizeValue.Trim();
+
+        // Handle inline size literal: size=(W=2u, L=180n, M=1)
+        if (sizeValue.StartsWith('(') && sizeValue.EndsWith(')'))
+        {
+            var literalContent = sizeValue[1..^1];
+            if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
+            {
+                throw new InvalidOperationException(
+                    $"Device '{device.Id}' has invalid inline size literal: {error}"
+                );
+            }
+
+            var expanded = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var kvp in pack.Entries)
+            {
+                expanded[kvp.Key] = kvp.Value;
+            }
+            foreach (var (key, value) in device.Params)
+            {
+                if (!string.Equals(key, "size", StringComparison.Ordinal))
+                {
+                    expanded[key] = value;
+                }
+            }
+            return expanded;
+        }
+
+        // Handle named size reference: size=PackName or size=$PackName
+        var sizeName = sizeValue.StartsWith('$') ? sizeValue[1..] : sizeValue;
+
+        if (sizeBindings is null || !sizeBindings.TryGetValue(sizeName, out var namedPack))
+        {
+            throw new InvalidOperationException(
+                $"Device '{device.Id}' references undefined size pack '{sizeName}'"
+            );
+        }
+
+        var expandedNamed = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in namedPack.Entries)
+        {
+            expandedNamed[key] = value;
+        }
+        foreach (var (key, value) in device.Params)
+        {
+            if (!string.Equals(key, "size", StringComparison.Ordinal))
+            {
+                expandedNamed[key] = value;
+            }
+        }
+
+        return expandedNamed;
     }
 
     /// <summary>
@@ -786,11 +914,13 @@ public static class SpiceEmitter
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
         IReadOnlyDictionary<string, string> paramBindings,
+        IReadOnlyDictionary<string, SizePack>? sizeBindings,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         TextWriter writer
     )
     {
+        var deviceParams = ExpandSizeParams(device, sizeBindings);
         var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
@@ -816,6 +946,7 @@ public static class SpiceEmitter
         {
             EmitInlineMosfetTerminalsAndParams(
                 device,
+                deviceParams,
                 instanceId,
                 netSubstitutions,
                 internalNets,
@@ -857,7 +988,7 @@ public static class SpiceEmitter
                 "L" => "L",
                 _ => throw new InvalidOperationException(),
             };
-            if (device.Params.TryGetValue(valueKey, out var value))
+            if (deviceParams.TryGetValue(valueKey, out var value))
             {
                 sb.Append(ResolveParameterValue(value, paramBindings));
             }
@@ -911,6 +1042,7 @@ public static class SpiceEmitter
     /// </summary>
     private static void EmitInlineMosfetTerminalsAndParams(
         DeviceDeclaration device,
+        IReadOnlyDictionary<string, string> deviceParams,
         string instanceId,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
@@ -967,22 +1099,18 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m (resolve $param references)
-        if (device.Params.TryGetValue("W", out var w))
-        {
-            var resolvedW = ResolveParameterValue(w, paramBindings);
-            sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
-        }
-        if (device.Params.TryGetValue("L", out var l))
-        {
-            var resolvedL = ResolveParameterValue(l, paramBindings);
-            sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
-        }
-        if (device.Params.TryGetValue("M", out var m))
-        {
-            var resolvedM = ResolveParameterValue(m, paramBindings);
-            sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
-        }
+        // Parameters: W, L, m (must come from size pack expansion)
+        var w = deviceParams["W"];
+        var l = deviceParams["L"];
+        var m = deviceParams.GetValueOrDefault("M", "1");
+
+        var resolvedW = ResolveParameterValue(w, paramBindings);
+        var resolvedL = ResolveParameterValue(l, paramBindings);
+        var resolvedM = ResolveParameterValue(m, paramBindings);
+
+        sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
+        sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
+        sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
     }
 
     /// <summary>
@@ -1026,13 +1154,12 @@ public static class SpiceEmitter
     /// <param name="device">MOSFET device declaration.</param>
     /// <param name="sb">StringBuilder to append to.</param>
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model names.</param>
-    /// <param name="circuitParams">Optional circuit parameters for converting $param references.</param>
     private static void EmitMosfetTerminalsAndParams(
         DeviceDeclaration device,
+        IReadOnlyDictionary<string, string> deviceParams,
         StringBuilder sb,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        bool useSubckt,
-        IReadOnlyDictionary<string, string>? circuitParams = null
+        bool useSubckt
     )
     {
         // MOSFET terminal ordering: D G S B
@@ -1049,47 +1176,34 @@ public static class SpiceEmitter
         sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
         sb.Append(' ');
 
-        // Parameters: W, L, m (convert $param to param for subcircuit parameters)
-        if (device.Params.TryGetValue("W", out var w))
-        {
-            var converted = ConvertParamRef(w, circuitParams);
-            sb.Append(useSubckt ? $"w={converted} " : $"W={converted} ");
-        }
-        if (device.Params.TryGetValue("L", out var l))
-        {
-            var converted = ConvertParamRef(l, circuitParams);
-            sb.Append(useSubckt ? $"l={converted} " : $"L={converted} ");
-        }
-        if (device.Params.TryGetValue("M", out var m))
-        {
-            var converted = ConvertParamRef(m, circuitParams);
-            sb.Append(useSubckt ? $"mult={converted}" : $"m={converted}");
-        }
+        // Parameters: W, L, m (must come from size pack expansion)
+        var w = deviceParams["W"];
+        var l = deviceParams["L"];
+        var m = deviceParams.GetValueOrDefault("M", "1");
+
+        var converted_w = ConvertParamRef(w);
+        var converted_l = ConvertParamRef(l);
+        var converted_m = ConvertParamRef(m);
+
+        sb.Append(useSubckt ? $"w={converted_w} " : $"W={converted_w} ");
+        sb.Append(useSubckt ? $"l={converted_l} " : $"L={converted_l} ");
+        sb.Append(useSubckt ? $"mult={converted_m}" : $"m={converted_m}");
     }
 
     /// <summary>
     /// Converts ACIR parameter references ($param) to SPICE parameter syntax (param).
     /// For subcircuit parameters, $param becomes param (bare name).
     /// </summary>
-    private static string ConvertParamRef(
-        string value,
-        IReadOnlyDictionary<string, string>? circuitParams
-    )
+    private static string ConvertParamRef(string value)
     {
-        if (circuitParams is null || !value.StartsWith('$'))
+        if (!value.Contains('$'))
         {
             return value;
         }
 
-        // Extract parameter name from $param
-        var paramName = value[1..];
-        if (circuitParams.ContainsKey(paramName))
-        {
-            // Return bare parameter name for SPICE to resolve
-            return paramName;
-        }
-
-        return value;
+        // ACIR uses $param references; ngspice evaluates parameter expressions inside { }.
+        var expr = value.Replace("$", string.Empty, StringComparison.Ordinal);
+        return $"{{{expr}}}";
     }
 
     private static DeviceModelResolution? ResolveDeviceModel(
