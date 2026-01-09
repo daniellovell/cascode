@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <!-- Use invariant globalization to avoid ICU dependency in self-contained builds -->
+    <InvariantGlobalization>true</InvariantGlobalization>
     <!-- Enable packing as a .NET global tool (optional; used on release) -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>cascode</ToolCommandName>
