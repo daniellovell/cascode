@@ -100,8 +100,7 @@ public static class SpiceEmitter
             var paramParts = new List<string>();
             foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
             {
-                var defaultValue = param.Default?.Numeric ?? "0";
-                paramParts.Add($"{param.Name}={defaultValue}");
+                paramParts.Add($"{param.Name}={RenderSpiceDefault(param.Default)}");
             }
 
             paramSuffix = " params: " + string.Join(" ", paramParts);
@@ -566,8 +565,8 @@ public static class SpiceEmitter
                 var (name, value) in instance.Params.OrderBy(p => p.Key, StringComparer.Ordinal)
             )
             {
-                var rendered = value.Numeric ?? value.Symbolic ?? value.Literal;
-                if (string.IsNullOrWhiteSpace(rendered))
+                var rendered = RenderSpiceParam(value);
+                if (rendered is null)
                 {
                     continue;
                 }
@@ -625,11 +624,7 @@ public static class SpiceEmitter
         var netSubstitutions = ComposeNetSubstitutions(parentNetSubstitutions, localSubstitutions);
 
         // Build parameter bindings: compose parent bindings with local overrides
-        var paramBindings = ComposeParameterBindings(
-            instance,
-            inlineCircuit,
-            parentParamBindings
-        );
+        var paramBindings = ComposeParameterBindings(instance, inlineCircuit, parentParamBindings);
 
         // Build size bindings: compose parent bindings with local overrides
         var sizeBindings = ComposeSizeBindings(instance, inlineCircuit, parentSizeBindings);
@@ -1390,6 +1385,25 @@ public static class SpiceEmitter
         // ACIR uses $param references; ngspice evaluates parameter expressions inside { }.
         var expr = value.Replace("$", string.Empty, StringComparison.Ordinal);
         return $"{{{expr}}}";
+    }
+
+    /// <summary>
+    /// Renders a ParamValue for SPICE output, converting $param references to {param}.
+    /// </summary>
+    /// <returns>Rendered SPICE-compatible value, or null if empty.</returns>
+    private static string? RenderSpiceParam(ParamValue value)
+    {
+        var raw = value.Numeric ?? value.Symbolic ?? value.Literal;
+        return string.IsNullOrWhiteSpace(raw) ? null : ConvertParamRef(raw);
+    }
+
+    /// <summary>
+    /// Renders a parameter default value for SPICE subcircuit declaration.
+    /// </summary>
+    private static string RenderSpiceDefault(ParamValue? defaultValue)
+    {
+        var raw = defaultValue?.Numeric ?? "0";
+        return ConvertParamRef(raw);
     }
 
     private static DeviceModelResolution? ResolveDeviceModel(

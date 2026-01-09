@@ -734,7 +734,10 @@ public static class BundleDesugarer
     /// Splits load elements evenly across multiple terminals.
     /// For example, a 1pF load split across 2 terminals becomes 500f per terminal.
     /// </summary>
-    private static List<LoadElement> SplitLoadElements(List<LoadElement> elements, int terminalCount)
+    private static List<LoadElement> SplitLoadElements(
+        List<LoadElement> elements,
+        int terminalCount
+    )
     {
         if (terminalCount <= 1)
             return elements;
@@ -747,10 +750,9 @@ public static class BundleDesugarer
             if (TryParseValueWithUnit(elem.Value, out var numericValue, out var unit))
             {
                 var splitValue = numericValue / terminalCount;
-                splitElements.Add(new LoadElement(
-                    elem.Type,
-                    FormatValueWithUnit(splitValue, unit)
-                ));
+                splitElements.Add(
+                    new LoadElement(elem.Type, FormatValueWithUnit(splitValue, unit))
+                );
             }
             else
             {

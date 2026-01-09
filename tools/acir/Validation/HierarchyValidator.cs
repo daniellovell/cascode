@@ -252,7 +252,10 @@ public static class HierarchyValidator
     /// Uses Kahn's algorithm for topological sort.
     /// If a cycle is detected (graph cannot be fully sorted), returns circuits in original order.
     /// </remarks>
-    public static List<Circuit> GetTopologicalOrder(List<Circuit> circuits, bool excludeInline = false)
+    public static List<Circuit> GetTopologicalOrder(
+        List<Circuit> circuits,
+        bool excludeInline = false
+    )
     {
         // Build lookup, handling duplicates gracefully (first occurrence wins)
         var circuitsByName = new Dictionary<string, Circuit>(StringComparer.Ordinal);
@@ -382,10 +385,7 @@ public static class HierarchyValidator
                 // Only add dependency if target exists and (if excludeInline) is not inline
                 if (excludeInline)
                 {
-                    if (
-                        circuitsByName.TryGetValue(instance.Type, out var target)
-                        && !target.Inline
-                    )
+                    if (circuitsByName.TryGetValue(instance.Type, out var target) && !target.Inline)
                     {
                         graph[circuit.Name].Add(instance.Type);
                     }
