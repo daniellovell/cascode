@@ -177,20 +177,6 @@ internal sealed class BenchCommandModule : ICommandModule
             $"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
         );
 
-        // Helper to format a constraint result
-        string FormatConstraint(ConstraintResult result)
-        {
-            var where = string.IsNullOrWhiteSpace(result.Node)
-                ? result.Metric
-                : $"{result.Metric}@{result.Node}";
-            var expected =
-                $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
-            var actual = result.Actual is null
-                ? "missing"
-                : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
-            return $"  {result.Id}: {where} {expected} (actual {actual})";
-        }
-
         var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
         var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
 
@@ -254,20 +240,6 @@ internal sealed class BenchCommandModule : ICommandModule
             _state.AddMessage(
                 $"Compliance: {compliance.PassedCount}/{compliance.TotalCount} ({passPercentage}% PASS)"
             );
-
-            // Show PASS/FAIL details
-            string FormatConstraint(ConstraintResult result)
-            {
-                var where = string.IsNullOrWhiteSpace(result.Node)
-                    ? result.Metric
-                    : $"{result.Metric}@{result.Node}";
-                var expected =
-                    $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
-                var actual = result.Actual is null
-                    ? "missing"
-                    : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
-                return $"  {result.Id}: {where} {expected} (actual {actual})";
-            }
 
             var passedConstraints = compliance.Results.Where(r => r.Passed).ToArray();
             var failedConstraints = compliance.Results.Where(r => !r.Passed).ToArray();
@@ -334,17 +306,8 @@ internal sealed class BenchCommandModule : ICommandModule
             {
                 foreach (var result in compliance.Results.Where(r => !r.Passed))
                 {
-                    var where = string.IsNullOrWhiteSpace(result.Node)
-                        ? result.Metric
-                        : $"{result.Metric}@{result.Node}";
-                    var expected =
-                        $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
-                    var actual = result.Actual is null
-                        ? "missing"
-                        : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
-                    _state.AddMessage(
-                        $"    FAIL {result.Id}: {where} {expected} (actual {actual})"
-                    );
+                    var formatted = FormatConstraint(result).TrimStart();
+                    _state.AddMessage($"    FAIL {formatted}");
                 }
             }
 
@@ -386,6 +349,18 @@ internal sealed class BenchCommandModule : ICommandModule
     {
         // Human-readable without being overly specific; stable across locales.
         return value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatConstraint(ConstraintResult result)
+    {
+        var where = string.IsNullOrWhiteSpace(result.Node)
+            ? result.Metric
+            : $"{result.Metric}@{result.Node}";
+        var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
+        var actual = result.Actual is null
+            ? "missing"
+            : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
+        return $"  {result.Id}: {where} {expected} (actual {actual})";
     }
 
     private CommandResult BenchHarnessListCommand(string[] args)

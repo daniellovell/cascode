@@ -88,7 +88,11 @@ public static partial class ACIRReader
             }
 
             var doc = ParseWithDiagnostics(lines, filePath, diagnostics);
-            return new ACIRReadResult { Document = doc, Diagnostics = diagnostics };
+
+            // Desugar bundle-typed constructs into canonical form
+            var desugared = BundleDesugarer.Desugar(doc);
+
+            return new ACIRReadResult { Document = desugared, Diagnostics = diagnostics };
         }
         catch (Exception ex)
         {

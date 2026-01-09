@@ -129,11 +129,13 @@ public static class EmissionValidator
         // Add ports (expanding bundle-typed ports to their member nets)
         foreach (var port in circuit.Ports)
         {
-            foreach (var terminalPath in BundleExpander.ExpandToTerminalPaths(
-                port.Name,
-                port.Type,
-                bundlesByName
-            ))
+            foreach (
+                var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                    port.Name,
+                    port.Type,
+                    bundlesByName
+                )
+            )
             {
                 nets.Add(BundleExpander.ToNetName(terminalPath));
             }

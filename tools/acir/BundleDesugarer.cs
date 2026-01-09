@@ -1,0 +1,787 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Cascode.ACIR;
+
+/// <summary>
+/// Desugars bundle-typed constructs in an ACIR document into their canonical expanded form.
+/// </summary>
+/// <remarks>
+/// After desugaring:
+/// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN_P", "IN_N")
+/// - All device bindings are normalized (e.g., "IN.P" → "IN_P")
+/// - All connections are expanded (e.g., "dp.IN -> IN" → "dp.IN_P -> IN_P", "dp.IN_N -> IN_N")
+/// - All trait connectors are expanded (e.g., "DRAIN -> OUT" → "DRAIN_P -> OUT_P", "DRAIN_N -> OUT_N")
+///
+/// Downstream code (validation, emission, resolution) operates on the desugared representation
+/// and never needs bundle context.
+/// </remarks>
+public static class BundleDesugarer
+{
+    /// <summary>
+    /// Desugars all bundle-typed constructs in the document.
+    /// Returns a new document with expanded ports, connections, and normalized net names.
+    /// </summary>
+    /// <param name="document">The ACIR document to desugar.</param>
+    /// <returns>A new document with all bundle types expanded.</returns>
+    public static ACIRDocument Desugar(ACIRDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var bundlesByName = BundleExpander.GetBundlesByName(document);
+
+        // If no bundle types defined, return the document unchanged
+        if (bundlesByName.Count == 0)
+        {
+            return document;
+        }
+
+        // Build circuit lookup for resolving instance port types
+        var circuitsByName = document.Circuits.ToDictionary(
+            c => c.Name,
+            c => c,
+            StringComparer.Ordinal
+        );
+
+        return new ACIRDocument
+        {
+            VersionMajor = document.VersionMajor,
+            VersionMinor = document.VersionMinor,
+            BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
+            Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
+            Circuits = document
+                .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
+                .ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Desugars a trait definition by expanding bundle-typed ports and connector mappings.
+    /// </summary>
+    private static TraitDefinition DesugarTrait(
+        TraitDefinition trait,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        // Build a map of port name -> type for this trait
+        var portTypes = trait.Ports.ToDictionary(p => p.Name, p => p.Type, StringComparer.Ordinal);
+
+        return new TraitDefinition
+        {
+            Name = trait.Name,
+            Ports = ExpandPorts(trait.Ports, bundlesByName),
+            Connectors = trait
+                .Connectors.Select(c => DesugarConnector(c, portTypes, bundlesByName))
+                .ToList(),
+        };
+    }
+
+    /// <summary>
+    /// Desugars a connector by expanding bundle-to-bundle mappings.
+    /// </summary>
+    private static TraitConnector DesugarConnector(
+        TraitConnector connector,
+        IReadOnlyDictionary<string, string> sourcePortTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        var expandedMappings = new List<ConnectorMapping>();
+
+        foreach (var mapping in connector.Mappings)
+        {
+            expandedMappings.AddRange(
+                ExpandConnectorMapping(mapping, sourcePortTypes, bundlesByName)
+            );
+        }
+
+        return new TraitConnector
+        {
+            TargetTrait = connector.TargetTrait,
+            Mappings = expandedMappings,
+        };
+    }
+
+    /// <summary>
+    /// Expands a single connector mapping, handling bundle-to-bundle references.
+    /// </summary>
+    private static IEnumerable<ConnectorMapping> ExpandConnectorMapping(
+        ConnectorMapping mapping,
+        IReadOnlyDictionary<string, string> sourcePortTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        var sourcePath = mapping.SourcePort;
+        var targetPath = mapping.TargetPort;
+
+        // Check if source is a bundle-typed port (no dot = potential bundle reference)
+        var sourceBaseName = GetBaseName(sourcePath);
+        if (
+            !sourcePath.Contains('.')
+            && sourcePortTypes.TryGetValue(sourceBaseName, out var sourceType)
+            && bundlesByName.TryGetValue(sourceType, out var bundle)
+        )
+        {
+            // Bundle-to-bundle expansion
+            foreach (var field in bundle.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
+            {
+                var expandedSourcePath = $"{sourcePath}.{field.Key}";
+                var expandedTargetPath = $"{targetPath}.{field.Key}";
+
+                // Recursively expand nested bundles
+                foreach (
+                    var nested in ExpandConnectorMapping(
+                        new ConnectorMapping
+                        {
+                            SourcePort = expandedSourcePath,
+                            TargetPort = expandedTargetPath,
+                        },
+                        sourcePortTypes,
+                        bundlesByName
+                    )
+                )
+                {
+                    yield return nested;
+                }
+            }
+        }
+        else
+        {
+            // Leaf mapping - normalize to underscore form
+            yield return new ConnectorMapping
+            {
+                SourcePort = NormalizePath(sourcePath),
+                TargetPort = NormalizePath(targetPath),
+            };
+        }
+    }
+
+    /// <summary>
+    /// Desugars a circuit by expanding bundle-typed ports, connections, and device bindings.
+    /// </summary>
+    private static Circuit DesugarCircuit(
+        Circuit circuit,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName
+    )
+    {
+        // Build a map of port name -> type for this circuit
+        var portTypes = circuit.Ports.ToDictionary(
+            p => p.Name,
+            p => p.Type,
+            StringComparer.Ordinal
+        );
+
+        // Build instance type lookup for resolving instance.port references
+        var instanceTypes =
+            circuit.Fill?.Instances.ToDictionary(i => i.Id, i => i.Type, StringComparer.Ordinal)
+            ?? new Dictionary<string, string>();
+
+        return new Circuit
+        {
+            Name = circuit.Name,
+            Traits = circuit.Traits,
+            Level = circuit.Level,
+            Inline = circuit.Inline,
+            Package = circuit.Package,
+            Parameters = circuit.Parameters,
+            Sizes = circuit.Sizes,
+            Supplies = circuit.Supplies,
+            Grounds = circuit.Grounds,
+            Ports = ExpandPorts(circuit.Ports, bundlesByName),
+            Slots = circuit.Slots,
+            Fill = circuit.Fill is not null
+                ? DesugarFillBlock(
+                    circuit.Fill,
+                    portTypes,
+                    bundlesByName,
+                    circuitsByName,
+                    instanceTypes
+                )
+                : null,
+            Constraints = circuit.Constraints,
+            Harness = circuit.Harness is not null
+                ? DesugarHarness(circuit.Harness, portTypes, bundlesByName)
+                : null,
+            Benches = circuit.Benches,
+            Provenance = circuit.Provenance,
+        };
+    }
+
+    /// <summary>
+    /// Expands bundle-typed ports to individual ports with normalized names.
+    /// </summary>
+    private static List<PortDeclaration> ExpandPorts(
+        List<PortDeclaration> ports,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        var expanded = new List<PortDeclaration>();
+
+        foreach (var port in ports)
+        {
+            foreach (
+                var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                    port.Name,
+                    port.Type,
+                    bundlesByName
+                )
+            )
+            {
+                // Get the leaf type (the domain after full expansion)
+                var leafType = GetLeafType(port.Name, port.Type, terminalPath, bundlesByName);
+
+                expanded.Add(
+                    new PortDeclaration { Name = NormalizePath(terminalPath), Type = leafType }
+                );
+            }
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// Gets the leaf type for an expanded terminal path.
+    /// </summary>
+    private static string GetLeafType(
+        string baseName,
+        string baseType,
+        string terminalPath,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        // If it's not a bundle type, the leaf type is the base type
+        if (!bundlesByName.TryGetValue(baseType, out var bundle))
+        {
+            return baseType;
+        }
+
+        // Navigate through the path to find the leaf type
+        var suffix =
+            terminalPath.Length > baseName.Length
+                ? terminalPath[(baseName.Length + 1)..] // Skip the base name and dot
+                : string.Empty;
+
+        if (string.IsNullOrEmpty(suffix))
+        {
+            return baseType;
+        }
+
+        var parts = suffix.Split('.');
+        var currentType = baseType;
+
+        foreach (var part in parts)
+        {
+            if (bundlesByName.TryGetValue(currentType, out var currentBundle))
+            {
+                if (currentBundle.Fields.TryGetValue(part, out var fieldType))
+                {
+                    currentType = fieldType;
+                }
+            }
+        }
+
+        return currentType;
+    }
+
+    /// <summary>
+    /// Desugars a fill block by expanding connections and normalizing device bindings.
+    /// </summary>
+    private static FillBlock DesugarFillBlock(
+        FillBlock fill,
+        IReadOnlyDictionary<string, string> portTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, string> instanceTypes
+    )
+    {
+        return new FillBlock
+        {
+            Nets = fill.Nets,
+            Instances = fill
+                .Instances.Select(i => DesugarInstance(i, bundlesByName, circuitsByName))
+                .ToList(),
+            Devices = fill.Devices.Select(d => DesugarDevice(d)).ToList(),
+            Attaches = fill.Attaches,
+            Connections = ExpandConnections(
+                fill.Connections,
+                portTypes,
+                bundlesByName,
+                circuitsByName,
+                instanceTypes
+            ),
+        };
+    }
+
+    /// <summary>
+    /// Desugars an instance by expanding bundle-typed bindings.
+    /// </summary>
+    private static InstanceDeclaration DesugarInstance(
+        InstanceDeclaration instance,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName
+    )
+    {
+        var expandedBindings = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        // Get the child circuit's port types if available
+        IReadOnlyDictionary<string, string>? childPortTypes = null;
+        if (circuitsByName.TryGetValue(instance.Type, out var childCircuit))
+        {
+            childPortTypes = childCircuit.Ports.ToDictionary(
+                p => p.Name,
+                p => p.Type,
+                StringComparer.Ordinal
+            );
+        }
+
+        foreach (var (port, net) in instance.Bindings)
+        {
+            // Check if this port is bundle-typed on the child circuit
+            if (
+                childPortTypes is not null
+                && childPortTypes.TryGetValue(port, out var portType)
+                && bundlesByName.TryGetValue(portType, out var bundle)
+            )
+            {
+                // Expand bundle-typed binding to individual bindings
+                foreach (
+                    var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                        port,
+                        portType,
+                        bundlesByName
+                    )
+                )
+                {
+                    var suffix =
+                        terminalPath.Length > port.Length
+                            ? terminalPath[port.Length..] // e.g., ".P" or ".N"
+                            : string.Empty;
+                    var expandedNet = net + suffix;
+                    expandedBindings[NormalizePath(terminalPath)] = NormalizePath(expandedNet);
+                }
+            }
+            else
+            {
+                // Not a bundle - just normalize
+                expandedBindings[NormalizePath(port)] = NormalizePath(net);
+            }
+        }
+
+        return new InstanceDeclaration
+        {
+            Id = instance.Id,
+            Type = instance.Type,
+            Bindings = expandedBindings,
+            Params = instance.Params,
+            Sizes = instance.Sizes,
+        };
+    }
+
+    /// <summary>
+    /// Desugars a device by normalizing its terminal bindings.
+    /// </summary>
+    private static DeviceDeclaration DesugarDevice(DeviceDeclaration device)
+    {
+        var normalizedBindings = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (terminal, net) in device.Bindings)
+        {
+            normalizedBindings[terminal] = NormalizePath(net);
+        }
+
+        return new DeviceDeclaration
+        {
+            DeviceType = device.DeviceType,
+            Id = device.Id,
+            Bindings = normalizedBindings,
+            Params = device.Params,
+            PdkDevice = device.PdkDevice,
+        };
+    }
+
+    /// <summary>
+    /// Expands connections, handling bundle-to-bundle connections.
+    /// </summary>
+    private static List<ConnectionStatement> ExpandConnections(
+        List<ConnectionStatement> connections,
+        IReadOnlyDictionary<string, string> portTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, string> instanceTypes
+    )
+    {
+        var expanded = new List<ConnectionStatement>();
+
+        foreach (var conn in connections)
+        {
+            expanded.AddRange(
+                ExpandConnection(conn, portTypes, bundlesByName, circuitsByName, instanceTypes)
+            );
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// Expands a single connection, handling bundle-to-bundle references.
+    /// </summary>
+    private static IEnumerable<ConnectionStatement> ExpandConnection(
+        ConnectionStatement conn,
+        IReadOnlyDictionary<string, string> portTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, string> instanceTypes
+    )
+    {
+        var fromPath = conn.From;
+        var toPath = conn.To;
+
+        // Try to determine the expansion from 'from' side (instance.port or local port)
+        string? bundleType = null;
+        List<string>? dottedPorts = null; // For child circuits with dotted port names
+
+        // Check if 'from' is an instance.port reference
+        var dotIndex = fromPath.IndexOf('.');
+        if (dotIndex >= 0)
+        {
+            var instanceId = fromPath[..dotIndex];
+            var portName = fromPath[(dotIndex + 1)..];
+
+            // Look up the instance type and its port
+            if (
+                instanceTypes.TryGetValue(instanceId, out var instanceTypeName)
+                && circuitsByName.TryGetValue(instanceTypeName, out var instanceCircuit)
+            )
+            {
+                var instancePortTypes = instanceCircuit.Ports.ToDictionary(
+                    p => p.Name,
+                    p => p.Type,
+                    StringComparer.Ordinal
+                );
+
+                // Check if the port on the instance is bundle-typed
+                if (
+                    instancePortTypes.TryGetValue(portName, out var portType)
+                    && bundlesByName.ContainsKey(portType)
+                )
+                {
+                    bundleType = portType;
+                }
+                else
+                {
+                    // Check if there are dotted ports with this prefix (e.g., "IN.P", "IN.N" for "IN")
+                    var prefix = portName + ".";
+                    dottedPorts = instanceCircuit
+                        .Ports.Where(p => p.Name.StartsWith(prefix, StringComparison.Ordinal))
+                        .Select(p => p.Name[prefix.Length..]) // Get the suffix (P, N, etc.)
+                        .OrderBy(s => s, StringComparer.Ordinal)
+                        .ToList();
+
+                    if (dottedPorts.Count == 0)
+                    {
+                        dottedPorts = null;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Check if 'from' is a local bundle-typed port
+            if (
+                portTypes.TryGetValue(fromPath, out var fromType)
+                && bundlesByName.ContainsKey(fromType)
+            )
+            {
+                bundleType = fromType;
+            }
+        }
+
+        // Also check 'to' side for bundle type (it may be a local port or instance.port)
+        string? toBundleType = null;
+        if (portTypes.TryGetValue(toPath, out var toType) && bundlesByName.ContainsKey(toType))
+        {
+            toBundleType = toType;
+            // If 'from' side doesn't have a bundle type, use 'to' side's type for expansion
+            if (bundleType is null && dottedPorts is null)
+            {
+                bundleType = toType;
+            }
+        }
+        else
+        {
+            // Check if 'to' is an instance.port reference with bundle type
+            var toDotIndex = toPath.IndexOf('.');
+            if (toDotIndex >= 0)
+            {
+                var toInstanceId = toPath[..toDotIndex];
+                var toPortName = toPath[(toDotIndex + 1)..];
+                if (
+                    instanceTypes.TryGetValue(toInstanceId, out var toInstanceTypeName)
+                    && circuitsByName.TryGetValue(toInstanceTypeName, out var toInstanceCircuit)
+                )
+                {
+                    var toInstancePortTypes = toInstanceCircuit.Ports.ToDictionary(
+                        p => p.Name,
+                        p => p.Type,
+                        StringComparer.Ordinal
+                    );
+                    if (
+                        toInstancePortTypes.TryGetValue(toPortName, out var toPortType)
+                        && bundlesByName.ContainsKey(toPortType)
+                    )
+                    {
+                        toBundleType = toPortType;
+                    }
+                }
+            }
+        }
+
+        // If we found a bundle type, expand
+        if (bundleType is not null && bundlesByName.TryGetValue(bundleType, out var bundle))
+        {
+            // Determine if 'to' side is bundle-typed (should expand) or scalar (should not expand)
+            bool toIsBundleTyped = toBundleType is not null;
+
+            foreach (var field in bundle.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
+            {
+                var expandedFrom = $"{fromPath}.{field.Key}";
+                // Only append field suffix to 'to' if it's also bundle-typed
+                var expandedTo = toIsBundleTyped ? $"{toPath}.{field.Key}" : toPath;
+
+                // Recursively expand nested bundles
+                foreach (
+                    var nested in ExpandConnection(
+                        new ConnectionStatement { From = expandedFrom, To = expandedTo },
+                        portTypes,
+                        bundlesByName,
+                        circuitsByName,
+                        instanceTypes
+                    )
+                )
+                {
+                    yield return nested;
+                }
+            }
+        }
+        // If we found dotted ports on the child circuit, expand to match them
+        else if (dottedPorts is not null)
+        {
+            // Determine if 'to' side also has dotted ports or is a scalar
+            bool toHasDottedPorts = false;
+            var toDotIndex = toPath.IndexOf('.');
+            if (toDotIndex >= 0)
+            {
+                var toInstanceId = toPath[..toDotIndex];
+                var toPortName = toPath[(toDotIndex + 1)..];
+                if (
+                    instanceTypes.TryGetValue(toInstanceId, out var toInstanceTypeName)
+                    && circuitsByName.TryGetValue(toInstanceTypeName, out var toInstanceCircuit)
+                )
+                {
+                    var prefix = toPortName + ".";
+                    toHasDottedPorts = toInstanceCircuit.Ports.Any(p =>
+                        p.Name.StartsWith(prefix, StringComparison.Ordinal)
+                    );
+                }
+            }
+            else
+            {
+                // 'to' is a local port - check if it has dotted sub-ports or is bundle-typed
+                toHasDottedPorts = toBundleType is not null;
+            }
+
+            foreach (var suffix in dottedPorts)
+            {
+                var expandedFrom = $"{fromPath}.{suffix}";
+                // Only append suffix to 'to' if it also has dotted ports / is bundle-typed
+                var expandedTo = toHasDottedPorts ? $"{toPath}.{suffix}" : toPath;
+
+                // Recursively expand (in case of nested dotted ports)
+                foreach (
+                    var nested in ExpandConnection(
+                        new ConnectionStatement { From = expandedFrom, To = expandedTo },
+                        portTypes,
+                        bundlesByName,
+                        circuitsByName,
+                        instanceTypes
+                    )
+                )
+                {
+                    yield return nested;
+                }
+            }
+        }
+        else
+        {
+            // Leaf connection - normalize paths, preserving instance.port structure
+            yield return new ConnectionStatement
+            {
+                From = NormalizeConnectionPath(fromPath, instanceTypes),
+                To = NormalizeConnectionPath(toPath, instanceTypes),
+            };
+        }
+    }
+
+    /// <summary>
+    /// Normalizes a connection path, preserving instance.port structure where applicable.
+    /// </summary>
+    private static string NormalizeConnectionPath(
+        string path,
+        IReadOnlyDictionary<string, string> instanceTypes
+    )
+    {
+        var firstDot = path.IndexOf('.');
+        if (firstDot < 0)
+        {
+            // No dots - return as-is
+            return path;
+        }
+
+        var firstPart = path[..firstDot];
+        var rest = path[(firstDot + 1)..];
+
+        // Check if first part is an instance name
+        if (instanceTypes.ContainsKey(firstPart))
+        {
+            // Instance.port reference: normalize only the port part
+            return $"{firstPart}.{NormalizePath(rest)}";
+        }
+        else
+        {
+            // Local port reference: normalize the whole thing
+            return NormalizePath(path);
+        }
+    }
+
+    /// <summary>
+    /// Desugars harness block by normalizing port references in loads, sources, etc.
+    /// </summary>
+    private static HarnessBlock DesugarHarness(
+        HarnessBlock harness,
+        IReadOnlyDictionary<string, string> portTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        return new HarnessBlock
+        {
+            Supplies = harness.Supplies,
+            Biases = harness.Biases,
+            Sources = harness
+                .Sources.Select(s => new SourceValue { Net = NormalizePath(s.Net), Z = s.Z })
+                .ToList(),
+            Loads = ExpandHarnessLoads(harness.Loads, portTypes, bundlesByName),
+            Sweeps = harness.Sweeps,
+            Icmr = harness.Icmr,
+            Pvt = harness.Pvt,
+        };
+    }
+
+    /// <summary>
+    /// Expands harness loads, handling bundle-typed port references.
+    /// </summary>
+    private static List<LoadValue> ExpandHarnessLoads(
+        List<LoadValue> loads,
+        IReadOnlyDictionary<string, string> portTypes,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        var expanded = new List<LoadValue>();
+
+        foreach (var load in loads)
+        {
+            var netBaseName = GetBaseName(load.Net);
+
+            // Check if load references a bundle-typed port
+            if (
+                !load.Net.Contains('.')
+                && portTypes.TryGetValue(netBaseName, out var portType)
+                && bundlesByName.TryGetValue(portType, out var bundle)
+            )
+            {
+                // Expand to individual loads for each bundle field
+                foreach (
+                    var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                        load.Net,
+                        portType,
+                        bundlesByName
+                    )
+                )
+                {
+                    expanded.Add(
+                        new LoadValue
+                        {
+                            Net = NormalizePath(terminalPath),
+                            Elements = load.Elements,
+                        }
+                    );
+                }
+            }
+            else
+            {
+                // Not a bundle - just normalize
+                expanded.Add(
+                    new LoadValue { Net = NormalizePath(load.Net), Elements = load.Elements }
+                );
+            }
+        }
+
+        return expanded;
+    }
+
+    /// <summary>
+    /// Gets the base name from a potentially dotted path.
+    /// E.g., "dp.IN.P" → "dp", "IN" → "IN"
+    /// </summary>
+    private static string GetBaseName(string path)
+    {
+        var dotIndex = path.IndexOf('.');
+        return dotIndex >= 0 ? path[..dotIndex] : path;
+    }
+
+    /// <summary>
+    /// Normalizes a path by replacing dots with underscores.
+    /// Used for local net names.
+    /// </summary>
+    private static string NormalizePath(string path) => BundleExpander.ToNetName(path);
+
+    /// <summary>
+    /// Normalizes a connection endpoint, preserving the instance.port structure.
+    /// E.g., "dp.IN.P" → "dp.IN_P" (keeps the first dot, normalizes the rest)
+    /// E.g., "IN.P" → "IN_P" (no instance prefix)
+    /// </summary>
+    private static string NormalizeConnectionEndpoint(string path)
+    {
+        var firstDot = path.IndexOf('.');
+        if (firstDot < 0)
+        {
+            // No dots - return as-is
+            return path;
+        }
+
+        // Check if this looks like an instance.port reference
+        // by seeing if there are more dots after the first one
+        var afterFirstDot = path[(firstDot + 1)..];
+        if (afterFirstDot.Contains('.'))
+        {
+            // Instance.port.field format: dp.IN.P
+            // Keep the first dot, normalize the rest
+            var instancePart = path[..firstDot];
+            var portPart = afterFirstDot.Replace('.', '_');
+            return $"{instancePart}.{portPart}";
+        }
+        else
+        {
+            // Could be instance.port (dp.TAIL) or port.field (IN.P)
+            // We need to determine which based on context, but for simplicity,
+            // if the first part looks like an instance ID (lowercase, short), keep the dot
+            // Actually, we can't reliably tell without context, so let's check if
+            // the first part is a known instance name... but we don't have that info here.
+
+            // Heuristic: if we're in the context of a connection from/to,
+            // assume the first part before a single dot is an instance name
+            // This is called from connection expansion, so treat as instance.port
+            return path; // Keep as-is for instance.port references
+        }
+    }
+}

@@ -318,6 +318,7 @@ public class BenchRunService
         var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
         var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
 
+        // Early exit: no circuits with benches
         if (allCircuitsWithBenches.Count == 0)
         {
             _logger.LogError("No EL-level circuits with benches found in ACIR document.");
@@ -333,40 +334,16 @@ public class BenchRunService
             );
         }
 
-        // Apply circuit filter if specified
-        IReadOnlyList<Circuit> circuitsWithBenches;
-        if (!string.IsNullOrWhiteSpace(args.CircuitFilter))
-        {
-            var filtered = allCircuitsWithBenches
-                .Where(c => c.Name.Equals(args.CircuitFilter, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            if (filtered.Count == 0)
-            {
-                var available = string.Join(", ", allCircuitsWithBenches.Select(c => c.Name));
-                _logger.LogError(
-                    "Circuit '{CircuitFilter}' not found or has no benches. Available: {Available}",
-                    args.CircuitFilter,
-                    available
-                );
-                return new MultiCircuitBenchRunResult(
-                    2,
-                    new MultiCircuitBenchRunSummary(
-                        args.Backend,
-                        args.OutputDir ?? string.Empty,
-                        Array.Empty<CircuitBenchRunSummary>(),
-                        null,
-                        new ComplianceReport()
-                    )
-                );
-            }
-
-            circuitsWithBenches = filtered;
-        }
-        else
-        {
-            circuitsWithBenches = allCircuitsWithBenches;
-        }
+        // Validate and filter circuits
+        var filterResult = ValidateCircuitFilterOrReturnError(
+            allCircuitsWithBenches,
+            args.CircuitFilter,
+            args.Backend,
+            args.OutputDir ?? string.Empty,
+            out var circuitsWithBenches
+        );
+        if (filterResult != null)
+            return filterResult;
 
         // Determine output directory
         var outputDir =
@@ -379,41 +356,20 @@ public class BenchRunService
             );
         Directory.CreateDirectory(outputDir);
 
-        // Emit all testbenches upfront (handles dependencies)
-        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            args.AcirPath,
-            workspaceRoot
-        );
-        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
-        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
-        var emit = SpiceEmitter.ValidateAndEmit(
+        // Emit all testbenches upfront
+        var emitResult = EmitAllDesignsOrReturnError(
             doc,
             outputDir,
-            args.Backend,
-            resolvedWorkspaceRoot,
-            includeResolver
+            workspaceRoot,
+            pdkRoot,
+            args,
+            out var emit
         );
-
-        if (!emit.Validation.IsValid)
-        {
-            var first =
-                emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
-            _logger.LogError("ACIR emission validation failed: {Error}", first);
-            return new MultiCircuitBenchRunResult(
-                2,
-                new MultiCircuitBenchRunSummary(
-                    args.Backend,
-                    outputDir,
-                    Array.Empty<CircuitBenchRunSummary>(),
-                    null,
-                    new ComplianceReport()
-                )
-            );
-        }
+        if (emitResult != null)
+            return emitResult;
 
         // Run benches for each circuit in dependency order
         var circuitSummaries = new List<CircuitBenchRunSummary>();
-
         foreach (var circuit in circuitsWithBenches)
         {
             var circuitSummary = RunCircuitBenches(
@@ -426,23 +382,8 @@ public class BenchRunService
             circuitSummaries.Add(circuitSummary);
         }
 
-        // Aggregate compliance across all circuits
-        var globalCompliance = AggregateCompliance(circuitSummaries);
-
-        // Determine exit code
-        var hadSimulationFailure = circuitSummaries.Any(cs => cs.Benches.Any(b => !b.Succeeded));
-        var exitCode = hadSimulationFailure || globalCompliance.FailedCount > 0 ? 1 : 0;
-
-        return new MultiCircuitBenchRunResult(
-            exitCode,
-            new MultiCircuitBenchRunSummary(
-                args.Backend,
-                outputDir,
-                circuitSummaries,
-                null,
-                globalCompliance
-            )
-        );
+        // Aggregate and return results
+        return AggregateResults(circuitSummaries, args.Backend, outputDir);
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(
@@ -578,6 +519,129 @@ public class BenchRunService
         }
 
         return new ComplianceReport { Results = allResults, UncheckedByBench = uncheckedByBench };
+    }
+
+    /// <summary>
+    /// Validates and filters circuits based on CircuitFilter argument.
+    /// Returns null if validation passes; otherwise returns error result.
+    /// </summary>
+    private MultiCircuitBenchRunResult? ValidateCircuitFilterOrReturnError(
+        IReadOnlyList<Circuit> allCircuitsWithBenches,
+        string? circuitFilter,
+        BenchBackendType backend,
+        string outputDir,
+        out IReadOnlyList<Circuit> filteredCircuits
+    )
+    {
+        filteredCircuits = allCircuitsWithBenches;
+
+        if (string.IsNullOrWhiteSpace(circuitFilter))
+        {
+            return null;
+        }
+
+        var filtered = allCircuitsWithBenches
+            .Where(c => c.Name.Equals(circuitFilter, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (filtered.Count == 0)
+        {
+            var available = string.Join(", ", allCircuitsWithBenches.Select(c => c.Name));
+            _logger.LogError(
+                "Circuit '{CircuitFilter}' not found or has no benches. Available: {Available}",
+                circuitFilter,
+                available
+            );
+            return new MultiCircuitBenchRunResult(
+                2,
+                new MultiCircuitBenchRunSummary(
+                    backend,
+                    outputDir,
+                    Array.Empty<CircuitBenchRunSummary>(),
+                    null,
+                    new ComplianceReport()
+                )
+            );
+        }
+
+        filteredCircuits = filtered;
+        return null;
+    }
+
+    /// <summary>
+    /// Emits all testbenches upfront (handles dependencies).
+    /// Returns null if emission succeeds; otherwise returns error result.
+    /// </summary>
+    private MultiCircuitBenchRunResult? EmitAllDesignsOrReturnError(
+        ACIRDocument doc,
+        string outputDir,
+        string workspaceRoot,
+        string? pdkRoot,
+        BenchRunArgs args,
+        out ValidatedEmitResult emit
+    )
+    {
+        emit = null!;
+
+        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
+            args.AcirPath,
+            workspaceRoot
+        );
+        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
+        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
+
+        emit = SpiceEmitter.ValidateAndEmit(
+            doc,
+            outputDir,
+            args.Backend,
+            resolvedWorkspaceRoot,
+            includeResolver
+        );
+
+        if (!emit.Validation.IsValid)
+        {
+            var first =
+                emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
+            _logger.LogError("ACIR emission validation failed: {Error}", first);
+            return new MultiCircuitBenchRunResult(
+                2,
+                new MultiCircuitBenchRunSummary(
+                    args.Backend,
+                    outputDir,
+                    Array.Empty<CircuitBenchRunSummary>(),
+                    null,
+                    new ComplianceReport()
+                )
+            );
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Aggregates results from all circuit bench runs into final summary.
+    /// Always succeeds; returns complete MultiCircuitBenchRunResult.
+    /// </summary>
+    private MultiCircuitBenchRunResult AggregateResults(
+        IReadOnlyList<CircuitBenchRunSummary> circuitSummaries,
+        BenchBackendType backend,
+        string outputDir
+    )
+    {
+        var globalCompliance = AggregateCompliance(circuitSummaries);
+        var hadSimulationFailure = circuitSummaries.Any(cs => cs.Benches.Any(b => !b.Succeeded));
+        var exitCode = hadSimulationFailure || globalCompliance.FailedCount > 0 ? 1 : 0;
+
+        return new MultiCircuitBenchRunResult(
+            exitCode,
+            new MultiCircuitBenchRunSummary(
+                backend,
+                outputDir,
+                circuitSummaries,
+                null,
+                globalCompliance
+            )
+        );
     }
 
     private BenchRunResult? ValidateEmissionOrReturnResult(
