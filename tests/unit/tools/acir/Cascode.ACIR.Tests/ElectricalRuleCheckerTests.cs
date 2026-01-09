@@ -754,6 +754,53 @@ public class ElectricalRuleCheckerTests
     }
 
     [Fact]
+    public void Check_ML_MissingGateBinding_ReturnsERC001()
+    {
+        var circuit = new Circuit
+        {
+            Name = "MLTestCircuit",
+            Level = ACIRLevel.ML,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "OUT", Type = "analog" },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "pmos",
+                        Id = "M_SENSE",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            // G is missing entirely
+                            { "S", "VDD" },
+                            { "B", "VDD" },
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=??, L=??, M=??)" },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "ERC-001" && e.Message.Contains("Missing gate binding")
+        );
+        Assert.Contains(result.Diagnostics, e => e.Message.Contains("M_SENSE"));
+    }
+
+    [Fact]
     public void Check_ML_VddGndShort_ReturnsERC002()
     {
         var circuit = new Circuit

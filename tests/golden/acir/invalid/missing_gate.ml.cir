@@ -1,0 +1,15 @@
+ACIR 2.0
+
+; ML-level circuit with a missing gate binding - ERC-001 violation
+; The M_SENSE device has no G-> binding at all
+
+circuit MissingGateExample
+  level ML
+
+  supply VDD
+  ground GND
+
+  port OUT : analog
+
+  fill:
+    pmos M_SENSE (B->VDD, D->OUT, S->VDD) : size=(W=??, L=??, M=??) pmos

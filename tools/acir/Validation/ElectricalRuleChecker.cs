@@ -77,7 +77,15 @@ public static class ElectricalRuleChecker
                 continue;
 
             if (!device.Bindings.TryGetValue("G", out var gateNet))
+            {
+                result.AddError(
+                    "ERC-001",
+                    $"Missing gate binding on device {device.Id}",
+                    $"{device.Id}.G",
+                    "MOSFET gate terminal must be connected"
+                );
                 continue;
+            }
 
             if (!analysis.IsDrivenNet(gateNet))
             {

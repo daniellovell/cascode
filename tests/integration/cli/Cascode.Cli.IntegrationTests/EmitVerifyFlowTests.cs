@@ -642,6 +642,23 @@ public partial class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    public async Task Erc_ML_MissingGateBinding_ReturnsExitCode1()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_gate.ml.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-001", result.Stdout);
+        Assert.Contains("Missing gate binding", result.Stdout);
+    }
+
+    [Fact]
     public async Task Erc_ML_VddGndShort_ReturnsExitCode1()
     {
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.ml.cir");
