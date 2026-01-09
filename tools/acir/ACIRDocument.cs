@@ -75,6 +75,11 @@ public sealed class Circuit
     /// </summary>
     public List<CircuitParameter> Parameters { get; init; } = new();
 
+    /// <summary>
+    /// Size pack declarations (named key/value maps with optional defaults).
+    /// </summary>
+    public List<SizeDeclaration> Sizes { get; init; } = new();
+
     /// <summary>Supply declarations.</summary>
     public List<string> Supplies { get; init; } = new();
 
@@ -182,6 +187,9 @@ public sealed class InstanceDeclaration
 
     /// <summary>Parameter values.</summary>
     public Dictionary<string, ParamValue> Params { get; init; } = new();
+
+    /// <summary>Size pack assignments for this instance.</summary>
+    public Dictionary<string, SizePack> Sizes { get; init; } = new();
 }
 
 /// <summary>

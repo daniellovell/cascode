@@ -16,7 +16,7 @@ trait DiffPairLike:
   port OUT.P : analog
   port OUT.N : analog
 
-circuit OTA5T_Hierarchical
+circuit OTA5T_Hierarchical_Attach
   level EL
   supply VDD
   ground GND
@@ -25,19 +25,17 @@ circuit OTA5T_Hierarchical
   port OUT : analog
   port VTAIL : bias
   fill:
-    net mirror_gate : analog
-    inst dp (dp.VDD->VDD, dp.GND->GND) : DiffPair
+    inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
       connect dp.IN.P -> IN_P
       connect dp.IN.N -> IN_N
-      connect dp.OUT.N -> mirror_gate
       connect dp.OUT.P -> OUT
       connect VTAIL -> dp.TAIL
-    inst cm (cm.VDD->VDD, cm.GND->GND) : CurrentMirror
+    inst cm (cm.GND->GND, cm.VDD->VDD) : CurrentMirror
       param ratio = 1
-      connect cm.SENSE -> mirror_gate
-      connect cm.TAP[0] -> OUT
+      // TAP[0]->OUT intentionally omitted - covered by attach statement below
+    attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   constraints:
     numeric:
       c_gbw : GainBandwidth @ OUT >= 20M Hz

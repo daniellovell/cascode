@@ -111,6 +111,18 @@ public static class ACIRWriter
             writer.WriteLine($"  param {param.Name} : {param.Type}{defaultPart}");
         }
 
+        // Sizes
+        foreach (var size in circuit.Sizes.OrderBy(s => s.Name, StringComparer.Ordinal))
+        {
+            if (size.Default is null)
+            {
+                writer.WriteLine($"  size {size.Name}");
+                continue;
+            }
+
+            writer.WriteLine($"  size {size.Name} = {FormatSizePack(size.Default)}");
+        }
+
         // Package
         if (!string.IsNullOrEmpty(circuit.Package))
         {
@@ -300,6 +312,19 @@ public static class ACIRWriter
         {
             writer.WriteLine($"      param {param.Key} = {FormatParamValue(param.Value)}");
         }
+
+        // Sizes
+        foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"      size {size.Key} = {FormatSizePack(size.Value)}");
+        }
+    }
+
+    private static string FormatSizePack(SizePack pack)
+    {
+        var entries = pack.Entries.OrderBy(e => e.Key, StringComparer.Ordinal).ToList();
+        var parts = entries.Select(e => $"{e.Key}={e.Value}");
+        return $"({string.Join(", ", parts)})";
     }
 
     private static void WriteDevice(DeviceDeclaration device, TextWriter writer)

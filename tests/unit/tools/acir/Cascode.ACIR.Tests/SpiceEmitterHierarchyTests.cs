@@ -858,31 +858,25 @@ public class SpiceEmitterHierarchyTests
         Assert.Equal(ACIRVersion.Major, doc.VersionMajor);
         Assert.Equal(ACIRVersion.Minor, doc.VersionMinor);
 
-        // Should have 4 circuits: DiffPair, ActiveLoad, OTA5T_Hierarchical, CurrentMirror
-        Assert.Equal(4, doc.Circuits.Count);
+        // Should have 3 circuits: DiffPair, OTA5T_Hierarchical, CurrentMirror
+        Assert.Equal(3, doc.Circuits.Count);
 
         // Verify traits
-        Assert.Equal(3, doc.Traits.Count);
-        Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorTrait");
-        Assert.Contains(doc.Traits, t => t.Name == "LoadBranch");
-        Assert.Contains(doc.Traits, t => t.Name == "DiffPairTrait");
+        Assert.Equal(2, doc.Traits.Count);
+        Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorLike");
+        Assert.Contains(doc.Traits, t => t.Name == "DiffPairLike");
 
-        // Verify inline circuits
+        // Verify inline circuit
         var diffPair = doc.Circuits.First(c => c.Name == "DiffPair");
         Assert.True(diffPair.Inline);
-        Assert.Contains("DiffPairTrait", diffPair.Traits!);
-
-        var activeLoad = doc.Circuits.First(c => c.Name == "ActiveLoad");
-        Assert.True(activeLoad.Inline);
-        Assert.Contains("LoadBranch", activeLoad.Traits!);
+        Assert.Contains("DiffPairLike", diffPair.Traits!);
 
         // Verify top-level circuit has instances
         var topLevel = doc.Circuits.First(c => c.Name == "OTA5T_Hierarchical");
         Assert.NotNull(topLevel.Fill);
-        Assert.Equal(3, topLevel.Fill.Instances.Count);
+        Assert.Equal(2, topLevel.Fill.Instances.Count);
         Assert.Contains(topLevel.Fill.Instances, i => i.Id == "dp" && i.Type == "DiffPair");
         Assert.Contains(topLevel.Fill.Instances, i => i.Id == "cm" && i.Type == "CurrentMirror");
-        Assert.Contains(topLevel.Fill.Instances, i => i.Id == "load" && i.Type == "ActiveLoad");
     }
 
     [Fact]
@@ -902,13 +896,12 @@ public class SpiceEmitterHierarchyTests
 
         var circuit = doc.Circuits[0];
         Assert.Equal("CurrentMirror", circuit.Name);
-        Assert.Contains("CurrentMirrorTrait", circuit.Traits!);
+        Assert.Contains("CurrentMirrorLike", circuit.Traits!);
 
-        // Verify parameters
-        Assert.Equal(3, circuit.Parameters.Count);
+        // Verify parameters (no circuit-level sizes; uses inline anonymous sizes)
+        Assert.Single(circuit.Parameters);
         Assert.Contains(circuit.Parameters, p => p.Name == "ratio" && p.Default?.Numeric == "1");
-        Assert.Contains(circuit.Parameters, p => p.Name == "W" && p.Default?.Numeric == "2u");
-        Assert.Contains(circuit.Parameters, p => p.Name == "L" && p.Default?.Numeric == "180n");
+        Assert.Empty(circuit.Sizes);
 
         // Verify devices
         Assert.NotNull(circuit.Fill);
@@ -933,9 +926,8 @@ public class SpiceEmitterHierarchyTests
         SpiceEmitter.EmitDesign(topLevel, writer, document: doc);
         var output = writer.ToString();
 
-        // Inline circuits (DiffPair, ActiveLoad) should be expanded, not X-elements
+        // Inline circuit (DiffPair) should be expanded, not X-element
         Assert.DoesNotContain("Xdp ", output);
-        Assert.DoesNotContain("Xload ", output);
 
         // Non-inline circuit (CurrentMirror) should emit as X-element
         Assert.Contains("Xcm ", output);
@@ -944,9 +936,6 @@ public class SpiceEmitterHierarchyTests
         Assert.Contains("Mdp__M_N", output);
         Assert.Contains("Mdp__M_P", output);
         Assert.Contains("Mdp__M_TAIL", output);
-
-        // ActiveLoad inline expansion
-        Assert.Contains("Mload__M_LOAD", output);
 
         // Internal net from DiffPair should be uniquified
         Assert.Contains("dp__tnode", output);
@@ -1028,14 +1017,20 @@ public class SpiceEmitterHierarchyTests
         var doc = ACIRReader.Read(reader);
 
         // Verify trait connector was parsed correctly
-        var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorTrait");
+        var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorLike");
         Assert.Single(mirrorTrait.Connectors);
 
         var connector = mirrorTrait.Connectors[0];
-        Assert.Equal("LoadBranch", connector.TargetTrait);
-        Assert.Single(connector.Mappings);
-        Assert.Equal("OUT", connector.Mappings[0].SourcePort);
-        Assert.Equal("IN", connector.Mappings[0].TargetPort);
+        Assert.Equal("DiffPairLike", connector.TargetTrait);
+        Assert.Equal(2, connector.Mappings.Count);
+        Assert.Contains(
+            connector.Mappings,
+            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT.N"
+        );
+        Assert.Contains(
+            connector.Mappings,
+            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT.P"
+        );
     }
 
     [Fact]
