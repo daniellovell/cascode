@@ -55,8 +55,9 @@ public static class EmissionValidator
     /// Validates a circuit for emission-blocking issues.
     /// </summary>
     /// <param name="circuit">The circuit to validate.</param>
+    /// <param name="document">Optional document containing bundle type definitions.</param>
     /// <returns>Validation result with any errors found.</returns>
-    public static ValidationResult Validate(Circuit circuit)
+    public static ValidationResult Validate(Circuit circuit, ACIRDocument? document = null)
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
@@ -91,8 +92,11 @@ public static class EmissionValidator
             }
         }
 
+        // Get bundle definitions for port expansion
+        var bundlesByName = BundleExpander.GetBundlesByName(document);
+
         // Build set of valid nets from all sources
-        var validNets = BuildValidNetSet(circuit);
+        var validNets = BuildValidNetSet(circuit, bundlesByName);
 
         // Build set of valid size pack names
         var validSizes = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
@@ -115,14 +119,24 @@ public static class EmissionValidator
     /// <summary>
     /// Builds a set of all valid net names in the circuit.
     /// </summary>
-    private static HashSet<string> BuildValidNetSet(Circuit circuit)
+    private static HashSet<string> BuildValidNetSet(
+        Circuit circuit,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
 
-        // Add ports
+        // Add ports (expanding bundle-typed ports to their member nets)
         foreach (var port in circuit.Ports)
         {
-            nets.Add(port.Name);
+            foreach (var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                port.Name,
+                port.Type,
+                bundlesByName
+            ))
+            {
+                nets.Add(BundleExpander.ToNetName(terminalPath));
+            }
         }
 
         // Add supplies
@@ -205,7 +219,9 @@ public static class EmissionValidator
         // EMIT-002: Invalid net references
         foreach (var (terminal, netName) in device.Bindings)
         {
-            if (!validNets.Contains(netName))
+            // Normalize net reference (convert dots to underscores for bundle member access)
+            var normalizedNetName = BundleExpander.ToNetName(netName);
+            if (!validNets.Contains(normalizedNetName))
             {
                 var availableNets = validNets.Take(8).ToList();
                 var netList =

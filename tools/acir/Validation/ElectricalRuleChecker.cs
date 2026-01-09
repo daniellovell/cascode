@@ -24,15 +24,20 @@ public static class ElectricalRuleChecker
     /// </summary>
     /// <param name="circuit">The circuit to check.</param>
     /// <param name="requirePdkDevice">If true, missing PDK device is an error; otherwise a warning.</param>
+    /// <param name="document">Optional document containing bundle type definitions.</param>
     /// <returns>Validation result with any ERC violations found.</returns>
-    public static ValidationResult Check(Circuit circuit, bool requirePdkDevice = false)
+    public static ValidationResult Check(
+        Circuit circuit,
+        bool requirePdkDevice = false,
+        ACIRDocument? document = null
+    )
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
         var result = new ValidationResult();
 
         // First run emission validation as prerequisite
-        var emitResult = EmissionValidator.Validate(circuit);
+        var emitResult = EmissionValidator.Validate(circuit, document);
         if (!emitResult.IsValid)
         {
             result.Merge(emitResult);

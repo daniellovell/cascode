@@ -413,9 +413,6 @@ public class BenchRunService
 
         // Run benches for each circuit in dependency order
         var circuitSummaries = new List<CircuitBenchRunSummary>();
-        var globalMeasurements = new Dictionary<string, MeasurementResult>(
-            StringComparer.OrdinalIgnoreCase
-        );
 
         foreach (var circuit in circuitsWithBenches)
         {
@@ -424,14 +421,13 @@ public class BenchRunService
                 doc,
                 args,
                 outputDir,
-                emit.Emit.TestbenchPaths,
-                globalMeasurements
+                emit.Emit.TestbenchPaths
             );
             circuitSummaries.Add(circuitSummary);
         }
 
         // Aggregate compliance across all circuits
-        var globalCompliance = AggregateCompliance(circuitsWithBenches, globalMeasurements);
+        var globalCompliance = AggregateCompliance(circuitSummaries);
 
         // Determine exit code
         var hadSimulationFailure = circuitSummaries.Any(cs => cs.Benches.Any(b => !b.Succeeded));
@@ -454,8 +450,7 @@ public class BenchRunService
         ACIRDocument doc,
         BenchRunArgs args,
         string outputDir,
-        IReadOnlyList<string> testbenchPaths,
-        Dictionary<string, MeasurementResult> globalMeasurements
+        IReadOnlyList<string> testbenchPaths
     )
     {
         var availableBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
@@ -482,13 +477,6 @@ public class BenchRunService
                 circuitMeasurements
             );
             benchSummaries.Add(summary);
-        }
-
-        // Merge circuit measurements into global with circuit prefix
-        foreach (var (key, value) in circuitMeasurements)
-        {
-            var globalKey = $"{circuit.Name}.{key}";
-            globalMeasurements[globalKey] = value;
         }
 
         var combinedResults = BenchResultParser.CreateCombinedResults(
@@ -551,37 +539,15 @@ public class BenchRunService
     }
 
     private ComplianceReport AggregateCompliance(
-        IReadOnlyList<Circuit> circuits,
-        Dictionary<string, MeasurementResult> globalMeasurements
+        IReadOnlyList<CircuitBenchRunSummary> circuitSummaries
     )
     {
         var allResults = new List<ConstraintResult>();
         var uncheckedByBench = new Dictionary<string, List<UncheckedConstraint>>();
 
-        foreach (var circuit in circuits)
+        foreach (var summary in circuitSummaries)
         {
-            var circuitBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
-
-            // Get measurements for this circuit (with circuit prefix)
-            var circuitMeasurements = new Dictionary<string, MeasurementResult>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            foreach (var (key, value) in globalMeasurements)
-            {
-                var prefix = $"{circuit.Name}.";
-                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    circuitMeasurements[key.Substring(prefix.Length)] = value;
-                }
-            }
-
-            var combinedResults = BenchResultParser.CreateCombinedResults(
-                circuit.Name,
-                circuitBenches,
-                circuitMeasurements
-            );
-
-            var circuitCompliance = ComplianceChecker.Check(circuit, combinedResults);
+            var circuitCompliance = summary.Compliance;
 
             // Prefix constraint IDs with circuit name to avoid collisions
             foreach (var result in circuitCompliance.Results)
@@ -589,7 +555,7 @@ public class BenchRunService
                 allResults.Add(
                     new ConstraintResult
                     {
-                        Id = $"{circuit.Name}.{result.Id}",
+                        Id = $"{summary.CircuitName}.{result.Id}",
                         Metric = result.Metric,
                         Node = result.Node,
                         Unit = result.Unit,
@@ -606,7 +572,7 @@ public class BenchRunService
 
             foreach (var (bench, unchecked_) in circuitCompliance.UncheckedByBench)
             {
-                var key = $"{circuit.Name}.{bench}";
+                var key = $"{summary.CircuitName}.{bench}";
                 uncheckedByBench[key] = unchecked_;
             }
         }

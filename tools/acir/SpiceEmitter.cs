@@ -382,7 +382,7 @@ public static class SpiceEmitter
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         foreach (var circuit in elCircuits)
         {
-            var circuitValidation = EmissionValidator.Validate(circuit);
+            var circuitValidation = EmissionValidator.Validate(circuit, doc);
             validationResult.Merge(circuitValidation);
         }
 

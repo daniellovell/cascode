@@ -164,13 +164,13 @@ public class AcirJsonConverterRoundTripTests
 
         var fill = roundTripped.Circuits[0].Fill!;
         Assert.NotNull(fill.Attaches);
-        Assert.Equal(3, fill.Attaches.Count);
+        Assert.Equal(2, fill.Attaches.Count);
         Assert.Equal("nl", fill.Attaches[0].SourceInstance);
         Assert.Equal("dp", fill.Attaches[0].TargetInstances[0]);
-        Assert.Equal("pl1", fill.Attaches[1].SourceInstance);
-        Assert.Equal("nl", fill.Attaches[1].TargetInstances[0]);
-        Assert.Equal("pl2", fill.Attaches[2].SourceInstance);
-        Assert.Equal("pl1", fill.Attaches[2].TargetInstances[0]);
+        Assert.Equal("pl2", fill.Attaches[1].SourceInstance);
+        Assert.Equal(2, fill.Attaches[1].TargetInstances.Count);
+        Assert.Equal("pl1", fill.Attaches[1].TargetInstances[0]);
+        Assert.Equal("nl", fill.Attaches[1].TargetInstances[1]);
 
         Assert.NotNull(roundTripped.Circuits[0].Harness);
         Assert.Equal(3, roundTripped.Circuits[0].Harness!.Biases.Count);
