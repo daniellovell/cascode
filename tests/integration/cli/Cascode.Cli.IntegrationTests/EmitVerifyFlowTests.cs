@@ -1216,7 +1216,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
 
-        // Should emit 3 designs (top-level + 2 child circuits) and 2 testbenches
+        // Should emit 2 designs (top-level + 1 child circuit) and 2 testbenches
         Assert.Contains("Emitted 2 design(s) and 2 testbench(es)", result.Stdout);
 
         Assert.True(

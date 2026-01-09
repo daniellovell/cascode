@@ -238,6 +238,20 @@ public static class HierarchyValidator
             }
         }
 
+        // Remove ports covered by connect statements
+        if (parentCircuit.Fill?.Connections is not null)
+        {
+            var connectedPorts = GetPortsCoveredByConnects(
+                parentCircuit.Fill.Connections,
+                instance,
+                declaredPortNames
+            );
+            foreach (var port in connectedPorts)
+            {
+                requiredPorts.Remove(port);
+            }
+        }
+
         // Remove ports covered by attach statements
         if (parentCircuit.Fill?.Attaches is not null)
         {
@@ -352,6 +366,65 @@ public static class HierarchyValidator
         }
 
         return coveredPorts;
+    }
+
+    /// <summary>
+    /// Determines which ports on an instance are covered by connect statements.
+    /// </summary>
+    private static HashSet<string> GetPortsCoveredByConnects(
+        IEnumerable<ConnectionStatement> connections,
+        InstanceDeclaration instance,
+        HashSet<string> declaredPortNames
+    )
+    {
+        var coveredPorts = new HashSet<string>(StringComparer.Ordinal);
+        var instancePrefix = $"{instance.Id}.";
+
+        foreach (var conn in connections)
+        {
+            CheckEndpoint(conn.From);
+            CheckEndpoint(conn.To);
+        }
+
+        return coveredPorts;
+
+        void CheckEndpoint(string endpoint)
+        {
+            if (!endpoint.StartsWith(instancePrefix, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            var portPath = endpoint[instancePrefix.Length..];
+
+            // If the exact port path is declared, use it
+            if (declaredPortNames.Contains(portPath))
+            {
+                coveredPorts.Add(portPath);
+                return;
+            }
+
+            // Check for bundle expansion: dp.IN should cover IN.P, IN.N if those ports exist
+            var bundlePrefix = $"{portPath}.";
+            var matchingPorts = declaredPortNames
+                .Where(p => p.StartsWith(bundlePrefix, StringComparison.Ordinal))
+                .ToList();
+
+            if (matchingPorts.Count > 0)
+            {
+                // Bundle connection covers all matching ports
+                foreach (var matchedPort in matchingPorts)
+                {
+                    coveredPorts.Add(matchedPort);
+                }
+            }
+            else
+            {
+                // Fallback: extract the root port name (for bundle notation)
+                var rootPort = portPath.Split('.')[0];
+                coveredPorts.Add(rootPort);
+            }
+        }
     }
 
     /// <summary>

@@ -47,22 +47,31 @@ public static class SizePacks
             return false;
         }
 
-        foreach (var part in literal.Split(','))
+        var entries = literal.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        foreach (var entry in entries)
         {
-            var trimmed = part.Trim();
-            var eqIndex = trimmed.IndexOf('=');
+            var eqIndex = entry.IndexOf('=', StringComparison.Ordinal);
             if (eqIndex <= 0)
             {
-                error = $"Invalid size entry '{trimmed}' - expected 'key=value'";
+                error = $"Invalid size entry '{entry}' - expected 'key=value'";
                 return false;
             }
 
-            var key = trimmed[..eqIndex].Trim();
-            var value = trimmed[(eqIndex + 1)..].Trim();
+            var key = entry[..eqIndex].Trim();
+            var value = entry[(eqIndex + 1)..].Trim();
 
-            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(value))
+            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
             {
-                error = $"Invalid size entry '{trimmed}' - key or value is empty";
+                error = $"Invalid size entry '{entry}' - key or value is empty";
+                return false;
+            }
+
+            if (pack.Entries.ContainsKey(key))
+            {
+                error = $"Duplicate size key '{key}'";
                 return false;
             }
 

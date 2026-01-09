@@ -1,11 +1,90 @@
 using System.IO;
 using System.Linq;
 using Cascode.ACIR;
+using Cascode.Parser;
 
 namespace Cascode.ACIR.Tests;
 
 public class SizePacksTests
 {
+    [Fact]
+    public void TryParseSizeLiteral_ValidInput_ReturnsTrueWithParsedPack()
+    {
+        var success = SizePacks.TryParseSizeLiteral(
+            "W=2u, L=180n, M=1",
+            out var pack,
+            out var error
+        );
+
+        Assert.True(success);
+        Assert.Empty(error);
+        Assert.Equal(3, pack.Entries.Count);
+        Assert.Equal("2u", pack.Entries["W"]);
+        Assert.Equal("180n", pack.Entries["L"]);
+        Assert.Equal("1", pack.Entries["M"]);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_DuplicateKey_ReturnsFalseWithError()
+    {
+        var success = SizePacks.TryParseSizeLiteral(
+            "W=2u, L=180n, W=3u",
+            out var pack,
+            out var error
+        );
+
+        Assert.False(success);
+        Assert.Contains("Duplicate size key 'W'", error);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_TrailingComma_IgnoresEmptyEntries()
+    {
+        var success = SizePacks.TryParseSizeLiteral("W=2u, L=180n,", out var pack, out var error);
+
+        Assert.True(success);
+        Assert.Empty(error);
+        Assert.Equal(2, pack.Entries.Count);
+        Assert.Equal("2u", pack.Entries["W"]);
+        Assert.Equal("180n", pack.Entries["L"]);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_EmptyInput_ReturnsFalse()
+    {
+        var success = SizePacks.TryParseSizeLiteral("", out _, out var error);
+
+        Assert.False(success);
+        Assert.Contains("Empty size literal", error);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_WhitespaceOnlyInput_ReturnsFalse()
+    {
+        var success = SizePacks.TryParseSizeLiteral("   ", out _, out var error);
+
+        Assert.False(success);
+        Assert.Contains("Empty size literal", error);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_MissingEquals_ReturnsFalse()
+    {
+        var success = SizePacks.TryParseSizeLiteral("W 2u", out _, out var error);
+
+        Assert.False(success);
+        Assert.Contains("Invalid size entry", error);
+    }
+
+    [Fact]
+    public void TryParseSizeLiteral_MissingValue_ReturnsFalse()
+    {
+        var success = SizePacks.TryParseSizeLiteral("W=", out _, out var error);
+
+        Assert.False(success);
+        Assert.Contains("key or value is empty", error);
+    }
+
     [Fact]
     public void TryRead_SizeDeclarationsAndAssignments_ParseSuccessfully()
     {
@@ -102,5 +181,62 @@ circuit Leaf
         Assert.Contains("W=3u", spice); // override wins
         Assert.Contains("L=180n", spice);
         Assert.Contains("m=1", spice);
+    }
+
+    [Fact]
+    public void ACIRReader_InstanceSizeDuplicateKey_ReturnsParseError()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit Top
+  level EL
+  supply VDD
+  ground GND
+  port OUT : analog
+  fill:
+    inst leaf (VDD->VDD, GND->GND, OUT->OUT) : Leaf
+      size InputPair = (W=2u, L=180n, W=3u)
+
+circuit Leaf
+  level EL
+  inline
+  size InputPair
+  supply VDD
+  ground GND
+  port OUT : analog
+  fill:
+    net t : analog
+    nmos M1 (B->GND, D->OUT, G->OUT, S->t) : size=InputPair nmos
+";
+
+        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
+
+        Assert.False(result.Success);
+        var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains("Duplicate size key 'W'", error.Message);
+    }
+
+    [Fact]
+    public void ACIRReader_SizeDeclarationDuplicateKey_ReturnsParseError()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit Top
+  level EL
+  size Params = (W=2u, L=180n, W=3u)
+  supply VDD
+  ground GND
+  port OUT : analog
+  fill:
+    nmos M1 (B->GND, D->OUT, G->OUT, S->GND) : size=Params nmos
+";
+
+        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
+
+        Assert.False(result.Success);
+        var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains("Duplicate size key 'W'", error.Message);
     }
 }

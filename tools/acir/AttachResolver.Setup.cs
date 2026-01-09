@@ -121,10 +121,141 @@ public sealed partial class AttachResolver
 
         foreach (var conn in circuit.Fill.Connections)
         {
-            var fromNode = ResolveEndpointNode(circuit, instancesById, conn.From, context);
-            var toNode = ResolveEndpointNode(circuit, instancesById, conn.To, context);
-            TryUnion(context, fromNode, toNode, diagnostics, circuit.Name);
+            // Expand bundle connections (e.g., "dp.IN -> IN" expands to "dp.IN.P -> IN_P", "dp.IN.N -> IN_N")
+            var expandedConnections = ExpandBundleConnection(
+                circuit,
+                instancesById,
+                conn.From,
+                conn.To
+            );
+
+            foreach (var (from, to) in expandedConnections)
+            {
+                var fromNode = ResolveEndpointNode(circuit, instancesById, from, context);
+                var toNode = ResolveEndpointNode(circuit, instancesById, to, context);
+                TryUnion(context, fromNode, toNode, diagnostics, circuit.Name);
+            }
         }
+    }
+
+    /// <summary>
+    /// Expands a bundle connection to individual field connections.
+    /// For example, "dp.IN -> IN" where IN is a Diff bundle expands to:
+    /// - "dp.IN.P -> IN_P"
+    /// - "dp.IN.N -> IN_N"
+    /// </summary>
+    private IEnumerable<(string From, string To)> ExpandBundleConnection(
+        Circuit parentCircuit,
+        Dictionary<string, InstanceDeclaration> instancesById,
+        string from,
+        string to
+    )
+    {
+        // Get bundle type for each endpoint
+        var fromBundle = GetEndpointBundleInfo(parentCircuit, instancesById, from);
+        var toBundle = GetEndpointBundleInfo(parentCircuit, instancesById, to);
+
+        // If neither is a bundle, return the original connection
+        if (fromBundle.Fields is null && toBundle.Fields is null)
+        {
+            yield return (from, to);
+            yield break;
+        }
+
+        // If only one side is a bundle, we still expand (the other side may have dot-named ports)
+        var fields = fromBundle.Fields ?? toBundle.Fields;
+        if (fields is null)
+        {
+            yield return (from, to);
+            yield break;
+        }
+
+        // Expand each field
+        foreach (var field in fields)
+        {
+            var expandedFrom = fromBundle.IsInstanceEndpoint
+                ? $"{from}.{field}"
+                : ToNetName($"{from}.{field}");
+
+            var expandedTo = toBundle.IsInstanceEndpoint
+                ? $"{to}.{field}"
+                : ToNetName($"{to}.{field}");
+
+            yield return (expandedFrom, expandedTo);
+        }
+    }
+
+    /// <summary>
+    /// Gets bundle information for an endpoint.
+    /// </summary>
+    private (bool IsInstanceEndpoint, List<string>? Fields) GetEndpointBundleInfo(
+        Circuit parentCircuit,
+        Dictionary<string, InstanceDeclaration> instancesById,
+        string endpoint
+    )
+    {
+        var dotIndex = endpoint.IndexOf('.', StringComparison.Ordinal);
+
+        // Check if this is an instance endpoint (e.g., "dp.IN")
+        if (dotIndex > 0)
+        {
+            var instanceId = endpoint[..dotIndex];
+            if (instancesById.TryGetValue(instanceId, out var instance))
+            {
+                var terminalPath = endpoint[(dotIndex + 1)..];
+                var fields = GetInstancePortBundleFields(instance, terminalPath);
+                return (true, fields);
+            }
+        }
+
+        // Circuit-level endpoint - check if it's a bundle port
+        var port = parentCircuit.Ports.FirstOrDefault(p =>
+            p.Name.Equals(endpoint, StringComparison.Ordinal)
+        );
+
+        if (port is not null && _bundleTypesByName.TryGetValue(port.Type, out var bundle))
+        {
+            var fields = bundle.Fields.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
+            return (false, fields);
+        }
+
+        return (false, null);
+    }
+
+    /// <summary>
+    /// Gets the bundle fields for an instance terminal by looking at the target circuit's ports.
+    /// Handles both explicit bundle types and implicit bundles via dot-naming (e.g., ports IN.P, IN.N).
+    /// </summary>
+    private List<string>? GetInstancePortBundleFields(
+        InstanceDeclaration instance,
+        string terminalPath
+    )
+    {
+        if (!_circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+        {
+            return null;
+        }
+
+        // First check if the terminal is a bundle-typed port
+        var port = targetCircuit.Ports.FirstOrDefault(p =>
+            p.Name.Equals(terminalPath, StringComparison.Ordinal)
+        );
+
+        if (port is not null && _bundleTypesByName.TryGetValue(port.Type, out var bundle))
+        {
+            return bundle.Fields.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList();
+        }
+
+        // Check for implicit bundle via dot-named ports (e.g., IN.P, IN.N for terminal IN)
+        var prefix = $"{terminalPath}.";
+        var matchingPorts = targetCircuit
+            .Ports.Where(p => p.Name.StartsWith(prefix, StringComparison.Ordinal))
+            .Select(p => p.Name[prefix.Length..])
+            .Where(suffix => !suffix.Contains('.')) // Only direct children
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
+
+        return matchingPorts.Count > 0 ? matchingPorts : null;
     }
 
     private string ResolveEndpointNode(

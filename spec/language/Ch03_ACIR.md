@@ -372,6 +372,49 @@ Guidance: External connectivity should prefer stable, named sub-terminals over n
 
 Inline vs. Multiline Guidance: Use inline connections when they fit naturally on one line (typically 4 or fewer simple connections). Use multiline format when connections are numerous, complex, or need alignment for clarity. Both syntaxes may be mixed within the same instance.
 
+#### Instance-Level Connect Statements
+
+Connect statements may appear within an instance body to specify terminal-to-net bindings in a more expressive way than inline bindings. This is particularly useful when connecting bundle ports or when the direction of data flow should be explicit.
+
+Syntax:
+
+```acir
+fill:
+  inst <id> [(<connections>)] : <CircuitOrMotifType>
+    param <key> = <value>
+    size <name> = (key=value, ...)
+    connect <source> -> <dest>
+```
+
+Example:
+
+```acir
+fill:
+  inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
+    size InputPair = (W=2u, L=180n, M=1)
+    connect dp.IN -> IN
+    connect dp.OUT.P -> OUT
+    connect VTAIL -> dp.TAIL
+```
+
+Semantics:
+
+- At least one endpoint MUST reference the current instance (via `<instId>.` prefix)
+- Both `connect dp.X -> Y` and `connect Y -> dp.X` are valid and equivalent
+- Instance-level connect statements are normalized to fill-block level connections during parsing
+- Connect statements are applied after inline bindings during resolution
+
+Instance Prefix in Inline Connections:
+
+Inline connections may optionally include the instance prefix for consistency with connect statements. Both forms are valid:
+
+```acir
+inst dp (GND->GND, VDD->VDD) : DiffPair        // Traditional form
+inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair  // With instance prefix
+```
+
+When the instance prefix is present, it is stripped during parsing. The terminal is stored without the prefix in the instance's bindings.
+
 #### Circuit-to-Circuit Instantiation (EL)
 
 At EL level, instances may reference other circuits defined in the same ACIR document. This enables hierarchical composition where a top-level circuit instantiates child circuits, each of which may contain primitive devices or further circuit instances.
@@ -1219,6 +1262,8 @@ The following codes apply during semantic analysis, particularly attach resoluti
 | ACIR0025 | Error | Cannot auto-create supply/ground net; bind rails explicitly |
 | ACIR0026 | Warning | Source trait not found in trait registry; using default domain for port domain resolution |
 | ACIR0027 | Warning | Target trait not found in trait registry; using default domain for port domain resolution |
+| ACIR0028 | Error | Instance connect statement must reference the instance on at least one side |
+| ACIR0029 | Error | Invalid connect statement syntax in instance body |
 
 ### Programmatic Access
 
@@ -1912,7 +1957,8 @@ symbol       = IDENT ("." IDENT)* ;  (* hierarchical name for nets, device ids *
 netDecl      = "net" symbol ":" domain source? ;
 
 instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
-instBody     = paramAssign | sizeAssign | binding ;
+instBody     = paramAssign | sizeAssign | binding | instConnectStmt ;
+instConnectStmt = "connect" endpoint "->" endpoint ;
 paramAssign  = "param" IDENT "=" paramValue ;
 sizeAssign   = "size" IDENT "=" sizeLiteral ;
 connectionList = "(" connection ("," connection)* ")" ;

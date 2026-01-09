@@ -25,11 +25,16 @@ circuit OTA5T_Hierarchical_Attach
   port OUT : analog
   port VTAIL : bias
   fill:
-    inst dp (GND->GND, IN_N->IN_N, IN_P->IN_P, OUT.P->OUT, TAIL->VTAIL, VDD->VDD) : DiffPair
+    inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
-    inst cm (GND->GND, TAP[0]->OUT, VDD->VDD) : CurrentMirror
+      connect dp.IN.P -> IN_P
+      connect dp.IN.N -> IN_N
+      connect dp.OUT.P -> OUT
+      connect VTAIL -> dp.TAIL
+    inst cm (cm.GND->GND, cm.VDD->VDD) : CurrentMirror
       param ratio = 1
+      // TAP[0]->OUT intentionally omitted - covered by attach statement below
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   constraints:
     numeric:
@@ -57,15 +62,15 @@ circuit DiffPair : DiffPairLike
   size Tail
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
+  port IN.P : analog
+  port IN.N : analog
   port OUT.P : analog
   port OUT.N : analog
   port TAIL : bias
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.N, G->IN_P, S->tnode) : size=InputPair nmos
-    nmos M_P (B->GND, D->OUT.P, G->IN_N, S->tnode) : size=InputPair nmos
+    nmos M_N (B->GND, D->OUT.N, G->IN.P, S->tnode) : size=InputPair nmos
+    nmos M_P (B->GND, D->OUT.P, G->IN.N, S->tnode) : size=InputPair nmos
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
 
 circuit CurrentMirror : CurrentMirrorLike

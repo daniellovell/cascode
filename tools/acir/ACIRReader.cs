@@ -683,7 +683,8 @@ public static partial class ACIRReader
                             lines,
                             i,
                             filePath,
-                            diagnostics
+                            diagnostics,
+                            currentFill!.Connections
                         );
                         if (instance is not null)
                             currentFill.Instances.Add(instance);
@@ -966,6 +967,32 @@ public static partial class ACIRReader
             if (instance is not null)
                 fill.Instances.Add(instance);
         }
+        else if (line.StartsWith("connect "))
+        {
+            var match = FillConnectPattern().Match(line);
+            if (match.Success)
+            {
+                fill.Connections.Add(
+                    new ConnectionStatement
+                    {
+                        From = match.Groups[1].Value,
+                        To = match.Groups[2].Value,
+                    }
+                );
+            }
+            else
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0030: Invalid connect statement syntax '{line}'",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        lineNumber,
+                        1
+                    )
+                );
+            }
+        }
     }
 
     /// <summary>
@@ -1021,7 +1048,8 @@ public static partial class ACIRReader
         IReadOnlyList<string> lines,
         int startIndex,
         string filePath,
-        List<Diagnostic>? diagnostics
+        List<Diagnostic>? diagnostics,
+        List<ConnectionStatement>? instanceConnections
     )
     {
         static string StripComment(string value)
@@ -1056,12 +1084,22 @@ public static partial class ACIRReader
 
         if (match.Groups[2].Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
         {
+            var instancePrefix = $"{id}.";
             foreach (var binding in match.Groups[2].Value.Split(','))
             {
                 var bindMatch = ConnectionPattern().Match(binding.Trim());
                 if (bindMatch.Success)
                 {
-                    bindings[bindMatch.Groups[1].Value] = bindMatch.Groups[2].Value;
+                    var terminal = bindMatch.Groups[1].Value;
+                    var net = bindMatch.Groups[2].Value;
+
+                    // Strip instance prefix if present (e.g., "dp.GND" -> "GND")
+                    if (terminal.StartsWith(instancePrefix, StringComparison.Ordinal))
+                    {
+                        terminal = terminal[instancePrefix.Length..];
+                    }
+
+                    bindings[terminal] = net;
                 }
                 else if (diagnostics is not null && !string.IsNullOrWhiteSpace(binding))
                 {
@@ -1163,6 +1201,50 @@ public static partial class ACIRReader
                     diagnostics?.Add(
                         new Diagnostic(
                             $"ACIR0017: {error}",
+                            DiagnosticSeverity.Error,
+                            filePath,
+                            i + 1,
+                            1
+                        )
+                    );
+                }
+            }
+            else if (trimmed.StartsWith("connect ", StringComparison.Ordinal))
+            {
+                // Instance-level connect statement
+                var connectMatch = InstanceConnectPattern().Match(trimmed);
+                if (connectMatch.Success)
+                {
+                    var from = connectMatch.Groups[1].Value;
+                    var to = connectMatch.Groups[2].Value;
+
+                    // Validate at least one endpoint references this instance
+                    var instancePrefix = $"{id}.";
+                    var fromHasInstance = from.StartsWith(instancePrefix, StringComparison.Ordinal);
+                    var toHasInstance = to.StartsWith(instancePrefix, StringComparison.Ordinal);
+
+                    if (!fromHasInstance && !toHasInstance)
+                    {
+                        diagnostics?.Add(
+                            new Diagnostic(
+                                $"ACIR0028: Instance connect statement must reference instance '{id}' on at least one side: '{trimmed}'",
+                                DiagnosticSeverity.Error,
+                                filePath,
+                                i + 1,
+                                1
+                            )
+                        );
+                    }
+                    else
+                    {
+                        instanceConnections?.Add(new ConnectionStatement { From = from, To = to });
+                    }
+                }
+                else
+                {
+                    diagnostics?.Add(
+                        new Diagnostic(
+                            $"ACIR0029: Invalid connect statement syntax in instance body: '{trimmed}'",
                             DiagnosticSeverity.Error,
                             filePath,
                             i + 1,
@@ -1346,38 +1428,7 @@ public static partial class ACIRReader
             return false;
         }
 
-        var entries = inner.Split(
-            ',',
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-        );
-        foreach (var entry in entries)
-        {
-            var eqIndex = entry.IndexOf('=', StringComparison.Ordinal);
-            if (eqIndex <= 0)
-            {
-                errorMessage = $"Invalid size entry '{entry}' - expected 'k=v'";
-                return false;
-            }
-
-            var key = entry[..eqIndex].Trim();
-            var value = entry[(eqIndex + 1)..].Trim();
-
-            if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
-            {
-                errorMessage = $"Invalid size entry '{entry}' - expected 'k=v'";
-                return false;
-            }
-
-            if (pack.Entries.ContainsKey(key))
-            {
-                errorMessage = $"Duplicate size key '{key}'";
-                return false;
-            }
-
-            pack.Entries[key] = value;
-        }
-
-        return true;
+        return SizePacks.TryParseSizeLiteral(inner, out pack, out errorMessage);
     }
 
     /// <summary>
@@ -1835,7 +1886,8 @@ public static partial class ACIRReader
                             lines,
                             i,
                             string.Empty,
-                            null
+                            null,
+                            currentFill!.Connections
                         );
                         if (instance is not null)
                             currentFill.Instances.Add(instance);
@@ -2191,6 +2243,20 @@ public static partial class ACIRReader
             var instance = ParseInstance(line);
             if (instance is not null)
                 fill.Instances.Add(instance);
+        }
+        else if (line.StartsWith("connect "))
+        {
+            var match = FillConnectPattern().Match(line);
+            if (match.Success)
+            {
+                fill.Connections.Add(
+                    new ConnectionStatement
+                    {
+                        From = match.Groups[1].Value,
+                        To = match.Groups[2].Value,
+                    }
+                );
+            }
         }
     }
 
@@ -2773,4 +2839,10 @@ public static partial class ACIRReader
         @"^attach\s+(\w+)((?:\s+to\s+\w+)+)\s+via\s+(\w+)::(\w+)(?:\s+as\s+(\w+))?(?:\s*\{)?$"
     )]
     private static partial Regex AttachStatementPattern();
+
+    [GeneratedRegex(@"^connect\s+([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
+    private static partial Regex InstanceConnectPattern();
+
+    [GeneratedRegex(@"^connect\s+([\w.\[\]]+)\s*->\s*([\w.\[\]]+)$")]
+    private static partial Regex FillConnectPattern();
 }
