@@ -30,7 +30,8 @@ public class BenchRunService
         string? BenchName,
         string? OutputDir,
         BenchBackendType Backend,
-        bool Verbose
+        bool Verbose,
+        string? CircuitFilter = null
     );
 
     public sealed record BenchRunBenchSummary(
@@ -55,6 +56,41 @@ public class BenchRunService
 
     public sealed record BenchRunResult(int ExitCode, BenchRunSummary Summary);
 
+    /// <summary>
+    /// Summary for a single circuit's bench run within a multi-circuit execution.
+    /// </summary>
+    public sealed record CircuitBenchRunSummary(
+        string CircuitName,
+        IReadOnlyList<BenchRunBenchSummary> Benches,
+        ComplianceReport Compliance
+    );
+
+    /// <summary>
+    /// Aggregated summary across all circuits with benches.
+    /// </summary>
+    public sealed record MultiCircuitBenchRunSummary(
+        BenchBackendType Backend,
+        string OutputDir,
+        IReadOnlyList<CircuitBenchRunSummary> CircuitSummaries,
+        string? GlobalResultsPath,
+        ComplianceReport GlobalCompliance
+    )
+    {
+        public int TotalBenchesRun => CircuitSummaries.Sum(c => c.Benches.Count);
+        public int TotalBenchesSucceeded =>
+            CircuitSummaries.Sum(c => c.Benches.Count(b => b.Succeeded));
+        public int TotalBenchesFailed =>
+            CircuitSummaries.Sum(c => c.Benches.Count(b => !b.Succeeded));
+    }
+
+    /// <summary>
+    /// Result of running benches across all circuits.
+    /// </summary>
+    public sealed record MultiCircuitBenchRunResult(
+        int ExitCode,
+        MultiCircuitBenchRunSummary Summary
+    );
+
     public static bool TryParseArgs(string[] args, out BenchRunArgs parsed, out string error)
     {
         parsed = new BenchRunArgs(string.Empty, null, null, BenchBackendType.Ngspice, false);
@@ -65,6 +101,7 @@ public class BenchRunService
         string? outputDir = null;
         var backend = BenchBackendType.Ngspice;
         var verbose = false;
+        string? circuitFilter = null;
         var positionals = new List<string>();
 
         for (var i = 0; i < args.Length; i++)
@@ -84,6 +121,10 @@ public class BenchRunService
             else if (args[i] == "--verbose" || args[i] == "-v")
             {
                 verbose = true;
+            }
+            else if ((args[i] == "--circuit" || args[i] == "-c") && i + 1 < args.Length)
+            {
+                circuitFilter = args[++i];
             }
             else if (args[i] == "--backend" && i + 1 < args.Length)
             {
@@ -134,7 +175,8 @@ public class BenchRunService
             string.IsNullOrWhiteSpace(benchName) ? null : benchName,
             outputDir,
             backend,
-            verbose
+            verbose,
+            string.IsNullOrWhiteSpace(circuitFilter) ? null : circuitFilter
         );
         return true;
     }
@@ -261,6 +303,315 @@ public class BenchRunService
                 report
             )
         );
+    }
+
+    /// <summary>
+    /// Runs benches for all EL circuits with benches, in dependency order (leaves first).
+    /// Optionally filtered to a single circuit via CircuitFilter.
+    /// </summary>
+    public MultiCircuitBenchRunResult RunAll(
+        string workspaceRoot,
+        string? pdkRoot,
+        BenchRunArgs args
+    )
+    {
+        var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
+        var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
+
+        if (allCircuitsWithBenches.Count == 0)
+        {
+            _logger.LogError("No EL-level circuits with benches found in ACIR document.");
+            return new MultiCircuitBenchRunResult(
+                2,
+                new MultiCircuitBenchRunSummary(
+                    args.Backend,
+                    args.OutputDir ?? string.Empty,
+                    Array.Empty<CircuitBenchRunSummary>(),
+                    null,
+                    new ComplianceReport()
+                )
+            );
+        }
+
+        // Apply circuit filter if specified
+        IReadOnlyList<Circuit> circuitsWithBenches;
+        if (!string.IsNullOrWhiteSpace(args.CircuitFilter))
+        {
+            var filtered = allCircuitsWithBenches
+                .Where(c => c.Name.Equals(args.CircuitFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (filtered.Count == 0)
+            {
+                var available = string.Join(", ", allCircuitsWithBenches.Select(c => c.Name));
+                _logger.LogError(
+                    "Circuit '{CircuitFilter}' not found or has no benches. Available: {Available}",
+                    args.CircuitFilter,
+                    available
+                );
+                return new MultiCircuitBenchRunResult(
+                    2,
+                    new MultiCircuitBenchRunSummary(
+                        args.Backend,
+                        args.OutputDir ?? string.Empty,
+                        Array.Empty<CircuitBenchRunSummary>(),
+                        null,
+                        new ComplianceReport()
+                    )
+                );
+            }
+
+            circuitsWithBenches = filtered;
+        }
+        else
+        {
+            circuitsWithBenches = allCircuitsWithBenches;
+        }
+
+        // Determine output directory
+        var outputDir =
+            args.OutputDir
+            ?? Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "build",
+                "bench",
+                circuitsWithBenches.Count == 1 ? circuitsWithBenches[0].Name : "multi"
+            );
+        Directory.CreateDirectory(outputDir);
+
+        // Emit all testbenches upfront (handles dependencies)
+        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
+            args.AcirPath,
+            workspaceRoot
+        );
+        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
+        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
+        var emit = SpiceEmitter.ValidateAndEmit(
+            doc,
+            outputDir,
+            args.Backend,
+            resolvedWorkspaceRoot,
+            includeResolver
+        );
+
+        if (!emit.Validation.IsValid)
+        {
+            var first =
+                emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
+            _logger.LogError("ACIR emission validation failed: {Error}", first);
+            return new MultiCircuitBenchRunResult(
+                2,
+                new MultiCircuitBenchRunSummary(
+                    args.Backend,
+                    outputDir,
+                    Array.Empty<CircuitBenchRunSummary>(),
+                    null,
+                    new ComplianceReport()
+                )
+            );
+        }
+
+        // Run benches for each circuit in dependency order
+        var circuitSummaries = new List<CircuitBenchRunSummary>();
+        var globalMeasurements = new Dictionary<string, MeasurementResult>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var circuit in circuitsWithBenches)
+        {
+            var circuitSummary = RunCircuitBenches(
+                circuit,
+                doc,
+                args,
+                outputDir,
+                emit.Emit.TestbenchPaths,
+                globalMeasurements
+            );
+            circuitSummaries.Add(circuitSummary);
+        }
+
+        // Aggregate compliance across all circuits
+        var globalCompliance = AggregateCompliance(circuitsWithBenches, globalMeasurements);
+
+        // Determine exit code
+        var hadSimulationFailure = circuitSummaries.Any(cs => cs.Benches.Any(b => !b.Succeeded));
+        var exitCode = hadSimulationFailure || globalCompliance.FailedCount > 0 ? 1 : 0;
+
+        return new MultiCircuitBenchRunResult(
+            exitCode,
+            new MultiCircuitBenchRunSummary(
+                args.Backend,
+                outputDir,
+                circuitSummaries,
+                null,
+                globalCompliance
+            )
+        );
+    }
+
+    private CircuitBenchRunSummary RunCircuitBenches(
+        Circuit circuit,
+        ACIRDocument doc,
+        BenchRunArgs args,
+        string outputDir,
+        IReadOnlyList<string> testbenchPaths,
+        Dictionary<string, MeasurementResult> globalMeasurements
+    )
+    {
+        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
+        var benchesToRun = ResolveBenchesToRunForCircuit(
+            args.BenchName,
+            availableBenches,
+            circuit.Name
+        );
+        var sweepNames = BenchRunHelpers.GetSweepNames(circuit);
+
+        var circuitMeasurements = new Dictionary<string, MeasurementResult>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        var benchSummaries = new List<BenchRunBenchSummary>();
+
+        foreach (var benchName in benchesToRun)
+        {
+            var summary = TryRunBench(
+                circuit,
+                args,
+                sweepNames,
+                testbenchPaths,
+                benchName,
+                circuitMeasurements
+            );
+            benchSummaries.Add(summary);
+        }
+
+        // Merge circuit measurements into global with circuit prefix
+        foreach (var (key, value) in circuitMeasurements)
+        {
+            var globalKey = $"{circuit.Name}.{key}";
+            globalMeasurements[globalKey] = value;
+        }
+
+        var combinedResults = BenchResultParser.CreateCombinedResults(
+            circuit.Name,
+            benchesToRun,
+            circuitMeasurements
+        );
+
+        // Write combined results file (for verify command compatibility)
+        if (benchesToRun.Count > 0 && circuitMeasurements.Count > 0)
+        {
+            BenchTraceWriter.WriteCombinedResults(outputDir, circuit.Name, combinedResults);
+        }
+
+        var compliance = ComplianceChecker.Check(circuit, combinedResults);
+
+        return new CircuitBenchRunSummary(circuit.Name, benchSummaries, compliance);
+    }
+
+    /// <summary>
+    /// Resolves benches to run for a circuit, considering the explicit bench filter.
+    /// Supports both "BenchName" and "CircuitName:BenchName" formats.
+    /// </summary>
+    private IReadOnlyList<string> ResolveBenchesToRunForCircuit(
+        string? explicitBench,
+        string[] availableBenches,
+        string circuitName
+    )
+    {
+        if (string.IsNullOrWhiteSpace(explicitBench))
+        {
+            return availableBenches;
+        }
+
+        // Check for circuit-qualified format: "CircuitName:BenchName"
+        if (explicitBench.Contains(':'))
+        {
+            var parts = explicitBench.Split(':', 2);
+            var targetCircuit = parts[0];
+            var targetBench = parts[1];
+
+            // If this isn't the target circuit, skip all benches
+            if (!targetCircuit.Equals(circuitName, StringComparison.OrdinalIgnoreCase))
+            {
+                return Array.Empty<string>();
+            }
+
+            // Find matching bench in this circuit
+            var match = availableBenches.FirstOrDefault(b =>
+                b.Equals(targetBench, StringComparison.OrdinalIgnoreCase)
+            );
+            return match != null ? new[] { match } : Array.Empty<string>();
+        }
+
+        // Unqualified bench name: run on all circuits that have it
+        var benchMatch = availableBenches.FirstOrDefault(b =>
+            b.Equals(explicitBench, StringComparison.OrdinalIgnoreCase)
+        );
+        return benchMatch != null ? new[] { benchMatch } : Array.Empty<string>();
+    }
+
+    private ComplianceReport AggregateCompliance(
+        IReadOnlyList<Circuit> circuits,
+        Dictionary<string, MeasurementResult> globalMeasurements
+    )
+    {
+        var allResults = new List<ConstraintResult>();
+        var uncheckedByBench = new Dictionary<string, List<UncheckedConstraint>>();
+
+        foreach (var circuit in circuits)
+        {
+            var circuitBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
+
+            // Get measurements for this circuit (with circuit prefix)
+            var circuitMeasurements = new Dictionary<string, MeasurementResult>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var (key, value) in globalMeasurements)
+            {
+                var prefix = $"{circuit.Name}.";
+                if (key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    circuitMeasurements[key.Substring(prefix.Length)] = value;
+                }
+            }
+
+            var combinedResults = BenchResultParser.CreateCombinedResults(
+                circuit.Name,
+                circuitBenches,
+                circuitMeasurements
+            );
+
+            var circuitCompliance = ComplianceChecker.Check(circuit, combinedResults);
+
+            // Prefix constraint IDs with circuit name to avoid collisions
+            foreach (var result in circuitCompliance.Results)
+            {
+                allResults.Add(
+                    new ConstraintResult
+                    {
+                        Id = $"{circuit.Name}.{result.Id}",
+                        Metric = result.Metric,
+                        Node = result.Node,
+                        Unit = result.Unit,
+                        Operator = result.Operator,
+                        ExpectedRaw = result.ExpectedRaw,
+                        Expected = result.Expected,
+                        Actual = result.Actual,
+                        ActualUnit = result.ActualUnit,
+                        Passed = result.Passed,
+                        Message = result.Message,
+                    }
+                );
+            }
+
+            foreach (var (bench, unchecked_) in circuitCompliance.UncheckedByBench)
+            {
+                var key = $"{circuit.Name}.{bench}";
+                uncheckedByBench[key] = unchecked_;
+            }
+        }
+
+        return new ComplianceReport { Results = allResults, UncheckedByBench = uncheckedByBench };
     }
 
     private BenchRunResult? ValidateEmissionOrReturnResult(

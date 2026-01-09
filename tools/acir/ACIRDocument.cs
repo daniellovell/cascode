@@ -48,6 +48,61 @@ public sealed class BundleType
 }
 
 /// <summary>
+/// Utility methods for bundle type expansion.
+/// </summary>
+public static class BundleExpander
+{
+    /// <summary>
+    /// Expands a port to its terminal paths, recursively expanding bundle types.
+    /// For example, port "IN" of type "Diff" expands to ["IN.P", "IN.N"].
+    /// Non-bundle types return the original path.
+    /// </summary>
+    /// <param name="basePath">The base path (e.g., port name).</param>
+    /// <param name="typeName">The type of the port (e.g., "Diff", "analog").</param>
+    /// <param name="bundlesByName">Dictionary of bundle types by name.</param>
+    /// <returns>Enumerable of expanded terminal paths.</returns>
+    public static IEnumerable<string> ExpandToTerminalPaths(
+        string basePath,
+        string typeName,
+        IReadOnlyDictionary<string, BundleType> bundlesByName
+    )
+    {
+        if (!bundlesByName.TryGetValue(typeName, out var bundle))
+        {
+            // Not a bundle type - return the original path
+            yield return basePath;
+            yield break;
+        }
+
+        // Expand each field of the bundle (alphabetically ordered for consistency)
+        foreach (var field in bundle.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
+        {
+            var fieldPath = $"{basePath}.{field.Key}";
+            foreach (var path in ExpandToTerminalPaths(fieldPath, field.Value, bundlesByName))
+            {
+                yield return path;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Converts a terminal path to a net name by replacing dots with underscores.
+    /// For example, "IN.P" becomes "IN_P".
+    /// </summary>
+    public static string ToNetName(string terminalPath) => terminalPath.Replace('.', '_');
+
+    /// <summary>
+    /// Builds a dictionary of bundle types by name from an ACIR document.
+    /// Returns an empty dictionary if document is null.
+    /// </summary>
+    public static Dictionary<string, BundleType> GetBundlesByName(ACIRDocument? document)
+    {
+        return document?.BundleTypes.ToDictionary(b => b.Name, StringComparer.Ordinal)
+            ?? new Dictionary<string, BundleType>(StringComparer.Ordinal);
+    }
+}
+
+/// <summary>
 /// Represents a circuit definition in ACIR.
 /// </summary>
 public sealed class Circuit

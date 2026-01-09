@@ -140,11 +140,6 @@ public sealed partial class AttachResolver
         return endpoint.Replace('.', '_');
     }
 
-    private static string ToNetName(string terminalPath)
-    {
-        return terminalPath.Replace('.', '_');
-    }
-
     private static void PopulateNetResults(
         ResolutionContext context,
         CircuitResolutionResult result,

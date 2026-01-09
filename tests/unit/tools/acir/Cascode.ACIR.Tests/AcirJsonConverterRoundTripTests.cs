@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using Cascode.ACIR;
 using Cascode.ACIR.Json;
+using Cascode.TestSupport;
 
 namespace Cascode.ACIR.Tests;
 
@@ -138,6 +140,40 @@ public class AcirJsonConverterRoundTripTests
         Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[0].Domain);
         Assert.Equal("bias_node", roundTripped.Circuits[0].Fill!.Nets[1].Id);
         Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[1].Domain);
+    }
+
+    [Fact]
+    public void RoundTrip_TelescopicCascodeAttach_PreservesAttachesAndBiases()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(
+            repoRoot,
+            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cir"
+        );
+
+        ACIRDocument doc;
+        using (var reader = File.OpenText(acirPath))
+        {
+            doc = ACIRReader.Read(reader, acirPath);
+        }
+
+        var json = AcirJsonConverter.ToJson(doc, "TelescopicCascodeFullyDiff_Attach");
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
+
+        var fill = roundTripped.Circuits[0].Fill!;
+        Assert.NotNull(fill.Attaches);
+        Assert.Equal(3, fill.Attaches.Count);
+        Assert.Equal("nl", fill.Attaches[0].SourceInstance);
+        Assert.Equal("dp", fill.Attaches[0].TargetInstances[0]);
+        Assert.Equal("pl1", fill.Attaches[1].SourceInstance);
+        Assert.Equal("nl", fill.Attaches[1].TargetInstances[0]);
+        Assert.Equal("pl2", fill.Attaches[2].SourceInstance);
+        Assert.Equal("pl1", fill.Attaches[2].TargetInstances[0]);
+
+        Assert.NotNull(roundTripped.Circuits[0].Harness);
+        Assert.Equal(3, roundTripped.Circuits[0].Harness!.Biases.Count);
     }
 
     [Fact]

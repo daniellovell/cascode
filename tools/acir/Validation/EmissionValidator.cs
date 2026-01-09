@@ -96,13 +96,16 @@ public static class EmissionValidator
 
         // Build set of valid size pack names
         var validSizes = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
+        var sizeDefaults = circuit
+            .Sizes.Where(s => s.Default is not null)
+            .ToDictionary(s => s.Name, s => s.Default!, StringComparer.Ordinal);
 
         // Validate devices if present
         if (circuit.Fill?.Devices != null)
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                ValidateDevice(device, validNets, validSizes, result);
+                ValidateDevice(device, validNets, validSizes, sizeDefaults, result);
             }
         }
 
@@ -153,6 +156,7 @@ public static class EmissionValidator
         DeviceDeclaration device,
         HashSet<string> validNets,
         HashSet<string> validSizes,
+        IReadOnlyDictionary<string, SizePack> sizeDefaults,
         ValidationResult result
     )
     {
@@ -267,6 +271,21 @@ public static class EmissionValidator
                             $"Device '{device.Id}' references undefined size pack '{sizeName}'",
                             $"device {device.Id}",
                             $"Add 'size {sizeName}' or 'size {sizeName} = (...)' declaration at circuit level"
+                        );
+                    }
+                    else if (
+                        sizeDefaults.TryGetValue(sizeName, out var defaultPack)
+                        && (
+                            !defaultPack.Entries.ContainsKey("W")
+                            || !defaultPack.Entries.ContainsKey("L")
+                        )
+                    )
+                    {
+                        result.AddError(
+                            "EMIT-007",
+                            $"Device '{device.Id}' size pack '{sizeName}' missing required W or L",
+                            $"device {device.Id}",
+                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
                         );
                     }
                 }

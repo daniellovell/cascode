@@ -1,0 +1,124 @@
+ACIR 2.0
+
+trait DiffPairLike:
+  port OUT_P : analog
+  port OUT_N : analog
+
+trait LoadPairLike:
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  connectors:
+    to DiffPairLike:
+      IN_P -> OUT_P
+      IN_N -> OUT_N
+    to LoadPairLike:
+      IN_P -> OUT_P
+      IN_N -> OUT_N
+
+circuit TelescopicCascodeFullyDiff_Attach
+  level EL
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port VTAIL : bias
+  port VBN : bias
+  port VBP : bias
+  fill:
+    inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
+      size InputPair = (W=2u, L=180n, M=1)
+      size Tail = (W=4u, L=180n, M=1)
+    inst nl (nl.GND->GND, nl.VDD->VDD) : NLoadPair
+      size Cascode = (W=2u, L=180n, M=1)
+    inst pl1 (pl1.GND->GND, pl1.VDD->VDD) : PLoadPair
+      size Cascode = (W=2u, L=180n, M=1)
+    inst pl2 (pl2.GND->GND, pl2.VDD->VDD) : PLoadPair
+      size Cascode = (W=2u, L=180n, M=1)
+    attach nl to dp via LoadPairLike::DiffPairLike as n_cas
+    attach pl1 to nl via LoadPairLike::LoadPairLike as p_cas1
+    attach pl2 to pl1 via LoadPairLike::LoadPairLike as p_cas2
+    connect dp.IN_P -> IN_P
+    connect dp.IN_N -> IN_N
+    connect OUT_P -> pl1.OUT_P
+    connect OUT_N -> pl1.OUT_N
+    connect VTAIL -> dp.TAIL
+    connect VBN -> nl.BIAS
+    connect VBP -> pl1.BIAS
+    connect VBP -> pl2.BIAS
+    connect VDD -> pl2.OUT_P
+    connect VDD -> pl2.OUT_N
+  constraints:
+    numeric:
+      c_gbw : GainBandwidth >= 40M Hz
+      c_gain : PassbandGain >= 30 dB
+      c_pm : PhaseMargin >= 60 deg
+      c_pwr : QuiescentPower <= 1m W
+    tech:
+      t_lmin : L >= 180n m on *
+    measure:
+      m_gbw : FDOpAmpACBench GainBandwidth
+      m_gain : FDOpAmpACBench PassbandGain
+      m_pm : FDOpAmpACBench PhaseMargin
+      m_pwr : FDOpAmpDCBench QuiescentPower
+  harness:
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    bias VBN = 0.9V
+    bias VBP = 1.2V
+    load OUT_P C=1pF
+    load OUT_N C=1pF
+  benches:
+    FDOpAmpACBench
+    FDOpAmpDCBench
+
+circuit DiffPair : DiffPairLike
+  level EL
+  inline
+  size InputPair
+  size Tail
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port TAIL : bias
+  fill:
+    net tnode : analog
+    nmos M_N (B->GND, D->OUT_P, G->IN_P, S->tnode) : size=InputPair nmos
+    nmos M_P (B->GND, D->OUT_N, G->IN_N, S->tnode) : size=InputPair nmos
+    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
+
+circuit NLoadPair : LoadPairLike
+  level EL
+  inline
+  size Cascode
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port BIAS : bias
+  fill:
+    nmos M_P (B->GND, D->OUT_P, G->BIAS, S->IN_P) : size=Cascode nmos
+    nmos M_N (B->GND, D->OUT_N, G->BIAS, S->IN_N) : size=Cascode nmos
+
+circuit PLoadPair : LoadPairLike
+  level EL
+  inline
+  size Cascode
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  port BIAS : bias
+  fill:
+    pmos M_P (B->VDD, D->IN_P, G->BIAS, S->OUT_P) : size=Cascode pmos
+    pmos M_N (B->VDD, D->IN_N, G->BIAS, S->OUT_N) : size=Cascode pmos

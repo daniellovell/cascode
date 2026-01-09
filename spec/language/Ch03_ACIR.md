@@ -1669,9 +1669,25 @@ Primitive transistor devices emit as SPICE M-devices. The PDK device name become
 
 For hierarchical EL documents containing circuit instances, the emitter first resolves all attach statements using the union-find algorithm described in [§3.13.3](#3133-connectivity-resolution), then processes circuits according to their `inline` annotation.
 
-Circuits not marked `inline` become separate `.subckt` definitions. The emitter orders these by dependency: leaf circuits (those with no circuit instances) emit first, followed by circuits that instantiate only leaves, continuing up the dependency tree. The top-level circuit emits last. This ordering ensures each `.subckt` is defined before any `X` element references it.
+Circuits not marked `inline` become separate `.subckt` definitions. Circuits marked `inline` do not generate `.subckt` definitions; instead, their devices and internal nets merge into the parent circuit at the point of instantiation.
 
-Circuits marked `inline` do not generate `.subckt` definitions. Instead, their devices and internal nets merge into the parent circuit during emission. Device IDs and internal net IDs are uniquified using the instance path: device `M_N` under instance `dp` becomes `M_dp__M_N`, and net `tnode` becomes `dp__tnode`. Child port bindings are substituted with the parent's bound nets.
+**Inline expansion semantics:**
+
+When a circuit (inline or non-inline) instantiates a circuit marked `inline`, the inline child is expanded into the parent before the parent is emitted. This expansion process:
+
+1. Substitutes child port bindings with the parent's bound nets
+2. Uniquifies device IDs using the instance path: device `M_N` under instance `dp` becomes `M_dp__M_N`
+3. Uniquifies internal net IDs using the instance path: net `tnode` under instance `dp` becomes `dp__tnode`
+
+**Mixed hierarchy processing:**
+
+In mixed inline/non-inline hierarchies, expansion occurs recursively in depth-first order. For each non-inline circuit that contains inline instances:
+
+1. Recursively expand any inline children into their nearest non-inline ancestor
+2. Apply expansion transformations (port substitution, name uniquification) at each level
+3. Once all inline children are expanded, the non-inline circuit contains only primitive devices and non-inline subcircuit instances
+
+After inline expansion is complete, remaining non-inline circuits are emitted as `.subckt` definitions in topological dependency order: leaf circuits (those with no circuit instances or only inline instances, now expanded) emit first, followed by circuits that instantiate only leaves, continuing up the dependency tree. The top-level circuit emits last. This ordering ensures each `.subckt` is defined before any `X` element references it.
 
 ### 3.13.3 Connectivity Resolution
 

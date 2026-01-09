@@ -51,7 +51,7 @@ public static class ACIRBenchAdapter
         var harnessSupplies = BuildHarnessSuppliesAndBiases(circuit);
         var harnessLoads = BuildHarnessLoads(circuit);
         var outNode = DetermineOutNode(circuit);
-        var portList = BuildPortList(circuit);
+        var portList = BuildPortList(circuit, document);
         var genericModels = UsesGenericModels(circuit, document);
         var harnessParams = DeriveVoltageAndImpedance(circuit);
         var (acStartHz, acStopHz) = DeriveAcSweepFromConstraints(circuit);
@@ -458,13 +458,26 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Builds the port list for DUT instantiation by combining ports, supplies, and grounds.
+    /// Bundle ports are expanded to their terminal paths (e.g., IN : Diff -> IN_P, IN_N).
     /// </summary>
-    internal static List<string> BuildPortList(Circuit circuit)
+    internal static List<string> BuildPortList(Circuit circuit, ACIRDocument? document = null)
     {
         var result = new List<string>();
+        var bundlesByName = BundleExpander.GetBundlesByName(document);
 
         foreach (var port in circuit.Ports)
-            result.Add(port.Name);
+        {
+            foreach (
+                var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                    port.Name,
+                    port.Type,
+                    bundlesByName
+                )
+            )
+            {
+                result.Add(BundleExpander.ToNetName(terminalPath));
+            }
+        }
 
         foreach (var supply in circuit.Supplies)
             result.Add(supply);

@@ -208,6 +208,61 @@ public class EmissionValidatorTests
     }
 
     [Fact]
+    public void Validate_NamedSizePackMissingWOrL_ReturnsEMIT007()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = ACIRLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+                new() { Name = "OUT", Type = "analog" },
+            },
+            Sizes = new List<SizeDeclaration>
+            {
+                new()
+                {
+                    Name = "Small",
+                    Default = new SizePack
+                    {
+                        Entries = new Dictionary<string, string> { { "L", "180n" } },
+                    },
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            { "G", "IN" },
+                            { "S", "GND" },
+                            { "B", "GND" },
+                        },
+                        Params = new Dictionary<string, string> { { "size", "Small" } },
+                    },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-007" && e.Message.Contains("missing required W or L")
+        );
+    }
+
+    [Fact]
     public void Validate_UnknownDeviceType_ReturnsEMIT004()
     {
         var circuit = new Circuit

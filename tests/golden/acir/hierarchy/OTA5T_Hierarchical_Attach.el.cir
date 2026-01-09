@@ -20,16 +20,14 @@ circuit OTA5T_Hierarchical_Attach
   level EL
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
+  port IN : Diff
   port OUT : analog
   port VTAIL : bias
   fill:
     inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
-      connect dp.IN.P -> IN_P
-      connect dp.IN.N -> IN_N
+      connect dp.IN -> IN
       connect dp.OUT.P -> OUT
       connect VTAIL -> dp.TAIL
     inst cm (cm.GND->GND, cm.VDD->VDD) : CurrentMirror

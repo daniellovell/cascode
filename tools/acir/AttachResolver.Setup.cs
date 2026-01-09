@@ -28,7 +28,7 @@ public sealed partial class AttachResolver
         {
             foreach (var (terminalPath, domain) in ExpandPortTerminalPaths(port))
             {
-                var netName = ToNetName(terminalPath);
+                var netName = SanitizeEndpoint(terminalPath);
                 AddExplicitNetNode(context, netName, domain, NetTier.PortExpansion);
             }
         }
@@ -175,11 +175,11 @@ public sealed partial class AttachResolver
         {
             var expandedFrom = fromBundle.IsInstanceEndpoint
                 ? $"{from}.{field}"
-                : ToNetName($"{from}.{field}");
+                : SanitizeEndpoint($"{from}.{field}");
 
             var expandedTo = toBundle.IsInstanceEndpoint
                 ? $"{to}.{field}"
-                : ToNetName($"{to}.{field}");
+                : SanitizeEndpoint($"{to}.{field}");
 
             yield return (expandedFrom, expandedTo);
         }

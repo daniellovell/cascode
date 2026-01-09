@@ -76,10 +76,21 @@ public static class SpiceEmitter
         writer.WriteLine();
 
         // Build port list: ports first, then supplies, then grounds
+        // Bundle ports are expanded to their terminal paths (e.g., IN : Diff -> IN_P, IN_N)
+        var bundlesByName = BundleExpander.GetBundlesByName(document);
         var portList = new List<string>();
         foreach (var port in circuit.Ports)
         {
-            portList.Add(port.Name);
+            foreach (
+                var terminalPath in BundleExpander.ExpandToTerminalPaths(
+                    port.Name,
+                    port.Type,
+                    bundlesByName
+                )
+            )
+            {
+                portList.Add(BundleExpander.ToNetName(terminalPath));
+            }
         }
         foreach (var supply in circuit.Supplies)
         {
@@ -400,7 +411,7 @@ public static class SpiceEmitter
     /// Required for SPICE: .subckt must be defined before X-element reference.
     /// Uses Kahn's algorithm for topological sort.
     /// </remarks>
-    private static List<Circuit> OrderByDependency(ACIRDocument doc)
+    internal static List<Circuit> OrderByDependency(ACIRDocument doc)
     {
         var circuits = doc.Circuits;
         var circuitsByName = circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
@@ -1037,6 +1048,34 @@ public static class SpiceEmitter
         return value;
     }
 
+    private static (string W, string L, string M) GetMosfetSizeParams(
+        DeviceDeclaration device,
+        IReadOnlyDictionary<string, string> deviceParams,
+        string origin
+    )
+    {
+        var missing = new List<string>(capacity: 2);
+        if (!deviceParams.TryGetValue("W", out var w))
+        {
+            missing.Add("W");
+        }
+        if (!deviceParams.TryGetValue("L", out var l))
+        {
+            missing.Add("L");
+        }
+
+        if (missing.Count > 0)
+        {
+            var missingList = string.Join(", ", missing);
+            throw new InvalidOperationException(
+                $"Device '{device.Id}' missing required size parameter(s) {missingList}. Origin: {origin}. Ensure size pack expansion provides W and L before MOSFET parameter emission."
+            );
+        }
+
+        var m = deviceParams.GetValueOrDefault("M", "1");
+        return (w!, l!, m);
+    }
+
     /// <summary>
     /// Emits MOSFET terminals and params for inline expansion.
     /// </summary>
@@ -1100,9 +1139,11 @@ public static class SpiceEmitter
         sb.Append(' ');
 
         // Parameters: W, L, m (must come from size pack expansion)
-        var w = deviceParams["W"];
-        var l = deviceParams["L"];
-        var m = deviceParams.GetValueOrDefault("M", "1");
+        var (w, l, m) = GetMosfetSizeParams(
+            device,
+            deviceParams,
+            "SpiceEmitter.ResolveParameterValue in EmitInlineMosfetTerminalsAndParams"
+        );
 
         var resolvedW = ResolveParameterValue(w, paramBindings);
         var resolvedL = ResolveParameterValue(l, paramBindings);
@@ -1177,9 +1218,11 @@ public static class SpiceEmitter
         sb.Append(' ');
 
         // Parameters: W, L, m (must come from size pack expansion)
-        var w = deviceParams["W"];
-        var l = deviceParams["L"];
-        var m = deviceParams.GetValueOrDefault("M", "1");
+        var (w, l, m) = GetMosfetSizeParams(
+            device,
+            deviceParams,
+            "SpiceEmitter.EmitMosfetTerminalsAndParams"
+        );
 
         var converted_w = ConvertParamRef(w);
         var converted_l = ConvertParamRef(l);
