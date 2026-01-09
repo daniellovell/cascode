@@ -104,6 +104,7 @@ jobs:
         shell: bash
         run: |
           cd build/out/${{ matrix.rid }}
+          cp ../../../LICENSE .
           tar -czf ../../cascode-${{ matrix.rid }}.tar.gz *
       - name: archive (windows)
         if: startsWith(matrix.rid, 'win-')
@@ -111,6 +112,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Push-Location "build/out/${{ matrix.rid }}"
+          Copy-Item ../../../LICENSE .
           Compress-Archive -Path * -DestinationPath ../../cascode-${{ matrix.rid }}.zip -Force
           Pop-Location
       - uses: actions/upload-artifact@v4
