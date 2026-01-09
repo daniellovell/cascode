@@ -87,32 +87,4 @@ public sealed partial class AttachResolver
 
         return ResolveBundleFieldDomain(fieldType, pathSegments, index + 1);
     }
-
-    private IEnumerable<(string TerminalPath, string Domain)> ExpandPortTerminalPaths(
-        PortDeclaration port
-    )
-    {
-        return ExpandBundleTerminalPaths(port.Name, port.Type);
-    }
-
-    private IEnumerable<(string TerminalPath, string Domain)> ExpandBundleTerminalPaths(
-        string basePath,
-        string typeName
-    )
-    {
-        if (!_bundleTypesByName.TryGetValue(typeName, out var bundle))
-        {
-            yield return (basePath, typeName);
-            yield break;
-        }
-
-        foreach (var field in bundle.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
-        {
-            var path = $"{basePath}.{field.Key}";
-            foreach (var entry in ExpandBundleTerminalPaths(path, field.Value))
-            {
-                yield return entry;
-            }
-        }
-    }
 }

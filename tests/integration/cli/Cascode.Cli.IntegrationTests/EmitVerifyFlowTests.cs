@@ -603,6 +603,78 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("bridges supply rails", result.Stdout);
     }
 
+    // ML-level ERC tests (same topology checks work on unsized circuits)
+
+    [Fact]
+    public async Task Erc_ML_ValidCircuit_ReturnsSuccess()
+    {
+        var acirPath = Path.Combine(
+            _repoRoot,
+            "tests/golden/acir/ota/OTA5TSingleEnded_unsized.ml.cir"
+        );
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result, "erc command failed on valid ML circuit");
+        Assert.Contains("ERC passed", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_ML_FloatingGate_ReturnsExitCode1()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.ml.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-001", result.Stdout);
+        Assert.Contains("Floating gate", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_ML_VddGndShort_ReturnsExitCode1()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.ml.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-002", result.Stdout);
+        Assert.Contains("VDD-GND short", result.Stdout);
+    }
+
+    [Fact]
+    public async Task Erc_ML_PassiveShort_ReturnsERC007()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.ml.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            acirPath
+        );
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Contains("ERC-007", result.Stdout);
+        Assert.Contains("bridges supply rails", result.Stdout);
+    }
+
     [Fact]
     public async Task Emit_JsonOutput_ReturnsValidJson()
     {

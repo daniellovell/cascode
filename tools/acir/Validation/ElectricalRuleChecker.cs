@@ -22,32 +22,32 @@ public static class ElectricalRuleChecker
     /// <summary>
     /// Performs electrical rule checking on a circuit.
     /// </summary>
-    /// <param name="circuit">The circuit to check.</param>
+    /// <param name="circuit">The circuit to check (must be desugared).</param>
     /// <param name="requirePdkDevice">If true, missing PDK device is an error; otherwise a warning.</param>
-    /// <param name="document">Optional document containing bundle type definitions.</param>
     /// <returns>Validation result with any ERC violations found.</returns>
-    public static ValidationResult Check(
-        Circuit circuit,
-        bool requirePdkDevice = false,
-        ACIRDocument? document = null
-    )
+    public static ValidationResult Check(Circuit circuit, bool requirePdkDevice = false)
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
         var result = new ValidationResult();
 
-        // First run emission validation as prerequisite
-        var emitResult = EmissionValidator.Validate(circuit, document);
-        if (!emitResult.IsValid)
+        // For EL-level circuits, run emission validation as prerequisite.
+        // For ML-level circuits, skip emission validation since they are not expected
+        // to be emission-ready (topology is complete but sizing uses ?? placeholders).
+        if (circuit.Level == ACIRLevel.EL)
         {
-            result.Merge(emitResult);
-            return result; // Cannot run ERC on structurally invalid circuit
+            var emitResult = EmissionValidator.Validate(circuit);
+            if (!emitResult.IsValid)
+            {
+                result.Merge(emitResult);
+                return result; // Cannot run ERC on structurally invalid circuit
+            }
         }
 
         // Build circuit analysis context
         var analysis = new CircuitAnalysis(circuit);
 
-        // Run ERC checks
+        // Run ERC checks (these are topology-based and work on both EL and ML)
         CheckFloatingGates(circuit, analysis, result);
         CheckVddGndShorts(circuit, analysis, result);
         CheckPassiveShorts(circuit, analysis, result);

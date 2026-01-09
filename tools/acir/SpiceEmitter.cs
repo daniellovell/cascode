@@ -76,21 +76,11 @@ public static class SpiceEmitter
         writer.WriteLine();
 
         // Build port list: ports first, then supplies, then grounds
-        // Bundle ports are expanded to their terminal paths (e.g., IN : Diff -> IN_P, IN_N)
-        var bundlesByName = BundleExpander.GetBundlesByName(document);
+        // Ports are already desugared to scalar types by BundleDesugarer
         var portList = new List<string>();
         foreach (var port in circuit.Ports)
         {
-            foreach (
-                var terminalPath in BundleExpander.ExpandToTerminalPaths(
-                    port.Name,
-                    port.Type,
-                    bundlesByName
-                )
-            )
-            {
-                portList.Add(BundleExpander.ToNetName(terminalPath));
-            }
+            portList.Add(port.Name);
         }
         foreach (var supply in circuit.Supplies)
         {
@@ -382,7 +372,7 @@ public static class SpiceEmitter
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         foreach (var circuit in elCircuits)
         {
-            var circuitValidation = EmissionValidator.Validate(circuit, doc);
+            var circuitValidation = EmissionValidator.Validate(circuit);
             validationResult.Merge(circuitValidation);
         }
 

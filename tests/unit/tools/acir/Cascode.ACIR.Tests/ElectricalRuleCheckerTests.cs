@@ -695,6 +695,162 @@ public class ElectricalRuleCheckerTests
         Assert.DoesNotContain(result.Diagnostics, e => e.Code == "ERC-007");
     }
 
+    // ML-level ERC tests (topology checks work on unsized circuits)
+
+    [Fact]
+    public void Check_ML_ValidCircuit_ReturnsSuccess()
+    {
+        var circuit = CreateValidMLCircuit();
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void Check_ML_FloatingGate_ReturnsERC001()
+    {
+        var circuit = new Circuit
+        {
+            Name = "MLTestCircuit",
+            Level = ACIRLevel.ML,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "OUT", Type = "analog" },
+            },
+            Fill = new FillBlock
+            {
+                Nets = new List<NetDeclaration>
+                {
+                    new() { Id = "floating_net", Domain = "analog" },
+                },
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            { "G", "floating_net" },
+                            { "S", "GND" },
+                            { "B", "GND" },
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=??, L=??, M=??)" },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, e => e.Code == "ERC-001" && e.Message.Contains("M1"));
+    }
+
+    [Fact]
+    public void Check_ML_VddGndShort_ReturnsERC002()
+    {
+        var circuit = new Circuit
+        {
+            Name = "MLTestCircuit",
+            Level = ACIRLevel.ML,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M_short",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "VDD" },
+                            { "G", "IN" },
+                            { "S", "GND" },
+                            { "B", "GND" },
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=??, L=??, M=??)" },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "ERC-002" && e.Message.Contains("M_short")
+        );
+    }
+
+    [Fact]
+    public void Check_ML_PassiveBridgingRails_ReturnsERC007()
+    {
+        var circuit = new Circuit
+        {
+            Name = "MLTestCircuit",
+            Level = ACIRLevel.ML,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "resistor",
+                        Id = "R_short",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "P", "VDD" },
+                            { "N", "GND" },
+                        },
+                        Params = new Dictionary<string, string> { { "R", "1k" } },
+                    },
+                },
+            },
+        };
+
+        var result = ElectricalRuleChecker.Check(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "ERC-007" && e.Message.Contains("R_short")
+        );
+    }
+
+    [Fact]
+    public void Check_ML_NoPdkWarning_SinceMLIsPdkAgnostic()
+    {
+        // ML level is PDK-agnostic, so ERC-005 should not be raised
+        var circuit = CreateValidMLCircuit();
+        var result = ElectricalRuleChecker.Check(circuit, requirePdkDevice: false);
+
+        Assert.True(result.IsValid);
+        Assert.DoesNotContain(result.Diagnostics, e => e.Code == "ERC-005");
+    }
+
     private static Circuit CreateValidCircuit()
     {
         return new Circuit
@@ -728,6 +884,44 @@ public class ElectricalRuleCheckerTests
                             { "size", "(W=1u, L=180n, M=1)" },
                         },
                         PdkDevice = "nmos",
+                    },
+                },
+            },
+        };
+    }
+
+    private static Circuit CreateValidMLCircuit()
+    {
+        return new Circuit
+        {
+            Name = "ValidMLCircuit",
+            Level = ACIRLevel.ML,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new() { Name = "IN", Type = "analog" },
+                new() { Name = "OUT", Type = "analog" },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT" },
+                            { "G", "IN" },
+                            { "S", "GND" },
+                            { "B", "GND" },
+                        },
+                        Params = new Dictionary<string, string>
+                        {
+                            { "size", "(W=??, L=??, M=??)" },
+                        },
                     },
                 },
             },

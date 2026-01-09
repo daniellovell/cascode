@@ -92,7 +92,7 @@ public sealed partial class AttachResolver
 
         var domainA = context.DomainByRoot[rootA];
         var domainB = context.DomainByRoot[rootB];
-        if (!string.Equals(domainA, domainB, StringComparison.Ordinal))
+        if (!AreDomainsCompatible(domainA, domainB))
         {
             diagnostics.Add(
                 new Diagnostic(
@@ -142,5 +142,38 @@ public sealed partial class AttachResolver
         }
 
         context.DomainByRoot.Remove(oldRoot);
+    }
+
+    /// <summary>
+    /// Checks if two domains are compatible for connection.
+    /// Signal domains (analog, bias) can connect to supply rails (power, ground).
+    /// However, different signal types (analog vs bias) remain incompatible with each other,
+    /// and power-ground connections are always errors (short circuits).
+    /// </summary>
+    private static bool AreDomainsCompatible(string domainA, string domainB)
+    {
+        if (string.Equals(domainA, domainB, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Normalize to lowercase for comparison
+        var a = domainA.ToLowerInvariant();
+        var b = domainB.ToLowerInvariant();
+
+        // Direct power-ground connection is always an error (short circuit)
+        if ((a == "power" && b == "ground") || (a == "ground" && b == "power"))
+        {
+            return false;
+        }
+
+        // Allow signal domains (analog, bias) to connect to supply rails (power, ground)
+        // This is common in analog circuit design (e.g., connecting a transistor source to VDD)
+        var signalDomains = new HashSet<string> { "analog", "bias" };
+        var railDomains = new HashSet<string> { "power", "ground" };
+
+        // Signal can connect to rail (either direction)
+        return (signalDomains.Contains(a) && railDomains.Contains(b))
+            || (signalDomains.Contains(b) && railDomains.Contains(a));
     }
 }
