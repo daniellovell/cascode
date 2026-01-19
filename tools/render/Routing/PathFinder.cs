@@ -30,6 +30,11 @@ public static class PathFinder
             return new List<WireSegment>();
         }
 
+        // For cleaner schematics, prefer routing that aligns horizontal segments
+        // with destination terminal Y levels. When destination is below source,
+        // route vertical-first so horizontal segment is at destination's Y.
+        var preferVerticalFirst = to.Y > from.Y;
+
         // Try direct L-paths first (most common case)
         var path = TryLPath(
             from,
@@ -38,7 +43,7 @@ public static class PathFinder
             obstacles,
             occupied,
             forbiddenPoints,
-            horizontalFirst: true
+            horizontalFirst: !preferVerticalFirst
         );
         if (path != null)
         {
@@ -52,7 +57,7 @@ public static class PathFinder
             obstacles,
             occupied,
             forbiddenPoints,
-            horizontalFirst: false
+            horizontalFirst: preferVerticalFirst
         );
         if (path != null)
         {
@@ -67,13 +72,13 @@ public static class PathFinder
         }
 
         // Fallback: try both L-path orientations, prefer one without forbidden point violations
-        var fallback1 = CreateLPath(from, to, netName, horizontalFirst: true);
+        var fallback1 = CreateLPath(from, to, netName, horizontalFirst: !preferVerticalFirst);
         if (!PathViolatesForbiddenPoints(fallback1, forbiddenPoints))
         {
             return fallback1;
         }
 
-        var fallback2 = CreateLPath(from, to, netName, horizontalFirst: false);
+        var fallback2 = CreateLPath(from, to, netName, horizontalFirst: preferVerticalFirst);
         if (!PathViolatesForbiddenPoints(fallback2, forbiddenPoints))
         {
             return fallback2;

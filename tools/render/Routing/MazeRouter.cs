@@ -99,7 +99,7 @@ public static class MazeRouter
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
         }
 
-        var junctions = FindJunctions(allSegments);
+        var junctions = FindJunctions(allSegments, terminals);
 
         return new RoutingResult
         {
@@ -108,6 +108,7 @@ public static class MazeRouter
             SegmentsByNet = segmentsByNet,
             CanvasWidth = canvasWidth,
             CanvasHeight = canvasHeight,
+            TerminalPositions = terminals,
         };
     }
 
@@ -166,11 +167,11 @@ public static class MazeRouter
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        var segments = new List<WireSegment>();
+        var rawSegments = new List<WireSegment>();
 
         if (terminals.Count < 2)
         {
-            return segments;
+            return rawSegments;
         }
 
         // Build MST of terminals
@@ -183,7 +184,7 @@ public static class MazeRouter
             var to = new GridPoint(terminals[toIdx].X, terminals[toIdx].Y);
 
             var path = PathFinder.FindPath(from, to, netName, obstacles, occupied, forbiddenPoints);
-            segments.AddRange(path);
+            rawSegments.AddRange(path);
 
             // Add path segments to occupied immediately so subsequent edges avoid them
             foreach (var seg in path)
@@ -192,11 +193,374 @@ public static class MazeRouter
             }
         }
 
-        return segments;
+        // Post-process to merge overlapping collinear segments
+        var mergedSegments = MergeCollinearSegments(rawSegments, netName);
+
+        // Build set of terminal points for this net
+        var terminalPoints = terminals.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
+
+        // Eliminate redundant parallel horizontal paths
+        var cleanedSegments = EliminateRedundantParallelPaths(
+            mergedSegments,
+            netName,
+            terminalPoints
+        );
+
+        return cleanedSegments;
     }
 
     /// <summary>
-    /// Computes minimum spanning tree using Prim's algorithm with Manhattan distance.
+    /// Eliminates redundant parallel horizontal paths that converge at the same endpoint.
+    /// When multiple horizontal segments share the same X range at different Y coordinates,
+    /// keep only one horizontal path and add vertical connectors to maintain connectivity.
+    /// </summary>
+    private static List<WireSegment> EliminateRedundantParallelPaths(
+        List<WireSegment> segments,
+        string netName,
+        IReadOnlySet<GridPoint> terminalPoints
+    )
+    {
+        if (segments.Count <= 1)
+        {
+            return segments;
+        }
+
+        var horizontalSegments = segments.Where(s => s.From.Y == s.To.Y).ToList();
+        var verticalSegments = segments.Where(s => s.From.X == s.To.X).ToList();
+
+        if (horizontalSegments.Count <= 1)
+        {
+            return segments;
+        }
+
+        // Group horizontal segments by their X range (minX, maxX)
+        var byXRange = new Dictionary<(int minX, int maxX), List<WireSegment>>();
+        foreach (var seg in horizontalSegments)
+        {
+            var minX = Math.Min(seg.From.X, seg.To.X);
+            var maxX = Math.Max(seg.From.X, seg.To.X);
+            var key = (minX, maxX);
+            if (!byXRange.TryGetValue(key, out var list))
+            {
+                list = new List<WireSegment>();
+                byXRange[key] = list;
+            }
+            list.Add(seg);
+        }
+
+        // Find groups with redundant parallel segments (same X range, different Y)
+        var toRemove = new HashSet<WireSegment>();
+        var toAdd = new List<WireSegment>();
+
+        foreach (var (range, segs) in byXRange)
+        {
+            if (segs.Count <= 1)
+            {
+                continue;
+            }
+
+            // Sort by Y to find the segment range
+            var sortedByY = segs.OrderBy(s => s.From.Y).ToList();
+            var minY = sortedByY.First().From.Y;
+            var maxY = sortedByY.Last().From.Y;
+
+            // Keep the segment closest to the middle Y, remove others
+            var midY = (minY + maxY) / 2;
+            var kept = sortedByY.MinBy(s => Math.Abs(s.From.Y - midY))!;
+
+            foreach (var seg in segs)
+            {
+                if (seg != kept)
+                {
+                    toRemove.Add(seg);
+                }
+            }
+
+            // Add vertical segments to connect removed segments' Y levels to the kept segment.
+            // Only add a connector if neither endpoint already has one - connectivity through
+            // either side is sufficient. Prefer the left (device/source) side over the right
+            // (port/destination) side to avoid creating stubs at port locations.
+            foreach (var seg in segs)
+            {
+                if (seg == kept)
+                {
+                    continue;
+                }
+
+                var segY = seg.From.Y;
+                var keptY = kept.From.Y;
+
+                // Check if there's already a vertical segment at either endpoint connecting these Ys
+                var hasLeftVertical = verticalSegments.Any(v =>
+                    v.From.X == range.minX
+                    && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
+                    && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
+                );
+
+                var hasRightVertical = verticalSegments.Any(v =>
+                    v.From.X == range.maxX
+                    && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
+                    && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
+                );
+
+                // If either endpoint already has a vertical connector, connectivity is maintained
+                if (hasLeftVertical || hasRightVertical)
+                {
+                    continue;
+                }
+
+                // Neither endpoint has a connector - add one at the left (source/device) side
+                toAdd.Add(
+                    new WireSegment(
+                        new GridPoint(range.minX, Math.Min(segY, keptY)),
+                        new GridPoint(range.minX, Math.Max(segY, keptY)),
+                        netName
+                    )
+                );
+            }
+        }
+
+        if (toRemove.Count == 0)
+        {
+            return segments;
+        }
+
+        // Build result: original segments minus removed, plus new vertical connectors
+        var result = segments.Where(s => !toRemove.Contains(s)).ToList();
+        result.AddRange(toAdd);
+
+        // Re-merge to handle any new overlapping segments
+        result = MergeCollinearSegments(result, netName);
+
+        // Remove any orphaned stubs created by removing horizontal segments
+        result = RemoveOrphanedStubs(result, terminalPoints);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Removes wire segments that have become orphaned stubs (dead ends not connected
+    /// to the rest of the network). A stub is a segment where one endpoint only
+    /// connects to that single segment and is not a terminal.
+    /// </summary>
+    private static List<WireSegment> RemoveOrphanedStubs(
+        List<WireSegment> segments,
+        IReadOnlySet<GridPoint> terminalPoints
+    )
+    {
+        if (segments.Count <= 1)
+        {
+            return segments;
+        }
+
+        var changed = true;
+        var result = segments.ToList();
+
+        // Iteratively remove stubs until none remain
+        while (changed)
+        {
+            changed = false;
+
+            // Count endpoint occurrences
+            var endpointCounts = new Dictionary<GridPoint, int>();
+            foreach (var seg in result)
+            {
+                endpointCounts[seg.From] = endpointCounts.GetValueOrDefault(seg.From) + 1;
+                endpointCounts[seg.To] = endpointCounts.GetValueOrDefault(seg.To) + 1;
+            }
+
+            // Find segments where one endpoint is a dead end (appears only once)
+            // and that dead end is NOT a terminal
+            var toRemove = new List<WireSegment>();
+            foreach (var seg in result)
+            {
+                var fromCount = endpointCounts[seg.From];
+                var toCount = endpointCounts[seg.To];
+
+                // A segment is a stub if:
+                // - One endpoint appears only once (dead end)
+                // - That dead-end point is NOT a terminal
+                // - The other endpoint has multiple connections
+                if (fromCount == 1 && toCount > 1 && !terminalPoints.Contains(seg.From))
+                {
+                    toRemove.Add(seg);
+                    changed = true;
+                }
+                else if (toCount == 1 && fromCount > 1 && !terminalPoints.Contains(seg.To))
+                {
+                    toRemove.Add(seg);
+                    changed = true;
+                }
+            }
+
+            foreach (var seg in toRemove)
+            {
+                result.Remove(seg);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Merges overlapping collinear segments and creates proper branch points.
+    /// This eliminates duplicate coverage when multiple MST edges share a common path.
+    /// </summary>
+    private static List<WireSegment> MergeCollinearSegments(
+        List<WireSegment> segments,
+        string netName
+    )
+    {
+        if (segments.Count <= 1)
+        {
+            return segments;
+        }
+
+        var result = new List<WireSegment>();
+
+        // Group vertical segments by X coordinate
+        var verticalByX = segments
+            .Where(s => s.From.X == s.To.X)
+            .GroupBy(s => s.From.X)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Group horizontal segments by Y coordinate
+        var horizontalByY = segments
+            .Where(s => s.From.Y == s.To.Y)
+            .GroupBy(s => s.From.Y)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Collect all important Y coordinates on each vertical axis (endpoints and intersections with horizontal)
+        foreach (var (x, vertSegs) in verticalByX)
+        {
+            var yPoints = new SortedSet<int>();
+
+            // Add endpoints from all vertical segments on this axis
+            foreach (var seg in vertSegs)
+            {
+                yPoints.Add(seg.From.Y);
+                yPoints.Add(seg.To.Y);
+            }
+
+            // Add intersection points with horizontal segments
+            foreach (var (y, horSegs) in horizontalByY)
+            {
+                foreach (var hSeg in horSegs)
+                {
+                    var minX = Math.Min(hSeg.From.X, hSeg.To.X);
+                    var maxX = Math.Max(hSeg.From.X, hSeg.To.X);
+
+                    // Check if this vertical axis intersects any horizontal segment
+                    if (x >= minX && x <= maxX)
+                    {
+                        // Check if any vertical segment covers this Y
+                        foreach (var vSeg in vertSegs)
+                        {
+                            var minY = Math.Min(vSeg.From.Y, vSeg.To.Y);
+                            var maxY = Math.Max(vSeg.From.Y, vSeg.To.Y);
+                            if (y >= minY && y <= maxY)
+                            {
+                                yPoints.Add(y);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create merged segments by connecting consecutive covered points
+            var sortedY = yPoints.ToList();
+            for (var i = 0; i < sortedY.Count - 1; i++)
+            {
+                var y1 = sortedY[i];
+                var y2 = sortedY[i + 1];
+
+                // Check if any original segment covers this range
+                var covered = vertSegs.Any(seg =>
+                {
+                    var minY = Math.Min(seg.From.Y, seg.To.Y);
+                    var maxY = Math.Max(seg.From.Y, seg.To.Y);
+                    return minY <= y1 && maxY >= y2;
+                });
+
+                if (covered)
+                {
+                    result.Add(
+                        new WireSegment(new GridPoint(x, y1), new GridPoint(x, y2), netName)
+                    );
+                }
+            }
+        }
+
+        // Same for horizontal segments - collect important X coordinates
+        foreach (var (y, horSegs) in horizontalByY)
+        {
+            var xPoints = new SortedSet<int>();
+
+            // Add endpoints from all horizontal segments on this axis
+            foreach (var seg in horSegs)
+            {
+                xPoints.Add(seg.From.X);
+                xPoints.Add(seg.To.X);
+            }
+
+            // Add intersection points with vertical segments
+            foreach (var (x, vertSegs) in verticalByX)
+            {
+                foreach (var vSeg in vertSegs)
+                {
+                    var minY = Math.Min(vSeg.From.Y, vSeg.To.Y);
+                    var maxY = Math.Max(vSeg.From.Y, vSeg.To.Y);
+
+                    // Check if this horizontal axis intersects any vertical segment
+                    if (y >= minY && y <= maxY)
+                    {
+                        // Check if any horizontal segment covers this X
+                        foreach (var hSeg in horSegs)
+                        {
+                            var minX = Math.Min(hSeg.From.X, hSeg.To.X);
+                            var maxX = Math.Max(hSeg.From.X, hSeg.To.X);
+                            if (x >= minX && x <= maxX)
+                            {
+                                xPoints.Add(x);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Create merged segments by connecting consecutive covered points
+            var sortedX = xPoints.ToList();
+            for (var i = 0; i < sortedX.Count - 1; i++)
+            {
+                var x1 = sortedX[i];
+                var x2 = sortedX[i + 1];
+
+                // Check if any original segment covers this range
+                var covered = horSegs.Any(seg =>
+                {
+                    var minX = Math.Min(seg.From.X, seg.To.X);
+                    var maxX = Math.Max(seg.From.X, seg.To.X);
+                    return minX <= x1 && maxX >= x2;
+                });
+
+                if (covered)
+                {
+                    result.Add(
+                        new WireSegment(new GridPoint(x1, y), new GridPoint(x2, y), netName)
+                    );
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Computes minimum spanning tree using Prim's algorithm with biased distance.
+    /// Terminals sharing the same X or Y coordinate get a cost discount to encourage
+    /// direct connections along device axes rather than routing through ports.
     /// Returns list of (fromIndex, toIndex) edges.
     /// </summary>
     private static List<(int, int)> ComputeMST(List<TerminalPosition> terminals)
@@ -228,7 +592,7 @@ public static class MazeRouter
                         continue;
                     }
 
-                    var dist = ManhattanDistance(terminals[i], terminals[j]);
+                    var dist = BiasedDistance(terminals[i], terminals[j]);
                     if (dist < bestDist)
                     {
                         bestDist = dist;
@@ -251,9 +615,34 @@ public static class MazeRouter
         return edges;
     }
 
-    private static int ManhattanDistance(TerminalPosition a, TerminalPosition b)
+    /// <summary>
+    /// Computes biased distance between terminals for MST construction.
+    /// Gate-to-gate connections get a 50% discount to encourage tying gates together
+    /// before routing to other terminals (like resistor internal nodes).
+    /// Terminals sharing the same X coordinate (vertical alignment) also get a 50% discount
+    /// to encourage routing along device stacks.
+    /// </summary>
+    private static int BiasedDistance(TerminalPosition a, TerminalPosition b)
     {
-        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+        var manhattan = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+
+        // Gate-to-gate connections get a strong preference.
+        // This ensures gates (e.g., PMOS load gates) connect directly to each other
+        // before routing down to other nodes (like resistor taps).
+        if (a.Terminal == "G" && b.Terminal == "G")
+        {
+            return manhattan / 2;
+        }
+
+        // Vertical connections (same X) get a preference.
+        // This ensures devices in the same vertical stack are connected directly
+        // but doesn't shortcut horizontal connections that should go through center devices.
+        if (a.X == b.X)
+        {
+            return manhattan / 2;
+        }
+
+        return manhattan;
     }
 
     /// <summary>
@@ -276,33 +665,72 @@ public static class MazeRouter
     }
 
     /// <summary>
-    /// Finds junction points where 3+ wire segments meet.
+    /// Finds junction points where 3+ connections meet (wire segments + device terminals).
+    /// A device terminal at a wire endpoint counts as +1 connection.
     /// </summary>
-    private static List<GridPoint> FindJunctions(List<WireSegment> segments)
+    private static List<GridPoint> FindJunctions(
+        List<WireSegment> segments,
+        List<TerminalPosition> terminals
+    )
     {
-        var pointCounts = new Dictionary<GridPoint, int>();
+        // Group segments by net for proper junction detection
+        var segmentsByNet = segments
+            .GroupBy(s => s.NetName)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        foreach (var seg in segments)
+        // Create lookup for terminal positions by coordinate
+        var terminalPoints = new HashSet<GridPoint>();
+        foreach (var term in terminals)
         {
-            pointCounts[seg.From] = pointCounts.GetValueOrDefault(seg.From, 0) + 1;
-            pointCounts[seg.To] = pointCounts.GetValueOrDefault(seg.To, 0) + 1;
+            terminalPoints.Add(new GridPoint(term.X, term.Y));
         }
 
-        // Also count mid-segment intersections
-        for (var i = 0; i < segments.Count; i++)
+        var junctions = new HashSet<GridPoint>();
+
+        foreach (var (_, netSegments) in segmentsByNet)
         {
-            for (var j = i + 1; j < segments.Count; j++)
+            var pointCounts = new Dictionary<GridPoint, int>();
+
+            foreach (var seg in netSegments)
             {
-                var intersection = GetIntersection(segments[i], segments[j]);
-                if (intersection.HasValue)
+                pointCounts[seg.From] = pointCounts.GetValueOrDefault(seg.From, 0) + 1;
+                pointCounts[seg.To] = pointCounts.GetValueOrDefault(seg.To, 0) + 1;
+            }
+
+            // Also count mid-segment intersections (only within same net)
+            for (var i = 0; i < netSegments.Count; i++)
+            {
+                for (var j = i + 1; j < netSegments.Count; j++)
                 {
-                    var pt = intersection.Value;
-                    pointCounts[pt] = pointCounts.GetValueOrDefault(pt, 0) + 2;
+                    var intersection = GetIntersection(netSegments[i], netSegments[j]);
+                    if (intersection.HasValue)
+                    {
+                        var pt = intersection.Value;
+                        pointCounts[pt] = pointCounts.GetValueOrDefault(pt, 0) + 2;
+                    }
+                }
+            }
+
+            // For points that are device terminals, add +1 (terminal is an implicit connection)
+            foreach (var (point, _) in pointCounts)
+            {
+                if (terminalPoints.Contains(point))
+                {
+                    pointCounts[point] += 1;
+                }
+            }
+
+            // Add points where 3+ connections meet
+            foreach (var (point, count) in pointCounts)
+            {
+                if (count >= 3)
+                {
+                    junctions.Add(point);
                 }
             }
         }
 
-        return pointCounts.Where(kv => kv.Value >= 3).Select(kv => kv.Key).ToList();
+        return junctions.ToList();
     }
 
     /// <summary>
@@ -374,9 +802,27 @@ public static class MazeRouter
             }
             else if (deviceType is "resistor" or "capacitor")
             {
-                var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
-                positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
+                // Check if this is a horizontal passive
+                var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
+                var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
+
+                if (isHorizontalPassive)
+                {
+                    var p = DeviceGeometry.GetHorizontalPassivePlacement(
+                        cell.Row,
+                        cell.Column,
+                        placement.ColumnCount,
+                        isLeftOfAxis
+                    );
+                    positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
+                    positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
+                }
+                else
+                {
+                    var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+                    positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
+                    positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
+                }
             }
         }
 
@@ -385,18 +831,18 @@ public static class MazeRouter
 
         // Left ports (inputs, bias) - use average Y
         var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
-        var leftYs = ComputePortYPositions(leftPorts, terminalYByNet, preferMaxY: false);
+        var leftYs = ComputePortYPositions(leftPorts, terminalYByNet, preferMinY: false);
         foreach (var port in leftPorts)
         {
             var y = leftYs.GetValueOrDefault(port, DeviceGeometry.RailMargin + 50);
             positions.Add(new TerminalPosition($"PORT_{port}", "P", 0, y));
         }
 
-        // Right ports (outputs) - use max Y to align with drain positions
+        // Right ports (outputs) - use average Y for balanced routing
         var rightYs = ComputePortYPositions(
             graph.OutputPorts.ToList(),
             terminalYByNet,
-            preferMaxY: true
+            preferMinY: false
         );
         foreach (var port in graph.OutputPorts)
         {
@@ -442,7 +888,7 @@ public static class MazeRouter
     private static Dictionary<string, int> ComputePortYPositions(
         List<string> portNames,
         Dictionary<string, List<int>> terminalYByNet,
-        bool preferMaxY
+        bool preferMinY
     )
     {
         var result = new Dictionary<string, int>();
@@ -455,8 +901,8 @@ public static class MazeRouter
 
             if (terminalYByNet.TryGetValue(port, out var ys) && ys.Count > 0)
             {
-                // Match SvgRenderer logic: max for outputs, average for inputs
-                y = preferMaxY ? ys.Max() : (int)ys.Average();
+                // min for outputs (align with topmost drain near loads), average for inputs
+                y = preferMinY ? ys.Min() : (int)ys.Average();
             }
             else
             {

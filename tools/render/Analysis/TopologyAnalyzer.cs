@@ -28,6 +28,7 @@ public enum SymmetryType
     DiffPair,
     CurrentMirror,
     LoadPair,
+    SymmetricPassive,
 }
 
 /// <summary>
@@ -615,6 +616,185 @@ public static class TopologyAnalyzer
                 );
             }
         }
+    }
+
+    /// <summary>
+    /// Detects symmetric pairs of horizontal passives.
+    /// These are passives that share a common net on their N terminal (e.g., vcm_node)
+    /// and have P terminals connected to symmetric outputs.
+    /// </summary>
+    public static IReadOnlyList<(
+        string Left,
+        string Right,
+        string PivotNet
+    )> DetectSymmetricPassivePairs(CircuitGraph graph, TopologyResult topology)
+    {
+        var pairs = new List<(string Left, string Right, string PivotNet)>();
+
+        // Find all horizontal passives
+        var horizontalPassives = topology
+            .PassiveOrientations.Where(kv => kv.Value == PassiveOrientation.Horizontal)
+            .Select(kv => kv.Key)
+            .ToList();
+
+        if (horizontalPassives.Count < 2)
+        {
+            return pairs;
+        }
+
+        // Group by shared N terminal net
+        var byNNet = new Dictionary<string, List<string>>();
+        foreach (var deviceId in horizontalPassives)
+        {
+            var nNet = graph.GetNetForTerminal(deviceId, "N");
+            if (nNet == null || graph.IsSupplyOrGround(nNet))
+            {
+                continue;
+            }
+
+            if (!byNNet.TryGetValue(nNet, out var list))
+            {
+                list = new List<string>();
+                byNNet[nNet] = list;
+            }
+            list.Add(deviceId);
+        }
+
+        // For groups of 2, check if P terminals connect to symmetric outputs
+        foreach (var (pivotNet, devices) in byNNet)
+        {
+            if (devices.Count != 2)
+            {
+                continue;
+            }
+
+            var d1 = devices[0];
+            var d2 = devices[1];
+
+            var p1Net = graph.GetNetForTerminal(d1, "P");
+            var p2Net = graph.GetNetForTerminal(d2, "P");
+
+            // Check if P terminals connect to symmetric outputs (_P/_N suffixes or output ports)
+            var areSymmetricOutputs = AreSymmetricOutputNets(p1Net, p2Net, graph);
+            if (areSymmetricOutputs)
+            {
+                // Determine which is left and which is right based on net naming
+                var (left, right) = DetermineLeftRight(d1, d2, p1Net, p2Net);
+                pairs.Add((left, right, pivotNet));
+            }
+        }
+
+        return pairs;
+    }
+
+    /// <summary>
+    /// Checks if two nets represent symmetric outputs (e.g., OUT_P and OUT_N).
+    /// </summary>
+    private static bool AreSymmetricOutputNets(string? net1, string? net2, CircuitGraph graph)
+    {
+        if (net1 == null || net2 == null)
+        {
+            return false;
+        }
+
+        // Both should be outputs or internal nets
+        var net1IsOutput = graph.OutputPorts.Contains(net1);
+        var net2IsOutput = graph.OutputPorts.Contains(net2);
+
+        if (!net1IsOutput || !net2IsOutput)
+        {
+            return false;
+        }
+
+        // Check for symmetric naming patterns
+        return IsSymmetricNaming(net1, net2);
+    }
+
+    /// <summary>
+    /// Checks if two net names have symmetric naming (e.g., OUT_P/OUT_N, OUTP/OUTN).
+    /// </summary>
+    private static bool IsSymmetricNaming(string name1, string name2)
+    {
+        // Common patterns: _P/_N, P/N suffix, _PLUS/_MINUS
+        var suffixPairs = new[]
+        {
+            ("_P", "_N"),
+            ("_p", "_n"),
+            ("P", "N"),
+            ("p", "n"),
+            ("_PLUS", "_MINUS"),
+            ("_plus", "_minus"),
+            ("+", "-"),
+        };
+
+        foreach (var (suffixA, suffixB) in suffixPairs)
+        {
+            if (
+                (
+                    name1.EndsWith(suffixA, StringComparison.Ordinal)
+                    && name2.EndsWith(suffixB, StringComparison.Ordinal)
+                )
+                || (
+                    name1.EndsWith(suffixB, StringComparison.Ordinal)
+                    && name2.EndsWith(suffixA, StringComparison.Ordinal)
+                )
+            )
+            {
+                // Verify the base names match
+                var base1 = name1.EndsWith(suffixA, StringComparison.Ordinal)
+                    ? name1[..^suffixA.Length]
+                    : name1[..^suffixB.Length];
+                var base2 = name2.EndsWith(suffixA, StringComparison.Ordinal)
+                    ? name2[..^suffixA.Length]
+                    : name2[..^suffixB.Length];
+
+                if (base1.Equals(base2, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Determines which device should be placed on the left vs right based on P terminal net naming.
+    /// </summary>
+    private static (string Left, string Right) DetermineLeftRight(
+        string d1,
+        string d2,
+        string? p1Net,
+        string? p2Net
+    )
+    {
+        // _P suffix goes on left, _N suffix goes on right
+        if (
+            p1Net != null
+            && (
+                p1Net.EndsWith("_P", StringComparison.Ordinal)
+                || p1Net.EndsWith("P", StringComparison.Ordinal)
+                || p1Net.EndsWith("+", StringComparison.Ordinal)
+            )
+        )
+        {
+            return (d1, d2);
+        }
+
+        if (
+            p2Net != null
+            && (
+                p2Net.EndsWith("_P", StringComparison.Ordinal)
+                || p2Net.EndsWith("P", StringComparison.Ordinal)
+                || p2Net.EndsWith("+", StringComparison.Ordinal)
+            )
+        )
+        {
+            return (d2, d1);
+        }
+
+        // Default: alphabetical order
+        return string.Compare(d1, d2, StringComparison.Ordinal) < 0 ? (d1, d2) : (d2, d1);
     }
 
     /// <summary>

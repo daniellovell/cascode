@@ -104,7 +104,7 @@ public class MazeRouterTests
                     continue;
                 }
 
-                var pos = GetTerminalPosition(deviceId, terminal, deviceType, cell);
+                var pos = GetTerminalPosition(deviceId, terminal, deviceType, cell, placement);
                 if (pos.HasValue)
                 {
                     points.Add(pos.Value);
@@ -152,7 +152,8 @@ public class MazeRouterTests
         string deviceId,
         string terminal,
         string deviceType,
-        GridCell cell
+        GridCell cell,
+        CoarseGridResult placement
     )
     {
         if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
@@ -171,13 +172,34 @@ public class MazeRouterTests
 
         if (deviceType is "resistor" or "capacitor")
         {
-            var p = Layout.DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-            return terminal switch
+            var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
+            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
+
+            if (isHorizontalPassive)
             {
-                "P" => new GridPoint(p.PX, p.PY),
-                "N" => new GridPoint(p.NX, p.NY),
-                _ => null,
-            };
+                var p = Layout.DeviceGeometry.GetHorizontalPassivePlacement(
+                    cell.Row,
+                    cell.Column,
+                    placement.ColumnCount,
+                    isLeftOfAxis
+                );
+                return terminal switch
+                {
+                    "P" => new GridPoint(p.PX, p.PY),
+                    "N" => new GridPoint(p.NX, p.NY),
+                    _ => null,
+                };
+            }
+            else
+            {
+                var p = Layout.DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+                return terminal switch
+                {
+                    "P" => new GridPoint(p.PX, p.PY),
+                    "N" => new GridPoint(p.NX, p.NY),
+                    _ => null,
+                };
+            }
         }
 
         return null;
@@ -349,6 +371,655 @@ public class MazeRouterTests
         }
 
         return false;
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_NoOverlappingSegmentsWithinNet(string acirPath)
+    {
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // Assert - no two segments of the same net should overlap (share interior points)
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            for (var i = 0; i < segments.Count; i++)
+            {
+                for (var j = i + 1; j < segments.Count; j++)
+                {
+                    var overlap = GetOverlapLength(segments[i], segments[j]);
+                    Assert.True(
+                        overlap == 0,
+                        $"Net '{netName}' has overlapping segments: "
+                            + $"({segments[i].From.X},{segments[i].From.Y})->({segments[i].To.X},{segments[i].To.Y}) and "
+                            + $"({segments[j].From.X},{segments[j].From.Y})->({segments[j].To.X},{segments[j].To.Y}), "
+                            + $"overlap length: {overlap}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the overlap length between two collinear segments. Returns 0 if no overlap or not collinear.
+    /// </summary>
+    private static int GetOverlapLength(WireSegment a, WireSegment b)
+    {
+        var aHorizontal = a.From.Y == a.To.Y;
+        var bHorizontal = b.From.Y == b.To.Y;
+
+        // Both horizontal on same Y
+        if (aHorizontal && bHorizontal && a.From.Y == b.From.Y)
+        {
+            var aMin = Math.Min(a.From.X, a.To.X);
+            var aMax = Math.Max(a.From.X, a.To.X);
+            var bMin = Math.Min(b.From.X, b.To.X);
+            var bMax = Math.Max(b.From.X, b.To.X);
+
+            var overlapStart = Math.Max(aMin, bMin);
+            var overlapEnd = Math.Min(aMax, bMax);
+
+            // Overlap must be more than just touching at a point
+            if (overlapEnd > overlapStart)
+            {
+                return overlapEnd - overlapStart;
+            }
+        }
+
+        // Both vertical on same X
+        if (!aHorizontal && !bHorizontal && a.From.X == b.From.X)
+        {
+            var aMin = Math.Min(a.From.Y, a.To.Y);
+            var aMax = Math.Max(a.From.Y, a.To.Y);
+            var bMin = Math.Min(b.From.Y, b.To.Y);
+            var bMax = Math.Max(b.From.Y, b.To.Y);
+
+            var overlapStart = Math.Max(aMin, bMin);
+            var overlapEnd = Math.Min(aMax, bMax);
+
+            // Overlap must be more than just touching at a point
+            if (overlapEnd > overlapStart)
+            {
+                return overlapEnd - overlapStart;
+            }
+        }
+
+        return 0;
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_JunctionsAtBranchPointsNotTerminals(string acirPath)
+    {
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // For each junction, verify it's at a point where segments actually diverge
+        // (not just where multiple segments happen to start from the same terminal)
+        foreach (var junction in result.Junctions)
+        {
+            // Count segment endpoints at this junction
+            var endpointCount = 0;
+            var segmentsAtPoint = new List<WireSegment>();
+
+            foreach (var seg in result.Segments)
+            {
+                if (seg.From.Equals(junction) || seg.To.Equals(junction))
+                {
+                    endpointCount++;
+                    segmentsAtPoint.Add(seg);
+                }
+            }
+
+            // A valid junction should have segments going in different directions
+            // (not all parallel segments starting from the same point)
+            if (segmentsAtPoint.Count >= 2)
+            {
+                var directions = segmentsAtPoint
+                    .Select(s => GetSegmentDirection(s, junction))
+                    .Distinct()
+                    .ToList();
+
+                Assert.True(
+                    directions.Count >= 2,
+                    $"Junction at ({junction.X}, {junction.Y}) has {segmentsAtPoint.Count} segments "
+                        + $"but only {directions.Count} distinct direction(s). "
+                        + $"Segments: [{string.Join(", ", segmentsAtPoint.Select(s => $"({s.From.X},{s.From.Y})->({s.To.X},{s.To.Y})"))}]"
+                );
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the direction a segment goes from a given point (Up, Down, Left, Right).
+    /// </summary>
+    private static string GetSegmentDirection(WireSegment seg, GridPoint fromPoint)
+    {
+        int dx,
+            dy;
+        if (seg.From.Equals(fromPoint))
+        {
+            dx = seg.To.X - seg.From.X;
+            dy = seg.To.Y - seg.From.Y;
+        }
+        else
+        {
+            dx = seg.From.X - seg.To.X;
+            dy = seg.From.Y - seg.To.Y;
+        }
+
+        if (dx > 0)
+            return "Right";
+        if (dx < 0)
+            return "Left";
+        if (dy > 0)
+            return "Down";
+        if (dy < 0)
+            return "Up";
+        return "None";
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_DevicesOnSameAxisConnectedDirectly(string acirPath)
+    {
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // For each net, if two device terminals share the same X coordinate,
+        // there should be a direct vertical path between them on that X
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            // Skip power rails
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+                continue;
+
+            // Get device terminal positions for this net (exclude ports)
+            var deviceTerminals = result
+                .TerminalPositions.Where(t =>
+                    !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                    && graph.GetNetForTerminal(t.DeviceId, t.Terminal) == netName
+                )
+                .ToList();
+
+            // Group terminals by X coordinate
+            var terminalsByX = deviceTerminals
+                .GroupBy(t => t.X)
+                .Where(g => g.Count() >= 2)
+                .ToList();
+
+            foreach (var group in terminalsByX)
+            {
+                var x = group.Key;
+                var ys = group.Select(t => t.Y).OrderBy(y => y).ToList();
+                var minY = ys.First();
+                var maxY = ys.Last();
+
+                // Get vertical segments on this X coordinate
+                var verticalSegsOnX = segments.Where(s => s.From.X == x && s.To.X == x).ToList();
+
+                // Check that vertical segments cover the entire Y range between terminals
+                var coveredRanges = verticalSegsOnX
+                    .Select(s => (Math.Min(s.From.Y, s.To.Y), Math.Max(s.From.Y, s.To.Y)))
+                    .OrderBy(r => r.Item1)
+                    .ToList();
+
+                // Merge overlapping/adjacent ranges
+                var merged = new List<(int, int)>();
+                foreach (var range in coveredRanges)
+                {
+                    if (merged.Count == 0 || range.Item1 > merged.Last().Item2)
+                    {
+                        merged.Add(range);
+                    }
+                    else
+                    {
+                        var last = merged.Last();
+                        merged[merged.Count - 1] = (last.Item1, Math.Max(last.Item2, range.Item2));
+                    }
+                }
+
+                // Check if the merged ranges cover minY to maxY
+                var coverageOk =
+                    merged.Count > 0 && merged.First().Item1 <= minY && merged.Last().Item2 >= maxY;
+
+                Assert.True(
+                    coverageOk,
+                    $"Net '{netName}' has device terminals at X={x} spanning Y=[{minY}, {maxY}], "
+                        + $"but vertical segments on that axis only cover: [{string.Join(", ", merged.Select(r => $"({r.Item1}-{r.Item2})"))}]. "
+                        + $"Device terminals: [{string.Join(", ", group.Select(t => $"{t.DeviceId}.{t.Terminal}@({t.X},{t.Y})"))}]"
+                );
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_PortTerminalPositionsConnectedToWires(string acirPath)
+    {
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // Get port terminal positions from routing
+        var portTerminals = result
+            .TerminalPositions.Where(t => t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+            .ToDictionary(t => t.DeviceId.Substring(5), t => new GridPoint(t.X, t.Y));
+
+        // Assert - each output port terminal must have a wire segment reaching it
+        foreach (var portName in graph.OutputPorts)
+        {
+            Assert.True(
+                portTerminals.TryGetValue(portName, out var termPos),
+                $"Port '{portName}' not found in terminal positions"
+            );
+
+            var segments = result.SegmentsByNet.GetValueOrDefault(portName);
+            Assert.NotNull(segments);
+
+            var hasWireToPort = segments.Any(seg =>
+                (seg.From.X == termPos.X && seg.From.Y == termPos.Y)
+                || (seg.To.X == termPos.X && seg.To.Y == termPos.Y)
+            );
+
+            Assert.True(
+                hasWireToPort,
+                $"Output port '{portName}' at ({termPos.X}, {termPos.Y}) has no wire endpoint. "
+                    + $"Segments: [{string.Join(", ", segments.Select(s => $"({s.From.X},{s.From.Y})->({s.To.X},{s.To.Y})"))}]"
+            );
+        }
+
+        // Assert - each input/bias port terminal must have a wire segment reaching it
+        foreach (var portName in graph.InputPorts.Concat(graph.BiasPorts))
+        {
+            Assert.True(
+                portTerminals.TryGetValue(portName, out var termPos),
+                $"Port '{portName}' not found in terminal positions"
+            );
+
+            var segments = result.SegmentsByNet.GetValueOrDefault(portName);
+            Assert.NotNull(segments);
+
+            var hasWireToPort = segments.Any(seg =>
+                (seg.From.X == termPos.X && seg.From.Y == termPos.Y)
+                || (seg.To.X == termPos.X && seg.To.Y == termPos.Y)
+            );
+
+            Assert.True(
+                hasWireToPort,
+                $"Input port '{portName}' at ({termPos.X}, {termPos.Y}) has no wire endpoint. "
+                    + $"Segments: [{string.Join(", ", segments.Select(s => $"({s.From.X},{s.From.Y})->({s.To.X},{s.To.Y})"))}]"
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_SymmetricTerminalsMeetAtCenterDevice(string acirPath)
+    {
+        // This test verifies that when a net has terminals on opposite sides of the
+        // symmetry axis PLUS a center terminal, the routing goes through the center
+        // rather than taking a direct horizontal path across the schematic.
+        //
+        // Example: tnode in OTA5TFullyDiff has:
+        //   - dp.M_N.S on left
+        //   - dp.M_P.S on right
+        //   - dp.M_TAIL.D in center
+        // The expected routing is Y-shaped: both sources route DOWN to meet at tail drain.
+
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // Find nets that have terminals spanning both sides of the symmetry axis plus a center terminal
+        var symmetryAxisX =
+            placement.SymmetryAxis * Layout.DeviceGeometry.CellWidth
+            + Layout.DeviceGeometry.CellWidth / 2;
+
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            // Skip power rails
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+                continue;
+
+            // Get device terminal positions for this net (exclude ports)
+            var deviceTerminals = result
+                .TerminalPositions.Where(t =>
+                    !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+                    && graph.GetNetForTerminal(t.DeviceId, t.Terminal) == netName
+                )
+                .ToList();
+
+            if (deviceTerminals.Count < 3)
+                continue;
+
+            // Check if terminals span both sides of symmetry axis
+            var leftTerminals = deviceTerminals.Where(t => t.X < symmetryAxisX - 20).ToList();
+            var rightTerminals = deviceTerminals.Where(t => t.X > symmetryAxisX + 20).ToList();
+            var centerTerminals = deviceTerminals
+                .Where(t => Math.Abs(t.X - symmetryAxisX) <= 20)
+                .ToList();
+
+            if (leftTerminals.Count == 0 || rightTerminals.Count == 0 || centerTerminals.Count == 0)
+                continue;
+
+            // This net spans both sides with a center terminal - verify no direct horizontal
+            // connection between left and right sides that bypasses the center
+
+            // Check for direct horizontal segments that go from left side to right side
+            // without passing through the center X coordinate
+            foreach (var seg in segments)
+            {
+                if (seg.From.Y != seg.To.Y)
+                    continue; // Not horizontal
+
+                var minX = Math.Min(seg.From.X, seg.To.X);
+                var maxX = Math.Max(seg.From.X, seg.To.X);
+
+                // Check if this horizontal segment spans from left of center to right of center
+                var spansLeftOfCenter = minX < symmetryAxisX - 20;
+                var spansRightOfCenter = maxX > symmetryAxisX + 20;
+
+                if (spansLeftOfCenter && spansRightOfCenter)
+                {
+                    // This segment crosses the center - check if there's actually a junction at center
+                    var hasCenterJunction = result.Junctions.Any(j =>
+                        j.Y == seg.From.Y && j.X >= symmetryAxisX - 20 && j.X <= symmetryAxisX + 20
+                    );
+
+                    // If there's no junction at the center, this is a direct bypass
+                    Assert.True(
+                        hasCenterJunction,
+                        $"Net '{netName}' has a direct horizontal segment from ({seg.From.X},{seg.From.Y}) to "
+                            + $"({seg.To.X},{seg.To.Y}) that bypasses the center device. "
+                            + $"Center terminals: [{string.Join(", ", centerTerminals.Select(t => $"{t.DeviceId}.{t.Terminal}@({t.X},{t.Y})"))}]"
+                    );
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_NoRedundantParallelPaths(string acirPath)
+    {
+        // This test verifies that there are no redundant parallel paths to the same destination.
+        // A proper tree has exactly one path between any two points.
+        //
+        // Example: OUT_N should have a single horizontal path to the port, not multiple
+        // parallel horizontal segments at different Y coordinates that converge at the port.
+
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            // Skip power rails (they intentionally have parallel drops to the rail)
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+                continue;
+
+            // Check for redundant parallel paths: multiple horizontal segments at different Y
+            // that share the same X range (indicating parallel horizontal runs)
+            var horizontalSegments = segments.Where(s => s.From.Y == s.To.Y).ToList();
+
+            for (var i = 0; i < horizontalSegments.Count; i++)
+            {
+                for (var j = i + 1; j < horizontalSegments.Count; j++)
+                {
+                    var seg1 = horizontalSegments[i];
+                    var seg2 = horizontalSegments[j];
+
+                    // Skip if they're on the same Y (would be detected by overlap test)
+                    if (seg1.From.Y == seg2.From.Y)
+                        continue;
+
+                    // Check if they have overlapping X ranges
+                    var min1X = Math.Min(seg1.From.X, seg1.To.X);
+                    var max1X = Math.Max(seg1.From.X, seg1.To.X);
+                    var min2X = Math.Min(seg2.From.X, seg2.To.X);
+                    var max2X = Math.Max(seg2.From.X, seg2.To.X);
+
+                    var overlapStart = Math.Max(min1X, min2X);
+                    var overlapEnd = Math.Min(max1X, max2X);
+                    var overlapLength = overlapEnd - overlapStart;
+
+                    // Significant overlap (more than a grid cell) indicates potential parallel redundant paths
+                    const int significantOverlap = 15;
+                    if (overlapLength > significantOverlap)
+                    {
+                        // Check if both segments connect at BOTH ends of the overlap.
+                        // This indicates a true redundant parallel path (two alternative routes).
+                        // If they only connect at one end, it's a valid Y-shaped tree structure.
+                        var connectsAtLeftEnd = min1X == min2X && min1X == overlapStart;
+                        var connectsAtRightEnd = max1X == max2X && max1X == overlapEnd;
+
+                        if (connectsAtLeftEnd && connectsAtRightEnd)
+                        {
+                            Assert.Fail(
+                                $"Net '{netName}' has redundant parallel horizontal paths: "
+                                    + $"segment at Y={seg1.From.Y} from X={min1X} to X={max1X} and "
+                                    + $"segment at Y={seg2.From.Y} from X={min2X} to X={max2X} "
+                                    + $"overlap for {overlapLength} units and connect at both ends"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir", "vcm_node")]
+    public void Route_GatesToGatesConnectDirectlyOnSameY(string acirPath, string targetNet)
+    {
+        // This test verifies that when a net has multiple gate terminals at the same Y level,
+        // they are connected by a direct horizontal path rather than routing through other nodes.
+        //
+        // Example: vcm_node in OTA5TFullyDiff has:
+        //   - M_LOAD_P.G and M_LOAD_N.G (both PMOS gates at same Y level)
+        //   - R_CMFB_P.N and R_CMFB_N.N (resistor internal nodes below)
+        // Expected routing: gates connect horizontally, then one vertical drops to resistors.
+
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // Get gate terminals for the target net
+        var gateTerminals = result
+            .TerminalPositions.Where(t =>
+                t.Terminal == "G" && graph.GetNetForTerminal(t.DeviceId, t.Terminal) == targetNet
+            )
+            .ToList();
+
+        Assert.True(
+            gateTerminals.Count >= 2,
+            $"Expected at least 2 gate terminals on net '{targetNet}', found {gateTerminals.Count}"
+        );
+
+        // Group gates by Y coordinate (same-Y gates should connect horizontally)
+        var gatesByY = gateTerminals.GroupBy(t => t.Y).Where(g => g.Count() >= 2).ToList();
+
+        Assert.NotEmpty(gatesByY);
+
+        var segments = result.SegmentsByNet[targetNet];
+
+        foreach (var group in gatesByY)
+        {
+            var y = group.Key;
+            var gatesAtY = group.OrderBy(t => t.X).ToList();
+            var leftGate = gatesAtY.First();
+            var rightGate = gatesAtY.Last();
+
+            // There should be a horizontal segment at this Y connecting the gates
+            var horizontalAtY = segments.Where(s => s.From.Y == y && s.To.Y == y).ToList();
+
+            // Verify the horizontal segments cover the span between gates
+            var coveredX = new HashSet<int>();
+            foreach (var seg in horizontalAtY)
+            {
+                var minX = Math.Min(seg.From.X, seg.To.X);
+                var maxX = Math.Max(seg.From.X, seg.To.X);
+                for (var x = minX; x <= maxX; x++)
+                {
+                    coveredX.Add(x);
+                }
+            }
+
+            var allCovered = true;
+            for (var x = leftGate.X; x <= rightGate.X; x++)
+            {
+                if (!coveredX.Contains(x))
+                {
+                    allCovered = false;
+                    break;
+                }
+            }
+
+            Assert.True(
+                allCovered,
+                $"Net '{targetNet}': gates at Y={y} ({leftGate.DeviceId}.G at X={leftGate.X}, "
+                    + $"{rightGate.DeviceId}.G at X={rightGate.X}) are not connected by horizontal path. "
+                    + $"Horizontal segments at Y={y}: [{string.Join(", ", horizontalAtY.Select(s => $"({s.From.X},{s.From.Y})->({s.To.X},{s.To.Y})"))}]"
+            );
+        }
+    }
+
+    [Theory]
+    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_NoUselessWireStubs(string acirPath)
+    {
+        // This test verifies that every wire segment endpoint either:
+        // 1. Connects to a terminal (device or port)
+        // 2. Connects to another wire segment (forms a junction)
+        // Dead-end wire stubs that lead nowhere are routing errors.
+
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+        var result = MazeRouter.Route(placement, graph);
+
+        // Build set of all terminal positions
+        var terminalPoints = result
+            .TerminalPositions.Select(t => new GridPoint(t.X, t.Y))
+            .ToHashSet();
+
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            // Skip power rails - they have intentional stubs for drops
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+                continue;
+
+            // Count how many times each point appears as a segment endpoint
+            var endpointCounts = new Dictionary<GridPoint, int>();
+            foreach (var seg in segments)
+            {
+                endpointCounts[seg.From] = endpointCounts.GetValueOrDefault(seg.From) + 1;
+                endpointCounts[seg.To] = endpointCounts.GetValueOrDefault(seg.To) + 1;
+            }
+
+            // A point is a stub if:
+            // - It appears only once (dead end)
+            // - It's not a terminal
+            foreach (var (point, count) in endpointCounts)
+            {
+                if (count == 1 && !terminalPoints.Contains(point))
+                {
+                    Assert.Fail(
+                        $"Net '{netName}' has a useless wire stub at ({point.X}, {point.Y}). "
+                            + $"This endpoint connects to only one segment and is not a terminal."
+                    );
+                }
+            }
+        }
     }
 
     private static string GetRepoRoot()

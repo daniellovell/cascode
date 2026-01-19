@@ -39,9 +39,14 @@ public sealed class SvgRenderer
         RenderOptions options
     )
     {
-        var extraRightMargin = graph.OutputPorts.Count > 0 ? 30 : 0;
+        var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
+        // Scale port margins with canvas width - wider circuits get more breathing room
+        var basePortMargin = Math.Max(40, routing.CanvasWidth / 5);
+        var extraLeftMargin = leftPorts.Count > 0 ? basePortMargin : 0;
+        var extraRightMargin = graph.OutputPorts.Count > 0 ? (int)(basePortMargin * 0.75) : 0;
         var width =
-            options.ExplicitWidth ?? routing.CanvasWidth + (int)(2 * Margin) + extraRightMargin;
+            options.ExplicitWidth
+            ?? routing.CanvasWidth + (int)(2 * Margin) + extraLeftMargin + extraRightMargin;
         var height = options.ExplicitHeight ?? routing.CanvasHeight + (int)(2 * Margin);
 
         var sb = new StringBuilder();
@@ -66,12 +71,15 @@ public sealed class SvgRenderer
             );
         }
 
-        sb.AppendLine($@"<g transform=""translate({Margin}, {Margin})"">");
+        sb.AppendLine($@"<g transform=""translate({Margin + extraLeftMargin}, {Margin})"">");
+
+        var labelPlacer = new LabelPlacer();
+        var labelPlacements = labelPlacer.PlaceLabels(placement, routing, graph, style);
 
         RenderRails(sb, routing, graph);
         RenderWires(sb, routing);
         RenderJunctions(sb, routing, style);
-        RenderDevices(sb, placement, graph, options);
+        RenderDevices(sb, placement, graph, options, labelPlacements);
         RenderPortLabels(sb, placement, routing, graph);
 
         if (options.ShowNetLabels)
@@ -152,9 +160,12 @@ public sealed class SvgRenderer
         StringBuilder sb,
         CoarseGridResult placement,
         CircuitGraph graph,
-        RenderOptions options
+        RenderOptions options,
+        IReadOnlyList<LabelPlacement> labelPlacements
     )
     {
+        var labelLookup = labelPlacements.ToDictionary(p => p.DeviceId);
+
         sb.AppendLine(@"<g id=""devices"">");
 
         foreach (var (deviceId, cell) in placement.DevicePlacements)
@@ -174,10 +185,28 @@ public sealed class SvgRenderer
 
             if (deviceType is "resistor" or "capacitor")
             {
-                var placementInfo = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                x = placementInfo.X;
-                y = placementInfo.Y;
-                orientation = DeviceOrientation.Vertical;
+                var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
+                var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
+
+                if (isHorizontalPassive)
+                {
+                    var placementInfo = DeviceGeometry.GetHorizontalPassivePlacement(
+                        cell.Row,
+                        cell.Column,
+                        placement.ColumnCount,
+                        isLeftOfAxis
+                    );
+                    x = placementInfo.X;
+                    y = placementInfo.Y;
+                    orientation = DeviceOrientation.Horizontal;
+                }
+                else
+                {
+                    var placementInfo = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+                    x = placementInfo.X;
+                    y = placementInfo.Y;
+                    orientation = DeviceOrientation.Vertical;
+                }
             }
             else
             {
@@ -207,24 +236,56 @@ public sealed class SvgRenderer
                 );
             }
 
+            sb.AppendLine("</g>");
+        }
+
+        sb.AppendLine("</g>");
+
+        if (options.ShowDeviceLabels || options.ShowParamLabels)
+        {
+            RenderDeviceLabels(sb, placement, graph, options, labelLookup);
+        }
+    }
+
+    private static void RenderDeviceLabels(
+        StringBuilder sb,
+        CoarseGridResult placement,
+        CircuitGraph graph,
+        RenderOptions options,
+        Dictionary<string, LabelPlacement> labelLookup
+    )
+    {
+        sb.AppendLine(@"<g id=""device-labels"">");
+
+        foreach (var (deviceId, _) in placement.DevicePlacements)
+        {
+            if (!graph.Devices.TryGetValue(deviceId, out var device))
+            {
+                continue;
+            }
+
+            if (!labelLookup.TryGetValue(deviceId, out var labelPlacement))
+            {
+                continue;
+            }
+
             if (options.ShowDeviceLabels)
             {
-                var (labelX, labelY) = GetLabelPosition(deviceType);
                 sb.AppendLine(
-                    $@"<text class=""device-label"" x=""{F(labelX)}"" y=""{F(labelY)}"">{EscapeXml(deviceId)}</text>"
+                    $@"<text class=""device-label"" x=""{F(labelPlacement.DeviceLabelX)}"" y=""{F(labelPlacement.DeviceLabelY)}"" text-anchor=""{labelPlacement.TextAnchor}"">{EscapeXml(deviceId)}</text>"
                 );
             }
 
             if (options.ShowParamLabels && device.Params.Count > 0)
             {
                 var paramText = FormatParams(device);
-                var (paramX, paramY) = GetParamPosition(deviceType);
-                sb.AppendLine(
-                    $@"<text class=""param-label"" x=""{F(paramX)}"" y=""{F(paramY)}"">{EscapeXml(paramText)}</text>"
-                );
+                if (!string.IsNullOrEmpty(paramText))
+                {
+                    sb.AppendLine(
+                        $@"<text class=""param-label"" x=""{F(labelPlacement.ParamLabelX)}"" y=""{F(labelPlacement.ParamLabelY)}"" text-anchor=""{labelPlacement.TextAnchor}"">{EscapeXml(paramText)}</text>"
+                    );
+                }
             }
-
-            sb.AppendLine("</g>");
         }
 
         sb.AppendLine("</g>");
@@ -241,18 +302,22 @@ public sealed class SvgRenderer
 
         var symbol = SymbolLibrary.GetSymbolForDevice("port");
 
-        // Compute terminal positions for port Y alignment
-        var terminalYByNet = ComputeTerminalYPositions(placement, graph);
+        // Build lookup of port terminal positions from routing
+        // Port terminals are stored as "PORT_<name>" with terminal "P"
+        var portPositions = routing
+            .TerminalPositions.Where(t => t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
+            .ToDictionary(t => t.DeviceId.Substring(5), t => (X: t.X, Y: t.Y));
 
-        // Input/bias ports on left side - align to gate Y positions
+        // Input/bias ports on left side (X = 0)
         var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
-        var leftPortYs = ComputePortYPositions(leftPorts, terminalYByNet, "G", preferMaxY: false);
 
         foreach (var portName in leftPorts)
         {
             var x = -DeviceGeometry.PortPinX;
-            var y = leftPortYs.GetValueOrDefault(portName, DeviceGeometry.RailMargin + 20.0);
-            var originY = y - DeviceGeometry.PortPinY;
+            var pos = portPositions.TryGetValue(portName, out var p)
+                ? p
+                : (X: 0, Y: DeviceGeometry.RailMargin + 20);
+            var originY = pos.Y - DeviceGeometry.PortPinY;
 
             sb.AppendLine(
                 $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(originY)})"">"
@@ -268,15 +333,16 @@ public sealed class SvgRenderer
             sb.AppendLine("</g>");
         }
 
-        // Output ports on right side - align to mean drain Y positions
+        // Output ports on right side (X = canvasWidth)
         var rightPorts = graph.OutputPorts.ToList();
-        var rightPortYs = ComputePortYPositions(rightPorts, terminalYByNet, "D", preferMaxY: true);
 
         foreach (var portName in rightPorts)
         {
             var x = (double)routing.CanvasWidth;
-            var y = rightPortYs.GetValueOrDefault(portName, DeviceGeometry.RailMargin + 20.0);
-            var originY = y - DeviceGeometry.PortPinY;
+            var pos = portPositions.TryGetValue(portName, out var p)
+                ? p
+                : (X: routing.CanvasWidth, Y: DeviceGeometry.RailMargin + 20);
+            var originY = pos.Y - DeviceGeometry.PortPinY;
 
             sb.AppendLine(
                 $@"<g class=""port"" data-port=""{EscapeXml(portName)}"" data-net=""{EscapeXml(portName)}"" transform=""translate({F(x)}, {F(originY)})"">"
@@ -295,137 +361,6 @@ public sealed class SvgRenderer
         }
 
         sb.AppendLine("</g>");
-    }
-
-    /// <summary>
-    /// Computes Y positions for each terminal type grouped by net.
-    /// Returns dict[netName] -> list of (terminal, Y) pairs.
-    /// </summary>
-    private static Dictionary<string, List<(string Terminal, double Y)>> ComputeTerminalYPositions(
-        CoarseGridResult placement,
-        CircuitGraph graph
-    )
-    {
-        var result = new Dictionary<string, List<(string, double)>>();
-
-        foreach (var (deviceId, cell) in placement.DevicePlacements)
-        {
-            if (!graph.Devices.TryGetValue(deviceId, out var device))
-            {
-                continue;
-            }
-
-            var deviceType = device.DeviceType.ToLowerInvariant();
-
-            if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
-            {
-                var isPmos = deviceType is "pmos" or "pfet";
-                var placementInfo = DeviceGeometry.GetMosfetPlacement(
-                    cell.Row,
-                    cell.Column,
-                    cell.MirrorX
-                );
-
-                AddTerminalY(result, graph, deviceId, "G", placementInfo.GateY);
-                AddTerminalY(
-                    result,
-                    graph,
-                    deviceId,
-                    "D",
-                    isPmos ? placementInfo.SourceY : placementInfo.DrainY
-                );
-                AddTerminalY(
-                    result,
-                    graph,
-                    deviceId,
-                    "S",
-                    isPmos ? placementInfo.DrainY : placementInfo.SourceY
-                );
-            }
-        }
-
-        return result;
-    }
-
-    private static void AddTerminalY(
-        Dictionary<string, List<(string, double)>> result,
-        CircuitGraph graph,
-        string deviceId,
-        string terminal,
-        double y
-    )
-    {
-        var netName = graph.GetNetForTerminal(deviceId, terminal);
-        if (netName == null)
-        {
-            return;
-        }
-
-        if (!result.TryGetValue(netName, out var list))
-        {
-            list = new List<(string, double)>();
-            result[netName] = list;
-        }
-        list.Add((terminal, y));
-    }
-
-    /// <summary>
-    /// Computes Y position for each port based on connected terminals.
-    /// For input ports, uses gate Y. For output ports, uses mean drain Y.
-    /// Resolves collisions by stacking with small offsets.
-    /// </summary>
-    private static Dictionary<string, double> ComputePortYPositions(
-        List<string> portNames,
-        Dictionary<string, List<(string Terminal, double Y)>> terminalYByNet,
-        string preferredTerminal,
-        bool preferMaxY
-    )
-    {
-        var portYs = new Dictionary<string, double>();
-        var usedYs = new List<double>();
-
-        foreach (var portName in portNames)
-        {
-            double y;
-
-            if (terminalYByNet.TryGetValue(portName, out var terminals))
-            {
-                // Filter to preferred terminal type (G for input, D for output)
-                var matchingTerminals = terminals
-                    .Where(t => t.Terminal == preferredTerminal)
-                    .ToList();
-
-                if (matchingTerminals.Count > 0)
-                {
-                    // Use mean or max Y of matching terminals
-                    y = preferMaxY
-                        ? matchingTerminals.Max(t => t.Y)
-                        : matchingTerminals.Average(t => t.Y);
-                }
-                else
-                {
-                    // Fallback to mean or max of all terminals on this net
-                    y = preferMaxY ? terminals.Max(t => t.Y) : terminals.Average(t => t.Y);
-                }
-            }
-            else
-            {
-                // No terminals found, use default position
-                y = DeviceGeometry.RailMargin + 20.0 + usedYs.Count * 20;
-            }
-
-            // Resolve collisions - if Y is too close to an existing port, offset it
-            const double minSpacing = 15.0;
-            while (usedYs.Any(existingY => Math.Abs(existingY - y) < minSpacing))
-            {
-                y += minSpacing;
-            }
-
-            portYs[portName] = y;
-            usedYs.Add(y);
-        }
-
-        return portYs;
     }
 
     private static void RenderNetLabels(StringBuilder sb, RoutingResult routing)
@@ -490,18 +425,6 @@ public sealed class SvgRenderer
             return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
         }
         return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
-    }
-
-    private static (double X, double Y) GetLabelPosition(string deviceType)
-    {
-        var (w, h) = GetDeviceDimensions(deviceType);
-        return (w / 2, h + 12);
-    }
-
-    private static (double X, double Y) GetParamPosition(string deviceType)
-    {
-        var (w, h) = GetDeviceDimensions(deviceType);
-        return (w / 2, h + 22);
     }
 
     private static string FormatParams(DeviceDeclaration device)
