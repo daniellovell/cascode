@@ -772,8 +772,8 @@ public static class TopologyAnalyzer
         if (
             p1Net != null
             && (
-                p1Net.EndsWith("_P", StringComparison.Ordinal)
-                || p1Net.EndsWith("P", StringComparison.Ordinal)
+                p1Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
+                || p1Net.EndsWith("P", StringComparison.OrdinalIgnoreCase)
                 || p1Net.EndsWith("+", StringComparison.Ordinal)
             )
         )
@@ -784,8 +784,8 @@ public static class TopologyAnalyzer
         if (
             p2Net != null
             && (
-                p2Net.EndsWith("_P", StringComparison.Ordinal)
-                || p2Net.EndsWith("P", StringComparison.Ordinal)
+                p2Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
+                || p2Net.EndsWith("P", StringComparison.OrdinalIgnoreCase)
                 || p2Net.EndsWith("+", StringComparison.Ordinal)
             )
         )

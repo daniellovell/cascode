@@ -49,6 +49,7 @@ public class PlacementGoldenTests
     )
     {
         var result = new Dictionary<string, (int, int, bool)>();
+        var errors = new List<string>();
         var lines = File.ReadAllLines(path);
 
         // Skip header
@@ -62,15 +63,33 @@ public class PlacementGoldenTests
             var parts = line.Split(',');
             if (parts.Length < 4)
             {
+                var malformedDeviceId = parts.Length > 0 ? parts[0].Trim() : "<missing>";
+                errors.Add(
+                    $"Malformed placement line for device '{malformedDeviceId}': {line}"
+                );
                 continue;
             }
 
             var deviceId = parts[0].Trim();
-            var row = int.Parse(parts[1].Trim());
-            var col = int.Parse(parts[2].Trim());
-            var mirrorX = bool.Parse(parts[3].Trim());
+            var rowParsed = int.TryParse(parts[1].Trim(), out var row);
+            var colParsed = int.TryParse(parts[2].Trim(), out var col);
+            var mirrorXParsed = bool.TryParse(parts[3].Trim(), out var mirrorX);
+            if (!rowParsed || !colParsed || !mirrorXParsed)
+            {
+                errors.Add(
+                    $"Malformed placement line for device '{deviceId}': {line}"
+                );
+                continue;
+            }
 
             result[deviceId] = (row, col, mirrorX);
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new ArgumentException(
+                $"Failed to parse placement CSV at '{path}':\n{string.Join("\n", errors)}"
+            );
         }
 
         return result;
