@@ -11,6 +11,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
     public void Route_AllNetsFullyConnected(string acirPath)
     {
         // Arrange
@@ -377,6 +378,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
     public void Route_NoOverlappingSegmentsWithinNet(string acirPath)
     {
         // Arrange
@@ -632,6 +634,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
     public void Route_PortTerminalPositionsConnectedToWires(string acirPath)
     {
         // Arrange
@@ -966,6 +969,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
     public void Route_NoUselessWireStubs(string acirPath)
     {
         // This test verifies that every wire segment endpoint either:
@@ -1062,6 +1066,151 @@ public class MazeRouterTests
                 );
             }
         }
+    }
+
+    /// <summary>
+    /// Tests that parallel horizontal paths with one-sided vertical coverage
+    /// get connectors added on BOTH sides when needed, not just one.
+    ///
+    /// Scenario: Differential RC filter with parallel resistors and a capacitor
+    /// connecting only the output side. The input side must still get a vertical
+    /// connector to maintain connectivity after parallel path elimination.
+    ///
+    /// Topology:
+    ///   IN_P ─── R_P ───┬─── OUT_P
+    ///                   │
+    ///                   C
+    ///                   │
+    ///   IN_N ─── R_N ───┴─── OUT_N
+    ///
+    /// The capacitor provides vertical coverage on the output side (right),
+    /// but the input side (left) needs a connector to be added.
+    /// </summary>
+    [Theory]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
+    public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
+        string acirPath
+    )
+    {
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        // Act
+        var result = MazeRouter.Route(placement, graph);
+
+        // Assert - all nets must be fully connected
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            var terminalPoints = GetTerminalPointsForNet(netName, placement, graph, result);
+            if (terminalPoints.Count < 2)
+            {
+                continue;
+            }
+
+            // For power rails, add virtual rail segment
+            var segmentsWithRail = segments.ToList();
+            if (graph.Supplies.Contains(netName))
+            {
+                var railY = Layout.DeviceGeometry.RailMargin / 2;
+                segmentsWithRail.Add(
+                    new WireSegment(
+                        new GridPoint(0, railY),
+                        new GridPoint(result.CanvasWidth, railY),
+                        netName
+                    )
+                );
+            }
+            else if (graph.Grounds.Contains(netName))
+            {
+                var railY = result.CanvasHeight - Layout.DeviceGeometry.RailMargin / 2;
+                segmentsWithRail.Add(
+                    new WireSegment(
+                        new GridPoint(0, railY),
+                        new GridPoint(result.CanvasWidth, railY),
+                        netName
+                    )
+                );
+            }
+
+            var connected = AreAllPointsConnected(terminalPoints, segmentsWithRail);
+            Assert.True(
+                connected,
+                $"Net '{netName}' is not fully connected. "
+                    + $"Terminals: [{string.Join(", ", terminalPoints.Select(p => $"({p.X},{p.Y})"))}], "
+                    + $"Segments: [{string.Join(", ", segments.Select(s => $"({s.From.X},{s.From.Y})->({s.To.X},{s.To.Y})"))}]"
+            );
+        }
+
+        // Also verify no useless stubs were left behind
+        var allTerminalPoints = result
+            .TerminalPositions.Select(t => new GridPoint(t.X, t.Y))
+            .ToHashSet();
+
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            if (graph.Supplies.Contains(netName) || graph.Grounds.Contains(netName))
+                continue;
+
+            var endpointCounts = new Dictionary<GridPoint, int>();
+            foreach (var seg in segments)
+            {
+                endpointCounts[seg.From] = endpointCounts.GetValueOrDefault(seg.From) + 1;
+                endpointCounts[seg.To] = endpointCounts.GetValueOrDefault(seg.To) + 1;
+            }
+
+            foreach (var (point, count) in endpointCounts)
+            {
+                if (count == 1 && !allTerminalPoints.Contains(point))
+                {
+                    Assert.Fail(
+                        $"Net '{netName}' has a useless wire stub at ({point.X}, {point.Y})"
+                    );
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void RemoveOrphanedStubs_RemovesIsolatedSegments()
+    {
+        // Arrange - create a network with:
+        // - Connected chain: terminal A (0,0) → junction B (10,0) → terminal C (10,20)
+        // - Fully isolated segment: D (100,100) → E (100,150) - neither is a terminal
+        const string netName = "test_net";
+
+        var terminalA = new GridPoint(0, 0);
+        var junctionB = new GridPoint(10, 0);
+        var terminalC = new GridPoint(10, 20);
+        var isolatedD = new GridPoint(100, 100);
+        var isolatedE = new GridPoint(100, 150);
+
+        var segments = new List<WireSegment>
+        {
+            new(terminalA, junctionB, netName), // A → B (horizontal)
+            new(junctionB, terminalC, netName), // B → C (vertical)
+            new(isolatedD, isolatedE, netName), // D → E (isolated, should be removed)
+        };
+
+        var terminalPoints = new HashSet<GridPoint> { terminalA, terminalC };
+
+        // Act
+        var result = MazeRouter.RemoveOrphanedStubs(segments, terminalPoints);
+
+        // Assert - isolated segment should be removed, connected segments should remain
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, s => s.From.Equals(terminalA) && s.To.Equals(junctionB));
+        Assert.Contains(result, s => s.From.Equals(junctionB) && s.To.Equals(terminalC));
+        Assert.DoesNotContain(result, s => s.From.Equals(isolatedD) || s.To.Equals(isolatedE));
     }
 
     private static string GetRepoRoot()

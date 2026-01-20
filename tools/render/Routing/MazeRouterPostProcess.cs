@@ -136,18 +136,29 @@ public static partial class MazeRouter
                 && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
             );
 
-            if (hasLeftVertical || hasRightVertical)
+            // Add connector at LEFT endpoint if no left vertical coverage
+            if (!hasLeftVertical)
             {
-                continue;
+                connectors.Add(
+                    new WireSegment(
+                        new GridPoint(range.minX, Math.Min(segY, keptY)),
+                        new GridPoint(range.minX, Math.Max(segY, keptY)),
+                        netName
+                    )
+                );
             }
 
-            connectors.Add(
-                new WireSegment(
-                    new GridPoint(range.minX, Math.Min(segY, keptY)),
-                    new GridPoint(range.minX, Math.Max(segY, keptY)),
-                    netName
-                )
-            );
+            // Add connector at RIGHT endpoint if no right vertical coverage
+            if (!hasRightVertical)
+            {
+                connectors.Add(
+                    new WireSegment(
+                        new GridPoint(range.maxX, Math.Min(segY, keptY)),
+                        new GridPoint(range.maxX, Math.Max(segY, keptY)),
+                        netName
+                    )
+                );
+            }
         }
 
         return connectors;
@@ -156,9 +167,10 @@ public static partial class MazeRouter
     /// <summary>
     /// Removes wire segments that have become orphaned stubs (dead ends not connected
     /// to the rest of the network). A stub is a segment where one endpoint only
-    /// connects to that single segment and is not a terminal.
+    /// connects to that single segment and is not a terminal. Also removes fully
+    /// isolated segments where both endpoints have degree 1 and neither is a terminal.
     /// </summary>
-    private static List<WireSegment> RemoveOrphanedStubs(
+    internal static List<WireSegment> RemoveOrphanedStubs(
         List<WireSegment> segments,
         IReadOnlySet<GridPoint> terminalPoints
     )
@@ -202,6 +214,17 @@ public static partial class MazeRouter
                     changed = true;
                 }
                 else if (toCount == 1 && fromCount > 1 && !terminalPoints.Contains(seg.To))
+                {
+                    toRemove.Add(seg);
+                    changed = true;
+                }
+                // Fully isolated segment: both endpoints are dead ends and neither is a terminal
+                else if (
+                    fromCount == 1
+                    && toCount == 1
+                    && !terminalPoints.Contains(seg.From)
+                    && !terminalPoints.Contains(seg.To)
+                )
                 {
                     toRemove.Add(seg);
                     changed = true;
