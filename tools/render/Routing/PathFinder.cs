@@ -18,7 +18,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
-        OccupiedSegments occupied,
+        IOccupiedSegments occupied,
         IReadOnlySet<GridPoint>? forbiddenPoints = null
     )
     {
@@ -96,7 +96,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
-        OccupiedSegments occupied,
+        IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints,
         bool horizontalFirst
     )
@@ -172,7 +172,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
-        OccupiedSegments occupied,
+        IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
@@ -268,7 +268,7 @@ public static class PathFinder
         GridPoint to,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
-        OccupiedSegments occupied,
+        IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints,
         bool jogHorizontal,
         int jogCoord
@@ -384,7 +384,7 @@ public static class PathFinder
         int y2,
         string netName,
         IReadOnlyList<Obstacle> obstacles,
-        OccupiedSegments occupied,
+        IOccupiedSegments occupied,
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {

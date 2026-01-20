@@ -113,6 +113,97 @@ public static partial class MazeRouter
     }
 
     /// <summary>
+    /// Routes all nets and returns the occupied segments map (for testing).
+    /// Used to verify that the occupied map only contains segments in the final result.
+    /// </summary>
+    internal static (RoutingResult Result, OccupiedSegments Occupied) RouteWithOccupied(
+        CoarseGridResult placement,
+        CircuitGraph graph
+    )
+    {
+        var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
+        var canvasHeight =
+            placement.RowCount * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
+
+        var terminals = ComputeTerminalPositions(placement, graph, canvasWidth, canvasHeight);
+        var terminalsByNet = GroupTerminalsByNet(terminals, graph);
+        var obstacles = ObstacleMap.FromPlacement(placement, graph);
+        var occupied = new OccupiedSegments();
+
+        var allSegments = new List<WireSegment>();
+        var segmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>();
+
+        // Route power rails first
+        foreach (var supply in graph.Supplies)
+        {
+            if (terminalsByNet.TryGetValue(supply, out var terms))
+            {
+                var segs = RouteRail(supply, terms, canvasWidth, DeviceGeometry.RailMargin / 2);
+                AddSegments(segs, supply, occupied, allSegments, segmentsByNet);
+            }
+        }
+
+        foreach (var ground in graph.Grounds)
+        {
+            if (terminalsByNet.TryGetValue(ground, out var terms))
+            {
+                var railY = canvasHeight - DeviceGeometry.RailMargin / 2;
+                var segs = RouteRail(ground, terms, canvasWidth, railY);
+                AddSegments(segs, ground, occupied, allSegments, segmentsByNet);
+            }
+        }
+
+        // Route signal nets ordered by terminal count (simpler nets first)
+        var signalNets = terminalsByNet
+            .Keys.Where(n => !graph.Supplies.Contains(n) && !graph.Grounds.Contains(n))
+            .OrderBy(n => terminalsByNet[n].Count)
+            .ToList();
+
+        // Collect all terminal positions for forbidden point checking
+        var allTerminalPoints = new Dictionary<string, HashSet<GridPoint>>();
+        foreach (var (net, terms) in terminalsByNet)
+        {
+            allTerminalPoints[net] = terms.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
+        }
+
+        foreach (var netName in signalNets)
+        {
+            var terms = terminalsByNet[netName];
+            if (terms.Count < 2)
+            {
+                continue;
+            }
+
+            // Forbidden points are terminals from OTHER nets
+            var forbiddenPoints = new HashSet<GridPoint>();
+            foreach (var (otherNet, points) in allTerminalPoints)
+            {
+                if (otherNet != netName)
+                {
+                    forbiddenPoints.UnionWith(points);
+                }
+            }
+
+            var segs = RouteNet(netName, terms, obstacles, occupied, forbiddenPoints);
+            AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
+        }
+
+        var junctions = FindJunctions(allSegments, terminals);
+
+        var result = new RoutingResult
+        {
+            Segments = allSegments,
+            Junctions = junctions,
+            SegmentsByNet = segmentsByNet,
+            CanvasWidth = canvasWidth,
+            CanvasHeight = canvasHeight,
+            TerminalPositions = terminals,
+        };
+
+        return (result, occupied);
+    }
+
+    /// <summary>
     /// Routes a power rail (VDD or GND).
     /// </summary>
     private static List<WireSegment> RouteRail(
@@ -177,19 +268,24 @@ public static partial class MazeRouter
         // Build MST of terminals
         var mstEdges = ComputeMST(terminals);
 
+        // Create an overlay to track raw segments during intra-net routing.
+        // This prevents ghost segments from polluting the shared occupied map
+        // when they get pruned later by merge/prune operations.
+        var overlay = new OverlayOccupiedSegments(occupied);
+
         // Route each edge
         foreach (var (fromIdx, toIdx) in mstEdges)
         {
             var from = new GridPoint(terminals[fromIdx].X, terminals[fromIdx].Y);
             var to = new GridPoint(terminals[toIdx].X, terminals[toIdx].Y);
 
-            var path = PathFinder.FindPath(from, to, netName, obstacles, occupied, forbiddenPoints);
+            var path = PathFinder.FindPath(from, to, netName, obstacles, overlay, forbiddenPoints);
             rawSegments.AddRange(path);
 
-            // Add path segments to occupied immediately so subsequent edges avoid them
+            // Add path segments to overlay so subsequent edges avoid them
             foreach (var seg in path)
             {
-                occupied.Add(seg);
+                overlay.Add(seg);
             }
         }
 

@@ -1022,6 +1022,48 @@ public class MazeRouterTests
         }
     }
 
+    [Theory]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    public void Route_OccupiedSegmentsMatchRenderedSegments(string acirPath)
+    {
+        // This test verifies that the OccupiedSegments map only contains
+        // segments that are actually in the final routing result.
+        // Ghost segments from pruned paths should NOT be in the occupied map.
+
+        // Arrange
+        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        using var reader = File.OpenText(fullPath);
+        var readResult = ACIRReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse ACIR file");
+
+        var doc = readResult.Document!;
+        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+
+        var graph = CircuitGraph.Build(elCircuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+        var placement = CoarseGridPlacer.Place(topology, graph);
+
+        // Act - use internal test method to get occupied state
+        var (result, occupied) = MazeRouter.RouteWithOccupied(placement, graph);
+
+        // Assert - occupied count should match total segments in result
+        var totalSegments = result.SegmentsByNet.Values.Sum(s => s.Count);
+        Assert.Equal(totalSegments, occupied.Count);
+
+        // Assert - every segment in final result should be in occupied
+        foreach (var (netName, segments) in result.SegmentsByNet)
+        {
+            foreach (var seg in segments)
+            {
+                Assert.True(
+                    occupied.Contains(seg),
+                    $"Segment ({seg.From.X},{seg.From.Y})->({seg.To.X},{seg.To.Y}) for net '{netName}' "
+                        + "is in final result but not in occupied map"
+                );
+            }
+        }
+    }
+
     private static string GetRepoRoot()
     {
         var dir = Directory.GetCurrentDirectory();
