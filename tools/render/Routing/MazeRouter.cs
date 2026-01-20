@@ -233,7 +233,60 @@ public static class MazeRouter
             return segments;
         }
 
-        // Group horizontal segments by their X range (minX, maxX)
+        var byXRange = GroupHorizontalSegmentsByXRange(horizontalSegments);
+        var toRemove = new HashSet<WireSegment>();
+        var toAdd = new List<WireSegment>();
+
+        foreach (var (range, segs) in byXRange)
+        {
+            if (segs.Count <= 1)
+            {
+                continue;
+            }
+
+            var sortedByY = segs.OrderBy(s => s.From.Y).ToList();
+            var midY = (sortedByY.First().From.Y + sortedByY.Last().From.Y) / 2;
+            var kept = sortedByY.MinBy(s => Math.Abs(s.From.Y - midY))!;
+
+            foreach (var seg in segs)
+            {
+                if (seg != kept)
+                {
+                    toRemove.Add(seg);
+                }
+            }
+
+            var connectors = GenerateVerticalConnectorsForParallelGroup(
+                segs,
+                range,
+                kept,
+                verticalSegments,
+                netName
+            );
+            toAdd.AddRange(connectors);
+        }
+
+        if (toRemove.Count == 0)
+        {
+            return segments;
+        }
+
+        var result = segments.Where(s => !toRemove.Contains(s)).ToList();
+        result.AddRange(toAdd);
+        result = MergeCollinearSegments(result, netName);
+        result = RemoveOrphanedStubs(result, terminalPoints);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Groups horizontal segments by their X-coordinate range (minX, maxX).
+    /// </summary>
+    private static Dictionary<
+        (int minX, int maxX),
+        List<WireSegment>
+    > GroupHorizontalSegmentsByXRange(List<WireSegment> horizontalSegments)
+    {
         var byXRange = new Dictionary<(int minX, int maxX), List<WireSegment>>();
         foreach (var seg in horizontalSegments)
         {
@@ -247,95 +300,61 @@ public static class MazeRouter
             }
             list.Add(seg);
         }
+        return byXRange;
+    }
 
-        // Find groups with redundant parallel segments (same X range, different Y)
-        var toRemove = new HashSet<WireSegment>();
-        var toAdd = new List<WireSegment>();
+    /// <summary>
+    /// Generates vertical connector segments to maintain connectivity when removing
+    /// redundant parallel horizontal segments. Connectors are added at endpoints only
+    /// when existing vertical segments don't already provide connectivity.
+    /// </summary>
+    private static IEnumerable<WireSegment> GenerateVerticalConnectorsForParallelGroup(
+        List<WireSegment> segs,
+        (int minX, int maxX) range,
+        WireSegment kept,
+        List<WireSegment> verticalSegments,
+        string netName
+    )
+    {
+        var connectors = new List<WireSegment>();
 
-        foreach (var (range, segs) in byXRange)
+        foreach (var seg in segs)
         {
-            if (segs.Count <= 1)
+            if (seg == kept)
             {
                 continue;
             }
 
-            // Sort by Y to find the segment range
-            var sortedByY = segs.OrderBy(s => s.From.Y).ToList();
-            var minY = sortedByY.First().From.Y;
-            var maxY = sortedByY.Last().From.Y;
+            var segY = seg.From.Y;
+            var keptY = kept.From.Y;
 
-            // Keep the segment closest to the middle Y, remove others
-            var midY = (minY + maxY) / 2;
-            var kept = sortedByY.MinBy(s => Math.Abs(s.From.Y - midY))!;
+            var hasLeftVertical = verticalSegments.Any(v =>
+                v.From.X == range.minX
+                && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
+                && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
+            );
 
-            foreach (var seg in segs)
+            var hasRightVertical = verticalSegments.Any(v =>
+                v.From.X == range.maxX
+                && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
+                && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
+            );
+
+            if (hasLeftVertical || hasRightVertical)
             {
-                if (seg != kept)
-                {
-                    toRemove.Add(seg);
-                }
+                continue;
             }
 
-            // Add vertical segments to connect removed segments' Y levels to the kept segment.
-            // Only add a connector if neither endpoint already has one - connectivity through
-            // either side is sufficient. Prefer the left (device/source) side over the right
-            // (port/destination) side to avoid creating stubs at port locations.
-            foreach (var seg in segs)
-            {
-                if (seg == kept)
-                {
-                    continue;
-                }
-
-                var segY = seg.From.Y;
-                var keptY = kept.From.Y;
-
-                // Check if there's already a vertical segment at either endpoint connecting these Ys
-                var hasLeftVertical = verticalSegments.Any(v =>
-                    v.From.X == range.minX
-                    && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
-                    && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
-                );
-
-                var hasRightVertical = verticalSegments.Any(v =>
-                    v.From.X == range.maxX
-                    && Math.Min(v.From.Y, v.To.Y) <= Math.Min(segY, keptY)
-                    && Math.Max(v.From.Y, v.To.Y) >= Math.Max(segY, keptY)
-                );
-
-                // If either endpoint already has a vertical connector, connectivity is maintained
-                if (hasLeftVertical || hasRightVertical)
-                {
-                    continue;
-                }
-
-                // Neither endpoint has a connector - add one at the left (source/device) side
-                toAdd.Add(
-                    new WireSegment(
-                        new GridPoint(range.minX, Math.Min(segY, keptY)),
-                        new GridPoint(range.minX, Math.Max(segY, keptY)),
-                        netName
-                    )
-                );
-            }
+            connectors.Add(
+                new WireSegment(
+                    new GridPoint(range.minX, Math.Min(segY, keptY)),
+                    new GridPoint(range.minX, Math.Max(segY, keptY)),
+                    netName
+                )
+            );
         }
 
-        if (toRemove.Count == 0)
-        {
-            return segments;
-        }
-
-        // Build result: original segments minus removed, plus new vertical connectors
-        var result = segments.Where(s => !toRemove.Contains(s)).ToList();
-        result.AddRange(toAdd);
-
-        // Re-merge to handle any new overlapping segments
-        result = MergeCollinearSegments(result, netName);
-
-        // Remove any orphaned stubs created by removing horizontal segments
-        result = RemoveOrphanedStubs(result, terminalPoints);
-
-        return result;
+        return connectors;
     }
 
     /// <summary>

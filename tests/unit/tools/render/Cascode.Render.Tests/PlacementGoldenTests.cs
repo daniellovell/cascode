@@ -64,9 +64,7 @@ public class PlacementGoldenTests
             if (parts.Length < 4)
             {
                 var malformedDeviceId = parts.Length > 0 ? parts[0].Trim() : "<missing>";
-                errors.Add(
-                    $"Malformed placement line for device '{malformedDeviceId}': {line}"
-                );
+                errors.Add($"Malformed placement line for device '{malformedDeviceId}': {line}");
                 continue;
             }
 
@@ -76,9 +74,7 @@ public class PlacementGoldenTests
             var mirrorXParsed = bool.TryParse(parts[3].Trim(), out var mirrorX);
             if (!rowParsed || !colParsed || !mirrorXParsed)
             {
-                errors.Add(
-                    $"Malformed placement line for device '{deviceId}': {line}"
-                );
+                errors.Add($"Malformed placement line for device '{deviceId}': {line}");
                 continue;
             }
 

@@ -727,8 +727,8 @@ public static class CoarseGridPlacer
                     var colDiff = model.NewIntVar(0, 100, $"coldiff_{netName}_{i}_{j}");
                     if (offset1.HasValue && offset2.HasValue)
                     {
-                        // Both have fixed offsets
-                        var fixedOffset = offset1.Value - offset2.Value;
+                        // Both have fixed offsets - round to integer for CP-SAT
+                        var fixedOffset = (int)Math.Round(offset1.Value - offset2.Value);
                         model.AddAbsEquality(
                             colDiff,
                             deviceColumn[conn1.DeviceId]
@@ -762,7 +762,7 @@ public static class CoarseGridPlacer
     /// Gets the terminal column offset in cell units for wire length calculation.
     /// For horizontal passives, P terminal is toward outer edge, N toward center.
     /// </summary>
-    private static int? GetTerminalColumnOffset(
+    private static double? GetTerminalColumnOffset(
         string deviceType,
         string terminal,
         string deviceId,
@@ -775,25 +775,44 @@ public static class CoarseGridPlacer
 
         if (type is "resistor" or "capacitor" && horizontalPassiveIds.Contains(deviceId))
         {
-            // For horizontal passives, the offset depends on whether left or right of axis
-            // We use a fixed approximation based on expected position
-            var halfWidth = (int)
-                Math.Round(DeviceGeometry.PassiveWidth / (2.0 * DeviceGeometry.CellWidth));
+            // For horizontal passives, compute terminal offset in cell units
+            var halfWidth = DeviceGeometry.PassiveWidth / (2.0 * DeviceGeometry.CellWidth);
+
+            // Determine which side of axis this device is expected to be on
+            // Use device ID naming heuristics (e.g., R1L vs R1R)
+            int side;
+            if (
+                deviceId.EndsWith("R", StringComparison.OrdinalIgnoreCase)
+                || deviceId.Contains("_R", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                side = 1; // Right of axis
+            }
+            else if (
+                deviceId.EndsWith("L", StringComparison.OrdinalIgnoreCase)
+                || deviceId.Contains("_L", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                side = -1; // Left of axis
+            }
+            else
+            {
+                side = -1; // Default to left
+            }
 
             terminal = terminal.ToUpperInvariant();
             if (terminal == "P")
             {
                 // P terminal is on outer edge - offset away from axis
-                // Left side: negative offset, right side: positive offset
-                // Since we don't know final position, use 0 (neutral)
-                return 0;
+                // Left side (side=-1): negative offset, right side (side=1): positive offset
+                return side * halfWidth;
             }
 
             if (terminal == "N")
             {
-                // N terminal is toward center - this is the key for optimization
-                // The solver will naturally place passives where N terminals are close
-                return 0;
+                // N terminal is toward center - opposite direction from P
+                // Left side (side=-1): positive offset, right side (side=1): negative offset
+                return -side * halfWidth;
             }
         }
 
