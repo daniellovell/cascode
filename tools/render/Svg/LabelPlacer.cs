@@ -66,6 +66,9 @@ public sealed class LabelPlacer
     private const int DeviceOverlapWeight = 2000;
     private const int WireOverlapWeight = 100;
 
+    private const double RailCollisionOffset = 5;
+    private const double RailCollisionHeight = 10;
+
     private static readonly LabelDirection[] RightSidePreference =
     [
         LabelDirection.SE,
@@ -441,13 +444,27 @@ public sealed class LabelPlacer
         if (graph.Supplies.Count > 0)
         {
             var railY = DeviceGeometry.RailMargin / 2.0;
-            rails.Add(new TextBounds(0, railY - 5, routing.CanvasWidth, 10));
+            rails.Add(
+                new TextBounds(
+                    0,
+                    railY - RailCollisionOffset,
+                    routing.CanvasWidth,
+                    RailCollisionHeight
+                )
+            );
         }
 
         if (graph.Grounds.Count > 0)
         {
             var railY = routing.CanvasHeight - DeviceGeometry.RailMargin / 2.0;
-            rails.Add(new TextBounds(0, railY - 5, routing.CanvasWidth, 10));
+            rails.Add(
+                new TextBounds(
+                    0,
+                    railY - RailCollisionOffset,
+                    routing.CanvasWidth,
+                    RailCollisionHeight
+                )
+            );
         }
 
         foreach (var (deviceId, cell) in placement.DevicePlacements)
