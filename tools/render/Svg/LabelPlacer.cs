@@ -52,8 +52,9 @@ public sealed record LabelPlacement(
 /// </summary>
 public sealed class LabelPlacer
 {
-    private const double DeviceLabelFontSize = 10.0;
-    private const double ParamLabelFontSize = 8.0;
+    private StyleSheet _style = StyleSheet.Default;
+    private double DeviceLabelFontSize => _style.FontSize;
+    private double ParamLabelFontSize => _style.FontSize - 2;
     private const double CharWidthRatio = 0.7;
     private const double LineHeightRatio = 1.2;
     private const double LabelGap = 2.0;
@@ -111,6 +112,7 @@ public sealed class LabelPlacer
         StyleSheet style
     )
     {
+        _style = style;
         var obstacles = BuildObstacles(placement, routing, graph);
         var placements = new List<LabelPlacement>();
         var placedLabelBounds = new List<TextBounds>();
@@ -239,7 +241,7 @@ public sealed class LabelPlacer
         return CenterPreference;
     }
 
-    private static LabelPlacement ComputePlacement(
+    private LabelPlacement ComputePlacement(
         string deviceId,
         double deviceX,
         double deviceY,
@@ -479,11 +481,7 @@ public sealed class LabelPlacer
         return new ObstacleSet(rails, devices, wires, ports);
     }
 
-    private static void AddPortObstacles(
-        List<TextBounds> ports,
-        RoutingResult routing,
-        CircuitGraph graph
-    )
+    private void AddPortObstacles(List<TextBounds> ports, RoutingResult routing, CircuitGraph graph)
     {
         var portPositions = routing
             .TerminalPositions.Where(t => t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))

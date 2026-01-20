@@ -898,4 +898,80 @@ public class LabelPlacerTests
             },
         };
     }
+
+    [Fact]
+    public void PlaceLabels_WithMinimalStyle_UsesSmallerFontForBounds()
+    {
+        // Arrange: Simple circuit with one device
+        var circuit = CreateSimpleCircuit();
+        var graph = CircuitGraph.Build(circuit);
+
+        var placement = new CoarseGridResult
+        {
+            RowCount = 3,
+            ColumnCount = 3,
+            SymmetryAxis = 1,
+            HorizontalPassiveIds = new HashSet<string>(),
+            DevicePlacements = new Dictionary<string, GridCell>
+            {
+                ["M1"] = new GridCell(1, 1, false),
+            },
+        };
+
+        var canvasHeight =
+            DeviceGeometry.RailMargin
+            + placement.RowCount * DeviceGeometry.CellHeight
+            + DeviceGeometry.RailMargin;
+        var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
+
+        var routing = new RoutingResult
+        {
+            Segments = new List<WireSegment>(),
+            Junctions = new List<GridPoint>(),
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(),
+            CanvasWidth = canvasWidth,
+            CanvasHeight = canvasHeight,
+            TerminalPositions = new List<TerminalPosition>(),
+        };
+
+        // Act: Get placements with both default and minimal styles
+        var defaultPlacer = new LabelPlacer();
+        var defaultPlacements = defaultPlacer.PlaceLabels(
+            placement,
+            routing,
+            graph,
+            StyleSheet.Default
+        );
+
+        var minimalPlacer = new LabelPlacer();
+        var minimalPlacements = minimalPlacer.PlaceLabels(
+            placement,
+            routing,
+            graph,
+            StyleSheet.Minimal
+        );
+
+        // Assert: Both should produce placements for M1
+        var defaultM1 = defaultPlacements.Single(p => p.DeviceId == "M1");
+        var minimalM1 = minimalPlacements.Single(p => p.DeviceId == "M1");
+
+        // With same direction (no obstacles, center device prefers S),
+        // the Y positions should differ because font size affects label height.
+        // StyleSheet.Default has FontSize=10, Minimal has FontSize=8.
+        // Label height = FontSize * 1.2, so Default=12px, Minimal=9.6px
+        // Param height = (FontSize-2) * 1.2, so Default=9.6px, Minimal=7.2px
+        Assert.Equal(LabelDirection.S, defaultM1.Direction);
+        Assert.Equal(LabelDirection.S, minimalM1.Direction);
+
+        // The spacing between device label Y and param label Y should be smaller
+        // with Minimal style because the label heights are smaller.
+        var defaultSpacing = defaultM1.ParamLabelY - defaultM1.DeviceLabelY;
+        var minimalSpacing = minimalM1.ParamLabelY - minimalM1.DeviceLabelY;
+
+        // Minimal style has smaller fonts, so param label is closer to device label
+        Assert.True(
+            minimalSpacing < defaultSpacing,
+            $"Minimal style spacing ({minimalSpacing:F2}) should be less than default spacing ({defaultSpacing:F2})"
+        );
+    }
 }

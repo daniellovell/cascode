@@ -438,17 +438,54 @@ public static class MazeRouter
         var result = new List<WireSegment>();
 
         // Group vertical segments by X coordinate
-        var verticalByX = segments
+        var verticalByX = GroupVerticalSegmentsByX(segments);
+
+        // Group horizontal segments by Y coordinate
+        var horizontalByY = GroupHorizontalSegmentsByY(segments);
+
+        MergeVerticalSegments(verticalByX, horizontalByY, netName, result);
+        MergeHorizontalSegments(horizontalByY, verticalByX, netName, result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Groups vertical segments by their X coordinate.
+    /// </summary>
+    private static Dictionary<int, List<WireSegment>> GroupVerticalSegmentsByX(
+        List<WireSegment> segments
+    )
+    {
+        return segments
             .Where(s => s.From.X == s.To.X)
             .GroupBy(s => s.From.X)
             .ToDictionary(g => g.Key, g => g.ToList());
+    }
 
-        // Group horizontal segments by Y coordinate
-        var horizontalByY = segments
+    /// <summary>
+    /// Groups horizontal segments by their Y coordinate.
+    /// </summary>
+    private static Dictionary<int, List<WireSegment>> GroupHorizontalSegmentsByY(
+        List<WireSegment> segments
+    )
+    {
+        return segments
             .Where(s => s.From.Y == s.To.Y)
             .GroupBy(s => s.From.Y)
             .ToDictionary(g => g.Key, g => g.ToList());
+    }
 
+    /// <summary>
+    /// Merges vertical segments by collecting important Y coordinates on each vertical axis
+    /// and creating merged segments that connect consecutive covered points.
+    /// </summary>
+    private static void MergeVerticalSegments(
+        Dictionary<int, List<WireSegment>> verticalByX,
+        Dictionary<int, List<WireSegment>> horizontalByY,
+        string netName,
+        List<WireSegment> result
+    )
+    {
         // Collect all important Y coordinates on each vertical axis (endpoints and intersections with horizontal)
         foreach (var (x, vertSegs) in verticalByX)
         {
@@ -510,7 +547,19 @@ public static class MazeRouter
                 }
             }
         }
+    }
 
+    /// <summary>
+    /// Merges horizontal segments by collecting important X coordinates on each horizontal axis
+    /// and creating merged segments that connect consecutive covered points.
+    /// </summary>
+    private static void MergeHorizontalSegments(
+        Dictionary<int, List<WireSegment>> horizontalByY,
+        Dictionary<int, List<WireSegment>> verticalByX,
+        string netName,
+        List<WireSegment> result
+    )
+    {
         // Same for horizontal segments - collect important X coordinates
         foreach (var (y, horSegs) in horizontalByY)
         {
@@ -572,8 +621,6 @@ public static class MazeRouter
                 }
             }
         }
-
-        return result;
     }
 
     /// <summary>

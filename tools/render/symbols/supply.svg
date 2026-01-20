@@ -2,7 +2,7 @@
 <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9">
   <defs>
     <style>
-      .cls-1 {
+      .supply-stroke {
         fill: none;
         stroke: #231f20;
         stroke-linecap: square;
@@ -10,7 +10,7 @@
     </style>
   </defs>
   <g id="Layer_1-2" data-name="Layer 1">
-    <line class="cls-1" x1=".5" y1=".5" x2="8.5" y2=".5"/>
-    <line class="cls-1" x1="4.5" y1=".5" x2="4.5" y2="8.5"/>
+    <line class="supply-stroke" x1=".5" y1=".5" x2="8.5" y2=".5"/>
+    <line class="supply-stroke" x1="4.5" y1=".5" x2="4.5" y2="8.5"/>
   </g>
 </svg>
