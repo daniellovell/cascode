@@ -479,35 +479,7 @@ public static class CoarseGridPlacer
     )
     {
         var validRows = new List<int>();
-
-        // Find topology rows of devices connected to this passive
-        var connectedTopoRows = new List<int>();
-        var pNet = graph.GetNetForTerminal(passiveId, "P");
-        var nNet = graph.GetNetForTerminal(passiveId, "N");
-
-        foreach (var net in new[] { pNet, nNet })
-        {
-            if (net == null || graph.IsSupplyOrGround(net))
-            {
-                continue;
-            }
-
-            if (!graph.NetConnections.TryGetValue(net, out var connections))
-            {
-                continue;
-            }
-
-            foreach (var conn in connections)
-            {
-                if (
-                    conn.DeviceId != passiveId
-                    && topology.DeviceRows.TryGetValue(conn.DeviceId, out var row)
-                )
-                {
-                    connectedTopoRows.Add(row);
-                }
-            }
-        }
+        var connectedTopoRows = GetConnectedDeviceRows(passiveId, graph, topology);
 
         if (connectedTopoRows.Count >= 2)
         {
@@ -974,6 +946,47 @@ public static class CoarseGridPlacer
     }
 
     /// <summary>
+    /// Collects topology rows of devices connected to a passive's P and N terminals.
+    /// Excludes supply/ground nets and the passive device itself.
+    /// </summary>
+    private static List<int> GetConnectedDeviceRows(
+        string passiveId,
+        CircuitGraph graph,
+        TopologyResult topology
+    )
+    {
+        var connectedRows = new List<int>();
+        var pNet = graph.GetNetForTerminal(passiveId, "P");
+        var nNet = graph.GetNetForTerminal(passiveId, "N");
+
+        foreach (var net in new[] { pNet, nNet })
+        {
+            if (net == null || graph.IsSupplyOrGround(net))
+            {
+                continue;
+            }
+
+            if (!graph.NetConnections.TryGetValue(net, out var connections))
+            {
+                continue;
+            }
+
+            foreach (var conn in connections)
+            {
+                if (
+                    conn.DeviceId != passiveId
+                    && topology.DeviceRows.TryGetValue(conn.DeviceId, out var row)
+                )
+                {
+                    connectedRows.Add(row);
+                }
+            }
+        }
+
+        return connectedRows;
+    }
+
+    /// <summary>
     /// Determines which topology rows need a fill row after them for horizontal passives.
     /// Returns a set of topology row indices after which a fill row should be inserted.
     /// </summary>
@@ -987,35 +1000,7 @@ public static class CoarseGridPlacer
 
         foreach (var passiveId in horizontalPassiveIds)
         {
-            // Find topology rows of devices connected to this passive
-            var connectedRows = new List<int>();
-
-            var pNet = graph.GetNetForTerminal(passiveId, "P");
-            var nNet = graph.GetNetForTerminal(passiveId, "N");
-
-            foreach (var net in new[] { pNet, nNet })
-            {
-                if (net == null || graph.IsSupplyOrGround(net))
-                {
-                    continue;
-                }
-
-                if (!graph.NetConnections.TryGetValue(net, out var connections))
-                {
-                    continue;
-                }
-
-                foreach (var conn in connections)
-                {
-                    if (
-                        conn.DeviceId != passiveId
-                        && topology.DeviceRows.TryGetValue(conn.DeviceId, out var row)
-                    )
-                    {
-                        connectedRows.Add(row);
-                    }
-                }
-            }
+            var connectedRows = GetConnectedDeviceRows(passiveId, graph, topology);
 
             if (connectedRows.Count >= 2)
             {

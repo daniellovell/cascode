@@ -33,6 +33,8 @@ public sealed class OccupiedSegments : IOccupiedSegments
     /// <summary>
     /// Checks if a specific segment is in the occupied set (for testing only).
     /// </summary>
+    /// <param name="seg">The segment to check for.</param>
+    /// <returns>True if the segment is in the occupied set; otherwise, false.</returns>
     internal bool Contains(WireSegment seg)
     {
         return _segments.Any(s =>
@@ -144,6 +146,10 @@ internal sealed class OverlayOccupiedSegments : IOccupiedSegments
     private readonly IOccupiedSegments _base;
     private readonly List<(int X1, int Y1, int X2, int Y2, string Net)> _local = new();
 
+    /// <summary>
+    /// Creates an overlay on top of the specified base occupied segments.
+    /// </summary>
+    /// <param name="baseOccupied">The base occupied segments to layer on top of.</param>
     public OverlayOccupiedSegments(IOccupiedSegments baseOccupied)
     {
         _base = baseOccupied;

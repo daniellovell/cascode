@@ -116,6 +116,9 @@ public static partial class MazeRouter
     /// Routes all nets and returns the occupied segments map (for testing).
     /// Used to verify that the occupied map only contains segments in the final result.
     /// </summary>
+    /// <param name="placement">The coarse grid placement result.</param>
+    /// <param name="graph">The circuit graph.</param>
+    /// <returns>A tuple containing the routing result and the final occupied segments map.</returns>
     internal static (RoutingResult Result, OccupiedSegments Occupied) RouteWithOccupied(
         CoarseGridResult placement,
         CircuitGraph graph
