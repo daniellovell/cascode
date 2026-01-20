@@ -1,4 +1,5 @@
 using Cascode.ACIR;
+using Cascode.Bench;
 using Xunit;
 
 namespace Cascode.ACIR.Tests
@@ -29,6 +30,70 @@ namespace Cascode.ACIR.Tests
         public void FormatSIValue_FormatsCorrectly(double input, string expected)
         {
             var result = ACIRBenchAdapter.FormatSIValue(input);
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(1e6, "1MEG")]
+        [InlineData(10e6, "10MEG")]
+        [InlineData(3.3e6, "3.3MEG")]
+        [InlineData(2e6, "2MEG")]
+        [InlineData(1e3, "1K")]
+        [InlineData(1e-3, "1m")]
+        [InlineData(1e-12, "1p")]
+        public void FormatSIValueForBackend_NgspiceUsesMEGForMega(double input, string expected)
+        {
+            var result = ACIRBenchAdapter.FormatSIValueForBackend(input, BenchBackendType.Ngspice);
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData(1e6, "1M")]
+        [InlineData(10e6, "10M")]
+        [InlineData(3.3e6, "3.3M")]
+        [InlineData(2e6, "2M")]
+        public void FormatSIValueForBackend_SpectreUsesMForMega(double input, string expected)
+        {
+            var result = ACIRBenchAdapter.FormatSIValueForBackend(input, BenchBackendType.Spectre);
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("2M", "2MEG")]
+        [InlineData("10M", "10MEG")]
+        [InlineData("3.3M", "3.3MEG")]
+        [InlineData("1.5M", "1.5MEG")]
+        [InlineData("100M", "100MEG")]
+        public void TransformValueForBackend_NgspiceConvertsMToMEG(string input, string expected)
+        {
+            var result = ACIRBenchAdapter.TransformValueForBackend(input, BenchBackendType.Ngspice);
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("2M", "2M")]
+        [InlineData("10M", "10M")]
+        [InlineData("3.3M", "3.3M")]
+        public void TransformValueForBackend_SpectrePreservesMForMega(string input, string expected)
+        {
+            var result = ACIRBenchAdapter.TransformValueForBackend(input, BenchBackendType.Spectre);
+            Assert.Equal(expected, result);
+        }
+
+        [Theory]
+        [InlineData("1m", "1m")]
+        [InlineData("10m", "10m")]
+        [InlineData("1k", "1k")]
+        [InlineData("10K", "10K")]
+        [InlineData("1p", "1p")]
+        [InlineData("1.8V", "1.8V")]
+        [InlineData("M=1", "M=1")]
+        public void TransformValueForBackend_NgspiceDoesNotTransformOtherPrefixes(
+            string input,
+            string expected
+        )
+        {
+            var result = ACIRBenchAdapter.TransformValueForBackend(input, BenchBackendType.Ngspice);
             Assert.Equal(expected, result);
         }
     }

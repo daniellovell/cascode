@@ -60,8 +60,8 @@ public static class ACIRBenchAdapter
 
         // Determine if bench is differential based on name
         var isDifferential = bench.Name.StartsWith("FD", StringComparison.OrdinalIgnoreCase);
-        var loadElements = GenerateLoadElements(circuit, isDifferential);
-        var supplyElements = GenerateSupplyElements(circuit);
+        var loadElements = GenerateLoadElements(circuit, isDifferential, backend);
+        var supplyElements = GenerateSupplyElements(circuit, backend);
 
         var designFile = $"{circuit.Name}.sp";
         var includesWithSection =
@@ -269,7 +269,14 @@ public static class ACIRBenchAdapter
     /// Generates pre-formatted SPICE netlist strings for load elements.
     /// Handles both single-ended and differential configurations.
     /// </summary>
-    internal static string GenerateLoadElements(Circuit circuit, bool differential)
+    /// <param name="circuit">Circuit containing harness loads.</param>
+    /// <param name="differential">Whether to split loads for differential outputs.</param>
+    /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
+    internal static string GenerateLoadElements(
+        Circuit circuit,
+        bool differential,
+        BenchBackendType backend = BenchBackendType.Ngspice
+    )
     {
         var lines = new List<string>();
 
@@ -296,7 +303,7 @@ public static class ACIRBenchAdapter
                 {
                     if (TryParseValue(cs[i], out var cValue))
                     {
-                        var halfValue = FormatSIValue(cValue / 2.0);
+                        var halfValue = FormatSIValueForBackend(cValue / 2.0, backend);
                         var suffix = cs.Count > 1 ? $"_{i}" : "";
                         lines.Add($"C{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
                         lines.Add($"C{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
@@ -315,7 +322,7 @@ public static class ACIRBenchAdapter
                 {
                     if (TryParseValue(rs[i], out var rValue))
                     {
-                        var halfValue = FormatSIValue(rValue / 2.0);
+                        var halfValue = FormatSIValueForBackend(rValue / 2.0, backend);
                         var suffix = rs.Count > 1 ? $"_{i}" : "";
                         lines.Add($"R{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
                         lines.Add($"R{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
@@ -336,13 +343,15 @@ public static class ACIRBenchAdapter
                 for (int i = 0; i < cs.Count; i++)
                 {
                     var suffix = cs.Count > 1 ? $"_{i}" : "";
-                    lines.Add($"C{load.Net}_load{suffix} {load.Net} 0 {cs[i]}");
+                    var val = TransformValueForBackend(cs[i], backend);
+                    lines.Add($"C{load.Net}_load{suffix} {load.Net} 0 {val}");
                 }
 
                 for (int i = 0; i < rs.Count; i++)
                 {
                     var suffix = rs.Count > 1 ? $"_{i}" : "";
-                    lines.Add($"R{load.Net}_load{suffix} {load.Net} 0 {rs[i]}");
+                    var val = TransformValueForBackend(rs[i], backend);
+                    lines.Add($"R{load.Net}_load{suffix} {load.Net} 0 {val}");
                 }
             }
         }
@@ -353,7 +362,12 @@ public static class ACIRBenchAdapter
     /// <summary>
     /// Generates pre-formatted SPICE netlist strings for supply and bias elements.
     /// </summary>
-    internal static string GenerateSupplyElements(Circuit circuit)
+    /// <param name="circuit">Circuit containing harness supplies and biases.</param>
+    /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
+    internal static string GenerateSupplyElements(
+        Circuit circuit,
+        BenchBackendType backend = BenchBackendType.Ngspice
+    )
     {
         var lines = new List<string>();
 
@@ -361,7 +375,8 @@ public static class ACIRBenchAdapter
         {
             foreach (var supply in circuit.Harness.Supplies)
             {
-                lines.Add($"V{supply.Net} {supply.Net} 0 DC {supply.Value}");
+                var val = TransformValueForBackend(supply.Value, backend);
+                lines.Add($"V{supply.Net} {supply.Net} 0 DC {val}");
             }
         }
 
@@ -369,7 +384,8 @@ public static class ACIRBenchAdapter
         {
             foreach (var bias in circuit.Harness.Biases)
             {
-                lines.Add($"V{bias.Net} {bias.Net} 0 DC {bias.Value}");
+                var val = TransformValueForBackend(bias.Value, backend);
+                lines.Add($"V{bias.Net} {bias.Net} 0 DC {val}");
             }
         }
 
@@ -910,6 +926,71 @@ public static class ACIRBenchAdapter
         var formatted = scaled.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
 
         return $"{sign}{formatted}{suffix}";
+    }
+
+    /// <summary>
+    /// Formats a numeric value using an appropriate SI prefix for a specific SPICE backend.
+    /// </summary>
+    /// <param name="value">The numeric value to format.</param>
+    /// <param name="backend">Target SPICE backend (ngspice uses MEG for mega, Spectre uses M).</param>
+    /// <returns>A backend-compatible SPICE string.</returns>
+    internal static string FormatSIValueForBackend(double value, BenchBackendType backend)
+    {
+        if (value == 0)
+            return "0";
+
+        var absValue = Math.Abs(value);
+        var sign = value < 0 ? "-" : "";
+
+        // ngspice uses MEG for mega (M means milli in ngspice)
+        var megaSuffix = backend == BenchBackendType.Ngspice ? "MEG" : "M";
+
+        var (divisor, suffix) = absValue switch
+        {
+            >= 1e12 => (1e12, "T"),
+            >= 1e9 => (1e9, "G"),
+            >= 1e6 => (1e6, megaSuffix),
+            >= 1e3 => (1e3, "K"),
+            >= 1 => (1.0, ""),
+            >= 1e-3 => (1e-3, "m"),
+            >= 1e-6 => (1e-6, "u"),
+            >= 1e-9 => (1e-9, "n"),
+            >= 1e-12 => (1e-12, "p"),
+            _ => (1e-15, "f"),
+        };
+
+        var scaled = absValue / divisor;
+        var formatted = scaled.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+
+        return $"{sign}{formatted}{suffix}";
+    }
+
+    /// <summary>
+    /// Transforms an SI value string for a specific SPICE backend.
+    /// Converts "M" suffix (mega) to "MEG" for ngspice compatibility.
+    /// </summary>
+    /// <param name="value">SI value string (e.g., "2M", "10k", "1p").</param>
+    /// <param name="backend">Target SPICE backend.</param>
+    /// <returns>Backend-compatible value string.</returns>
+    internal static string TransformValueForBackend(string value, BenchBackendType backend)
+    {
+        if (string.IsNullOrWhiteSpace(value) || backend != BenchBackendType.Ngspice)
+            return value;
+
+        // Only transform if the value ends with uppercase 'M' (mega)
+        // Don't transform lowercase 'm' (milli) or 'M' as part of a unit (e.g., "1.8V")
+        var trimmed = value.Trim();
+        if (trimmed.Length == 0)
+            return value;
+
+        // Check if ends with M preceded by a digit (e.g., "2M", "10M", "3.3M")
+        // This distinguishes mega suffix from other uses of M
+        if (trimmed.Length >= 2 && trimmed[^1] == 'M' && char.IsDigit(trimmed[^2]))
+        {
+            return trimmed[..^1] + "MEG";
+        }
+
+        return value;
     }
 
     /// <summary>
