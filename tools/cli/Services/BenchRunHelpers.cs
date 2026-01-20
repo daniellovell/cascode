@@ -11,8 +11,25 @@ internal static class BenchRunHelpers
 {
     public static Circuit GetSingleElCircuit(ACIRDocument doc)
     {
-        return doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL)
-            ?? throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+        // Prefer EL-level circuit with benches defined (for hierarchical files with multiple circuits)
+        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        if (elCircuits.Count == 0)
+        {
+            throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+        }
+
+        return elCircuits.FirstOrDefault(c => c.Benches?.Benches.Any() == true) ?? elCircuits[0];
+    }
+
+    /// <summary>
+    /// Returns all EL-level circuits that have benches, ordered by dependency (leaves first).
+    /// </summary>
+    public static IReadOnlyList<Circuit> GetElCircuitsWithBenches(ACIRDocument doc)
+    {
+        return SpiceEmitter
+            .OrderByDependency(doc)
+            .Where(c => c.Level == ACIRLevel.EL && c.Benches?.Benches.Any() == true)
+            .ToList();
     }
 
     public static string ResolveOutputDir(

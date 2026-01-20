@@ -811,7 +811,7 @@ The synthesis engine:
 3. Applies PDK-specific constraints (Lmin, discrete widths, finger limits)
 4. Emits sized parameters to ACIR at EL (Electrical Level)
 
-At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in ACIR device declarations (e.g., `sky130_fd_pr__nfet_01v8`). SPICE emission uses this selected device directly.
+At the Electrical Level (EL), the synthesis engine selects the PDK device for each primitive transistor and records it in ACIR device declarations (e.g., `nfet_01v8`). SPICE emission uses this selected device directly.
 
 #### Normative
 

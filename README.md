@@ -40,7 +40,7 @@ New to Cascode? Start here to understand the core concepts through a practical O
   platform from GitHub Releases. If your network blocks GitHub, set
   `CASCODE_DOWNLOAD_BASE` to a mirror and reinstall.
 
-- .NET global tool (requires .NET 8 SDK)
+- .NET global tool (requires .NET 10 SDK)
 
   ```sh
   dotnet tool install -g Cascode.Cli
@@ -65,8 +65,8 @@ cascode --help
   - dotnet tool: `dotnet tool install -g Cascode.Cli`
 
 - Pre-release (release candidates, nightly tags):
-  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.3.0-rc.1`)
-  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.3.0-rc.1`
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.4.0-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.4.0-rc.1`
   - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---

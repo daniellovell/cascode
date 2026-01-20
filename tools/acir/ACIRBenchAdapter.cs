@@ -31,6 +31,8 @@ public static class ACIRBenchAdapter
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
+    /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
+    /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
     /// <returns>TestbenchContext ready for TestbenchGenerator.</returns>
     public static TestbenchContext ToTestbenchContext(
         Circuit circuit,
@@ -38,7 +40,9 @@ public static class ACIRBenchAdapter
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
-        BenchIncludeResolution? includeResolution = null
+        BenchIncludeResolution? includeResolution = null,
+        IReadOnlyList<string>? allDesignFiles = null,
+        ACIRDocument? document = null
     )
     {
         ArgumentNullException.ThrowIfNull(circuit);
@@ -48,7 +52,7 @@ public static class ACIRBenchAdapter
         var harnessLoads = BuildHarnessLoads(circuit);
         var outNode = DetermineOutNode(circuit);
         var portList = BuildPortList(circuit);
-        var genericModels = UsesGenericModels(circuit);
+        var genericModels = UsesGenericModels(circuit, document);
         var harnessParams = DeriveVoltageAndImpedance(circuit);
         var (acStartHz, acStopHz) = DeriveAcSweepFromConstraints(circuit);
         var passbandFreqHz = DerivePassbandMeasurementFrequency(circuit, acStartHz, acStopHz);
@@ -73,6 +77,19 @@ public static class ACIRBenchAdapter
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList()
             ?? new List<string>();
+
+        // Add all design files for hierarchical designs (subcircuit dependencies)
+        if (allDesignFiles is not null)
+        {
+            foreach (var file in allDesignFiles)
+            {
+                var fileName = Path.GetFileName(file);
+                if (!includesWithoutSection.Contains(fileName, StringComparer.OrdinalIgnoreCase))
+                {
+                    includesWithoutSection.Add(fileName);
+                }
+            }
+        }
 
         if (!includesWithoutSection.Contains(designFile, StringComparer.OrdinalIgnoreCase))
         {
@@ -441,13 +458,16 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Builds the port list for DUT instantiation by combining ports, supplies, and grounds.
+    /// Ports are already desugared to scalar types by BundleDesugarer.
     /// </summary>
     internal static List<string> BuildPortList(Circuit circuit)
     {
         var result = new List<string>();
 
         foreach (var port in circuit.Ports)
+        {
             result.Add(port.Name);
+        }
 
         foreach (var supply in circuit.Supplies)
             result.Add(supply);
@@ -460,16 +480,45 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Checks if the circuit uses generic device models (nmos/pmos without PDK binding).
+    /// Also checks subcircuits for hierarchical designs.
     /// </summary>
-    internal static bool UsesGenericModels(Circuit circuit)
+    internal static bool UsesGenericModels(Circuit circuit, ACIRDocument? document = null)
     {
-        return circuit.Fill?.Devices?.Any(d =>
+        // Check direct devices
+        var hasGenericDevices =
+            circuit.Fill?.Devices?.Any(d =>
             {
                 var modelName = d.PdkDevice ?? d.DeviceType;
                 return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase)
                     || modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
             })
             ?? false;
+
+        if (hasGenericDevices)
+        {
+            return true;
+        }
+
+        // Check instances (for hierarchical designs)
+        if (document is not null && circuit.Fill?.Instances?.Count > 0)
+        {
+            var circuitsByName = document.Circuits.ToDictionary(
+                c => c.Name,
+                StringComparer.Ordinal
+            );
+            foreach (var instance in circuit.Fill.Instances)
+            {
+                if (
+                    circuitsByName.TryGetValue(instance.Type, out var targetCircuit)
+                    && UsesGenericModels(targetCircuit, document)
+                )
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -559,6 +608,8 @@ public static class ACIRBenchAdapter
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
+    /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
+    /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
     /// <returns>TestbenchFiles with path to generated netlist.</returns>
     public static TestbenchFiles GenerateTestbench(
         Circuit circuit,
@@ -566,7 +617,9 @@ public static class ACIRBenchAdapter
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
-        BenchIncludeResolution? includeResolution = null
+        BenchIncludeResolution? includeResolution = null,
+        IReadOnlyList<string>? allDesignFiles = null,
+        ACIRDocument? document = null
     )
     {
         ArgumentNullException.ThrowIfNull(circuit);
@@ -579,7 +632,9 @@ public static class ACIRBenchAdapter
             backend,
             outputDir,
             workspaceRoot,
-            includeResolution
+            includeResolution,
+            allDesignFiles,
+            document
         );
         var plan = harness.BuildPlan(context);
 

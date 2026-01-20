@@ -51,7 +51,9 @@ public class AcirJsonConverterConstraintsTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         var constraint = doc.Circuits[0].Constraints!.Numeric[0];
         Assert.Equal("c_gbw", constraint.Id);
@@ -108,7 +110,9 @@ public class AcirJsonConverterConstraintsTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         var constraint = doc.Circuits[0].Constraints!.Tech[0];
         Assert.Equal("t_lmin", constraint.Id);
@@ -162,7 +166,9 @@ public class AcirJsonConverterConstraintsTests
             ""benches"": []
         }}";
 
-        var doc = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var doc = result.Document!;
 
         var measureIntent = doc.Circuits[0].Constraints!.Measure[0];
         Assert.Equal("m_gbw", measureIntent.Id);
@@ -177,7 +183,9 @@ public class AcirJsonConverterConstraintsTests
         var original = CreateCircuitWithAllConstraintTypes();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var constraints = roundTripped.Circuits[0].Constraints!;
         Assert.Single(constraints.Numeric);

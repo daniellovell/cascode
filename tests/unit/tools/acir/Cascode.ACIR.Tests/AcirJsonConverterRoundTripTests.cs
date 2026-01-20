@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using Cascode.ACIR;
 using Cascode.ACIR.Json;
+using Cascode.TestSupport;
 
 namespace Cascode.ACIR.Tests;
 
@@ -13,7 +15,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateSimpleElCircuit();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal(original.Circuits[0].Name, roundTripped.Circuits[0].Name);
     }
@@ -24,7 +28,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateSimpleElCircuit();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var originalDevice = original.Circuits[0].Fill!.Devices[0];
         var roundTrippedDevice = roundTripped.Circuits[0].Fill!.Devices[0];
@@ -40,7 +46,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithConstraints();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         var originalConstraint = original.Circuits[0].Constraints!.Numeric[0];
         var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Numeric[0];
@@ -74,7 +82,9 @@ public class AcirJsonConverterRoundTripTests
         };
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.Equal(2, roundTripped.Circuits[0].Supplies.Count);
         Assert.Equal("VDD", roundTripped.Circuits[0].Supplies[0]);
@@ -90,7 +100,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithBenches();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.NotNull(roundTripped.Circuits[0].Benches);
         Assert.Equal(2, roundTripped.Circuits[0].Benches!.Benches.Count);
@@ -118,7 +130,9 @@ public class AcirJsonConverterRoundTripTests
         var original = CreateCircuitWithNets();
 
         var json = AcirJsonConverter.ToJson(original);
-        var roundTripped = AcirJsonConverter.FromJson(json);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
 
         Assert.NotNull(roundTripped.Circuits[0].Fill);
         Assert.Equal(2, roundTripped.Circuits[0].Fill!.Nets.Count);
@@ -126,6 +140,40 @@ public class AcirJsonConverterRoundTripTests
         Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[0].Domain);
         Assert.Equal("bias_node", roundTripped.Circuits[0].Fill!.Nets[1].Id);
         Assert.Equal("analog", roundTripped.Circuits[0].Fill!.Nets[1].Domain);
+    }
+
+    [Fact]
+    public void RoundTrip_TelescopicCascodeAttach_PreservesAttachesAndBiases()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var acirPath = Path.Combine(
+            repoRoot,
+            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cir"
+        );
+
+        ACIRDocument doc;
+        using (var reader = File.OpenText(acirPath))
+        {
+            doc = ACIRReader.Read(reader, acirPath);
+        }
+
+        var json = AcirJsonConverter.ToJson(doc, "TelescopicCascodeFullyDiff_Attach");
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
+
+        var fill = roundTripped.Circuits[0].Fill!;
+        Assert.NotNull(fill.Attaches);
+        Assert.Equal(2, fill.Attaches.Count);
+        Assert.Equal("nl", fill.Attaches[0].SourceInstance);
+        Assert.Equal("dp", fill.Attaches[0].TargetInstances[0]);
+        Assert.Equal("pl2", fill.Attaches[1].SourceInstance);
+        Assert.Equal(2, fill.Attaches[1].TargetInstances.Count);
+        Assert.Equal("pl1", fill.Attaches[1].TargetInstances[0]);
+        Assert.Equal("nl", fill.Attaches[1].TargetInstances[1]);
+
+        Assert.NotNull(roundTripped.Circuits[0].Harness);
+        Assert.Equal(4, roundTripped.Circuits[0].Harness!.Biases.Count);
     }
 
     [Fact]

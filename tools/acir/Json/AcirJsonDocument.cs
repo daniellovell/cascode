@@ -11,6 +11,10 @@ public sealed record AcirJsonDocument
     [JsonPropertyName("acirVersion")]
     public string AcirVersion { get; init; } = ACIRVersion.Current;
 
+    [JsonPropertyName("traits")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonTrait>? Traits { get; init; }
+
     [JsonPropertyName("circuit")]
     public required AcirJsonCircuitInfo Circuit { get; init; }
 
@@ -28,6 +32,14 @@ public sealed record AcirJsonDocument
 
     [JsonPropertyName("components")]
     public IReadOnlyList<AcirJsonComponent> Components { get; init; } = [];
+
+    [JsonPropertyName("instances")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonInstance>? Instances { get; init; }
+
+    [JsonPropertyName("attaches")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonAttach>? Attaches { get; init; }
 
     [JsonPropertyName("constraints")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -55,6 +67,18 @@ public sealed record AcirJsonCircuitInfo
 
     [JsonPropertyName("level")]
     public string Level { get; init; } = "EL";
+
+    [JsonPropertyName("inline")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Inline { get; init; }
+
+    [JsonPropertyName("parameters")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonCircuitParameter>? Parameters { get; init; }
+
+    [JsonPropertyName("sizes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonSizeDeclaration>? Sizes { get; init; }
 }
 
 /// <summary>
@@ -267,4 +291,117 @@ public sealed record AcirJsonHarnessSweep
     [JsonPropertyName("isAuto")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool IsAuto { get; init; }
+}
+
+/// <summary>
+/// Trait definition in JSON format.
+/// </summary>
+public sealed record AcirJsonTrait
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("ports")]
+    public IReadOnlyList<AcirJsonPort> Ports { get; init; } = [];
+
+    [JsonPropertyName("connectors")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonConnector>? Connectors { get; init; }
+}
+
+/// <summary>
+/// Trait connector definition in JSON format.
+/// </summary>
+public sealed record AcirJsonConnector
+{
+    [JsonPropertyName("targetTrait")]
+    public required string TargetTrait { get; init; }
+
+    [JsonPropertyName("mappings")]
+    public IReadOnlyList<AcirJsonMapping> Mappings { get; init; } = [];
+}
+
+/// <summary>
+/// Port mapping in a connector.
+/// </summary>
+public sealed record AcirJsonMapping
+{
+    [JsonPropertyName("source")]
+    public required string Source { get; init; }
+
+    [JsonPropertyName("target")]
+    public required string Target { get; init; }
+}
+
+/// <summary>
+/// Circuit parameter declaration in JSON format.
+/// </summary>
+public sealed record AcirJsonCircuitParameter
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+
+    [JsonPropertyName("default")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Default { get; init; }
+}
+
+/// <summary>
+/// Instance declaration in JSON format (ML level).
+/// </summary>
+public sealed record AcirJsonInstance
+{
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+
+    [JsonPropertyName("bindings")]
+    public IReadOnlyDictionary<string, string> Bindings { get; init; } =
+        new Dictionary<string, string>();
+
+    [JsonPropertyName("params")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Params { get; init; }
+
+    [JsonPropertyName("sizes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>>? Sizes { get; init; }
+}
+
+public sealed record AcirJsonSizeDeclaration
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("default")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Default { get; init; }
+}
+
+/// <summary>
+/// Attach statement in JSON format.
+/// </summary>
+public sealed record AcirJsonAttach
+{
+    [JsonPropertyName("sourceInstance")]
+    public required string SourceInstance { get; init; }
+
+    [JsonPropertyName("targetInstances")]
+    public required IReadOnlyList<string> TargetInstances { get; init; }
+
+    [JsonPropertyName("via")]
+    public required string Via { get; init; }
+
+    [JsonPropertyName("anchor")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Anchor { get; init; }
+
+    [JsonPropertyName("overrides")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonMapping>? Overrides { get; init; }
 }

@@ -1,0 +1,22 @@
+ACIR 2.0
+
+trait CurrentMirrorLike:
+  port SENSE : analog
+  port TAP[0] : analog
+  connectors:
+    to LoadBranch:
+      TAP[0] -> IN
+
+circuit CurrentMirror : CurrentMirrorLike
+  level EL
+  param ratio : real = 1
+  supply VDD
+  ground GND
+  port SENSE : analog
+  port TAP[0] : analog
+  fill:
+    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->VDD) : size=(W=2u, L=180n, M=1) pmos
+    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : size=(W=2u, L=180n, M=$ratio) pmos
+  constraints:
+    tech:
+      t_lmin : L >= 180n m on *

@@ -18,5 +18,9 @@ public sealed record BenchIncludeResolution(
 
 public interface IBenchIncludeResolver
 {
-    BenchIncludeResolution Resolve(Circuit circuit, BenchBackendType backend);
+    BenchIncludeResolution Resolve(
+        Circuit circuit,
+        BenchBackendType backend,
+        ACIRDocument? document = null
+    );
 }
