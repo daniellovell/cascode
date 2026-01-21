@@ -132,20 +132,26 @@ public class SvgBoundsTests
     private static void AssertAllContentWithinBounds(string svg)
     {
         // Extract viewBox dimensions
-        var viewBoxMatch = Regex.Match(svg, @"viewBox=""(\d+)\s+(\d+)\s+(\d+)\s+(\d+)""");
+        var viewBoxMatch = Regex.Match(
+            svg,
+            @"viewBox=""(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)"""
+        );
         Assert.True(viewBoxMatch.Success, "SVG should have a viewBox");
 
-        var viewBoxX = int.Parse(viewBoxMatch.Groups[1].Value);
-        var viewBoxY = int.Parse(viewBoxMatch.Groups[2].Value);
-        var viewBoxWidth = int.Parse(viewBoxMatch.Groups[3].Value);
-        var viewBoxHeight = int.Parse(viewBoxMatch.Groups[4].Value);
+        var viewBoxX = double.Parse(viewBoxMatch.Groups[1].Value);
+        var viewBoxY = double.Parse(viewBoxMatch.Groups[2].Value);
+        var viewBoxWidth = double.Parse(viewBoxMatch.Groups[3].Value);
+        var viewBoxHeight = double.Parse(viewBoxMatch.Groups[4].Value);
 
         // Extract main content group translate
-        var mainTranslateMatch = Regex.Match(svg, @"<g transform=""translate\((\d+),\s*(\d+)\)"">");
+        var mainTranslateMatch = Regex.Match(
+            svg,
+            @"<g transform=""translate\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)\)"">"
+        );
         Assert.True(mainTranslateMatch.Success, "SVG should have main content group");
 
-        var mainOffsetX = int.Parse(mainTranslateMatch.Groups[1].Value);
-        var mainOffsetY = int.Parse(mainTranslateMatch.Groups[2].Value);
+        var mainOffsetX = double.Parse(mainTranslateMatch.Groups[1].Value);
+        var mainOffsetY = double.Parse(mainTranslateMatch.Groups[2].Value);
 
         // Find all port groups with their transforms
         var portPattern = new Regex(
