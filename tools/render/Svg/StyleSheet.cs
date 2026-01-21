@@ -72,7 +72,7 @@ public sealed class StyleSheet
         return $@"
             .wire {{ stroke: {WireStroke}; stroke-width: {StrokeWidth}; fill: none; }}
             .junction {{ fill: {WireStroke}; }}
-            .device {{ stroke: {DeviceStroke}; fill: {DeviceFill}; }}
+            .device {{ stroke: {DeviceStroke}; }}
             .device-label {{ font-family: {LabelFont}; font-size: {FontSize}px; fill: {LabelColor}; }}
             .param-label {{ font-family: {LabelFont}; font-size: {FontSize - 2}px; fill: {LabelColor}; opacity: 0.8; }}
             .port-label {{ font-family: {LabelFont}; font-size: {FontSize}px; fill: {LabelColor}; font-weight: bold; }}

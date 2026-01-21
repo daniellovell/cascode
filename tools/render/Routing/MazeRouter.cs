@@ -8,7 +8,7 @@ using Cascode.Render.Placement;
 /// Simple maze-based router for schematic wire routing.
 /// Routes nets iteratively using Manhattan paths with obstacle avoidance.
 /// </summary>
-public static class MazeRouter
+public static partial class MazeRouter
 {
     /// <summary>
     /// Gets terminals grouped by net name (for testing).
@@ -30,7 +30,20 @@ public static class MazeRouter
     /// <summary>
     /// Routes all nets in the circuit.
     /// </summary>
-    public static RoutingResult Route(CoarseGridResult placement, CircuitGraph graph)
+    public static RoutingResult Route(CoarseGridResult placement, CircuitGraph graph) =>
+        RouteWithOccupied(placement, graph).Result;
+
+    /// <summary>
+    /// Routes all nets and returns the occupied segments map (for testing).
+    /// Used to verify that the occupied map only contains segments in the final result.
+    /// </summary>
+    /// <param name="placement">The coarse grid placement result.</param>
+    /// <param name="graph">The circuit graph.</param>
+    /// <returns>A tuple containing the routing result and the final occupied segments map.</returns>
+    internal static (RoutingResult Result, OccupiedSegments Occupied) RouteWithOccupied(
+        CoarseGridResult placement,
+        CircuitGraph graph
+    )
     {
         var canvasWidth = placement.ColumnCount * DeviceGeometry.CellWidth;
         var canvasHeight =
@@ -99,16 +112,19 @@ public static class MazeRouter
             AddSegments(segs, netName, occupied, allSegments, segmentsByNet);
         }
 
-        var junctions = FindJunctions(allSegments);
+        var junctions = FindJunctions(allSegments, terminals);
 
-        return new RoutingResult
+        var result = new RoutingResult
         {
             Segments = allSegments,
             Junctions = junctions,
             SegmentsByNet = segmentsByNet,
             CanvasWidth = canvasWidth,
             CanvasHeight = canvasHeight,
+            TerminalPositions = terminals,
         };
+
+        return (result, occupied);
     }
 
     /// <summary>
@@ -166,15 +182,20 @@ public static class MazeRouter
         IReadOnlySet<GridPoint> forbiddenPoints
     )
     {
-        var segments = new List<WireSegment>();
+        var rawSegments = new List<WireSegment>();
 
         if (terminals.Count < 2)
         {
-            return segments;
+            return rawSegments;
         }
 
         // Build MST of terminals
         var mstEdges = ComputeMST(terminals);
+
+        // Create an overlay to track raw segments during intra-net routing.
+        // This prevents ghost segments from polluting the shared occupied map
+        // when they get pruned later by merge/prune operations.
+        var overlay = new OverlayOccupiedSegments(occupied);
 
         // Route each edge
         foreach (var (fromIdx, toIdx) in mstEdges)
@@ -182,21 +203,36 @@ public static class MazeRouter
             var from = new GridPoint(terminals[fromIdx].X, terminals[fromIdx].Y);
             var to = new GridPoint(terminals[toIdx].X, terminals[toIdx].Y);
 
-            var path = PathFinder.FindPath(from, to, netName, obstacles, occupied, forbiddenPoints);
-            segments.AddRange(path);
+            var path = PathFinder.FindPath(from, to, netName, obstacles, overlay, forbiddenPoints);
+            rawSegments.AddRange(path);
 
-            // Add path segments to occupied immediately so subsequent edges avoid them
+            // Add path segments to overlay so subsequent edges avoid them
             foreach (var seg in path)
             {
-                occupied.Add(seg);
+                overlay.Add(seg);
             }
         }
 
-        return segments;
+        // Post-process to merge overlapping collinear segments
+        var mergedSegments = MergeCollinearSegments(rawSegments, netName);
+
+        // Build set of terminal points for this net
+        var terminalPoints = terminals.Select(t => new GridPoint(t.X, t.Y)).ToHashSet();
+
+        // Eliminate redundant parallel horizontal paths
+        var cleanedSegments = EliminateRedundantParallelPaths(
+            mergedSegments,
+            netName,
+            terminalPoints
+        );
+
+        return cleanedSegments;
     }
 
     /// <summary>
-    /// Computes minimum spanning tree using Prim's algorithm with Manhattan distance.
+    /// Computes minimum spanning tree using Prim's algorithm with biased distance.
+    /// Terminals sharing the same X or Y coordinate get a cost discount to encourage
+    /// direct connections along device axes rather than routing through ports.
     /// Returns list of (fromIndex, toIndex) edges.
     /// </summary>
     private static List<(int, int)> ComputeMST(List<TerminalPosition> terminals)
@@ -228,7 +264,7 @@ public static class MazeRouter
                         continue;
                     }
 
-                    var dist = ManhattanDistance(terminals[i], terminals[j]);
+                    var dist = BiasedDistance(terminals[i], terminals[j]);
                     if (dist < bestDist)
                     {
                         bestDist = dist;
@@ -251,9 +287,34 @@ public static class MazeRouter
         return edges;
     }
 
-    private static int ManhattanDistance(TerminalPosition a, TerminalPosition b)
+    /// <summary>
+    /// Computes biased distance between terminals for MST construction.
+    /// Gate-to-gate connections get a 50% discount to encourage tying gates together
+    /// before routing to other terminals (like resistor internal nodes).
+    /// Terminals sharing the same X coordinate (vertical alignment) also get a 50% discount
+    /// to encourage routing along device stacks.
+    /// </summary>
+    private static int BiasedDistance(TerminalPosition a, TerminalPosition b)
     {
-        return Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+        var manhattan = Math.Abs(a.X - b.X) + Math.Abs(a.Y - b.Y);
+
+        // Gate-to-gate connections get a strong preference.
+        // This ensures gates (e.g., PMOS load gates) connect directly to each other
+        // before routing down to other nodes (like resistor taps).
+        if (a.Terminal == "G" && b.Terminal == "G")
+        {
+            return manhattan / 2;
+        }
+
+        // Vertical connections (same X) get a preference.
+        // This ensures devices in the same vertical stack are connected directly
+        // but doesn't shortcut horizontal connections that should go through center devices.
+        if (a.X == b.X)
+        {
+            return manhattan / 2;
+        }
+
+        return manhattan;
     }
 
     /// <summary>
@@ -273,245 +334,5 @@ public static class MazeRouter
         }
         allSegments.AddRange(segments);
         segmentsByNet[netName] = segments;
-    }
-
-    /// <summary>
-    /// Finds junction points where 3+ wire segments meet.
-    /// </summary>
-    private static List<GridPoint> FindJunctions(List<WireSegment> segments)
-    {
-        var pointCounts = new Dictionary<GridPoint, int>();
-
-        foreach (var seg in segments)
-        {
-            pointCounts[seg.From] = pointCounts.GetValueOrDefault(seg.From, 0) + 1;
-            pointCounts[seg.To] = pointCounts.GetValueOrDefault(seg.To, 0) + 1;
-        }
-
-        // Also count mid-segment intersections
-        for (var i = 0; i < segments.Count; i++)
-        {
-            for (var j = i + 1; j < segments.Count; j++)
-            {
-                var intersection = GetIntersection(segments[i], segments[j]);
-                if (intersection.HasValue)
-                {
-                    var pt = intersection.Value;
-                    pointCounts[pt] = pointCounts.GetValueOrDefault(pt, 0) + 2;
-                }
-            }
-        }
-
-        return pointCounts.Where(kv => kv.Value >= 3).Select(kv => kv.Key).ToList();
-    }
-
-    /// <summary>
-    /// Gets intersection point of two segments if they cross.
-    /// </summary>
-    private static GridPoint? GetIntersection(WireSegment a, WireSegment b)
-    {
-        var aHorizontal = a.From.Y == a.To.Y;
-        var bHorizontal = b.From.Y == b.To.Y;
-
-        if (aHorizontal == bHorizontal)
-        {
-            return null; // Parallel, no single intersection
-        }
-
-        var h = aHorizontal ? a : b;
-        var v = aHorizontal ? b : a;
-
-        var x = v.From.X;
-        var y = h.From.Y;
-
-        var hMinX = Math.Min(h.From.X, h.To.X);
-        var hMaxX = Math.Max(h.From.X, h.To.X);
-        var vMinY = Math.Min(v.From.Y, v.To.Y);
-        var vMaxY = Math.Max(v.From.Y, v.To.Y);
-
-        if (x > hMinX && x < hMaxX && y > vMinY && y < vMaxY)
-        {
-            return new GridPoint(x, y);
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Computes terminal positions for all devices and ports.
-    /// </summary>
-    private static List<TerminalPosition> ComputeTerminalPositions(
-        CoarseGridResult placement,
-        CircuitGraph graph,
-        int canvasWidth,
-        int canvasHeight
-    )
-    {
-        var positions = new List<TerminalPosition>();
-
-        // Device terminals
-        foreach (var (deviceId, cell) in placement.DevicePlacements)
-        {
-            if (!graph.Devices.TryGetValue(deviceId, out var device))
-            {
-                continue;
-            }
-
-            var deviceType = device.DeviceType.ToLowerInvariant();
-
-            if (deviceType is "nmos" or "nfet" or "pmos" or "pfet")
-            {
-                var isPmos = deviceType is "pmos" or "pfet";
-                var p = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
-
-                positions.Add(new TerminalPosition(deviceId, "G", p.GateX, p.GateY));
-                positions.Add(
-                    new TerminalPosition(deviceId, "D", p.DrainX, isPmos ? p.SourceY : p.DrainY)
-                );
-                positions.Add(
-                    new TerminalPosition(deviceId, "S", p.SourceX, isPmos ? p.DrainY : p.SourceY)
-                );
-            }
-            else if (deviceType is "resistor" or "capacitor")
-            {
-                var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                positions.Add(new TerminalPosition(deviceId, "P", p.PX, p.PY));
-                positions.Add(new TerminalPosition(deviceId, "N", p.NX, p.NY));
-            }
-        }
-
-        // Port terminals
-        var terminalYByNet = ComputeTerminalYByNet(positions, graph);
-
-        // Left ports (inputs, bias) - use average Y
-        var leftPorts = graph.InputPorts.Concat(graph.BiasPorts).ToList();
-        var leftYs = ComputePortYPositions(leftPorts, terminalYByNet, preferMaxY: false);
-        foreach (var port in leftPorts)
-        {
-            var y = leftYs.GetValueOrDefault(port, DeviceGeometry.RailMargin + 50);
-            positions.Add(new TerminalPosition($"PORT_{port}", "P", 0, y));
-        }
-
-        // Right ports (outputs) - use max Y to align with drain positions
-        var rightYs = ComputePortYPositions(
-            graph.OutputPorts.ToList(),
-            terminalYByNet,
-            preferMaxY: true
-        );
-        foreach (var port in graph.OutputPorts)
-        {
-            var y = rightYs.GetValueOrDefault(port, DeviceGeometry.RailMargin + 50);
-            positions.Add(new TerminalPosition($"PORT_{port}", "P", canvasWidth, y));
-        }
-
-        return positions;
-    }
-
-    /// <summary>
-    /// Groups terminal Y positions by net for port alignment.
-    /// </summary>
-    private static Dictionary<string, List<int>> ComputeTerminalYByNet(
-        List<TerminalPosition> positions,
-        CircuitGraph graph
-    )
-    {
-        var result = new Dictionary<string, List<int>>();
-
-        foreach (var pos in positions)
-        {
-            var netName = graph.GetNetForTerminal(pos.DeviceId, pos.Terminal);
-            if (netName == null)
-            {
-                continue;
-            }
-
-            if (!result.TryGetValue(netName, out var list))
-            {
-                list = new List<int>();
-                result[netName] = list;
-            }
-            list.Add(pos.Y);
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Computes Y positions for ports based on connected terminals.
-    /// </summary>
-    private static Dictionary<string, int> ComputePortYPositions(
-        List<string> portNames,
-        Dictionary<string, List<int>> terminalYByNet,
-        bool preferMaxY
-    )
-    {
-        var result = new Dictionary<string, int>();
-        var usedYs = new List<int>();
-        const int minSpacing = 15;
-
-        foreach (var port in portNames)
-        {
-            int y;
-
-            if (terminalYByNet.TryGetValue(port, out var ys) && ys.Count > 0)
-            {
-                // Match SvgRenderer logic: max for outputs, average for inputs
-                y = preferMaxY ? ys.Max() : (int)ys.Average();
-            }
-            else
-            {
-                y = DeviceGeometry.RailMargin + 50 + usedYs.Count * 20;
-            }
-
-            // Avoid collisions
-            while (usedYs.Any(used => Math.Abs(used - y) < minSpacing))
-            {
-                y += minSpacing;
-            }
-
-            result[port] = y;
-            usedYs.Add(y);
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Groups terminals by net name.
-    /// </summary>
-    private static Dictionary<string, List<TerminalPosition>> GroupTerminalsByNet(
-        List<TerminalPosition> terminals,
-        CircuitGraph graph
-    )
-    {
-        var byNet = new Dictionary<string, List<TerminalPosition>>();
-
-        foreach (var term in terminals)
-        {
-            string? netName;
-
-            if (term.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
-            {
-                netName = term.DeviceId.Substring(5);
-            }
-            else
-            {
-                netName = graph.GetNetForTerminal(term.DeviceId, term.Terminal);
-            }
-
-            if (netName == null)
-            {
-                continue;
-            }
-
-            if (!byNet.TryGetValue(netName, out var list))
-            {
-                list = new List<TerminalPosition>();
-                byNet[netName] = list;
-            }
-            list.Add(term);
-        }
-
-        return byNet;
     }
 }

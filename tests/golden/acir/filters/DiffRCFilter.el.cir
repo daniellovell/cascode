@@ -1,0 +1,16 @@
+ACIR 2.0
+
+circuit DiffRCFilter : DifferentialFilter
+  level EL
+  supply VDD
+  ground GND
+  port IN_P : analog
+  port IN_N : analog
+  port OUT_P : analog
+  port OUT_N : analog
+  fill:
+    resistor R_P (P->IN_P, N->OUT_P) : R=10k
+    resistor R_N (P->IN_N, N->OUT_N) : R=10k
+    capacitor C_DIFF (P->OUT_P, N->OUT_N) : C=1p
+  harness:
+    supply VDD = 1.8V

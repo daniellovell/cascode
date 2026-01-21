@@ -5,7 +5,7 @@ namespace Cascode.Render.Layout;
 /// </summary>
 public static class DeviceGeometry
 {
-    public const int CellWidth = 60;
+    public const int CellWidth = 45;
     public const int CellHeight = 50;
     public const int RailMargin = 15;
     public const int RoutingPitch = 10;
@@ -39,6 +39,25 @@ public static class DeviceGeometry
     );
 
     public sealed record PassivePlacement(double X, double Y, int PX, int PY, int NX, int NY);
+
+    public sealed record HorizontalPassivePlacement(
+        double X,
+        double Y,
+        int PX,
+        int PY,
+        int NX,
+        int NY
+    );
+
+    /// <summary>
+    /// Terminal positions for any device type, used for terminal-aware wire length calculations.
+    /// Coordinates are absolute pixel positions after placement.
+    /// </summary>
+    public sealed record TerminalPositions(
+        double X,
+        double Y,
+        IReadOnlyDictionary<string, (int X, int Y)> Terminals
+    );
 
     public static double GetCellCenterX(int col)
     {
@@ -104,5 +123,204 @@ public static class DeviceGeometry
         var nY = RoundToInt(baseY + PassiveWidth / 2.0);
 
         return new PassivePlacement(X: topLeftX, Y: topLeftY, PX: axisX, PY: pY, NX: axisX, NY: nY);
+    }
+
+    /// <summary>
+    /// Computes placement for a horizontal passive (resistor/capacitor).
+    /// The passive spans horizontally with P terminal toward the outer edge
+    /// and N terminal toward the center (symmetry axis).
+    /// </summary>
+    /// <param name="row">Grid row</param>
+    /// <param name="col">Grid column</param>
+    /// <param name="columnCount">Total number of columns in the grid</param>
+    /// <param name="isLeftOfAxis">True if this device is left of the symmetry axis</param>
+    public static HorizontalPassivePlacement GetHorizontalPassivePlacement(
+        int row,
+        int col,
+        int columnCount,
+        bool isLeftOfAxis
+    )
+    {
+        var baseX = GetCellCenterX(col);
+        var baseY = GetCellCenterY(row);
+
+        // For horizontal passive, width and height are swapped
+        var topLeftX = baseX - PassiveWidth / 2.0;
+        var topLeftY = baseY - PassiveHeight / 2.0;
+
+        // P terminal is on the outer edge (away from center)
+        // N terminal is toward the center
+        int pX,
+            nX;
+        if (isLeftOfAxis)
+        {
+            // Left of axis: P on left, N on right (toward center)
+            pX = RoundToInt(baseX - PassiveWidth / 2.0);
+            nX = RoundToInt(baseX + PassiveWidth / 2.0);
+        }
+        else
+        {
+            // Right of axis: P on right, N on left (toward center)
+            pX = RoundToInt(baseX + PassiveWidth / 2.0);
+            nX = RoundToInt(baseX - PassiveWidth / 2.0);
+        }
+
+        var termY = RoundToInt(baseY);
+
+        return new HorizontalPassivePlacement(
+            X: topLeftX,
+            Y: topLeftY,
+            PX: pX,
+            PY: termY,
+            NX: nX,
+            NY: termY
+        );
+    }
+
+    /// <summary>
+    /// Computes terminal positions for any device type at a given grid position.
+    /// Used for terminal-aware wire length optimization in the SAT solver.
+    /// </summary>
+    /// <param name="deviceType">Type of device (nmos, pmos, resistor, capacitor)</param>
+    /// <param name="row">Grid row</param>
+    /// <param name="col">Grid column</param>
+    /// <param name="mirrorX">Whether the device is mirrored horizontally</param>
+    /// <param name="isHorizontalPassive">Whether this passive is oriented horizontally</param>
+    /// <param name="columnCount">Total number of columns (for horizontal passive orientation)</param>
+    /// <param name="symmetryAxis">Column index of the symmetry axis</param>
+    public static TerminalPositions GetTerminalPositions(
+        string deviceType,
+        int row,
+        int col,
+        bool mirrorX,
+        bool isHorizontalPassive,
+        int columnCount,
+        int symmetryAxis
+    )
+    {
+        var type = deviceType.ToLowerInvariant();
+        var terminals = new Dictionary<string, (int X, int Y)>();
+        double x,
+            y;
+
+        if (type is "nmos" or "nfet" or "pmos" or "pfet")
+        {
+            var isPmos = type is "pmos" or "pfet";
+            var p = GetMosfetPlacement(row, col, mirrorX);
+            x = p.X;
+            y = p.Y;
+
+            terminals["G"] = (p.GateX, p.GateY);
+            terminals["D"] = (p.DrainX, isPmos ? p.SourceY : p.DrainY);
+            terminals["S"] = (p.SourceX, isPmos ? p.DrainY : p.SourceY);
+        }
+        else if (type is "resistor" or "capacitor")
+        {
+            if (isHorizontalPassive)
+            {
+                var isLeftOfAxis = col < symmetryAxis;
+                var p = GetHorizontalPassivePlacement(row, col, columnCount, isLeftOfAxis);
+                x = p.X;
+                y = p.Y;
+                terminals["P"] = (p.PX, p.PY);
+                terminals["N"] = (p.NX, p.NY);
+            }
+            else
+            {
+                var p = GetPassivePlacement(row, col);
+                x = p.X;
+                y = p.Y;
+                terminals["P"] = (p.PX, p.PY);
+                terminals["N"] = (p.NX, p.NY);
+            }
+        }
+        else
+        {
+            // Unknown device type - use cell center
+            x = GetCellCenterX(col);
+            y = GetCellCenterY(row);
+        }
+
+        return new TerminalPositions(x, y, terminals);
+    }
+
+    /// <summary>
+    /// Gets the terminal offset from cell center for SAT wire length computation.
+    /// Returns (deltaColumn, deltaRow) in cell units, accounting for terminal position
+    /// relative to the cell center.
+    /// </summary>
+    public static (double DeltaCol, double DeltaRow) GetTerminalOffset(
+        string deviceType,
+        string terminal,
+        bool mirrorX,
+        bool isHorizontalPassive,
+        bool isLeftOfAxis
+    )
+    {
+        var type = deviceType.ToLowerInvariant();
+
+        if (type is "nmos" or "nfet" or "pmos" or "pfet")
+        {
+            var isPmos = type is "pmos" or "pfet";
+            terminal = terminal.ToUpperInvariant();
+
+            // Gate offset in column direction
+            if (terminal == "G")
+            {
+                // Gate is offset horizontally from axis
+                var gateOffsetRatio = (MosfetGateX - MosfetDrainX) / CellWidth;
+                return (mirrorX ? -gateOffsetRatio : gateOffsetRatio, 0);
+            }
+
+            // Drain/Source offset in row direction
+            if (terminal == "D")
+            {
+                var drainRowOffset = isPmos ? 0.25 : -0.25;
+                return (0, drainRowOffset);
+            }
+
+            if (terminal == "S")
+            {
+                var sourceRowOffset = isPmos ? -0.25 : 0.25;
+                return (0, sourceRowOffset);
+            }
+        }
+        else if (type is "resistor" or "capacitor")
+        {
+            terminal = terminal.ToUpperInvariant();
+
+            if (isHorizontalPassive)
+            {
+                // Horizontal passive: terminals offset in column direction
+                var halfWidthRatio = (PassiveWidth / 2.0) / CellWidth;
+                if (terminal == "P")
+                {
+                    // P terminal is on outer edge
+                    return (isLeftOfAxis ? -halfWidthRatio : halfWidthRatio, 0);
+                }
+
+                if (terminal == "N")
+                {
+                    // N terminal is toward center
+                    return (isLeftOfAxis ? halfWidthRatio : -halfWidthRatio, 0);
+                }
+            }
+            else
+            {
+                // Vertical passive: terminals offset in row direction
+                var halfHeightRatio = (PassiveWidth / 2.0) / CellHeight;
+                if (terminal == "P")
+                {
+                    return (0, -halfHeightRatio);
+                }
+
+                if (terminal == "N")
+                {
+                    return (0, halfHeightRatio);
+                }
+            }
+        }
+
+        return (0, 0);
     }
 }

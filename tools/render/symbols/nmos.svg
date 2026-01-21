@@ -2,13 +2,13 @@
 <svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.0996 26">
   <defs>
     <style>
-      .cls-1 {
+      .nmos-stroke {
         fill: none;
         stroke: #231f20;
         stroke-linecap: square;
       }
 
-      .cls-2 {
+      .nmos-fill {
         fill: #231f20;
       }
     </style>
@@ -16,17 +16,17 @@
   <g id="Layer_1-2" data-name="Layer 1">
     <g>
       <g>
-        <line class="cls-1" x1="16.5" y1="8.5703" x2="16.5" y2=".5"/>
-        <line class="cls-1" x1="10.5227" y1="8.5703" x2="16.5" y2="8.5703"/>
+        <line class="nmos-stroke" x1="16.5" y1="8.5703" x2="16.5" y2=".5"/>
+        <line class="nmos-stroke" x1="10.5227" y1="8.5703" x2="16.5" y2="8.5703"/>
       </g>
-      <line class="cls-1" x1="16.5" y1="17.4297" x2="16.5" y2="25.5"/>
+      <line class="nmos-stroke" x1="16.5" y1="17.4297" x2="16.5" y2="25.5"/>
       <g>
-        <line class="cls-1" x1="10.5227" y1="17.3164" x2="13.5113" y2="17.3164"/>
-        <polygon class="cls-2" points="12.7815 19.8172 17.0996 17.3242 12.7815 14.8312 12.7815 19.8172"/>
+        <line class="nmos-stroke" x1="10.5227" y1="17.3164" x2="13.5113" y2="17.3164"/>
+        <polygon class="nmos-fill" points="12.7815 19.8172 17.0996 17.3242 12.7815 14.8312 12.7815 19.8172"/>
       </g>
-      <line class="cls-1" x1="10.2001" y1="6.5369" x2="10.2001" y2="19.396"/>
-      <line class="cls-1" x1="8.0079" y1="8.456" x2="8.0079" y2="17.4297"/>
-      <line class="cls-1" x1="8.0079" y1="12.5" x2=".5" y2="12.5"/>
+      <line class="nmos-stroke" x1="10.2001" y1="6.5369" x2="10.2001" y2="19.396"/>
+      <line class="nmos-stroke" x1="8.0079" y1="8.456" x2="8.0079" y2="17.4297"/>
+      <line class="nmos-stroke" x1="8.0079" y1="12.5" x2=".5" y2="12.5"/>
     </g>
   </g>
 </svg>

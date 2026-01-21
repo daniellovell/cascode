@@ -13,6 +13,7 @@ public class RoutingSanityTests
     [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
     [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
     public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeAcirPath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
