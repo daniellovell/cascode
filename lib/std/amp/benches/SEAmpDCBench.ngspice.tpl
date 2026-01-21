@@ -28,10 +28,7 @@ VIN IN 0 DC {{ bias_v }}
 {{ end }}
 
 * Output load
-{{ for load in harness.loads }}
-{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
-{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
-{{ end }}{{ end }}
+{{ load_elements }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}

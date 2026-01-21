@@ -37,10 +37,7 @@ E_IN_N IN_N_drv 0 VOL = 'v(vcm) - 0.5 * v(vin_src)'
 RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
 RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
 
-{{ for load in harness.loads }}
-{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
-{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
-{{ end }}{{ end }}
+{{ load_elements }}
 
 CLOAD OUT 0 {{ env.cload_f }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
