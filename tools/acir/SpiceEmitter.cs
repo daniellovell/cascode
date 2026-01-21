@@ -43,6 +43,7 @@ public static class SpiceEmitter
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
     /// <param name="document">Optional ACIR document for resolving instance types.</param>
     /// <param name="resolution">Optional attach resolution result for resolved net names.</param>
+    /// <param name="backend">Target SPICE backend for SI prefix formatting (default: ngspice).</param>
     /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
     /// <remarks>
     /// Output format:
@@ -61,7 +62,8 @@ public static class SpiceEmitter
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap = null,
         ACIRDocument? document = null,
-        CircuitResolutionResult? resolution = null
+        CircuitResolutionResult? resolution = null,
+        BenchBackendType backend = BenchBackendType.Ngspice
     )
     {
         if (circuit.Level != ACIRLevel.EL)
@@ -125,7 +127,7 @@ public static class SpiceEmitter
             var sizeBindings = BuildSizeBindings(circuit);
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
-                EmitDevice(device, writer, deviceModelMap, sizeBindings);
+                EmitDevice(device, writer, deviceModelMap, sizeBindings, backend);
             }
         }
 
@@ -166,7 +168,8 @@ public static class SpiceEmitter
                             circuitsByName,
                             resolution,
                             deviceModelMap,
-                            writer
+                            writer,
+                            backend
                         );
                     }
                     else
@@ -317,7 +320,8 @@ public static class SpiceEmitter
                     writer,
                     includeResolution?.DeviceModelMap,
                     doc,
-                    circuitResolution
+                    circuitResolution,
+                    backend
                 );
             }
             result.DesignPaths.Add(designPath);
@@ -422,12 +426,16 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="device">Device to emit.</param>
     /// <param name="writer">Text writer for output.</param>
+    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
+    /// <param name="sizeBindings">Optional size pack bindings for device parameter expansion.</param>
+    /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
     /// <exception cref="InvalidOperationException">Thrown if device type is unknown or required terminals are missing.</exception>
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        IReadOnlyDictionary<string, SizePack>? sizeBindings
+        IReadOnlyDictionary<string, SizePack>? sizeBindings,
+        BenchBackendType backend
     )
     {
         var deviceParams = ExpandSizeParams(device, sizeBindings);
@@ -462,7 +470,7 @@ public static class SpiceEmitter
             sb.Append(GetBinding(device, "N"));
             sb.Append(' ');
 
-            // Value parameter
+            // Value parameter (transform for backend: M -> MEG for ngspice)
             var valueKey = spiceType switch
             {
                 "R" => "R",
@@ -472,7 +480,8 @@ public static class SpiceEmitter
             };
             if (deviceParams.TryGetValue(valueKey, out var value))
             {
-                sb.Append(ConvertParamRef(value));
+                var converted = ConvertParamRef(value);
+                sb.Append(ACIRBenchAdapter.TransformValueForBackend(converted, backend));
             }
         }
         else if (spiceType == "D")
@@ -613,7 +622,8 @@ public static class SpiceEmitter
         Dictionary<string, Circuit> circuitsByName,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        TextWriter writer
+        TextWriter writer,
+        BenchBackendType backend
     )
     {
         // Build current hierarchy path by appending this instance's ID
@@ -655,7 +665,8 @@ public static class SpiceEmitter
                     sizeBindings,
                     resolution,
                     deviceModelMap,
-                    writer
+                    writer,
+                    backend
                 );
             }
         }
@@ -693,7 +704,8 @@ public static class SpiceEmitter
                         circuitsByName,
                         resolution,
                         deviceModelMap,
-                        writer
+                        writer,
+                        backend
                     );
                 }
                 else
@@ -1056,7 +1068,8 @@ public static class SpiceEmitter
         IReadOnlyDictionary<string, SizePack>? sizeBindings,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        TextWriter writer
+        TextWriter writer,
+        BenchBackendType backend
     )
     {
         var deviceParams = ExpandSizeParams(device, sizeBindings);
@@ -1129,7 +1142,8 @@ public static class SpiceEmitter
             };
             if (deviceParams.TryGetValue(valueKey, out var value))
             {
-                sb.Append(ResolveParameterValue(value, paramBindings));
+                var resolved = ResolveParameterValue(value, paramBindings);
+                sb.Append(ACIRBenchAdapter.TransformValueForBackend(resolved, backend));
             }
         }
         else if (spiceType == "D")
