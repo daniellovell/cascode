@@ -1095,6 +1095,35 @@ public partial class EmitVerifyFlowTests : IDisposable
     }
 
     [Fact]
+    public async Task Emit_FD_OTA_DCBench_GeneratesSplitDifferentialLoads()
+    {
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+
+        var result = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            acirPath,
+            "--out",
+            _outputDir,
+            "--backend",
+            "ngspice"
+        );
+
+        CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
+
+        var dcBenchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp");
+        Assert.True(File.Exists(dcBenchPath), "DC testbench not found");
+
+        var content = await File.ReadAllTextAsync(dcBenchPath);
+
+        // The circuit has "load OUT C=1pF" - for differential bench this should be
+        // split into halved values (0.5pF) on both _P and _N outputs
+        Assert.Contains("COUT_P_load OUT_P 0 0.5p", content);
+        Assert.Contains("COUT_N_load OUT_N 0 0.5p", content);
+    }
+
+    [Fact]
     public async Task Emit_FD_OTA_DCSwept_GeneratesTestbenchWithICMRSweep()
     {
         var acirPath = Path.Combine(

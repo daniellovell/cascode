@@ -77,8 +77,8 @@
       "cascode.acir": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Bench": "[0.3.0, )",
-          "Cascode.Parser": "[0.3.0, )"
+          "Cascode.Bench": "[0.4.0, )",
+          "Cascode.Parser": "[0.4.0, )"
         }
       },
       "cascode.bench": {

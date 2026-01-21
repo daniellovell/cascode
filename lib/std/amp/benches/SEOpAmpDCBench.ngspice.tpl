@@ -30,10 +30,7 @@ EIN_N IN_N 0 IN_P 0 1
 {{ end }}
 
 * Output load
-{{ for load in harness.loads }}
-{{ for c in load.cs }}C{{ load.net }}_load{{ if load.cs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ c }}
-{{ end }}{{ for r in load.rs }}R{{ load.net }}_load{{ if load.rs.size > 1 }}_{{ for.index }}{{ end }} {{ load.net }} 0 {{ r }}
-{{ end }}{{ end }}
+{{ load_elements }}
 
 * DUT
 XDUT {{ port_list }} {{ circuit_name }}
