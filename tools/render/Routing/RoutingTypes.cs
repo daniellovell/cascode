@@ -28,4 +28,10 @@ public sealed class RoutingResult
     > SegmentsByNet { get; init; }
     public required int CanvasWidth { get; init; }
     public required int CanvasHeight { get; init; }
+
+    /// <summary>
+    /// All terminal positions computed during routing (devices and ports).
+    /// Used by renderer to place ports at exact positions matching wire endpoints.
+    /// </summary>
+    public required IReadOnlyList<TerminalPosition> TerminalPositions { get; init; }
 }
