@@ -967,9 +967,10 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Transforms an SI value string for a specific SPICE backend.
-    /// Converts "M" suffix (mega) to "MEG" for ngspice compatibility.
+    /// Converts "M" prefix (mega) to "MEG" for ngspice compatibility.
+    /// Handles both bare prefix ("3.3M") and prefix with unit suffix ("10MOhm").
     /// </summary>
-    /// <param name="value">SI value string (e.g., "2M", "10k", "1p").</param>
+    /// <param name="value">SI value string (e.g., "2M", "10MOhm", "1p").</param>
     /// <param name="backend">Target SPICE backend.</param>
     /// <returns>Backend-compatible value string.</returns>
     internal static string TransformValueForBackend(string value, BenchBackendType backend)
@@ -977,17 +978,41 @@ public static class ACIRBenchAdapter
         if (string.IsNullOrWhiteSpace(value) || backend != BenchBackendType.Ngspice)
             return value;
 
-        // Only transform if the value ends with uppercase 'M' (mega)
-        // Don't transform lowercase 'm' (milli) or 'M' as part of a unit (e.g., "1.8V")
         var trimmed = value.Trim();
         if (trimmed.Length == 0)
             return value;
 
-        // Check if ends with M preceded by a digit (e.g., "2M", "10M", "3.3M")
-        // This distinguishes mega suffix from other uses of M
-        if (trimmed.Length >= 2 && trimmed[^1] == 'M' && char.IsDigit(trimmed[^2]))
+        // Find the end of the numeric part by scanning backwards.
+        // The numeric part ends at the last digit or decimal point.
+        int numericEnd = -1;
+        for (int i = trimmed.Length - 1; i >= 0; i--)
         {
-            return trimmed[..^1] + "MEG";
+            if (char.IsDigit(trimmed[i]) || trimmed[i] == '.')
+            {
+                numericEnd = i;
+                break;
+            }
+        }
+
+        // No numeric part found, return original
+        if (numericEnd < 0)
+            return value;
+
+        // Check if there's a character after the numeric part that could be an SI prefix
+        int prefixIndex = numericEnd + 1;
+        if (prefixIndex >= trimmed.Length)
+            return value; // No prefix, just a bare number
+
+        char prefixChar = trimmed[prefixIndex];
+
+        // Only transform uppercase 'M' (mega) to "MEG".
+        // Don't touch lowercase 'm' (milli).
+        if (prefixChar == 'M')
+        {
+            string numericPart = trimmed[..prefixIndex];
+            string unitSuffix =
+                prefixIndex + 1 < trimmed.Length ? trimmed[(prefixIndex + 1)..] : "";
+            return numericPart + "MEG" + unitSuffix;
         }
 
         return value;

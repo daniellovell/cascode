@@ -64,6 +64,10 @@ namespace Cascode.ACIR.Tests
         [InlineData("3.3M", "3.3MEG")]
         [InlineData("1.5M", "1.5MEG")]
         [InlineData("100M", "100MEG")]
+        [InlineData("10MOhm", "10MEGOhm")]
+        [InlineData("2.5MOhm", "2.5MEGOhm")]
+        [InlineData("1MF", "1MEGF")]
+        [InlineData("50MHz", "50MEGHz")]
         public void TransformValueForBackend_NgspiceConvertsMToMEG(string input, string expected)
         {
             var result = ACIRBenchAdapter.TransformValueForBackend(input, BenchBackendType.Ngspice);
@@ -74,6 +78,8 @@ namespace Cascode.ACIR.Tests
         [InlineData("2M", "2M")]
         [InlineData("10M", "10M")]
         [InlineData("3.3M", "3.3M")]
+        [InlineData("10MOhm", "10MOhm")]
+        [InlineData("50MHz", "50MHz")]
         public void TransformValueForBackend_SpectrePreservesMForMega(string input, string expected)
         {
             var result = ACIRBenchAdapter.TransformValueForBackend(input, BenchBackendType.Spectre);
@@ -83,11 +89,17 @@ namespace Cascode.ACIR.Tests
         [Theory]
         [InlineData("1m", "1m")]
         [InlineData("10m", "10m")]
+        [InlineData("10mOhm", "10mOhm")]
+        [InlineData("5mV", "5mV")]
         [InlineData("1k", "1k")]
         [InlineData("10K", "10K")]
+        [InlineData("10KOhm", "10KOhm")]
         [InlineData("1p", "1p")]
+        [InlineData("1pF", "1pF")]
         [InlineData("1.8V", "1.8V")]
         [InlineData("M=1", "M=1")]
+        [InlineData("abc", "abc")]
+        [InlineData("", "")]
         public void TransformValueForBackend_NgspiceDoesNotTransformOtherPrefixes(
             string input,
             string expected
