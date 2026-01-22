@@ -9,52 +9,57 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a circuit block from its parse context.</summary>
     private Circuit BuildCircuit(ACIRParser.CircuitContext ctx)
     {
-        var circuit = new Circuit
+        var memberState = ProcessCircuitMembers(ctx);
+
+        return new Circuit
         {
             Name = ctx.IDENT().GetText(),
             Traits = ctx.traitList()?.IDENT().Select(i => i.GetText()).ToList(),
+            Level = memberState.Level,
+            Inline = memberState.IsInline,
+            Package = memberState.Package,
+            Supplies = memberState.Supplies,
+            Grounds = memberState.Grounds,
+            Ports = memberState.Ports,
+            Parameters = memberState.Parameters,
+            Sizes = memberState.Sizes,
+            Fill = memberState.Fill,
+            Constraints = memberState.Constraints,
+            Harness = memberState.Harness,
+            Benches = memberState.Benches,
+            Provenance = memberState.Provenance,
         };
+    }
 
-        FillBlock? fill = null;
-        ConstraintsBlock? constraints = null;
-        HarnessBlock? harness = null;
-        BenchesBlock? benches = null;
-        ProvenanceBlock? provenance = null;
-        var level = ACIRLevel.ML;
-        var isInline = false;
-        string? package = null;
-        var supplies = new List<string>();
-        var grounds = new List<string>();
-        var ports = new List<PortDeclaration>();
-        var parameters = new List<CircuitParameter>();
-        var sizes = new List<SizeDeclaration>();
-
+    private CircuitMemberState ProcessCircuitMembers(ACIRParser.CircuitContext ctx)
+    {
+        var state = new CircuitMemberState();
         foreach (var memberCtx in ctx.circuitMember())
         {
             switch (memberCtx)
             {
                 case ACIRParser.LevelDeclContext levelCtx:
-                    level = ParseLevel(levelCtx.levelValue());
+                    state.Level = ParseLevel(levelCtx.levelValue());
                     break;
 
                 case ACIRParser.InlineDeclContext:
-                    isInline = true;
+                    state.IsInline = true;
                     break;
 
                 case ACIRParser.PackageDeclContext pkgCtx:
-                    package = BuildQualifiedName(pkgCtx.qualifiedName());
+                    state.Package = BuildQualifiedName(pkgCtx.qualifiedName());
                     break;
 
                 case ACIRParser.SupplyDeclContext supplyCtx:
-                    supplies.Add(supplyCtx.IDENT().GetText());
+                    state.Supplies.Add(supplyCtx.IDENT().GetText());
                     break;
 
                 case ACIRParser.GroundDeclContext groundCtx:
-                    grounds.Add(groundCtx.IDENT().GetText());
+                    state.Grounds.Add(groundCtx.IDENT().GetText());
                     break;
 
                 case ACIRParser.PortDeclContext portCtx:
-                    ports.Add(
+                    state.Ports.Add(
                         new PortDeclaration
                         {
                             Name = BuildPortName(portCtx.portName()),
@@ -64,58 +69,58 @@ internal sealed partial class ACIRAstBuilder
                     break;
 
                 case ACIRParser.ParamDeclContext paramCtx:
-                    parameters.Add(BuildCircuitParameter(paramCtx));
+                    state.Parameters.Add(BuildCircuitParameter(paramCtx));
                     break;
 
                 case ACIRParser.SizeDeclContext sizeCtx:
-                    sizes.Add(BuildSizeDeclaration(sizeCtx));
+                    state.Sizes.Add(BuildSizeDeclaration(sizeCtx));
                     break;
 
                 case ACIRParser.FillSectionContext fillCtx:
-                    fill = BuildFillBlock(fillCtx);
+                    state.Fill = BuildFillBlock(fillCtx);
                     break;
 
                 case ACIRParser.ConstraintsSectionContext constraintsCtx:
-                    constraints = BuildConstraintsBlock(constraintsCtx);
+                    state.Constraints = BuildConstraintsBlock(constraintsCtx);
                     break;
 
                 case ACIRParser.HarnessSectionContext harnessCtx:
-                    harness = BuildHarnessBlock(harnessCtx);
+                    state.Harness = BuildHarnessBlock(harnessCtx);
                     break;
 
                 case ACIRParser.BenchesSectionContext benchesCtx:
-                    benches = BuildBenchesBlock(benchesCtx);
+                    state.Benches = BuildBenchesBlock(benchesCtx);
                     break;
 
                 case ACIRParser.ProvenanceSectionContext provCtx:
-                    provenance = BuildProvenanceBlock(provCtx);
+                    state.Provenance = BuildProvenanceBlock(provCtx);
                     break;
             }
         }
 
-        return new Circuit
-        {
-            Name = circuit.Name,
-            Traits = circuit.Traits,
-            Level = level,
-            Inline = isInline,
-            Package = package,
-            Supplies = supplies,
-            Grounds = grounds,
-            Ports = ports,
-            Parameters = parameters,
-            Sizes = sizes,
-            Fill = fill,
-            Constraints = constraints,
-            Harness = harness,
-            Benches = benches,
-            Provenance = provenance,
-        };
+        return state;
     }
 
     private static string BuildQualifiedName(ACIRParser.QualifiedNameContext ctx)
     {
         return string.Join(".", ctx.IDENT().Select(i => i.GetText()));
+    }
+
+    private sealed class CircuitMemberState
+    {
+        public FillBlock? Fill { get; set; }
+        public ConstraintsBlock? Constraints { get; set; }
+        public HarnessBlock? Harness { get; set; }
+        public BenchesBlock? Benches { get; set; }
+        public ProvenanceBlock? Provenance { get; set; }
+        public ACIRLevel Level { get; set; } = ACIRLevel.ML;
+        public bool IsInline { get; set; }
+        public string? Package { get; set; }
+        public List<string> Supplies { get; } = new();
+        public List<string> Grounds { get; } = new();
+        public List<PortDeclaration> Ports { get; } = new();
+        public List<CircuitParameter> Parameters { get; } = new();
+        public List<SizeDeclaration> Sizes { get; } = new();
     }
 
     /// <summary>Builds a circuit parameter declaration.</summary>
