@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -23,12 +23,12 @@ circuit OTA5TFullyDiff
     resistor R_CMFB_N (P->OUT.N, N->vcm_node) : R=500k
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 20M Hz
-      c_gain : PassbandGain >= 30 dB
-      c_pm : PhaseMargin >= 60 deg
-      c_pwr : QuiescentPower <= 800u W
+      c_gbw : GainBandwidth >= 20MHz
+      c_gain : PassbandGain >= 30dB
+      c_pm : PhaseMargin >= 60deg
+      c_pwr : QuiescentPower <= 800uW
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *
     measure:
       m_gbw : FDOpAmpACBench GainBandwidth
       m_gain : FDOpAmpACBench PassbandGain

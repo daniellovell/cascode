@@ -384,7 +384,7 @@ dotnet run --project tools/cli/Cascode.Cli.csproj
 If you want to build the repo and install it as a global tool on your shell (so you can run `cascode` directly from anywhere):
 
 ```bash
-./install-dev-tool.sh
+scripts/install-dev-tool.sh
 ```
 
 This script will:

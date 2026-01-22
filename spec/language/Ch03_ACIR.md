@@ -684,7 +684,6 @@ Example:
 ```acir
 fill:
   capacitor Cc (P->comp_out, N->stage2_in) : C=1p
-
   resistor Rz (P->comp_out, N->stage2_in) : R=10k
 ```
 
@@ -960,13 +959,13 @@ Constraints live alongside the graph and come in four main kinds. They are evalu
 ```acir
 constraints:
   numeric:
-    c_gbw : GainBandwidth @ OUT >= 100M Hz
-    c_gain : PassbandGain @ OUT >= 55 dB
-    c_pm : PhaseMargin @ OUT >= 60 deg
-    c_pwr : Power <= 2m W
+    c_gbw : GainBandwidth @ OUT >= 100MHz
+    c_gain : PassbandGain @ OUT >= 55dB
+    c_pm : PhaseMargin @ OUT >= 60deg
+    c_pwr : Power <= 2mW
 
   tech:
-    t_lmin : L >= 180n m on *
+    t_lmin : L >= 180nm on *
 
   graph:
     g_card_tail : cardinality type:CurrentMirror in [1, 1]
@@ -1098,7 +1097,7 @@ benches:
   SEOpAmpACBench
   StepToggle:
     node = COMP_OUT
-    freq = 50M Hz
+    freq = 50MHz
     duty = 0.5
     cycles = 3
 ```
@@ -1441,13 +1440,13 @@ circuit OTA5TSingleEnded
 
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 50M Hz
-      c_gain : PassbandGain @ OUT >= 55 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : Power <= 2m W
+      c_gbw : GainBandwidth @ OUT >= 50MHz
+      c_gain : PassbandGain @ OUT >= 55dB
+      c_pm : PhaseMargin @ OUT >= 60deg
+      c_pwr : Power <= 2mW
 
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *
 
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth @ OUT
@@ -1484,8 +1483,8 @@ circuit LatchPadBuffer
 
   constraints:
     numeric:
-      c_rise : RiseTime @ PAD <= 1.2n s
-      c_fall : FallTime @ PAD <= 1.2n s
+      c_rise : RiseTime @ PAD <= 1.2ns
+      c_fall : FallTime @ PAD <= 1.2ns
       c_voh : VOH @ PAD >= 0.9 VDD
       c_vol : VOL @ PAD <= 0.1 VDD
 
@@ -1500,7 +1499,7 @@ circuit LatchPadBuffer
   benches:
     StepToggle:
       node = COMP_OUT
-      freq = 50M Hz
+      freq = 50MHz
       duty = 0.5
       cycles = 3
 ```
@@ -1529,13 +1528,13 @@ circuit CSAmplifier
 
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ vout >= 50M Hz
-      c_gain : PassbandGain @ vout >= 40 dB
-      c_pm : PhaseMargin @ vout >= 60 deg
-      c_pwr : Power <= 5m W
+      c_gbw : GainBandwidth @ vout >= 50MHz
+      c_gain : PassbandGain @ vout >= 40dB
+      c_pm : PhaseMargin @ vout >= 60deg
+      c_pwr : Power <= 5mW
 
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *
 
     measure:
       m_gbw : SEAmpACBench GainBandwidth @ vout
@@ -1868,8 +1867,8 @@ circuit MyCircuit
   ...
   extensions:
     vendor.timing:
-      setup_time = 100p s
-      hold_time = 50p s
+      setup_time = 100ps
+      hold_time = 50ps
     vendor.layout:
       placement_hint = "top_left"
 ```
@@ -2041,7 +2040,7 @@ domain       = "supply" | "ground" | "analog" | "bias" | "digital" | "clock" | "
 value        = NUMBER SIUNIT? ;
 SIUNIT       = SIPREFIX? BASEUNIT ;
 SIPREFIX     = "f" | "p" | "n" | "u" | "m" | "k" | "M" | "G" | "T" ;
-BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" ;
+BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" | "dB" | "deg" ;
 paramValue   = value | "$" IDENT | "??" | IDENT ;
 source       = "@[" STRING "]" ;
 

@@ -370,7 +370,7 @@ public static class ACIRWriter
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 var scope = c.Node is not null ? $" @ {c.Node}" : "";
-                writer.WriteLine($"      {c.Id} : {c.Metric}{scope} {c.Op} {c.Value} {c.Unit}");
+                writer.WriteLine($"      {c.Id} : {c.Metric}{scope} {c.Op} {c.Value}{c.Unit}");
             }
         }
         if (constraints.Tech.Count > 0)
@@ -378,9 +378,7 @@ public static class ACIRWriter
             writer.WriteLine("    tech:");
             foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                writer.WriteLine(
-                    $"      {c.Id} : {c.Param} {c.Op} {c.Value} {c.Unit} on {c.Scope}"
-                );
+                writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value}{c.Unit} on {c.Scope}");
             }
         }
         if (constraints.Graph.Count > 0)

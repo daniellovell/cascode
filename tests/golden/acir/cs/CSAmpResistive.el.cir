@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 circuit CSAmpResistive : SingleEndedAmp
   level EL
@@ -11,8 +11,8 @@ circuit CSAmpResistive : SingleEndedAmp
     resistor R_load (P->VDD, N->OUT) : R=10k
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 10M Hz
-      c_gain : PassbandGain @ OUT >= 20 dB
+      c_gbw : GainBandwidth @ OUT >= 10MHz
+      c_gain : PassbandGain @ OUT >= 20dB
     measure:
       m_gbw : SEAmpACBench GainBandwidth @ OUT
       m_gain : SEAmpACBench PassbandGain @ OUT

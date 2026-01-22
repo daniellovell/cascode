@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 // This file exercises all arrow (->) contexts with deliberate whitespace
 // variations. The parser must accept any combination of leading/trailing
@@ -46,7 +46,7 @@ circuit ArrowWhitespace
       // spaces around arrow
   constraints:
     numeric:
-      c_gain : PassbandGain >= 20 dB
+      c_gain : PassbandGain >= 20dB
     measure:
       m_gain : SEOpAmpACBench PassbandGain
   harness:

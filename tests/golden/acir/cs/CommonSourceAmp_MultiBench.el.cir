@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 circuit CommonSourceAmp_MultiBench : SingleEndedAmp
   level EL
@@ -12,10 +12,10 @@ circuit CommonSourceAmp_MultiBench : SingleEndedAmp
     pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : size=(W=20u, L=180n, M=1) pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 1k Hz
-      c_gain : PassbandGain @ OUT >= 0 dB
-      c_out_bias : OutputDCBias @ OUT >= 0 V
-      c_power : QuiescentPower <= 1 W
+      c_gbw : GainBandwidth @ OUT >= 1kHz
+      c_gain : PassbandGain @ OUT >= 0dB
+      c_out_bias : OutputDCBias @ OUT >= 0V
+      c_power : QuiescentPower <= 1W
     measure:
       m_gbw : SEAmpACBench GainBandwidth @ OUT
       m_gain : SEAmpACBench PassbandGain @ OUT

@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 ; ML-level (unsized) version of TelescopicCascodeSingleEnded_Attach
 ; Same hierarchical topology as EL version but with ?? placeholders for sizing
@@ -55,12 +55,12 @@ circuit TelescopicCascodeSingleEnded_Attach
     connect cm_hi.RAIL -> VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 40M Hz
-      c_gain : PassbandGain >= 30 dB
-      c_pm : PhaseMargin >= 60 deg
-      c_pwr : QuiescentPower <= 1m W
+      c_gbw : GainBandwidth >= 40MHz
+      c_gain : PassbandGain >= 30dB
+      c_pm : PhaseMargin >= 60deg
+      c_pwr : QuiescentPower <= 1mW
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth
       m_gain : SEOpAmpACBench PassbandGain

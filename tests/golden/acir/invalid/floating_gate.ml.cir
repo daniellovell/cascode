@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 ; ML-level circuit with a floating gate - ERC-001 violation
 ; The gate of M1 connects to 'floating_net' which has no driver

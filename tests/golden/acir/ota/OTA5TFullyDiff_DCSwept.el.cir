@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -23,9 +23,9 @@ circuit OTA5TFullyDiff_DCSwept
     resistor R_CMFB_N (P->OUT.N, N->vcm_node) : R=500k
   constraints:
     numeric:
-      c_out_cm_min : OutputDCCommonMode_min >= 0.3 V
-      c_out_cm_max : OutputDCCommonMode_max <= 1.5 V
-      c_power : QuiescentPower <= 800u W
+      c_out_cm_min : OutputDCCommonMode_min >= 0.3V
+      c_out_cm_max : OutputDCCommonMode_max <= 1.5V
+      c_power : QuiescentPower <= 800uW
     measure:
       m_out_cm_min : FDOpAmpDCBench OutputDCCommonMode_min
       m_out_cm_max : FDOpAmpDCBench OutputDCCommonMode_max

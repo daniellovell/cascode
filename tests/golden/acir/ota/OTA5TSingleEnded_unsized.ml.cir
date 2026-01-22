@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 ; ML-level (unsized) version of OTA5TSingleEnded
 ; Same topology as EL version but with ?? placeholders for sizing
@@ -24,12 +24,12 @@ circuit OTA5TSingleEnded
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=??, L=??, M=??) pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 20M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : QuiescentPower <= 500u W
+      c_gbw : GainBandwidth @ OUT >= 20MHz
+      c_gain : PassbandGain @ OUT >= 40dB
+      c_pm : PhaseMargin @ OUT >= 60deg
+      c_pwr : QuiescentPower <= 500uW
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth @ OUT
       m_gain : SEOpAmpACBench PassbandGain @ OUT

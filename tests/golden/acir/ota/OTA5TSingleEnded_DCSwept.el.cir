@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -21,8 +21,8 @@ circuit OTA5TSingleEnded_DCSwept
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
   constraints:
     numeric:
-      c_out_bias : OutputDCBias @ OUT >= 0.4 V
-      c_power : QuiescentPower <= 500u W
+      c_out_bias : OutputDCBias @ OUT >= 0.4V
+      c_power : QuiescentPower <= 500uW
     measure:
       m_out_bias : SEOpAmpDCBench OutputDCBias @ OUT
       m_power : SEOpAmpDCBench QuiescentPower

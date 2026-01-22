@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -48,12 +48,12 @@ circuit TelescopicCascodeFullyDiff_Attach
     connect pl2.SOURCE -> VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 500k Hz
-      c_gain : PassbandGain >= 2 dB
-      c_pm : PhaseMargin >= 60 deg
-      c_pwr : QuiescentPower <= 1m W
+      c_gbw : GainBandwidth >= 500kHz
+      c_gain : PassbandGain >= 2dB
+      c_pm : PhaseMargin >= 60deg
+      c_pwr : QuiescentPower <= 1mW
     tech:
-      t_lmin : L >= 500n m on *
+      t_lmin : L >= 500nm on *
     measure:
       m_gbw : FDOpAmpACBench GainBandwidth
       m_gain : FDOpAmpACBench PassbandGain

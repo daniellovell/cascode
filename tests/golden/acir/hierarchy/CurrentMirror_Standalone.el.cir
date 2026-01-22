@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 trait CurrentMirrorLike:
   port SENSE : analog
@@ -19,4 +19,4 @@ circuit CurrentMirror : CurrentMirrorLike
     pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : size=(W=2u, L=180n, M=$ratio) pmos
   constraints:
     tech:
-      t_lmin : L >= 180n m on *
+      t_lmin : L >= 180nm on *

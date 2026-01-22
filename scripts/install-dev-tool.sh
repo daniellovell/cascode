@@ -2,7 +2,7 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$script_dir"
+repo_root="$(dirname "$script_dir")"
 csproj="$repo_root/tools/cli/Cascode.Cli.csproj"
 nupkg_dir="$repo_root/build/nupkg"
 

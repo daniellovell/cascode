@@ -17,12 +17,12 @@ circuit Test
   port OUT : analog
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz  // target gain-bandwidth product
-      c_gain : PassbandGain @ OUT >= 40 dB  // minimum gain requirement
-      c_pm : PhaseMargin @ OUT >= 60 deg  // phase margin for stability
-      c_pwr : Power <= 500u W
+      c_gbw : GainBandwidth @ OUT >= 100MHz  // target gain-bandwidth product
+      c_gain : PassbandGain @ OUT >= 40dB  // minimum gain requirement
+      c_pm : PhaseMargin @ OUT >= 60deg  // phase margin for stability
+      c_pwr : Power <= 500uW
     tech:
-      t_lmin : L >= 180n m on *  // minimum length per tech rules
+      t_lmin : L >= 180nm on *  // minimum length per tech rules
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth @ OUT  // measure GBW
       m_gain : SEOpAmpACBench PassbandGain @ OUT
@@ -67,7 +67,7 @@ circuit Test
     numeric:
       // This is a full line comment
       // This is another full line comment
-      c_test : Metric @ OUT >= 100M Hz
+      c_test : Metric @ OUT >= 100MHz
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);

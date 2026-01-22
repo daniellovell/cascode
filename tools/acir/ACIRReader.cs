@@ -2794,10 +2794,14 @@ public static partial class ACIRReader
     [GeneratedRegex(@"([\w.\[\]]+)\s*->\s*([\w.\[\]]+)")]
     private static partial Regex ConnectionPattern();
 
-    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)$")]
+    [GeneratedRegex(
+        @"^(\w+)\s*:\s*(\w+)(?:\s*@\s*(\w+))?\s*(>=|<=|==|>|<)\s*(-?[0-9][0-9.eE+-]*[fpnumkMGT]?)([A-Za-z]+)$"
+    )]
     private static partial Regex ConstraintPattern();
 
-    [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)\s*(>=|<=|==|>|<)\s*(\S+)\s+(\w+)\s+on\s+(\S+)$")]
+    [GeneratedRegex(
+        @"^(\w+)\s*:\s*(\w+)\s*(>=|<=|==|>|<)\s*(-?[0-9][0-9.eE+-]*[fpnumkMGT]?)([A-Za-z]+)\s+on\s+(\S+)$"
+    )]
     private static partial Regex ConstraintOnConditionPattern();
 
     [GeneratedRegex(@"^(\w+)\s*:\s*(\w+)\s+(\w+)(?:\s*@\s*(\w+))?$")]

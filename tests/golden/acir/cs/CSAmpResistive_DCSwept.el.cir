@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 circuit CSAmpResistive_DCSwept : SingleEndedAmp
   level EL
@@ -11,8 +11,8 @@ circuit CSAmpResistive_DCSwept : SingleEndedAmp
     resistor R_load (P->VDD, N->OUT) : R=10k
   constraints:
     numeric:
-      c_out_bias : OutputDCBias @ OUT >= 0.4 V
-      c_power : QuiescentPower <= 500u W
+      c_out_bias : OutputDCBias @ OUT >= 0.4V
+      c_power : QuiescentPower <= 500uW
     measure:
       m_out_bias : SEAmpDCBench OutputDCBias @ OUT
       m_power : SEAmpDCBench QuiescentPower

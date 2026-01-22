@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 circuit OTA5TSingleEnded_Commented
   level EL
@@ -18,12 +18,12 @@ circuit OTA5TSingleEnded_Commented
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz  // assumed target metric for the gain response
-      c_gain : PassbandGain @ OUT >= 40 dB  // assumed target metric for the gain response
-      c_pm : PhaseMargin @ OUT >= 60 deg  // assumed target metric for the phase response
-      c_pwr : Power <= 500u W
+      c_gbw : GainBandwidth @ OUT >= 100MHz  // assumed target metric for the gain response
+      c_gain : PassbandGain @ OUT >= 40dB  // assumed target metric for the gain response
+      c_pm : PhaseMargin @ OUT >= 60deg  // assumed target metric for the phase response
+      c_pwr : Power <= 500uW
     tech:
-      t_lmin : L >= 180n m on *  // tech rule for minimum length
+      t_lmin : L >= 180nm on *  // tech rule for minimum length
     measure:
       m_gbw : SEOpAmpACBench GainBandwidth @ OUT  // measures gain-bandwidth product
       m_gain : SEOpAmpACBench PassbandGain @ OUT
