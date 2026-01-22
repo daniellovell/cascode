@@ -295,12 +295,38 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> instanceTypes
     )
     {
+        // Desugar instances and expand their connects
+        var desugaredInstances = fill
+            .Instances.Select(i =>
+            {
+                var desugared = DesugarInstance(i, bundlesByName, circuitsByName);
+                // Expand instance-level connects if any
+                if (desugared.Connects.Count > 0)
+                {
+                    return new InstanceDeclaration
+                    {
+                        Id = desugared.Id,
+                        Type = desugared.Type,
+                        Bindings = desugared.Bindings,
+                        Params = desugared.Params,
+                        Sizes = desugared.Sizes,
+                        Connects = ExpandConnections(
+                            desugared.Connects,
+                            portTypes,
+                            bundlesByName,
+                            circuitsByName,
+                            instanceTypes
+                        ),
+                    };
+                }
+                return desugared;
+            })
+            .ToList();
+
         return new FillBlock
         {
             Nets = fill.Nets,
-            Instances = fill
-                .Instances.Select(i => DesugarInstance(i, bundlesByName, circuitsByName))
-                .ToList(),
+            Instances = desugaredInstances,
             Devices = fill.Devices.Select(d => DesugarDevice(d)).ToList(),
             Attaches = fill.Attaches,
             Connections = ExpandConnections(
@@ -375,6 +401,7 @@ public static class BundleDesugarer
             Bindings = expandedBindings,
             Params = instance.Params,
             Sizes = instance.Sizes,
+            Connects = instance.Connects, // Preserve for later expansion
         };
     }
 

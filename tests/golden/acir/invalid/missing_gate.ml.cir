@@ -1,7 +1,7 @@
 ACIR 3.0
 
-; ML-level circuit with a missing gate binding - ERC-001 violation
-; The M_SENSE device has no G-> binding at all
+// ML-level circuit with a missing gate binding - ERC-001 violation
+// The M_SENSE device has no G-> binding at all
 
 circuit MissingGateExample
   level ML

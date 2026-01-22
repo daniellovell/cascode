@@ -67,7 +67,7 @@ circuit TestCircuit
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -91,12 +91,12 @@ circuit TestCircuit
 
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0004")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
     [Fact]
-    public void TryRead_MalformedBinding_ReturnsWarning()
+    public void TryRead_MalformedBinding_ReturnsError()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -114,12 +114,10 @@ circuit TestCircuit
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
+        // With ANTLR, malformed bindings are syntax errors (ACIR0001) rather than warnings
         Assert.Contains(
             result.Diagnostics,
-            d =>
-                d.Severity == DiagnosticSeverity.Warning
-                && d.Message.Contains("ACIR0005")
-                && d.Message.Contains("bad_binding")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -202,7 +200,7 @@ circuit TestCircuit
     }
 
     [Fact]
-    public void TryParse_InvalidLevel_EmitsACIR0008()
+    public void TryParse_InvalidLevel_EmitsError()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -216,12 +214,10 @@ circuit Test
         var result = ACIRReader.TryParse(acir, "test.cir");
 
         Assert.False(result.Success);
+        // With ANTLR, invalid level is a syntax error (ACIR0001)
         Assert.Contains(
             result.Diagnostics,
-            d =>
-                d.Severity == DiagnosticSeverity.Error
-                && d.Message.Contains("ACIR0008")
-                && d.Message.Contains("XL")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -248,24 +244,25 @@ circuit TestCircuit
     [Fact]
     public void ACIRReadResult_WarningCount_ReflectsWarnings()
     {
+        // With ANTLR parser, missing version declaration produces a warning (ACIR0002)
         var acir =
-            $@"ACIR {ACIRVersion.Current}
-
-circuit TestCircuit
+            @"circuit TestCircuit
   level EL
   supply VDD
   ground GND
   port IN : analog
   port OUT : analog
-  fill:
-    nmos M1 (G->IN, bad1, bad2, D->OUT, S->GND, B->GND) : W=1u L=180n nmos
 ";
 
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
         Assert.True(result.HasWarnings);
-        Assert.True(result.WarningCount >= 2);
+        Assert.True(result.WarningCount >= 1);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Warning && d.Message.Contains("ACIR0002")
+        );
     }
 
     #region Attach Override Parsing
@@ -561,9 +558,10 @@ circuit TestCircuit
         var circuit = result.Document!.Circuits.First();
         Assert.NotNull(circuit.Fill);
         Assert.Single(circuit.Fill!.Instances);
-        Assert.Single(circuit.Fill!.Connections);
+        var instance = circuit.Fill!.Instances[0];
+        Assert.Single(instance.Connects);
 
-        var conn = circuit.Fill.Connections[0];
+        var conn = instance.Connects[0];
         Assert.Equal("dp.IN", conn.From);
         Assert.Equal("IN", conn.To);
     }

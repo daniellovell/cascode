@@ -436,9 +436,10 @@ circuit TestCircuit
 
         var result = ACIRReader.TryParse(acir, "test.cir");
 
+        // With ANTLR, invalid instance declaration is a syntax error (ACIR0001)
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0015")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -458,9 +459,10 @@ circuit TestCircuit
 
         var result = ACIRReader.TryParse(acir, "test.cir");
 
+        // With ANTLR, invalid attach statement is a syntax error (ACIR0001)
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0016")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -537,8 +539,9 @@ circuit TestCircuit
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
-        Assert.Equal(2, result.Document!.Circuits[0].Fill!.Connections.Count);
-        var conn1 = result.Document.Circuits[0].Fill!.Connections[0];
+        var instance = result.Document!.Circuits[0].Fill!.Instances.Single();
+        Assert.Equal(2, instance.Connects.Count);
+        var conn1 = instance.Connects[0];
         Assert.Equal("dp.IN", conn1.From);
         Assert.Equal("IN", conn1.To);
     }
@@ -562,7 +565,8 @@ circuit TestCircuit
         var result = ACIRReader.TryParse(acir, "test.cir");
 
         Assert.True(result.Success);
-        var conn = result.Document!.Circuits[0].Fill!.Connections.Single();
+        var instance = result.Document!.Circuits[0].Fill!.Instances.Single();
+        var conn = instance.Connects.Single();
         Assert.Equal("VTAIL", conn.From);
         Assert.Equal("dp.TAIL", conn.To);
     }
@@ -609,9 +613,10 @@ circuit TestCircuit
 
         var result = ACIRReader.TryParse(acir, "test.cir");
 
+        // With ANTLR, malformed connect is a syntax error (ACIR0001)
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0029")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
         );
     }
 
@@ -644,7 +649,7 @@ circuit TestCircuit
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
         Assert.Equal(2, inst.Sizes.Count);
-        Assert.Equal(4, result.Document.Circuits[0].Fill!.Connections.Count);
+        Assert.Equal(4, inst.Connects.Count);
     }
 
     [Fact]
@@ -721,6 +726,6 @@ circuit TestCircuit
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
         Assert.Equal(2, inst.Bindings.Count);
         Assert.Single(inst.Sizes);
-        Assert.Equal(2, result.Document.Circuits[0].Fill!.Connections.Count);
+        Assert.Equal(2, inst.Connects.Count);
     }
 }

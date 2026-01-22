@@ -1,7 +1,7 @@
 ACIR 3.0
 
-; ML-level (unsized) version of TelescopicCascodeSingleEnded_Attach
-; Same hierarchical topology as EL version but with ?? placeholders for sizing
+// ML-level (unsized) version of TelescopicCascodeSingleEnded_Attach
+// Same hierarchical topology as EL version but with ?? placeholders for sizing
 
 bundle Diff:
   P : analog

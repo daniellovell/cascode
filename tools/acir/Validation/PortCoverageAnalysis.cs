@@ -68,11 +68,25 @@ internal sealed class PortCoverageAnalysis
             }
         }
 
-        // Remove ports covered by connect statements
+        // Remove ports covered by connect statements (both fill-level and instance-level)
         if (_parentCircuit.Fill?.Connections is not null)
         {
             var connectedPorts = GetPortsCoveredByConnects(
                 _parentCircuit.Fill.Connections,
+                instance,
+                declaredPortNames
+            );
+            foreach (var port in connectedPorts)
+            {
+                requiredPorts.Remove(port);
+            }
+        }
+
+        // Also check instance-level connects
+        if (instance.Connects.Count > 0)
+        {
+            var connectedPorts = GetPortsCoveredByConnects(
+                instance.Connects,
                 instance,
                 declaredPortNames
             );

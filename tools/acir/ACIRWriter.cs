@@ -318,6 +318,12 @@ public static class ACIRWriter
         {
             writer.WriteLine($"      size {size.Key} = {FormatSizePack(size.Value)}");
         }
+
+        // Instance-level connects
+        foreach (var conn in inst.Connects.OrderBy(c => c.From, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"      connect {conn.From} -> {conn.To}");
+        }
     }
 
     private static string FormatSizePack(SizePack pack)

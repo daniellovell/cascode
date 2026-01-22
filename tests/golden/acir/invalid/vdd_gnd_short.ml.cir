@@ -1,7 +1,7 @@
 ACIR 3.0
 
-; ML-level circuit with VDD-GND short - ERC-002 violation
-; Device M_short has drain on VDD and source on GND
+// ML-level circuit with VDD-GND short - ERC-002 violation
+// Device M_short has drain on VDD and source on GND
 
 circuit VddGndShortExample
   level ML

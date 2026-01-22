@@ -245,6 +245,9 @@ public sealed class InstanceDeclaration
 
     /// <summary>Size pack assignments for this instance.</summary>
     public Dictionary<string, SizePack> Sizes { get; init; } = new();
+
+    /// <summary>Instance-level connect statements.</summary>
+    public List<ConnectionStatement> Connects { get; init; } = new();
 }
 
 /// <summary>

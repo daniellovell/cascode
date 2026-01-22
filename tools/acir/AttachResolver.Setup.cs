@@ -104,22 +104,28 @@ public sealed partial class AttachResolver
         List<Diagnostic> diagnostics
     )
     {
-        if (circuit.Fill!.Connections.Count == 0)
-        {
-            return;
-        }
-
-        var instancesById = circuit.Fill.Instances.ToDictionary(
+        var instancesById = circuit.Fill!.Instances.ToDictionary(
             inst => inst.Id,
             StringComparer.Ordinal
         );
 
-        // Connections are already expanded by BundleDesugarer
+        // Process fill-level connections (already expanded by BundleDesugarer)
         foreach (var conn in circuit.Fill.Connections)
         {
             var fromNode = ResolveEndpointNode(circuit, instancesById, conn.From, context);
             var toNode = ResolveEndpointNode(circuit, instancesById, conn.To, context);
             TryUnion(context, fromNode, toNode, diagnostics, circuit.Name);
+        }
+
+        // Process instance-level connects
+        foreach (var instance in circuit.Fill.Instances)
+        {
+            foreach (var conn in instance.Connects)
+            {
+                var fromNode = ResolveEndpointNode(circuit, instancesById, conn.From, context);
+                var toNode = ResolveEndpointNode(circuit, instancesById, conn.To, context);
+                TryUnion(context, fromNode, toNode, diagnostics, circuit.Name);
+            }
         }
     }
 
