@@ -65,6 +65,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - Do not write or commit references to specific fabs or process names (only `sky130` and `gpdk045` are allowed) without explicit permission from the user.
 - Do not write comments which reference our in-progress discussions. Comments should reflect the final state of the code, not the path we took to get there.
 - Always check `dotnet csharpier format .` when changes to ANY C# file are complete.
+- Note: `dotnet csharpier format .` always reports files as formatted; use `git diff` to see actual changes.
 
 ## Back-Compat Prohibition
 - Zero runtime back‑compat: when data/schema/format changes, do not add conditionals to read old shapes or values.
