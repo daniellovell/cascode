@@ -1,6 +1,6 @@
 ACIR 3.0
 
-circuit DiffRCFilter : DifferentialFilter
+circuit DiffRCFilter implements DifferentialFilter
   level EL
   supply VDD
   ground GND

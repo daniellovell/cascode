@@ -4,7 +4,7 @@ bundle Diff:
   N : analog
   P : analog
 
-circuit OTA5TSingleEndedSimplified : SingleEndedOpAmp
+circuit OTA5TSingleEndedSimplified implements SingleEndedOpAmp
   level ML
   supply VDD
   ground GND

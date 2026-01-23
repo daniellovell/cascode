@@ -26,7 +26,6 @@ internal sealed partial class ACIRAstBuilder
             Fill = memberState.Fill,
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
-            Benches = memberState.Benches,
             Provenance = memberState.Provenance,
         };
     }
@@ -88,10 +87,6 @@ internal sealed partial class ACIRAstBuilder
                     state.Harness = BuildHarnessBlock(harnessCtx);
                     break;
 
-                case ACIRParser.BenchesSectionContext benchesCtx:
-                    state.Benches = BuildBenchesBlock(benchesCtx);
-                    break;
-
                 case ACIRParser.ProvenanceSectionContext provCtx:
                     state.Provenance = BuildProvenanceBlock(provCtx);
                     break;
@@ -111,7 +106,6 @@ internal sealed partial class ACIRAstBuilder
         public FillBlock? Fill { get; set; }
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
-        public BenchesBlock? Benches { get; set; }
         public ProvenanceBlock? Provenance { get; set; }
         public ACIRLevel Level { get; set; } = ACIRLevel.ML;
         public bool IsInline { get; set; }

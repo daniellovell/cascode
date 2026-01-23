@@ -175,15 +175,6 @@ public static class AcirJsonConverter
             Fill = BuildFillBlock(jsonDoc),
             Constraints = BuildConstraintsBlock(jsonDoc.Constraints),
             Harness = BuildHarnessBlock(jsonDoc.Harness),
-            Benches =
-                jsonDoc.Benches.Count > 0
-                    ? new BenchesBlock
-                    {
-                        Benches = jsonDoc
-                            .Benches.Select(b => new BenchConfig { Name = b })
-                            .ToList(),
-                    }
-                    : null,
         };
 
         var doc = new ACIRDocument
@@ -191,6 +182,7 @@ public static class AcirJsonConverter
             VersionMajor = major,
             VersionMinor = minor,
             Traits = BuildTraits(jsonDoc.Traits),
+            BenchDefinitions = BuildBenchDefinitions(jsonDoc.BenchDefinitions),
             Circuits = [circuit],
         };
 
@@ -235,8 +227,28 @@ public static class AcirJsonConverter
             Attaches = ConvertAttaches(circuit.Fill),
             Constraints = ConvertConstraints(circuit.Constraints),
             Harness = ConvertHarness(circuit.Harness),
-            Benches = circuit.Benches?.Benches.Select(b => b.Name).ToList() ?? [],
+            BenchDefinitions = ConvertBenchDefinitions(document.BenchDefinitions),
         };
+    }
+
+    private static IReadOnlyList<AcirJsonBenchDefinition>? ConvertBenchDefinitions(
+        IReadOnlyList<BenchDefinition> benches
+    )
+    {
+        if (benches.Count == 0)
+            return null;
+
+        return benches
+            .Select(b => new AcirJsonBenchDefinition
+            {
+                Name = b.Name,
+                Trait = b.Trait,
+                Builtin = string.IsNullOrEmpty(b.Builtin) ? null : b.Builtin,
+                Template = string.IsNullOrEmpty(b.Template) ? null : b.Template,
+                Config = b.Config.Count > 0 ? new Dictionary<string, string>(b.Config) : null,
+                Outputs = b.Outputs.Count > 0 ? b.Outputs.ToList() : null,
+            })
+            .ToList();
     }
 
     private static List<AcirJsonNet> ConvertNets(FillBlock? fill)
@@ -425,10 +437,7 @@ public static class AcirJsonConverter
         if (constraints == null)
             return null;
 
-        var hasContent =
-            constraints.Numeric.Count > 0
-            || constraints.Tech.Count > 0
-            || constraints.Measure.Count > 0;
+        var hasContent = constraints.Numeric.Count > 0 || constraints.Tech.Count > 0;
 
         if (!hasContent)
             return null;
@@ -439,8 +448,9 @@ public static class AcirJsonConverter
                 .Numeric.Select(c => new AcirJsonNumericConstraint
                 {
                     Id = c.Id,
+                    Bench = c.Bench,
                     Metric = c.Metric,
-                    Node = c.Node,
+                    Node = c.Node?.ToString(),
                     Op = c.Op,
                     Value = ParseConstraintValue(c.Value),
                     Unit = c.Unit,
@@ -455,15 +465,6 @@ public static class AcirJsonConverter
                     Value = ParseConstraintValue(c.Value),
                     Unit = c.Unit,
                     Scope = c.Scope,
-                })
-                .ToList(),
-            Measure = constraints
-                .Measure.Select(m => new AcirJsonMeasure
-                {
-                    Id = m.Id,
-                    Bench = m.Bench,
-                    Metric = m.Metric,
-                    Node = m.Node,
                 })
                 .ToList(),
         };
@@ -680,6 +681,26 @@ public static class AcirJsonConverter
             .ToList();
     }
 
+    private static List<BenchDefinition> BuildBenchDefinitions(
+        IReadOnlyList<AcirJsonBenchDefinition>? benches
+    )
+    {
+        if (benches is null or { Count: 0 })
+            return [];
+
+        return benches
+            .Select(b => new BenchDefinition
+            {
+                Name = b.Name,
+                Trait = b.Trait,
+                Builtin = b.Builtin,
+                Template = b.Template,
+                Config = b.Config?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new(),
+                Outputs = b.Outputs?.ToList() ?? new(),
+            })
+            .ToList();
+    }
+
     private static List<CircuitParameter> BuildCircuitParameters(
         IReadOnlyList<AcirJsonCircuitParameter>? parameters
     )
@@ -708,8 +729,9 @@ public static class AcirJsonConverter
                 .Numeric.Select(c => new NumericConstraint
                 {
                     Id = c.Id,
+                    Bench = c.Bench,
                     Metric = c.Metric,
-                    Node = c.Node,
+                    Node = ParseNodeRef(c.Node),
                     Op = c.Op,
                     Value = FormatSIValue(c.Value, c.Unit),
                     Unit = c.Unit,
@@ -726,16 +748,21 @@ public static class AcirJsonConverter
                     Scope = c.Scope,
                 })
                 .ToList(),
-            Measure = constraints
-                .Measure.Select(m => new MeasureIntent
-                {
-                    Id = m.Id,
-                    Bench = m.Bench,
-                    Metric = m.Metric,
-                    Node = m.Node,
-                })
-                .ToList(),
         };
+    }
+
+    private static NodeRef? ParseNodeRef(string? node)
+    {
+        if (string.IsNullOrWhiteSpace(node))
+            return null;
+
+        var parts = node.Split(new[] { "::" }, 2, System.StringSplitOptions.None);
+        if (parts.Length == 2)
+        {
+            return new NodeRef { Scope = parts[0], Path = parts[1] };
+        }
+
+        return new NodeRef { Scope = "net", Path = node };
     }
 
     private static HarnessBlock? BuildHarnessBlock(AcirJsonHarness? harness)

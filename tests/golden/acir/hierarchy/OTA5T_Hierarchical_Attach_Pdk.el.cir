@@ -15,7 +15,19 @@ trait CurrentMirrorLike:
 trait DiffPairLike:
   port OUT : Diff
 
-circuit OTA5T_Hierarchical_Attach_Pdk
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -35,24 +47,16 @@ circuit OTA5T_Hierarchical_Attach_Pdk
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 20MHz
-      c_gain : PassbandGain @ OUT >= 40dB
-      c_pm : PhaseMargin @ OUT >= 60deg
-      c_pwr : QuiescentPower <= 500uW
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
-      m_pwr : SEOpAmpDCBench QuiescentPower
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 500uW
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
 
-circuit DiffPair_Pdk : DiffPairLike
+circuit DiffPair_Pdk implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -68,7 +72,7 @@ circuit DiffPair_Pdk : DiffPairLike
     nmos M_P (B->GND, D->OUT.P, G->IN.N, S->tnode) : size=InputPair nfet_01v8
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nfet_01v8
 
-circuit CurrentMirror_Pdk : CurrentMirrorLike
+circuit CurrentMirror_Pdk implements CurrentMirrorLike
   level EL
   param ratio : real = 1
   size Sense = (W=2u, L=180n, M=1)

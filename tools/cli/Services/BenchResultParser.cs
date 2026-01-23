@@ -97,18 +97,18 @@ internal static partial class BenchResultParser
     {
         var results = new BenchResult { Circuit = circuit.Name, Bench = benchName };
         var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Constraints?.Measure != null)
+        if (circuit.Constraints?.Numeric != null)
         {
             foreach (
                 var group in circuit
-                    .Constraints.Measure.Where(m =>
-                        m.Bench.Equals(benchName, StringComparison.OrdinalIgnoreCase)
+                    .Constraints.Numeric.Where(c =>
+                        c.Bench.Equals(benchName, StringComparison.OrdinalIgnoreCase)
                     )
-                    .GroupBy(m => m.Metric, StringComparer.OrdinalIgnoreCase)
+                    .GroupBy(c => c.Metric, StringComparer.OrdinalIgnoreCase)
             )
             {
                 var nodes = group
-                    .Select(x => x.Node)
+                    .Select(x => x.Node?.ToString())
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .ToList();
                 nodeByMetric[group.Key] = nodes.Count == 1 ? nodes[0] : null;

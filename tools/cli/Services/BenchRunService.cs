@@ -186,7 +186,7 @@ public class BenchRunService
         var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
         var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
 
-        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
+        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
         var benchesToRun = ResolveBenchesToRunOrError(
             args.BenchName,
             availableBenches,
@@ -394,7 +394,7 @@ public class BenchRunService
         IReadOnlyList<string> testbenchPaths
     )
     {
-        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(circuit);
+        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
         var benchesToRun = ResolveBenchesToRunForCircuit(
             args.BenchName,
             availableBenches,
@@ -729,7 +729,7 @@ public class BenchRunService
         error = null;
         if (availableBenches.Length == 0)
         {
-            const string msg = "No benches declared in ACIR benches block.";
+            const string msg = "No benches declared for the circuit traits in the ACIR document.";
             _logger.LogError(msg);
             error = msg;
             return null;
@@ -740,9 +740,9 @@ public class BenchRunService
         {
             var list = string.Join(", ", availableBenches);
             var msg =
-                $"Bench '{explicitBench}' not declared in ACIR benches block. Available: {list}";
+                $"Bench '{explicitBench}' not declared in ACIR bench definitions. Available: {list}";
             _logger.LogError(
-                "Bench '{BenchName}' not declared in ACIR benches block. Available: {Available}",
+                "Bench '{BenchName}' not declared in ACIR bench definitions. Available: {Available}",
                 explicitBench,
                 list
             );

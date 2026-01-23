@@ -4,7 +4,25 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+    OutputSwing
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+bench TranBench for SingleEndedOpAmp
+  builtin SEOpAmpTranBench
+  outputs:
+    OutputSwing
+
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -21,21 +39,14 @@ circuit OTA5TSingleEnded
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 20MHz
-      c_gain : PassbandGain @ OUT >= 40dB
-      c_pm : PhaseMargin @ OUT >= 60deg
-      c_pwr : QuiescentPower <= 500uW
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 500uW
+      c_swing : TranBench::OutputSwing at net::OUT >= 1.2V
     tech:
       t_lmin : L >= 180nm on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
-      m_pwr : SEOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench

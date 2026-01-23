@@ -1,6 +1,12 @@
 ACIR 3.0
 
-circuit InvalidAutoSweep : SingleEndedAmp
+bench DCBench for SingleEndedAmp
+  builtin SEAmpDCBench
+  outputs:
+    OutputDCBias
+    QuiescentPower
+
+circuit InvalidAutoSweep implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -12,5 +18,3 @@ circuit InvalidAutoSweep : SingleEndedAmp
     supply VDD = 1.8V
     sweep InputDCBias [Auto]
     load OUT C=1pF
-  benches:
-    SEAmpDCBench

@@ -68,14 +68,8 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
-        var resultsPath = Path.Combine(
-            _outputDir,
-            "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench_results.json"
-        );
-        var tracePath = Path.Combine(
-            _outputDir,
-            "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench_trace.jsonl"
-        );
+        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_DCBench_results.json");
+        var tracePath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_DCBench_trace.jsonl");
 
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
@@ -139,24 +133,16 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         Assert.Contains("Compliance:", result.Stdout, StringComparison.Ordinal);
 
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_results.json")
-            )
+            File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_ACBench_results.json"))
         );
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpACBench_trace.jsonl")
-            )
+            File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_ACBench_trace.jsonl"))
         );
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpDCBench_results.json")
-            )
+            File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_DCBench_results.json"))
         );
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_SEAmpDCBench_trace.jsonl")
-            )
+            File.Exists(Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_DCBench_trace.jsonl"))
         );
 
         var combinedResults = Path.Combine(_outputDir, "CommonSourceAmp_MultiBench_results.json");
@@ -208,14 +194,8 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
-        var resultsPath = Path.Combine(
-            _outputDir,
-            "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench_results.json"
-        );
-        var tracePath = Path.Combine(
-            _outputDir,
-            "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench_trace.jsonl"
-        );
+        var resultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_DCBench_results.json");
+        var tracePath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_DCBench_trace.jsonl");
 
         Assert.True(File.Exists(resultsPath), "results.json not found");
         Assert.True(File.Exists(tracePath), "trace.jsonl not found");
@@ -289,16 +269,13 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         );
         CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
 
-        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_ACBench.sp");
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
         Assert.Matches(Sky130LibIncludePattern(), content);
 
-        var resultsPath = Path.Combine(
-            outputDir,
-            "OTA5TSingleEnded_Pdk_SEOpAmpACBench_results.json"
-        );
+        var resultsPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_ACBench_results.json");
         Assert.True(File.Exists(resultsPath), "PDK results.json not found");
     }
 
@@ -336,16 +313,13 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         );
         CliIntegrationTestHelper.AssertSuccess(benchResult, "bench run failed");
 
-        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_ACBench.sp");
         Assert.True(File.Exists(benchPath), "PDK bench netlist not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
         Assert.Matches(Sky130LibIncludePattern(), content);
 
-        var resultsPath = Path.Combine(
-            outputDir,
-            "OTA5TSingleEnded_Pdk_SEOpAmpACBench_results.json"
-        );
+        var resultsPath = Path.Combine(outputDir, "OTA5TSingleEnded_Pdk_ACBench_results.json");
         Assert.True(File.Exists(resultsPath), "PDK results.json not found");
     }
 
@@ -367,7 +341,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
-        var resultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_ACBench_results.json");
         Assert.True(File.Exists(resultsPath), "AC results.json not found");
 
         var benchResults = JsonSerializer.Deserialize<BenchResult>(
@@ -400,7 +374,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "bench run failed");
 
-        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_ACBench_results.json");
         Assert.True(File.Exists(resultsPath), "AC results.json not found");
 
         var benchResults = JsonSerializer.Deserialize<BenchResult>(
@@ -410,9 +384,14 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         Assert.NotNull(benchResults);
 
         // Core assertions - validates SE template produces valid measurements
-        AssertMeasurementValid(benchResults!, "PassbandGain@OUT", minValue: 0, maxValue: 200);
-        AssertMeasurementValid(benchResults!, "GainBandwidth@OUT", minValue: 1e3, maxValue: 1e12);
-        AssertMeasurementValid(benchResults!, "PhaseMargin@OUT", minValue: 0, maxValue: 360);
+        AssertMeasurementValid(benchResults!, "PassbandGain@net::OUT", minValue: 0, maxValue: 200);
+        AssertMeasurementValid(
+            benchResults!,
+            "GainBandwidth@net::OUT",
+            minValue: 1e3,
+            maxValue: 1e12
+        );
+        AssertMeasurementValid(benchResults!, "PhaseMargin@net::OUT", minValue: 0, maxValue: 360);
     }
 
     [Fact]
@@ -462,11 +441,11 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Load AC bench results for both
         var flatAcResultsPath = Path.Combine(
             flatOutputDir,
-            "OTA5TSingleEnded_SEOpAmpACBench_results.json"
+            "OTA5TSingleEnded_ACBench_results.json"
         );
         var hierarchicalAcResultsPath = Path.Combine(
             hierarchicalOutputDir,
-            "OTA5T_Hierarchical_SEOpAmpACBench_results.json"
+            "OTA5T_Hierarchical_ACBench_results.json"
         );
 
         Assert.True(File.Exists(flatAcResultsPath), "Flat AC results not found");
@@ -488,30 +467,30 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         AssertMeasurementsMatch(
             flatAcResults!,
             hierarchicalAcResults!,
-            "PassbandGain@OUT",
+            "PassbandGain@net::OUT",
             tolerancePercent: 5.0
         );
         AssertMeasurementsMatch(
             flatAcResults!,
             hierarchicalAcResults!,
-            "GainBandwidth@OUT",
+            "GainBandwidth@net::OUT",
             tolerancePercent: 5.0
         );
         AssertMeasurementsMatch(
             flatAcResults!,
             hierarchicalAcResults!,
-            "PhaseMargin@OUT",
+            "PhaseMargin@net::OUT",
             tolerancePercent: 5.0
         );
 
         // Load DC bench results for both
         var flatDcResultsPath = Path.Combine(
             flatOutputDir,
-            "OTA5TSingleEnded_SEOpAmpDCBench_results.json"
+            "OTA5TSingleEnded_DCBench_results.json"
         );
         var hierarchicalDcResultsPath = Path.Combine(
             hierarchicalOutputDir,
-            "OTA5T_Hierarchical_SEOpAmpDCBench_results.json"
+            "OTA5T_Hierarchical_DCBench_results.json"
         );
 
         Assert.True(File.Exists(flatDcResultsPath), "Flat DC results not found");
@@ -607,11 +586,11 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Load AC bench results for both
         var flatAcResultsPath = Path.Combine(
             flatOutputDir,
-            "OTA5TSingleEnded_SEOpAmpACBench_results.json"
+            "OTA5TSingleEnded_ACBench_results.json"
         );
         var attachAcResultsPath = Path.Combine(
             attachOutputDir,
-            "OTA5T_Hierarchical_Attach_SEOpAmpACBench_results.json"
+            "OTA5T_Hierarchical_Attach_ACBench_results.json"
         );
 
         Assert.True(File.Exists(flatAcResultsPath), "Flat AC results not found");
@@ -633,30 +612,30 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         AssertMeasurementsMatch(
             flatAcResults!,
             attachAcResults!,
-            "PassbandGain@OUT",
+            "PassbandGain@net::OUT",
             tolerancePercent: 5.0
         );
         AssertMeasurementsMatch(
             flatAcResults!,
             attachAcResults!,
-            "GainBandwidth@OUT",
+            "GainBandwidth@net::OUT",
             tolerancePercent: 5.0
         );
         AssertMeasurementsMatch(
             flatAcResults!,
             attachAcResults!,
-            "PhaseMargin@OUT",
+            "PhaseMargin@net::OUT",
             tolerancePercent: 5.0
         );
 
         // Load DC bench results for both
         var flatDcResultsPath = Path.Combine(
             flatOutputDir,
-            "OTA5TSingleEnded_SEOpAmpDCBench_results.json"
+            "OTA5TSingleEnded_DCBench_results.json"
         );
         var attachDcResultsPath = Path.Combine(
             attachOutputDir,
-            "OTA5T_Hierarchical_Attach_SEOpAmpDCBench_results.json"
+            "OTA5T_Hierarchical_Attach_DCBench_results.json"
         );
 
         Assert.True(File.Exists(flatDcResultsPath), "Flat DC results not found");

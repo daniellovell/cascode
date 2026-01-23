@@ -49,8 +49,9 @@ public sealed record AcirJsonDocument
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public AcirJsonHarness? Harness { get; init; }
 
-    [JsonPropertyName("benches")]
-    public IReadOnlyList<string> Benches { get; init; } = [];
+    [JsonPropertyName("benchDefinitions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonBenchDefinition>? BenchDefinitions { get; init; }
 }
 
 /// <summary>
@@ -128,7 +129,7 @@ public sealed record AcirJsonComponent
 }
 
 /// <summary>
-/// Constraints block containing numeric, tech, and measure constraints.
+/// Constraints block containing numeric and tech constraints.
 /// </summary>
 public sealed record AcirJsonConstraints
 {
@@ -137,9 +138,6 @@ public sealed record AcirJsonConstraints
 
     [JsonPropertyName("tech")]
     public IReadOnlyList<AcirJsonTechConstraint> Tech { get; init; } = [];
-
-    [JsonPropertyName("measure")]
-    public IReadOnlyList<AcirJsonMeasure> Measure { get; init; } = [];
 }
 
 /// <summary>
@@ -149,6 +147,9 @@ public sealed record AcirJsonNumericConstraint
 {
     [JsonPropertyName("id")]
     public required string Id { get; init; }
+
+    [JsonPropertyName("bench")]
+    public required string Bench { get; init; }
 
     [JsonPropertyName("metric")]
     public required string Metric { get; init; }
@@ -192,22 +193,31 @@ public sealed record AcirJsonTechConstraint
 }
 
 /// <summary>
-/// Measurement intent specifying a metric to extract from simulation.
+/// Bench definition at document scope.
 /// </summary>
-public sealed record AcirJsonMeasure
+public sealed record AcirJsonBenchDefinition
 {
-    [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
 
-    [JsonPropertyName("bench")]
-    public required string Bench { get; init; }
+    [JsonPropertyName("trait")]
+    public required string Trait { get; init; }
 
-    [JsonPropertyName("metric")]
-    public required string Metric { get; init; }
-
-    [JsonPropertyName("node")]
+    [JsonPropertyName("builtin")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Node { get; init; }
+    public string? Builtin { get; init; }
+
+    [JsonPropertyName("template")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Template { get; init; }
+
+    [JsonPropertyName("config")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Config { get; init; }
+
+    [JsonPropertyName("outputs")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? Outputs { get; init; }
 }
 
 /// <summary>

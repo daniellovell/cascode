@@ -21,7 +21,12 @@ trait MirrorLike:
 trait LoadLike:
   port OUT : Diff
 
-circuit ArrowWhitespace
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    PassbandGain
+
+circuit ArrowWhitespace implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -46,16 +51,12 @@ circuit ArrowWhitespace
       // spaces around arrow
   constraints:
     numeric:
-      c_gain : PassbandGain >= 20dB
-    measure:
-      m_gain : SEOpAmpACBench PassbandGain
+      c_gain : ACBench::PassbandGain >= 20dB
   harness:
     supply VDD = 1.8V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
 
-circuit DiffPairSub : LoadLike
+circuit DiffPairSub implements LoadLike
   level EL
   inline
   supply VDD
@@ -70,4 +71,3 @@ circuit DiffPairSub : LoadLike
     // S->  tnode: trailing space only
     nmos M_TAIL (B -> GND, D -> tnode, G -> VDD, S -> GND) : W=4u L=180n nmos
     // all bindings with spaces around arrow
-

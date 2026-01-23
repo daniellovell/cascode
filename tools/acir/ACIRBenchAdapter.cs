@@ -7,7 +7,7 @@ using Cascode.Bench;
 namespace Cascode.ACIR;
 
 /// <summary>
-/// Adapter that converts ACIR circuits and bench configs to TestbenchContext.
+/// Adapter that converts ACIR circuits and bench definitions to TestbenchContext.
 /// </summary>
 public static class ACIRBenchAdapter
 {
@@ -23,10 +23,10 @@ public static class ACIRBenchAdapter
     );
 
     /// <summary>
-    /// Converts an ACIR circuit and bench config to a TestbenchContext.
+    /// Converts an ACIR circuit and bench definition to a TestbenchContext.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
-    /// <param name="bench">Bench configuration.</param>
+    /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
@@ -36,7 +36,7 @@ public static class ACIRBenchAdapter
     /// <returns>TestbenchContext ready for TestbenchGenerator.</returns>
     public static TestbenchContext ToTestbenchContext(
         Circuit circuit,
-        BenchConfig bench,
+        BenchDefinition bench,
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
@@ -58,8 +58,7 @@ public static class ACIRBenchAdapter
         var passbandFreqHz = DerivePassbandMeasurementFrequency(circuit, acStartHz, acStopHz);
         var sweepDict = BuildSweepDictionary(circuit);
 
-        // Determine if bench is differential based on name
-        var isDifferential = bench.Name.StartsWith("FD", StringComparison.OrdinalIgnoreCase);
+        var isDifferential = IsDifferentialBench(bench, circuit);
         var loadElements = GenerateLoadElements(circuit, isDifferential, backend);
         var supplyElements = GenerateSupplyElements(circuit, backend);
 
@@ -123,6 +122,22 @@ public static class ACIRBenchAdapter
             ["includes_without_section"] = includesWithoutSection,
             ["section"] = includeResolution?.Section,
         };
+
+        var templateName = !string.IsNullOrWhiteSpace(bench.Builtin) ? bench.Builtin : bench.Name;
+        if (!string.IsNullOrWhiteSpace(templateName))
+        {
+            args["template_name"] = templateName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(bench.Template))
+        {
+            args["template_path"] = bench.Template;
+        }
+
+        if (bench.Config.Count > 0)
+        {
+            args["bench_config"] = new Dictionary<string, string>(bench.Config);
+        }
 
         // Add sweep conditions - templates access them as sweep.ConditionName
         foreach (var kvp in sweepDict)
@@ -392,6 +407,27 @@ public static class ACIRBenchAdapter
         return string.Join("\n", lines);
     }
 
+    private static bool IsDifferentialBench(BenchDefinition bench, Circuit circuit)
+    {
+        if (IsDifferentialTrait(bench.Trait))
+        {
+            return true;
+        }
+
+        if (circuit.Traits?.Any(IsDifferentialTrait) == true)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsDifferentialTrait(string trait)
+    {
+        return trait.Contains("Diff", StringComparison.OrdinalIgnoreCase)
+            || trait.Contains("Differential", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Builds a dictionary of sweep conditions for template rendering.
     /// Keys are condition names (e.g., "InputDCBias"), values are dictionaries with start/stop/step.
@@ -619,7 +655,7 @@ public static class ACIRBenchAdapter
     /// Generates a testbench file directly using template discovery and rendering.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
-    /// <param name="bench">Bench configuration.</param>
+    /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
@@ -629,7 +665,7 @@ public static class ACIRBenchAdapter
     /// <returns>TestbenchFiles with path to generated netlist.</returns>
     public static TestbenchFiles GenerateTestbench(
         Circuit circuit,
-        BenchConfig bench,
+        BenchDefinition bench,
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,

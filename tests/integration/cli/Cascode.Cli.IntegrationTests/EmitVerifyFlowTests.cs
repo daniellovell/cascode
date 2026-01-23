@@ -66,19 +66,23 @@ public partial class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
-        Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 1 design(s) and 3 testbench(es)", result.Stdout);
 
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded.sp")),
             "Design netlist not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpDCBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_DCBench.sp")),
             "DC testbench not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TSingleEnded_TranBench.sp")),
+            "Tran testbench not found"
         );
     }
 
@@ -106,7 +110,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             "Design netlist not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "CSAmpResistive_SEAmpACBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "CSAmpResistive_ACBench.sp")),
             "Testbench not found"
         );
     }
@@ -117,7 +121,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
         var resultsPath = Path.Combine(
             _repoRoot,
-            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+            "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -133,7 +137,8 @@ public partial class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
         Assert.Contains("3/3 constraints satisfied", result.Stdout);
-        Assert.Contains("Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by DCBench.", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_swing) measured by TranBench.", result.Stdout);
     }
 
     [Fact]
@@ -146,7 +151,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         var failingResults = new
         {
             circuit = "OTA5TSingleEnded",
-            bench = "SEOpAmpACBench",
+            bench = "ACBench",
             measurements = new
             {
                 gain = new
@@ -202,7 +207,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
         var resultsPath = Path.Combine(
             _repoRoot,
-            "tests/golden/results/cs/CSAmpResistive_SEAmpACBench_results.json"
+            "tests/golden/results/cs/CSAmpResistive_ACBench_results.json"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -241,24 +246,24 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         // Verify generated files exist and have content
         var designPath = Path.Combine(_outputDir, "OTA5TSingleEnded.sp");
-        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_ACBench.sp");
 
         Assert.True(File.Exists(designPath), "Design netlist not found");
         Assert.True(File.Exists(benchPath), "Testbench not found");
 
         var benchContent = await File.ReadAllTextAsync(benchPath);
-        Assert.Contains(".title OTA5TSingleEnded_SEOpAmpACBench", benchContent);
+        Assert.Contains(".title OTA5TSingleEnded_ACBench", benchContent);
         Assert.Contains(".include \"OTA5TSingleEnded.sp\"", benchContent);
         Assert.Contains("XDUT", benchContent);
         Assert.Contains(".control", benchContent);
 
         // Step 2: Create mock results (as if simulation ran)
         // AC bench only measures AC metrics - no power measurement
-        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench_results.json");
+        var resultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_ACBench_results.json");
         var mockResults = new
         {
             circuit = "OTA5TSingleEnded",
-            bench = "SEOpAmpACBench",
+            bench = "ACBench",
             measurements = new
             {
                 gain = new
@@ -305,10 +310,8 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(verifyResult, "verify command failed");
         Assert.Contains("3/3 constraints satisfied", verifyResult.Stdout);
-        Assert.Contains(
-            "Note: 1 constraint (c_pwr) measured by SEOpAmpDCBench.",
-            verifyResult.Stdout
-        );
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by DCBench.", verifyResult.Stdout);
+        Assert.Contains("Note: 1 constraint (c_swing) measured by TranBench.", verifyResult.Stdout);
     }
 
     [Fact]
@@ -317,7 +320,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         var nonExistentPath = Path.Combine(_outputDir, "nonexistent.cir");
         var resultsPath = Path.Combine(
             _repoRoot,
-            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+            "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -778,7 +781,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Emitted 1 design(s) and 1 testbench(es)", result.Stdout);
 
-        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
@@ -808,7 +811,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
@@ -826,7 +829,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         );
         var resultsPath = Path.Combine(
             _repoRoot,
-            "tests/golden/results/cs/CSAmpResistive_SEAmpDCBench_results.json"
+            "tests/golden/results/cs/CSAmpResistive_DCSwept_DCBench_results.json"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -884,7 +887,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_SEAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "CSAmpResistive_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
@@ -918,7 +921,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_SEOpAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
@@ -949,7 +952,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "CommonSourceAmp_SEAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "CommonSourceAmp_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
@@ -975,17 +978,14 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         var cases = new (string AcirRel, string BenchFile)[]
         {
-            (
-                "tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir",
-                "CommonSourceAmp_Pdk_SEAmpACBench.sp"
-            ),
+            ("tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir", "CommonSourceAmp_Pdk_ACBench.sp"),
             (
                 "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir",
-                "OTA5TSingleEnded_Pdk_SEOpAmpACBench.sp"
+                "OTA5TSingleEnded_Pdk_ACBench.sp"
             ),
             (
                 "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cir",
-                "OTA5T_Hierarchical_Attach_Pdk_SEOpAmpACBench.sp"
+                "OTA5T_Hierarchical_Attach_Pdk_ACBench.sp"
             ),
         };
 
@@ -1045,7 +1045,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TSingleEnded_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);
@@ -1078,19 +1078,23 @@ public partial class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.Contains("Design netlist:", result.Stdout);
         Assert.Contains("Testbench:", result.Stdout);
-        Assert.Contains("Emitted 1 design(s) and 2 testbench(es)", result.Stdout);
+        Assert.Contains("Emitted 1 design(s) and 3 testbench(es)", result.Stdout);
 
         Assert.True(
             File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff.sp")),
             "Design netlist not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_DCBench.sp")),
             "DC testbench not found"
+        );
+        Assert.True(
+            File.Exists(Path.Combine(_outputDir, "OTA5TFullyDiff_TranBench.sp")),
+            "Tran testbench not found"
         );
     }
 
@@ -1112,7 +1116,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
 
-        var dcBenchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpDCBench.sp");
+        var dcBenchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCBench.sp");
         Assert.True(File.Exists(dcBenchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(dcBenchPath);
@@ -1143,7 +1147,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         var content = await File.ReadAllTextAsync(benchPath);
@@ -1158,7 +1162,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
         var resultsPath = Path.Combine(
             _repoRoot,
-            "tests/golden/results/ota/OTA5TFullyDiff_FDOpAmpACBench_results.json"
+            "tests/golden/results/ota/OTA5TFullyDiff_ACBench_results.json"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1174,7 +1178,8 @@ public partial class EmitVerifyFlowTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(result, "verify command failed");
         Assert.Contains("Constraint Compliance Report", result.Stdout);
         Assert.Contains("3/3 constraints satisfied", result.Stdout);
-        Assert.Contains("Note: 1 constraint (c_pwr) measured by FDOpAmpDCBench.", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_pwr) measured by DCBench.", result.Stdout);
+        Assert.Contains("Note: 1 constraint (c_swing) measured by TranBench.", result.Stdout);
     }
 
     [Fact]
@@ -1197,7 +1202,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_FDOpAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
@@ -1236,7 +1241,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_FDOpAmpDCBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5TFullyDiff_DCSwept_DCBench.sp");
         Assert.True(File.Exists(benchPath), "DC testbench not found");
 
         // Verify ngspice can simulate the generated SPICE file
@@ -1292,11 +1297,11 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Mdp__M_P", designText);
         Assert.Contains("Mdp__M_TAIL", designText);
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_SEOpAmpACBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_SEOpAmpDCBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_DCBench.sp")),
             "DC testbench not found"
         );
     }
@@ -1323,7 +1328,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5T_Hierarchical_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5T_Hierarchical_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);
@@ -1382,11 +1387,11 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("Mdp__M_P", designText);
         Assert.Contains("Mdp__M_TAIL", designText);
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpACBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpDCBench.sp")),
+            File.Exists(Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_DCBench.sp")),
             "DC testbench not found"
         );
     }
@@ -1413,7 +1418,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_SEOpAmpACBench.sp");
+        var benchPath = Path.Combine(_outputDir, "OTA5T_Hierarchical_Attach_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);
@@ -1475,15 +1480,11 @@ public partial class EmitVerifyFlowTests : IDisposable
         );
         Assert.Contains("* Inline expansion of dp : DiffPair", designText);
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "TelescopicCascodeFullyDiff_Attach_FDOpAmpACBench.sp")
-            ),
+            File.Exists(Path.Combine(_outputDir, "TelescopicCascodeFullyDiff_Attach_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "TelescopicCascodeFullyDiff_Attach_FDOpAmpDCBench.sp")
-            ),
+            File.Exists(Path.Combine(_outputDir, "TelescopicCascodeFullyDiff_Attach_DCBench.sp")),
             "DC testbench not found"
         );
     }
@@ -1510,10 +1511,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(
-            _outputDir,
-            "TelescopicCascodeFullyDiff_Attach_FDOpAmpACBench.sp"
-        );
+        var benchPath = Path.Combine(_outputDir, "TelescopicCascodeFullyDiff_Attach_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);
@@ -1575,15 +1573,11 @@ public partial class EmitVerifyFlowTests : IDisposable
         );
         Assert.Contains("* Inline expansion of dp : DiffPair", designText);
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_SEOpAmpACBench.sp")
-            ),
+            File.Exists(Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_ACBench.sp")),
             "AC testbench not found"
         );
         Assert.True(
-            File.Exists(
-                Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_SEOpAmpDCBench.sp")
-            ),
+            File.Exists(Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_DCBench.sp")),
             "DC testbench not found"
         );
     }
@@ -1610,10 +1604,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(emitResult, "emit command failed");
 
-        var benchPath = Path.Combine(
-            _outputDir,
-            "TelescopicCascodeSingleEnded_Attach_SEOpAmpACBench.sp"
-        );
+        var benchPath = Path.Combine(_outputDir, "TelescopicCascodeSingleEnded_Attach_ACBench.sp");
         Assert.True(File.Exists(benchPath), "AC testbench not found");
 
         var ngspiceResult = await RunNgspiceAsync(benchPath);

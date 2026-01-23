@@ -7,7 +7,7 @@ trait CurrentMirrorLike:
     to LoadBranch:
       TAP[0] -> IN
 
-circuit CurrentMirror : CurrentMirrorLike
+circuit CurrentMirror implements CurrentMirrorLike
   level EL
   param ratio : real = 1
   supply VDD

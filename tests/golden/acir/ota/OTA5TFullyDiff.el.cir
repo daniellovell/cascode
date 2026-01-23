@@ -4,7 +4,25 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TFullyDiff
+bench ACBench for FullyDiffOpAmp
+  builtin FDOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+    OutputSwing
+
+bench DCBench for FullyDiffOpAmp
+  builtin FDOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+bench TranBench for FullyDiffOpAmp
+  builtin FDOpAmpTranBench
+  outputs:
+    OutputSwing
+
+circuit OTA5TFullyDiff implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
@@ -23,22 +41,14 @@ circuit OTA5TFullyDiff
     resistor R_CMFB_N (P->OUT.N, N->vcm_node) : R=500k
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 20MHz
-      c_gain : PassbandGain >= 30dB
-      c_pm : PhaseMargin >= 60deg
-      c_pwr : QuiescentPower <= 800uW
+      c_gbw : ACBench::GainBandwidth >= 20MHz
+      c_gain : ACBench::PassbandGain >= 30dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 800uW
+      c_swing : TranBench::OutputSwing >= 1.2V
     tech:
       t_lmin : L >= 180nm on *
-    measure:
-      m_gbw : FDOpAmpACBench GainBandwidth
-      m_gain : FDOpAmpACBench PassbandGain
-      m_pm : FDOpAmpACBench PhaseMargin
-      m_pwr : FDOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    FDOpAmpACBench
-    FDOpAmpDCBench
-

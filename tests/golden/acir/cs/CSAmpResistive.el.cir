@@ -1,6 +1,12 @@
 ACIR 3.0
 
-circuit CSAmpResistive : SingleEndedAmp
+bench ACBench for SingleEndedAmp
+  builtin SEAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+
+circuit CSAmpResistive implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -11,14 +17,8 @@ circuit CSAmpResistive : SingleEndedAmp
     resistor R_load (P->VDD, N->OUT) : R=10k
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 10MHz
-      c_gain : PassbandGain @ OUT >= 20dB
-    measure:
-      m_gbw : SEAmpACBench GainBandwidth @ OUT
-      m_gain : SEAmpACBench PassbandGain @ OUT
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 10MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 20dB
   harness:
     supply VDD = 1.8V
     load OUT C=1pF
-  benches:
-    SEAmpACBench
-

@@ -38,13 +38,6 @@ internal sealed partial class ACIRAstBuilder
                         constraints.Graph.Add(BuildGraphConstraint(constraintCtx));
                     }
                     break;
-
-                case ACIRParser.MeasureSectionContext measureCtx:
-                    foreach (var intentCtx in measureCtx.measureIntent())
-                    {
-                        constraints.Measure.Add(BuildMeasureIntent(intentCtx));
-                    }
-                    break;
             }
         }
 
@@ -56,9 +49,11 @@ internal sealed partial class ACIRAstBuilder
     /// <returns>Numeric constraint.</returns>
     private static NumericConstraint BuildNumericConstraint(ACIRParser.NumericConstraintContext ctx)
     {
-        var id = ctx.IDENT(0).GetText();
-        var metric = ctx.IDENT(1).GetText();
-        var node = ctx.IDENT().Length > 2 ? ctx.IDENT(2).GetText() : null;
+        var id = ctx.IDENT().GetText();
+        var benchRef = ctx.benchMetricRef();
+        var bench = benchRef.IDENT(0).GetText();
+        var metric = benchRef.IDENT(1).GetText();
+        var node = ctx.nodeRef() != null ? BuildNodeRef(ctx.nodeRef()) : null;
         var op = ctx.COMPARISON_OP().GetText();
         var quantity = ctx.QUANTITY().GetText();
         var (value, unit) = ParseQuantity(quantity);
@@ -66,6 +61,7 @@ internal sealed partial class ACIRAstBuilder
         return new NumericConstraint
         {
             Id = id,
+            Bench = bench,
             Metric = metric,
             Node = node,
             Op = op,
@@ -130,23 +126,15 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    /// <summary>Builds a measure intent entry.</summary>
-    /// <param name="ctx">Measure intent context.</param>
-    /// <returns>Measure intent.</returns>
-    private static MeasureIntent BuildMeasureIntent(ACIRParser.MeasureIntentContext ctx)
+    private static NodeRef BuildNodeRef(ACIRParser.NodeRefContext ctx)
     {
-        var id = ctx.IDENT(0).GetText();
-        var bench = ctx.IDENT(1).GetText();
-        var metric = ctx.IDENT(2).GetText();
-        var node = ctx.IDENT().Length > 3 ? ctx.IDENT(3).GetText() : null;
-
-        return new MeasureIntent
-        {
-            Id = id,
-            Bench = bench,
-            Metric = metric,
-            Node = node,
-        };
+        var scopeToken = ctx.nodeScope();
+        var scope =
+            scopeToken.IDENT()?.GetText()
+            ?? scopeToken.NET_KW()?.GetText()
+            ?? scopeToken.PORT_KW()?.GetText()
+            ?? string.Empty;
+        return new NodeRef { Scope = scope, Path = BuildPinRef(ctx.pinRef()) };
     }
 
     /// <summary>Builds the harness block for supplies, biases, loads, and sweeps.</summary>
@@ -363,40 +351,6 @@ internal sealed partial class ACIRAstBuilder
             return value + unit;
         }
         return value;
-    }
-
-    /// <summary>Builds the benches block and its bench configurations.</summary>
-    /// <param name="ctx">Benches section context.</param>
-    /// <returns>Benches block.</returns>
-    private static BenchesBlock BuildBenchesBlock(ACIRParser.BenchesSectionContext ctx)
-    {
-        var benches = new BenchesBlock();
-
-        foreach (var entryCtx in ctx.benchEntry())
-        {
-            var config = new Dictionary<string, string>();
-            if (entryCtx.benchConfig() != null)
-            {
-                foreach (var configCtx in entryCtx.benchConfig().benchConfigEntry())
-                {
-                    var key = configCtx.IDENT(0).GetText();
-                    var value =
-                        configCtx.IDENT().Length > 1
-                            ? configCtx.IDENT(1).GetText()
-                            : configCtx.NUMBER()?.GetText()
-                                ?? configCtx.QUANTITY()?.GetText()
-                                ?? configCtx.STRING()?.GetText()
-                                ?? string.Empty;
-                    config[key] = value;
-                }
-            }
-
-            benches.Benches.Add(
-                new BenchConfig { Name = entryCtx.IDENT().GetText(), Config = config }
-            );
-        }
-
-        return benches;
     }
 
     /// <summary>Builds the provenance block with sources, transforms, and aliases.</summary>

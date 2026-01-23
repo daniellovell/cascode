@@ -52,12 +52,12 @@ ACIR files use UTF-8 encoding with LF line endings. Each logical statement occup
 
 ```acir
 // This is a comment
-ACIR 2.0  // Version declaration with inline comment
+ACIR 3.0  // Version declaration with inline comment
 ```
 
 ### 3.2.2 Document Structure
 
-An ACIR document begins with a version declaration, followed by optional bundle type definitions, optional trait definitions, then one or more circuit blocks.
+An ACIR document begins with a version declaration, followed by optional bundle type definitions, optional trait definitions, optional bench definitions, then one or more circuit blocks.
 
 ```acir
 ACIR <major>.<minor>
@@ -66,12 +66,14 @@ ACIR <major>.<minor>
 
 [trait definitions]
 
-circuit <name> ...
+[bench definitions]
+
+circuit <name> implements <trait list> ...
   [level, package]
   [supply/ground/port declarations]
   fill:
     [nets, instances/devices]
-  [constraints, harness, benches, provenance]
+  [constraints, harness, provenance]
 
 circuit <name> ...
   [circuit body]
@@ -89,7 +91,7 @@ ACIR uses MAJOR.MINOR versioning semantics. Major version increments indicate br
 
 Additions that affect circuit connectivity (for example, new ways to create or merge nets) are not ignorable and therefore require a MAJOR version bump.
 
-Current version: `2.0`
+Current version: `3.0`
 
 ### 3.2.4 Lexical Elements
 
@@ -420,7 +422,7 @@ When the instance prefix is present, it is stripped during parsing. The terminal
 At EL level, instances may reference other circuits defined in the same ACIR document. This enables hierarchical composition where a top-level circuit instantiates child circuits, each of which may contain primitive devices or further circuit instances.
 
 ```acir
-circuit OTA5TSingleEnded
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
 
   supply VDD
@@ -448,12 +450,12 @@ circuit OTA5TSingleEnded
 
     connect dp.OUT.N -> OUT
 
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level EL
   inline
   ...
 
-circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   level EL
   inline
   ...
@@ -480,7 +482,7 @@ Supported types are `real` and `int`. Parameters with defaults are optional at i
 Example:
 
 ```acir
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level EL
   inline
 
@@ -522,7 +524,7 @@ At ML level, sizing parameters are typically declared without defaults (required
 Example (ML):
 
 ```acir
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level ML
   param W_input : real           // required - caller must provide
   param L : real                 // required - caller must provide
@@ -573,7 +575,7 @@ Device parameter lists MAY include a `size=<name>` entry. When present, the devi
 Example (EL, inline leaf):
 
 ```acir
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
 
@@ -753,10 +755,10 @@ attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {
 
 Connectors are defined on interface traits in the Cascode language (Chapter 2). For multi-module ACIR documents that use `attach`, all referenced traits and their connectors MUST be present in the same ACIR document so that attach resolution is deterministic and environment-independent.
 
-Circuits implement traits by listing them after the circuit name:
+Circuits implement traits by using the `implements` keyword:
 
 ```acir
-circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   level EL
   ...
 ```
@@ -783,7 +785,7 @@ trait TraitB:
       Y -> Z
 
 // Circuit implements both traits
-circuit Multi : TraitA, TraitB
+circuit Multi implements TraitA, TraitB
   level EL
   ...
 
@@ -952,17 +954,29 @@ The hash is computed from a canonical serialization of the resolved terminal-to-
 
 ---
 
-## 3.5 Constraints and Measurement Intents
+## 3.5 Bench Definitions and Constraints
 
-Constraints live alongside the graph and come in four main kinds. They are evaluated during synthesis, sizing, and verification.
+Bench definitions declare which metrics a bench will produce for a given trait and how that bench is implemented. Constraints express required values for those metrics and bind them to a bench and optional measurement node.
 
 ```acir
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
 constraints:
   numeric:
-    c_gbw : GainBandwidth @ OUT >= 100MHz
-    c_gain : PassbandGain @ OUT >= 55dB
-    c_pm : PhaseMargin @ OUT >= 60deg
-    c_pwr : Power <= 2mW
+    c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
+    c_gain : ACBench::PassbandGain at net::OUT >= 55dB
+    c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+    c_pwr : DCBench::QuiescentPower <= 2mW
 
   tech:
     t_lmin : L >= 180nm on *
@@ -970,23 +984,36 @@ constraints:
   graph:
     g_card_tail : cardinality type:CurrentMirror in [1, 1]
     g_path : path_exists IN.P -> OUT through CurrentMirror
-
-  measure:
-    m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-    m_rise : StepToggle RiseTime @ PAD
 ```
 
-### 3.5.1 Numeric Constraints
+### 3.5.1 Bench Definitions
 
-Numeric constraints express inequalities over metrics with explicit units and scope.
+Bench definitions are document-level blocks. Each bench is scoped to a trait and selects either a builtin bench or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the trait. A `config` block may supply bench-specific parameters passed through to templates.
 
 ```acir
-<id> : <metric> @ <node> <op> <value> <unit>
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+```
+
+Bench names must be unique within a document. A circuit may reference only benches whose `for` trait appears in its `implements` list.
+
+### 3.5.2 Numeric Constraints
+
+Numeric constraints express inequalities over bench metrics with explicit units and scope.
+
+```acir
+<id> : <bench>::<metric> [at <node>] <op> <value> <unit>
 ```
 
 Operators: `>=`, `<=`, `==`, `>`, `<`
 
-### 3.5.2 Technology Constraints
+Node references are explicit and namespaced, for example `net::OUT` or `term::dp.M_P.D`. When `at` is omitted, the bench uses its default measurement node.
+
+### 3.5.3 Technology Constraints
 
 Technology constraints express limits on device parameters.
 
@@ -996,7 +1023,7 @@ Technology constraints express limits on device parameters.
 
 Scope may be `*` (all devices), a type selector, or an instance id.
 
-### 3.5.3 Graph Constraints
+### 3.5.4 Graph Constraints
 
 Graph constraints express structural properties of the circuit graph.
 
@@ -1006,15 +1033,7 @@ Graph constraints express structural properties of the circuit graph.
 <id> : fanout <net> in [<min>, <max>]
 ```
 
-### 3.5.4 Measurement Intents
-
-Measurement intents specify what metrics should be extracted from simulation.
-
-```acir
-<id> : <bench> <metric> @ <node>
-```
-
-Guidance: Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints and measurement intents carry explicit units, with sizing tools responsible for conversion to internal SI base units.
+Guidance: Graph constraints operate on the derived incidence graph, leveraging the fact that explicit edges eliminate the need for wiring inference. Numeric constraints carry explicit units, with sizing tools responsible for conversion to internal SI base units.
 
 ---
 
@@ -1059,7 +1078,7 @@ Automatic step sizing: When the step parameter is omitted, the toolchain compute
 Semantics:
 
 - The condition name (`InputDCBias`, `InputDCCommonMode`, `OutputDCCommonMode`) is topology-specific and must match the swept condition declared in the design's specification
-- All benches listed in the `benches:` block must respect the sweep and execute analyses at each point
+- All benches referenced by numeric constraints must respect the sweep and execute analyses at each point
 - Benches report worst-case values according to constraint directionality (minimum for `>=` constraints, maximum for `<=` constraints)
 - For range constraints `in [X..Y]`, benches report both `_min` and `_max` metric values
 
@@ -1088,21 +1107,24 @@ Ports declared with domain `bias` represent DC operating points that must be res
 
 For example, a common-source amplifier with a PMOS active load requires a gate bias voltage to set the load device's operating point. The biasing engine selects a voltage that places the output near mid-rail while maintaining adequate headroom for signal swing. This value is recorded in the harness and emitted as an ideal DC voltage source during SPICE testbench generation.
 
-### 3.6.2 Bench Configuration
+### 3.6.2 Bench Definitions
 
-ACIR lists selected benches and their configurations for reproducibility.
+Bench definitions live at document scope and are referenced by constraints. A bench declares its trait scope, implementation source, and the metrics it produces.
 
 ```acir
-benches:
-  SEOpAmpACBench
-  StepToggle:
+bench StepToggle for DigitalBuffer
+  template "benches/StepToggle.spectre.tpl"
+  config:
     node = COMP_OUT
     freq = 50MHz
     duty = 0.5
     cycles = 3
+  outputs:
+    RiseTime
+    FallTime
+    VOH
+    VOL
 ```
-
-Readers that do not understand a given bench must ignore its configuration block.
 
 ---
 
@@ -1117,7 +1139,7 @@ Slots are declared using the `slot` keyword followed by an identifier, connectio
 All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ```acir
-circuit OTA : SingleEndedOpAmp
+circuit OTA implements SingleEndedOpAmp
   level HL
   ...
   slot load (node->vout, bias->vb1, vref->VDD) : LoadDevice
@@ -1138,7 +1160,7 @@ The slot declaration captures the interface contract (connections) and the behav
 Slots are resolved to concrete motif types and become regular `inst` declarations. Topological parameters (polarity, hasTail, taps) are resolved during HL→ML and baked into monomorphized circuit names. All terminals are connected to nets. Sizing parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
 
 ```acir
-circuit OTA : SingleEndedOpAmp
+circuit OTA implements SingleEndedOpAmp
   level ML
   ...
   fill:
@@ -1171,7 +1193,7 @@ EL supports two forms:
 Flattened form:
 
 ```acir
-circuit OTA
+circuit OTA implements SingleEndedOpAmp
   level EL
   ...
   fill:
@@ -1181,7 +1203,7 @@ circuit OTA
 Hierarchical form:
 
 ```acir
-circuit OTA5TSingleEnded
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
   ...
   fill:
@@ -1192,7 +1214,7 @@ circuit OTA5TSingleEnded
       ...
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
 
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level EL
   inline
   ...
@@ -1326,13 +1348,13 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `??` placeholder.
 
 ```acir
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded : SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level ML
   package analog.ota
 
@@ -1357,7 +1379,7 @@ circuit OTA5TSingleEnded : SingleEndedOpAmp
       param L = ??
 
 
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level ML
   package lib.std.prim
 
@@ -1386,7 +1408,7 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
       param L = $L
 
 
-circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   level ML
   package lib.std.prim
 
@@ -1412,9 +1434,21 @@ circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
 ```acir
-ACIR 2.0
+ACIR 3.0
 
-circuit OTA5TSingleEnded
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
 
   supply VDD
@@ -1440,16 +1474,13 @@ circuit OTA5TSingleEnded
 
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 50MHz
-      c_gain : PassbandGain @ OUT >= 55dB
-      c_pm : PhaseMargin @ OUT >= 60deg
-      c_pwr : Power <= 2mW
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 55dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 2mW
 
     tech:
       t_lmin : L >= 180nm on *
-
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
 
   harness:
     supply VDD = 1.8V
@@ -1457,9 +1488,6 @@ circuit OTA5TSingleEnded
     icmr min=0.55V max=0.75V
     pvt TT@27C
 
-  benches:
-    SEOpAmpACBench
-    Step
 ```
 
 ### 3.12.3 ML ACIR for Stdcell Buffer
@@ -1467,9 +1495,26 @@ circuit OTA5TSingleEnded
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
 ```acir
-ACIR 2.0
+ACIR 3.0
 
-circuit LatchPadBuffer
+trait DigitalBuffer:
+  port COMP_OUT : digital
+  port PAD : digital
+
+bench StepToggle for DigitalBuffer
+  builtin StepToggle
+  config:
+    node = COMP_OUT
+    freq = 50MHz
+    duty = 0.5
+    cycles = 3
+  outputs:
+    RiseTime
+    FallTime
+    VOH
+    VOL
+
+circuit LatchPadBuffer implements DigitalBuffer
   level ML
 
   supply VDD
@@ -1483,25 +1528,15 @@ circuit LatchPadBuffer
 
   constraints:
     numeric:
-      c_rise : RiseTime @ PAD <= 1.2ns
-      c_fall : FallTime @ PAD <= 1.2ns
-      c_voh : VOH @ PAD >= 0.9 VDD
-      c_vol : VOL @ PAD <= 0.1 VDD
-
-    measure:
-      m_rise : StepToggle RiseTime @ PAD
-      m_fall : StepToggle FallTime @ PAD
+      c_rise : StepToggle::RiseTime at net::PAD <= 1.2ns
+      c_fall : StepToggle::FallTime at net::PAD <= 1.2ns
+      c_voh : StepToggle::VOH at net::PAD >= 0.9 VDD
+      c_vol : StepToggle::VOL at net::PAD <= 0.1 VDD
 
   harness:
     supply VDD = 1.8V
     load PAD C=15pF
 
-  benches:
-    StepToggle:
-      node = COMP_OUT
-      freq = 50MHz
-      duty = 0.5
-      cycles = 3
 ```
 
 ### 3.12.4 EL ACIR for CS Amplifier with Primitive Transistor
@@ -1509,9 +1544,25 @@ circuit LatchPadBuffer
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
 ```acir
-ACIR 2.0
+ACIR 3.0
 
-circuit CSAmplifier
+trait SingleEndedAmp:
+  port vin : analog
+  port vout : analog
+
+bench ACBench for SingleEndedAmp
+  builtin SEAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedAmp
+  builtin SEAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit CSAmplifier implements SingleEndedAmp
   level EL
 
   supply VDD
@@ -1528,16 +1579,13 @@ circuit CSAmplifier
 
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ vout >= 50MHz
-      c_gain : PassbandGain @ vout >= 40dB
-      c_pm : PhaseMargin @ vout >= 60deg
-      c_pwr : Power <= 5mW
+      c_gbw : ACBench::GainBandwidth at net::vout >= 50MHz
+      c_gain : ACBench::PassbandGain at net::vout >= 40dB
+      c_pm : ACBench::PhaseMargin at net::vout >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 5mW
 
     tech:
       t_lmin : L >= 180nm on *
-
-    measure:
-      m_gbw : SEAmpACBench GainBandwidth @ vout
 
   harness:
     supply VDD = 1.8V
@@ -1546,9 +1594,6 @@ circuit CSAmplifier
     source vin Z=50Ohm
     pvt TT@27C
 
-  benches:
-    SEAmpACBench
-    Step
 ```
 
 The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bias. This value was determined during ML→EL elaboration to place the output at approximately mid-rail (0.9V) under nominal operating conditions.
@@ -1558,7 +1603,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via trait-scoped connectors.
 
 ```acir
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -1567,6 +1612,10 @@ bundle Diff:
 trait DiffPairLike:
   port IN : Diff
   port OUT : Diff
+
+trait SingleEndedOpAmp:
+  port IN : Diff
+  port OUT : analog
 
 trait CurrentMirrorLike:
   port SENSE : analog
@@ -1577,8 +1626,15 @@ trait CurrentMirrorLike:
       SENSE -> OUT.N
       TAP[0] -> OUT.P
 
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
 // Top-level circuit appears first
-circuit OTA5TSingleEnded
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
 
   supply VDD
@@ -1607,15 +1663,18 @@ circuit OTA5TSingleEnded
 
     connect dp.OUT.N -> OUT
 
+  constraints:
+    numeric:
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 55dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+
   harness:
     supply VDD = 1.8V
     load OUT C=1pF
 
-  benches:
-    SEOpAmpACBench
-
 // Child circuits follow
-circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   level EL
   inline
 
@@ -1638,7 +1697,7 @@ circuit DiffPair_hasTail_true_p_NMOS : DiffPairLike
     nmos M_P (G->IN.N, D->OUT.P, S->tnode, B->BASE) : size=Input nfet_01v8
     nmos M_TAIL (G->BIAS, D->tnode, S->BASE, B->BASE) : size=Tail nfet_01v8
 
-circuit CurrentMirror_taps_1_p_PMOS : CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   level EL
   inline
 
@@ -1778,7 +1837,7 @@ Domain compatibility: All endpoints in an equivalence class must have identical 
 ACIR uses named binding; SPICE requires positional `.subckt` pin order. The canonical pin order follows declaration order in ACIR: supplies first (in declaration order), then grounds (in declaration order), then ports (in declaration order, with bundles expanded field-by-field).
 
 ```acir
-circuit OTA5TSingleEnded
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   supply VDD
   ground GND
   port IN : Diff      // expands to IN_P, IN_N
@@ -1843,7 +1902,7 @@ The ACIR writer maintains a mapping from canonical name to hash-based name when 
 To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 - Order circuits with top-level first, then child circuits in dependency order.
-- Within a circuit, order sections: level, inline, param declarations, size declarations, package, supplies, grounds, ports, fill, constraints, harness, benches, provenance.
+- Within a circuit, order sections: level, inline, param declarations, size declarations, package, supplies, grounds, ports, fill, constraints, harness, provenance.
 - Within the `fill:` block, order: nets, instances, devices, attach statements, connections. Sort each category by id lexicographically.
 - Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
@@ -1946,7 +2005,7 @@ The text-based format was chosen to maximize:
 The following EBNF-style grammar summarizes ACIR syntax:
 
 ```ebnf
-document     = "ACIR" MAJOR "." MINOR NL (bundleDef)* (traitDef)* (circuit)+ ;
+document     = "ACIR" MAJOR "." MINOR NL (bundleDef)* (traitDef)* (benchDef)* (circuit)+ ;
 MAJOR        = [0-9]+ ;
 MINOR        = [0-9]+ ;
 
@@ -1961,7 +2020,15 @@ connectorsBlock = "connectors:" NL (INDENT INDENT connectorDef NL)+ ;
 connectorDef = "to" IDENT ":" NL (INDENT INDENT INDENT connectorMapping NL)+ ;
 connectorMapping = terminalPath "->" terminalPath ;
 
-circuit      = "circuit" IDENT (":" traits)? source? NL circuitBody ;
+benchDef     = "bench" IDENT "for" IDENT NL (INDENT benchMember NL)+ ;
+benchMember  = benchBuiltin | benchTemplate | benchConfigBlock | benchOutputsBlock ;
+benchBuiltin = "builtin" IDENT ;
+benchTemplate= "template" STRING ;
+benchConfigBlock = "config:" NL (INDENT INDENT benchConfigEntry NL)+ ;
+benchConfigEntry = IDENT "=" paramValue ;
+benchOutputsBlock = "outputs:" NL (INDENT INDENT IDENT NL)+ ;
+
+circuit      = "circuit" IDENT ("implements" traits)? source? NL circuitBody ;
 traits       = IDENT ("," IDENT)* ;
 circuitBody  = (INDENT statement NL)* ;
 
@@ -1969,7 +2036,7 @@ statement    = levelDecl | inlineDecl | packageDecl | circuitParamDecl
              | sizeDecl
              | supplyDecl | groundDecl | portDecl | slotDecl
              | fillBlock | constraintsBlock | harnessBlock
-             | benchesBlock | provenanceBlock | extensionsBlock ;
+             | provenanceBlock | extensionsBlock ;
 
 levelDecl    = "level" ("HL" | "ML" | "EL") ;
 inlineDecl   = "inline" ;

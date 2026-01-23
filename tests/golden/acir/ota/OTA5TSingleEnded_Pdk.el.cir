@@ -4,7 +4,14 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded_Pdk
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -21,18 +28,12 @@ circuit OTA5TSingleEnded_Pdk
     pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 1MHz
-      c_gain : PassbandGain @ OUT >= 20dB
-      c_pm : PhaseMargin @ OUT >= 60deg
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 1MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 20dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
     tech:
       t_lmin : L >= 180nm on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench

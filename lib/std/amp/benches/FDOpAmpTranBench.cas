@@ -1,0 +1,10 @@
+package lib.std.amp.benches;
+
+// Transient bench for fully differential operational amplifiers.
+bench FDOpAmpTranBench {
+  spectre_template = "FDOpAmpTranBench.spectre.tpl";
+  ngspice_template = "FDOpAmpTranBench.ngspice.tpl";
+  metrics [
+    OutputSwing: V
+  ]
+}

@@ -4,7 +4,14 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TFullyDiff_DCSwept
+bench DCBench for FullyDiffOpAmp
+  builtin FDOpAmpDCBench
+  outputs:
+    OutputDCCommonMode_min
+    OutputDCCommonMode_max
+    QuiescentPower
+
+circuit OTA5TFullyDiff_DCSwept implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
@@ -23,18 +30,11 @@ circuit OTA5TFullyDiff_DCSwept
     resistor R_CMFB_N (P->OUT.N, N->vcm_node) : R=500k
   constraints:
     numeric:
-      c_out_cm_min : OutputDCCommonMode_min >= 0.3V
-      c_out_cm_max : OutputDCCommonMode_max <= 1.5V
-      c_power : QuiescentPower <= 800uW
-    measure:
-      m_out_cm_min : FDOpAmpDCBench OutputDCCommonMode_min
-      m_out_cm_max : FDOpAmpDCBench OutputDCCommonMode_max
-      m_power : FDOpAmpDCBench QuiescentPower
+      c_out_cm_min : DCBench::OutputDCCommonMode_min >= 0.3V
+      c_out_cm_max : DCBench::OutputDCCommonMode_max <= 1.5V
+      c_power : DCBench::QuiescentPower <= 800uW
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
     load OUT C=1pF
-  benches:
-    FDOpAmpDCBench
-

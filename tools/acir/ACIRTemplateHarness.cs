@@ -23,13 +23,30 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
         var backend = ctx.Spec.Backend;
         var workspaceRoot = ctx.WorkspaceRoot;
 
-        // Find template using discovery
-        var templatePath = TemplateDiscovery.FindTemplate(
-            benchName,
-            backend,
-            ctx.Args.TryGetValue("start_dir", out var sd) ? sd?.ToString() : null,
-            workspaceRoot
-        );
+        var templatePath = ctx.Args.TryGetValue("template_path", out var tp)
+            ? tp?.ToString()
+            : null;
+
+        if (!string.IsNullOrWhiteSpace(templatePath) && !Path.IsPathRooted(templatePath))
+        {
+            var baseDir = workspaceRoot ?? Directory.GetCurrentDirectory();
+            templatePath = Path.GetFullPath(Path.Combine(baseDir, templatePath));
+        }
+
+        if (string.IsNullOrWhiteSpace(templatePath))
+        {
+            var templateName = ctx.Args.TryGetValue("template_name", out var tn)
+                ? tn?.ToString()
+                : benchName;
+
+            // Find template using discovery
+            templatePath = TemplateDiscovery.FindTemplate(
+                templateName ?? benchName,
+                backend,
+                ctx.Args.TryGetValue("start_dir", out var sd) ? sd?.ToString() : null,
+                workspaceRoot
+            );
+        }
         if (templatePath == null)
         {
             throw new InvalidOperationException(
@@ -113,6 +130,9 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
                 ? iwosL.ToList()
                 : new List<string>();
         var section = ctx.Args.TryGetValue("section", out var sec) ? sec?.ToString() : null;
+        var benchConfig = ctx.Args.TryGetValue("bench_config", out var bc)
+            ? bc
+            : new Dictionary<string, string>();
 
         return new
         {
@@ -136,6 +156,7 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             load_elements = loadElements,
             supply_elements = supplyElements,
             sweep = sweep,
+            bench_config = benchConfig,
             includes_with_section = includesWithSection,
             includes_without_section = includesWithoutSection,
             section = section,

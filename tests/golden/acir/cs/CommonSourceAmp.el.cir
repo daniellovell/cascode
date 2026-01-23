@@ -1,6 +1,12 @@
 ACIR 3.0
 
-circuit CommonSourceAmp : SingleEndedAmp
+bench ACBench for SingleEndedAmp
+  builtin SEAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+
+circuit CommonSourceAmp implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -12,15 +18,9 @@ circuit CommonSourceAmp : SingleEndedAmp
     pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : size=(W=20u, L=180n, M=1) pmos
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 50MHz
-      c_gain : PassbandGain @ OUT >= 30dB
-    measure:
-      m_gbw : SEAmpACBench GainBandwidth @ OUT
-      m_gain : SEAmpACBench PassbandGain @ OUT
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 30dB
   harness:
     supply VDD = 1.8V
     bias VBIAS = 0.7V
     load OUT C=1pF
-  benches:
-    SEAmpACBench
-

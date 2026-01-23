@@ -17,7 +17,19 @@ trait LoadPairLike:
     to LoadPairLike:
       DRAIN -> SOURCE
 
-circuit TelescopicCascodeFullyDiff_Attach
+bench ACBench for FullyDiffOpAmp
+  builtin FDOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for FullyDiffOpAmp
+  builtin FDOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
@@ -48,17 +60,12 @@ circuit TelescopicCascodeFullyDiff_Attach
     connect pl2.SOURCE -> VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 500kHz
-      c_gain : PassbandGain >= 2dB
-      c_pm : PhaseMargin >= 60deg
-      c_pwr : QuiescentPower <= 1mW
+      c_gbw : ACBench::GainBandwidth >= 500kHz
+      c_gain : ACBench::PassbandGain >= 2dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 1mW
     tech:
       t_lmin : L >= 500nm on *
-    measure:
-      m_gbw : FDOpAmpACBench GainBandwidth
-      m_gain : FDOpAmpACBench PassbandGain
-      m_pm : FDOpAmpACBench PhaseMargin
-      m_pwr : FDOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VBN = 0.75V
@@ -66,11 +73,8 @@ circuit TelescopicCascodeFullyDiff_Attach
     bias VBP2 = 1.1V
     bias VTAIL = 0.7V
     load OUT (C=1pF || R=1G)
-  benches:
-    FDOpAmpACBench
-    FDOpAmpDCBench
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -86,7 +90,7 @@ circuit DiffPair : DiffPairLike
     nmos M_P (B->GND, D->OUT.N, G->IN.N, S->tnode) : size=InputPair nmos
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
 
-circuit LoadPair_N : LoadPairLike
+circuit LoadPair_N implements LoadPairLike
   level EL
   inline
   size Cascode
@@ -99,7 +103,7 @@ circuit LoadPair_N : LoadPairLike
     nmos M_P (B->GND, D->SOURCE.P, G->BIAS, S->DRAIN.P) : size=Cascode nmos
     nmos M_N (B->GND, D->SOURCE.N, G->BIAS, S->DRAIN.N) : size=Cascode nmos
 
-circuit LoadPair_P : LoadPairLike
+circuit LoadPair_P implements LoadPairLike
   level EL
   inline
   size Cascode

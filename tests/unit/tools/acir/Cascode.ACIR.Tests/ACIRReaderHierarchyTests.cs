@@ -476,7 +476,7 @@ trait CurrentMirror:
   port IN : analog
   port OUT : analog
 
-circuit CMirror : CurrentMirror
+circuit CMirror implements CurrentMirror
   level EL
   supply VDD
   ground GND
@@ -500,7 +500,7 @@ circuit CMirror : CurrentMirror
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit CMirror : CurrentMirror, Foldable
+circuit CMirror implements CurrentMirror, Foldable
   level EL
   supply VDD
   ground GND

@@ -1,12 +1,12 @@
 {
   "circuit": "CSAmpResistive_DCSwept",
-  "bench": "SEAmpDCBench",
+  "bench": "DCBench",
   "measurements": {
     "out_bias": {
       "metric": "OutputDCBias",
       "value": 0.85,
       "unit": "V",
-      "node": "OUT"
+      "node": "net::OUT"
     },
     "QuiescentPower": {
       "metric": "QuiescentPower",

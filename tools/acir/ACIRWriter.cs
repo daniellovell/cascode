@@ -36,6 +36,15 @@ public static class ACIRWriter
             writer.WriteLine();
         }
 
+        // Bench definitions
+        foreach (
+            var bench in document.BenchDefinitions.OrderBy(b => b.Name, StringComparer.Ordinal)
+        )
+        {
+            WriteBenchDefinition(bench, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -83,13 +92,45 @@ public static class ACIRWriter
         }
     }
 
+    private static void WriteBenchDefinition(BenchDefinition bench, TextWriter writer)
+    {
+        writer.WriteLine($"bench {bench.Name} for {bench.Trait}");
+
+        if (!string.IsNullOrEmpty(bench.Builtin))
+        {
+            writer.WriteLine($"  builtin {bench.Builtin}");
+        }
+        else if (!string.IsNullOrEmpty(bench.Template))
+        {
+            writer.WriteLine($"  template \"{bench.Template}\"");
+        }
+
+        if (bench.Config.Count > 0)
+        {
+            writer.WriteLine("  config:");
+            foreach (var entry in bench.Config.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {entry.Key} = {entry.Value}");
+            }
+        }
+
+        if (bench.Outputs.Count > 0)
+        {
+            writer.WriteLine("  outputs:");
+            foreach (var output in bench.Outputs.OrderBy(o => o, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {output}");
+            }
+        }
+    }
+
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header
         var header = $"circuit {circuit.Name}";
         if (circuit.Traits is { Count: > 0 })
         {
-            header += $" : {string.Join(", ", circuit.Traits)}";
+            header += $" implements {string.Join(", ", circuit.Traits)}";
         }
         writer.WriteLine(header);
 
@@ -173,12 +214,6 @@ public static class ACIRWriter
         if (circuit.Harness is not null)
         {
             WriteHarness(circuit.Harness, writer);
-        }
-
-        // Benches
-        if (circuit.Benches is not null)
-        {
-            WriteBenches(circuit.Benches, writer);
         }
 
         // Provenance
@@ -375,8 +410,10 @@ public static class ACIRWriter
             writer.WriteLine("    numeric:");
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                var scope = c.Node is not null ? $" @ {c.Node}" : "";
-                writer.WriteLine($"      {c.Id} : {c.Metric}{scope} {c.Op} {c.Value}{c.Unit}");
+                var node = c.Node is not null ? $" at {c.Node}" : "";
+                writer.WriteLine(
+                    $"      {c.Id} : {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
+                );
             }
         }
         if (constraints.Tech.Count > 0)
@@ -393,15 +430,6 @@ public static class ACIRWriter
             foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
-            }
-        }
-        if (constraints.Measure.Count > 0)
-        {
-            writer.WriteLine("    measure:");
-            foreach (var m in constraints.Measure.OrderBy(m => m.Id, StringComparer.Ordinal))
-            {
-                var node = m.Node is not null ? $" @ {m.Node}" : "";
-                writer.WriteLine($"      {m.Id} : {m.Bench} {m.Metric}{node}");
             }
         }
     }
@@ -447,26 +475,6 @@ public static class ACIRWriter
         if (harness.Pvt.Count > 0)
         {
             writer.WriteLine($"    pvt {string.Join(", ", harness.Pvt)}");
-        }
-    }
-
-    private static void WriteBenches(BenchesBlock benches, TextWriter writer)
-    {
-        writer.WriteLine("  benches:");
-        foreach (var bench in benches.Benches.OrderBy(b => b.Name, StringComparer.Ordinal))
-        {
-            if (bench.Config.Count == 0)
-            {
-                writer.WriteLine($"    {bench.Name}");
-            }
-            else
-            {
-                writer.WriteLine($"    {bench.Name}:");
-                foreach (var kvp in bench.Config.OrderBy(c => c.Key, StringComparer.Ordinal))
-                {
-                    writer.WriteLine($"      {kvp.Key} = {kvp.Value}");
-                }
-            }
         }
     }
 

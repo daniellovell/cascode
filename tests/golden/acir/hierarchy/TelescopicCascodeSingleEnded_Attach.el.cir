@@ -29,7 +29,19 @@ trait CurrentMirrorLike:
       SENSE -> RAIL.N
       TAP[0] -> RAIL.P
 
-circuit TelescopicCascodeSingleEnded_Attach
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -57,27 +69,19 @@ circuit TelescopicCascodeSingleEnded_Attach
     connect cm_hi.RAIL -> VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 40MHz
-      c_gain : PassbandGain >= 30dB
-      c_pm : PhaseMargin >= 60deg
-      c_pwr : QuiescentPower <= 1mW
+      c_gbw : ACBench::GainBandwidth >= 40MHz
+      c_gain : ACBench::PassbandGain >= 30dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 1mW
     tech:
       t_lmin : L >= 180nm on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth
-      m_gain : SEOpAmpACBench PassbandGain
-      m_pm : SEOpAmpACBench PhaseMargin
-      m_pwr : SEOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VBN = 0.9V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -93,7 +97,7 @@ circuit DiffPair : DiffPairLike
     nmos M_P (B->GND, D->OUT.P, G->IN.N, S->tnode) : size=InputPair nmos
     nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
 
-circuit LoadPair_N : LoadPairLike
+circuit LoadPair_N implements LoadPairLike
   level EL
   inline
   size Cascode
@@ -106,7 +110,7 @@ circuit LoadPair_N : LoadPairLike
     nmos M_P (B->GND, D->SOURCE.P, G->BIAS, S->DRAIN.P) : size=Cascode nmos
     nmos M_N (B->GND, D->SOURCE.N, G->BIAS, S->DRAIN.N) : size=Cascode nmos
 
-circuit CurrentMirror_P : CurrentMirrorLike
+circuit CurrentMirror_P implements CurrentMirrorLike
   level EL
   inline
   param ratio : real = 1

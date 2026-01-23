@@ -4,10 +4,10 @@ grammar ACIR;
 // Parser Rules
 // ============================================================================
 
-// Document: optional version followed by bundles, traits, and circuits
+// Document: optional version followed by bundles, traits, benches, and circuits
 // Empty documents (no version) are allowed for compatibility
 document
-    : versionDecl? bundleDef* traitDef* circuit* EOF
+    : versionDecl? bundleDef* traitDef* benchDef* circuit* EOF
     ;
 
 // Version is a decimal number like 3.0
@@ -49,11 +49,34 @@ connectorMapping
     ;
 
 // ----------------------------------------------------------------------------
+// Bench definitions
+// ----------------------------------------------------------------------------
+
+benchDef
+    : BENCH_KW IDENT FOR_KW IDENT benchMember*
+    ;
+
+benchMember
+    : BUILTIN_KW IDENT
+    | TEMPLATE_KW STRING
+    | CONFIG_KW benchConfigEntry*
+    | OUTPUTS_KW benchOutput*
+    ;
+
+benchConfigEntry
+    : IDENT EQ (IDENT | NUMBER | QUANTITY | STRING)
+    ;
+
+benchOutput
+    : IDENT
+    ;
+
+// ----------------------------------------------------------------------------
 // Circuit definitions
 // ----------------------------------------------------------------------------
 
 circuit
-    : CIRCUIT_KW IDENT (COLON traitList)? circuitMember*
+    : CIRCUIT_KW IDENT (IMPLEMENTS_KW traitList)? circuitMember*
     ;
 
 traitList
@@ -72,7 +95,6 @@ circuitMember
     | FILL_KW fillStatement*                                        # FillSection
     | CONSTRAINTS_KW constraintSection*                             # ConstraintsSection
     | HARNESS_KW harnessStatement*                                  # HarnessSection
-    | BENCHES_KW benchEntry*                                        # BenchesSection
     | PROVENANCE_KW provenanceEntry*                                # ProvenanceSection
     ;
 
@@ -161,8 +183,15 @@ idPart
     | CONNECT_KW
     | ON_KW
     | TO_KW
+    | FOR_KW
     | VIA_KW
     | AS_KW
+    | BENCH_KW
+    | BUILTIN_KW
+    | TEMPLATE_KW
+    | OUTPUTS_KW
+    | CONFIG_KW
+    | IMPLEMENTS_KW
     | REAL_KW
     | INT_KW
     | AUTO_KW
@@ -226,12 +255,25 @@ constraintSection
     : NUMERIC_KW numericConstraint*                                 # NumericSection
     | TECH_KW techConstraint*                                       # TechSection
     | GRAPH_KW graphConstraint*                                     # GraphSection
-    | MEASURE_KW measureIntent*                                     # MeasureSection
     ;
 
-// id : Metric @ Node >= ValueUnit
+// id : Bench::Metric at Node >= ValueUnit
 numericConstraint
-    : IDENT COLON IDENT (AT IDENT)? COMPARISON_OP QUANTITY
+    : IDENT COLON benchMetricRef (AT_KW nodeRef)? COMPARISON_OP QUANTITY
+    ;
+
+benchMetricRef
+    : IDENT COLONCOLON IDENT
+    ;
+
+nodeRef
+    : nodeScope COLONCOLON pinRef
+    ;
+
+nodeScope
+    : IDENT
+    | NET_KW
+    | PORT_KW
     ;
 
 // id : Param >= ValueUnit on Scope
@@ -255,11 +297,6 @@ graphProps
 
 graphProp
     : IDENT EQ (IDENT | NUMBER | QUANTITY | STRING)
-    ;
-
-// id : BenchName Metric @ Node
-measureIntent
-    : IDENT COLON IDENT IDENT (AT IDENT)?
     ;
 
 // ----------------------------------------------------------------------------
@@ -318,22 +355,6 @@ pvtList
     ;
 
 // ----------------------------------------------------------------------------
-// Benches block content
-// ----------------------------------------------------------------------------
-
-benchEntry
-    : IDENT (LBRACE benchConfig RBRACE)?
-    ;
-
-benchConfig
-    : benchConfigEntry (COMMA benchConfigEntry)*
-    ;
-
-benchConfigEntry
-    : IDENT EQ (IDENT | NUMBER | QUANTITY | STRING)
-    ;
-
-// ----------------------------------------------------------------------------
 // Provenance block content
 // ----------------------------------------------------------------------------
 
@@ -352,6 +373,7 @@ ACIR_KW         : 'ACIR' ;
 
 BUNDLE_KW       : 'bundle' ;
 TRAIT_KW        : 'trait' ;
+BENCH_KW        : 'bench' ;
 CIRCUIT_KW      : 'circuit' ;
 PORT_KW         : 'port' ;
 CONNECTORS_KW   : 'connectors:' ;
@@ -365,19 +387,23 @@ SIZE_KW         : 'size' ;
 FILL_KW         : 'fill:' ;
 CONSTRAINTS_KW  : 'constraints:' ;
 HARNESS_KW      : 'harness:' ;
-BENCHES_KW      : 'benches:' ;
 PROVENANCE_KW   : 'provenance:' ;
 NET_KW          : 'net' ;
 INST_KW         : 'inst' ;
 ATTACH_KW       : 'attach' ;
 CONNECT_KW      : 'connect' ;
 TO_KW           : 'to' ;
+FOR_KW          : 'for' ;
 VIA_KW          : 'via' ;
 AS_KW           : 'as' ;
+BUILTIN_KW      : 'builtin' ;
+TEMPLATE_KW     : 'template' ;
+OUTPUTS_KW      : 'outputs:' ;
+CONFIG_KW       : 'config:' ;
+IMPLEMENTS_KW   : 'implements' ;
 NUMERIC_KW      : 'numeric:' ;
 TECH_KW         : 'tech:' ;
 GRAPH_KW        : 'graph:' ;
-MEASURE_KW      : 'measure:' ;
 BIAS_KW         : 'bias' ;
 LOAD_KW         : 'load' ;
 SOURCE_KW       : 'source' ;
@@ -385,6 +411,7 @@ SWEEP_KW        : 'sweep' ;
 ICMR_KW         : 'icmr' ;
 PVT_KW          : 'pvt' ;
 AUTO_KW         : 'Auto' ;
+AT_KW           : 'at' ;
 Z_KW            : 'Z' ;
 ON_KW           : 'on' ;
 REAL_KW         : 'real' ;

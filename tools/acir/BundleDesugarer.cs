@@ -50,6 +50,7 @@ public static class BundleDesugarer
             VersionMinor = document.VersionMinor,
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
+            BenchDefinitions = document.BenchDefinitions,
             Circuits = document
                 .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
                 .ToList(),
@@ -203,7 +204,6 @@ public static class BundleDesugarer
             Harness = circuit.Harness is not null
                 ? DesugarHarness(circuit.Harness, portTypes, bundlesByName)
                 : null,
-            Benches = circuit.Benches,
             Provenance = circuit.Provenance,
         };
     }

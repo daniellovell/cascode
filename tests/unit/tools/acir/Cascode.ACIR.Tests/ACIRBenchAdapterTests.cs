@@ -23,7 +23,7 @@ namespace Cascode.ACIR.Tests
                     },
                 },
             };
-            var bench = new BenchConfig { Name = "TestBench" };
+            var bench = new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" };
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
@@ -50,7 +50,7 @@ namespace Cascode.ACIR.Tests
                     },
                 },
             };
-            var bench = new BenchConfig { Name = "TestBench" };
+            var bench = new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 ACIRBenchAdapter.ToTestbenchContext(circuit, bench, BenchBackendType.Ngspice, "out")
@@ -67,7 +67,7 @@ namespace Cascode.ACIR.Tests
                 Name = "TestCircuit",
                 Harness = new HarnessBlock { Supplies = null! },
             };
-            var bench = new BenchConfig { Name = "TestBench" };
+            var bench = new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" };
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
@@ -87,7 +87,7 @@ namespace Cascode.ACIR.Tests
                 Name = "TestCircuit",
                 Harness = new HarnessBlock { Supplies = new List<SupplyValue>() },
             };
-            var bench = new BenchConfig { Name = "TestBench" };
+            var bench = new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" };
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
@@ -580,7 +580,7 @@ namespace Cascode.ACIR.Tests
             // Build context and extract sweep data through the same pipeline as real templates
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
-                new BenchConfig { Name = "TestBench" },
+                new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" },
                 BenchBackendType.Spectre,
                 "out"
             );
@@ -794,7 +794,7 @@ namespace Cascode.ACIR.Tests
                 },
             };
 
-            var bench = new BenchConfig { Name = "EmptyBench" };
+            var bench = new BenchDefinition { Name = "EmptyBench", Trait = "SingleEndedOpAmp" };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 ACIRBenchAdapter.GenerateTestbench(
@@ -841,7 +841,7 @@ namespace Cascode.ACIR.Tests
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
-                new BenchConfig { Name = "TestBench" },
+                new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" },
                 BenchBackendType.Ngspice,
                 "out"
             );
@@ -882,7 +882,7 @@ namespace Cascode.ACIR.Tests
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
-                new BenchConfig { Name = "TestBench" },
+                new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" },
                 BenchBackendType.Ngspice,
                 "out"
             );
@@ -900,7 +900,7 @@ namespace Cascode.ACIR.Tests
 
             var context = ACIRBenchAdapter.ToTestbenchContext(
                 circuit,
-                new BenchConfig { Name = "TestBench" },
+                new BenchDefinition { Name = "TestBench", Trait = "SingleEndedOpAmp" },
                 BenchBackendType.Ngspice,
                 "out"
             );
