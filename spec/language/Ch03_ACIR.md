@@ -52,7 +52,7 @@ ACIR files use UTF-8 encoding with LF line endings. Each logical statement occup
 
 ```acir
 // This is a comment
-ACIR 3.1  // Version declaration with inline comment
+ACIR 3.0  // Version declaration with inline comment
 ```
 
 ### 3.2.2 Document Structure
@@ -1348,7 +1348,7 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `??` placeholder.
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -1434,7 +1434,7 @@ circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 bench ACBench for SingleEndedOpAmp
   builtin SEOpAmpACBench
@@ -1495,7 +1495,7 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 trait DigitalBuffer:
   port COMP_OUT : digital
@@ -1544,7 +1544,7 @@ circuit LatchPadBuffer implements DigitalBuffer
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 trait SingleEndedAmp:
   port vin : analog
@@ -1603,7 +1603,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via trait-scoped connectors.
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 bundle Diff:
   P : analog

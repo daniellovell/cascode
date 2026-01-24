@@ -381,7 +381,7 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
 
 ## 4.4 Builtin Template Resolution
 
-Bench templates are embedded resources packaged with Cascode.Bench. Resolution is name- and backend-based: a bench definition that declares `builtin SEOpAmpACBench` and a `ngspice` backend resolves `SEOpAmpACBench.ngspice.tpl` from the embedded library. If the embedded resource is missing, `cascode emit` fails with an error that lists the available builtin benches. ACIR 3.1 does not support filesystem discovery or project-local overrides.
+Bench templates are embedded resources packaged with Cascode.Bench. Resolution is name- and backend-based: a bench definition that declares `builtin SEOpAmpACBench` and a `ngspice` backend resolves `SEOpAmpACBench.ngspice.tpl` from the embedded library. If the embedded resource is missing, `cascode emit` fails with an error that lists the available builtin benches. ACIR presently does not support filesystem discovery or project-local overrides.
 
 Backend selection follows filename suffixes (`.ngspice.tpl` or `.spectre.tpl`) so a single bench definition can target multiple simulators while preserving consistent metrics.
 
@@ -609,7 +609,7 @@ This situation indicates either:
 
 ## 4.8 Standard Library Benches
 
-The standard library at `lib/benches/` provides canonical bench definitions for common analog circuit tests. These templates are embedded at build time and are the only benches available in ACIR 3.1:
+The standard library at `lib/benches/` provides canonical bench definitions for common analog circuit tests. These templates are embedded at build time and are the only benches currently available:
 
 | Circuit Type | Bench | Analysis Type | Spectre | ngspice |
 |-------------|-------|--------------|---------|---------|
@@ -732,7 +732,7 @@ This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. 
 
 ## 4.9 Extending the Builtin Bench Library
 
-ACIR 3.1 resolves only builtin benches. To add a new builtin bench, place the definition and templates under `lib/benches` and rebuild Cascode so the templates are embedded into the assembly.
+ACIR presently resolves only builtin benches. To add a new builtin bench, place the definition and templates under `lib/benches` and rebuild Cascode so the templates are embedded into the assembly.
 
 ### 4.9.1 Bench Definition
 
@@ -844,7 +844,7 @@ For ngspice, use `echo` commands. For Spectre, use appropriate output directives
 ### 4.10.1 ACIR Circuit
 
 ```acir
-ACIR 3.1
+ACIR 3.0
 
 bench ACBench for SingleEndedOpAmp
   builtin SEOpAmpACBench
