@@ -147,7 +147,6 @@ internal sealed partial class ACIRAstBuilder
         var name = ctx.IDENT(0).GetText();
         var trait = ctx.IDENT(1).GetText();
         string? builtin = null;
-        string? template = null;
         var config = new Dictionary<string, string>();
         var outputs = new List<string>();
 
@@ -156,12 +155,6 @@ internal sealed partial class ACIRAstBuilder
             if (memberCtx.BUILTIN_KW() != null)
             {
                 builtin = memberCtx.IDENT().GetText();
-                continue;
-            }
-
-            if (memberCtx.TEMPLATE_KW() != null)
-            {
-                template = Unquote(memberCtx.STRING().GetText());
                 continue;
             }
 
@@ -194,12 +187,20 @@ internal sealed partial class ACIRAstBuilder
             }
         }
 
+        if (string.IsNullOrWhiteSpace(builtin))
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Bench '{name}' must declare a builtin template."
+            );
+        }
+
         return new BenchDefinition
         {
             Name = name,
             Trait = trait,
             Builtin = builtin,
-            Template = template,
             Config = config,
             Outputs = outputs,
         };

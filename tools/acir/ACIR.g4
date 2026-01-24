@@ -58,7 +58,6 @@ benchDef
 
 benchMember
     : BUILTIN_KW IDENT
-    | TEMPLATE_KW STRING
     | CONFIG_KW benchConfigEntry*
     | OUTPUTS_KW benchOutput*
     ;
@@ -188,7 +187,6 @@ idPart
     | AS_KW
     | BENCH_KW
     | BUILTIN_KW
-    | TEMPLATE_KW
     | OUTPUTS_KW
     | CONFIG_KW
     | IMPLEMENTS_KW
@@ -397,7 +395,6 @@ FOR_KW          : 'for' ;
 VIA_KW          : 'via' ;
 AS_KW           : 'as' ;
 BUILTIN_KW      : 'builtin' ;
-TEMPLATE_KW     : 'template' ;
 OUTPUTS_KW      : 'outputs:' ;
 CONFIG_KW       : 'config:' ;
 IMPLEMENTS_KW   : 'implements' ;

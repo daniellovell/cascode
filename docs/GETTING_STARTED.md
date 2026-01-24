@@ -66,7 +66,7 @@ trait SingleEndedOpAmp extend Amplifier {
 This binding establishes how abstract performance requirements translate to concrete measurements. The bench itself defines what those measurements return:
 
 ```java
-package lib.std.amp.benches;
+package lib.benches;
 
 bench SEOpAmpACBench {
   spectre_template = "SEOpAmpACBench.tpl";

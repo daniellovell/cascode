@@ -100,10 +100,6 @@ public static class ACIRWriter
         {
             writer.WriteLine($"  builtin {bench.Builtin}");
         }
-        else if (!string.IsNullOrEmpty(bench.Template))
-        {
-            writer.WriteLine($"  template \"{bench.Template}\"");
-        }
 
         if (bench.Config.Count > 0)
         {

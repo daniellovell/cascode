@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using Cascode.Bench;
 
 namespace Cascode.ACIR;
 
 /// <summary>
-/// Harness for ACIR-based testbenches that uses template discovery.
+/// Harness for ACIR-based testbenches that uses embedded templates.
 /// </summary>
 public sealed class ACIRTemplateHarness : ITestbenchHarness
 {
@@ -21,36 +20,19 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
     {
         var benchName = ctx.Spec.Name;
         var backend = ctx.Spec.Backend;
-        var workspaceRoot = ctx.WorkspaceRoot;
-
-        var templatePath = ctx.Args.TryGetValue("template_path", out var tp)
-            ? tp?.ToString()
-            : null;
-
-        if (!string.IsNullOrWhiteSpace(templatePath) && !Path.IsPathRooted(templatePath))
+        var templateName = ctx.Args.TryGetValue("template_name", out var tn)
+            ? tn?.ToString()
+            : benchName;
+        if (string.IsNullOrWhiteSpace(templateName))
         {
-            var baseDir = workspaceRoot ?? Directory.GetCurrentDirectory();
-            templatePath = Path.GetFullPath(Path.Combine(baseDir, templatePath));
+            throw new InvalidOperationException("Bench template name is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(templatePath))
+        if (!BenchTemplateLibrary.TryGetTemplate(templateName, backend, out var templateText))
         {
-            var templateName = ctx.Args.TryGetValue("template_name", out var tn)
-                ? tn?.ToString()
-                : benchName;
-
-            // Find template using discovery
-            templatePath = TemplateDiscovery.FindTemplate(
-                templateName ?? benchName,
-                backend,
-                ctx.Args.TryGetValue("start_dir", out var sd) ? sd?.ToString() : null,
-                workspaceRoot
-            );
-        }
-        if (templatePath == null)
-        {
+            var available = string.Join(", ", BenchTemplateLibrary.GetBenchNames());
             throw new InvalidOperationException(
-                $"Template not found for bench '{benchName}' with backend '{backend}'. Searched upward from current directory and lib/std/amp/benches/."
+                $"Builtin template not found for bench '{templateName}' with backend '{backend}'. Available: {available}."
             );
         }
 
@@ -75,7 +57,7 @@ public sealed class ACIRTemplateHarness : ITestbenchHarness
             Notes = Description,
             Data = new Dictionary<string, object>
             {
-                ["template_path"] = templatePath,
+                ["template_text"] = templateText,
                 ["template_model"] = templateModel,
             },
         };

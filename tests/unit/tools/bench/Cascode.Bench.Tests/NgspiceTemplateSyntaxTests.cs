@@ -19,7 +19,7 @@ public partial class NgspiceTemplateSyntaxTests
         // v() or i() - those must use `let` statements instead.
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
         Assert.NotEmpty(ngspiceTemplates); // Ensure we found templates to test
@@ -44,7 +44,7 @@ public partial class NgspiceTemplateSyntaxTests
         // instead of the invalid `meas dc param=` syntax with vectors
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
         // Pattern matches: let pwr_... = v(...)*(-i(V...))
@@ -72,7 +72,7 @@ public partial class NgspiceTemplateSyntaxTests
         // Without $&, ngspice prints literal tokens like "gain_dc" instead of the value.
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
         var resultEchoLineCount = 0;
@@ -106,7 +106,7 @@ public partial class NgspiceTemplateSyntaxTests
         // Range sweeps must be implemented using while loops that increment a variable.
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
         var invalidForeachRangePattern = InvalidForeachRangePattern();

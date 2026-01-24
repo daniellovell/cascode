@@ -52,7 +52,7 @@ ACIR files use UTF-8 encoding with LF line endings. Each logical statement occup
 
 ```acir
 // This is a comment
-ACIR 3.0  // Version declaration with inline comment
+ACIR 3.1  // Version declaration with inline comment
 ```
 
 ### 3.2.2 Document Structure
@@ -988,7 +988,7 @@ constraints:
 
 ### 3.5.1 Bench Definitions
 
-Bench definitions are document-level blocks. Each bench is scoped to a trait and selects either a builtin bench or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the trait. A `config` block may supply bench-specific parameters passed through to templates.
+Bench definitions are document-level blocks. Each bench is scoped to a trait and selects a builtin bench template. The `outputs` list declares which metrics the bench will emit for circuits that implement the trait. A `config` block may supply bench-specific parameters passed through to templates.
 
 ```acir
 bench ACBench for SingleEndedOpAmp
@@ -1109,11 +1109,11 @@ For example, a common-source amplifier with a PMOS active load requires a gate b
 
 ### 3.6.2 Bench Definitions
 
-Bench definitions live at document scope and are referenced by constraints. A bench declares its trait scope, implementation source, and the metrics it produces.
+Bench definitions live at document scope and are referenced by constraints. A bench declares its trait scope, builtin template, and the metrics it produces.
 
 ```acir
 bench StepToggle for DigitalBuffer
-  template "benches/StepToggle.spectre.tpl"
+  builtin StepToggleBench
   config:
     node = COMP_OUT
     freq = 50MHz
@@ -1348,7 +1348,7 @@ When ACIR-EL contains `attach` or `connect` statements, tools resolve these cons
 This example shows the ML representation of a five-transistor OTA with differential input and single-ended output. At ML, topological parameters (polarity, hasTail, taps) are already resolved into monomorphized circuit names. Sizing parameters use the `??` placeholder.
 
 ```acir
-ACIR 3.0
+ACIR 3.1
 
 bundle Diff:
   P : analog
@@ -1434,7 +1434,7 @@ circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
 At EL, all motifs are expanded to primitive devices. The circuit is fully flattened with hierarchical naming preserved for traceability.
 
 ```acir
-ACIR 3.0
+ACIR 3.1
 
 bench ACBench for SingleEndedOpAmp
   builtin SEOpAmpACBench
@@ -1495,7 +1495,7 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
 This example demonstrates a stdcell inverter used as an output buffer, showing how digital standard cells integrate with the ACIR format.
 
 ```acir
-ACIR 3.0
+ACIR 3.1
 
 trait DigitalBuffer:
   port COMP_OUT : digital
@@ -1544,7 +1544,7 @@ circuit LatchPadBuffer implements DigitalBuffer
 This example demonstrates a single-ended common-source amplifier using a primitive NMOS input transistor and an ActiveLoad motif.
 
 ```acir
-ACIR 3.0
+ACIR 3.1
 
 trait SingleEndedAmp:
   port vin : analog
@@ -1603,7 +1603,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via trait-scoped connectors.
 
 ```acir
-ACIR 3.0
+ACIR 3.1
 
 bundle Diff:
   P : analog
@@ -2021,9 +2021,8 @@ connectorDef = "to" IDENT ":" NL (INDENT INDENT INDENT connectorMapping NL)+ ;
 connectorMapping = terminalPath "->" terminalPath ;
 
 benchDef     = "bench" IDENT "for" IDENT NL (INDENT benchMember NL)+ ;
-benchMember  = benchBuiltin | benchTemplate | benchConfigBlock | benchOutputsBlock ;
+benchMember  = benchBuiltin | benchConfigBlock | benchOutputsBlock ;
 benchBuiltin = "builtin" IDENT ;
-benchTemplate= "template" STRING ;
 benchConfigBlock = "config:" NL (INDENT INDENT benchConfigEntry NL)+ ;
 benchConfigEntry = IDENT "=" paramValue ;
 benchOutputsBlock = "outputs:" NL (INDENT INDENT IDENT NL)+ ;

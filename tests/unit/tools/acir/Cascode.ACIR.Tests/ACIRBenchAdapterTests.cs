@@ -760,17 +760,9 @@ namespace Cascode.ACIR.Tests
         }
 
         [Fact]
-        public void GenerateTestbench_ThrowsOnEmptyTemplate()
+        public void GenerateTestbench_ThrowsOnMissingBuiltinTemplate()
         {
             using var tempDir = Cascode.TestSupport.CascodeHome.CreateInTemp();
-            var workspaceRoot = Path.Combine(tempDir.Path, "workspace");
-            var benchesDir = Path.Combine(workspaceRoot, "lib", "std", "amp", "benches");
-            Directory.CreateDirectory(benchesDir);
-
-            // Create an empty template file
-            var emptyTemplatePath = Path.Combine(benchesDir, "EmptyBench.ngspice.tpl");
-            File.WriteAllText(emptyTemplatePath, "");
-
             var outputDir = Path.Combine(tempDir.Path, "output");
             Directory.CreateDirectory(outputDir);
 
@@ -794,20 +786,24 @@ namespace Cascode.ACIR.Tests
                 },
             };
 
-            var bench = new BenchDefinition { Name = "EmptyBench", Trait = "SingleEndedOpAmp" };
+            var bench = new BenchDefinition
+            {
+                Name = "MissingBench",
+                Trait = "SingleEndedOpAmp",
+                Builtin = "MissingBench",
+            };
 
             var ex = Assert.Throws<InvalidOperationException>(() =>
                 ACIRBenchAdapter.GenerateTestbench(
                     circuit,
                     bench,
                     BenchBackendType.Ngspice,
-                    outputDir,
-                    workspaceRoot
+                    outputDir
                 )
             );
 
-            Assert.Contains("Template file is empty", ex.Message);
-            Assert.Contains("EmptyBench", ex.Message);
+            Assert.Contains("Builtin template not found", ex.Message);
+            Assert.Contains("MissingBench", ex.Message);
         }
     }
 

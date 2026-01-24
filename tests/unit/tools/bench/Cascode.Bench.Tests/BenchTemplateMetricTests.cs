@@ -18,7 +18,7 @@ public partial class BenchTemplateMetricTests
     public void ParseBenchMetrics_FDOpAmpDCBench_ParsesAllMetrics()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var casPath = Path.Combine(repoRoot, "lib/std/amp/benches/FDOpAmpDCBench.cas");
+        var casPath = Path.Combine(repoRoot, "lib/benches/FDOpAmpDCBench.cas");
 
         var metrics = ParseBenchMetrics(casPath);
 
@@ -34,8 +34,8 @@ public partial class BenchTemplateMetricTests
     public void TemplateEmitsAllDeclaredMetrics_FDOpAmpDCBench_Ngspice()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var casPath = Path.Combine(repoRoot, "lib/std/amp/benches/FDOpAmpDCBench.cas");
-        var templatePath = Path.Combine(repoRoot, "lib/std/amp/benches/FDOpAmpDCBench.ngspice.tpl");
+        var casPath = Path.Combine(repoRoot, "lib/benches/FDOpAmpDCBench.cas");
+        var templatePath = Path.Combine(repoRoot, "lib/benches/FDOpAmpDCBench.ngspice.tpl");
 
         AssertTemplateEmitsAllMetrics(casPath, templatePath);
     }
@@ -44,8 +44,8 @@ public partial class BenchTemplateMetricTests
     public void TemplateEmitsAllDeclaredMetrics_SEOpAmpDCBench_Ngspice()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var casPath = Path.Combine(repoRoot, "lib/std/amp/benches/SEOpAmpDCBench.cas");
-        var templatePath = Path.Combine(repoRoot, "lib/std/amp/benches/SEOpAmpDCBench.ngspice.tpl");
+        var casPath = Path.Combine(repoRoot, "lib/benches/SEOpAmpDCBench.cas");
+        var templatePath = Path.Combine(repoRoot, "lib/benches/SEOpAmpDCBench.ngspice.tpl");
 
         AssertTemplateEmitsAllMetrics(casPath, templatePath);
     }
@@ -54,7 +54,7 @@ public partial class BenchTemplateMetricTests
     public void AllStandardBenches_EmitDeclaredMetrics()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var benchesDir = Path.Combine(repoRoot, "lib/std/amp/benches");
+        var benchesDir = Path.Combine(repoRoot, "lib/benches");
 
         // Discover all .cas bench files
         var casFiles = Directory

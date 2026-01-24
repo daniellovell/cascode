@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // DC characterization bench for single-ended amplifiers (single input, single output).
 // Measures output DC bias and quiescent power, optionally across an input bias sweep.
