@@ -1,8 +1,8 @@
 ACIR 3.0
 
-// This file exercises all arrow (->) contexts with deliberate whitespace
+// This file exercises the wire operator (--) contexts with deliberate whitespace
 // variations. The parser must accept any combination of leading/trailing
-// whitespace around the arrow operator.
+// whitespace around the wire operator.
 
 bundle Diff:
   P : analog
@@ -13,10 +13,10 @@ trait MirrorLike:
   port TAP : analog
   connectors:
     to LoadLike:
-      SENSE->OUT.P
+      SENSE--OUT.P
       // no whitespace (canonical form)
-      TAP -> OUT.N
-      // spaces around arrow
+      TAP--OUT.N
+      // spaces around operator
 
 trait LoadLike:
   port OUT : Diff
@@ -35,20 +35,24 @@ circuit ArrowWhitespace implements SingleEndedOpAmp
   fill:
     net mid : analog
     // Device bindings: mixed whitespace styles within a single declaration
-    nmos M1 (B->GND, D->mid, G -> IN.P, S  ->GND) : W=1u L=180n nmos
-    // B->GND: no whitespace
-    // D->mid: no whitespace
-    // G -> IN.P: spaces around arrow
-    // S  ->GND: leading space only
-    nmos M2 (B->  GND, D->OUT, G->IN.N, S->mid) : W=1u L=180n nmos
-    // B->  GND: trailing space only
+    nmos M1 (.B--GND, .D--mid, .G--IN.P, .S--GND) : nmos
+      size (W=1u, L=180n)
+    // B--GND: no whitespace
+    // D--mid: no whitespace
+    // G -- IN.P: spaces around operator
+    // S  --GND: leading space only
+    nmos M2 (.B--GND, .D--OUT, .G--IN.N, .S--mid) : nmos
+      size (W=1u, L=180n)
+    // B--  GND: trailing space only
     // remaining: no whitespace
-    inst dp (dp.VDD->VDD, dp.GND -> GND) : DiffPairSub
+    inst dp : DiffPairSub
       // Instance bindings: mixed whitespace
-      connect dp.IN->IN
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
       // no whitespace
-      connect dp.OUT -> mid
-      // spaces around arrow
+      .OUT--mid
+      // spaces around operator
   constraints:
     numeric:
       c_gain : ACBench::PassbandGain >= 20dB
@@ -65,9 +69,12 @@ circuit DiffPairSub implements LoadLike
   port OUT : Diff
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.N, G->IN.P, S->tnode) : W=2u L=180n nmos
-    nmos M_P (B->GND, D  ->OUT.P, G->IN.N, S->  tnode) : W=2u L=180n nmos
-    // D  ->OUT.P: leading space only
-    // S->  tnode: trailing space only
-    nmos M_TAIL (B -> GND, D -> tnode, G -> VDD, S -> GND) : W=4u L=180n nmos
-    // all bindings with spaces around arrow
+    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
+      size (W=2u, L=180n)
+    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nmos
+      size (W=2u, L=180n)
+    // D  --OUT.P: leading space only
+    // S--  tnode: trailing space only
+    nmos M_TAIL (.B--GND, .D--tnode, .G--VDD, .S--GND) : nmos
+      size (W=4u, L=180n)
+    // all bindings with spaces around operator

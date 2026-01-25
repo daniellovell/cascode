@@ -14,9 +14,9 @@ circuit OTA5TSingleEndedSimplified implements SingleEndedOpAmp
   fill:
     inst cm : CurrentMirror
     inst dp : DiffPair
-      BASE -> GND
-      BIAS -> VTAIL
-      IN.N -> IN_N
-      IN.P -> IN_P
-      OUT.N -> OUT
+      .BASE--GND
+      .BIAS--VTAIL
+      .IN.N--IN_N
+      .IN.P--IN_P
+      .OUT.N--OUT
 

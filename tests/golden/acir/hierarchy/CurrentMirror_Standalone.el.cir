@@ -5,7 +5,7 @@ trait CurrentMirrorLike:
   port TAP[0] : analog
   connectors:
     to LoadBranch:
-      TAP[0] -> IN
+      TAP[0]--IN
 
 circuit CurrentMirror implements CurrentMirrorLike
   level EL
@@ -15,8 +15,10 @@ circuit CurrentMirror implements CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
   fill:
-    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : size=(W=2u, L=180n, M=$ratio) pmos
+    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--VDD) : pmos
+      size (W=2u, L=180n, M=$ratio)
   constraints:
     tech:
       t_lmin : L >= 180nm on *

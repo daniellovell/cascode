@@ -504,7 +504,8 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// <return>The visitor result.</return>
 	public virtual Result VisitBinding([NotNull] ACIRParser.BindingContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParams"/>.
+	/// Visit a parse tree produced by the <c>DeviceSizeStmt</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -512,9 +513,10 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitDeviceParams([NotNull] ACIRParser.DeviceParamsContext context) { return VisitChildren(context); }
+	public virtual Result VisitDeviceSizeStmt([NotNull] ACIRParser.DeviceSizeStmtContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParam"/>.
+	/// Visit a parse tree produced by the <c>DeviceParamLine</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -522,9 +524,10 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitDeviceParam([NotNull] ACIRParser.DeviceParamContext context) { return VisitChildren(context); }
+	public virtual Result VisitDeviceParamLine([NotNull] ACIRParser.DeviceParamLineContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParamValue"/>.
+	/// Visit a parse tree produced by the <c>DeviceBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -532,10 +535,20 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitDeviceParamValue([NotNull] ACIRParser.DeviceParamValueContext context) { return VisitChildren(context); }
+	public virtual Result VisitDeviceBinding([NotNull] ACIRParser.DeviceBindingContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParamAssign"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitDeviceParamAssign([NotNull] ACIRParser.DeviceParamAssignContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>InstanceParam</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -546,7 +559,7 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	public virtual Result VisitInstanceParam([NotNull] ACIRParser.InstanceParamContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>InstanceSize</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -556,19 +569,8 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// <return>The visitor result.</return>
 	public virtual Result VisitInstanceSize([NotNull] ACIRParser.InstanceSizeContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by the <c>InstanceConnect</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>
-	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
-	/// on <paramref name="context"/>.
-	/// </para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	public virtual Result VisitInstanceConnect([NotNull] ACIRParser.InstanceConnectContext context) { return VisitChildren(context); }
-	/// <summary>
 	/// Visit a parse tree produced by the <c>InstanceBinding</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -577,6 +579,16 @@ public partial class ACIRBaseVisitor<Result> : AbstractParseTreeVisitor<Result>,
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	public virtual Result VisitInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParamValue"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitDeviceParamValue([NotNull] ACIRParser.DeviceParamValueContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.attachTargetList"/>.
 	/// <para>

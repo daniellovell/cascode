@@ -32,11 +32,16 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN.P, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN.N, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=4u, L=180n, M=1) nmos
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
+    nmos dp.M_N (.B--GND, .D--mirror_gate, .G--IN.P, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.B--GND, .D--OUT, .G--IN.N, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.B--VDD, .D--mirror_gate, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.B--VDD, .D--OUT, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
       c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz

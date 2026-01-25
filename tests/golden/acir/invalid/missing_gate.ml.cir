@@ -12,4 +12,5 @@ circuit MissingGateExample
   port OUT : analog
 
   fill:
-    pmos M_SENSE (B->VDD, D->OUT, S->VDD) : size=(W=??, L=??, M=??) pmos
+    pmos M_SENSE (.B--VDD, .D--OUT, .S--VDD) : pmos
+      size (W=??, L=??, M=??)

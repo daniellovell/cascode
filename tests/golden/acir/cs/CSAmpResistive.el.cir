@@ -13,8 +13,10 @@ circuit CSAmpResistive implements SingleEndedAmp
   port IN : analog
   port OUT : analog
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
-    resistor R_load (P->VDD, N->OUT) : R=10k
+    nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
+      size (W=10u, L=180n, M=1)
+    resistor R_load (.P--VDD, .N--OUT) : resistor
+      R = 10k
   constraints:
     numeric:
       c_gbw : ACBench::GainBandwidth at net::OUT >= 10MHz

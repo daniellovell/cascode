@@ -1,5 +1,19 @@
 grammar ACIR;
 
+@lexer::members {
+    // We need to distinguish terminal-prefix '.' (start of a binding on its own line)
+    // from '.' used as a path separator. Newlines are otherwise skipped, so without
+    // this, a binding like ".VDD--VDD" can incorrectly consume ".IN" from the next
+    // line as a continuation of the RHS pinRef (e.g., "VDD.IN").
+    private bool _atLineStart = true;
+
+    public override IToken Emit()
+    {
+        _atLineStart = false;
+        return base.Emit();
+    }
+}
+
 // ============================================================================
 // Parser Rules
 // ============================================================================
@@ -45,7 +59,7 @@ connectorDef
     ;
 
 connectorMapping
-    : pinRef ARROW pinRef
+    : pinRef WIRE_OP pinRef
     ;
 
 // ----------------------------------------------------------------------------
@@ -146,10 +160,10 @@ qualifiedName
 
 fillStatement
     : NET_KW IDENT COLON portType                                   # NetDecl
-    | DEVICE_TYPE deviceId LPAREN bindingList RPAREN COLON deviceParams? pdkDeviceName?  # DeviceDecl
-    | INST_KW IDENT (LPAREN bindingList RPAREN)? COLON IDENT instanceMember*    # InstanceDecl
-    | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides?  # AttachDecl
-    | CONNECT_KW pinRef ARROW pinRef                                # ConnectDecl
+    | DEVICE_TYPE deviceId bindingList? COLON pdkDeviceName deviceBodyItem*  # DeviceDecl
+    | INST_KW IDENT bindingList? COLON IDENT instanceBodyItem*       # InstanceDecl
+    | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # AttachDecl
+    | pinRef WIRE_OP pinRef                                         # ConnectDecl
     ;
 
 // PDK device name can be IDENT or a device type keyword (nmos, pmos, etc.)
@@ -179,7 +193,6 @@ idPart
     | PORT_KW
     | PARAM_KW
     | ATTACH_KW
-    | CONNECT_KW
     | ON_KW
     | TO_KW
     | FOR_KW
@@ -199,36 +212,33 @@ idPart
     ;
 
 bindingList
-    : binding (COMMA binding)*
-    |
+    : LPAREN binding (COMMA binding)* RPAREN
     ;
 
 binding
-    : pinRef ARROW pinRef
+    : (DOT | BIND_DOT) pinRef WIRE_OP pinRef
     ;
 
-deviceParams
-    : deviceParam+
+deviceBodyItem
+    : SIZE_KW (IDENT | sizeLiteral)                                 # DeviceSizeStmt
+    | deviceParamAssign                                             # DeviceParamLine
+    | binding                                                       # DeviceBinding
     ;
 
-deviceParam
-    : IDENT EQ deviceParamValue
-    | LOAD_TYPE EQ deviceParamValue                                 // Allow R/C as param names
-    | SIZE_KW EQ sizeLiteral
-    | SIZE_KW EQ IDENT
+deviceParamAssign
+    : (IDENT | LOAD_TYPE) EQ deviceParamValue
+    ;
+
+instanceBodyItem
+    : PARAM_KW IDENT EQ paramValue                                  # InstanceParam
+    | SIZE_KW IDENT EQ sizeLiteral                                  # InstanceSize
+    | binding                                                       # InstanceBinding
     ;
 
 deviceParamValue
     : NUMBER
     | QUANTITY
     | SYMBOLIC
-    ;
-
-instanceMember
-    : PARAM_KW IDENT EQ paramValue                                  # InstanceParam
-    | SIZE_KW IDENT EQ sizeLiteral                                  # InstanceSize
-    | CONNECT_KW pinRef ARROW pinRef                                # InstanceConnect
-    | binding                                                       # InstanceBinding
     ;
 
 attachTargetList
@@ -242,7 +252,7 @@ attachOverrides
 
 // Pin references can contain keywords as parts (e.g., load.D)
 pinRef
-    : idPart (DOT idPart)* (LBRACK NUMBER RBRACK)?
+    : idPart ((DOT idPart) | (LBRACK NUMBER RBRACK))*
     ;
 
 // ----------------------------------------------------------------------------
@@ -389,7 +399,6 @@ PROVENANCE_KW   : 'provenance:' ;
 NET_KW          : 'net' ;
 INST_KW         : 'inst' ;
 ATTACH_KW       : 'attach' ;
-CONNECT_KW      : 'connect' ;
 TO_KW           : 'to' ;
 FOR_KW          : 'for' ;
 VIA_KW          : 'via' ;
@@ -430,13 +439,14 @@ LOAD_TYPE       : 'C' | 'R' ;
 
 // Operators
 COMPARISON_OP   : '>=' | '<=' | '==' | '>' | '<' ;
-ARROW           : '->' ;
+WIRE_OP         : '--' ;
 COLONCOLON      : '::' ;
 PIPEPIPE        : '||' ;
 
 // Punctuation
 COLON           : ':' ;
 COMMA           : ',' ;
+BIND_DOT        : '.' { _atLineStart }? ;
 DOT             : '.' ;
 EQ              : '=' ;
 LPAREN          : '(' ;
@@ -472,5 +482,6 @@ STRING          : '"' (~["\\] | '\\' .)* '"' ;
 // Line comments
 LINE_COMMENT    : '//' ~[\r\n]* -> skip ;
 
-// Whitespace (skip all whitespace including newlines - indentation handled by structure)
-WS              : [ \t\r\n]+ -> skip ;
+// Whitespace (skip spaces/tabs; handle newlines separately so we can detect line starts)
+WS              : [ \t\r]+ -> skip ;
+NEWLINE         : ('\r'? '\n')+ { _atLineStart = true; } -> skip ;
