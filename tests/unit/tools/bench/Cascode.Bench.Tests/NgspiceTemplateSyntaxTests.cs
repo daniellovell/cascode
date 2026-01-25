@@ -119,12 +119,39 @@ public partial class NgspiceTemplateSyntaxTests
         }
     }
 
+    [Fact]
+    public void NgspiceTemplates_ShouldNotUse_MeasTranWithDifferentialVoltageForm()
+    {
+        // ngspice `meas tran ... MAX/MIN` does not accept v(node_pos, node_neg) directly.
+        // Use a `let` to define a vector (e.g., let vdiff = v(a) - v(b)), then measure that.
+
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
+
+        var invalidMeasTranDifferentialVPattern = InvalidMeasTranDifferentialVPattern();
+
+        foreach (var templatePath in ngspiceTemplates)
+        {
+            var content = File.ReadAllText(templatePath);
+            var matches = invalidMeasTranDifferentialVPattern.Matches(content);
+            Assert.Empty(matches);
+        }
+    }
+
     [GeneratedRegex(
         @"meas\s+dc\s+\w+\s+param\s*=\s*['""][^'""]*[vi]\([^'""]+\)['""]",
         RegexOptions.IgnoreCase | RegexOptions.Multiline,
         "en-US"
     )]
     private static partial Regex InvalidMeasParamVectorPattern();
+
+    [GeneratedRegex(
+        @"meas\s+tran\s+\w+\s+(max|min)\s+v\([^)]*,[^)]*\)",
+        RegexOptions.IgnoreCase | RegexOptions.Multiline,
+        "en-US"
+    )]
+    private static partial Regex InvalidMeasTranDifferentialVPattern();
 
     [GeneratedRegex(
         @"let\s+pwr_[\w\{\}\.\s]+\s*=\s*v\([^)]+\)\s*\*\s*\(\s*-i\([^)]+\)\s*\)",

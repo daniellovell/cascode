@@ -5,6 +5,6 @@ bench SEOpAmpTranBench {
   spectre_template = "SEOpAmpTranBench.spectre.tpl";
   ngspice_template = "SEOpAmpTranBench.ngspice.tpl";
   metrics [
-    OutputSwing: V
+    SingleEndedOutputSwing: Vpp,
   ]
 }

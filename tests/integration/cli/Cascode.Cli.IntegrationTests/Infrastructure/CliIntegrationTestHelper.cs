@@ -224,7 +224,22 @@ internal static class CliIntegrationTestHelper
 
         if (length == 0)
             return null;
-        return Version.TryParse(span[..length].ToString(), out var version) ? version : null;
+        var versionText = span[..length].ToString();
+        if (versionText.Length > 1 && versionText[0] == '4' && versionText.All(char.IsDigit))
+        {
+            var dottedChars = new char[(versionText.Length * 2) - 1];
+            dottedChars[0] = versionText[0];
+            var dst = 1;
+            for (var i = 1; i < versionText.Length; i++)
+            {
+                dottedChars[dst++] = '.';
+                dottedChars[dst++] = versionText[i];
+            }
+
+            versionText = new string(dottedChars);
+        }
+
+        return Version.TryParse(versionText, out var version) ? version : null;
     }
 
     /// <summary>

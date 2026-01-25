@@ -101,7 +101,6 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
 - **Major bump**: breaking changes - reader rejects different majors
 - **Minor bump**: additive-only changes - reader accepts any minor within same major
-- YOU MUST bump version when changing: `ACIRDocument.cs`, `ACIRReader.cs`, `ACIRWriter.cs`, `ACIRBenchAdapter.cs`, `ACIRTemplateHarness.cs`, or template data contracts
 - On bump: run `scripts/bump_acir_version.sh` to sync golden file headers
 - On bump: inspect and update all ACIR versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored

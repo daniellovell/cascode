@@ -102,7 +102,7 @@ internal static partial class BenchResultParser
             foreach (
                 var group in circuit
                     .Constraints.Numeric.Where(c =>
-                        c.Bench.Equals(benchName, StringComparison.OrdinalIgnoreCase)
+                        string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
                     )
                     .GroupBy(c => c.Metric, StringComparer.OrdinalIgnoreCase)
             )

@@ -17,6 +17,28 @@
 * Harness supplies and biases
 {{ supply_elements }}
 
+* Common-mode bias
+VCM_SRC vcm 0 DC {{ vcm }}
+
+* Differential stimulus (drives single-ended output via differential input)
+* PULSE(V1 V2 TD TR TF PW PER)
+{{ if bench_config.tran_stop_s }}
+{{ if bench_config.tran_maxstep_s }}
+VIN_SRC vin_src 0 PULSE({{ -vcm }} {{ vcm }} 0 {{ bench_config.tran_maxstep_s }} {{ bench_config.tran_maxstep_s }} {{ bench_config.tran_stop_s }} {{ bench_config.tran_stop_s }})
+{{ else }}
+VIN_SRC vin_src 0 PULSE({{ -vcm }} {{ vcm }} 0 1n 1n {{ bench_config.tran_stop_s }} {{ bench_config.tran_stop_s }})
+{{ end }}
+{{ else }}
+VIN_SRC vin_src 0 PULSE({{ -vcm }} {{ vcm }} 0 1n 1n 0.5u 1u)
+{{ end }}
+
+* Input Drive via dependent sources (mimicking balun behavior)
+E_IN_P IN_P_drv 0 VOL = 'v(vcm) + 0.5 * v(vin_src)'
+E_IN_N IN_N_drv 0 VOL = 'v(vcm) - 0.5 * v(vin_src)'
+
+RINP IN_P IN_P_drv {{ env.source_ohms/2 }}
+RINN IN_N IN_N_drv {{ env.source_ohms/2 }}
+
 * Output loads
 {{ load_elements }}
 
@@ -24,8 +46,22 @@
 XDUT {{ port_list }} {{ circuit_name }}
 
 .control
-let swing = {{ vcm }} * 2
-echo "RESULT: OutputSwing = " $&swing " V"
+op
+{{ if bench_config.tran_stop_s }}
+{{ if bench_config.tran_maxstep_s }}
+tran {{ bench_config.tran_maxstep_s }} {{ bench_config.tran_stop_s }}
+{{ else }}
+tran 1n {{ bench_config.tran_stop_s }}
+{{ end }}
+{{ else }}
+tran 1n 1u
+{{ end }}
+
+meas tran vout_max MAX v(OUT)
+meas tran vout_min MIN v(OUT)
+let swing = vout_max - vout_min
+
+echo "RESULT: SingleEndedOutputSwing = " $&swing " Vpp"
 quit
 .endc
 .end
