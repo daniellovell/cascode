@@ -354,6 +354,24 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         AssertMeasurementValid(benchResults!, "PassbandGain", minValue: 0, maxValue: 200);
         AssertMeasurementValid(benchResults!, "GainBandwidth", minValue: 1e3, maxValue: 1e12);
         AssertMeasurementValid(benchResults!, "PhaseMargin", minValue: 0, maxValue: 360);
+
+        var tranResultsPath = Path.Combine(_outputDir, "OTA5TFullyDiff_TranBench_results.json");
+        Assert.True(File.Exists(tranResultsPath), "Tran results.json not found");
+
+        var tranResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(tranResultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(tranResults);
+
+        const double vdd = 1.8;
+        AssertMeasurementValid(
+            tranResults!,
+            "DifferentialOutputSwing",
+            minValue: 0,
+            maxValue: 2 * vdd
+        );
+        AssertMeasurementValid(tranResults!, "SingleEndedOutputSwing", minValue: 0, maxValue: vdd);
     }
 
     [Fact]
@@ -392,6 +410,23 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
             maxValue: 1e12
         );
         AssertMeasurementValid(benchResults!, "PhaseMargin@net::OUT", minValue: 0, maxValue: 360);
+
+        var tranResultsPath = Path.Combine(_outputDir, "OTA5TSingleEnded_TranBench_results.json");
+        Assert.True(File.Exists(tranResultsPath), "Tran results.json not found");
+
+        var tranResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(tranResultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(tranResults);
+
+        const double vdd = 1.8;
+        AssertMeasurementValid(
+            tranResults!,
+            "SingleEndedOutputSwing@net::OUT",
+            minValue: 0,
+            maxValue: vdd
+        );
     }
 
     [Fact]

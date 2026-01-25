@@ -10,7 +10,6 @@ bench ACBench for FullyDiffOpAmp
     GainBandwidth
     PassbandGain
     PhaseMargin
-    OutputSwing
 
 bench DCBench for FullyDiffOpAmp
   builtin FDOpAmpDCBench
@@ -20,7 +19,8 @@ bench DCBench for FullyDiffOpAmp
 bench TranBench for FullyDiffOpAmp
   builtin FDOpAmpTranBench
   outputs:
-    OutputSwing
+    DifferentialOutputSwing
+    SingleEndedOutputSwing
 
 circuit OTA5TFullyDiff implements FullyDiffOpAmp
   level EL
@@ -45,7 +45,7 @@ circuit OTA5TFullyDiff implements FullyDiffOpAmp
       c_gain : ACBench::PassbandGain >= 30dB
       c_pm : ACBench::PhaseMargin >= 60deg
       c_pwr : DCBench::QuiescentPower <= 800uW
-      c_swing : TranBench::OutputSwing >= 1.2V
+      c_swing : TranBench::DifferentialOutputSwing >= 1.2Vpp
     tech:
       t_lmin : L >= 180nm on *
   harness:
