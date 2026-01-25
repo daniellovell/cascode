@@ -13,4 +13,4 @@ include "{{ inc }}"
 // DUT (placeholder for tran bench)
 XDUT ({{ port_list }}) {{ circuit_name }}
 
-// RESULT: OutputSwing = {{ vcm * 2 }} V
+// Placeholder: use the ngspice template for DifferentialOutputSwing/SingleEndedOutputSwing results.

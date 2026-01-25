@@ -10,7 +10,9 @@ bench ACBench for SingleEndedOpAmp
     GainBandwidth
     PassbandGain
     PhaseMargin
-    OutputSwing
+    LowpassBandwidth
+    HighpassBandwidth
+    BandpassBandwidth
 
 bench DCBench for SingleEndedOpAmp
   builtin SEOpAmpDCBench
@@ -20,7 +22,7 @@ bench DCBench for SingleEndedOpAmp
 bench TranBench for SingleEndedOpAmp
   builtin SEOpAmpTranBench
   outputs:
-    OutputSwing
+    SingleEndedOutputSwing
 
 circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
@@ -48,7 +50,7 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
       c_gain : ACBench::PassbandGain at net::OUT >= 40dB
       c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
       c_pwr : DCBench::QuiescentPower <= 500uW
-      c_swing : TranBench::OutputSwing at net::OUT >= 1.2V
+      c_swing : TranBench::SingleEndedOutputSwing at net::OUT >= 1.2Vpp
     tech:
       t_lmin : L >= 180nm on *
   harness:

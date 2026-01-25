@@ -5,6 +5,7 @@ bench FDOpAmpTranBench {
   spectre_template = "FDOpAmpTranBench.spectre.tpl";
   ngspice_template = "FDOpAmpTranBench.ngspice.tpl";
   metrics [
-    OutputSwing: V
+    DifferentialOutputSwing: Vpp,
+    SingleEndedOutputSwing: Vpp,
   ]
 }

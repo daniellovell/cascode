@@ -163,11 +163,11 @@
       {
         "id": "c_swing",
         "bench": "TranBench",
-        "metric": "OutputSwing",
+        "metric": "SingleEndedOutputSwing",
         "node": "net::OUT",
         "op": ">=",
         "value": 1.2,
-        "unit": "V"
+        "unit": "Vpp"
       }
     ],
     "tech": [
@@ -210,8 +210,7 @@
       "outputs": [
         "GainBandwidth",
         "PassbandGain",
-        "PhaseMargin",
-        "OutputSwing"
+        "PhaseMargin"
       ]
     },
     {
@@ -227,7 +226,7 @@
       "trait": "SingleEndedOpAmp",
       "builtin": "SEOpAmpTranBench",
       "outputs": [
-        "OutputSwing"
+        "SingleEndedOutputSwing",
       ]
     }
   ]

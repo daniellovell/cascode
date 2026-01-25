@@ -399,23 +399,54 @@ public static class ACIRBenchAdapter
 
     private static bool IsDifferentialBench(BenchDefinition bench, Circuit circuit)
     {
-        if (IsDifferentialTrait(bench.Trait))
-        {
-            return true;
-        }
+        if (!string.IsNullOrWhiteSpace(bench.Trait))
+            return IsDifferentialTrait(bench.Trait);
 
-        if (circuit.Traits?.Any(IsDifferentialTrait) == true)
-        {
-            return true;
-        }
-
-        return false;
+        return circuit.Traits?.Any(IsDifferentialTrait) == true;
     }
 
-    private static bool IsDifferentialTrait(string trait)
+    private static bool IsDifferentialTrait(string? trait)
     {
-        return trait.Contains("Diff", StringComparison.OrdinalIgnoreCase)
-            || trait.Contains("Differential", StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(trait))
+            return false;
+
+        var start = -1;
+        for (var i = 0; i < trait.Length; i++)
+        {
+            var ch = trait[i];
+            if (!char.IsLetterOrDigit(ch))
+            {
+                if (IsDifferentialToken(trait, start, i))
+                    return true;
+                start = -1;
+                continue;
+            }
+
+            if (start < 0)
+            {
+                start = i;
+                continue;
+            }
+
+            if (char.IsUpper(ch) && (char.IsLower(trait[i - 1]) || char.IsDigit(trait[i - 1])))
+            {
+                if (IsDifferentialToken(trait, start, i))
+                    return true;
+                start = i;
+            }
+        }
+
+        return IsDifferentialToken(trait, start, trait.Length);
+    }
+
+    private static bool IsDifferentialToken(string trait, int start, int end)
+    {
+        if (start < 0 || end <= start)
+            return false;
+
+        var token = trait.AsSpan(start, end - start);
+        return token.Equals("Diff", StringComparison.OrdinalIgnoreCase)
+            || token.Equals("Differential", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
