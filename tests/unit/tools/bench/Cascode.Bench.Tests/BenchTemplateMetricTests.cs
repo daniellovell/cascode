@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Cascode.Bench;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -35,9 +36,9 @@ public partial class BenchTemplateMetricTests
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var casPath = Path.Combine(repoRoot, "lib/benches/FDOpAmpDCBench.cas");
-        var templatePath = Path.Combine(repoRoot, "lib/benches/FDOpAmpDCBench.ngspice.tpl");
+        var templateText = GetNgspiceTemplateText("FDOpAmpDCBench");
 
-        AssertTemplateEmitsAllMetrics(casPath, templatePath);
+        AssertTemplateEmitsAllMetrics(casPath, "FDOpAmpDCBench", templateText);
     }
 
     [Fact]
@@ -45,9 +46,9 @@ public partial class BenchTemplateMetricTests
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var casPath = Path.Combine(repoRoot, "lib/benches/SEOpAmpDCBench.cas");
-        var templatePath = Path.Combine(repoRoot, "lib/benches/SEOpAmpDCBench.ngspice.tpl");
+        var templateText = GetNgspiceTemplateText("SEOpAmpDCBench");
 
-        AssertTemplateEmitsAllMetrics(casPath, templatePath);
+        AssertTemplateEmitsAllMetrics(casPath, "SEOpAmpDCBench", templateText);
     }
 
     [Fact]
@@ -70,14 +71,18 @@ public partial class BenchTemplateMetricTests
         foreach (var casFile in casFiles)
         {
             var benchName = Path.GetFileNameWithoutExtension(casFile);
-            var ngspiceTemplate = Path.Combine(benchesDir, $"{benchName}.ngspice.tpl");
 
-            // Only test if ngspice template exists
-            if (File.Exists(ngspiceTemplate))
+            if (
+                BenchTemplateLibrary.TryGetTemplate(
+                    benchName,
+                    BenchBackendType.Ngspice,
+                    out var templateText
+                )
+            )
             {
                 try
                 {
-                    AssertTemplateEmitsAllMetrics(casFile, ngspiceTemplate);
+                    AssertTemplateEmitsAllMetrics(casFile, benchName, templateText);
                 }
                 catch (Exception ex)
                 {
@@ -142,19 +147,13 @@ public partial class BenchTemplateMetricTests
     /// <summary>
     /// Extracts metric names from RESULT: echo lines in a template.
     /// </summary>
-    private static HashSet<string> ExtractResultMetrics(string templatePath)
+    private static HashSet<string> ExtractResultMetrics(string templateText)
     {
-        if (!File.Exists(templatePath))
-        {
-            throw new FileNotFoundException($"Template file not found: {templatePath}");
-        }
-
-        var content = File.ReadAllText(templatePath);
         var resultMetrics = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // Match lines like: echo "RESULT: MetricName = " ...
         // or: RESULT: MetricName = value
-        var resultMatches = ResultLinePattern().Matches(content);
+        var resultMatches = ResultLinePattern().Matches(templateText);
         foreach (Match match in resultMatches)
         {
             resultMetrics.Add(match.Groups[1].Value);
@@ -166,10 +165,14 @@ public partial class BenchTemplateMetricTests
     /// <summary>
     /// Verifies that a template emits all metrics declared in its bench spec.
     /// </summary>
-    private static void AssertTemplateEmitsAllMetrics(string casPath, string templatePath)
+    private static void AssertTemplateEmitsAllMetrics(
+        string casPath,
+        string benchName,
+        string templateText
+    )
     {
         var declaredMetrics = ParseBenchMetrics(casPath);
-        var emittedMetrics = ExtractResultMetrics(templatePath);
+        var emittedMetrics = ExtractResultMetrics(templateText);
 
         var missingMetrics = new List<string>();
 
@@ -221,12 +224,29 @@ public partial class BenchTemplateMetricTests
 
         if (missingMetrics.Count != 0)
         {
-            var benchName = Path.GetFileNameWithoutExtension(casPath);
-            var templateName = Path.GetFileName(templatePath);
+            var templateName = $"{benchName}.ngspice.tpl";
             Assert.Fail(
                 $"Template {templateName} for bench {benchName} is missing RESULT emission for: {string.Join(", ", missingMetrics)}"
             );
         }
+    }
+
+    private static string GetNgspiceTemplateText(string benchName)
+    {
+        if (
+            !BenchTemplateLibrary.TryGetTemplate(
+                benchName,
+                BenchBackendType.Ngspice,
+                out var templateText
+            ) || string.IsNullOrWhiteSpace(templateText)
+        )
+        {
+            throw new InvalidOperationException(
+                $"Embedded ngspice template not found for bench '{benchName}'."
+            );
+        }
+
+        return templateText;
     }
 
     [GeneratedRegex(@"metrics\s*\[\s*(.*?)\s*\]", RegexOptions.Singleline)]
