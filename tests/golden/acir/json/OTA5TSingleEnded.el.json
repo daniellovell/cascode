@@ -226,7 +226,7 @@
       "trait": "SingleEndedOpAmp",
       "builtin": "SEOpAmpTranBench",
       "outputs": [
-        "SingleEndedOutputSwing",
+        "SingleEndedOutputSwing"
       ]
     }
   ]
