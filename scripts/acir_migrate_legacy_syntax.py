@@ -19,7 +19,7 @@ import argparse
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 
 
 DEVICE_KINDS = ("nmos", "pmos", "resistor", "capacitor", "inductor", "diode")
@@ -44,25 +44,25 @@ KV_RE = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*|[RCL])\s*=\s*([^\s]+)")
 
 @dataclass
 class BlockState:
-    trait_indent: Optional[int] = None
+    trait_indent: int | None = None
     in_trait_connectors: bool = False
-    connectors_indent: Optional[int] = None
+    connectors_indent: int | None = None
     in_trait_connectors_to: bool = False
-    to_indent: Optional[int] = None
+    to_indent: int | None = None
 
-    instance_id: Optional[str] = None
-    instance_indent: Optional[int] = None
+    instance_id: str | None = None
+    instance_indent: int | None = None
 
     in_attach_overrides: bool = False
-    attach_overrides_indent: Optional[int] = None
+    attach_overrides_indent: int | None = None
 
 
-def _split_bindings_list(text: str) -> List[Tuple[str, str]]:
+def _split_bindings_list(text: str) -> list[tuple[str, str]]:
     inner = text.strip()
     if inner.startswith("(") and inner.endswith(")"):
         inner = inner[1:-1]
     parts = [p.strip() for p in inner.split(",") if p.strip()]
-    out: List[Tuple[str, str]] = []
+    out: list[tuple[str, str]] = []
     for p in parts:
         m = re.match(r"^(?P<a>.+?)\s*->\s*(?P<b>.+?)$", p)
         if not m:
@@ -71,26 +71,26 @@ def _split_bindings_list(text: str) -> List[Tuple[str, str]]:
     return out
 
 
-def _format_binding_pairs(pairs: Iterable[Tuple[str, str]]) -> str:
+def _format_binding_pairs(pairs: Iterable[tuple[str, str]]) -> str:
     items = [f".{a}--{b}" for a, b in pairs]
     return "(" + ", ".join(items) + ")"
 
 
-def _parse_device_tail(tail: str, kind: str) -> Tuple[str, Optional[str], List[Tuple[str, str]], List[Tuple[str, str]]]:
+def _parse_device_tail(tail: str, kind: str) -> tuple[str, str | None, list[tuple[str, str]], list[tuple[str, str]]]:
     """
     Returns (pdk, explicit_size, size_entries, other_params).
     - explicit_size: either '(...)' or 'Name' if present via 'size=...'
     - size_entries: collected from bare W/L/M tokens if no explicit_size
     - other_params: key/value params excluding W/L/M folded into size_entries
     """
-    explicit_size: Optional[str] = None
+    explicit_size: str | None = None
     size_m = SIZE_ASSIGN_RE.search(tail)
     tail_wo_size = tail
     if size_m:
         explicit_size = size_m.group(1).strip()
         tail_wo_size = tail[: size_m.start()] + tail[size_m.end() :]
 
-    params_in_order: List[Tuple[str, str]] = []
+    params_in_order: list[tuple[str, str]] = []
     for m in KV_RE.finditer(tail_wo_size):
         params_in_order.append((m.group(1), m.group(2)))
     tail_wo_params = KV_RE.sub("", tail_wo_size)
@@ -98,8 +98,8 @@ def _parse_device_tail(tail: str, kind: str) -> Tuple[str, Optional[str], List[T
     leftovers = [t for t in tail_wo_params.split() if t.strip()]
     pdk = leftovers[-1] if leftovers else kind
 
-    size_entries: List[Tuple[str, str]] = []
-    other_params: List[Tuple[str, str]] = []
+    size_entries: list[tuple[str, str]] = []
+    other_params: list[tuple[str, str]] = []
 
     if explicit_size is None:
         for k, v in params_in_order:
@@ -113,11 +113,11 @@ def _parse_device_tail(tail: str, kind: str) -> Tuple[str, Optional[str], List[T
     return pdk, explicit_size, size_entries, other_params
 
 
-def _device_body_lines(indent: str, kind: str, tail: str) -> List[str]:
-    pdk, explicit_size, size_entries, other_params = _parse_device_tail(tail, kind)
+def _device_body_lines(indent: str, kind: str, tail: str) -> list[str]:
+    _pdk, explicit_size, size_entries, other_params = _parse_device_tail(tail, kind)
 
     body_indent = indent + "  "
-    lines: List[str] = []
+    lines: list[str] = []
 
     if explicit_size is not None:
         lines.append(f"{body_indent}size {explicit_size}")
@@ -133,7 +133,7 @@ def _device_body_lines(indent: str, kind: str, tail: str) -> List[str]:
 
 def _convert_instance_connect(
     instance_id: str, a: str, b: str
-) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+) -> tuple[str | None, str | None, str | None]:
     prefix = instance_id + "."
     a_is = a == instance_id or a.startswith(prefix)
     b_is = b == instance_id or b.startswith(prefix)
@@ -153,7 +153,7 @@ def _convert_instance_connect(
 def migrate_text(text: str) -> str:
     state = BlockState()
 
-    out_lines: List[str] = []
+    out_lines: list[str] = []
     lines = text.splitlines(keepends=False)
 
     for i, line in enumerate(lines):
@@ -217,7 +217,7 @@ def migrate_text(text: str) -> str:
             bind_text = m.group("bindings")
             if bind_text:
                 pairs = _split_bindings_list(bind_text)
-                rewritten: List[Tuple[str, str]] = []
+                rewritten: list[tuple[str, str]] = []
                 prefix = inst_id + "."
                 for a, b in pairs:
                     if a.startswith(prefix):
@@ -292,14 +292,14 @@ def migrate_text(text: str) -> str:
     return "\n".join(out_lines) + ("\n" if text.endswith("\n") else "")
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("paths", nargs="+", type=Path, help="ACIR .cir files or directories")
     ap.add_argument("--in-place", action="store_true", help="Rewrite files in place")
     ap.add_argument("-o", "--out", type=Path, help="Output file (single input only)")
     args = ap.parse_args(argv)
 
-    inputs: List[Path] = []
+    inputs: list[Path] = []
     for p in args.paths:
         if p.is_dir():
             inputs.extend(sorted(p.rglob("*.cir")))

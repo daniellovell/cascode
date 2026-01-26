@@ -15,7 +15,7 @@ trait MirrorLike:
     to LoadLike:
       SENSE--OUT.P
       // no whitespace (canonical form)
-      TAP--OUT.N
+      TAP -- OUT.N
       // spaces around operator
 
 trait LoadLike:
@@ -26,7 +26,7 @@ bench ACBench for SingleEndedOpAmp
   outputs:
     PassbandGain
 
-circuit ArrowWhitespace implements SingleEndedOpAmp
+circuit WireOperatorWhitespace implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -35,13 +35,13 @@ circuit ArrowWhitespace implements SingleEndedOpAmp
   fill:
     net mid : analog
     // Device bindings: mixed whitespace styles within a single declaration
-    nmos M1 (.B--GND, .D--mid, .G--IN.P, .S--GND) : nmos
+    nmos M1 (.B--GND, .D--mid, .G -- IN.P, .S  --GND) : nmos
       size (W=1u, L=180n)
     // B--GND: no whitespace
     // D--mid: no whitespace
     // G -- IN.P: spaces around operator
     // S  --GND: leading space only
-    nmos M2 (.B--GND, .D--OUT, .G--IN.N, .S--mid) : nmos
+    nmos M2 (.B--  GND, .D--OUT, .G--IN.N, .S--mid) : nmos
       size (W=1u, L=180n)
     // B--  GND: trailing space only
     // remaining: no whitespace
@@ -51,7 +51,7 @@ circuit ArrowWhitespace implements SingleEndedOpAmp
       .GND--GND
       .IN--IN
       // no whitespace
-      .OUT--mid
+      .OUT -- mid
       // spaces around operator
   constraints:
     numeric:
@@ -69,9 +69,9 @@ circuit DiffPairSub implements LoadLike
   port OUT : Diff
   fill:
     net tnode : analog
-    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
+    nmos M_N (.B--GND, .D--OUT.N, .G -- IN.P, .S--tnode) : nmos
       size (W=2u, L=180n)
-    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nmos
+    nmos M_P (.B--GND, .D  --OUT.P, .G--IN.N, .S--  tnode) : nmos
       size (W=2u, L=180n)
     // D  --OUT.P: leading space only
     // S--  tnode: trailing space only
