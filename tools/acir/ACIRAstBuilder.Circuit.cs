@@ -146,6 +146,16 @@ internal sealed partial class ACIRAstBuilder
         return new SizeDeclaration { Name = ctx.IDENT().GetText(), Default = defaultPack };
     }
 
+    /// <summary>Extracts the value from a size entry context using the NUMBER/QUANTITY/SYMBOLIC/UNSIZED chain.</summary>
+    private static string GetSizeEntryValue(ACIRParser.SizeEntryContext entryCtx)
+    {
+        return entryCtx.NUMBER()?.GetText()
+            ?? entryCtx.QUANTITY()?.GetText()
+            ?? entryCtx.SYMBOLIC()?.GetText()
+            ?? entryCtx.UNSIZED()?.GetText()
+            ?? string.Empty;
+    }
+
     /// <summary>Builds a size pack and reports duplicate keys.</summary>
     private SizePack BuildSizeLiteral(
         ACIRParser.SizeLiteralContext ctx,
@@ -156,12 +166,7 @@ internal sealed partial class ACIRAstBuilder
         foreach (var entryCtx in ctx.sizeEntry())
         {
             var key = entryCtx.IDENT().GetText();
-            var value =
-                entryCtx.NUMBER()?.GetText()
-                ?? entryCtx.QUANTITY()?.GetText()
-                ?? entryCtx.SYMBOLIC()?.GetText()
-                ?? entryCtx.UNSIZED()?.GetText()
-                ?? string.Empty;
+            var value = GetSizeEntryValue(entryCtx);
 
             if (entries.ContainsKey(key))
             {
@@ -187,12 +192,7 @@ internal sealed partial class ACIRAstBuilder
             .Select(e =>
             {
                 var key = e.IDENT().GetText();
-                var value =
-                    e.NUMBER()?.GetText()
-                    ?? e.QUANTITY()?.GetText()
-                    ?? e.SYMBOLIC()?.GetText()
-                    ?? e.UNSIZED()?.GetText()
-                    ?? string.Empty;
+                var value = GetSizeEntryValue(e);
                 return $"{key}={value}";
             });
         return $"({string.Join(", ", entries)})";
