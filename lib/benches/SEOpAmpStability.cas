@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // Stability bench for single-ended operational amplifiers (unity-gain non-inverting, loop break at IN_N).
 bench SEOpAmpStability {

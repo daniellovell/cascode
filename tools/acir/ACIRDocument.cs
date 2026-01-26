@@ -311,11 +311,8 @@ public sealed class BenchDefinition
     /// <summary>Trait this bench applies to.</summary>
     public string Trait { get; init; } = string.Empty;
 
-    /// <summary>Builtin bench name (mutually exclusive with Template).</summary>
+    /// <summary>Builtin bench template name.</summary>
     public string? Builtin { get; init; }
-
-    /// <summary>Explicit template path (mutually exclusive with Builtin).</summary>
-    public string? Template { get; init; }
 
     /// <summary>Optional bench configuration values.</summary>
     public Dictionary<string, string> Config { get; init; } = new();

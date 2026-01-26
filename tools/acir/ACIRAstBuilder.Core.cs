@@ -147,7 +147,6 @@ internal sealed partial class ACIRAstBuilder
         var name = ctx.IDENT(0).GetText();
         var trait = ctx.IDENT(1).GetText();
         string? builtin = null;
-        string? template = null;
         var config = new Dictionary<string, string>();
         var outputs = new List<string>();
 
@@ -156,12 +155,6 @@ internal sealed partial class ACIRAstBuilder
             if (memberCtx.BUILTIN_KW() != null)
             {
                 builtin = memberCtx.IDENT().GetText();
-                continue;
-            }
-
-            if (memberCtx.TEMPLATE_KW() != null)
-            {
-                template = Unquote(memberCtx.STRING().GetText());
                 continue;
             }
 
@@ -194,12 +187,20 @@ internal sealed partial class ACIRAstBuilder
             }
         }
 
+        if (string.IsNullOrWhiteSpace(builtin))
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Bench '{name}' must declare a builtin template."
+            );
+        }
+
         return new BenchDefinition
         {
             Name = name,
             Trait = trait,
             Builtin = builtin,
-            Template = template,
             Config = config,
             Outputs = outputs,
         };
@@ -280,14 +281,7 @@ internal sealed partial class ACIRAstBuilder
     /// <returns>Normalized pin reference.</returns>
     private static string BuildPinRef(ACIRParser.PinRefContext ctx)
     {
-        // pinRef uses idPart which can be IDENT or various keywords (e.g., load.D)
-        var parts = ctx.idPart().Select(p => p.GetText()).ToList();
-        var result = string.Join(".", parts);
-        if (ctx.NUMBER() != null)
-        {
-            result += $"[{ctx.NUMBER().GetText()}]";
-        }
-        return result;
+        return ctx.GetText();
     }
 
     /// <summary>Adds a diagnostic anchored to a parse context.</summary>

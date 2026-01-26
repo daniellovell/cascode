@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // Transient bench for fully differential operational amplifiers.
 bench FDOpAmpTranBench {

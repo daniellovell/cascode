@@ -13,4 +13,4 @@ circuit MissingParamExample
   port OUT : analog
 
   fill:
-    nmos M1 (G->IN, D->OUT, S->GND, B->GND) : nmos
+    nmos M1 (.G--IN, .D--OUT, .S--GND, .B--GND) : nmos

@@ -86,7 +86,7 @@ public static class ACIRWriter
                 writer.WriteLine($"    to {connector.TargetTrait}:");
                 foreach (var mapping in connector.Mappings)
                 {
-                    writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+                    writer.WriteLine($"      {mapping.SourcePort}--{mapping.TargetPort}");
                 }
             }
         }
@@ -99,10 +99,6 @@ public static class ACIRWriter
         if (!string.IsNullOrEmpty(bench.Builtin))
         {
             writer.WriteLine($"  builtin {bench.Builtin}");
-        }
-        else if (!string.IsNullOrEmpty(bench.Template))
-        {
-            writer.WriteLine($"  template \"{bench.Template}\"");
         }
 
         if (bench.Config.Count > 0)
@@ -231,7 +227,7 @@ public static class ACIRWriter
             var bindings = string.Join(
                 ", ",
                 slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
@@ -273,15 +269,16 @@ public static class ACIRWriter
         }
 
         // Connections
-        foreach (var conn in fill.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"    connect {conn.From} -> {conn.To}");
-        }
-
         // Attach statements (EL level)
         foreach (var attach in fill.Attaches.OrderBy(a => a.SourceInstance, StringComparer.Ordinal))
         {
             WriteAttach(attach, writer);
+        }
+
+        // Explicit connections
+        foreach (var conn in fill.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    {conn.From}--{conn.To}");
         }
     }
 
@@ -307,7 +304,7 @@ public static class ACIRWriter
                 var mapping in attach.Overrides.OrderBy(m => m.SourcePort, StringComparer.Ordinal)
             )
             {
-                writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+                writer.WriteLine($"      .{mapping.SourcePort}--{mapping.TargetPort}");
             }
             writer.WriteLine("    }");
         }
@@ -326,7 +323,7 @@ public static class ACIRWriter
             var bindings = string.Join(
                 ", ",
                 inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
@@ -338,7 +335,7 @@ public static class ACIRWriter
         {
             foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {binding.Key} -> {binding.Value}");
+                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
             }
         }
 
@@ -352,12 +349,6 @@ public static class ACIRWriter
         foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
         {
             writer.WriteLine($"      size {size.Key} = {FormatSizePack(size.Value)}");
-        }
-
-        // Instance-level connects
-        foreach (var conn in inst.Connects.OrderBy(c => c.From, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"      connect {conn.From} -> {conn.To}");
         }
     }
 
@@ -377,27 +368,33 @@ public static class ACIRWriter
                 ", ",
                 device
                     .Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
-        header += " : ";
-        var paramParts = device
-            .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
-            .Select(p => $"{p.Key}={p.Value}");
-        header += string.Join(" ", paramParts);
-        if (!string.IsNullOrEmpty(device.PdkDevice))
-        {
-            header += $" {device.PdkDevice}";
-        }
+        header += $" : {device.PdkDevice}";
         writer.WriteLine(header);
+
+        // Device parameters / sizing always live in the body.
+        if (device.Params.TryGetValue("size", out var sizeValue))
+        {
+            writer.WriteLine($"      size {sizeValue}");
+        }
+        foreach (
+            var (key, value) in device
+                .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Where(p => !string.Equals(p.Key, "size", StringComparison.Ordinal))
+        )
+        {
+            writer.WriteLine($"      {key} = {value}");
+        }
 
         // If bindings weren't inline, write them indented
         if (device.Bindings.Count > 4)
         {
             foreach (var binding in device.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {binding.Key} -> {binding.Value}");
+                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
             }
         }
     }

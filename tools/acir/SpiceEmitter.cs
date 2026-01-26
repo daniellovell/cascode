@@ -264,7 +264,7 @@ public static class SpiceEmitter
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <returns>Result containing paths to generated files.</returns>
     /// <remarks>
     /// Processes all EL-level circuits in the document:
@@ -362,7 +362,7 @@ public static class SpiceEmitter
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <returns>Result containing paths to generated files and validation result.</returns>
     /// <remarks>
     /// Runs hierarchy validation and emission validation before attempting SPICE generation.

@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // RC settling bench for single-ended operational amplifiers.
 bench SEOpAmpSettle {

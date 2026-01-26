@@ -207,10 +207,6 @@ public sealed record AcirJsonBenchDefinition
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Builtin { get; init; }
 
-    [JsonPropertyName("template")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Template { get; init; }
-
     [JsonPropertyName("config")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyDictionary<string, string>? Config { get; init; }

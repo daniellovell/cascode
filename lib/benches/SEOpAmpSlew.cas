@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // Slew bench for single-ended operational amplifiers.
 bench SEOpAmpSlew {

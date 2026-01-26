@@ -48,7 +48,7 @@ trait CurrentMirror:
   port OUT : analog
   connectors:
     to LoadBranch:
-      OUT -> IN
+      OUT--IN
 
 circuit TestCircuit
   level EL
@@ -182,7 +182,7 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    inst cm (IN->IN, OUT->OUT) : CurrentMirror
+    inst cm (.IN--IN, .OUT--OUT) : CurrentMirror
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -283,7 +283,7 @@ circuit TestCircuit
   supply VDD
   ground GND
   fill:
-    attach cm1 to load1 via CurrentMirror::LoadBranch {{ SENSE -> OUT.N }}
+    attach cm1 to load1 via CurrentMirror::LoadBranch {{ .SENSE--OUT.N }}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -308,8 +308,8 @@ circuit TestCircuit
   ground GND
   fill:
     attach cm1 to load1 via CurrentMirror::LoadBranch {{
-      SENSE -> OUT.N
-      OUT -> IN
+      .SENSE--OUT.N
+      .OUT--IN
     }}
 ";
 
@@ -381,7 +381,7 @@ circuit TestCircuit
   ground GND
   fill:
     attach a to b to c via CurrentMirror::LoadBranch {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -406,7 +406,7 @@ circuit TestCircuit
   ground GND
   fill:
     attach a to b to c via CurrentMirror::LoadBranch as bias_net {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -518,7 +518,7 @@ circuit CMirror implements CurrentMirror, Foldable
     }
 
     [Fact]
-    public void TryRead_InstanceWithConnectStatement_ParsesSuccessfully()
+    public void TryRead_InstanceWithBodyBindings_ParsesSuccessfully()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -530,9 +530,11 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
-      connect dp.IN -> IN
-      connect dp.OUT -> OUT
+    inst dp : DiffPair
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -540,88 +542,15 @@ circuit TestCircuit
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
         var instance = result.Document!.Circuits[0].Fill!.Instances.Single();
-        Assert.Equal(2, instance.Connects.Count);
-        var conn1 = instance.Connects[0];
-        Assert.Equal("dp.IN", conn1.From);
-        Assert.Equal("IN", conn1.To);
+        Assert.Equal(4, instance.Bindings.Count);
+        Assert.Equal("VDD", instance.Bindings["VDD"]);
+        Assert.Equal("GND", instance.Bindings["GND"]);
+        Assert.Equal("IN", instance.Bindings["IN"]);
+        Assert.Equal("OUT", instance.Bindings["OUT"]);
     }
 
     [Fact]
-    public void TryRead_InstanceConnectReversedOrder_ParsesSuccessfully()
-    {
-        var acir =
-            $@"ACIR {ACIRVersion.Current}
-
-circuit TestCircuit
-  level EL
-  supply VDD
-  ground GND
-  port VTAIL : bias
-  fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
-      connect VTAIL -> dp.TAIL
-";
-
-        var result = ACIRReader.TryParse(acir, "test.cir");
-
-        Assert.True(result.Success);
-        var instance = result.Document!.Circuits[0].Fill!.Instances.Single();
-        var conn = instance.Connects.Single();
-        Assert.Equal("VTAIL", conn.From);
-        Assert.Equal("dp.TAIL", conn.To);
-    }
-
-    [Fact]
-    public void TryRead_InstanceConnectWithoutInstanceRef_ReturnsError()
-    {
-        var acir =
-            $@"ACIR {ACIRVersion.Current}
-
-circuit TestCircuit
-  level EL
-  supply VDD
-  ground GND
-  port IN : analog
-  port OUT : analog
-  fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
-      connect IN -> OUT
-";
-
-        var result = ACIRReader.TryParse(acir, "test.cir");
-
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0028")
-        );
-    }
-
-    [Fact]
-    public void TryRead_InstanceConnectMalformed_ReturnsError()
-    {
-        var acir =
-            $@"ACIR {ACIRVersion.Current}
-
-circuit TestCircuit
-  level EL
-  supply VDD
-  ground GND
-  fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
-      connect bad syntax here
-";
-
-        var result = ACIRReader.TryParse(acir, "test.cir");
-
-        // With ANTLR, malformed connect is a syntax error (ACIR0001)
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
-        );
-    }
-
-    [Fact]
-    public void TryRead_InstanceConnectWithSizeAndParam_ParsesAll()
+    public void TryRead_InstanceWithSizeAndNestedBindings_ParsesAll()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -635,13 +564,15 @@ circuit TestCircuit
   port OUT : analog
   port VTAIL : bias
   fill:
-    inst dp (GND->GND, VDD->VDD) : DiffPair
+    inst dp : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
-      connect dp.IN.P -> IN_P
-      connect dp.IN.N -> IN_N
-      connect dp.OUT.P -> OUT
-      connect VTAIL -> dp.TAIL
+      .GND--GND
+      .VDD--VDD
+      .IN.P--IN_P
+      .IN.N--IN_N
+      .OUT.P--OUT
+      .TAIL--VTAIL
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -649,33 +580,14 @@ circuit TestCircuit
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
         Assert.Equal(2, inst.Sizes.Count);
-        Assert.Equal(4, inst.Connects.Count);
-    }
-
-    [Fact]
-    public void TryRead_InlineBindingWithInstancePrefix_ParsesSuccessfully()
-    {
-        var acir =
-            $@"ACIR {ACIRVersion.Current}
-
-circuit TestCircuit
-  level EL
-  supply VDD
-  ground GND
-  fill:
-    inst dp (dp.VDD->VDD, dp.GND->GND, dp.IN->IN) : DiffPair
-";
-
-        var result = ACIRReader.TryParse(acir, "test.cir");
-
-        Assert.True(result.Success);
-        var inst = result.Document!.Circuits[0].Fill!.Instances[0];
-        Assert.Equal(3, inst.Bindings.Count);
-        // Instance prefix should be stripped
-        Assert.True(inst.Bindings.ContainsKey("VDD"));
-        Assert.True(inst.Bindings.ContainsKey("GND"));
-        Assert.True(inst.Bindings.ContainsKey("IN"));
-        Assert.False(inst.Bindings.ContainsKey("dp.VDD"));
+        Assert.True(
+            inst.Bindings.Count == 6,
+            $"Expected 6 bindings, got {inst.Bindings.Count}: {string.Join(", ", inst.Bindings.Keys.OrderBy(k => k))}"
+        );
+        Assert.Equal("IN_P", inst.Bindings["IN.P"]);
+        Assert.Equal("IN_N", inst.Bindings["IN.N"]);
+        Assert.Equal("OUT", inst.Bindings["OUT.P"]);
+        Assert.Equal("VTAIL", inst.Bindings["TAIL"]);
     }
 
     [Fact]
@@ -689,7 +601,7 @@ circuit TestCircuit
   supply VDD
   ground GND
   fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
+    inst dp (.VDD--VDD, .GND--GND) : DiffPair
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -702,7 +614,7 @@ circuit TestCircuit
     }
 
     [Fact]
-    public void TryRead_MixedBindingsAndConnects_ParsesSuccessfully()
+    public void TryRead_InstanceWithSizeAndBindings_ParsesSuccessfully()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -714,18 +626,19 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    inst dp (dp.VDD->VDD, dp.GND->GND) : DiffPair
+    inst dp : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
-      connect dp.IN -> IN
-      connect dp.OUT -> OUT
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
-        Assert.Equal(2, inst.Bindings.Count);
+        Assert.Equal(4, inst.Bindings.Count);
         Assert.Single(inst.Sizes);
-        Assert.Equal(2, inst.Connects.Count);
     }
 }

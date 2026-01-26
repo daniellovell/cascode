@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from tools/acir/ACIR.g4 by ANTLR 4.13.1
+// Generated from ACIR.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -614,29 +614,101 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitBinding([NotNull] ACIRParser.BindingContext context) { }
 	/// <summary>
-	/// Enter a parse tree produced by <see cref="ACIRParser.deviceParams"/>.
+	/// Enter a parse tree produced by the <c>DeviceSizeStmt</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	public virtual void EnterDeviceParams([NotNull] ACIRParser.DeviceParamsContext context) { }
+	public virtual void EnterDeviceSizeStmt([NotNull] ACIRParser.DeviceSizeStmtContext context) { }
 	/// <summary>
-	/// Exit a parse tree produced by <see cref="ACIRParser.deviceParams"/>.
+	/// Exit a parse tree produced by the <c>DeviceSizeStmt</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	public virtual void ExitDeviceParams([NotNull] ACIRParser.DeviceParamsContext context) { }
+	public virtual void ExitDeviceSizeStmt([NotNull] ACIRParser.DeviceSizeStmtContext context) { }
 	/// <summary>
-	/// Enter a parse tree produced by <see cref="ACIRParser.deviceParam"/>.
+	/// Enter a parse tree produced by the <c>DeviceParamLine</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	public virtual void EnterDeviceParam([NotNull] ACIRParser.DeviceParamContext context) { }
+	public virtual void EnterDeviceParamLine([NotNull] ACIRParser.DeviceParamLineContext context) { }
 	/// <summary>
-	/// Exit a parse tree produced by <see cref="ACIRParser.deviceParam"/>.
+	/// Exit a parse tree produced by the <c>DeviceParamLine</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
-	public virtual void ExitDeviceParam([NotNull] ACIRParser.DeviceParamContext context) { }
+	public virtual void ExitDeviceParamLine([NotNull] ACIRParser.DeviceParamLineContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>DeviceBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterDeviceBinding([NotNull] ACIRParser.DeviceBindingContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>DeviceBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitDeviceBinding([NotNull] ACIRParser.DeviceBindingContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.deviceParamAssign"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterDeviceParamAssign([NotNull] ACIRParser.DeviceParamAssignContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.deviceParamAssign"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitDeviceParamAssign([NotNull] ACIRParser.DeviceParamAssignContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>InstanceParam</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterInstanceParam([NotNull] ACIRParser.InstanceParamContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>InstanceParam</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitInstanceParam([NotNull] ACIRParser.InstanceParamContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>InstanceSize</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterInstanceSize([NotNull] ACIRParser.InstanceSizeContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>InstanceSize</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitInstanceSize([NotNull] ACIRParser.InstanceSizeContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by the <c>InstanceBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by the <c>InstanceBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.deviceParamValue"/>.
 	/// <para>The default implementation does nothing.</para>
@@ -649,62 +721,6 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitDeviceParamValue([NotNull] ACIRParser.DeviceParamValueContext context) { }
-	/// <summary>
-	/// Enter a parse tree produced by the <c>InstanceParam</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterInstanceParam([NotNull] ACIRParser.InstanceParamContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by the <c>InstanceParam</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitInstanceParam([NotNull] ACIRParser.InstanceParamContext context) { }
-	/// <summary>
-	/// Enter a parse tree produced by the <c>InstanceSize</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterInstanceSize([NotNull] ACIRParser.InstanceSizeContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by the <c>InstanceSize</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitInstanceSize([NotNull] ACIRParser.InstanceSizeContext context) { }
-	/// <summary>
-	/// Enter a parse tree produced by the <c>InstanceConnect</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterInstanceConnect([NotNull] ACIRParser.InstanceConnectContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by the <c>InstanceConnect</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitInstanceConnect([NotNull] ACIRParser.InstanceConnectContext context) { }
-	/// <summary>
-	/// Enter a parse tree produced by the <c>InstanceBinding</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by the <c>InstanceBinding</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceMember"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.attachTargetList"/>.
 	/// <para>The default implementation does nothing.</para>

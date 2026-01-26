@@ -10,7 +10,7 @@ The testbench template system bridges ACIR circuits to simulator execution throu
 
 The flow proceeds deterministically: ACIR circuits at EL level contain `harness:` blocks specifying supply values, loads, and source impedances, plus document-level `bench` definitions and bench-qualified numeric constraints that select which benches to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
 
-Template discovery follows upward traversal from the ACIR file location, checking for local `benches/` folders before falling back to the standard library at `lib/std/amp/benches/`. This resolution strategy supports both project-specific custom benches and shared canonical definitions, with backend selection determined by file extension (`.ngspice.tpl` vs `.spectre.tpl`). When a scanned PDK workspace is available, emit/bench also populate include lists so templates can pull model decks without extra command-line arguments.
+Builtin templates are embedded into the Cascode.Bench assembly at build time. `cascode emit` resolves templates by builtin bench name and backend from these embedded resources, with no filesystem discovery or project overrides. When a scanned PDK workspace is available, emit/bench still populate include lists so templates can pull model decks without extra command-line arguments.
 
 ---
 
@@ -22,12 +22,12 @@ The testbench template system establishes clear architectural boundaries. Separa
 
 ## 4.2 Bench Definition Files
 
-Bench definitions reside in `.cas` files alongside their templates, declaring the bench's identity, available metrics, and backend template references. These metadata files enable compile-time validation of metric names and provide the mapping between builtin bench names (referenced by ACIR `bench` definitions) and concrete template files.
+Bench definitions reside in `.cas` files under `lib/benches` alongside their templates. They declare the bench's identity, available metrics, and backend template filenames. These files are the canonical source of bench metadata; templates are embedded at build time and resolved by builtin name at runtime.
 
 ### 4.2.1 Syntax
 
 ```cascode
-package lib.std.amp.benches;
+package lib.benches;
 
 bench SEOpAmpACBench {
   spectre_template = "SEOpAmpACBench.spectre.tpl";
@@ -58,7 +58,7 @@ Template implementations MUST emit results with these exact metric names in the 
 
 ### 4.2.3 Template References
 
-Backend template references use simple string paths relative to the bench definition file. The paths follow the naming convention `{BenchName}.{backend}.tpl` where backend is `ngspice` or `spectre`. This convention enables automatic discovery and ensures deterministic template selection based on the `--backend` flag to `cascode emit`.
+Backend template references use filenames relative to the bench definition file. The paths follow the naming convention `{BenchName}.{backend}.tpl` where backend is `ngspice` or `spectre`. During build, these files are embedded, and `cascode emit` selects the embedded variant that matches the chosen backend.
 
 ---
 
@@ -92,8 +92,6 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 |----------|------|-------------|---------|
 | `circuit_name` | string | Circuit name from ACIR | `"OTA5TSingleEnded"` |
 | `bench_name` | string | Bench name from ACIR bench definition | `"ACBench"` |
-| `template_name` | string | Template base name (builtin name if specified, otherwise `bench_name`) | `"SEOpAmpACBench"` |
-| `template_path` | string or null | Explicit template path from the bench definition | `"benches/CustomAC.tpl"` |
 | `bench_config` | object | Bench configuration key/value pairs | `{ "points": "100", "sweep": "decade" }` |
 | `design_file` | string | Design netlist filename | `"OTA5TSingleEnded.sp"` |
 | `port_list` | string | Space-separated port/supply/ground names | `"IN_P IN_N OUT VTAIL VDD GND"` |
@@ -115,7 +113,7 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 
 Templates should iterate over the include lists rather than manually including `design_file`, since the design file is appended to `includes_without_section` and PDK model decks may be present in `includes_with_section` when a workspace database is available.
 
-`bench_name` is the alias used in constraints and results. `template_name` is the resolved base name used for template lookup (the builtin name when a bench specifies `builtin`, otherwise the bench alias). `template_path`, when provided, bypasses name-based lookup entirely. `bench_config` is a string-to-string map of bench configuration entries.
+`bench_name` is the alias used in constraints and results. The builtin bench name selected by the `bench` definition determines which embedded template is used for each backend. `bench_config` is a string-to-string map of bench configuration entries.
 
 The `supply_elements` and `load_elements` variables provide pre-rendered SPICE netlist fragments, which is the recommended approach for most templates. See Section 4.3.4 for details on the structured harness data available for advanced use cases.
 
@@ -381,41 +379,11 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
 
 ---
 
-## 4.4 Template Discovery
+## 4.4 Builtin Template Resolution
 
-The `TemplateDiscovery` service locates template files through a deterministic search strategy that supports both project-local customization and fallback to standard library definitions.
+Bench templates are embedded resources packaged with Cascode.Bench. Resolution is name- and backend-based: a bench definition that declares `builtin SEOpAmpACBench` and a `ngspice` backend resolves `SEOpAmpACBench.ngspice.tpl` from the embedded library. If the embedded resource is missing, `cascode emit` fails with an error that lists the available builtin benches. ACIR presently does not support filesystem discovery or project-local overrides.
 
-### 4.4.1 Resolution Order
-
-Given a bench definition and backend type (ngspice or spectre), discovery proceeds:
-
-1. **Explicit path**: If the bench definition specifies `template`, use that path directly.
-
-2. **Upward traversal**: Starting from the ACIR file's directory, traverse parent directories looking for a `benches/` subdirectory containing the target template file (`{TemplateName}.{backend}.tpl`), where `TemplateName` is the resolved `template_name` (builtin name when present, otherwise the bench alias).
-
-3. **Standard library fallback**: If upward traversal finds no match, check `lib/std/amp/benches/` relative to the workspace root.
-
-4. **Return null**: If neither search succeeds, return null (the CLI will report an error).
-
-### 4.4.2 Backend Selection
-
-The backend flag (`--backend ngspice` or `--backend spectre`) determines the template filename suffix:
-- Ngspice: `{TemplateName}.ngspice.tpl`
-- Spectre: `{TemplateName}.spectre.tpl`
-
-This enables a single bench definition to support multiple simulators with different netlist syntax, while sharing the same bench semantics (metrics, measurement intent).
-
-### 4.4.3 Custom Bench Placement
-
-To override a standard library bench or define project-specific benches:
-
-1. Create a `benches/` folder in your project (at any level above the ACIR files)
-2. Place `.cas` and `.tpl` files in this folder
-3. Template discovery will find local definitions before falling back to `lib/std/amp/benches/`
-
-This strategy enables gradual customization: start with standard benches, then selectively override specific templates as needed for project requirements.
-
-When a bench definition uses `builtin`, the builtin name determines the `.cas` and template filename to override (for example, `SEOpAmpACBench.ngspice.tpl`). When a bench definition uses an explicit `template` path, discovery is bypassed and the path is used directly.
+Backend selection follows filename suffixes (`.ngspice.tpl` or `.spectre.tpl`) so a single bench definition can target multiple simulators while preserving consistent metrics.
 
 ---
 
@@ -478,7 +446,7 @@ bench ACBench for SingleEndedOpAmp
     PhaseMargin
 ```
 
-During `cascode emit`, each bench referenced by numeric constraints triggers template discovery and netlist generation.
+During `cascode emit`, each bench referenced by numeric constraints triggers builtin template resolution and netlist generation.
 
 ---
 
@@ -641,7 +609,7 @@ This situation indicates either:
 
 ## 4.8 Standard Library Benches
 
-The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests:
+The standard library at `lib/benches/` provides canonical bench definitions for common analog circuit tests. These templates are embedded at build time and are the only benches currently available:
 
 | Circuit Type | Bench | Analysis Type | Spectre | ngspice |
 |-------------|-------|--------------|---------|---------|
@@ -762,16 +730,16 @@ This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. 
 
 ---
 
-## 4.9 Authoring Custom Benches
+## 4.9 Extending the Builtin Bench Library
 
-To create a new bench definition and templates:
+ACIR presently resolves only builtin benches. To add a new builtin bench, place the definition and templates under `lib/benches` and rebuild Cascode so the templates are embedded into the assembly.
 
-### 4.9.1 Step 1: Create Bench Definition
+### 4.9.1 Bench Definition
 
-Create `{BenchName}.cas` in a `benches/` folder (either project-local or in `lib/std/amp/benches/`):
+Create `{BenchName}.cas` in `lib/benches`:
 
 ```cascode
-package lib.std.amp.benches;
+package lib.benches;
 
 bench MyCustomBench {
   ngspice_template = "MyCustomBench.ngspice.tpl";
@@ -841,7 +809,7 @@ In your ACIR document, add a bench definition and reference it from constraints:
 
 ```acir
 bench MyCustomBench for SingleEndedOpAmp
-  template "benches/MyCustomBench.ngspice.tpl"
+  builtin MyCustomBench
   outputs:
     Metric1
     Metric2
@@ -901,11 +869,16 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN_P, S->tnode) : L=180n M=1 W=2u nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN_N, S->tnode) : L=180n M=1 W=2u nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : L=180n M=1 W=4u nmos
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
+    nmos dp.M_N (.G--IN_P, .D--mirror_gate, .S--tnode, .B--GND) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.G--IN_N, .D--OUT, .S--tnode, .B--GND) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.G--VTAIL, .D--tnode, .S--GND, .B--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.G--mirror_gate, .D--mirror_gate, .S--VDD, .B--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.G--mirror_gate, .D--OUT, .S--VDD, .B--VDD) : pmos
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
       c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
@@ -1034,7 +1007,7 @@ Result: 4/4 constraints satisfied
 
 The testbench template system comprises several C# components in the Cascode toolchain:
 
-- **`TemplateDiscovery`** (`tools/bench/TemplateDiscovery.cs`): Implements upward traversal and standard library fallback for template file location
+- **`BenchTemplateLibrary`** (`tools/bench/BenchTemplateLibrary.cs`): Loads embedded builtin templates and provides lookup by bench name and backend
 - **`TemplateRenderer`** (`tools/bench/TemplateRenderer.cs`): Wraps Scriban template engine for netlist generation
 - **`ACIRBenchAdapter`** (`tools/acir/ACIRBenchAdapter.cs`): Extracts harness data from ACIR and derives intelligent defaults (AC sweep from constraints, load impedance from harness, etc.)
 - **`ACIRTemplateHarness`** (`tools/acir/ACIRTemplateHarness.cs`): Builds the template model object with all variables and nested structures

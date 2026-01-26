@@ -244,7 +244,6 @@ public static class AcirJsonConverter
                 Name = b.Name,
                 Trait = b.Trait,
                 Builtin = string.IsNullOrEmpty(b.Builtin) ? null : b.Builtin,
-                Template = string.IsNullOrEmpty(b.Template) ? null : b.Template,
                 Config = b.Config.Count > 0 ? new Dictionary<string, string>(b.Config) : null,
                 Outputs = b.Outputs.Count > 0 ? b.Outputs.ToList() : null,
             })
@@ -694,7 +693,6 @@ public static class AcirJsonConverter
                 Name = b.Name,
                 Trait = b.Trait,
                 Builtin = b.Builtin,
-                Template = b.Template,
                 Config = b.Config?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new(),
                 Outputs = b.Outputs?.ToList() ?? new(),
             })

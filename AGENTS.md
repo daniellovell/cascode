@@ -10,7 +10,7 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
 ## Purpose & Map
 
 - Purpose: bootstrap the Cascode toolchain while keeping the root lean.
-- Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries in `lib/`; runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
+- Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries and benches in `lib/` (bench templates live in `lib/benches`); runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
 - Where to read first: `docs/architecture/README.md` plus relevant component docs, e.g. `docs/architecture/cli-architecture.md` and `docs/architecture/pdk-scan-architecture.md`.
 
 ## Jump Table (start here by task)

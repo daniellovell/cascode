@@ -29,7 +29,7 @@ public static class ACIRBenchAdapter
     /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
     /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
@@ -129,11 +129,6 @@ public static class ACIRBenchAdapter
             args["template_name"] = templateName;
         }
 
-        if (!string.IsNullOrWhiteSpace(bench.Template))
-        {
-            args["template_path"] = bench.Template;
-        }
-
         if (bench.Config.Count > 0)
         {
             args["bench_config"] = new Dictionary<string, string>(bench.Config);
@@ -143,11 +138,6 @@ public static class ACIRBenchAdapter
         foreach (var kvp in sweepDict)
         {
             args[$"sweep.{kvp.Key}"] = kvp.Value;
-        }
-
-        if (!string.IsNullOrWhiteSpace(outputDir))
-        {
-            args["start_dir"] = outputDir;
         }
 
         var spec = new TestbenchSpec
@@ -683,13 +673,13 @@ public static class ACIRBenchAdapter
     }
 
     /// <summary>
-    /// Generates a testbench file directly using template discovery and rendering.
+    /// Generates a testbench file directly using embedded templates.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
     /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
     /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
@@ -721,22 +711,17 @@ public static class ACIRBenchAdapter
         );
         var plan = harness.BuildPlan(context);
 
-        // Find template
-        var templatePath = plan.Data.TryGetValue("template_path", out var tp)
-            ? tp?.ToString()
-            : null;
-        if (string.IsNullOrWhiteSpace(templatePath) || !File.Exists(templatePath))
+        if (!plan.Data.TryGetValue("template_text", out var templateObj))
         {
-            throw new InvalidOperationException($"Template not found: {templatePath}");
+            throw new InvalidOperationException($"Template not found for bench '{bench.Name}'.");
         }
 
-        // Load template
-        var templateText = File.ReadAllText(templatePath);
+        var templateText = templateObj?.ToString();
         if (string.IsNullOrWhiteSpace(templateText))
         {
             throw new InvalidOperationException(
-                $"Template file is empty: {templatePath}. "
-                    + $"Bench '{bench.Name}' requires a valid template with content."
+                $"Template is empty for bench '{bench.Name}'. "
+                    + "Builtin benches require embedded templates."
             );
         }
 
@@ -752,8 +737,7 @@ public static class ACIRBenchAdapter
         if (string.IsNullOrWhiteSpace(netlistText))
         {
             throw new InvalidOperationException(
-                $"Template rendering produced empty output for bench '{bench.Name}'. "
-                    + $"Template: {templatePath}"
+                $"Template rendering produced empty output for bench '{bench.Name}'."
             );
         }
 
