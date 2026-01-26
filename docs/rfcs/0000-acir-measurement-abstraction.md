@@ -10,13 +10,17 @@ Target Version: ACIR 3.0
 
 ## Abstract
 
-This RFC proposes a measurement abstraction system for ACIR that eliminates redundant bench definitions across circuit topologies while maintaining type safety and enabling automatic testbench synthesis. The design introduces:
+This RFC proposes a bench and measurement model for ACIR grounded in network theory. A bench is treated as the explicit adapter layer: it connects a circuit to test equipment and defines which measurements are physically meaningful. To avoid topology-driven template duplication (single-ended vs fully-differential, presence/absence of supply ports, etc.), circuits expose named two-terminal network ports (e.g., `Port(a, b)`) as part of the interface they claim to implement.
 
-1. Port abstraction: A two-node pair representing where signals are stimulated or measured, agnostic to voltage/current mode
-2. Explicit bench bindings: Circuit-level bindings that map abstract measurement roles to concrete node pairs
-3. Reusable measurement definitions: Specifications with typed role requirements and fixed primitive operations
-4. Multi-simulation support: Fixed stimulus mode vocabulary for measurements requiring multiple simulation runs
-5. Programmatic testbench generation: C# emission (eliminating template maintenance)
+The design separates “what a circuit is” from “what connection points it exposes”:
+
+- `class`: a taxonomic interface for circuits, with single inheritance
+- `trait`: an orthogonal capability marker (e.g., “has a supply port”), composable
+- `circuit`: a concrete implementation that belongs to a `class`
+
+Classes carry a set of traits. When a circuit belongs to a class, it inherits that class’s traits and therefore becomes compatible with the benches that require them. This keeps circuit authoring non-verbose: you typically implement the one class that matches your intent, and all the common bench compatibility “comes along for free.”
+
+Benches are written against the capabilities they require, not against a proliferation of topology variants. The toolchain emits concrete simulator testbenches programmatically (C#), keeping measurement definitions reusable while making the bench hookup explicit and type-checked.
 
 ---
 
@@ -24,7 +28,7 @@ This RFC proposes a measurement abstraction system for ACIR that eliminates redu
 
 ### 1.1 Current State
 
-The existing ACIR bench system requires separate builtin bench definitions for each circuit topology:
+The existing ACIR bench system encodes hookup topology in builtin benches, so the same measurement intent must be reimplemented for each circuit interface variant:
 
 ```acir
 bench SEOpAmpACBench for SingleEndedOpAmp
@@ -36,109 +40,292 @@ bench FDOpAmpACBench for FullyDifferentialOpAmp
   outputs: GainBandwidth, PassbandGain, PhaseMargin, LowpassBandwidth
 ```
 
-These benches measure identical specifications but require separate implementations because:
+These benches share measurement intent but differ in what can be connected and how:
 
-1. Stimulus generation differs (differential vs single-ended input drive)
-2. Response probing differs (differential vs single-ended output measurement)
-3. Some measurements are topology-dependent (CMRR requires independently-drivable input terminals)
+- A single-ended output is measured against a reference; a fully-differential output is measured between two driven nodes.
+- Some measurements require ports whose terminals are independently drivable (e.g., common-mode excitation for CMRR).
+- Some benches require additional physical connection points that a circuit may not have (e.g., PSRR requires a supply port; a passive filter has none).
 
 ### 1.2 Consequences
 
-1. Code duplication: Measurement logic reimplemented in every bench template
-2. Maintenance burden: Bug fixes require changes across multiple templates
-3. Template explosion: N topologies x M backends x K measurements = O(N x M x K) templates
-4. Manual applicability tracking: No compile-time validation of measurement applicability
+This leads to:
+
+1. Duplicated measurement logic across bench templates.
+2. Fixes and improvements replicated across topology variants and simulator backends.
+3. Combinatorial growth: device category × interface variant × simulator backend.
+4. Late incompatibility discovery: benches and measurements can be requested even when they cannot physically connect.
 
 ### 1.3 Desired Properties
 
-1. Single definition: Each measurement defined exactly once
-2. Explicit binding: Measurements bind to circuit nodes through explicit declarations
-3. Type-safe applicability: Topology requirements validated at compile time via Port types
-4. No implicit behaviors: All bindings explicit; no context-dependent resolution rules
-5. Programmatic generation: Testbench generation in C# code, not templates
+The design should provide:
+
+1. Bench as adapter: benches define hookup; circuits should not restate bench-specific bindings.
+2. Network ports as the common currency: benches and measurements operate on two-terminal ports.
+3. Compile-time compatibility: a bench should be accepted only when the circuit exposes the required ports/capabilities.
+4. Reuse without “SE/DIFF infection”: avoid topology-variant benches where network-port modeling should unify them.
+5. Programmatic emission: testbenches are generated in code rather than maintained as a template matrix.
+
+### 1.4 Questions This RFC Must Answer
+
+To avoid drifting into an elegant but incomplete abstraction, this RFC is considered incomplete until it answers (with concrete syntax, semantics, and examples) at least the following questions:
+
+1. Reuse across circuit categories: how do two-port benches and measurements apply uniformly to both filters and amplifiers, while still allowing specialized benches for specific classes?
+2. Differential and common-mode behavior: how are differential drive, common-mode drive, and mixed-mode excitation represented in the bench adapter, and how does a measurement request a specific mode without reintroducing “SE/DIFF variant” benches?
+3. Impedances: how are input and output impedance measurements defined for both differential and single-ended ports, in a way that matches the network-theory decomposition designers expect?
+4. I/O aliasing: how can circuits with non-standard terminal names (or multiple supplies/grounds) conform to a class’s required port bindings without reintroducing per-circuit bench glue?
+5. Taxonomy and trait coverage: does the proposed `class` hierarchy and trait vocabulary cover the following representative families without special cases?
+   - Passive filters: a differential RC filter and a single-ended RC filter (same network-port model, different reference choices).
+   - Powered filters: a fully-differential Sallen–Key filter (powered, not a passive two-port; contains an amplifier core and therefore has input common-mode constraints).
+   - Amplifiers: `FullyDifferentialOpAmp`, `SingleEndedOpAmp`, and `SingleEndedAmplifier` (shared benches where appropriate, specialized benches where needed).
+   - References: a bandgap voltage reference and a current reference (both have supplies and outputs, but no signal inputs; PSRR must still be measurable).
+   - Multiport extensions: quadrature IQ ports and polyphase filters with many inputs/outputs (the approach must extend beyond “exactly two ports” without exploding into a new family of bespoke benches).
+
+### 1.5 Measurement and Constraint Coverage (initial)
+
+This section is intentionally exhaustive and will grow. It is a catalog of the measurements and constraint forms this RFC intends to support, and how each is interpreted across common circuit families.
+
+Each measurement is defined against named network ports and traits exposed by a circuit’s `class`. The default expectation is that a class defines at least an output port when any output-referenced measurement is desired; reference generators are not special-cased, they simply omit input ports and therefore only support measurements that do not require an input port.
+
+| Measurement / constraint family | Meaning (network-theory interpretation) | Required ports / traits (selected view) | Typical bench | Notes on topology interpretation |
+|---|---|---|---|---|
+| `PassbandGain` | Small-signal transfer magnitude from input port to output port at a specified frequency (default DC) | `in`, `out` | `ACBench` | For passive filters: \(abs(V(out)/V(in))\). For amplifiers: small-signal gain. Not applicable to references (no `in`). |
+| `LowpassBandwidth` | Upper frequency where transfer magnitude drops to a defined threshold relative to low-frequency gain (e.g., −3 dB) | `in`, `out` | `ACBench` | For amplifiers: closed-loop or open-loop bandwidth depends on bench hookup. For lowpass filters: cutoff. |
+| `HighpassBandwidth` | Lower frequency where transfer magnitude rises to a defined threshold relative to midband gain | `in`, `out` | `ACBench` | Primarily for highpass/bandpass filters; for amplifiers this is typically a coupling/servo pole and may be irrelevant unless bench defines it. |
+| `GainBandwidth` | Unity-gain frequency (or gain-bandwidth product as defined by the bench) | `in`, `out` | `ACBench` | For op-amps: usually UGF (0 dB crossing). For filters: may not be meaningful unless the bench defines a normalization (often omitted). |
+| `PhaseMargin` | Phase margin at unity loop gain (as defined by bench) | `in`, `out` and a loop-breaking topology | `ACBench` | Meaning depends on whether the bench measures loop gain (requires a defined loop break) or closed-loop phase at UGF; must be bench-defined to avoid ambiguity. |
+| `GainMargin` | Gain margin at phase crossover (as defined by bench) | `in`, `out` and a loop-breaking topology | `ACBench` | Same caveat as phase margin: this is a stability measurement and is only meaningful when the bench specifies the loop transfer being measured. |
+| `CMRR` | Ratio of differential transfer to common-mode transfer (bench-defined excitation and probe) | `in`, `out`, `BalancedInput` | `ACBench` / `CMRRBench` | Only meaningful when the class explicitly declares `BalancedInput`. For `BalancedOutput`, the bench measures differential output by default; for `UnbalancedOutput`, the bench measures output relative to the reference terminal. |
+| `PSRR` | Output sensitivity to supply perturbation (bench-defined perturbation port and probe) | `out`, `supply` | `ACBench` / `PSRRBench` | Applies to powered filters, amplifiers, voltage references, and current references. Not applicable to passive filters (no `supply`). |
+| `QuiescentPower` | Total DC power at the operating point under the bench’s bias/harness conditions | `supply` (and an operating point) | `DCBench` | For references: this is often a primary metric. For multi-supply systems, the bench must define whether “total” means sum over all supplies or a selected supply. |
+| `TotalQuiescentPower` | Sum of quiescent power over all supplies | one or more `supply` ports | `DCBench` | Only meaningful when multiple supplies exist; otherwise identical to `QuiescentPower`. |
+| `InputReferredNoise` | Output noise referred back to an equivalent input quantity under the bench’s excitation model | `in`, `out` | `NoiseBench` | For differential ports, “input-referred” must specify whether it is differential-mode, common-mode, or a specific linear combination. |
+| `SpotNoise` | Noise spectral density at a specific frequency | `out` (and optionally `in` for referring) | `NoiseBench` | Applies broadly; for references this is often output-referred noise. |
+| `SlewRate` | Max time-derivative of output under a bench-defined large-signal step | `out` (and a defined stimulus) | `TranBench` | Requires a transient bench hookup; for differential outputs the bench must specify which output quantity is observed (e.g., differential output vs single-ended-to-reference). |
+| `InputImpedance` (`Zin`) | Small-signal impedance looking into the input port under a bench-defined termination of other ports | `in` | `ZinBench` | For differential input ports, impedance decomposes into differential and common-mode components; the bench must define which is being measured. For single-ended ports, this is \(V/I\) to the reference terminal. |
+| `OutputImpedance` (`Zout`) | Small-signal impedance looking into the output port under a bench-defined termination of other ports | `out` | `ZoutBench` | For filters and amplifiers, termination conditions matter (load, feedback). For differential outputs, bench must define differential vs common-mode impedance. |
+| Input bias / common-mode range (ICMR as a sweep axis) | Range of input bias values over which constraints must hold | `in`, and exactly one of `BalancedInput` / `UnbalancedInput` | (bench-defined) | For `BalancedInput`, this is a sweep of input common-mode \(Vcm\). For `UnbalancedInput`, this is a sweep of the input DC bias relative to the reference terminal. |
+| Constraint domains: PVT, sweeps, yield | Constraints are evaluated over an environment/sweep domain and aggregated | harness `pvt`, plus sweep axes and optional aggregators | (all benches) | See §1.6 for the default “must hold for all points” interpretation and the explicit aggregation forms. |
+| Multiport extensions (IQ, polyphase, N-port) | Generalization from two named ports to a set of named ports and port-to-port transfer/impedance matrices | named port set | (future) | The model must generalize to transfer matrices (e.g., \(S\)-parameters) and port-selective measurements without reintroducing topology-variant benches. |
+
+### 1.6 Constraint Evaluation Under Sweeps (PVT, bias, and operating ranges)
+
+Constraints are not evaluated at a single point. The intent is that a constraint is evaluated over a domain of environment and sweep points, and passes only when it holds over that domain.
+
+Unless a constraint explicitly chooses another aggregation, the default interpretation is:
+
+- The domain includes all PVT points in the `harness:` `pvt` list (if present).
+- The domain includes any explicit sweep ranges stated in the constraint (frequency bands, common-mode ranges, load sweeps, etc.).
+- The constraint must hold for every point in the Cartesian product of those sets.
+
+Examples of the intended expressivity (syntax is illustrative at this stage):
+
+- Maintain gain across input common-mode and PVT:
+  `ACBench::PassbandGain >= 40dB over Vcm in InputCommonModeRange across PVT`
+- Maintain a minimum rejection over a frequency band:
+  `ACBench::CMRR >= 50dB for f in [1kHz:1MHz]`
+- Statistical constraints:
+  `yield(ACBench::GainBandwidth >= 80MHz) >= 99%`
 
 ---
 
-## 2. Background
+## 2. Construct System
 
-### 2.1 ACIR Trait System
+This RFC introduces a small construct system that makes the bench adapter model explicit. The key idea is to separate taxonomy from capabilities, and to attach named network ports to the taxonomic interface so individual circuits do not need to restate them.
 
-Traits define interface contracts for circuit composition:
+The terminology is intentionally close to common programming language usage: circuits “belong to a class” and “have traits.”
+
+### 2.1 `circuit` (concrete definition)
+
+A `circuit` is a concrete definition at some elaboration level. At HL, a circuit may contain `slot` declarations that specify requirements for components that will be synthesized later. At ML and EL, a circuit typically contains a `fill:` block that holds the instantiated implementation (instances, devices, and internal nets). A circuit may also include `constraints:` and `harness:` blocks.
+
+A circuit declares which `class` it belongs to; it must satisfy the class’s required terminals and any invariants the type checker enforces.
+
+### 2.2 `class` (taxonomy)
+
+A `class` describes a family of circuits and may extend a single parent class. Classes exist to capture taxonomy (e.g., Amplifier vs Filter vs Reference) and to define the stable external interface of that family.
+
+Crucially, a class is also where **named network ports** are defined. A class provides a `ports:` block that binds bench-facing port names to concrete node pairs using `Port(a, b)`. All circuits of that class inherit these bindings, eliminating per-circuit repetition.
+
+Classes also define a `traits:` set. Traits are inherited transitively through the class hierarchy, so a circuit that belongs to a specialized class automatically carries the full bundle of capabilities of its parent classes. This is the mechanism that makes “write the circuit you mean” align with “get the benches you expect.”
+
+### 2.3 `trait` (capability)
+
+A `trait` is an orthogonal capability marker used for bench compatibility checks. Traits are intentionally small and composable (a class can list many traits). Examples include “has a supply port,” “has an output port,” or “input port supports differential drive.” A trait is not a taxonomy node; it exists so a bench can state what it needs without naming every concrete class it can attach to.
+
+### 2.4 `Port(a, b)` (network port)
+
+`Port(a, b)` is a two-terminal network access point. It captures “where” a bench connects without prescribing whether the stimulus is voltage-mode or current-mode. Single-ended and differential interfaces are both expressed as two-terminal ports; the only difference is whether either terminal is a fixed reference node.
+
+In particular, a “single-ended” interface is represented by choosing a reference node as one terminal (for example, `Port(OUT, GND)`), while a “fully-differential” interface is represented by binding the port across two signal terminals (for example, `Port(OUT.P, OUT.N)`). Benches that require additional degrees of freedom (such as common-mode excitation) express those requirements through explicit traits (for example `BalancedInput`) and compatibility checks, not by splitting ports into separate kinds.
+
+### 2.5 Benches, measurements, and harnesses
+
+A `bench` adapts a circuit’s named network ports to a concrete test topology (sources, loads, perturbations) and enumerates the measurements it can produce. A bench declares the traits/ports it requires; if the circuit’s class does not provide them, the bench cannot be used.
+
+The existing `harness:` block remains the place for numeric parameters (PVT points, source impedances, default loads, supply values). Benches define structure; harnesses provide parameterization.
+
+Most reusable measurements are defined purely in terms of across-port quantities. For a port \(p = Port(a, b)\), define \(v(p) = V(a) - V(b)\), and (by convention) \(i(p)\) as current entering terminal \(a\). Transfer and impedance measurements can then be defined once:
+\(H_v = v(out) / v(in)\), \(Z_{in} = v(in) / i(in)\), \(Z_{out} = v(out) / i(out)\).
+
+These expressions do not care whether a port is “single-ended” or “fully differential”; that distinction is entirely captured by the port binding (for example `out = Port(OUT, GND)` versus `out = Port(OUT.P, OUT.N)`). This is how the design avoids topology-driven bench duplication: the measurement intent is stable, and only the binding changes.
+
+Port-shape traits (`BalancedInput`, `UnbalancedOutput`, etc.) exist to make degrees of freedom explicit for benches that need them (common-mode drive, mixed-mode impedance, output common-mode measurement). They should not force “one bench per topology variant.” Instead, a bench provides a single measurement suite with multiple stimulation/sense modes, and the emitter selects realizable modes based on the selected view’s declared traits. In practice, this branching is localized to a small set of port-driver adapters (e.g., “drive across a port” versus “drive common-mode”), while measurement extraction stays shared and expressed in terms of \(v(p)\) and \(i(p)\).
+
+The following sketch illustrates the intended authoring style:
 
 ```acir
-trait DiffPairLike:
+trait HasSupplyPort
+trait TransferTwoPort
+
+class Amplifier:
+  traits:
+    TransferTwoPort
+    HasSupplyPort
+
+class SingleEndedOpAmp extends Amplifier:
   input IN : Diff
-  output OUT : Diff
+  output OUT : analog
+  supply VDD
+  ground GND
 
-  connectors:
-    to CurrentMirrorLike:
-      OUT.P--SENSE
-      OUT.N--TAP[0]
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT, GND)
+    supply = Port(VDD, GND)
+
+bench ACBench:
+  requires:
+    TransferTwoPort
+  # ... hookups and measurement suite ...
 ```
-
-Traits specify port interfaces and connector rules. This RFC preserves traits for their original purpose (interface contracts, hierarchical composition) but removes measurement binding from traits.
-
-### 2.2 ACIR Bundle System
-
-Bundles group related nets:
-
-```acir
-bundle Diff:
-  P : analog
-  N : analog
-```
-
-### 2.3 Two-Port Network Model
-
-A key insight informs this design: measurements operate on ports in the network-analysis sense, two-terminal access points where signals can be applied or observed.
-
-| Circuit Type | Input Port | Output Port |
-|--------------|------------|-------------|
-| Voltage amplifier | Voltage driven, two terminals | Voltage measured, two terminals |
-| TIA | Current driven, two terminals | Voltage measured, two terminals |
-| Fully differential amp | Differential voltage, two terminals | Differential voltage, two terminals |
-
-The Port abstraction captures "where" without prescribing "what kind" (voltage/current). A Port is always defined by two nodes: `Port(positive_node, negative_node)`.
-
-### 2.4 Existing Harness System
-
-The harness holds bench-only elements:
-
-```acir
-harness:
-  supply VDD = 1.8V
-  bias VBIAS = 0.7V
-  source IN Z=50Ohm
-  load OUT C=1pF
-  pvt TT@27C, SS@-40C, FF@125C
-```
-
-This RFC preserves and extends this system.
 
 ---
 
 ## 3. Proposal Overview
 
-### 3.1 Core Components
+### 3.1 Summary of the Proposal
 
-1. Direction keywords: `input`, `output`, `inout` replace the `port` keyword
-2. Port abstraction: `Port(node_a, node_b)` defines a two-terminal measurement/stimulus point
-3. Port types: `Port` (base), `DifferentialPort` (both nodes independently drivable)
-4. Bench bindings: Circuit-level `bench_bindings:` block maps abstract roles to concrete Ports
-5. Measurement definitions: Reusable specs with typed role requirements
-6. Fixed primitive vocabulary: Well-defined operations for procedure expressions
-7. Stimulus modes: Fixed vocabulary for multi-simulation measurements
-8. Programmatic emission: C# generates testbenches directly
+This RFC makes benches the adapter layer and makes network ports the common currency for applicability and reuse.
 
-### 3.2 Design Philosophy
+At a high level, the proposal consists of:
 
-Explicit over implicit: All bindings are explicit. No context-dependent resolution rules.
+1. Named network ports: classes bind bench-facing port names to concrete node pairs using `ports:` and `Port(a, b)`.
+2. A split between taxonomy and capability:
+   - `class` defines a circuit family (single inheritance) and carries inherited `traits`.
+   - `trait` is a capability marker used for bench compatibility checks.
+3. Bench compatibility by requirement: benches declare the traits (and named ports) they require; no per-circuit bench glue is required when a circuit belongs to a well-defined class.
+4. Measurements defined once: measurement logic is reusable and parameterized by the bench hookup; constraints evaluate those measurements over sweep domains (PVT and explicit sweeps such as frequency bands or input common-mode ranges).
+5. Programmatic emission: testbench generation is implemented in C# against a normalized intermediate model, avoiding an explosion of handwritten templates.
 
-Port as core abstraction: A Port is two nodes. The measurement system does not know or care whether the underlying circuit uses `Diff` bundles or `analog` scalars, it only sees node pairs.
+### 3.2 Canonical Taxonomy and Trait Vocabulary
 
-Type-safe applicability: `DifferentialPort` vs `Port` determines measurement applicability at compile time. CMRR requires `DifferentialPort` for stimulus; a circuit binding `Port(IN, GND)` cannot satisfy this and triggers a compile error.
+The following vocabulary is the starting point. It is intentionally small, but it must be sufficient to cover the representative families listed in §1.4(5).
 
-Fixed primitives, extensible later: The procedure DSL uses a fixed set of primitives with documented type signatures. This can be extended to a full expression language in future versions.
+Traits (capabilities) are used to express what benches can assume about a class.
+
+| Trait | Meaning | Typical benches enabled |
+|---|---|---|
+| `HasInputPort` | The class defines an input network port named `in` | transfer- and impedance-related benches that require an input |
+| `HasOutputPort` | The class defines an output network port named `out` | output-referenced benches (most) |
+| `TransferTwoPort` | The class defines both `in` and `out` ports and intends a transfer interpretation between them | `ACBench`, `ZinBench`, `ZoutBench` |
+| `BalancedInput` | The input port `in` is balanced (both terminals are signal nets, neither is a reference node) | common-mode and mixed-mode input benches (e.g., CMRR, differential/common-mode impedance) |
+| `UnbalancedInput` | The input port `in` is unbalanced (one terminal is a reference node) | single-ended input benches; input bias sweeps are interpreted as DC bias relative to the reference |
+| `BalancedOutput` | The output port `out` is balanced | differential output benches; output common-mode measurements when defined by a bench |
+| `UnbalancedOutput` | The output port `out` is unbalanced | single-ended output benches; output quantities are interpreted relative to the reference |
+| `HasSupplyPort` | The class defines a supply network port named `supply` (a two-terminal supply perturbation point) | `PSRRBench`, power measurements |
+| `Multiport` | The class defines more than one signal input and/or output port and expects matrix-style measurements (transfer between multiple ports) | future multiport benches (IQ, polyphase, N-port) |
+
+The balanced/unbalanced traits above are intentionally explicit. They are a reference vocabulary that standard benches can use to describe applicability without forcing inference. Implementations are still expected to validate obvious inconsistencies (for example, a class that declares `BalancedInput` must bind `in` to two non-reference terminals in its `ports:` block), but the trait itself is a declared part of the class contract.
+
+#### Views: multiple instances of a port/trait bundle
+
+A single circuit may expose more than one “measurement interface” at once. Examples include:
+
+- A macro that contains two independent amplifier channels (two transfers to measure).
+- A multi-supply design where PSRR must be measured against multiple supplies.
+- A multiport network (IQ, polyphase) where multiple port groupings are meaningful.
+
+To support this without inventing new trait names for every channel, this RFC introduces a named **view** concept. A view is a mapping from bench-facing names (`in`, `out`, `supply`, etc.) to concrete `Port(a, b)` bindings together with a declared set of traits describing the shape of those bindings.
+
+The existing `ports:` block is treated as a shorthand for a default view (named `main`). A class or circuit may additionally define a `views:` block to export multiple named views. When a `main` view exists in the same scope, a view may override only the bindings it needs; any unspecified bindings are inherited from `main`.
+
+To reduce repetition, a view may be declared as conforming to an existing class (for example `SingleEndedOpAmp`). In that form, the view inherits the class’s trait bundle and canonical port roles, and the view’s `ports:` block provides the concrete `Port(a, b)` bindings for that instance of the interface.
+
+```acir
+class DualChannelAmplifier:
+  views:
+    ch_a : SingleEndedOpAmp
+      ports:
+        in = Port(IN_A.P, IN_A.N)
+        out = Port(OUT_A, GND)
+        supply = Port(VDD, GND)
+    ch_b : SingleEndedOpAmp
+      ports:
+        in = Port(IN_B.P, IN_B.N)
+        out = Port(OUT_B, GND)
+        supply = Port(VDD, GND)
+```
+
+Constraints and benches select a view when a class exports more than one applicable view. The exact syntax is specified later, but the intent is that “two passband gains on the same circuit” is a normal, first-class use case.
+
+Multi-supply PSRR is handled the same way: export one view per supply perturbation point, then write one constraint per view (syntax illustrative):
+
+```acir
+circuit MixedSupplyOTA implements FullyDifferentialOpAmp
+  level EL
+
+  supply AVDD
+  supply DVDD
+  ground VSS
+  input IN : Diff
+  output OUT : Diff
+
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT.P, OUT.N)
+    supply = Port(AVDD, VSS)         # default supply for the `main` view
+
+  views:
+    psrr_avdd : FullyDifferentialOpAmp
+      ports:
+        supply = Port(AVDD, VSS)
+    psrr_dvdd : FullyDifferentialOpAmp
+      ports:
+        supply = Port(DVDD, VSS)
+
+  constraints:
+    c_psrr_a = PSRRBench[psrr_avdd]::PSRR >= 70dB
+    c_psrr_d = PSRRBench[psrr_dvdd]::PSRR >= 50dB
+```
+
+The taxonomy (classes) organizes circuit families and carries the trait bundle so circuits inherit bench compatibility by implementing a single class.
+
+Unless otherwise noted, the class table below describes the trait bundle and port shape of the default `main` view exported by each class.
+
+| Class | Extends | Carries traits (minimum) | Notes |
+|---|---|---|---|
+| `Filter` | (none) | `TransferTwoPort` | Base taxonomy for filters (passive and powered). |
+| `SingleEndedFilter` | `Filter` | `UnbalancedInput`, `UnbalancedOutput` | Transfer two-port with single-ended I/O against a reference node. |
+| `FullyDifferentialFilter` | `Filter` | `BalancedInput`, `BalancedOutput` | Transfer two-port with differential I/O. |
+| `FullyDifferentialSallenKeyFilter` | `FullyDifferentialFilter` | `HasSupplyPort` | Powered filter with active core; often evaluated over an input bias/common-mode sweep domain. |
+| `Amplifier` | (none) | `TransferTwoPort`, `HasSupplyPort` | Base for op-amps and general amplifiers; often evaluated over an input bias/common-mode sweep domain. |
+| `SingleEndedAmplifier` | `Amplifier` | `UnbalancedInput`, `UnbalancedOutput` | Single-ended I/O. |
+| `SingleEndedOpAmp` | `Amplifier` | `BalancedInput`, `UnbalancedOutput` | Differential input, single-ended output. |
+| `FullyDifferentialOpAmp` | `Amplifier` | `BalancedInput`, `BalancedOutput` | Fully differential I/O. |
+| `VoltageReference` | (none) | `HasSupplyPort`, `HasOutputPort`, `UnbalancedOutput` | No signal input; supports PSRR and output noise/power measurements. |
+| `CurrentReference` | (none) | `HasSupplyPort`, `HasOutputPort`, `UnbalancedOutput` | No signal input; supports PSRR and output noise/power measurements (bench defines load/compliance). |
+
+This vocabulary is not the final library. The point of listing it here is to make the intended coverage explicit early and to keep later sections honest: if a proposed bench or measurement cannot be expressed using this system without reintroducing topology variants, either the vocabulary must expand or the design must change.
+
+### 3.3 Commitment to Complete Examples
+
+Section 7 will include complete, end-to-end examples that explicitly hit each family in §1.4(5), including bench usage, constraint domains (PVT and sweeps), and at least one non-standard naming/aliasing scenario. At minimum:
+
+- Passive filters: single-ended RC and differential RC, both using the same transfer and impedance benches.
+- Powered filters: fully-differential Sallen–Key, showing supply-dependent measurements (PSRR) and constraints that must hold across input common-mode and PVT.
+- Amplifiers: `SingleEndedAmplifier`, `SingleEndedOpAmp`, and a fully differential OTA, showing how a shared `ACBench` applies while mixed-mode benches are enabled only when the appropriate balanced/unbalanced traits are present.
+- References: a bandgap voltage reference and a current reference (no inputs), showing PSRR and noise/power constraints.
+- Multiport: an IQ or polyphase-style example demonstrating how the model extends beyond a single transfer two-port without creating a new template family.
 
 ---
 
@@ -197,133 +384,134 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
 
 #### 4.2.1 Concept
 
-A Port is a two-terminal access point defined by two nodes. It represents "where" a signal is stimulated or measured, independent of whether the physical quantity is voltage or current.
+A port is a two-terminal access point defined by two nodes. It represents “where” a signal is stimulated or measured, independent of whether the physical quantity is voltage or current.
 
 ```
 Port(positive_node, negative_node)
 ```
 
-This maps directly to the network-analysis concept of a port: the voltage across the port is V(positive) - V(negative), and current into the port flows into the positive terminal.
+This maps directly to the network-analysis concept of a port: the voltage across the port is \(v(p) = V(positive) - V(negative)\), and (by convention) current \(i(p)\) flows into the positive terminal.
 
-#### 4.2.2 Port Types
+#### 4.2.2 Across-port quantities are the stable measurement API
 
-| Type | Definition | Use Case |
-|------|------------|----------|
-| `Port` | Any two-node pair | General stimulus/response point |
-| `DifferentialPort` | Two nodes where neither is a fixed reference | Required for differential/common-mode measurements |
+Benches and measurement procedures should be written in terms of across-port quantities \(v(p)\) and \(i(p)\), not in terms of whether a circuit’s pins are single-ended or differential. This is the central mechanism that prevents “SE/DIFF variant infection.”
 
-DifferentialPort constraint: A `DifferentialPort` requires that both nodes can be independently driven. This excludes ground nodes and supply nodes.
-
-#### 4.2.3 Type Checking Rules
-
-When a measurement requires `DifferentialPort`:
+For example, the same transfer measurement applies to both of the following output bindings:
 
 ```acir
-measurement CMRR:
-  requires: stim : DifferentialPort, resp : Port
+out = Port(OUT, GND)         # single-ended output
+out = Port(OUT.P, OUT.N)     # differential output
 ```
 
-The compiler checks the circuit's bench binding:
+In both cases, a transfer function primitive such as `transfer(in, out)` is defined as \(v(out)/v(in)\). The bench hookup differs only in which concrete nodes those port terminals map to; measurement extraction remains shared.
 
-```acir
-bench_bindings:
-  stim = Port(IN.P, IN.N)    # IN.P and IN.N are both signal nodes -> DifferentialPort (ok)
-  stim = Port(IN, GND)       # GND is a ground node -> Port only, not DifferentialPort
-```
+#### 4.2.3 Port-shape traits (balanced vs unbalanced)
 
-Determining DifferentialPort eligibility:
-- If either node is declared via `ground` -> not DifferentialPort
-- If either node is declared via `supply` -> not DifferentialPort
-- Otherwise -> DifferentialPort
+Some benches need additional degrees of freedom: common-mode excitation, mixed-mode impedance, or output common-mode measurement. Rather than introducing multiple port kinds, the reference vocabulary uses explicit traits that describe the *shape* of the named ports in the selected view:
 
-This is a compile-time check based on node declarations.
+| Trait | Contract (selected view) |
+|---|---|
+| `BalancedInput` | The `in` port is bound across two non-reference terminals. |
+| `UnbalancedInput` | The `in` port is bound to a reference terminal on one side (typically a `ground`). |
+| `BalancedOutput` | The `out` port is bound across two non-reference terminals. |
+| `UnbalancedOutput` | The `out` port is bound to a reference terminal on one side. |
 
-### 4.3 Bench Bindings
+These traits are declared and inherited as part of the class/view contract, and implementations are expected to validate obvious inconsistencies at compile time. For example, a view that declares `UnbalancedOutput` must bind `out` to include a declared `ground` terminal, while a view that declares `BalancedOutput` must not bind either side of `out` to a declared `ground` terminal.
 
-#### 4.3.1 Syntax
+#### 4.2.4 Mixed-mode drive and sensing uses adapters, not new benches
+
+For balanced ports, benches may define mixed-mode quantities (differential-mode and common-mode) by specifying a reference node as part of the bench hookup. This does not require separate bench definitions for “single-ended” vs “differential” devices. Instead, the emitter uses a small set of port-driver adapters:
+
+- Drive across a port (works for any `Port(a, b)`; becomes single-ended when \(b\) is a reference).
+- Drive common-mode (requires a balanced port; realized by equal drive of both terminals relative to the bench’s reference).
+
+Measurements such as transfer, PSRR, and many impedance forms remain expressed in terms of \(v(p)\) and \(i(p)\). Port-shape traits only gate which stimulation/sense modes are meaningful, and therefore which measurements a bench can legally request.
+
+### 4.3 Port Bindings and Views
+
+#### 4.3.1 Syntax (illustrative)
 
 ```ebnf
-benchBindingsBlock = "bench_bindings:" NL INDENT (bindingDecl NL)+ DEDENT ;
-bindingDecl = IDENT "=" bindingExpr ;
-bindingExpr = portBinding | supplyBinding ;
-portBinding = "Port" "(" nodeRef "," nodeRef ")" ;
-supplyBinding = IDENT ;  (* References a supply declaration *)
+portsBlock = "ports:" NL INDENT (bindingDecl NL)+ DEDENT ;
+bindingDecl = IDENT "=" "Port" "(" nodeRef "," nodeRef ")" ;
 nodeRef = IDENT ("." IDENT)? ;  (* e.g., IN.P, OUT, GND *)
+
+viewsBlock = "views:" NL INDENT (viewDecl NL)+ DEDENT ;
+viewDecl = IDENT (":" IDENT)? NL INDENT viewBody DEDENT ;
+viewBody = traitsBlock? portsBlock? ;
 ```
 
-#### 4.3.2 Standard Role Names
+#### 4.3.2 Standard port role names
 
-Measurements use these standard role names:
+Standard benches use a small set of conventional port role names:
 
-| Role | Type | Semantics |
-|------|------|-----------|
-| `stim` | `Port` or `DifferentialPort` | Where stimulus is applied |
-| `resp` | `Port` | Where response is measured |
-| `supply` | `Supply` | Power supply for rejection measurements |
+| Role | Meaning |
+|---|---|
+| `in` | Signal input network port (two-terminal). |
+| `out` | Signal output network port (two-terminal). |
+| `supply` | Supply perturbation port (two-terminal, typically `Port(VDD, GND)`). |
 
 #### 4.3.3 Examples
 
-Single-ended output OTA:
+A single-ended op-amp class defines its canonical ports once:
+
 ```acir
-circuit OTA5T implements SingleEndedOpAmp
-  supply VDD
-  ground GND
+class SingleEndedOpAmp extends Amplifier:
   input IN : Diff
   output OUT : analog
+  supply VDD
+  ground GND
 
-  bench_bindings:
-    stim = Port(IN.P, IN.N)    # Differential input
-    resp = Port(OUT, GND)       # Single-ended output
-    supply = VDD
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT, GND)
+    supply = Port(VDD, GND)
 ```
 
-Fully differential OTA:
+A fully differential class chooses a different binding for `out`:
+
 ```acir
-circuit FullyDiffOTA implements FullyDifferentialOpAmp
+class FullyDifferentialOpAmp extends Amplifier:
+  traits:
+    BalancedInput
+    BalancedOutput
+    HasSupplyPort
+
   supply VDD
   ground GND
   input IN : Diff
   output OUT : Diff
 
-  bench_bindings:
-    stim = Port(IN.P, IN.N)
-    resp = Port(OUT.P, OUT.N)   # Differential output
-    supply = VDD
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT.P, OUT.N)
+    supply = Port(VDD, GND)
 ```
 
-RC lowpass filter (no differential, no supply):
-```acir
-circuit RCLowpass implements Filter
-  ground GND
-  input IN : analog
-  output OUT : analog
+Views provide multiple independent instances of a port/trait bundle:
 
-  bench_bindings:
-    stim = Port(IN, GND)        # Single-ended input
-    resp = Port(OUT, GND)       # Single-ended output
-    # No supply binding - PSRR not applicable
+```acir
+class DualChannelAmplifier:
+  views:
+    ch_a : SingleEndedOpAmp
+      ports:
+        in = Port(IN_A.P, IN_A.N)
+        out = Port(OUT_A, GND)
+        supply = Port(VDD, GND)
+    ch_b : SingleEndedOpAmp
+      ports:
+        in = Port(IN_B.P, IN_B.N)
+        out = Port(OUT_B, GND)
+        supply = Port(VDD, GND)
 ```
 
 #### 4.3.4 Binding Validation
 
 At compile time:
 
-1. Completeness: All roles required by referenced measurements must be bound
-2. Type compatibility: Bindings must satisfy role type requirements
-3. Node existence: Referenced nodes must exist in the circuit
-
-Error example:
-```
-error[ACIR0042]: measurement CMRR requires DifferentialPort for role 'stim'
-  --> RCLowpass.cir:12:5
-   |
-12 |     c_cmrr = ACBench::CMRR >= 60dB
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   |
-note: bench_bindings declares stim = Port(IN, GND)
-note: Port(IN, GND) is not a DifferentialPort because GND is a ground node
-help: CMRR is not applicable to this circuit topology
-```
+1. Completeness: if a bench requires a named port role (e.g., `in`), the selected view must bind it.
+2. Trait consistency: if a view declares `BalancedInput`/`UnbalancedInput` (etc.), its bindings must match the trait contract.
+3. Node existence: referenced terminals must exist and be well-typed for the containing class or circuit.
 
 ### 4.4 Measurement Definitions
 
@@ -333,6 +521,7 @@ help: CMRR is not applicable to this circuit topology
 measurementDef = "measurement" IDENT ":" NL INDENT measurementBody DEDENT ;
 
 measurementBody = requiresClause
+                  requiresTraitsClause?
                   analysisClause
                   procedureClause
                   preconditionClause?
@@ -342,7 +531,10 @@ measurementBody = requiresClause
 requiresClause = "requires:" roleList NL ;
 roleList = roleDecl ("," roleDecl)* ;
 roleDecl = IDENT ":" roleType ;
-roleType = "Port" | "DifferentialPort" | "Supply" ;
+roleType = "Port" ;
+
+requiresTraitsClause = "requires_traits:" traitList NL ;
+traitList = IDENT ("," IDENT)* ;
 
 analysisClause = "analysis:" analysisSpec NL ;
 analysisSpec = analysisType | "multi" "(" analysisType ("," analysisType)* ")" ;
@@ -365,19 +557,18 @@ Roles are typed abstract names:
 
 | Role Declaration | Meaning |
 |------------------|---------|
-| `stim : Port` | Any two-node pair for stimulus |
-| `stim : DifferentialPort` | Two independent nodes for stimulus (enables differential/CM drive) |
-| `resp : Port` | Any two-node pair for response measurement |
-| `supply : Supply` | A supply rail |
+| `in : Port` | Input network port role for stimulus (two-terminal) |
+| `out : Port` | Output network port role for response measurement (two-terminal) |
+| `supply : Port` | Supply perturbation port role (two-terminal) |
 
 #### 4.4.3 Single-Simulation Measurements
 
 ```acir
 measurement PassbandGain:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     result = eval(gain, f_measure)
   params:
@@ -385,42 +576,42 @@ measurement PassbandGain:
   unit: dB
 
 measurement LowpassBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     dc_gain = eval(gain, DC)
     result = find_crossing(gain, dc_gain - 3, falling)
   unit: Hz
 
 measurement GainBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     result = find_crossing(gain, 0, falling)
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: Hz
 
 measurement PhaseMargin:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     ph = phase(H)
     f_ugf = find_crossing(gain, 0, falling)
     result = 180 + eval(ph, f_ugf)
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: deg
 
 measurement QuiescentPower:
-  requires: supply : Supply
+  requires: supply : Port
   analysis: dc
   procedure:
-    result = abs(supply_voltage(supply) * supply_current(supply))
+    result = abs(port_voltage(supply) * port_current(supply))
   unit: W
 ```
 
@@ -432,32 +623,32 @@ Stimulus Modes (Fixed Vocabulary):
 
 | Mode | Semantics | Applicable To |
 |------|-----------|---------------|
-| `differential` | V+ = +0.5, V- = -0.5 (normalized) | DifferentialPort |
-| `common_mode` | V+ = V- = 1 (normalized) | DifferentialPort |
-| `signal` | Standard stimulus (default) | Port |
-| `supply_perturb` | AC perturbation on supply rail | Supply |
+| `differential` | Drive across a port such that \(v(port)=1\) (normalized) | `Port` |
+| `common_mode` | Equal drive of both terminals relative to the bench reference (normalized) | balanced ports (e.g., `BalancedInput`) |
+| `signal` | Alias for `differential` for the signal-path transfer run | `Port` |
+| `supply_perturb` | Drive across the `supply` port such that \(v(supply)=1\) (normalized) | `supply : Port` |
 
 ```acir
 measurement CMRR:
-  requires: stim : DifferentialPort, resp : Port
+  requires: in : Port, out : Port
+  requires_traits: BalancedInput
   stimulus_modes: differential, common_mode
   analysis: multi(ac, ac)
   procedure:
-    H_diff = transfer(stim, resp) in differential
-    H_cm = transfer(stim, resp) in common_mode
+    H_diff = transfer(in, out) in differential
+    H_cm = transfer(in, out) in common_mode
     result = eval(mag_dB(H_diff), f) - eval(mag_dB(H_cm), f)
   params:
     f : Frequency = 1kHz
   unit: dB
 
 measurement PSRR:
-  requires: stim : Port, resp : Port, supply : Supply
-  stimulus_modes: signal, supply_perturb
-  analysis: multi(ac, ac)
+  requires: supply : Port, out : Port
+  stimulus_modes: supply_perturb
+  analysis: ac
   procedure:
-    H_sig = transfer(stim, resp) in signal
-    H_sup = transfer_from_supply(supply, resp) in supply_perturb
-    result = eval(mag_dB(H_sig), f) - eval(mag_dB(H_sup), f)
+    H_sup = transfer(supply, out)
+    result = -eval(mag_dB(H_sup), f)
   params:
     f : Frequency = 1kHz
   unit: dB
@@ -469,11 +660,11 @@ The `precondition:` clause specifies a runtime condition that must hold for the 
 
 ```acir
 measurement GainBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
     # ...
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: Hz
 ```
 
@@ -484,7 +675,7 @@ Semantics:
 4. Constraint evaluation treats `NaN` as failure
 
 Distinction from `requires:`:
-- `requires:` - compile-time structural requirements (Port types)
+- `requires:` - compile-time structural requirements (ports and declared traits)
 - `precondition:` - runtime behavioral requirements (circuit must have gain > 0dB)
 
 ### 4.5 Procedure Primitives
@@ -503,7 +694,8 @@ Transfer Function Primitives:
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
 | `transfer(p1, p2)` | `(Port, Port) -> TransferFunction` | Complex voltage transfer function V(p2)/V(p1) |
-| `transfer_from_supply(s, p)` | `(Supply, Port) -> TransferFunction` | Transfer function from supply perturbation to port |
+ 
+Supply transfer is expressed using the same primitive (for example, `transfer(supply, out)`), with the supply perturbation realized by the bench’s stimulus mode selection.
 
 Function Transformation Primitives:
 
@@ -534,8 +726,8 @@ DC Measurement Primitives:
 
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
-| `supply_voltage(s)` | `Supply -> Voltage` | DC voltage of supply |
-| `supply_current(s)` | `Supply -> Current` | DC current into supply (positive = into circuit) |
+| `port_voltage(p)` | `Port -> Voltage` | DC voltage across the port: \(v(p)\) |
+| `port_current(p)` | `Port -> Current` | DC current into the port’s positive terminal |
 
 Arithmetic:
 
@@ -559,7 +751,7 @@ Procedures are type-checked at compile time:
 
 ```acir
 procedure:
-  H = transfer(stim, resp)      # H : TransferFunction
+  H = transfer(in, out)         # H : TransferFunction
   gain = mag_dB(H)              # gain : MagnitudeFunction  
   dc_gain = eval(gain, DC)      # dc_gain : Scalar
   result = dc_gain + 3          # Scalar + Scalar -> Scalar (ok)
@@ -568,7 +760,7 @@ procedure:
 Type errors:
 ```acir
 procedure:
-  H = transfer(stim, resp)
+  H = transfer(in, out)
   result = H + 3                # ERROR: TransferFunction + Scalar undefined
 ```
 
@@ -609,15 +801,15 @@ bench NoiseBench:
     SpotNoise
 ```
 
-Note: Benches no longer have a `for Trait` clause. Applicability is determined entirely by whether the circuit's `bench_bindings` satisfy each measurement's `requires:` clause.
+Note: Benches no longer have a `for Trait` clause. Applicability is determined by whether the selected view provides the named ports in `requires:` and the declared capabilities in `requires_traits:` for each referenced measurement.
 
 #### 4.6.3 Measurement Filtering
 
 When a circuit references a bench in constraints:
 
-1. Applicable measurements: Role requirements satisfied by `bench_bindings` -> included
-2. Inapplicable, not in constraints: Silently excluded from testbench
-3. Inapplicable, referenced in constraint: Compile error
+1. Applicable measurements: Requirements satisfied by the selected view -> included
+2. Not referenced by constraints: may be excluded from emission (even if applicable)
+3. Referenced in a constraint but inapplicable: compile error
 
 ### 4.7 Constraints
 
@@ -627,7 +819,8 @@ When a circuit references a bench in constraints:
 constraintsBlock = "constraints:" NL INDENT (constraint NL)+ DEDENT ;
 constraint = IDENT "=" constraintExpr ;
 constraintExpr = measurementRef comparator value ;
-measurementRef = IDENT "::" IDENT paramOverrides? ;
+measurementRef = IDENT viewSelector? "::" IDENT paramOverrides? ;
+viewSelector = "[" IDENT "]" ;
 paramOverrides = "(" paramAssign ("," paramAssign)* ")" ;
 paramAssign = IDENT "=" value ;
 comparator = ">=" | "<=" | ">" | "<" | "==" ;
@@ -638,6 +831,7 @@ comparator = ">=" | "<=" | ">" | "<" | "==" ;
 ```acir
 constraints:
   c_gain = ACBench::PassbandGain >= 40dB
+  c_gain_a = ACBench[ch_a]::PassbandGain >= 40dB
   c_gbw = ACBench::GainBandwidth >= 100MHz
   c_pm = ACBench::PhaseMargin >= 60deg
   c_cmrr = ACBench::CMRR >= 60dB
@@ -651,8 +845,8 @@ constraints:
 Measurement parameters can be overridden at the constraint level:
 
 ```acir
-c_cmrr_1k : ACBench::CMRR(f=1kHz) >= 60dB
-c_cmrr_1M : ACBench::CMRR(f=1MHz) >= 40dB
+c_cmrr_1k = ACBench::CMRR(f=1kHz) >= 60dB
+c_cmrr_1M = ACBench::CMRR(f=1MHz) >= 40dB
 ```
 
 ### 4.8 Harness
@@ -697,69 +891,44 @@ harness:
 #### 4.9.1 Algorithm
 
 ```python
-def resolve_applicability(circuit, bench, constraints):
+def resolve_applicability(circuit, bench, constraints, *, view_name="main"):
     """
-    Determine which measurements apply and validate constraints.
+    Determine which measurements apply for a selected view and validate constraints.
+
+    In practice, applicability is resolved per unique (bench, view) pair referenced by
+    constraints such as `ACBench[ch_a]::PassbandGain`.
     """
-    bindings = circuit.bench_bindings
+    view = circuit.views.get(view_name, circuit.views["main"])
+    ports = view.ports          # dict: role name -> Port(a, b)
+    traits = view.traits        # set: declared traits for this view
+
     applicable = {}
     errors = []
-    
+
     for measurement in bench.measurements:
-        can_apply = True
-        
-        for role in measurement.requires:
-            # Check if role is bound
-            if role.name not in bindings:
-                can_apply = False
-                break
-            
-            binding = bindings[role.name]
-            
-            # Check type compatibility
-            if role.type == 'DifferentialPort':
-                if not is_differential_port(circuit, binding):
-                    can_apply = False
-                    break
-            elif role.type == 'Supply':
-                if not is_supply(circuit, binding):
-                    can_apply = False
-                    break
-            # Port type always matches any Port binding
-        
-        applicable[measurement.name] = can_apply
-    
-    # Validate constraints reference applicable measurements
+        # Port-role requirements
+        if any(role_name not in ports for role_name in measurement.requires_ports):
+            applicable[measurement.name] = False
+            continue
+
+        # Trait requirements
+        if not measurement.requires_traits.issubset(traits):
+            applicable[measurement.name] = False
+            continue
+
+        applicable[measurement.name] = True
+
+    # Validate constraints reference applicable measurements on the chosen view
     for constraint in constraints:
         meas_name = constraint.measurement_name
         if meas_name not in applicable:
             errors.append(f"Unknown measurement: {meas_name}")
         elif not applicable[meas_name]:
             errors.append(
-                f"Measurement {meas_name} is not applicable: "
-                f"{explain_inapplicability(measurement, circuit, bindings)}"
+                f"Measurement {meas_name} is not applicable on view '{view.name}'."
             )
-    
+
     return applicable, errors
-
-
-def is_differential_port(circuit, binding):
-    """
-    A Port is a DifferentialPort if neither node is a ground or supply.
-    """
-    pos_node, neg_node = binding.positive, binding.negative
-    
-    # Check if either node is a ground
-    for ground in circuit.grounds:
-        if pos_node == ground.name or neg_node == ground.name:
-            return False
-    
-    # Check if either node is a supply
-    for supply in circuit.supplies:
-        if pos_node == supply.name or neg_node == supply.name:
-            return False
-    
-    return True
 ```
 
 #### 4.9.2 Error Messages
@@ -773,9 +942,9 @@ error[ACIR0042]: measurement CMRR is not applicable to circuit RCLowpass
 15 |     c_cmrr : ACBench::CMRR >= 60dB
    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    |
-note: CMRR requires 'stim : DifferentialPort'
-note: bench_bindings declares: stim = Port(IN, GND)
-note: Port(IN, GND) is not a DifferentialPort because GND is a ground node
+note: CMRR requires traits: BalancedInput
+note: selected view 'main' declares: UnbalancedInput
+help: CMRR requires a balanced input port; choose a different view/class or remove the constraint
 ```
 
 ### 4.10 Failure Handling
@@ -785,7 +954,7 @@ note: Port(IN, GND) is not a DifferentialPort because GND is a ground node
 | Failure | When | Result | Behavior |
 |---------|------|--------|----------|
 | Compile-time type error | Role type mismatch | N/A | Compile error, no simulation |
-| Missing binding | Required role not in bench_bindings | N/A | Compile error |
+| Missing binding | Required port role not bound in selected view | N/A | Compile error |
 | Precondition failure | Runtime condition false | `NaN` | Warning logged, constraint fails |
 | Search failure | No crossing found | `NaN` | Warning logged, constraint fails |
 | Simulation error | Simulator fails | `NaN` | Error logged, constraint fails |
@@ -866,11 +1035,13 @@ public class TestbenchModel
 {
     public string CircuitName { get; }
     public string BenchName { get; }
+    public string ViewName { get; }
     
-    // Resolved port bindings
-    public PortBinding Stim { get; }
-    public PortBinding Resp { get; }
-    public SupplyBinding? Supply { get; }
+    // From the selected view (`ports:`): role name -> Port(a, b)
+    public IReadOnlyDictionary<string, PortBinding> Ports { get; }
+
+    // Declared capabilities of the selected view
+    public IReadOnlySet<string> Traits { get; }
     
     // Measurements to run (filtered by applicability)
     public List<ResolvedMeasurement> Measurements { get; }
@@ -883,7 +1054,6 @@ public class PortBinding
 {
     public string PositiveNode { get; }
     public string NegativeNode { get; }
-    public bool IsDifferential { get; }  // True if DifferentialPort
 }
 
 public class ResolvedMeasurement
@@ -895,7 +1065,6 @@ public class ResolvedMeasurement
 
 public enum StimulusMode
 {
-    Signal,
     Differential,
     CommonMode,
     SupplyPerturb
@@ -1111,6 +1280,8 @@ public class MeasurementRunner
 ```
 lib/
 |-- std.acir                     # Meta-include
+|-- interfaces/
+|   `-- standard.acir            # Standard traits + classes (taxonomy + ports)
 |-- measurements/
 |   `-- standard.acir            # Standard measurement definitions
 `-- benches/
@@ -1120,11 +1291,159 @@ lib/
 The `lib/std.acir` file includes all standard definitions:
 
 ```acir
+include lib/interfaces/standard
 include lib/measurements/standard
 include lib/benches/standard
 ```
 
-### 6.2 Standard Measurements
+### 6.2 Standard Interfaces (Traits and Classes)
+
+File: `lib/interfaces/standard.acir`
+
+```acir
+// ============================================================
+// Traits (capabilities)
+// ============================================================
+
+trait HasInputPort
+trait HasOutputPort
+trait TransferTwoPort
+
+trait BalancedInput
+trait UnbalancedInput
+trait BalancedOutput
+trait UnbalancedOutput
+
+trait HasSupplyPort
+trait Multiport
+
+// ============================================================
+// Classes (taxonomy + canonical port bindings)
+// ============================================================
+
+class Filter:
+  traits:
+    HasInputPort
+    HasOutputPort
+    TransferTwoPort
+
+class SingleEndedFilter extends Filter:
+  traits:
+    UnbalancedInput
+    UnbalancedOutput
+
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  ports:
+    in = Port(IN, GND)
+    out = Port(OUT, GND)
+
+class FullyDifferentialFilter extends Filter:
+  traits:
+    BalancedInput
+    BalancedOutput
+
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT.P, OUT.N)
+
+class FullyDifferentialSallenKeyFilter extends FullyDifferentialFilter:
+  traits:
+    HasSupplyPort
+
+  supply VDD
+
+  ports:
+    supply = Port(VDD, GND)
+
+class Amplifier:
+  traits:
+    HasInputPort
+    HasOutputPort
+    TransferTwoPort
+    HasSupplyPort
+
+class SingleEndedAmplifier extends Amplifier:
+  traits:
+    UnbalancedInput
+    UnbalancedOutput
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  ports:
+    in = Port(IN, GND)
+    out = Port(OUT, GND)
+    supply = Port(VDD, GND)
+
+class SingleEndedOpAmp extends Amplifier:
+  traits:
+    BalancedInput
+    UnbalancedOutput
+
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT, GND)
+    supply = Port(VDD, GND)
+
+class FullyDifferentialOpAmp extends Amplifier:
+  traits:
+    BalancedInput
+    BalancedOutput
+
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+
+  ports:
+    in = Port(IN.P, IN.N)
+    out = Port(OUT.P, OUT.N)
+    supply = Port(VDD, GND)
+
+class VoltageReference:
+  traits:
+    HasOutputPort
+    HasSupplyPort
+    UnbalancedOutput
+
+  supply VDD
+  ground GND
+  output VREF : analog
+
+  ports:
+    out = Port(VREF, GND)
+    supply = Port(VDD, GND)
+
+class CurrentReference:
+  traits:
+    HasOutputPort
+    HasSupplyPort
+    UnbalancedOutput
+
+  supply VDD
+  ground GND
+  output IOUT : analog
+
+  ports:
+    out = Port(IOUT, GND)
+    supply = Port(VDD, GND)
+```
+
+### 6.3 Standard Measurements
 
 File: `lib/measurements/standard.acir`
 
@@ -1134,10 +1453,10 @@ File: `lib/measurements/standard.acir`
 // ============================================================
 
 measurement PassbandGain:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     result = eval(gain, f_measure)
   params:
@@ -1145,20 +1464,20 @@ measurement PassbandGain:
   unit: dB
 
 measurement LowpassBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     dc_gain = eval(gain, DC)
     result = find_crossing(gain, dc_gain - 3, falling)
   unit: Hz
 
 measurement HighpassBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     hf_gain = eval(gain, f_high)
     result = find_crossing(gain, hf_gain - 3, rising)
@@ -1167,37 +1486,37 @@ measurement HighpassBandwidth:
   unit: Hz
 
 measurement GainBandwidth:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     result = find_crossing(gain, 0, falling)
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: Hz
 
 measurement PhaseMargin:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     ph = phase(H)
     f_ugf = find_crossing(gain, 0, falling)
     result = 180 + eval(ph, f_ugf)
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: deg
 
 measurement GainMargin:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: ac
   procedure:
-    H = transfer(stim, resp)
+    H = transfer(in, out)
     gain = mag_dB(H)
     ph = phase(H)
     f_180 = find_crossing(ph, -180, falling)
     result = 0 - eval(gain, f_180)
-  precondition: eval(mag_dB(transfer(stim, resp)), DC) > 0
+  precondition: eval(mag_dB(transfer(in, out)), DC) > 0
   unit: dB
 
 // ============================================================
@@ -1205,12 +1524,13 @@ measurement GainMargin:
 // ============================================================
 
 measurement CMRR:
-  requires: stim : DifferentialPort, resp : Port
+  requires: in : Port, out : Port
+  requires_traits: BalancedInput
   stimulus_modes: differential, common_mode
   analysis: multi(ac, ac)
   procedure:
-    H_diff = transfer(stim, resp) in differential
-    H_cm = transfer(stim, resp) in common_mode
+    H_diff = transfer(in, out) in differential
+    H_cm = transfer(in, out) in common_mode
     gain_diff = mag_dB(H_diff)
     gain_cm = mag_dB(H_cm)
     result = eval(gain_diff, f) - eval(gain_cm, f)
@@ -1219,15 +1539,13 @@ measurement CMRR:
   unit: dB
 
 measurement PSRR:
-  requires: stim : Port, resp : Port, supply : Supply
-  stimulus_modes: signal, supply_perturb
-  analysis: multi(ac, ac)
+  requires: supply : Port, out : Port
+  stimulus_modes: supply_perturb
+  analysis: ac
   procedure:
-    H_sig = transfer(stim, resp) in signal
-    H_sup = transfer_from_supply(supply, resp) in supply_perturb
-    gain_sig = mag_dB(H_sig)
+    H_sup = transfer(supply, out) in supply_perturb
     gain_sup = mag_dB(H_sup)
-    result = eval(gain_sig, f) - eval(gain_sup, f)
+    result = 0 - eval(gain_sup, f)
   params:
     f : Frequency = 1kHz
   unit: dB
@@ -1237,16 +1555,14 @@ measurement PSRR:
 // ============================================================
 
 measurement QuiescentPower:
-  requires: supply : Supply
+  requires: supply : Port
   analysis: dc
   procedure:
-    v = supply_voltage(supply)
-    i = supply_current(supply)
-    result = abs(v * i)
+    result = abs(port_voltage(supply) * port_current(supply))
   unit: W
 ```
 
-### 6.3 Standard Benches
+### 6.4 Standard Benches
 
 File: `lib/benches/standard.acir`
 
@@ -1271,12 +1587,148 @@ bench DCBench:
 
 ## 7. Complete Examples
 
-### 7.1 Single-Ended OTA
+### 7.1 Passive filters: single-ended RC and differential RC (same benches)
 
 ```acir
 ACIR 3.0
 
 include lib/std
+
+// ------------------------------------------------------------
+// Single-ended RC lowpass
+// - Uses `SingleEndedFilter` (UnbalancedInput/UnbalancedOutput)
+// - Reuses the same transfer measurements as amplifiers
+// ------------------------------------------------------------
+
+circuit SE_RCLowpass implements SingleEndedFilter
+  level EL
+
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  fill:
+    resistor R1 (.P--IN, .N--OUT) : resistor
+      R = 10k
+    capacitor C1 (.P--OUT, .N--GND) : capacitor
+      C = 1n
+
+  constraints:
+    c_gain = ACBench::PassbandGain >= -1dB
+    c_bw = ACBench::LowpassBandwidth >= 10kHz
+    // CMRR is not meaningful here because `SingleEndedFilter` declares UnbalancedInput.
+
+  harness:
+    source IN Z=50Ohm
+
+// ------------------------------------------------------------
+// Differential RC lowpass (balanced I/O)
+// - Uses `FullyDifferentialFilter` (BalancedInput/BalancedOutput)
+// - Uses the same ACBench transfer logic; only the port bindings differ
+// ------------------------------------------------------------
+
+circuit FD_RCLowpass implements FullyDifferentialFilter
+  level EL
+
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+
+  fill:
+    // A simple differential lowpass realized as two symmetric RC halves to ground.
+    // The bench observes the differential output across OUT.P/OUT.N.
+    resistor RP (.P--IN.P, .N--OUT.P) : resistor
+      R = 10k
+    resistor RN (.P--IN.N, .N--OUT.N) : resistor
+      R = 10k
+    capacitor CP (.P--OUT.P, .N--GND) : capacitor
+      C = 1n
+    capacitor CN (.P--OUT.N, .N--GND) : capacitor
+      C = 1n
+
+  constraints:
+    c_gain = ACBench::PassbandGain >= -1dB
+    c_bw = ACBench::LowpassBandwidth >= 10kHz
+    c_cmrr = ACBench::CMRR(f=10kHz) >= 60dB
+
+  harness:
+    source IN Z=50Ohm
+```
+
+### 7.2 Powered filter: fully-differential Sallen–Key (powered + ICMR domain)
+
+```acir
+ACIR 3.0
+
+include lib/std
+
+// A powered filter is still a transfer two-port, but it is also supply-dependent.
+// The filter contains an amplifier core, so constraints are commonly evaluated over
+// an input common-mode domain (ICMR) and PVT.
+
+circuit FD_SallenKeyLP implements FullyDifferentialSallenKeyFilter
+  level HL
+
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+
+  // The active core is left as a slot at HL and must be bound to a fully
+  // differential op-amp (or another class carrying the same trait bundle).
+  slot core (.IN--IN, .OUT--OUT, .VDD--VDD, .GND--GND) : FullyDifferentialOpAmp
+
+  // Passive network components are concrete even at HL in many flows.
+  slot R1 (.P--IN.P, .N--OUT.P) : [Resistor]
+  slot R2 (.P--IN.N, .N--OUT.N) : [Resistor]
+  slot C1 (.P--OUT.P, .N--GND) : [Capacitor]
+  slot C2 (.P--OUT.N, .N--GND) : [Capacitor]
+
+  constraints:
+    c_gain = ACBench::PassbandGain(f_measure=10kHz) >= -1dB
+    c_bw = ACBench::LowpassBandwidth >= 1MHz
+    c_psrr = ACBench::PSRR(f=100kHz) >= 50dB
+
+  harness:
+    supply VDD = 1.8V
+    load OUT C=500fF R=10k
+    pvt TT@27C, SS@-40C, FF@125C
+    // Evaluated over input common-mode domain (ICMR):
+    // sweep IN.Vcm in [0.6V:1.2V]
+```
+
+### 7.3 Amplifiers: SE amplifier, SE op-amp, and fully-differential op-amp (shared benches)
+
+```acir
+ACIR 3.0
+
+include lib/std
+
+// ------------------------------------------------------------
+// Single-ended amplifier: UnbalancedInput + UnbalancedOutput
+// ------------------------------------------------------------
+
+circuit SE_Amp implements SingleEndedAmplifier
+  level HL
+
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  constraints:
+    c_gain = ACBench::PassbandGain(f_measure=1kHz) >= 20dB
+    c_bw = ACBench::LowpassBandwidth >= 10MHz
+    c_psrr = ACBench::PSRR(f=10kHz) >= 40dB
+
+  harness:
+    supply VDD = 1.8V
+    load OUT C=1pF R=10k
+
+// ------------------------------------------------------------
+// Single-ended op-amp: BalancedInput + UnbalancedOutput
+// - CMRR is applicable because the class declares BalancedInput
+// ------------------------------------------------------------
 
 circuit OTA5T implements SingleEndedOpAmp
   level EL
@@ -1286,11 +1738,6 @@ circuit OTA5T implements SingleEndedOpAmp
   input IN : Diff
   output OUT : analog
   input VTAIL : bias
-
-  bench_bindings:
-    stim = Port(IN.P, IN.N)      # Differential stimulus
-    resp = Port(OUT, GND)         # Single-ended response
-    supply = VDD
 
   fill:
     net mirror_gate : analog
@@ -1319,42 +1766,43 @@ circuit OTA5T implements SingleEndedOpAmp
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-```
+    pvt TT@27C
+    // Evaluated over input common-mode domain (ICMR):
+    // sweep IN.Vcm in [0.6V:1.2V]
 
-Applicability:
-- `stim = Port(IN.P, IN.N)` -> both nodes are signals -> `DifferentialPort` (ok)
-- CMRR requires `DifferentialPort` -> applicable
-- PSRR requires `Supply` -> `supply = VDD` -> applicable
+// ------------------------------------------------------------
+// Fully differential op-amp with multi-supply PSRR via views
+// - A single design exports multiple PSRR measurement interfaces (views),
+//   each overriding only the `supply` binding.
+// ------------------------------------------------------------
 
-### 7.2 Fully-Differential OTA
-
-```acir
-ACIR 3.0
-
-include lib/std
-
-circuit FullyDiffOTA implements FullyDifferentialOpAmp
+circuit MixedSupplyOTA implements FullyDifferentialOpAmp
   level EL
 
   supply AVDD
   supply DVDD
-  ground GND
+  ground VSS
   input IN : Diff
   output OUT : Diff
-  input VCMFB : bias
 
-  bench_bindings:
-    stim = Port(IN.P, IN.N)
-    resp = Port(OUT.P, OUT.N)    # Differential response
-    supply = AVDD                 # Choose which supply for PSRR
+  // Default view uses AVDD.
+  ports:
+    supply = Port(AVDD, VSS)
+
+  views:
+    psrr_avdd : FullyDifferentialOpAmp
+      ports:
+        supply = Port(AVDD, VSS)
+    psrr_dvdd : FullyDifferentialOpAmp
+      ports:
+        supply = Port(DVDD, VSS)
 
   fill:
-    # ... device instantiations ...
+    // ... device instantiations ...
 
   constraints:
-    c_gbw = ACBench::GainBandwidth >= 500MHz
-    c_cmrr = ACBench::CMRR >= 80dB
-    c_psrr = ACBench::PSRR >= 70dB
+    c_psrr_a = ACBench[psrr_avdd]::PSRR(f=10kHz) >= 70dB
+    c_psrr_d = ACBench[psrr_dvdd]::PSRR(f=10kHz) >= 50dB
 
   harness:
     supply AVDD = 1.8V
@@ -1362,109 +1810,126 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
     load OUT C=500fF
 ```
 
-Note: With multiple supplies, the `bench_bindings` explicitly chooses which supply to use for PSRR. To measure PSRR for both supplies, add separate constraints:
-
-```acir
-bench_bindings:
-  stim = Port(IN.P, IN.N)
-  resp = Port(OUT.P, OUT.N)
-  supply = AVDD
-  supply_digital = DVDD           # Additional binding
-
-constraints:
-  c_psrr_a = ACBench::PSRR >= 70dB                    # Uses 'supply' (AVDD)
-  c_psrr_d = ACBench::PSRR(supply=supply_digital) >= 50dB
-```
-
-### 7.3 Passive RC Filter
+### 7.4 References: bandgap voltage reference and current reference (PSRR without inputs)
 
 ```acir
 ACIR 3.0
 
 include lib/std
 
-circuit RCLowpass implements Filter
-  level EL
+// Voltage reference: no signal input, but has `out` and `supply`.
+circuit BandgapRef implements VoltageReference
+  level HL
 
+  supply VDD
   ground GND
-  input IN : analog
-  output OUT : analog
-
-  bench_bindings:
-    stim = Port(IN, GND)          # Single-ended (NOT DifferentialPort)
-    resp = Port(OUT, GND)
-    # No supply binding
-
-  fill:
-    resistor R1 (.P--IN, .N--OUT) : resistor
-      R = 10k
-    capacitor C1 (.P--OUT, .N--GND) : capacitor
-      C = 1n
+  output VREF : analog
 
   constraints:
-    c_bw = ACBench::LowpassBandwidth >= 10kHz
-    c_gain = ACBench::PassbandGain >= -1dB
-    # Cannot use CMRR - would be compile error (stim is not DifferentialPort)
-    # Cannot use PSRR - would be compile error (no supply binding)
+    c_psrr = ACBench::PSRR(f=1kHz) >= 60dB
+    c_power = DCBench::QuiescentPower <= 200uW
 
   harness:
-    source IN Z=50Ohm
+    supply VDD = 1.8V
+    load VREF R=1Meg C=1pF
+    pvt TT@27C, SS@-40C, FF@125C
+
+// Current reference: no signal input. The bench provides a compliance/load condition
+// via the harness (e.g., Rload to ground) so output current can be interpreted.
+circuit CurrentRef implements CurrentReference
+  level HL
+
+  supply VDD
+  ground GND
+  output IOUT : analog
+
+  constraints:
+    c_psrr = ACBench::PSRR(f=1kHz) >= 50dB
+    c_power = DCBench::QuiescentPower <= 200uW
+
+  harness:
+    supply VDD = 1.8V
+    load IOUT R=10k
+    pvt TT@27C, SS@-40C, FF@125C
 ```
 
-Applicability:
-- `stim = Port(IN, GND)` -> GND is a ground node -> not `DifferentialPort`
-- CMRR requires `DifferentialPort` -> not applicable
-- No supply binding -> PSRR not applicable
-
-### 7.4 TIA (Transimpedance Amplifier)
+### 7.5 Multiport extension: IQ example using views as projections
 
 ```acir
 ACIR 3.0
 
 include lib/std
 
-circuit SimpleTIA implements SingleEndedOpAmp
+class IQPolyphaseFilter:
+  traits:
+    Multiport
+
+  ground GND
+  input IN_I : Diff
+  input IN_Q : Diff
+  output OUT_I : Diff
+  output OUT_Q : Diff
+
+  // The class is multiport, but it exports two two-port projections as views so
+  // existing two-port benches can be reused without introducing a new template family.
+  views:
+    i_path : FullyDifferentialFilter
+      ports:
+        in = Port(IN_I.P, IN_I.N)
+        out = Port(OUT_I.P, OUT_I.N)
+    q_path : FullyDifferentialFilter
+      ports:
+        in = Port(IN_Q.P, IN_Q.N)
+        out = Port(OUT_Q.P, OUT_Q.N)
+
+circuit IQ_Filter implements IQPolyphaseFilter
+  level HL
+
+  ground GND
+  input IN_I : Diff
+  input IN_Q : Diff
+  output OUT_I : Diff
+  output OUT_Q : Diff
+
+  constraints:
+    c_i_gain = ACBench[i_path]::PassbandGain(f_measure=10kHz) >= -1dB
+    c_q_gain = ACBench[q_path]::PassbandGain(f_measure=10kHz) >= -1dB
+
+  harness:
+    source IN_I Z=50Ohm
+    source IN_Q Z=50Ohm
+```
+
+### 7.6 Non-standard terminal names: adapter circuit (no per-bench glue)
+
+```acir
+ACIR 3.0
+
+include lib/std
+
+// A hardmacro-like circuit with fixed, non-canonical pin names.
+circuit LegacyAmpHardmacro
+  level HL
+
+  supply VCC
+  ground VSS
+  input VINP : analog
+  input VINN : analog
+  output VOUT : analog
+
+  slot core (.VCC--VCC, .VSS--VSS, .VINP--VINP, .VINN--VINN, .VOUT--VOUT) : [BlackBox]
+
+// Adapter: implements the canonical class and maps pins in its body.
+circuit LegacyAmpAdapter implements SingleEndedOpAmp
   level EL
 
   supply VDD
   ground GND
-  input IN : Diff                 # Photodiode connects differentially
+  input IN : Diff
   output OUT : analog
 
-  bench_bindings:
-    stim = Port(IN.P, IN.N)       # Current injected here
-    resp = Port(OUT, GND)
-    supply = VDD
-
-  # ... fill and constraints ...
-```
-
-> **Note:**  
-> The `Port` abstraction works for TIAs even when the input is current-driven. Testbench harnesses (defined separately or in future extensions) can specify current-mode stimulus as needed. The measurement infrastructure only cares about the node locations for stimulus, not the signal type.
-
-### 7.5 Legacy Circuit with Non-Standard Port Names
-
-```acir
-ACIR 3.0
-
-include lib/std
-
-circuit LegacyAmp implements SingleEndedOpAmp
-  level EL
-
-  supply VCC
-  ground VSS
-  input VIN_DIFF : Diff
-  output VOUT_SE : analog
-  input IBIAS : bias
-
-  bench_bindings:
-    stim = Port(VIN_DIFF.P, VIN_DIFF.N)
-    resp = Port(VOUT_SE, VSS)
-    supply = VCC
-
   fill:
-    # ... device instantiations ...
+    inst U1 (.VCC--VDD, .VSS--GND, .VINP--IN.P, .VINN--IN.N, .VOUT--OUT) : LegacyAmpHardmacro
 
   constraints:
     c_gain = ACBench::PassbandGain >= 30dB
@@ -1472,9 +1937,8 @@ circuit LegacyAmp implements SingleEndedOpAmp
     c_psrr = ACBench::PSRR >= 40dB
 
   harness:
-    supply VCC = 3.3V
-    bias IBIAS = 10uA
-    load VOUT_SE C=5pF R=10k
+    supply VDD = 3.3V
+    load OUT C=5pF R=10k
 ```
 
 ---
@@ -1489,16 +1953,31 @@ circuit LegacyAmp implements SingleEndedOpAmp
 document = header (include)* (definition)* ;
 header = "ACIR" VERSION NL ;
 include = "include" PATH NL ;
-definition = traitDef | measurementDef | benchDef | circuitDef ;
+definition = traitDef | classDef | measurementDef | benchDef | circuitDef ;
 
 (* ============================================================ *)
 (* Traits *)
 (* ============================================================ *)
 
-traitDef = "trait" IDENT extendsClause? ":" NL INDENT traitBody DEDENT ;
+traitDef = "trait" IDENT NL ;
 extendsClause = "extends" IDENT ;
-traitBody = (traitMember NL)+ ;
-traitMember = portDecl | supplyDecl | groundDecl | connectorsBlock | "pass" ;
+
+(* ============================================================ *)
+(* Classes *)
+(* ============================================================ *)
+
+classDef = "class" IDENT extendsClause? ":" NL INDENT classBody DEDENT ;
+classBody = traitsBlock? (classMember NL)* ;
+classMember = supplyDecl | groundDecl | portDecl | portsBlock | viewsBlock | "pass" ;
+
+traitsBlock = "traits:" NL INDENT (IDENT NL)+ DEDENT ;
+portsBlock = "ports:" NL INDENT (bindingDecl NL)+ DEDENT ;
+bindingDecl = IDENT "=" portBinding ;
+portBinding = "Port" "(" nodeRef "," nodeRef ")" ;
+
+viewsBlock = "views:" NL INDENT (viewDecl NL)+ DEDENT ;
+viewDecl = IDENT (":" IDENT)? NL INDENT viewBody DEDENT ;
+viewBody = traitsBlock? portsBlock? ;
 
 connectorsBlock = "connectors:" NL INDENT (connectorEntry NL)+ DEDENT ;
 connectorEntry = "to" IDENT ":" NL INDENT (connectionStmt NL)+ DEDENT ;
@@ -1524,6 +2003,7 @@ groundDecl = "ground" IDENT ;
 measurementDef = "measurement" IDENT ":" NL INDENT measurementBody DEDENT ;
 
 measurementBody = requiresClause
+                  requiresTraitsClause?
                   stimulusModesClause?
                   analysisClause
                   procedureClause
@@ -1534,7 +2014,10 @@ measurementBody = requiresClause
 requiresClause = "requires:" roleList NL ;
 roleList = roleDecl ("," roleDecl)* ;
 roleDecl = IDENT ":" roleType ;
-roleType = "Port" | "DifferentialPort" | "Supply" ;
+roleType = "Port" ;
+
+requiresTraitsClause = "requires_traits:" traitList NL ;
+traitList = IDENT ("," IDENT)* ;
 
 stimulusModesClause = "stimulus_modes:" modeList NL ;
 modeList = IDENT ("," IDENT)* ;
@@ -1587,23 +2070,12 @@ measurementsBlock = "measurements:" NL INDENT (IDENT NL)+ DEDENT ;
 (* ============================================================ *)
 
 circuitDef = "circuit" IDENT implementsClause? NL INDENT circuitBody DEDENT ;
-implementsClause = "implements" traitRef ("," traitRef)* ;
-traitRef = IDENT ;
+implementsClause = "implements" IDENT ;
 
 circuitBody = levelDecl (circuitMember NL)* ;
 levelDecl = "level" ("EL" | "ML" | "HL") NL ;
 circuitMember = supplyDecl | groundDecl | portDecl 
-              | benchBindingsBlock | fillBlock | constraintsBlock | harnessBlock ;
-
-(* ============================================================ *)
-(* Bench Bindings *)
-(* ============================================================ *)
-
-benchBindingsBlock = "bench_bindings:" NL INDENT (bindingDecl NL)+ DEDENT ;
-bindingDecl = IDENT "=" bindingExpr ;
-bindingExpr = portBinding | IDENT ;
-portBinding = "Port" "(" nodeRef "," nodeRef ")" ;
-nodeRef = IDENT ("." IDENT)? ;
+              | portsBlock | viewsBlock | fillBlock | constraintsBlock | harnessBlock ;
 
 (* ============================================================ *)
 (* Constraints *)
@@ -1612,7 +2084,8 @@ nodeRef = IDENT ("." IDENT)? ;
 constraintsBlock = "constraints:" NL INDENT (constraint NL)+ DEDENT ;
 constraint = IDENT "=" constraintExpr ;
 constraintExpr = measurementRef comparator value ;
-measurementRef = IDENT "::" IDENT paramOverrides? ;
+measurementRef = IDENT viewSelector? "::" IDENT paramOverrides? ;
+viewSelector = "[" IDENT "]" ;
 paramOverrides = "(" paramAssign ("," paramAssign)* ")" ;
 paramAssign = IDENT "=" value ;
 
@@ -1672,8 +2145,8 @@ DEDENT = (* indentation decrease *) ;
 | ACIR 2.x | ACIR 3.0 | Migration |
 |----------|----------|-----------|
 | `port IN : Diff` | `input IN : Diff` | Change keyword |
-| `builtin SEOpAmpACBench` | Removed | Use standard benches with `bench_bindings` |
-| Implicit measurement binding | `bench_bindings:` block | Add explicit bindings |
+| `builtin SEOpAmpACBench` | Removed | Use standard benches (`include lib/std`) |
+| Topology-specific bench templates | Removed | Use class-defined `ports:` + trait requirements to select applicable measurements |
 
 ### 9.2 Migration Steps
 
@@ -1688,13 +2161,9 @@ DEDENT = (* indentation decrease *) ;
    output OUT : analog
    ```
 
-2. Add bench_bindings block:
-   ```acir
-   bench_bindings:
-     stim = Port(IN.P, IN.N)
-     resp = Port(OUT, GND)
-     supply = VDD
-   ```
+2. Choose a standard class (or define one) with canonical `ports:`:
+   - For example, `SingleEndedOpAmp` defines `in`, `out`, and `supply` once using `Port(a, b)`.
+   - Your circuits then simply `implements SingleEndedOpAmp` and inherit the port bindings; no per-circuit bench glue is required.
 
 3. Update constraints to use standard benches:
    ```
@@ -1721,7 +2190,7 @@ acir-migrate --from 2.x --to 3.0 circuit.acir
 
 The tool will:
 - Replace `port` with appropriate direction keyword
-- Infer `bench_bindings` from circuit structure and trait
+- Suggest or insert a standard class conformance (`implements <class>`) and, when pin names are non-canonical, generate a small adapter circuit skeleton
 - Update constraint bench references
 - Report any manual changes required
 
@@ -1733,17 +2202,17 @@ The tool will:
 
 1. Update lexer with direction keywords (`input`, `output`, `inout`)
 2. Remove `port` keyword
-3. Add `bench_bindings:` block parsing
-4. Add `measurement` definition blocks with `stimulus_modes` and `in` clause
+3. Add `class` parsing with `traits:`, `ports:`, and `views:`
+4. Add `measurement` definition blocks with `stimulus_modes` and `in <mode>` clause
 5. Add `precondition:` clause
 6. Remove `builtin` keyword
-7. Update constraint syntax (`:` separator)
+7. Add view selection in constraints: `Bench[view]::Measurement(...)`
 
 ### 10.2 Phase 2: Semantic Analysis 
 
-1. Implement Port type checking (Port vs DifferentialPort)
-2. Implement bench binding validation
-3. Implement measurement applicability checking
+1. Implement class inheritance and trait inheritance
+2. Implement port binding validation for `ports:` and `views:` (including trait/binding consistency)
+3. Implement measurement applicability checking against selected view (`requires:` ports + `requires_traits:`)
 4. Implement procedure primitive type checking
 5. Emit diagnostics for inapplicable measurements in constraints
 
@@ -1758,10 +2227,11 @@ The tool will:
 
 ### 10.4 Phase 4: Standard Library 
 
-1. Create `lib/measurements/standard.acir`
-2. Create `lib/benches/standard.acir`
-3. Create `lib/std.acir` meta-include
-4. Implement C# calculators: `CMRRCalculator`, `PSRRCalculator`
+1. Create `lib/interfaces/standard.acir` (traits + classes)
+2. Create `lib/measurements/standard.acir`
+3. Create `lib/benches/standard.acir`
+4. Create `lib/std.acir` meta-include
+5. Implement C# calculators: `CMRRCalculator`, `PSRRCalculator`
 
 ### 10.5 Phase 5: Migration and Testing
 
@@ -1806,10 +2276,10 @@ Requires:
 
 ```acir
 measurement InputReferredNoise:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: noise
   procedure:
-    Sn = input_noise_density(stim, resp)
+    Sn = input_noise_density(in, out)
     result = integrate_sqrt(Sn, f_min, f_max)
   params:
     f_min : Frequency = 1Hz
@@ -1825,10 +2295,10 @@ Requires:
 
 ```acir
 measurement SlewRate:
-  requires: stim : Port, resp : Port
+  requires: in : Port, out : Port
   analysis: tran
   procedure:
-    result = max(derivative(voltage(resp)))
+    result = max(derivative(voltage(out)))
   unit: V/s
 ```
 
