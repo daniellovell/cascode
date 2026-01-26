@@ -1,0 +1,15 @@
+package lib.benches;
+
+// DC characterization bench for fully differential operational amplifiers.
+// Measures output common-mode and quiescent power, optionally across InputDCCommonMode sweep.
+bench FDOpAmpDCBench {
+  spectre_template = "FDOpAmpDCBench.spectre.tpl";
+  ngspice_template = "FDOpAmpDCBench.ngspice.tpl";
+  metrics [
+    InputDCCommonMode: V,
+    OutputDCCommonMode: V,
+    OutputDCCommonMode_min: V,
+    OutputDCCommonMode_max: V,
+    QuiescentPower: W
+  ]
+}

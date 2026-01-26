@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -9,13 +9,25 @@ trait CurrentMirrorLike:
   port TAP[0] : analog
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.N
-      TAP[0] -> OUT.P
+      SENSE--OUT.N
+      TAP[0]--OUT.P
 
 trait DiffPairLike:
   port OUT : Diff
 
-circuit OTA5T_Hierarchical
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit OTA5T_Hierarchical implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -24,37 +36,33 @@ circuit OTA5T_Hierarchical
   port VTAIL : bias
   fill:
     net mirror_gate : analog
-    inst dp (dp.VDD->VDD, dp.GND->GND) : DiffPair
+    inst dp : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
-      connect dp.IN -> IN
-      connect dp.OUT.N -> mirror_gate
-      connect dp.OUT.P -> OUT
-      connect VTAIL -> dp.TAIL
-    inst cm (cm.VDD->VDD, cm.GND->GND) : CurrentMirror
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT.N--mirror_gate
+      .OUT.P--OUT
+      .TAIL--VTAIL
+    inst cm : CurrentMirror
       param ratio = 1
-      connect cm.SENSE -> mirror_gate
-      connect cm.TAP[0] -> OUT
+      .VDD--VDD
+      .GND--GND
+      .SENSE--mirror_gate
+      .TAP[0]--OUT
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 20M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : QuiescentPower <= 500u W
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
-      m_pwr : SEOpAmpDCBench QuiescentPower
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 500uW
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -66,11 +74,14 @@ circuit DiffPair : DiffPairLike
   port TAIL : bias
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.N, G->IN.P, S->tnode) : size=InputPair nmos
-    nmos M_P (B->GND, D->OUT.P, G->IN.N, S->tnode) : size=InputPair nmos
-    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
+    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
+      size InputPair
+    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nmos
+      size InputPair
+    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
+      size Tail
 
-circuit CurrentMirror : CurrentMirrorLike
+circuit CurrentMirror implements CurrentMirrorLike
   level EL
   param ratio : real = 1
   size Sense = (W=2u, L=180n, M=1)
@@ -79,5 +90,8 @@ circuit CurrentMirror : CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
   fill:
-    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->VDD) : size=Sense pmos
-    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->VDD) : M=$ratio size=Sense pmos
+    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
+      size Sense
+    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--VDD) : pmos
+      size Sense
+      M = $ratio

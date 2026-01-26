@@ -1,7 +1,7 @@
-ACIR 2.0
+ACIR 3.0
 
-; Circuit with missing terminal - EMIT-001 violation
-; Device M1 is missing the bulk (B) terminal
+// Circuit with missing terminal - EMIT-001 violation
+// Device M1 is missing the bulk (B) terminal
 
 circuit MissingTerminalExample
   level EL
@@ -13,4 +13,5 @@ circuit MissingTerminalExample
   port OUT : analog
 
   fill:
-    nmos M1 (G->IN, D->OUT, S->GND) : size=(W=1u, L=180n, M=1) nmos
+    nmos M1 (.G--IN, .D--OUT, .S--GND) : nmos
+      size (W=1u, L=180n, M=1)

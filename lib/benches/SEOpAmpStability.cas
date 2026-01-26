@@ -1,0 +1,11 @@
+package lib.benches;
+
+// Stability bench for single-ended operational amplifiers (unity-gain non-inverting, loop break at IN_N).
+bench SEOpAmpStability {
+  spectre_template = "SEOpAmpStability.spectre.tpl";
+  ngspice_template = "SEOpAmpStability.ngspice.tpl";
+  metrics [
+    PhaseMargin: deg
+  ]
+}
+

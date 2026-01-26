@@ -8,9 +8,9 @@
 
 The testbench template system bridges ACIR circuits to simulator execution through a three-part mechanism: bench definitions declare metrics and template references, Scriban-based templates generate simulator netlists from ACIR harness data, and the compliance checker validates simulation results against numeric constraints. This architecture separates circuit design concerns from test harness implementation, enabling backend portability without duplicating bench semantics.
 
-The flow proceeds deterministically: ACIR circuits at EL level contain `harness:` blocks specifying supply values, loads, and source impedances, plus `benches:` blocks naming which tests to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
+The flow proceeds deterministically: ACIR circuits at EL level contain `harness:` blocks specifying supply values, loads, and source impedances, plus document-level `bench` definitions and bench-qualified numeric constraints that select which benches to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
 
-Template discovery follows upward traversal from the ACIR file location, checking for local `benches/` folders before falling back to the standard library at `lib/std/amp/benches/`. This resolution strategy supports both project-specific custom benches and shared canonical definitions, with backend selection determined by file extension (`.ngspice.tpl` vs `.spectre.tpl`). When a scanned PDK workspace is available, emit/bench also populate include lists so templates can pull model decks without extra command-line arguments.
+Builtin templates are embedded into the Cascode.Bench assembly at build time. `cascode emit` resolves templates by builtin bench name and backend from these embedded resources, with no filesystem discovery or project overrides. When a scanned PDK workspace is available, emit/bench still populate include lists so templates can pull model decks without extra command-line arguments.
 
 ---
 
@@ -22,12 +22,12 @@ The testbench template system establishes clear architectural boundaries. Separa
 
 ## 4.2 Bench Definition Files
 
-Bench definitions reside in `.cas` files alongside their templates, declaring the bench's identity, available metrics, and backend template references. These metadata files enable compile-time validation of metric names and provide the mapping between abstract bench names (referenced in ACIR `benches:` blocks) and concrete template files.
+Bench definitions reside in `.cas` files under `lib/benches` alongside their templates. They declare the bench's identity, available metrics, and backend template filenames. These files are the canonical source of bench metadata; templates are embedded at build time and resolved by builtin name at runtime.
 
 ### 4.2.1 Syntax
 
 ```cascode
-package lib.std.amp.benches;
+package lib.benches;
 
 bench SEOpAmpACBench {
   spectre_template = "SEOpAmpACBench.spectre.tpl";
@@ -58,7 +58,7 @@ Template implementations MUST emit results with these exact metric names in the 
 
 ### 4.2.3 Template References
 
-Backend template references use simple string paths relative to the bench definition file. The paths follow the naming convention `{BenchName}.{backend}.tpl` where backend is `ngspice` or `spectre`. This convention enables automatic discovery and ensures deterministic template selection based on the `--backend` flag to `cascode emit`.
+Backend template references use filenames relative to the bench definition file. The paths follow the naming convention `{BenchName}.{backend}.tpl` where backend is `ngspice` or `spectre`. During build, these files are embedded, and `cascode emit` selects the embedded variant that matches the chosen backend.
 
 ---
 
@@ -91,7 +91,8 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 | Variable | Type | Description | Example |
 |----------|------|-------------|---------|
 | `circuit_name` | string | Circuit name from ACIR | `"OTA5TSingleEnded"` |
-| `bench_name` | string | Bench name from ACIR benches block | `"SEOpAmpACBench"` |
+| `bench_name` | string | Bench name from ACIR bench definition | `"ACBench"` |
+| `bench_config` | object | Bench configuration key/value pairs | `{ "points": "100", "sweep": "decade" }` |
 | `design_file` | string | Design netlist filename | `"OTA5TSingleEnded.sp"` |
 | `port_list` | string | Space-separated port/supply/ground names | `"IN_P IN_N OUT VTAIL VDD GND"` |
 | `out_node` | string | Primary output node (first OUT port) | `"OUT"` |
@@ -111,6 +112,8 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 | `section` | string or null | Preferred section for `includes_with_section` | `"tt"` |
 
 Templates should iterate over the include lists rather than manually including `design_file`, since the design file is appended to `includes_without_section` and PDK model decks may be present in `includes_with_section` when a workspace database is available.
+
+`bench_name` is the alias used in constraints and results. The builtin bench name selected by the `bench` definition determines which embedded template is used for each backend. `bench_config` is a string-to-string map of bench configuration entries.
 
 The `supply_elements` and `load_elements` variables provide pre-rendered SPICE netlist fragments, which is the recommended approach for most templates. See Section 4.3.4 for details on the structured harness data available for advanced use cases.
 
@@ -176,7 +179,7 @@ Spectre templates receive additional environment parameters in the `env` object,
 | `ac_stop_hz` | double | AC sweep stop frequency | Constraint-derived: max(GBW*10, 1G) |
 | `ac_mag` | double | AC stimulus magnitude | Default 1.0 |
 
-The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : GainBandwidth @ OUT >= 100M Hz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
+The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
 
 Passband Frequency Derivation:
 
@@ -297,7 +300,7 @@ quit
 
 ### 4.3.7 Simulation Trace Output (JSONL)
 
-`cascode bench run` runs the simulator for the benches declared by the design and writes artifacts into the job directory. When a bench name is provided, it runs only that bench.
+`cascode bench run` runs the simulator for the benches referenced by numeric constraints in the design and writes artifacts into the job directory. When a bench name is provided, it runs only that bench.
 
 For each executed bench, it writes:
 
@@ -312,7 +315,7 @@ The intended CLI shape is concise:
 cascode bench run <acir_file> [<bench>] [-o <output_dir>] [-b <bench>] [--backend ngspice]
 ```
 
-If `<bench>` is omitted, `cascode bench run` executes all benches listed in the ACIR `benches:` block. To run a single bench (for faster iteration and debugging), pass the bench name as either the second positional argument or `-b/--bench`.
+If `<bench>` is omitted, `cascode bench run` executes all benches referenced by numeric constraints in the ACIR document. To run a single bench (for faster iteration and debugging), pass the bench name as either the second positional argument or `-b/--bench`.
 
 Templates must emit two kinds of lines to stdout when running under ngspice:
 
@@ -376,43 +379,17 @@ ac ac start={{ ac_start_hz }} stop={{ ac_stop_hz }} annotate=status
 
 ---
 
-## 4.4 Template Discovery
+## 4.4 Builtin Template Resolution
 
-The `TemplateDiscovery` service locates template files through a deterministic search strategy that supports both project-local customization and fallback to standard library definitions.
+Bench templates are embedded resources packaged with Cascode.Bench. Resolution is name- and backend-based: a bench definition that declares `builtin SEOpAmpACBench` and a `ngspice` backend resolves `SEOpAmpACBench.ngspice.tpl` from the embedded library. If the embedded resource is missing, `cascode emit` fails with an error that lists the available builtin benches. ACIR presently does not support filesystem discovery or project-local overrides.
 
-### 4.4.1 Resolution Order
-
-Given a bench name (e.g., `SEOpAmpACBench`) and backend type (ngspice or spectre), discovery proceeds:
-
-1. **Upward traversal**: Starting from the ACIR file's directory, traverse parent directories looking for a `benches/` subdirectory containing the target template file (`{BenchName}.{backend}.tpl`)
-
-2. **Standard library fallback**: If upward traversal finds no match, check `lib/std/amp/benches/` relative to the workspace root
-
-3. **Return null**: If neither search succeeds, return null (the CLI will report an error)
-
-### 4.4.2 Backend Selection
-
-The backend flag (`--backend ngspice` or `--backend spectre`) determines the template filename suffix:
-- Ngspice: `{BenchName}.ngspice.tpl`
-- Spectre: `{BenchName}.spectre.tpl`
-
-This enables a single bench definition to support multiple simulators with different netlist syntax, while sharing the same bench semantics (metrics, measurement intent).
-
-### 4.4.3 Custom Bench Placement
-
-To override a standard library bench or define project-specific benches:
-
-1. Create a `benches/` folder in your project (at any level above the ACIR files)
-2. Place `.cas` and `.tpl` files in this folder
-3. Template discovery will find local definitions before falling back to `lib/std/amp/benches/`
-
-This strategy enables gradual customization: start with standard benches, then selectively override specific templates as needed for project requirements.
+Backend selection follows filename suffixes (`.ngspice.tpl` or `.spectre.tpl`) so a single bench definition can target multiple simulators while preserving consistent metrics.
 
 ---
 
 ## 4.5 ACIR Integration
 
-The testbench system integrates with ACIR through three primary blocks: `harness:`, `constraints:`, and `benches:`.
+The testbench system integrates with ACIR through three primary blocks: document-level `bench` definitions, `constraints:`, and `harness:`.
 
 ### 4.5.1 Harness Block
 
@@ -441,38 +418,35 @@ Template variables derived from harness entries:
 
 ### 4.5.2 Constraints Block
 
-The `constraints:` block defines pass/fail criteria and measurement intents:
+The `constraints:` block defines pass/fail criteria tied to specific benches:
 
 ```acir
 constraints:
   numeric:
-    c_gbw : GainBandwidth @ OUT >= 100M Hz
-    c_gain : PassbandGain @ OUT >= 40 dB
-    c_pm : PhaseMargin @ OUT >= 60 deg
-    c_pwr : Power <= 500u W
+    c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
+    c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+    c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+    c_pwr : DCBench::QuiescentPower <= 500uW
   tech:
-    t_lmin : L >= 180n m on *
-  measure:
-    m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-    m_gain : SEOpAmpACBench PassbandGain @ OUT
-    m_pm : SEOpAmpACBench PhaseMargin @ OUT
+    t_lmin : L >= 180nm on *
 ```
 
 **Numeric constraints** drive both AC sweep parameter derivation and post-simulation compliance checking. The `ACIRBenchAdapter` examines GainBandwidth constraints to set appropriate `ac_start_hz` and `ac_stop_hz` values, ensuring the frequency sweep captures the circuit's expected bandwidth.
 
-**Measurement intents** document which bench produces which metrics, enabling future optimizations like selective bench execution.
+### 4.5.3 Bench Definitions
 
-### 4.5.3 Benches Block
-
-The `benches:` block lists which tests to run:
+Bench definitions live at document scope and bind a bench name to either a builtin bench definition or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the specified trait.
 
 ```acir
-benches:
-  SEOpAmpACBench
-  SEOpAmpStability
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
 ```
 
-During `cascode emit`, each named bench triggers template discovery and netlist generation. The bench name must match a `.cas` definition file discoverable through the template resolution strategy.
+During `cascode emit`, each bench referenced by numeric constraints triggers builtin template resolution and netlist generation.
 
 ---
 
@@ -493,12 +467,12 @@ cascode emit <acir_file> --out <output_dir> --backend {ngspice|spectre}
 
 **Generated Artifacts:**
 
-For an ACIR file `OTA5TSingleEnded.el.cir` with bench `SEOpAmpACBench`:
+For an ACIR file `OTA5TSingleEnded.el.cir` with bench `ACBench`:
 
 ```bash
 <output_dir>/
   OTA5TSingleEnded.sp                    # Design subcircuit
-  OTA5TSingleEnded_SEOpAmpACBench.sp     # Ngspice testbench
+  OTA5TSingleEnded_ACBench.sp            # Ngspice testbench
   spec.json                               # Testbench metadata
 ```
 
@@ -507,7 +481,7 @@ Or with `--backend spectre`:
 ```bash
 <output_dir>/
   OTA5TSingleEnded.sp                    # Design subcircuit
-  OTA5TSingleEnded_SEOpAmpACBench.scs    # Spectre testbench
+  OTA5TSingleEnded_ACBench.scs           # Spectre testbench
   spec.json                               # Testbench metadata
 ```
 
@@ -528,7 +502,7 @@ cascode verify <acir_file> <results_json|trace_jsonl>
 ```json
 {
   "circuit": "OTA5TSingleEnded",
-  "bench": "SEOpAmpACBench",
+  "bench": "ACBench",
   "measurements": {
     "gain": {
       "metric": "PassbandGain",
@@ -561,10 +535,10 @@ cascode verify <acir_file> <results_json|trace_jsonl>
 ```text
 Constraint Compliance Report for OTA5TSingleEnded
 --------------------------------------------------
-c_gbw    GainBandwidth @ OUT >= 100M Hz      PASS (measured: 150M Hz)
-c_gain   PassbandGain @ OUT >= 40 dB        PASS (measured: 45.2 dB)
-c_pm     PhaseMargin @ OUT >= 60 deg       PASS (measured: 65.3 deg)
-c_pwr    Power <= 500u W       PASS (measured: 350u W)
+c_gbw    ACBench::GainBandwidth at net::OUT >= 100MHz     PASS (measured: 150MHz)
+c_gain   ACBench::PassbandGain at net::OUT >= 40dB       PASS (measured: 45.2dB)
+c_pm     ACBench::PhaseMargin at net::OUT >= 60deg       PASS (measured: 65.3deg)
+c_pwr    DCBench::QuiescentPower <= 500uW                PASS (measured: 350uW)
 --------------------------------------------------
 Result: 4/4 constraints satisfied
 ```
@@ -581,11 +555,11 @@ Numeric constraints support five comparison operators:
 
 | Operator | Meaning | Example |
 |----------|---------|---------|
-| `>=` | Greater than or equal | `GainBandwidth @ OUT >= 100M Hz` |
-| `<=` | Less than or equal | `Power <= 500u W` |
-| `==` | Equal (with 1e-9 tolerance) | `Gain @ OUT == 40 dB` |
-| `>` | Strictly greater than | `PhaseMargin @ OUT > 45 deg` |
-| `<` | Strictly less than | `RiseTime @ OUT < 10n s` |
+| `>=` | Greater than or equal | `ACBench::GainBandwidth at net::OUT >= 100MHz` |
+| `<=` | Less than or equal | `DCBench::QuiescentPower <= 500uW` |
+| `==` | Equal (with 1e-9 tolerance) | `ACBench::PassbandGain at net::OUT == 40dB` |
+| `>` | Strictly greater than | `ACBench::PhaseMargin at net::OUT > 45deg` |
+| `<` | Strictly less than | `StepToggle::RiseTime at net::OUT < 10ns` |
 
 ### 4.7.2 Value Parsing with SI Prefixes
 
@@ -607,15 +581,15 @@ Values in constraints and results may use different prefixes; the parser normali
 
 ### 4.7.3 Metric and Node Matching
 
-Constraints specify which metric to check and optionally which node:
+Constraints specify which bench metric to check and optionally which node:
 
 ```acir
-c_gain : PassbandGain @ OUT >= 40 dB
+c_gain : ACBench::PassbandGain at net::OUT >= 40dB
 ```
 
 The compliance checker matches this constraint to a measurement result by:
-1. Case-insensitive metric name comparison (`PassbandGain` matches `passbandgain`)
-2. Node name matching if specified (`@ OUT` requires result to have `"node": "OUT"`)
+1. Case-insensitive bench and metric name comparison (`ACBench::PassbandGain` matches `acbench::passbandgain`)
+2. Node name matching if specified (`at net::OUT` requires result to have `"node": "OUT"`)
 3. If multiple measurements have the same metric but different nodes, the node selector disambiguates
 
 ### 4.7.4 Missing Measurements
@@ -623,7 +597,7 @@ The compliance checker matches this constraint to a measurement result by:
 If a constraint references a metric not present in the results JSON, the checker reports:
 
 ```text
-c_gain   PassbandGain @ OUT >= 40 dB        FAIL (not measured)
+c_gain   ACBench::PassbandGain at net::OUT >= 40dB        FAIL (not measured)
 ```
 
 This situation indicates either:
@@ -635,7 +609,7 @@ This situation indicates either:
 
 ## 4.8 Standard Library Benches
 
-The standard library at `lib/std/amp/benches/` provides canonical bench definitions for common analog circuit tests:
+The standard library at `lib/benches/` provides canonical bench definitions for common analog circuit tests. These templates are embedded at build time and are the only benches currently available:
 
 | Circuit Type | Bench | Analysis Type | Spectre | ngspice |
 |-------------|-------|--------------|---------|---------|
@@ -756,16 +730,16 @@ This bench respects `sweep InputDCCommonMode [start:step:stop]` in the harness. 
 
 ---
 
-## 4.9 Authoring Custom Benches
+## 4.9 Extending the Builtin Bench Library
 
-To create a new bench definition and templates:
+ACIR presently resolves only builtin benches. To add a new builtin bench, place the definition and templates under `lib/benches` and rebuild Cascode so the templates are embedded into the assembly.
 
-### 4.9.1 Step 1: Create Bench Definition
+### 4.9.1 Bench Definition
 
-Create `{BenchName}.cas` in a `benches/` folder (either project-local or in `lib/std/amp/benches/`):
+Create `{BenchName}.cas` in `lib/benches`:
 
 ```cascode
-package lib.std.amp.benches;
+package lib.benches;
 
 bench MyCustomBench {
   ngspice_template = "MyCustomBench.ngspice.tpl";
@@ -831,11 +805,18 @@ Create `{BenchName}.spectre.tpl` if Spectre support is required. Use the standar
 
 ### 4.9.4 Step 4: Reference from ACIR
 
-In your ACIR circuit, add the bench name to the `benches:` block:
+In your ACIR document, add a bench definition and reference it from constraints:
 
 ```acir
-benches:
-  MyCustomBench
+bench MyCustomBench for SingleEndedOpAmp
+  builtin MyCustomBench
+  outputs:
+    Metric1
+    Metric2
+
+constraints:
+  numeric:
+    c_metric1 : MyCustomBench::Metric1 at net::OUT >= 1.0V
 ```
 
 ### 4.9.5 Template Authoring Guidelines
@@ -863,9 +844,21 @@ For ngspice, use `echo` commands. For Spectre, use appropriate output directives
 ### 4.10.1 ACIR Circuit
 
 ```acir
-ACIR 1
+ACIR 3.0
 
-circuit OTA5TSingleEnded
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -876,29 +869,28 @@ circuit OTA5TSingleEnded
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN_P, S->tnode) : L=180n M=1 W=2u nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN_N, S->tnode) : L=180n M=1 W=2u nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : L=180n M=1 W=4u nmos
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : L=180n M=1 W=2u pmos
+    nmos dp.M_N (.G--IN_P, .D--mirror_gate, .S--tnode, .B--GND) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.G--IN_N, .D--OUT, .S--tnode, .B--GND) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.G--VTAIL, .D--tnode, .S--GND, .B--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.G--mirror_gate, .D--mirror_gate, .S--VDD, .B--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.G--mirror_gate, .D--OUT, .S--VDD, .B--VDD) : pmos
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : Power <= 500u W
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 500uW
     tech:
-      t_lmin : L >= 180n m on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
+      t_lmin : L >= 180nm on *
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
 ```
 
 ### 4.10.2 Emit Command
@@ -908,15 +900,15 @@ $ cascode emit tests/golden/acir/ota/OTA5TSingleEnded.el.cir \
     --out /tmp/ota-test --backend ngspice
 
 Design netlist: /tmp/ota-test/OTA5TSingleEnded.sp
-Testbench: /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench.sp
+Testbench: /tmp/ota-test/OTA5TSingleEnded_ACBench.sp
 Emitted 1 design(s) and 1 testbench(es).
 ```
 
 ### 4.10.3 Generated Testbench (excerpt)
 
 ```spice
-* OTA5TSingleEnded_SEOpAmpACBench - Generated from ACIR EL
-.title OTA5TSingleEnded_SEOpAmpACBench
+* OTA5TSingleEnded_ACBench - Generated from ACIR EL
+.title OTA5TSingleEnded_ACBench
 
 * Generic MOSFET models for simulation
 .model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
@@ -962,7 +954,7 @@ After running ngspice and post-processing:
 ```json
 {
   "circuit": "OTA5TSingleEnded",
-  "bench": "SEOpAmpACBench",
+  "bench": "ACBench",
   "measurements": {
     "gain": {
       "metric": "PassbandGain",
@@ -982,8 +974,8 @@ After running ngspice and post-processing:
       "unit": "deg",
       "node": "OUT"
     },
-    "power": {
-      "metric": "Power",
+    "quiescent_power": {
+      "metric": "QuiescentPower",
       "value": 0.00035,
       "unit": "W",
       "node": null
@@ -995,14 +987,14 @@ After running ngspice and post-processing:
 ### 4.10.5 Verify Command
 
 ```bash
-$ cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir /tmp/ota-test/OTA5TSingleEnded_SEOpAmpACBench_results.json
+$ cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir /tmp/ota-test/OTA5TSingleEnded_ACBench_results.json
 
 Constraint Compliance Report for OTA5TSingleEnded
 --------------------------------------------------
-c_gbw    GainBandwidth @ OUT >= 100M Hz      PASS (measured: 150M Hz)
-c_gain   PassbandGain @ OUT >= 40 dB        PASS (measured: 45.2 dB)
-c_pm     PhaseMargin @ OUT >= 60 deg       PASS (measured: 65.3 deg)
-c_pwr    Power <= 500u W       PASS (measured: 350u W)
+c_gbw    ACBench::GainBandwidth at net::OUT >= 100MHz     PASS (measured: 150MHz)
+c_gain   ACBench::PassbandGain at net::OUT >= 40dB       PASS (measured: 45.2dB)
+c_pm     ACBench::PhaseMargin at net::OUT >= 60deg       PASS (measured: 65.3deg)
+c_pwr    DCBench::QuiescentPower <= 500uW                PASS (measured: 350uW)
 --------------------------------------------------
 Result: 4/4 constraints satisfied
 ```
@@ -1015,7 +1007,7 @@ Result: 4/4 constraints satisfied
 
 The testbench template system comprises several C# components in the Cascode toolchain:
 
-- **`TemplateDiscovery`** (`tools/bench/TemplateDiscovery.cs`): Implements upward traversal and standard library fallback for template file location
+- **`BenchTemplateLibrary`** (`tools/bench/BenchTemplateLibrary.cs`): Loads embedded builtin templates and provides lookup by bench name and backend
 - **`TemplateRenderer`** (`tools/bench/TemplateRenderer.cs`): Wraps Scriban template engine for netlist generation
 - **`ACIRBenchAdapter`** (`tools/acir/ACIRBenchAdapter.cs`): Extracts harness data from ACIR and derives intelligent defaults (AC sweep from constraints, load impedance from harness, etc.)
 - **`ACIRTemplateHarness`** (`tools/acir/ACIRTemplateHarness.cs`): Builds the template model object with all variables and nested structures

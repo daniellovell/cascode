@@ -1,0 +1,11 @@
+package lib.benches;
+
+// Slew bench for single-ended operational amplifiers.
+bench SEOpAmpSlew {
+  spectre_template = "SEOpAmpSlew.spectre.tpl";
+  ngspice_template = "SEOpAmpSlew.ngspice.tpl";
+  metrics [
+    // Examples: SlewRise: V/s, SlewFall: V/s
+  ]
+}
+

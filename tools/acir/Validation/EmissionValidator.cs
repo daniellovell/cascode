@@ -184,10 +184,10 @@ public static class EmissionValidator
                     var suggestion = deviceType switch
                     {
                         "nmos" => terminal == "B"
-                            ? "Add bulk connection, typically B->GND for NMOS"
+                            ? "Add bulk connection, typically .B--GND for NMOS"
                             : $"Add {terminal} terminal binding",
                         "pmos" => terminal == "B"
-                            ? "Add bulk connection, typically B->VDD for PMOS"
+                            ? "Add bulk connection, typically .B--VDD for PMOS"
                             : $"Add {terminal} terminal binding",
                         _ => $"Add {terminal} terminal binding",
                     };
@@ -217,7 +217,7 @@ public static class EmissionValidator
                 result.AddError(
                     "EMIT-002",
                     $"Device '{device.Id}' terminal '{terminal}' references undefined net '{netName}'",
-                    $"device {device.Id}.{terminal} -> {netName}",
+                    $"device {device.Id}.{terminal}--{netName}",
                     $"Available nets: {netList}"
                 );
             }

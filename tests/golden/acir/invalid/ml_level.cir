@@ -1,7 +1,7 @@
-ACIR 2.0
+ACIR 3.0
 
-; Circuit at ML level - EMIT-005 violation
-; Cannot emit SPICE from non-EL level circuit
+// Circuit at ML level - EMIT-005 violation
+// Cannot emit SPICE from non-EL level circuit
 
 circuit MLLevelExample
   level ML
@@ -15,5 +15,5 @@ circuit MLLevelExample
   fill:
     net tnode : analog
 
-    inst dp (IN->IN, OUT->OUT, BIAS->tnode) : DiffPair
+    inst dp (.IN--IN, .OUT--OUT, .BIAS--tnode) : DiffPair
       param p = NMOS

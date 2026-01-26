@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -13,9 +13,9 @@ trait LoadPairLike:
   port SOURCE : Diff
   connectors:
     to DiffPairLike:
-      DRAIN -> OUT
+      DRAIN--OUT
     to LoadPairLike:
-      DRAIN -> SOURCE
+      DRAIN--SOURCE
 
 trait CurrentMirrorLike:
   port RAIL : Diff
@@ -23,13 +23,25 @@ trait CurrentMirrorLike:
   port TAP[0] : analog
   connectors:
     to LoadPairLike:
-      SENSE -> SOURCE.N
-      TAP[0] -> SOURCE.P
+      SENSE--SOURCE.N
+      TAP[0]--SOURCE.P
     to CurrentMirrorLike:
-      SENSE -> RAIL.N
-      TAP[0] -> RAIL.P
+      SENSE--RAIL.N
+      TAP[0]--RAIL.P
 
-circuit TelescopicCascodeSingleEnded_Attach
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -38,46 +50,38 @@ circuit TelescopicCascodeSingleEnded_Attach
   port VBN : bias
   port VTAIL : bias
   fill:
-    inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
+    inst dp (.GND--GND, .VDD--VDD) : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
       size Tail = (W=4u, L=180n, M=1)
-    inst nl (nl.GND->GND, nl.VDD->VDD) : LoadPair_N
+    inst nl (.GND--GND, .VDD--VDD) : LoadPair_N
       size Cascode = (W=2u, L=180n, M=1)
-    inst cm_lo (cm_lo.GND->GND, cm_lo.VDD->VDD) : CurrentMirror_P
+    inst cm_lo (.GND--GND, .VDD--VDD) : CurrentMirror_P
       size Mirror = (W=2u, L=180n, M=1)
-    inst cm_hi (cm_hi.GND->GND, cm_hi.VDD->VDD) : CurrentMirror_P
+    inst cm_hi (.GND--GND, .VDD--VDD) : CurrentMirror_P
       size Mirror = (W=2u, L=180n, M=1)
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach cm_lo to nl via CurrentMirrorLike::LoadPairLike as mirror_lo
     attach cm_hi to cm_lo via CurrentMirrorLike::CurrentMirrorLike as mirror_hi
-    connect dp.IN -> IN
-    connect dp.TAIL -> VTAIL
-    connect nl.BIAS -> VBN
-    connect cm_lo.TAP[0] -> OUT
-    connect cm_hi.RAIL -> VDD
+    dp.IN--IN
+    dp.TAIL--VTAIL
+    nl.BIAS--VBN
+    cm_lo.TAP[0]--OUT
+    cm_hi.RAIL--VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 40M Hz
-      c_gain : PassbandGain >= 30 dB
-      c_pm : PhaseMargin >= 60 deg
-      c_pwr : QuiescentPower <= 1m W
+      c_gbw : ACBench::GainBandwidth >= 40MHz
+      c_gain : ACBench::PassbandGain >= 30dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 1mW
     tech:
-      t_lmin : L >= 180n m on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth
-      m_gain : SEOpAmpACBench PassbandGain
-      m_pm : SEOpAmpACBench PhaseMargin
-      m_pwr : SEOpAmpDCBench QuiescentPower
+      t_lmin : L >= 180nm on *
   harness:
     supply VDD = 1.8V
     bias VBN = 0.9V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -89,11 +93,14 @@ circuit DiffPair : DiffPairLike
   port TAIL : bias
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.N, G->IN.P, S->tnode) : size=InputPair nmos
-    nmos M_P (B->GND, D->OUT.P, G->IN.N, S->tnode) : size=InputPair nmos
-    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
+    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
+      size InputPair
+    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nmos
+      size InputPair
+    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
+      size Tail
 
-circuit LoadPair_N : LoadPairLike
+circuit LoadPair_N implements LoadPairLike
   level EL
   inline
   size Cascode
@@ -103,10 +110,12 @@ circuit LoadPair_N : LoadPairLike
   port DRAIN : Diff
   port SOURCE : Diff
   fill:
-    nmos M_P (B->GND, D->SOURCE.P, G->BIAS, S->DRAIN.P) : size=Cascode nmos
-    nmos M_N (B->GND, D->SOURCE.N, G->BIAS, S->DRAIN.N) : size=Cascode nmos
+    nmos M_P (.B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P) : nmos
+      size Cascode
+    nmos M_N (.B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N) : nmos
+      size Cascode
 
-circuit CurrentMirror_P : CurrentMirrorLike
+circuit CurrentMirror_P implements CurrentMirrorLike
   level EL
   inline
   param ratio : real = 1
@@ -117,5 +126,8 @@ circuit CurrentMirror_P : CurrentMirrorLike
   port SENSE : analog
   port TAP[0] : analog
   fill:
-    pmos M_SENSE (B->VDD, D->SENSE, G->SENSE, S->RAIL.N) : size=Mirror pmos
-    pmos M_TAP0 (B->VDD, D->TAP[0], G->SENSE, S->RAIL.P) : M=$ratio size=Mirror pmos
+    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--RAIL.N) : pmos
+      size Mirror
+    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--RAIL.P) : pmos
+      size Mirror
+      M = $ratio

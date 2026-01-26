@@ -1,16 +1,21 @@
-ACIR 2.0
+ACIR 3.0
 
-circuit InvalidAutoSweep : SingleEndedAmp
+bench DCBench for SingleEndedAmp
+  builtin SEAmpDCBench
+  outputs:
+    OutputDCBias
+    QuiescentPower
+
+circuit InvalidAutoSweep implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
   port IN : analog
   port OUT : analog
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
+    nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
+      size (W=10u, L=180n, M=1)
   harness:
     supply VDD = 1.8V
     sweep InputDCBias [Auto]
     load OUT C=1pF
-  benches:
-    SEAmpDCBench

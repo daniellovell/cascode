@@ -301,12 +301,11 @@ internal sealed class VerifyCommandModule : ICommandModule
         if (report.UncheckedByBench.Count > 0)
         {
             _state.AddMessage("");
-            var totalUnchecked = report.UncheckedCount;
-            var constraintWord = totalUnchecked == 1 ? "constraint" : "constraints";
 
             foreach (var kvp in report.UncheckedByBench)
             {
                 var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
+                var constraintWord = kvp.Value.Count == 1 ? "constraint" : "constraints";
                 _state.AddMessage(
                     $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
                 );

@@ -1,4 +1,4 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
@@ -13,11 +13,23 @@ trait LoadPairLike:
   port SOURCE : Diff
   connectors:
     to DiffPairLike:
-      DRAIN -> OUT
+      DRAIN--OUT
     to LoadPairLike:
-      DRAIN -> SOURCE
+      DRAIN--SOURCE
 
-circuit TelescopicCascodeFullyDiff_Attach
+bench ACBench for FullyDiffOpAmp
+  builtin FDOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for FullyDiffOpAmp
+  builtin FDOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
@@ -28,37 +40,32 @@ circuit TelescopicCascodeFullyDiff_Attach
   port VBP2 : bias
   port VTAIL : bias
   fill:
-    inst dp (dp.GND->GND, dp.VDD->VDD) : DiffPair
+    inst dp (.GND--GND, .VDD--VDD) : DiffPair
       size InputPair = (W=4u, L=500n, M=1)
       size Tail = (W=8u, L=500n, M=1)
-    inst nl (nl.GND->GND, nl.VDD->VDD) : LoadPair_N
+    inst nl (.GND--GND, .VDD--VDD) : LoadPair_N
       size Cascode = (W=4u, L=500n, M=1)
-    inst pl1 (pl1.GND->GND, pl1.VDD->VDD) : LoadPair_P
+    inst pl1 (.GND--GND, .VDD--VDD) : LoadPair_P
       size Cascode = (W=8u, L=500n, M=1)
-    inst pl2 (pl2.GND->GND, pl2.VDD->VDD) : LoadPair_P
+    inst pl2 (.GND--GND, .VDD--VDD) : LoadPair_P
       size Cascode = (W=8u, L=500n, M=1)
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach pl2 to pl1 to nl via LoadPairLike::LoadPairLike as p_stack
-    connect dp.IN -> IN
-    connect dp.TAIL -> VTAIL
-    connect nl.BIAS -> VBN
-    connect nl.SOURCE -> OUT
-    connect pl1.BIAS -> VBP1
-    connect pl2.BIAS -> VBP2
-    connect pl2.SOURCE -> VDD
+    dp.IN--IN
+    dp.TAIL--VTAIL
+    nl.BIAS--VBN
+    nl.SOURCE--OUT
+    pl1.BIAS--VBP1
+    pl2.BIAS--VBP2
+    pl2.SOURCE--VDD
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 500k Hz
-      c_gain : PassbandGain >= 2 dB
-      c_pm : PhaseMargin >= 60 deg
-      c_pwr : QuiescentPower <= 1m W
+      c_gbw : ACBench::GainBandwidth >= 500kHz
+      c_gain : ACBench::PassbandGain >= 2dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 1mW
     tech:
-      t_lmin : L >= 500n m on *
-    measure:
-      m_gbw : FDOpAmpACBench GainBandwidth
-      m_gain : FDOpAmpACBench PassbandGain
-      m_pm : FDOpAmpACBench PhaseMargin
-      m_pwr : FDOpAmpDCBench QuiescentPower
+      t_lmin : L >= 500nm on *
   harness:
     supply VDD = 1.8V
     bias VBN = 0.75V
@@ -66,11 +73,8 @@ circuit TelescopicCascodeFullyDiff_Attach
     bias VBP2 = 1.1V
     bias VTAIL = 0.7V
     load OUT (C=1pF || R=1G)
-  benches:
-    FDOpAmpACBench
-    FDOpAmpDCBench
 
-circuit DiffPair : DiffPairLike
+circuit DiffPair implements DiffPairLike
   level EL
   inline
   size InputPair
@@ -82,11 +86,14 @@ circuit DiffPair : DiffPairLike
   port TAIL : bias
   fill:
     net tnode : analog
-    nmos M_N (B->GND, D->OUT.P, G->IN.P, S->tnode) : size=InputPair nmos
-    nmos M_P (B->GND, D->OUT.N, G->IN.N, S->tnode) : size=InputPair nmos
-    nmos M_TAIL (B->GND, D->tnode, G->TAIL, S->GND) : size=Tail nmos
+    nmos M_N (.B--GND, .D--OUT.P, .G--IN.P, .S--tnode) : nmos
+      size InputPair
+    nmos M_P (.B--GND, .D--OUT.N, .G--IN.N, .S--tnode) : nmos
+      size InputPair
+    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
+      size Tail
 
-circuit LoadPair_N : LoadPairLike
+circuit LoadPair_N implements LoadPairLike
   level EL
   inline
   size Cascode
@@ -96,10 +103,12 @@ circuit LoadPair_N : LoadPairLike
   port DRAIN : Diff
   port SOURCE : Diff
   fill:
-    nmos M_P (B->GND, D->SOURCE.P, G->BIAS, S->DRAIN.P) : size=Cascode nmos
-    nmos M_N (B->GND, D->SOURCE.N, G->BIAS, S->DRAIN.N) : size=Cascode nmos
+    nmos M_P (.B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P) : nmos
+      size Cascode
+    nmos M_N (.B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N) : nmos
+      size Cascode
 
-circuit LoadPair_P : LoadPairLike
+circuit LoadPair_P implements LoadPairLike
   level EL
   inline
   size Cascode
@@ -109,5 +118,7 @@ circuit LoadPair_P : LoadPairLike
   port DRAIN : Diff
   port SOURCE : Diff
   fill:
-    pmos M_P (B->VDD, D->DRAIN.P, G->BIAS, S->SOURCE.P) : size=Cascode pmos
-    pmos M_N (B->VDD, D->DRAIN.N, G->BIAS, S->SOURCE.N) : size=Cascode pmos
+    pmos M_P (.B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P) : pmos
+      size Cascode
+    pmos M_N (.B--VDD, .D--DRAIN.N, .G--BIAS, .S--SOURCE.N) : pmos
+      size Cascode

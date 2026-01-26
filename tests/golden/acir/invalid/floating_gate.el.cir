@@ -1,7 +1,7 @@
-ACIR 2.0
+ACIR 3.0
 
-; Circuit with a floating gate - ERC-001 violation
-; The gate of M1 connects to 'floating_net' which has no driver
+// Circuit with a floating gate - ERC-001 violation
+// The gate of M1 connects to 'floating_net' which has no driver
 
 circuit FloatingGateExample
   level EL
@@ -14,4 +14,5 @@ circuit FloatingGateExample
   fill:
     net floating_net : analog
 
-    nmos M1 (G->floating_net, D->OUT, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos
+    nmos M1 (.G--floating_net, .D--OUT, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n, M=1)

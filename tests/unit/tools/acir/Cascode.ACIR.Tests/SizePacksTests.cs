@@ -97,7 +97,7 @@ circuit Top
   ground GND
   port OUT : analog
   fill:
-    inst leaf (VDD->VDD, GND->GND, OUT->OUT) : Leaf
+    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, M=1)
 
 circuit Leaf
@@ -110,7 +110,8 @@ circuit Leaf
   port OUT : analog
   fill:
     net t : analog
-    nmos M1 (B->GND, D->OUT, G->OUT, S->t) : size=InputPair nmos
+    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
+      size InputPair
 ";
 
         var result = ACIRReader.TryParse(acir, "sizes.cir");
@@ -151,7 +152,7 @@ circuit Top
   ground GND
   port OUT : analog
   fill:
-    inst leaf (VDD->VDD, GND->GND, OUT->OUT) : Leaf
+    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, M=1)
 
 circuit Leaf
@@ -164,7 +165,9 @@ circuit Leaf
   fill:
     net t : analog
     // Explicit W should override size-pack W
-    nmos M1 (B->GND, D->OUT, G->OUT, S->t) : size=InputPair W=3u nmos
+    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
+      size InputPair
+      W = 3u
 ";
 
         var result = ACIRReader.TryParse(acir, "sizes.cir");
@@ -195,7 +198,7 @@ circuit Top
   ground GND
   port OUT : analog
   fill:
-    inst leaf (VDD->VDD, GND->GND, OUT->OUT) : Leaf
+    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, W=3u)
 
 circuit Leaf
@@ -207,7 +210,8 @@ circuit Leaf
   port OUT : analog
   fill:
     net t : analog
-    nmos M1 (B->GND, D->OUT, G->OUT, S->t) : size=InputPair nmos
+    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
+      size InputPair
 ";
 
         var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
@@ -230,7 +234,8 @@ circuit Top
   ground GND
   port OUT : analog
   fill:
-    nmos M1 (B->GND, D->OUT, G->OUT, S->GND) : size=Params nmos
+    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--GND) : nmos
+      size Params
 ";
 
         var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");

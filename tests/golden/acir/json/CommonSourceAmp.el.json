@@ -1,5 +1,5 @@
 {
-  "acirVersion": "1.1",
+  "acirVersion": "3.0",
   "circuit": {
     "name": "CommonSourceAmp",
     "traits": [
@@ -66,36 +66,24 @@
     "numeric": [
       {
         "id": "c_gbw",
+        "bench": "ACBench",
         "metric": "GainBandwidth",
-        "node": "OUT",
-        "op": "\u003E=",
+        "node": "net::OUT",
+        "op": ">=",
         "value": 50000000,
         "unit": "Hz"
       },
       {
         "id": "c_gain",
+        "bench": "ACBench",
         "metric": "PassbandGain",
-        "node": "OUT",
-        "op": "\u003E=",
+        "node": "net::OUT",
+        "op": ">=",
         "value": 30,
         "unit": "dB"
       }
     ],
-    "tech": [],
-    "measure": [
-      {
-        "id": "m_gbw",
-        "bench": "SEAmpACBench",
-        "metric": "GainBandwidth",
-        "node": "OUT"
-      },
-      {
-        "id": "m_gain",
-        "bench": "SEAmpACBench",
-        "metric": "PassbandGain",
-        "node": "OUT"
-      }
-    ]
+    "tech": []
   },
   "harness": {
     "supply": {
@@ -118,7 +106,15 @@
     ],
     "sweeps": []
   },
-  "benches": [
-    "SEAmpACBench"
+  "benchDefinitions": [
+    {
+      "name": "ACBench",
+      "trait": "SingleEndedAmp",
+      "builtin": "SEAmpACBench",
+      "outputs": [
+        "GainBandwidth",
+        "PassbandGain"
+      ]
+    }
   ]
 }

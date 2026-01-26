@@ -182,7 +182,7 @@ public class AcirJsonConverterEdgeCaseTests
                     {
                         Numeric = [],
                         Tech = [],
-                        Measure = [],
+                        Graph = [],
                     },
                 },
             ],
@@ -240,7 +240,7 @@ public class AcirJsonConverterEdgeCaseTests
             ""ports"": [],
             ""nets"": [],
             ""components"": [],
-            ""benches"": []
+            ""benchDefinitions"": []
         }}";
 
         var result = AcirJsonConverter.FromJson(json);
@@ -252,16 +252,17 @@ public class AcirJsonConverterEdgeCaseTests
         Assert.Empty(doc.Circuits[0].Ports);
         Assert.Empty(doc.Circuits[0].Fill!.Nets);
         Assert.Empty(doc.Circuits[0].Fill!.Devices);
-        Assert.Null(doc.Circuits[0].Benches);
+        Assert.Empty(doc.BenchDefinitions);
     }
 
     [Fact]
-    public void ToJson_EmptyBenches_EmitsEmptyArray()
+    public void ToJson_EmptyBenchDefinitions_OmitsBenchDefinitions()
     {
         var doc = new ACIRDocument
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            BenchDefinitions = [],
             Circuits =
             [
                 new Circuit
@@ -272,7 +273,6 @@ public class AcirJsonConverterEdgeCaseTests
                     Grounds = [],
                     Ports = [],
                     Fill = new FillBlock { Devices = [] },
-                    Benches = null,
                 },
             ],
         };
@@ -280,8 +280,7 @@ public class AcirJsonConverterEdgeCaseTests
         var json = AcirJsonConverter.ToJson(doc);
         var parsed = JsonDocument.Parse(json);
 
-        var benches = parsed.RootElement.GetProperty("benches");
-        Assert.Equal(0, benches.GetArrayLength());
+        Assert.False(parsed.RootElement.TryGetProperty("benchDefinitions", out _));
     }
 
     private static ACIRDocument CreateMinimalCircuit()

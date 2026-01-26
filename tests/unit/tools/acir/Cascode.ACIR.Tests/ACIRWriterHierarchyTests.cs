@@ -94,7 +94,7 @@ public class ACIRWriterHierarchyTests
 
         Assert.Contains("connectors:", output);
         Assert.Contains("to LoadBranch:", output);
-        Assert.Contains("OUT -> IN", output);
+        Assert.Contains("OUT--IN", output);
     }
 
     [Fact]
@@ -314,7 +314,7 @@ public class ACIRWriterHierarchyTests
         var output = writer.ToString();
 
         Assert.Contains("attach cm1 to load1 via CurrentMirror::LoadBranch {", output);
-        Assert.Contains("SENSE -> OUT.N", output);
+        Assert.Contains(".SENSE--OUT.N", output);
         Assert.Contains("    }", output);
     }
 
@@ -367,7 +367,7 @@ trait CurrentMirror:
   port OUT : analog
   connectors:
     to LoadBranch:
-      OUT -> IN
+      OUT--IN
 
 circuit TestCircuit
   level EL
@@ -481,7 +481,7 @@ circuit TestCircuit
   ground GND
   fill:
     attach cm1 to load1 via CurrentMirror::LoadBranch {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -543,7 +543,7 @@ circuit TestCircuit
   ground GND
   fill:
     attach a to b to c via CurrentMirror::LoadBranch {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -574,7 +574,7 @@ circuit TestCircuit
   supply VDD
   ground GND
   fill:
-    inst cm (IN->inp, OUT->outp) : CurrentMirror
+    inst cm (.IN--inp, .OUT--outp) : CurrentMirror
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");

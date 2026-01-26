@@ -1,10 +1,17 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded_Pdk
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -14,25 +21,24 @@ circuit OTA5TSingleEnded_Pdk
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN.P, S->tnode) : size=(W=2u, L=180n, M=1) nfet_01v8
-    nmos dp.M_P (B->GND, D->OUT, G->IN.N, S->tnode) : size=(W=2u, L=180n, M=1) nfet_01v8
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=4u, L=180n, M=1) nfet_01v8
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pfet_01v8
+    nmos dp.M_N (.B--GND, .D--mirror_gate, .G--IN.P, .S--tnode) : nfet_01v8
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.B--GND, .D--OUT, .G--IN.N, .S--tnode) : nfet_01v8
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nfet_01v8
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.B--VDD, .D--mirror_gate, .G--mirror_gate, .S--VDD) : pfet_01v8
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.B--VDD, .D--OUT, .G--mirror_gate, .S--VDD) : pfet_01v8
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 1M Hz
-      c_gain : PassbandGain @ OUT >= 20 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 1MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 20dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
     tech:
-      t_lmin : L >= 180n m on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
+      t_lmin : L >= 180nm on *
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench

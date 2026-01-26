@@ -1,7 +1,7 @@
-ACIR 2.0
+ACIR 3.0
 
-; Circuit with VDD-GND short - ERC-002 violation
-; Device M_short has drain on VDD and source on GND
+// Circuit with VDD-GND short - ERC-002 violation
+// Device M_short has drain on VDD and source on GND
 
 circuit VddGndShortExample
   level EL
@@ -12,4 +12,5 @@ circuit VddGndShortExample
   port IN : analog
 
   fill:
-    nmos M_short (G->IN, D->VDD, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos
+    nmos M_short (.G--IN, .D--VDD, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n, M=1)

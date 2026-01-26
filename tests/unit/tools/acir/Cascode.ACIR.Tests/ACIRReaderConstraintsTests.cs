@@ -9,7 +9,19 @@ public class ACIRReaderConstraintsTests
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+circuit Test implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -17,15 +29,12 @@ circuit Test
   port OUT : analog
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 100M Hz  // target gain-bandwidth product
-      c_gain : PassbandGain @ OUT >= 40 dB  // minimum gain requirement
-      c_pm : PhaseMargin @ OUT >= 60 deg  // phase margin for stability
-      c_pwr : Power <= 500u W
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz  // target gain-bandwidth product
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB  // minimum gain requirement
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg  // phase margin for stability
+      c_pwr : DCBench::QuiescentPower <= 500uW
     tech:
-      t_lmin : L >= 180n m on *  // minimum length per tech rules
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT  // measure GBW
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
+      t_lmin : L >= 180nm on *  // minimum length per tech rules
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -40,17 +49,12 @@ circuit Test
         Assert.Contains(constraints.Numeric, c => c.Id == "c_gbw" && c.Metric == "GainBandwidth");
         Assert.Contains(constraints.Numeric, c => c.Id == "c_gain" && c.Metric == "PassbandGain");
         Assert.Contains(constraints.Numeric, c => c.Id == "c_pm" && c.Metric == "PhaseMargin");
-        Assert.Contains(constraints.Numeric, c => c.Id == "c_pwr" && c.Metric == "Power");
+        Assert.Contains(constraints.Numeric, c => c.Id == "c_pwr" && c.Metric == "QuiescentPower");
 
         // Tech constraint should be parsed despite inline comment
         Assert.Single(constraints.Tech);
         Assert.Equal("t_lmin", constraints.Tech[0].Id);
         Assert.Equal("L", constraints.Tech[0].Param);
-
-        // Measure intents should be parsed despite inline comment
-        Assert.Equal(2, constraints.Measure.Count);
-        Assert.Contains(constraints.Measure, m => m.Id == "m_gbw");
-        Assert.Contains(constraints.Measure, m => m.Id == "m_gain");
     }
 
     [Fact]
@@ -67,7 +71,7 @@ circuit Test
     numeric:
       // This is a full line comment
       // This is another full line comment
-      c_test : Metric @ OUT >= 100M Hz
+      c_test : ACBench::Metric at net::OUT >= 100MHz
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);

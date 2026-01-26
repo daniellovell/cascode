@@ -1,7 +1,10 @@
 {
-  "acirVersion": "1.1",
+  "acirVersion": "3.0",
   "circuit": {
     "name": "OTA5TSingleEnded",
+    "traits": [
+      "SingleEndedOpAmp"
+    ],
     "level": "EL"
   },
   "supplies": [
@@ -124,69 +127,57 @@
     "numeric": [
       {
         "id": "c_gbw",
+        "bench": "ACBench",
         "metric": "GainBandwidth",
-        "node": "OUT",
-        "op": "\u003E=",
+        "node": "net::OUT",
+        "op": ">=",
         "value": 20000000,
         "unit": "Hz"
       },
       {
         "id": "c_gain",
+        "bench": "ACBench",
         "metric": "PassbandGain",
-        "node": "OUT",
-        "op": "\u003E=",
+        "node": "net::OUT",
+        "op": ">=",
         "value": 40,
         "unit": "dB"
       },
       {
         "id": "c_pm",
+        "bench": "ACBench",
         "metric": "PhaseMargin",
-        "node": "OUT",
-        "op": "\u003E=",
+        "node": "net::OUT",
+        "op": ">=",
         "value": 60,
         "unit": "deg"
       },
       {
         "id": "c_pwr",
+        "bench": "DCBench",
         "metric": "QuiescentPower",
-        "op": "\u003C=",
+        "op": "<=",
         "value": 0.0005,
         "unit": "W"
+      },
+      {
+        "id": "c_swing",
+        "bench": "TranBench",
+        "metric": "SingleEndedOutputSwing",
+        "node": "net::OUT",
+        "op": ">=",
+        "value": 1.2,
+        "unit": "Vpp"
       }
     ],
     "tech": [
       {
         "id": "t_lmin",
         "metric": "L",
-        "op": "\u003E=",
+        "op": ">=",
         "value": 1.8000000000000002E-07,
         "unit": "m",
         "scope": "*"
-      }
-    ],
-    "measure": [
-      {
-        "id": "m_gbw",
-        "bench": "SEOpAmpACBench",
-        "metric": "GainBandwidth",
-        "node": "OUT"
-      },
-      {
-        "id": "m_gain",
-        "bench": "SEOpAmpACBench",
-        "metric": "PassbandGain",
-        "node": "OUT"
-      },
-      {
-        "id": "m_pm",
-        "bench": "SEOpAmpACBench",
-        "metric": "PhaseMargin",
-        "node": "OUT"
-      },
-      {
-        "id": "m_pwr",
-        "bench": "SEOpAmpDCBench",
-        "metric": "QuiescentPower"
       }
     ]
   },
@@ -211,8 +202,32 @@
     ],
     "sweeps": []
   },
-  "benches": [
-    "SEOpAmpACBench",
-    "SEOpAmpDCBench"
+  "benchDefinitions": [
+    {
+      "name": "ACBench",
+      "trait": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpACBench",
+      "outputs": [
+        "GainBandwidth",
+        "PassbandGain",
+        "PhaseMargin"
+      ]
+    },
+    {
+      "name": "DCBench",
+      "trait": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpDCBench",
+      "outputs": [
+        "QuiescentPower"
+      ]
+    },
+    {
+      "name": "TranBench",
+      "trait": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpTranBench",
+      "outputs": [
+        "SingleEndedOutputSwing"
+      ]
+    }
   ]
 }

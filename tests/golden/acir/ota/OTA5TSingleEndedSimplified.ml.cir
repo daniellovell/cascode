@@ -1,10 +1,10 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   N : analog
   P : analog
 
-circuit OTA5TSingleEndedSimplified : SingleEndedOpAmp
+circuit OTA5TSingleEndedSimplified implements SingleEndedOpAmp
   level ML
   supply VDD
   ground GND
@@ -14,9 +14,9 @@ circuit OTA5TSingleEndedSimplified : SingleEndedOpAmp
   fill:
     inst cm : CurrentMirror
     inst dp : DiffPair
-      BASE -> GND
-      BIAS -> VTAIL
-      IN.N -> IN_N
-      IN.P -> IN_P
-      OUT.N -> OUT
+      .BASE--GND
+      .BIAS--VTAIL
+      .IN.N--IN_N
+      .IN.P--IN_P
+      .OUT.N--OUT
 

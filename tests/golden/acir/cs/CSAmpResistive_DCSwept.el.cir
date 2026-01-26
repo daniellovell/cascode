@@ -1,24 +1,27 @@
-ACIR 2.0
+ACIR 3.0
 
-circuit CSAmpResistive_DCSwept : SingleEndedAmp
+bench DCBench for SingleEndedAmp
+  builtin SEAmpDCBench
+  outputs:
+    OutputDCBias
+    QuiescentPower
+
+circuit CSAmpResistive_DCSwept implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
   port IN : analog
   port OUT : analog
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
-    resistor R_load (P->VDD, N->OUT) : R=10k
+    nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
+      size (W=10u, L=180n, M=1)
+    resistor R_load (.P--VDD, .N--OUT) : resistor
+      R = 10k
   constraints:
     numeric:
-      c_out_bias : OutputDCBias @ OUT >= 0.4 V
-      c_power : QuiescentPower <= 500u W
-    measure:
-      m_out_bias : SEAmpDCBench OutputDCBias @ OUT
-      m_power : SEAmpDCBench QuiescentPower
+      c_out_bias : DCBench::OutputDCBias at net::OUT >= 0.4V
+      c_power : DCBench::QuiescentPower <= 500uW
   harness:
     supply VDD = 1.8V
     sweep InputDCBias [0.3V:100mV:1.5V]
     load OUT C=1pF
-  benches:
-    SEAmpDCBench

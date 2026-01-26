@@ -9,7 +9,7 @@ public static class ACIRVersion
     /// ACIR major version. Increment for breaking changes.
     /// Reader rejects files with different major version.
     /// </summary>
-    public const int Major = 2;
+    public const int Major = 3;
 
     /// <summary>
     /// ACIR minor version. Increment for additive changes.

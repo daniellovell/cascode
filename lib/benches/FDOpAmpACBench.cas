@@ -1,0 +1,16 @@
+package lib.benches;
+
+// AC bench for fully differential operational amplifiers.
+bench FDOpAmpACBench {
+  spectre_template = "FDOpAmpACBench.spectre.tpl";
+  ngspice_template = "FDOpAmpACBench.ngspice.tpl";
+  metrics [
+    GainBandwidth: Hz,
+    PassbandGain: dB,
+    PhaseMargin: deg,
+    LowpassBandwidth: Hz,
+    HighpassBandwidth: Hz,
+    BandpassBandwidth: Hz
+  ]
+}
+

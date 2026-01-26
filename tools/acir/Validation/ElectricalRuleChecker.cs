@@ -92,7 +92,7 @@ public static class ElectricalRuleChecker
                 result.AddError(
                     "ERC-001",
                     $"Floating gate on device {device.Id}",
-                    $"{device.Id}.G -> {gateNet}",
+                    $"{device.Id}.G--{gateNet}",
                     "Connect gate to a driven net (port, supply, or device output)"
                 );
             }
@@ -133,7 +133,7 @@ public static class ElectricalRuleChecker
                 result.AddError(
                     "ERC-002",
                     $"VDD-GND short through device {device.Id}",
-                    $"{device.Id} (D->{drain}, S->{source})",
+                    $"{device.Id} (D--{drain}, S--{source})",
                     "Check device connectivity - drain and source cannot span supply rails directly"
                 );
             }
@@ -182,7 +182,7 @@ public static class ElectricalRuleChecker
                 result.AddError(
                     "ERC-007",
                     $"{deviceTypeName} '{device.Id}' bridges supply rails",
-                    $"{device.Id} (P->{p}, N->{n})",
+                    $"{device.Id} (P--{p}, N--{n})",
                     "This creates a direct path between VDD and GND"
                 );
             }

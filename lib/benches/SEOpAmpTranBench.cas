@@ -1,0 +1,10 @@
+package lib.benches;
+
+// Transient bench for single-ended operational amplifiers.
+bench SEOpAmpTranBench {
+  spectre_template = "SEOpAmpTranBench.spectre.tpl";
+  ngspice_template = "SEOpAmpTranBench.ngspice.tpl";
+  metrics [
+    SingleEndedOutputSwing: Vpp,
+  ]
+}

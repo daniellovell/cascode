@@ -1,10 +1,30 @@
-ACIR 2.0
+ACIR 3.0
 
 bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded
+bench ACBench for SingleEndedOpAmp
+  builtin SEOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+    LowpassBandwidth
+    HighpassBandwidth
+    BandpassBandwidth
+
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+bench TranBench for SingleEndedOpAmp
+  builtin SEOpAmpTranBench
+  outputs:
+    SingleEndedOutputSwing
+
+circuit OTA5TSingleEnded implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -14,28 +34,26 @@ circuit OTA5TSingleEnded
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN.P, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN.N, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=4u, L=180n, M=1) nmos
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
+    nmos dp.M_N (.B--GND, .D--mirror_gate, .G--IN.P, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.B--GND, .D--OUT, .G--IN.N, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.B--VDD, .D--mirror_gate, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.B--VDD, .D--OUT, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
-      c_gbw : GainBandwidth @ OUT >= 20M Hz
-      c_gain : PassbandGain @ OUT >= 40 dB
-      c_pm : PhaseMargin @ OUT >= 60 deg
-      c_pwr : QuiescentPower <= 500u W
+      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 500uW
+      c_swing : TranBench::SingleEndedOutputSwing at net::OUT >= 1.2Vpp
     tech:
-      t_lmin : L >= 180n m on *
-    measure:
-      m_gbw : SEOpAmpACBench GainBandwidth @ OUT
-      m_gain : SEOpAmpACBench PassbandGain @ OUT
-      m_pm : SEOpAmpACBench PhaseMargin @ OUT
-      m_pwr : SEOpAmpDCBench QuiescentPower
+      t_lmin : L >= 180nm on *
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    SEOpAmpACBench
-    SEOpAmpDCBench
