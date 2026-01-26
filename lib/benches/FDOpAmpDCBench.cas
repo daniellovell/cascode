@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // DC characterization bench for fully differential operational amplifiers.
 // Measures output common-mode and quiescent power, optionally across InputDCCommonMode sweep.

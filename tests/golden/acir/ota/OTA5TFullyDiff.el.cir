@@ -4,7 +4,25 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TFullyDiff
+bench ACBench for FullyDiffOpAmp
+  builtin FDOpAmpACBench
+  outputs:
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+bench DCBench for FullyDiffOpAmp
+  builtin FDOpAmpDCBench
+  outputs:
+    QuiescentPower
+
+bench TranBench for FullyDiffOpAmp
+  builtin FDOpAmpTranBench
+  outputs:
+    DifferentialOutputSwing
+    SingleEndedOutputSwing
+
+circuit OTA5TFullyDiff implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
@@ -14,31 +32,30 @@ circuit OTA5TFullyDiff
   fill:
     net tnode : analog
     net vcm_node : analog
-    nmos dp.M_N (B->GND, D->OUT.P, G->IN.P, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_P (B->GND, D->OUT.N, G->IN.N, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=4u, L=180n, M=1) nmos
-    pmos M_LOAD_P (B->VDD, D->OUT.P, G->vcm_node, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    pmos M_LOAD_N (B->VDD, D->OUT.N, G->vcm_node, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    resistor R_CMFB_P (P->OUT.P, N->vcm_node) : R=500k
-    resistor R_CMFB_N (P->OUT.N, N->vcm_node) : R=500k
+    nmos dp.M_N (.B--GND, .D--OUT.P, .G--IN.P, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.B--GND, .D--OUT.N, .G--IN.N, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos M_LOAD_P (.B--VDD, .D--OUT.P, .G--vcm_node, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos M_LOAD_N (.B--VDD, .D--OUT.N, .G--vcm_node, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    resistor R_CMFB_P (.P--OUT.P, .N--vcm_node) : resistor
+      R = 500k
+    resistor R_CMFB_N (.P--OUT.N, .N--vcm_node) : resistor
+      R = 500k
   constraints:
     numeric:
-      c_gbw : GainBandwidth >= 20MHz
-      c_gain : PassbandGain >= 30dB
-      c_pm : PhaseMargin >= 60deg
-      c_pwr : QuiescentPower <= 800uW
+      c_gbw : ACBench::GainBandwidth >= 20MHz
+      c_gain : ACBench::PassbandGain >= 30dB
+      c_pm : ACBench::PhaseMargin >= 60deg
+      c_pwr : DCBench::QuiescentPower <= 800uW
+      c_swing : TranBench::DifferentialOutputSwing >= 1.2Vpp
     tech:
       t_lmin : L >= 180nm on *
-    measure:
-      m_gbw : FDOpAmpACBench GainBandwidth
-      m_gain : FDOpAmpACBench PassbandGain
-      m_pm : FDOpAmpACBench PhaseMargin
-      m_pwr : FDOpAmpDCBench QuiescentPower
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-  benches:
-    FDOpAmpACBench
-    FDOpAmpDCBench
-

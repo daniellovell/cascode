@@ -7,7 +7,7 @@ using Cascode.Bench;
 namespace Cascode.ACIR;
 
 /// <summary>
-/// Adapter that converts ACIR circuits and bench configs to TestbenchContext.
+/// Adapter that converts ACIR circuits and bench definitions to TestbenchContext.
 /// </summary>
 public static class ACIRBenchAdapter
 {
@@ -23,20 +23,20 @@ public static class ACIRBenchAdapter
     );
 
     /// <summary>
-    /// Converts an ACIR circuit and bench config to a TestbenchContext.
+    /// Converts an ACIR circuit and bench definition to a TestbenchContext.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
-    /// <param name="bench">Bench configuration.</param>
+    /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
     /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
     /// <returns>TestbenchContext ready for TestbenchGenerator.</returns>
     public static TestbenchContext ToTestbenchContext(
         Circuit circuit,
-        BenchConfig bench,
+        BenchDefinition bench,
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
@@ -58,8 +58,7 @@ public static class ACIRBenchAdapter
         var passbandFreqHz = DerivePassbandMeasurementFrequency(circuit, acStartHz, acStopHz);
         var sweepDict = BuildSweepDictionary(circuit);
 
-        // Determine if bench is differential based on name
-        var isDifferential = bench.Name.StartsWith("FD", StringComparison.OrdinalIgnoreCase);
+        var isDifferential = IsDifferentialBench(bench, circuit);
         var loadElements = GenerateLoadElements(circuit, isDifferential, backend);
         var supplyElements = GenerateSupplyElements(circuit, backend);
 
@@ -124,15 +123,21 @@ public static class ACIRBenchAdapter
             ["section"] = includeResolution?.Section,
         };
 
+        var templateName = !string.IsNullOrWhiteSpace(bench.Builtin) ? bench.Builtin : bench.Name;
+        if (!string.IsNullOrWhiteSpace(templateName))
+        {
+            args["template_name"] = templateName;
+        }
+
+        if (bench.Config.Count > 0)
+        {
+            args["bench_config"] = new Dictionary<string, string>(bench.Config);
+        }
+
         // Add sweep conditions - templates access them as sweep.ConditionName
         foreach (var kvp in sweepDict)
         {
             args[$"sweep.{kvp.Key}"] = kvp.Value;
-        }
-
-        if (!string.IsNullOrWhiteSpace(outputDir))
-        {
-            args["start_dir"] = outputDir;
         }
 
         var spec = new TestbenchSpec
@@ -392,6 +397,58 @@ public static class ACIRBenchAdapter
         return string.Join("\n", lines);
     }
 
+    private static bool IsDifferentialBench(BenchDefinition bench, Circuit circuit)
+    {
+        if (!string.IsNullOrWhiteSpace(bench.Trait))
+            return IsDifferentialTrait(bench.Trait);
+
+        return circuit.Traits?.Any(IsDifferentialTrait) == true;
+    }
+
+    private static bool IsDifferentialTrait(string? trait)
+    {
+        if (string.IsNullOrWhiteSpace(trait))
+            return false;
+
+        var start = -1;
+        for (var i = 0; i < trait.Length; i++)
+        {
+            var ch = trait[i];
+            if (!char.IsLetterOrDigit(ch))
+            {
+                if (IsDifferentialToken(trait, start, i))
+                    return true;
+                start = -1;
+                continue;
+            }
+
+            if (start < 0)
+            {
+                start = i;
+                continue;
+            }
+
+            if (char.IsUpper(ch) && (char.IsLower(trait[i - 1]) || char.IsDigit(trait[i - 1])))
+            {
+                if (IsDifferentialToken(trait, start, i))
+                    return true;
+                start = i;
+            }
+        }
+
+        return IsDifferentialToken(trait, start, trait.Length);
+    }
+
+    private static bool IsDifferentialToken(string trait, int start, int end)
+    {
+        if (start < 0 || end <= start)
+            return false;
+
+        var token = trait.AsSpan(start, end - start);
+        return token.Equals("Diff", StringComparison.OrdinalIgnoreCase)
+            || token.Equals("Differential", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>
     /// Builds a dictionary of sweep conditions for template rendering.
     /// Keys are condition names (e.g., "InputDCBias"), values are dictionaries with start/stop/step.
@@ -616,20 +673,20 @@ public static class ACIRBenchAdapter
     }
 
     /// <summary>
-    /// Generates a testbench file directly using template discovery and rendering.
+    /// Generates a testbench file directly using embedded templates.
     /// </summary>
     /// <param name="circuit">ACIR circuit.</param>
-    /// <param name="bench">Bench configuration.</param>
+    /// <param name="bench">Bench definition.</param>
     /// <param name="backend">Backend type.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <param name="includeResolution">Optional include resolution for PDK model decks.</param>
     /// <param name="allDesignFiles">Optional list of all design files to include (for hierarchical designs).</param>
     /// <param name="document">Optional ACIR document for checking subcircuit models.</param>
     /// <returns>TestbenchFiles with path to generated netlist.</returns>
     public static TestbenchFiles GenerateTestbench(
         Circuit circuit,
-        BenchConfig bench,
+        BenchDefinition bench,
         BenchBackendType backend,
         string outputDir,
         string? workspaceRoot = null,
@@ -654,22 +711,17 @@ public static class ACIRBenchAdapter
         );
         var plan = harness.BuildPlan(context);
 
-        // Find template
-        var templatePath = plan.Data.TryGetValue("template_path", out var tp)
-            ? tp?.ToString()
-            : null;
-        if (string.IsNullOrWhiteSpace(templatePath) || !File.Exists(templatePath))
+        if (!plan.Data.TryGetValue("template_text", out var templateObj))
         {
-            throw new InvalidOperationException($"Template not found: {templatePath}");
+            throw new InvalidOperationException($"Template not found for bench '{bench.Name}'.");
         }
 
-        // Load template
-        var templateText = File.ReadAllText(templatePath);
+        var templateText = templateObj?.ToString();
         if (string.IsNullOrWhiteSpace(templateText))
         {
             throw new InvalidOperationException(
-                $"Template file is empty: {templatePath}. "
-                    + $"Bench '{bench.Name}' requires a valid template with content."
+                $"Template is empty for bench '{bench.Name}'. "
+                    + "Builtin benches require embedded templates."
             );
         }
 
@@ -685,8 +737,7 @@ public static class ACIRBenchAdapter
         if (string.IsNullOrWhiteSpace(netlistText))
         {
             throw new InvalidOperationException(
-                $"Template rendering produced empty output for bench '{bench.Name}'. "
-                    + $"Template: {templatePath}"
+                $"Template rendering produced empty output for bench '{bench.Name}'."
             );
         }
 

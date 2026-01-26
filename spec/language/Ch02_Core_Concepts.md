@@ -477,7 +477,7 @@ When `env.icmr` is present but `spec.icmr` is absent, the compiler automatically
 
 ### 2.11.1 Edge and Level Metrics for Digital‑Style Use
 
-Mixed‑signal flows commonly require timing/level checks on digital nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in `constraints.measure` (Chapter 3):
+Mixed‑signal flows commonly require timing/level checks on digital nodes driven by stdcells. The following metrics are defined for use in `spec {}` and in bench-qualified numeric constraints (Chapter 3):
 
 * `RiseTime(node, v_lo, v_hi)` - time for the node to rise from `v_lo` to `v_hi` once, measured by the first threshold crossing after the input toggles. Units: time. If either bound is a percentage of `VDD`, it binds to `env.vdd` for the active rail. Defaults: `0.1*VDD`, `0.9*VDD` when omitted.
 * `FallTime(node, v_hi, v_lo)` - analogous definition for falling transitions.

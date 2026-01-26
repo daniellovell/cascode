@@ -26,10 +26,15 @@ else
     SED_INPLACE=(-i)
 fi
 
-# Update files
+# Update .cir files (first line header)
 while IFS= read -r -d '' file; do
     sed "${SED_INPLACE[@]}" -E "1s/^ACIR [0-9]+\.[0-9]+/ACIR $VERSION/" "$file"
 done < <(find "$GOLDEN_DIR" -name "*.cir" -print0)
+
+# Update .json files (acirVersion field)
+while IFS= read -r -d '' file; do
+    sed "${SED_INPLACE[@]}" -E "s/\"acirVersion\": \"[0-9]+\.[0-9]+\"/\"acirVersion\": \"$VERSION\"/" "$file"
+done < <(find "$GOLDEN_DIR" -name "*.json" -print0)
 
 # Count actually modified files using git
 count=$(git -C "$repo_root" diff --name-only -- "$GOLDEN_DIR" 2>/dev/null | wc -l | tr -d ' ')

@@ -30,6 +30,11 @@ public sealed class ACIRDocument
     public List<TraitDefinition> Traits { get; init; } = new();
 
     /// <summary>
+    /// Bench definitions declared at the file level (after traits, before circuits).
+    /// </summary>
+    public List<BenchDefinition> BenchDefinitions { get; init; } = new();
+
+    /// <summary>
     /// Circuit definitions in this document.
     /// </summary>
     public List<Circuit> Circuits { get; init; } = new();
@@ -156,9 +161,6 @@ public sealed class Circuit
     /// <summary>Harness block.</summary>
     public HarnessBlock? Harness { get; init; }
 
-    /// <summary>Benches block.</summary>
-    public BenchesBlock? Benches { get; init; }
-
     /// <summary>Provenance block.</summary>
     public ProvenanceBlock? Provenance { get; init; }
 }
@@ -245,6 +247,9 @@ public sealed class InstanceDeclaration
 
     /// <summary>Size pack assignments for this instance.</summary>
     public Dictionary<string, SizePack> Sizes { get; init; } = new();
+
+    /// <summary>Instance-level connect statements.</summary>
+    public List<ConnectionStatement> Connects { get; init; } = new();
 }
 
 /// <summary>
@@ -296,6 +301,27 @@ public sealed class ParamValue
 }
 
 /// <summary>
+/// Bench definition declared at document scope.
+/// </summary>
+public sealed class BenchDefinition
+{
+    /// <summary>Bench alias name used in constraints (e.g., "ACBench").</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Trait this bench applies to.</summary>
+    public string Trait { get; init; } = string.Empty;
+
+    /// <summary>Builtin bench template name.</summary>
+    public string? Builtin { get; init; }
+
+    /// <summary>Optional bench configuration values.</summary>
+    public Dictionary<string, string> Config { get; init; } = new();
+
+    /// <summary>Metric outputs produced by this bench.</summary>
+    public List<string> Outputs { get; init; } = new();
+}
+
+/// <summary>
 /// Constraints block.
 /// </summary>
 public sealed class ConstraintsBlock
@@ -308,9 +334,6 @@ public sealed class ConstraintsBlock
 
     /// <summary>Graph constraints.</summary>
     public List<GraphConstraint> Graph { get; init; } = new();
-
-    /// <summary>Measurement intents.</summary>
-    public List<MeasureIntent> Measure { get; init; } = new();
 }
 
 /// <summary>
@@ -321,11 +344,14 @@ public sealed class NumericConstraint
     /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
 
+    /// <summary>Bench alias that provides the metric.</summary>
+    public string Bench { get; init; } = string.Empty;
+
     /// <summary>The metric being constrained (e.g., "GainBandwidth", "PhaseMargin").</summary>
     public string Metric { get; init; } = string.Empty;
 
-    /// <summary>Optional node where the metric is measured (e.g., "OUT").</summary>
-    public string? Node { get; init; }
+    /// <summary>Optional node reference where the metric is measured.</summary>
+    public NodeRef? Node { get; init; }
 
     /// <summary>Comparison operator: &gt;=, &lt;=, ==, &gt;, or &lt;.</summary>
     public string Op { get; init; } = string.Empty;
@@ -335,6 +361,20 @@ public sealed class NumericConstraint
 
     /// <summary>Physical unit for the value (e.g., "Hz", "dB", "deg").</summary>
     public string Unit { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Node reference with a scope prefix (e.g., net::OUT, term::dp.M_P.D).
+/// </summary>
+public sealed class NodeRef
+{
+    /// <summary>Scope prefix (e.g., "net", "term", "port", "diff").</summary>
+    public string Scope { get; init; } = string.Empty;
+
+    /// <summary>Path within the scope (e.g., "OUT", "dp.M_P.D").</summary>
+    public string Path { get; init; } = string.Empty;
+
+    public override string ToString() => $"{Scope}::{Path}";
 }
 
 /// <summary>
@@ -374,24 +414,6 @@ public sealed class GraphConstraint
 
     /// <summary>Additional key-value properties for the rule (e.g., selector, bounds, endpoints).</summary>
     public Dictionary<string, string> Properties { get; init; } = new();
-}
-
-/// <summary>
-/// Measurement intent specifying a metric to extract from simulation.
-/// </summary>
-public sealed class MeasureIntent
-{
-    /// <summary>Unique identifier for this measurement (e.g., "m_gbw").</summary>
-    public string Id { get; init; } = string.Empty;
-
-    /// <summary>Benchmark to run for this measurement (e.g., "SEOpAmpACBench").</summary>
-    public string Bench { get; init; } = string.Empty;
-
-    /// <summary>The metric to measure (e.g., "GainBandwidth", "RiseTime").</summary>
-    public string Metric { get; init; } = string.Empty;
-
-    /// <summary>Optional node where the metric is measured (e.g., "OUT", "PAD").</summary>
-    public string? Node { get; init; }
 }
 
 /// <summary>
@@ -477,23 +499,6 @@ public sealed class SweepCondition
 
     /// <summary>True if [Auto] was specified (must be resolved at EL level).</summary>
     public bool IsAuto { get; init; }
-}
-
-/// <summary>
-/// Benches block.
-/// </summary>
-public sealed class BenchesBlock
-{
-    public List<BenchConfig> Benches { get; init; } = new();
-}
-
-/// <summary>
-/// Bench configuration.
-/// </summary>
-public sealed class BenchConfig
-{
-    public string Name { get; init; } = string.Empty;
-    public Dictionary<string, string> Config { get; init; } = new();
 }
 
 /// <summary>

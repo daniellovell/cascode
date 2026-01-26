@@ -1,7 +1,7 @@
 ACIR 3.0
 
-; Circuit with undefined net reference - EMIT-002 violation
-; Device M1 references 'nonexistent_net' which is not declared
+// Circuit with undefined net reference - EMIT-002 violation
+// Device M1 references 'nonexistent_net' which is not declared
 
 circuit UndefinedNetExample
   level EL
@@ -12,4 +12,5 @@ circuit UndefinedNetExample
   port OUT : analog
 
   fill:
-    nmos M1 (G->nonexistent_net, D->OUT, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos
+    nmos M1 (.G--nonexistent_net, .D--OUT, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n, M=1)

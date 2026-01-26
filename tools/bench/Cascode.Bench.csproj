@@ -14,5 +14,9 @@
   <ItemGroup>
     <None Include="templates\**\*.tpl" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="templates\**\*.tpl" />
+    <EmbeddedResource
+      Include="..\..\lib\benches\*.tpl"
+      LogicalName="Cascode.Bench.Benches.%(Filename)%(Extension)"
+    />
   </ItemGroup>
 </Project>

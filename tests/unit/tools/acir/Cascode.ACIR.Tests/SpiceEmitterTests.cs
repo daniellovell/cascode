@@ -111,6 +111,7 @@ public class SpiceEmitterTests
         var circuit = doc.Circuits[0];
         Assert.Equal("OTA5TSingleEnded", circuit.Name);
         Assert.Equal(ACIRLevel.EL, circuit.Level);
+        Assert.Contains("SingleEndedOpAmp", circuit.Traits ?? new List<string>());
 
         // Ports
         Assert.Equal(4, circuit.Ports.Count);
@@ -135,11 +136,11 @@ public class SpiceEmitterTests
         Assert.Single(circuit.Harness.Supplies);
         Assert.Single(circuit.Harness.Loads);
 
-        // Benches
-        Assert.NotNull(circuit.Benches);
-        Assert.Equal(2, circuit.Benches.Benches.Count);
-        Assert.Equal("SEOpAmpACBench", circuit.Benches.Benches[0].Name);
-        Assert.Equal("SEOpAmpDCBench", circuit.Benches.Benches[1].Name);
+        // Bench definitions
+        Assert.Equal(3, doc.BenchDefinitions.Count);
+        Assert.Contains(doc.BenchDefinitions, b => b.Name == "ACBench");
+        Assert.Contains(doc.BenchDefinitions, b => b.Name == "DCBench");
+        Assert.Contains(doc.BenchDefinitions, b => b.Name == "TranBench");
     }
 
     [Fact]
@@ -175,7 +176,13 @@ public class SpiceEmitterTests
             },
         };
 
-        var bench = new BenchConfig { Name = "ACBench" };
+        var bench = new BenchDefinition
+        {
+            Name = "ACBench",
+            Trait = "SingleEndedOpAmp",
+            Builtin = "SEOpAmpACBench",
+            Outputs = new List<string> { "GainBandwidth" },
+        };
 
         using var writer = new StringWriter();
         SpiceEmitter.EmitTestbench(circuit, bench, "TestAmp.sp", writer);
@@ -224,10 +231,9 @@ public class SpiceEmitterTests
         Assert.Equal("VBIAS", circuit.Harness.Biases[0].Net);
         Assert.Equal("0.7V", circuit.Harness.Biases[0].Value);
 
-        // Bench
-        Assert.NotNull(circuit.Benches);
-        Assert.Single(circuit.Benches.Benches);
-        Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
+        // Bench definitions
+        Assert.Single(doc.BenchDefinitions);
+        Assert.Equal("SEAmpACBench", doc.BenchDefinitions[0].Builtin);
     }
 
     [Fact]
@@ -269,9 +275,8 @@ public class SpiceEmitterTests
         Assert.Single(circuit.Harness.Supplies);
         Assert.Empty(circuit.Harness.Biases);
 
-        // Bench
-        Assert.NotNull(circuit.Benches);
-        Assert.Single(circuit.Benches.Benches);
-        Assert.Equal("SEAmpACBench", circuit.Benches.Benches[0].Name);
+        // Bench definitions
+        Assert.Single(doc.BenchDefinitions);
+        Assert.Equal("SEAmpACBench", doc.BenchDefinitions[0].Builtin);
     }
 }

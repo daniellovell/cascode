@@ -1,4 +1,4 @@
-package lib.std.amp.benches;
+package lib.benches;
 
 // AC bench for single-ended operational amplifiers (differential input, single-ended output).
 bench SEOpAmpACBench {

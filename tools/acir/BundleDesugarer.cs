@@ -11,8 +11,8 @@ namespace Cascode.ACIR;
 /// After desugaring:
 /// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN_P", "IN_N")
 /// - All device bindings are normalized (e.g., "IN.P" → "IN_P")
-/// - All connections are expanded (e.g., "dp.IN -> IN" → "dp.IN_P -> IN_P", "dp.IN_N -> IN_N")
-/// - All trait connectors are expanded (e.g., "DRAIN -> OUT" → "DRAIN_P -> OUT_P", "DRAIN_N -> OUT_N")
+/// - All connections are expanded (e.g., "dp.IN--IN" -> "dp.IN_P--IN_P", "dp.IN_N--IN_N")
+/// - All trait connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN_P--OUT_P", "DRAIN_N--OUT_N")
 ///
 /// Downstream code (validation, emission, resolution) operates on the desugared representation
 /// and never needs bundle context.
@@ -50,6 +50,7 @@ public static class BundleDesugarer
             VersionMinor = document.VersionMinor,
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
+            BenchDefinitions = document.BenchDefinitions,
             Circuits = document
                 .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
                 .ToList(),
@@ -203,7 +204,6 @@ public static class BundleDesugarer
             Harness = circuit.Harness is not null
                 ? DesugarHarness(circuit.Harness, portTypes, bundlesByName)
                 : null,
-            Benches = circuit.Benches,
             Provenance = circuit.Provenance,
         };
     }
@@ -295,12 +295,38 @@ public static class BundleDesugarer
         IReadOnlyDictionary<string, string> instanceTypes
     )
     {
+        // Desugar instances and expand their connects
+        var desugaredInstances = fill
+            .Instances.Select(i =>
+            {
+                var desugared = DesugarInstance(i, bundlesByName, circuitsByName);
+                // Expand instance-level connects if any
+                if (desugared.Connects.Count > 0)
+                {
+                    return new InstanceDeclaration
+                    {
+                        Id = desugared.Id,
+                        Type = desugared.Type,
+                        Bindings = desugared.Bindings,
+                        Params = desugared.Params,
+                        Sizes = desugared.Sizes,
+                        Connects = ExpandConnections(
+                            desugared.Connects,
+                            portTypes,
+                            bundlesByName,
+                            circuitsByName,
+                            instanceTypes
+                        ),
+                    };
+                }
+                return desugared;
+            })
+            .ToList();
+
         return new FillBlock
         {
             Nets = fill.Nets,
-            Instances = fill
-                .Instances.Select(i => DesugarInstance(i, bundlesByName, circuitsByName))
-                .ToList(),
+            Instances = desugaredInstances,
             Devices = fill.Devices.Select(d => DesugarDevice(d)).ToList(),
             Attaches = fill.Attaches,
             Connections = ExpandConnections(
@@ -375,6 +401,7 @@ public static class BundleDesugarer
             Bindings = expandedBindings,
             Params = instance.Params,
             Sizes = instance.Sizes,
+            Connects = instance.Connects, // Preserve for later expansion
         };
     }
 

@@ -19,6 +19,8 @@ public class AcirJsonConverterConstraintsTests
         var numeric = constraints.GetProperty("numeric");
         Assert.Single(numeric.EnumerateArray());
         Assert.Equal("c_gbw", numeric[0].GetProperty("id").GetString());
+        Assert.Equal("ACBench", numeric[0].GetProperty("bench").GetString());
+        Assert.Equal("net::OUT", numeric[0].GetProperty("node").GetString());
         Assert.Equal(">=", numeric[0].GetProperty("op").GetString());
         Assert.Equal(20000000, numeric[0].GetProperty("value").GetDouble());
         Assert.Equal("Hz", numeric[0].GetProperty("unit").GetString());
@@ -39,16 +41,16 @@ public class AcirJsonConverterConstraintsTests
             ""constraints"": {{
                 ""numeric"": [{{
                     ""id"": ""c_gbw"",
+                    ""bench"": ""ACBench"",
                     ""metric"": ""GainBandwidth"",
-                    ""node"": ""OUT"",
+                    ""node"": ""net::OUT"",
                     ""op"": "">="",
                     ""value"": 20000000,
                     ""unit"": ""Hz""
                 }}],
-                ""tech"": [],
-                ""measure"": []
+                ""tech"": []
             }},
-            ""benches"": []
+            ""benchDefinitions"": []
         }}";
 
         var result = AcirJsonConverter.FromJson(json);
@@ -57,7 +59,9 @@ public class AcirJsonConverterConstraintsTests
 
         var constraint = doc.Circuits[0].Constraints!.Numeric[0];
         Assert.Equal("c_gbw", constraint.Id);
+        Assert.Equal("ACBench", constraint.Bench);
         Assert.Equal("GainBandwidth", constraint.Metric);
+        Assert.Equal("net::OUT", constraint.Node?.ToString());
         Assert.Equal(">=", constraint.Op);
         Assert.Equal("20M", constraint.Value);
         Assert.Equal("Hz", constraint.Unit);
@@ -104,10 +108,9 @@ public class AcirJsonConverterConstraintsTests
                     ""value"": 180e-9,
                     ""unit"": ""m"",
                     ""scope"": ""*""
-                }}],
-                ""measure"": []
+                }}]
             }},
-            ""benches"": []
+            ""benchDefinitions"": []
         }}";
 
         var result = AcirJsonConverter.FromJson(json);
@@ -121,60 +124,6 @@ public class AcirJsonConverterConstraintsTests
         Assert.Equal("180n", constraint.Value);
         Assert.Equal("m", constraint.Unit);
         Assert.Equal("*", constraint.Scope);
-    }
-
-    [Fact]
-    public void ToJson_SerializesMeasureIntents()
-    {
-        var doc = CreateCircuitWithAllConstraintTypes();
-
-        var json = AcirJsonConverter.ToJson(doc);
-
-        var parsed = JsonDocument.Parse(json);
-        var constraints = parsed.RootElement.GetProperty("constraints");
-        var measure = constraints.GetProperty("measure");
-        Assert.Single(measure.EnumerateArray());
-        var measureIntent = measure[0];
-        Assert.Equal("m_gbw", measureIntent.GetProperty("id").GetString());
-        Assert.Equal("SEOpAmpACBench", measureIntent.GetProperty("bench").GetString());
-        Assert.Equal("GainBandwidth", measureIntent.GetProperty("metric").GetString());
-        Assert.Equal("OUT", measureIntent.GetProperty("node").GetString());
-    }
-
-    [Fact]
-    public void FromJson_WithMeasureIntents_ParsesCorrectly()
-    {
-        var json =
-            $@"{{
-            ""acirVersion"": ""{ACIRVersion.Current}"",
-            ""circuit"": {{ ""name"": ""Test"", ""level"": ""EL"" }},
-            ""supplies"": [],
-            ""grounds"": [],
-            ""ports"": [],
-            ""nets"": [],
-            ""components"": [],
-            ""constraints"": {{
-                ""numeric"": [],
-                ""tech"": [],
-                ""measure"": [{{
-                    ""id"": ""m_gbw"",
-                    ""bench"": ""SEOpAmpACBench"",
-                    ""metric"": ""GainBandwidth"",
-                    ""node"": ""OUT""
-                }}]
-            }},
-            ""benches"": []
-        }}";
-
-        var result = AcirJsonConverter.FromJson(json);
-        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
-        var doc = result.Document!;
-
-        var measureIntent = doc.Circuits[0].Constraints!.Measure[0];
-        Assert.Equal("m_gbw", measureIntent.Id);
-        Assert.Equal("SEOpAmpACBench", measureIntent.Bench);
-        Assert.Equal("GainBandwidth", measureIntent.Metric);
-        Assert.Equal("OUT", measureIntent.Node);
     }
 
     [Fact]
@@ -193,9 +142,6 @@ public class AcirJsonConverterConstraintsTests
 
         Assert.Single(constraints.Tech);
         Assert.Equal("t_lmin", constraints.Tech[0].Id);
-
-        Assert.Single(constraints.Measure);
-        Assert.Equal("m_gbw", constraints.Measure[0].Id);
     }
 
     private static ACIRDocument CreateCircuitWithConstraints()
@@ -248,8 +194,9 @@ public class AcirJsonConverterConstraintsTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
+                                Bench = "ACBench",
                                 Metric = "GainBandwidth",
-                                Node = "OUT",
+                                Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",
                                 Value = "20M",
                                 Unit = "Hz",
@@ -284,8 +231,9 @@ public class AcirJsonConverterConstraintsTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
+                                Bench = "ACBench",
                                 Metric = "GainBandwidth",
-                                Node = "OUT",
+                                Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",
                                 Value = "20M",
                                 Unit = "Hz",
@@ -301,16 +249,6 @@ public class AcirJsonConverterConstraintsTests
                                 Value = "180n",
                                 Unit = "m",
                                 Scope = "*",
-                            },
-                        ],
-                        Measure =
-                        [
-                            new MeasureIntent
-                            {
-                                Id = "m_gbw",
-                                Bench = "SEOpAmpACBench",
-                                Metric = "GainBandwidth",
-                                Node = "OUT",
                             },
                         ],
                     },

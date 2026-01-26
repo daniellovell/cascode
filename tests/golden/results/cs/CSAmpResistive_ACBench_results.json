@@ -1,19 +1,18 @@
 {
   "circuit": "CSAmpResistive",
-  "bench": "SEAmpACBench",
+  "bench": "ACBench",
   "measurements": {
     "gain": {
       "metric": "PassbandGain",
       "value": 24.5,
       "unit": "dB",
-      "node": "OUT"
+      "node": "net::OUT"
     },
     "gbw": {
       "metric": "GainBandwidth",
       "value": 50000000,
       "unit": "Hz",
-      "node": "OUT"
+      "node": "net::OUT"
     }
   }
 }
-

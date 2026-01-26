@@ -11,14 +11,16 @@ internal static class BenchRunHelpers
 {
     public static Circuit GetSingleElCircuit(ACIRDocument doc)
     {
-        // Prefer EL-level circuit with benches defined (for hierarchical files with multiple circuits)
+        // Prefer EL-level circuit with applicable benches (for hierarchical files with multiple circuits)
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
             throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
         }
 
-        return elCircuits.FirstOrDefault(c => c.Benches?.Benches.Any() == true) ?? elCircuits[0];
+        return elCircuits.FirstOrDefault(c =>
+                BenchDefinitionResolver.ResolveForCircuit(doc, c).Count > 0
+            ) ?? elCircuits[0];
     }
 
     /// <summary>
@@ -28,7 +30,10 @@ internal static class BenchRunHelpers
     {
         return SpiceEmitter
             .OrderByDependency(doc)
-            .Where(c => c.Level == ACIRLevel.EL && c.Benches?.Benches.Any() == true)
+            .Where(c =>
+                c.Level == ACIRLevel.EL
+                && BenchDefinitionResolver.ResolveForCircuit(doc, c).Count > 0
+            )
             .ToList();
     }
 
@@ -77,10 +82,11 @@ internal static class BenchRunHelpers
         return availableBenches;
     }
 
-    public static string[] GetAvailableBenchNames(Circuit circuit)
+    public static string[] GetAvailableBenchNames(ACIRDocument doc, Circuit circuit)
     {
-        return circuit
-                .Benches?.Benches.Select(b => b.Name)
+        return BenchDefinitionResolver
+                .ResolveForCircuit(doc, circuit)
+                .Select(b => b.Name)
                 .Where(b => !string.IsNullOrWhiteSpace(b))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)

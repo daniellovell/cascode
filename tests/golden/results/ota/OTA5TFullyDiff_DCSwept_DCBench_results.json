@@ -1,6 +1,6 @@
 {
   "circuit": "OTA5TFullyDiff_DCSwept",
-  "bench": "FDOpAmpDCBench",
+  "bench": "DCBench",
   "measurements": {
     "out_cm_min": {
       "metric": "OutputDCCommonMode_min",
@@ -22,4 +22,3 @@
     }
   }
 }
-
