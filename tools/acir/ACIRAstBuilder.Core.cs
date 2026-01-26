@@ -281,14 +281,7 @@ internal sealed partial class ACIRAstBuilder
     /// <returns>Normalized pin reference.</returns>
     private static string BuildPinRef(ACIRParser.PinRefContext ctx)
     {
-        // pinRef uses idPart which can be IDENT or various keywords (e.g., load.D)
-        var parts = ctx.idPart().Select(p => p.GetText()).ToList();
-        var result = string.Join(".", parts);
-        if (ctx.NUMBER() != null)
-        {
-            result += $"[{ctx.NUMBER().GetText()}]";
-        }
-        return result;
+        return ctx.GetText();
     }
 
     /// <summary>Adds a diagnostic anchored to a parse context.</summary>

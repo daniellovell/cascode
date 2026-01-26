@@ -85,7 +85,7 @@ public class ValidationResultTests
         result.AddError(
             "ERC-001",
             "Floating gate on device M1",
-            "M1.G -> n_float",
+            "M1.G--n_float",
             "Connect gate to driven net"
         );
 
@@ -100,7 +100,7 @@ public class ValidationResultTests
         Assert.Equal("ERC-001", errors[0].GetProperty("code").GetString());
         Assert.Equal("error", errors[0].GetProperty("severity").GetString());
         Assert.Equal("Floating gate on device M1", errors[0].GetProperty("message").GetString());
-        Assert.Equal("M1.G -> n_float", errors[0].GetProperty("location").GetString());
+        Assert.Equal("M1.G--n_float", errors[0].GetProperty("location").GetString());
         Assert.Equal("Connect gate to driven net", errors[0].GetProperty("suggestion").GetString());
     }
 

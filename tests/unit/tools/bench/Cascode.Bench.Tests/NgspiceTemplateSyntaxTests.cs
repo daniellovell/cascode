@@ -126,7 +126,7 @@ public partial class NgspiceTemplateSyntaxTests
         // Use a `let` to define a vector (e.g., let vdiff = v(a) - v(b)), then measure that.
 
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "std", "amp", "benches");
+        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
         var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
 
         var invalidMeasTranDifferentialVPattern = InvalidMeasTranDifferentialVPattern();

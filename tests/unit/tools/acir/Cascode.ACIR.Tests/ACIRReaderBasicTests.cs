@@ -19,7 +19,8 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    nmos M1 (G->IN, D->OUT, S->GND, B->GND) : W=1u L=180n nmos
+    nmos M1 (.G--IN, .D--OUT, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n)
 ";
 
         using var reader = new StringReader(acir);
@@ -108,13 +109,65 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    nmos M1 (G->IN, bad_binding, D->OUT, S->GND, B->GND) : W=1u L=180n nmos
+    nmos M1 (.G--IN, bad_binding, .D--OUT, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n)
 ";
 
         using var reader = new StringReader(acir);
         var result = ACIRReader.TryRead(reader, "test.cir");
 
         // With ANTLR, malformed bindings are syntax errors (ACIR0001) rather than warnings
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+        );
+    }
+
+    [Fact]
+    public void TryRead_LegacyArrowBinding_IsRejected()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  supply VDD
+  ground GND
+  port IN : analog
+  port OUT : analog
+  fill:
+    nmos M1 (.G->IN, .D--OUT, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n)
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+        );
+    }
+
+    [Fact]
+    public void TryRead_LegacyConnectKeyword_IsRejected()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+circuit TestCircuit
+  level EL
+  fill:
+    net a : analog
+    net b : analog
+    connect a -> b
+";
+
+        using var reader = new StringReader(acir);
+        var result = ACIRReader.TryRead(reader, "test.cir");
+
+        Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
             d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
@@ -277,7 +330,7 @@ trait CurrentMirrorLike:
   port SENSE : analog
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
+      SENSE--OUT.P
 
 trait DiffPairLike:
   port OUT.P : analog
@@ -289,7 +342,7 @@ circuit Test
   ground GND
   fill:
     attach cm to dp via CurrentMirrorLike::DiffPairLike {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -323,7 +376,7 @@ trait CurrentMirrorLike:
   port SENSE : analog
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
+      SENSE--OUT.P
 
 trait DiffPairLike:
   port OUT.P : analog
@@ -335,7 +388,7 @@ circuit Test
   ground GND
   fill:
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {{
-      SENSE -> OUT.N
+      .SENSE--OUT.N
     }}
 ";
 
@@ -369,8 +422,8 @@ trait CurrentMirrorLike:
   port TAP : analog
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
-      TAP -> OUT.N
+      SENSE--OUT.P
+      TAP--OUT.N
 
 trait DiffPairLike:
   port OUT.P : analog
@@ -382,8 +435,8 @@ circuit Test
   ground GND
   fill:
     attach cm to dp via CurrentMirrorLike::DiffPairLike {{
-      SENSE -> OUT.N
-      TAP -> OUT.P
+      .SENSE--OUT.N
+      .TAP--OUT.P
     }}
 ";
 
@@ -413,7 +466,7 @@ trait CurrentMirrorLike:
   port SENSE : analog
   connectors:
     to DiffPairLike:
-      SENSE -> OUT.P
+      SENSE--OUT.P
 
 trait DiffPairLike:
   port OUT.P : analog
@@ -443,11 +496,11 @@ circuit Test
     #region Arrow Whitespace Tolerance
 
     [Theory]
-    [InlineData("G->IN", "D->OUT", "S->GND", "B->GND")] // no whitespace (canonical)
-    [InlineData("G -> IN", "D -> OUT", "S -> GND", "B -> GND")] // spaces around arrow
-    [InlineData("G->  IN", "D->  OUT", "S->  GND", "B->  GND")] // trailing space only
-    [InlineData("G  ->IN", "D  ->OUT", "S  ->GND", "B  ->GND")] // leading space only
-    public void TryRead_DeviceBinding_ToleratesWhitespaceAroundArrow(
+    [InlineData(".G--IN", ".D--OUT", ".S--GND", ".B--GND")] // no whitespace (canonical)
+    [InlineData(".G -- IN", ".D -- OUT", ".S -- GND", ".B -- GND")] // spaces around operator
+    [InlineData(".G--  IN", ".D--  OUT", ".S--  GND", ".B--  GND")] // trailing space only
+    [InlineData(".G  --IN", ".D  --OUT", ".S  --GND", ".B  --GND")] // leading space only
+    public void TryRead_DeviceBinding_ToleratesWhitespaceAroundWireOperator(
         string gBinding,
         string dBinding,
         string sBinding,
@@ -464,7 +517,8 @@ circuit TestCircuit
   port IN : analog
   port OUT : analog
   fill:
-    nmos M1 ({gBinding}, {dBinding}, {sBinding}, {bBinding}) : W=1u L=180n nmos
+    nmos M1 ({gBinding}, {dBinding}, {sBinding}, {bBinding}) : nmos
+      size (W=1u, L=180n)
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -488,11 +542,11 @@ circuit TestCircuit
     }
 
     [Theory]
-    [InlineData("SENSE->OUT.P")] // no whitespace
-    [InlineData("SENSE -> OUT.P")] // spaces around arrow
-    [InlineData("SENSE->  OUT.P")] // trailing space only
-    [InlineData("SENSE  ->OUT.P")] // leading space only
-    public void TryRead_ConnectorMapping_ToleratesWhitespaceAroundArrow(string mapping)
+    [InlineData("SENSE--OUT.P")] // no whitespace
+    [InlineData("SENSE -- OUT.P")] // spaces around operator
+    [InlineData("SENSE--  OUT.P")] // trailing space only
+    [InlineData("SENSE  --OUT.P")] // leading space only
+    public void TryRead_ConnectorMapping_ToleratesWhitespaceAroundWireOperator(string mapping)
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -528,11 +582,11 @@ circuit Test
     }
 
     [Theory]
-    [InlineData("dp.IN->IN")] // no whitespace
-    [InlineData("dp.IN -> IN")] // spaces around arrow
-    [InlineData("dp.IN->  IN")] // trailing space only
-    [InlineData("dp.IN  ->IN")] // leading space only
-    public void TryRead_FillConnect_ToleratesWhitespaceAroundArrow(string connect)
+    [InlineData("dp.IN--IN")] // no whitespace
+    [InlineData("dp.IN -- IN")] // spaces around operator
+    [InlineData("dp.IN--  IN")] // trailing space only
+    [InlineData("dp.IN  --IN")] // leading space only
+    public void TryRead_FillConnect_ToleratesWhitespaceAroundWireOperator(string connect)
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -543,8 +597,8 @@ circuit TestCircuit
   ground GND
   port IN : analog
   fill:
-    inst dp (VDD->VDD, GND->GND) : DiffPair
-      connect {connect}
+    inst dp (.VDD--VDD, .GND--GND) : DiffPair
+    {connect}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -558,10 +612,9 @@ circuit TestCircuit
         var circuit = result.Document!.Circuits.First();
         Assert.NotNull(circuit.Fill);
         Assert.Single(circuit.Fill!.Instances);
-        var instance = circuit.Fill!.Instances[0];
-        Assert.Single(instance.Connects);
+        Assert.Single(circuit.Fill!.Connections);
 
-        var conn = instance.Connects[0];
+        var conn = circuit.Fill!.Connections[0];
         Assert.Equal("dp.IN", conn.From);
         Assert.Equal("IN", conn.To);
     }

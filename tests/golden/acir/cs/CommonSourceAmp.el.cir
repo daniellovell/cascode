@@ -14,8 +14,10 @@ circuit CommonSourceAmp implements SingleEndedAmp
   port OUT : analog
   port VBIAS : bias
   fill:
-    nmos M_in (D->OUT, G->IN, S->GND, B->GND) : size=(W=10u, L=180n, M=1) nmos
-    pmos load.M (D->OUT, G->VBIAS, S->VDD, B->VDD) : size=(W=20u, L=180n, M=1) pmos
+    nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
+      size (W=10u, L=180n, M=1)
+    pmos load.M (.D--OUT, .G--VBIAS, .S--VDD, .B--VDD) : pmos
+      size (W=20u, L=180n, M=1)
   constraints:
     numeric:
       c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz

@@ -11,8 +11,8 @@ namespace Cascode.ACIR;
 /// After desugaring:
 /// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN_P", "IN_N")
 /// - All device bindings are normalized (e.g., "IN.P" → "IN_P")
-/// - All connections are expanded (e.g., "dp.IN -> IN" → "dp.IN_P -> IN_P", "dp.IN_N -> IN_N")
-/// - All trait connectors are expanded (e.g., "DRAIN -> OUT" → "DRAIN_P -> OUT_P", "DRAIN_N -> OUT_N")
+/// - All connections are expanded (e.g., "dp.IN--IN" -> "dp.IN_P--IN_P", "dp.IN_N--IN_N")
+/// - All trait connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN_P--OUT_P", "DRAIN_N--OUT_N")
 ///
 /// Downstream code (validation, emission, resolution) operates on the desugared representation
 /// and never needs bundle context.
