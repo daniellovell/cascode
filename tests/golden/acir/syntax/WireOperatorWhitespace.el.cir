@@ -75,6 +75,6 @@ circuit DiffPairSub implements LoadLike
       size (W=2u, L=180n)
     // D  --OUT.P: leading space only
     // S--  tnode: trailing space only
-    nmos M_TAIL (.B--GND, .D--tnode, .G--VDD, .S--GND) : nmos
+    nmos M_TAIL (.B -- GND, .D -- tnode, .G -- VDD, .S -- GND) : nmos
       size (W=4u, L=180n)
     // all bindings with spaces around operator
