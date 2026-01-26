@@ -12,4 +12,5 @@ circuit VddGndShortExample
   port IN : analog
 
   fill:
-    nmos M_short (G->IN, D->VDD, S->GND, B->GND) : size=(W=1u, L=180n, M=1) nmos
+    nmos M_short (.G--IN, .D--VDD, .S--GND, .B--GND) : nmos
+      size (W=1u, L=180n, M=1)

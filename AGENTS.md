@@ -10,7 +10,7 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
 ## Purpose & Map
 
 - Purpose: bootstrap the Cascode toolchain while keeping the root lean.
-- Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries in `lib/`; runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
+- Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries and benches in `lib/` (bench templates live in `lib/benches`); runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
 - Where to read first: `docs/architecture/README.md` plus relevant component docs, e.g. `docs/architecture/cli-architecture.md` and `docs/architecture/pdk-scan-architecture.md`.
 
 ## Jump Table (start here by task)
@@ -101,7 +101,6 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
 - **Major bump**: breaking changes - reader rejects different majors
 - **Minor bump**: additive-only changes - reader accepts any minor within same major
-- YOU MUST bump version when changing: `ACIRDocument.cs`, `ACIRReader.cs`, `ACIRWriter.cs`, `ACIRBenchAdapter.cs`, `ACIRTemplateHarness.cs`, or template data contracts
 - On bump: run `scripts/bump_acir_version.sh` to sync golden file headers
 - On bump: inspect and update all ACIR versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored

@@ -36,70 +36,76 @@ public partial class ACIRParser : Parser {
 	protected static DFA[] decisionToDFA;
 	protected static PredictionContextCache sharedContextCache = new PredictionContextCache();
 	public const int
-		ACIR_KW=1, BUNDLE_KW=2, TRAIT_KW=3, CIRCUIT_KW=4, PORT_KW=5, CONNECTORS_KW=6, 
-		LEVEL_KW=7, INLINE_KW=8, PACKAGE_KW=9, SUPPLY_KW=10, GROUND_KW=11, PARAM_KW=12, 
-		SIZE_KW=13, FILL_KW=14, CONSTRAINTS_KW=15, HARNESS_KW=16, BENCHES_KW=17, 
-		PROVENANCE_KW=18, NET_KW=19, INST_KW=20, ATTACH_KW=21, CONNECT_KW=22, 
-		TO_KW=23, VIA_KW=24, AS_KW=25, NUMERIC_KW=26, TECH_KW=27, GRAPH_KW=28, 
-		MEASURE_KW=29, BIAS_KW=30, LOAD_KW=31, SOURCE_KW=32, SWEEP_KW=33, ICMR_KW=34, 
-		PVT_KW=35, AUTO_KW=36, Z_KW=37, ON_KW=38, REAL_KW=39, INT_KW=40, SOURCE_PROV_KW=41, 
-		TRANSFORM_KW=42, ALIAS_KW=43, HL_KW=44, ML_KW=45, EL_KW=46, DEVICE_TYPE=47, 
-		LOAD_TYPE=48, COMPARISON_OP=49, ARROW=50, COLONCOLON=51, PIPEPIPE=52, 
-		COLON=53, COMMA=54, DOT=55, EQ=56, LPAREN=57, RPAREN=58, LBRACK=59, RBRACK=60, 
-		LBRACE=61, RBRACE=62, STAR=63, AT=64, SYMBOLIC=65, UNSIZED=66, QUANTITY=67, 
-		NUMBER=68, IDENT=69, STRING=70, LINE_COMMENT=71, WS=72;
+		ACIR_KW=1, BUNDLE_KW=2, TRAIT_KW=3, BENCH_KW=4, CIRCUIT_KW=5, PORT_KW=6, 
+		CONNECTORS_KW=7, LEVEL_KW=8, INLINE_KW=9, PACKAGE_KW=10, SUPPLY_KW=11, 
+		GROUND_KW=12, PARAM_KW=13, SIZE_KW=14, FILL_KW=15, CONSTRAINTS_KW=16, 
+		HARNESS_KW=17, PROVENANCE_KW=18, NET_KW=19, INST_KW=20, ATTACH_KW=21, 
+		TO_KW=22, FOR_KW=23, VIA_KW=24, AS_KW=25, BUILTIN_KW=26, OUTPUTS_KW=27, 
+		CONFIG_KW=28, IMPLEMENTS_KW=29, NUMERIC_KW=30, TECH_KW=31, GRAPH_KW=32, 
+		BIAS_KW=33, LOAD_KW=34, SOURCE_KW=35, SWEEP_KW=36, ICMR_KW=37, PVT_KW=38, 
+		AUTO_KW=39, AT_KW=40, Z_KW=41, ON_KW=42, REAL_KW=43, INT_KW=44, SOURCE_PROV_KW=45, 
+		TRANSFORM_KW=46, ALIAS_KW=47, HL_KW=48, ML_KW=49, EL_KW=50, DEVICE_TYPE=51, 
+		LOAD_TYPE=52, COMPARISON_OP=53, WIRE_OP=54, COLONCOLON=55, PIPEPIPE=56, 
+		COLON=57, COMMA=58, BIND_DOT=59, DOT=60, EQ=61, LPAREN=62, RPAREN=63, 
+		LBRACK=64, RBRACK=65, LBRACE=66, RBRACE=67, STAR=68, AT=69, SYMBOLIC=70, 
+		UNSIZED=71, QUANTITY=72, NUMBER=73, IDENT=74, STRING=75, LINE_COMMENT=76, 
+		WS=77, NEWLINE=78;
 	public const int
 		RULE_document = 0, RULE_versionDecl = 1, RULE_bundleDef = 2, RULE_bundleField = 3, 
 		RULE_traitDef = 4, RULE_traitMember = 5, RULE_connectorDef = 6, RULE_connectorMapping = 7, 
-		RULE_circuit = 8, RULE_traitList = 9, RULE_circuitMember = 10, RULE_levelValue = 11, 
-		RULE_portName = 12, RULE_portType = 13, RULE_paramType = 14, RULE_paramValue = 15, 
-		RULE_sizeLiteral = 16, RULE_sizeEntry = 17, RULE_qualifiedName = 18, RULE_fillStatement = 19, 
-		RULE_pdkDeviceName = 20, RULE_deviceId = 21, RULE_idPart = 22, RULE_bindingList = 23, 
-		RULE_binding = 24, RULE_deviceParams = 25, RULE_deviceParam = 26, RULE_deviceParamValue = 27, 
-		RULE_instanceMember = 28, RULE_attachTargetList = 29, RULE_attachOverrides = 30, 
-		RULE_pinRef = 31, RULE_constraintSection = 32, RULE_numericConstraint = 33, 
-		RULE_techConstraint = 34, RULE_techConstraintScope = 35, RULE_graphConstraint = 36, 
-		RULE_graphProps = 37, RULE_graphProp = 38, RULE_measureIntent = 39, RULE_harnessStatement = 40, 
-		RULE_harnessValue = 41, RULE_loadSpec = 42, RULE_loadElement = 43, RULE_sourceSpec = 44, 
-		RULE_sweepSpec = 45, RULE_sweepRange = 46, RULE_sweepValue = 47, RULE_pvtList = 48, 
-		RULE_benchEntry = 49, RULE_benchConfig = 50, RULE_benchConfigEntry = 51, 
-		RULE_provenanceEntry = 52;
+		RULE_benchDef = 8, RULE_benchMember = 9, RULE_benchConfigEntry = 10, RULE_benchOutput = 11, 
+		RULE_circuit = 12, RULE_traitList = 13, RULE_circuitMember = 14, RULE_levelValue = 15, 
+		RULE_portName = 16, RULE_portType = 17, RULE_paramType = 18, RULE_paramValue = 19, 
+		RULE_sizeLiteral = 20, RULE_sizeEntry = 21, RULE_qualifiedName = 22, RULE_fillStatement = 23, 
+		RULE_pdkDeviceName = 24, RULE_deviceId = 25, RULE_idPart = 26, RULE_bindingList = 27, 
+		RULE_binding = 28, RULE_deviceBodyItem = 29, RULE_deviceParamAssign = 30, 
+		RULE_instanceBodyItem = 31, RULE_deviceParamValue = 32, RULE_attachTargetList = 33, 
+		RULE_attachOverrides = 34, RULE_pinRef = 35, RULE_constraintSection = 36, 
+		RULE_numericConstraint = 37, RULE_benchMetricRef = 38, RULE_nodeRef = 39, 
+		RULE_nodeScope = 40, RULE_techConstraint = 41, RULE_techConstraintScope = 42, 
+		RULE_graphConstraint = 43, RULE_graphProps = 44, RULE_graphProp = 45, 
+		RULE_harnessStatement = 46, RULE_harnessValue = 47, RULE_loadSpec = 48, 
+		RULE_loadElement = 49, RULE_sourceSpec = 50, RULE_sweepSpec = 51, RULE_sweepRange = 52, 
+		RULE_sweepValue = 53, RULE_pvtList = 54, RULE_provenanceEntry = 55;
 	public static readonly string[] ruleNames = {
 		"document", "versionDecl", "bundleDef", "bundleField", "traitDef", "traitMember", 
-		"connectorDef", "connectorMapping", "circuit", "traitList", "circuitMember", 
-		"levelValue", "portName", "portType", "paramType", "paramValue", "sizeLiteral", 
-		"sizeEntry", "qualifiedName", "fillStatement", "pdkDeviceName", "deviceId", 
-		"idPart", "bindingList", "binding", "deviceParams", "deviceParam", "deviceParamValue", 
-		"instanceMember", "attachTargetList", "attachOverrides", "pinRef", "constraintSection", 
-		"numericConstraint", "techConstraint", "techConstraintScope", "graphConstraint", 
-		"graphProps", "graphProp", "measureIntent", "harnessStatement", "harnessValue", 
-		"loadSpec", "loadElement", "sourceSpec", "sweepSpec", "sweepRange", "sweepValue", 
-		"pvtList", "benchEntry", "benchConfig", "benchConfigEntry", "provenanceEntry"
+		"connectorDef", "connectorMapping", "benchDef", "benchMember", "benchConfigEntry", 
+		"benchOutput", "circuit", "traitList", "circuitMember", "levelValue", 
+		"portName", "portType", "paramType", "paramValue", "sizeLiteral", "sizeEntry", 
+		"qualifiedName", "fillStatement", "pdkDeviceName", "deviceId", "idPart", 
+		"bindingList", "binding", "deviceBodyItem", "deviceParamAssign", "instanceBodyItem", 
+		"deviceParamValue", "attachTargetList", "attachOverrides", "pinRef", "constraintSection", 
+		"numericConstraint", "benchMetricRef", "nodeRef", "nodeScope", "techConstraint", 
+		"techConstraintScope", "graphConstraint", "graphProps", "graphProp", "harnessStatement", 
+		"harnessValue", "loadSpec", "loadElement", "sourceSpec", "sweepSpec", 
+		"sweepRange", "sweepValue", "pvtList", "provenanceEntry"
 	};
 
 	private static readonly string[] _LiteralNames = {
-		null, "'ACIR'", "'bundle'", "'trait'", "'circuit'", "'port'", "'connectors:'", 
-		"'level'", "'inline'", "'package'", "'supply'", "'ground'", "'param'", 
-		"'size'", "'fill:'", "'constraints:'", "'harness:'", "'benches:'", "'provenance:'", 
-		"'net'", "'inst'", "'attach'", "'connect'", "'to'", "'via'", "'as'", "'numeric:'", 
-		"'tech:'", "'graph:'", "'measure:'", "'bias'", "'load'", "'source'", "'sweep'", 
-		"'icmr'", "'pvt'", "'Auto'", "'Z'", "'on'", "'real'", "'int'", "'source:'", 
-		"'transform:'", "'alias:'", "'HL'", "'ML'", "'EL'", null, null, null, 
-		"'->'", "'::'", "'||'", "':'", "','", "'.'", "'='", "'('", "')'", "'['", 
-		"']'", "'{'", "'}'", "'*'", "'@'", null, "'??'"
+		null, "'ACIR'", "'bundle'", "'trait'", "'bench'", "'circuit'", "'port'", 
+		"'connectors:'", "'level'", "'inline'", "'package'", "'supply'", "'ground'", 
+		"'param'", "'size'", "'fill:'", "'constraints:'", "'harness:'", "'provenance:'", 
+		"'net'", "'inst'", "'attach'", "'to'", "'for'", "'via'", "'as'", "'builtin'", 
+		"'outputs:'", "'config:'", "'implements'", "'numeric:'", "'tech:'", "'graph:'", 
+		"'bias'", "'load'", "'source'", "'sweep'", "'icmr'", "'pvt'", "'Auto'", 
+		"'at'", "'Z'", "'on'", "'real'", "'int'", "'source:'", "'transform:'", 
+		"'alias:'", "'HL'", "'ML'", "'EL'", null, null, null, "'--'", "'::'", 
+		"'||'", "':'", "','", null, null, "'='", "'('", "')'", "'['", "']'", "'{'", 
+		"'}'", "'*'", "'@'", null, "'??'"
 	};
 	private static readonly string[] _SymbolicNames = {
-		null, "ACIR_KW", "BUNDLE_KW", "TRAIT_KW", "CIRCUIT_KW", "PORT_KW", "CONNECTORS_KW", 
-		"LEVEL_KW", "INLINE_KW", "PACKAGE_KW", "SUPPLY_KW", "GROUND_KW", "PARAM_KW", 
-		"SIZE_KW", "FILL_KW", "CONSTRAINTS_KW", "HARNESS_KW", "BENCHES_KW", "PROVENANCE_KW", 
-		"NET_KW", "INST_KW", "ATTACH_KW", "CONNECT_KW", "TO_KW", "VIA_KW", "AS_KW", 
-		"NUMERIC_KW", "TECH_KW", "GRAPH_KW", "MEASURE_KW", "BIAS_KW", "LOAD_KW", 
-		"SOURCE_KW", "SWEEP_KW", "ICMR_KW", "PVT_KW", "AUTO_KW", "Z_KW", "ON_KW", 
-		"REAL_KW", "INT_KW", "SOURCE_PROV_KW", "TRANSFORM_KW", "ALIAS_KW", "HL_KW", 
-		"ML_KW", "EL_KW", "DEVICE_TYPE", "LOAD_TYPE", "COMPARISON_OP", "ARROW", 
-		"COLONCOLON", "PIPEPIPE", "COLON", "COMMA", "DOT", "EQ", "LPAREN", "RPAREN", 
+		null, "ACIR_KW", "BUNDLE_KW", "TRAIT_KW", "BENCH_KW", "CIRCUIT_KW", "PORT_KW", 
+		"CONNECTORS_KW", "LEVEL_KW", "INLINE_KW", "PACKAGE_KW", "SUPPLY_KW", "GROUND_KW", 
+		"PARAM_KW", "SIZE_KW", "FILL_KW", "CONSTRAINTS_KW", "HARNESS_KW", "PROVENANCE_KW", 
+		"NET_KW", "INST_KW", "ATTACH_KW", "TO_KW", "FOR_KW", "VIA_KW", "AS_KW", 
+		"BUILTIN_KW", "OUTPUTS_KW", "CONFIG_KW", "IMPLEMENTS_KW", "NUMERIC_KW", 
+		"TECH_KW", "GRAPH_KW", "BIAS_KW", "LOAD_KW", "SOURCE_KW", "SWEEP_KW", 
+		"ICMR_KW", "PVT_KW", "AUTO_KW", "AT_KW", "Z_KW", "ON_KW", "REAL_KW", "INT_KW", 
+		"SOURCE_PROV_KW", "TRANSFORM_KW", "ALIAS_KW", "HL_KW", "ML_KW", "EL_KW", 
+		"DEVICE_TYPE", "LOAD_TYPE", "COMPARISON_OP", "WIRE_OP", "COLONCOLON", 
+		"PIPEPIPE", "COLON", "COMMA", "BIND_DOT", "DOT", "EQ", "LPAREN", "RPAREN", 
 		"LBRACK", "RBRACK", "LBRACE", "RBRACE", "STAR", "AT", "SYMBOLIC", "UNSIZED", 
-		"QUANTITY", "NUMBER", "IDENT", "STRING", "LINE_COMMENT", "WS"
+		"QUANTITY", "NUMBER", "IDENT", "STRING", "LINE_COMMENT", "WS", "NEWLINE"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
@@ -150,6 +156,12 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public TraitDefContext traitDef(int i) {
 			return GetRuleContext<TraitDefContext>(i);
 		}
+		[System.Diagnostics.DebuggerNonUserCode] public BenchDefContext[] benchDef() {
+			return GetRuleContexts<BenchDefContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public BenchDefContext benchDef(int i) {
+			return GetRuleContext<BenchDefContext>(i);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public CircuitContext[] circuit() {
 			return GetRuleContexts<CircuitContext>();
 		}
@@ -161,6 +173,16 @@ public partial class ACIRParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_document; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDocument(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDocument(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -177,38 +199,24 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 107;
+			State = 113;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			if (_la==ACIR_KW) {
 				{
-				State = 106;
+				State = 112;
 				versionDecl();
 				}
 			}
 
-			State = 112;
+			State = 118;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==BUNDLE_KW) {
 				{
 				{
-				State = 109;
-				bundleDef();
-				}
-				}
-				State = 114;
-				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
-			}
-			State = 118;
-			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			while (_la==TRAIT_KW) {
-				{
-				{
 				State = 115;
-				traitDef();
+				bundleDef();
 				}
 				}
 				State = 120;
@@ -218,18 +226,46 @@ public partial class ACIRParser : Parser {
 			State = 124;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			while (_la==CIRCUIT_KW) {
+			while (_la==TRAIT_KW) {
 				{
 				{
 				State = 121;
-				circuit();
+				traitDef();
 				}
 				}
 				State = 126;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
-			State = 127;
+			State = 130;
+			ErrorHandler.Sync(this);
+			_la = TokenStream.LA(1);
+			while (_la==BENCH_KW) {
+				{
+				{
+				State = 127;
+				benchDef();
+				}
+				}
+				State = 132;
+				ErrorHandler.Sync(this);
+				_la = TokenStream.LA(1);
+			}
+			State = 136;
+			ErrorHandler.Sync(this);
+			_la = TokenStream.LA(1);
+			while (_la==CIRCUIT_KW) {
+				{
+				{
+				State = 133;
+				circuit();
+				}
+				}
+				State = 138;
+				ErrorHandler.Sync(this);
+				_la = TokenStream.LA(1);
+			}
+			State = 139;
 			Match(Eof);
 			}
 		}
@@ -253,6 +289,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_versionDecl; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterVersionDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitVersionDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitVersionDecl(this);
@@ -267,9 +313,9 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 129;
+			State = 141;
 			Match(ACIR_KW);
-			State = 130;
+			State = 142;
 			Match(NUMBER);
 			}
 		}
@@ -300,6 +346,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_bundleDef; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBundleDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBundleDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitBundleDef(this);
@@ -315,23 +371,23 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 132;
+			State = 144;
 			Match(BUNDLE_KW);
-			State = 133;
+			State = 145;
 			Match(IDENT);
-			State = 134;
+			State = 146;
 			Match(COLON);
-			State = 136;
+			State = 148;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			do {
 				{
 				{
-				State = 135;
+				State = 147;
 				bundleField();
 				}
 				}
-				State = 138;
+				State = 150;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			} while ( _la==IDENT );
@@ -360,6 +416,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_bundleField; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBundleField(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBundleField(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitBundleField(this);
@@ -374,11 +440,11 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 140;
+			State = 152;
 			Match(IDENT);
-			State = 141;
+			State = 153;
 			Match(COLON);
-			State = 142;
+			State = 154;
 			Match(IDENT);
 			}
 		}
@@ -409,6 +475,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_traitDef; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTraitDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTraitDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTraitDef(this);
@@ -424,23 +500,23 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 144;
+			State = 156;
 			Match(TRAIT_KW);
-			State = 145;
+			State = 157;
 			Match(IDENT);
-			State = 146;
+			State = 158;
 			Match(COLON);
-			State = 148;
+			State = 160;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			do {
 				{
 				{
-				State = 147;
+				State = 159;
 				traitMember();
 				}
 				}
-				State = 150;
+				State = 162;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			} while ( _la==PORT_KW || _la==CONNECTORS_KW );
@@ -480,6 +556,16 @@ public partial class ACIRParser : Parser {
 		}
 		public TraitPortContext(TraitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTraitPort(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTraitPort(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTraitPort(this);
@@ -496,6 +582,16 @@ public partial class ACIRParser : Parser {
 		}
 		public TraitConnectorsContext(TraitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTraitConnectors(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTraitConnectors(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTraitConnectors(this);
@@ -509,20 +605,20 @@ public partial class ACIRParser : Parser {
 		EnterRule(_localctx, 10, RULE_traitMember);
 		int _la;
 		try {
-			State = 163;
+			State = 175;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case PORT_KW:
 				_localctx = new TraitPortContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 152;
+				State = 164;
 				Match(PORT_KW);
-				State = 153;
+				State = 165;
 				portName();
-				State = 154;
+				State = 166;
 				Match(COLON);
-				State = 155;
+				State = 167;
 				portType();
 				}
 				break;
@@ -530,19 +626,19 @@ public partial class ACIRParser : Parser {
 				_localctx = new TraitConnectorsContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 157;
+				State = 169;
 				Match(CONNECTORS_KW);
-				State = 159;
+				State = 171;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				do {
 					{
 					{
-					State = 158;
+					State = 170;
 					connectorDef();
 					}
 					}
-					State = 161;
+					State = 173;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				} while ( _la==TO_KW );
@@ -579,6 +675,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_connectorDef; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterConnectorDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitConnectorDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitConnectorDef(this);
@@ -594,13 +700,13 @@ public partial class ACIRParser : Parser {
 			int _alt;
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 165;
+			State = 177;
 			Match(TO_KW);
-			State = 166;
+			State = 178;
 			Match(IDENT);
-			State = 167;
+			State = 179;
 			Match(COLON);
-			State = 169;
+			State = 181;
 			ErrorHandler.Sync(this);
 			_alt = 1;
 			do {
@@ -608,7 +714,7 @@ public partial class ACIRParser : Parser {
 				case 1:
 					{
 					{
-					State = 168;
+					State = 180;
 					connectorMapping();
 					}
 					}
@@ -616,9 +722,9 @@ public partial class ACIRParser : Parser {
 				default:
 					throw new NoViableAltException(this);
 				}
-				State = 171;
+				State = 183;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,8,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,9,Context);
 			} while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER );
 			}
 		}
@@ -640,12 +746,22 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext pinRef(int i) {
 			return GetRuleContext<PinRefContext>(i);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ARROW() { return GetToken(ACIRParser.ARROW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode WIRE_OP() { return GetToken(ACIRParser.WIRE_OP, 0); }
 		public ConnectorMappingContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
 		public override int RuleIndex { get { return RULE_connectorMapping; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterConnectorMapping(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitConnectorMapping(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -661,12 +777,319 @@ public partial class ACIRParser : Parser {
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 173;
+			State = 185;
 			pinRef();
-			State = 174;
-			Match(ARROW);
-			State = 175;
+			State = 186;
+			Match(WIRE_OP);
+			State = 187;
 			pinRef();
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class BenchDefContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BENCH_KW() { return GetToken(ACIRParser.BENCH_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
+			return GetToken(ACIRParser.IDENT, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FOR_KW() { return GetToken(ACIRParser.FOR_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public BenchMemberContext[] benchMember() {
+			return GetRuleContexts<BenchMemberContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public BenchMemberContext benchMember(int i) {
+			return GetRuleContext<BenchMemberContext>(i);
+		}
+		public BenchDefContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_benchDef; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBenchDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBenchDef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBenchDef(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public BenchDefContext benchDef() {
+		BenchDefContext _localctx = new BenchDefContext(Context, State);
+		EnterRule(_localctx, 16, RULE_benchDef);
+		int _la;
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 189;
+			Match(BENCH_KW);
+			State = 190;
+			Match(IDENT);
+			State = 191;
+			Match(FOR_KW);
+			State = 192;
+			Match(IDENT);
+			State = 196;
+			ErrorHandler.Sync(this);
+			_la = TokenStream.LA(1);
+			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 469762048L) != 0)) {
+				{
+				{
+				State = 193;
+				benchMember();
+				}
+				}
+				State = 198;
+				ErrorHandler.Sync(this);
+				_la = TokenStream.LA(1);
+			}
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class BenchMemberContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BUILTIN_KW() { return GetToken(ACIRParser.BUILTIN_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONFIG_KW() { return GetToken(ACIRParser.CONFIG_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public BenchConfigEntryContext[] benchConfigEntry() {
+			return GetRuleContexts<BenchConfigEntryContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public BenchConfigEntryContext benchConfigEntry(int i) {
+			return GetRuleContext<BenchConfigEntryContext>(i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OUTPUTS_KW() { return GetToken(ACIRParser.OUTPUTS_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public BenchOutputContext[] benchOutput() {
+			return GetRuleContexts<BenchOutputContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public BenchOutputContext benchOutput(int i) {
+			return GetRuleContext<BenchOutputContext>(i);
+		}
+		public BenchMemberContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_benchMember; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBenchMember(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBenchMember(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBenchMember(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public BenchMemberContext benchMember() {
+		BenchMemberContext _localctx = new BenchMemberContext(Context, State);
+		EnterRule(_localctx, 18, RULE_benchMember);
+		int _la;
+		try {
+			State = 215;
+			ErrorHandler.Sync(this);
+			switch (TokenStream.LA(1)) {
+			case BUILTIN_KW:
+				EnterOuterAlt(_localctx, 1);
+				{
+				State = 199;
+				Match(BUILTIN_KW);
+				State = 200;
+				Match(IDENT);
+				}
+				break;
+			case CONFIG_KW:
+				EnterOuterAlt(_localctx, 2);
+				{
+				State = 201;
+				Match(CONFIG_KW);
+				State = 205;
+				ErrorHandler.Sync(this);
+				_la = TokenStream.LA(1);
+				while (_la==IDENT) {
+					{
+					{
+					State = 202;
+					benchConfigEntry();
+					}
+					}
+					State = 207;
+					ErrorHandler.Sync(this);
+					_la = TokenStream.LA(1);
+				}
+				}
+				break;
+			case OUTPUTS_KW:
+				EnterOuterAlt(_localctx, 3);
+				{
+				State = 208;
+				Match(OUTPUTS_KW);
+				State = 212;
+				ErrorHandler.Sync(this);
+				_la = TokenStream.LA(1);
+				while (_la==IDENT) {
+					{
+					{
+					State = 209;
+					benchOutput();
+					}
+					}
+					State = 214;
+					ErrorHandler.Sync(this);
+					_la = TokenStream.LA(1);
+				}
+				}
+				break;
+			default:
+				throw new NoViableAltException(this);
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class BenchConfigEntryContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
+			return GetToken(ACIRParser.IDENT, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMBER() { return GetToken(ACIRParser.NUMBER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode QUANTITY() { return GetToken(ACIRParser.QUANTITY, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING() { return GetToken(ACIRParser.STRING, 0); }
+		public BenchConfigEntryContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_benchConfigEntry; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBenchConfigEntry(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBenchConfigEntry(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBenchConfigEntry(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public BenchConfigEntryContext benchConfigEntry() {
+		BenchConfigEntryContext _localctx = new BenchConfigEntryContext(Context, State);
+		EnterRule(_localctx, 20, RULE_benchConfigEntry);
+		int _la;
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 217;
+			Match(IDENT);
+			State = 218;
+			Match(EQ);
+			State = 219;
+			_la = TokenStream.LA(1);
+			if ( !(((((_la - 72)) & ~0x3f) == 0 && ((1L << (_la - 72)) & 15L) != 0)) ) {
+			ErrorHandler.RecoverInline(this);
+			}
+			else {
+				ErrorHandler.ReportMatch(this);
+			    Consume();
+			}
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class BenchOutputContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		public BenchOutputContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_benchOutput; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBenchOutput(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBenchOutput(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBenchOutput(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public BenchOutputContext benchOutput() {
+		BenchOutputContext _localctx = new BenchOutputContext(Context, State);
+		EnterRule(_localctx, 22, RULE_benchOutput);
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 221;
+			Match(IDENT);
 			}
 		}
 		catch (RecognitionException re) {
@@ -683,7 +1106,7 @@ public partial class ACIRParser : Parser {
 	public partial class CircuitContext : ParserRuleContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CIRCUIT_KW() { return GetToken(ACIRParser.CIRCUIT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IMPLEMENTS_KW() { return GetToken(ACIRParser.IMPLEMENTS_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public TraitListContext traitList() {
 			return GetRuleContext<TraitListContext>(0);
 		}
@@ -699,6 +1122,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_circuit; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterCircuit(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitCircuit(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitCircuit(this);
@@ -709,38 +1142,38 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public CircuitContext circuit() {
 		CircuitContext _localctx = new CircuitContext(Context, State);
-		EnterRule(_localctx, 16, RULE_circuit);
+		EnterRule(_localctx, 24, RULE_circuit);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 177;
+			State = 223;
 			Match(CIRCUIT_KW);
-			State = 178;
+			State = 224;
 			Match(IDENT);
-			State = 181;
+			State = 227;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if (_la==COLON) {
+			if (_la==IMPLEMENTS_KW) {
 				{
-				State = 179;
-				Match(COLON);
-				State = 180;
+				State = 225;
+				Match(IMPLEMENTS_KW);
+				State = 226;
 				traitList();
 				}
 			}
 
-			State = 186;
+			State = 232;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 524192L) != 0)) {
+			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 524096L) != 0)) {
 				{
 				{
-				State = 183;
+				State = 229;
 				circuitMember();
 				}
 				}
-				State = 188;
+				State = 234;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
@@ -772,6 +1205,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_traitList; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTraitList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTraitList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTraitList(this);
@@ -782,26 +1225,26 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public TraitListContext traitList() {
 		TraitListContext _localctx = new TraitListContext(Context, State);
-		EnterRule(_localctx, 18, RULE_traitList);
+		EnterRule(_localctx, 26, RULE_traitList);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 189;
+			State = 235;
 			Match(IDENT);
-			State = 194;
+			State = 240;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==COMMA) {
 				{
 				{
-				State = 190;
+				State = 236;
 				Match(COMMA);
-				State = 191;
+				State = 237;
 				Match(IDENT);
 				}
 				}
-				State = 196;
+				State = 242;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
@@ -830,6 +1273,27 @@ public partial class ACIRParser : Parser {
 			base.CopyFrom(context);
 		}
 	}
+	public partial class SupplyDeclContext : CircuitMemberContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SUPPLY_KW() { return GetToken(ACIRParser.SUPPLY_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		public SupplyDeclContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSupplyDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSupplyDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitSupplyDecl(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
 	public partial class SizeDeclContext : CircuitMemberContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SIZE_KW() { return GetToken(ACIRParser.SIZE_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
@@ -839,78 +1303,19 @@ public partial class ACIRParser : Parser {
 		}
 		public SizeDeclContext(CircuitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSizeDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSizeDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSizeDecl(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class ConstraintsSectionContext : CircuitMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONSTRAINTS_KW() { return GetToken(ACIRParser.CONSTRAINTS_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ConstraintSectionContext[] constraintSection() {
-			return GetRuleContexts<ConstraintSectionContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ConstraintSectionContext constraintSection(int i) {
-			return GetRuleContext<ConstraintSectionContext>(i);
-		}
-		public ConstraintsSectionContext(CircuitMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitConstraintsSection(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class InlineDeclContext : CircuitMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode INLINE_KW() { return GetToken(ACIRParser.INLINE_KW, 0); }
-		public InlineDeclContext(CircuitMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInlineDecl(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class FillSectionContext : CircuitMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FILL_KW() { return GetToken(ACIRParser.FILL_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public FillStatementContext[] fillStatement() {
-			return GetRuleContexts<FillStatementContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public FillStatementContext fillStatement(int i) {
-			return GetRuleContext<FillStatementContext>(i);
-		}
-		public FillSectionContext(CircuitMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitFillSection(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class BenchesSectionContext : CircuitMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BENCHES_KW() { return GetToken(ACIRParser.BENCHES_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public BenchEntryContext[] benchEntry() {
-			return GetRuleContexts<BenchEntryContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public BenchEntryContext benchEntry(int i) {
-			return GetRuleContext<BenchEntryContext>(i);
-		}
-		public BenchesSectionContext(CircuitMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitBenchesSection(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class SupplyDeclContext : CircuitMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SUPPLY_KW() { return GetToken(ACIRParser.SUPPLY_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
-		public SupplyDeclContext(CircuitMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitSupplyDecl(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -924,6 +1329,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<PortTypeContext>(0);
 		}
 		public PortDeclContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPortDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPortDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -944,9 +1359,45 @@ public partial class ACIRParser : Parser {
 		}
 		public ParamDeclContext(CircuitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterParamDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitParamDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitParamDecl(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class ConstraintsSectionContext : CircuitMemberContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONSTRAINTS_KW() { return GetToken(ACIRParser.CONSTRAINTS_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ConstraintSectionContext[] constraintSection() {
+			return GetRuleContexts<ConstraintSectionContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ConstraintSectionContext constraintSection(int i) {
+			return GetRuleContext<ConstraintSectionContext>(i);
+		}
+		public ConstraintsSectionContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterConstraintsSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitConstraintsSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitConstraintsSection(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -960,9 +1411,39 @@ public partial class ACIRParser : Parser {
 		}
 		public HarnessSectionContext(CircuitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessSection(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class InlineDeclContext : CircuitMemberContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode INLINE_KW() { return GetToken(ACIRParser.INLINE_KW, 0); }
+		public InlineDeclContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterInlineDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitInlineDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInlineDecl(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -970,6 +1451,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode GROUND_KW() { return GetToken(ACIRParser.GROUND_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
 		public GroundDeclContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterGroundDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitGroundDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -984,9 +1475,45 @@ public partial class ACIRParser : Parser {
 		}
 		public LevelDeclContext(CircuitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterLevelDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitLevelDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitLevelDecl(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class FillSectionContext : CircuitMemberContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FILL_KW() { return GetToken(ACIRParser.FILL_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public FillStatementContext[] fillStatement() {
+			return GetRuleContexts<FillStatementContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public FillStatementContext fillStatement(int i) {
+			return GetRuleContext<FillStatementContext>(i);
+		}
+		public FillSectionContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterFillSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitFillSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitFillSection(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -999,6 +1526,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<ProvenanceEntryContext>(i);
 		}
 		public ProvenanceSectionContext(CircuitMemberContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterProvenanceSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitProvenanceSection(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -1013,6 +1550,16 @@ public partial class ACIRParser : Parser {
 		}
 		public PackageDeclContext(CircuitMemberContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPackageDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPackageDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitPackageDecl(this);
@@ -1023,20 +1570,20 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public CircuitMemberContext circuitMember() {
 		CircuitMemberContext _localctx = new CircuitMemberContext(Context, State);
-		EnterRule(_localctx, 20, RULE_circuitMember);
+		EnterRule(_localctx, 28, RULE_circuitMember);
 		int _la;
 		try {
 			int _alt;
-			State = 260;
+			State = 299;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case LEVEL_KW:
 				_localctx = new LevelDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 197;
+				State = 243;
 				Match(LEVEL_KW);
-				State = 198;
+				State = 244;
 				levelValue();
 				}
 				break;
@@ -1044,7 +1591,7 @@ public partial class ACIRParser : Parser {
 				_localctx = new InlineDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 199;
+				State = 245;
 				Match(INLINE_KW);
 				}
 				break;
@@ -1052,9 +1599,9 @@ public partial class ACIRParser : Parser {
 				_localctx = new PackageDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 3);
 				{
-				State = 200;
+				State = 246;
 				Match(PACKAGE_KW);
-				State = 201;
+				State = 247;
 				qualifiedName();
 				}
 				break;
@@ -1062,9 +1609,9 @@ public partial class ACIRParser : Parser {
 				_localctx = new SupplyDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 4);
 				{
-				State = 202;
+				State = 248;
 				Match(SUPPLY_KW);
-				State = 203;
+				State = 249;
 				Match(IDENT);
 				}
 				break;
@@ -1072,9 +1619,9 @@ public partial class ACIRParser : Parser {
 				_localctx = new GroundDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 5);
 				{
-				State = 204;
+				State = 250;
 				Match(GROUND_KW);
-				State = 205;
+				State = 251;
 				Match(IDENT);
 				}
 				break;
@@ -1082,13 +1629,13 @@ public partial class ACIRParser : Parser {
 				_localctx = new PortDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 6);
 				{
-				State = 206;
+				State = 252;
 				Match(PORT_KW);
-				State = 207;
+				State = 253;
 				portName();
-				State = 208;
+				State = 254;
 				Match(COLON);
-				State = 209;
+				State = 255;
 				portType();
 				}
 				break;
@@ -1096,22 +1643,22 @@ public partial class ACIRParser : Parser {
 				_localctx = new ParamDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 7);
 				{
-				State = 211;
+				State = 257;
 				Match(PARAM_KW);
-				State = 212;
+				State = 258;
 				Match(IDENT);
-				State = 213;
+				State = 259;
 				Match(COLON);
-				State = 214;
+				State = 260;
 				paramType();
-				State = 217;
+				State = 263;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==EQ) {
 					{
-					State = 215;
+					State = 261;
 					Match(EQ);
-					State = 216;
+					State = 262;
 					paramValue();
 					}
 				}
@@ -1122,18 +1669,18 @@ public partial class ACIRParser : Parser {
 				_localctx = new SizeDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 8);
 				{
-				State = 219;
+				State = 265;
 				Match(SIZE_KW);
-				State = 220;
+				State = 266;
 				Match(IDENT);
-				State = 223;
+				State = 269;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==EQ) {
 					{
-					State = 221;
+					State = 267;
 					Match(EQ);
-					State = 222;
+					State = 268;
 					sizeLiteral();
 					}
 				}
@@ -1144,21 +1691,23 @@ public partial class ACIRParser : Parser {
 				_localctx = new FillSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 9);
 				{
-				State = 225;
+				State = 271;
 				Match(FILL_KW);
-				State = 229;
+				State = 275;
 				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
-				while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 140737496219648L) != 0)) {
-					{
-					{
-					State = 226;
-					fillStatement();
+				_alt = Interpreter.AdaptivePredict(TokenStream,19,Context);
+				while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
+					if ( _alt==1 ) {
+						{
+						{
+						State = 272;
+						fillStatement();
+						}
+						} 
 					}
-					}
-					State = 231;
+					State = 277;
 					ErrorHandler.Sync(this);
-					_la = TokenStream.LA(1);
+					_alt = Interpreter.AdaptivePredict(TokenStream,19,Context);
 				}
 				}
 				break;
@@ -1166,19 +1715,19 @@ public partial class ACIRParser : Parser {
 				_localctx = new ConstraintsSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 10);
 				{
-				State = 232;
+				State = 278;
 				Match(CONSTRAINTS_KW);
-				State = 236;
+				State = 282;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
-				while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 1006632960L) != 0)) {
+				while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 7516192768L) != 0)) {
 					{
 					{
-					State = 233;
+					State = 279;
 					constraintSection();
 					}
 					}
-					State = 238;
+					State = 284;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -1188,65 +1737,43 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 11);
 				{
-				State = 239;
+				State = 285;
 				Match(HARNESS_KW);
-				State = 243;
+				State = 289;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,16,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,21,Context);
 				while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
 					if ( _alt==1 ) {
 						{
 						{
-						State = 240;
+						State = 286;
 						harnessStatement();
 						}
 						} 
 					}
-					State = 245;
+					State = 291;
 					ErrorHandler.Sync(this);
-					_alt = Interpreter.AdaptivePredict(TokenStream,16,Context);
-				}
-				}
-				break;
-			case BENCHES_KW:
-				_localctx = new BenchesSectionContext(_localctx);
-				EnterOuterAlt(_localctx, 12);
-				{
-				State = 246;
-				Match(BENCHES_KW);
-				State = 250;
-				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
-				while (_la==IDENT) {
-					{
-					{
-					State = 247;
-					benchEntry();
-					}
-					}
-					State = 252;
-					ErrorHandler.Sync(this);
-					_la = TokenStream.LA(1);
+					_alt = Interpreter.AdaptivePredict(TokenStream,21,Context);
 				}
 				}
 				break;
 			case PROVENANCE_KW:
 				_localctx = new ProvenanceSectionContext(_localctx);
-				EnterOuterAlt(_localctx, 13);
+				EnterOuterAlt(_localctx, 12);
 				{
-				State = 253;
+				State = 292;
 				Match(PROVENANCE_KW);
-				State = 257;
+				State = 296;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
-				while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 15393162788864L) != 0)) {
+				while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 246290604621824L) != 0)) {
 					{
 					{
-					State = 254;
+					State = 293;
 					provenanceEntry();
 					}
 					}
-					State = 259;
+					State = 298;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -1277,6 +1804,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_levelValue; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterLevelValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitLevelValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitLevelValue(this);
@@ -1287,14 +1824,14 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public LevelValueContext levelValue() {
 		LevelValueContext _localctx = new LevelValueContext(Context, State);
-		EnterRule(_localctx, 22, RULE_levelValue);
+		EnterRule(_localctx, 30, RULE_levelValue);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 262;
+			State = 301;
 			_la = TokenStream.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 123145302310912L) != 0)) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 1970324836974592L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -1333,6 +1870,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_portName; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPortName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPortName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitPortName(this);
@@ -1343,43 +1890,43 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public PortNameContext portName() {
 		PortNameContext _localctx = new PortNameContext(Context, State);
-		EnterRule(_localctx, 24, RULE_portName);
+		EnterRule(_localctx, 32, RULE_portName);
 		int _la;
 		try {
-			State = 288;
+			State = 327;
 			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,23,Context) ) {
+			switch ( Interpreter.AdaptivePredict(TokenStream,27,Context) ) {
 			case 1:
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 264;
+				State = 303;
 				Match(IDENT);
-				State = 269;
+				State = 308;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==DOT) {
 					{
 					{
-					State = 265;
+					State = 304;
 					Match(DOT);
-					State = 266;
+					State = 305;
 					Match(IDENT);
 					}
 					}
-					State = 271;
+					State = 310;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
-				State = 275;
+				State = 314;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==LBRACK) {
 					{
-					State = 272;
+					State = 311;
 					Match(LBRACK);
-					State = 273;
+					State = 312;
 					Match(NUMBER);
-					State = 274;
+					State = 313;
 					Match(RBRACK);
 					}
 				}
@@ -1389,29 +1936,29 @@ public partial class ACIRParser : Parser {
 			case 2:
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 277;
+				State = 316;
 				Match(IDENT);
-				State = 282;
+				State = 321;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==DOT) {
 					{
 					{
-					State = 278;
+					State = 317;
 					Match(DOT);
-					State = 279;
+					State = 318;
 					Match(IDENT);
 					}
 					}
-					State = 284;
+					State = 323;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
-				State = 285;
+				State = 324;
 				Match(LBRACK);
-				State = 286;
+				State = 325;
 				Match(STAR);
-				State = 287;
+				State = 326;
 				Match(RBRACK);
 				}
 				break;
@@ -1439,6 +1986,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_portType; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPortType(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPortType(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitPortType(this);
@@ -1449,14 +2006,14 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public PortTypeContext portType() {
 		PortTypeContext _localctx = new PortTypeContext(Context, State);
-		EnterRule(_localctx, 26, RULE_portType);
+		EnterRule(_localctx, 34, RULE_portType);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 290;
+			State = 329;
 			_la = TokenStream.LA(1);
-			if ( !(((((_la - 10)) & ~0x3f) == 0 && ((1L << (_la - 10)) & 576460752304472067L) != 0)) ) {
+			if ( !(((((_la - 11)) & ~0x3f) == 0 && ((1L << (_la - 11)) & -9223372036850581501L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -1485,6 +2042,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_paramType; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterParamType(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitParamType(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitParamType(this);
@@ -1495,12 +2062,12 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public ParamTypeContext paramType() {
 		ParamTypeContext _localctx = new ParamTypeContext(Context, State);
-		EnterRule(_localctx, 28, RULE_paramType);
+		EnterRule(_localctx, 36, RULE_paramType);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 292;
+			State = 331;
 			_la = TokenStream.LA(1);
 			if ( !(_la==REAL_KW || _la==INT_KW) ) {
 			ErrorHandler.RecoverInline(this);
@@ -1534,6 +2101,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_paramValue; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterParamValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitParamValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitParamValue(this);
@@ -1544,14 +2121,14 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public ParamValueContext paramValue() {
 		ParamValueContext _localctx = new ParamValueContext(Context, State);
-		EnterRule(_localctx, 30, RULE_paramValue);
+		EnterRule(_localctx, 38, RULE_paramValue);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 294;
+			State = 333;
 			_la = TokenStream.LA(1);
-			if ( !(((((_la - 65)) & ~0x3f) == 0 && ((1L << (_la - 65)) & 61L) != 0)) ) {
+			if ( !(((((_la - 70)) & ~0x3f) == 0 && ((1L << (_la - 70)) & 61L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -1590,6 +2167,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_sizeLiteral; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSizeLiteral(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSizeLiteral(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSizeLiteral(this);
@@ -1600,32 +2187,32 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SizeLiteralContext sizeLiteral() {
 		SizeLiteralContext _localctx = new SizeLiteralContext(Context, State);
-		EnterRule(_localctx, 32, RULE_sizeLiteral);
+		EnterRule(_localctx, 40, RULE_sizeLiteral);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 296;
+			State = 335;
 			Match(LPAREN);
-			State = 297;
+			State = 336;
 			sizeEntry();
-			State = 302;
+			State = 341;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==COMMA) {
 				{
 				{
-				State = 298;
+				State = 337;
 				Match(COMMA);
-				State = 299;
+				State = 338;
 				sizeEntry();
 				}
 				}
-				State = 304;
+				State = 343;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
-			State = 305;
+			State = 344;
 			Match(RPAREN);
 			}
 		}
@@ -1653,6 +2240,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_sizeEntry; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSizeEntry(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSizeEntry(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSizeEntry(this);
@@ -1663,18 +2260,18 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SizeEntryContext sizeEntry() {
 		SizeEntryContext _localctx = new SizeEntryContext(Context, State);
-		EnterRule(_localctx, 34, RULE_sizeEntry);
+		EnterRule(_localctx, 42, RULE_sizeEntry);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 307;
+			State = 346;
 			Match(IDENT);
-			State = 308;
+			State = 347;
 			Match(EQ);
-			State = 309;
+			State = 348;
 			_la = TokenStream.LA(1);
-			if ( !(((((_la - 65)) & ~0x3f) == 0 && ((1L << (_la - 65)) & 15L) != 0)) ) {
+			if ( !(((((_la - 70)) & ~0x3f) == 0 && ((1L << (_la - 70)) & 15L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -1709,6 +2306,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_qualifiedName; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterQualifiedName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitQualifiedName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitQualifiedName(this);
@@ -1719,26 +2326,26 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public QualifiedNameContext qualifiedName() {
 		QualifiedNameContext _localctx = new QualifiedNameContext(Context, State);
-		EnterRule(_localctx, 36, RULE_qualifiedName);
+		EnterRule(_localctx, 44, RULE_qualifiedName);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 311;
+			State = 350;
 			Match(IDENT);
-			State = 316;
+			State = 355;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==DOT) {
 				{
 				{
-				State = 312;
+				State = 351;
 				Match(DOT);
-				State = 313;
+				State = 352;
 				Match(IDENT);
 				}
 				}
-				State = 318;
+				State = 357;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
@@ -1768,15 +2375,24 @@ public partial class ACIRParser : Parser {
 		}
 	}
 	public partial class ConnectDeclContext : FillStatementContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONNECT_KW() { return GetToken(ACIRParser.CONNECT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext[] pinRef() {
 			return GetRuleContexts<PinRefContext>();
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext pinRef(int i) {
 			return GetRuleContext<PinRefContext>(i);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ARROW() { return GetToken(ACIRParser.ARROW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode WIRE_OP() { return GetToken(ACIRParser.WIRE_OP, 0); }
 		public ConnectDeclContext(FillStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterConnectDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitConnectDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -1791,18 +2407,26 @@ public partial class ACIRParser : Parser {
 			return GetToken(ACIRParser.IDENT, i);
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(ACIRParser.LPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public BindingListContext bindingList() {
 			return GetRuleContext<BindingListContext>(0);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(ACIRParser.RPAREN, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public InstanceMemberContext[] instanceMember() {
-			return GetRuleContexts<InstanceMemberContext>();
+		[System.Diagnostics.DebuggerNonUserCode] public InstanceBodyItemContext[] instanceBodyItem() {
+			return GetRuleContexts<InstanceBodyItemContext>();
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public InstanceMemberContext instanceMember(int i) {
-			return GetRuleContext<InstanceMemberContext>(i);
+		[System.Diagnostics.DebuggerNonUserCode] public InstanceBodyItemContext instanceBodyItem(int i) {
+			return GetRuleContext<InstanceBodyItemContext>(i);
 		}
 		public InstanceDeclContext(FillStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterInstanceDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitInstanceDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -1818,6 +2442,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<PortTypeContext>(0);
 		}
 		public NetDeclContext(FillStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterNetDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitNetDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -1842,6 +2476,16 @@ public partial class ACIRParser : Parser {
 		}
 		public AttachDeclContext(FillStatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterAttachDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitAttachDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitAttachDecl(this);
@@ -1853,19 +2497,30 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public DeviceIdContext deviceId() {
 			return GetRuleContext<DeviceIdContext>(0);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(ACIRParser.LPAREN, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public BindingListContext bindingList() {
-			return GetRuleContext<BindingListContext>(0);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(ACIRParser.RPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public DeviceParamsContext deviceParams() {
-			return GetRuleContext<DeviceParamsContext>(0);
-		}
 		[System.Diagnostics.DebuggerNonUserCode] public PdkDeviceNameContext pdkDeviceName() {
 			return GetRuleContext<PdkDeviceNameContext>(0);
 		}
+		[System.Diagnostics.DebuggerNonUserCode] public BindingListContext bindingList() {
+			return GetRuleContext<BindingListContext>(0);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public DeviceBodyItemContext[] deviceBodyItem() {
+			return GetRuleContexts<DeviceBodyItemContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public DeviceBodyItemContext deviceBodyItem(int i) {
+			return GetRuleContext<DeviceBodyItemContext>(i);
+		}
 		public DeviceDeclContext(FillStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceDecl(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceDecl(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -1877,167 +2532,161 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public FillStatementContext fillStatement() {
 		FillStatementContext _localctx = new FillStatementContext(Context, State);
-		EnterRule(_localctx, 38, RULE_fillStatement);
+		EnterRule(_localctx, 46, RULE_fillStatement);
 		int _la;
 		try {
 			int _alt;
-			State = 370;
+			State = 406;
 			ErrorHandler.Sync(this);
-			switch (TokenStream.LA(1)) {
-			case NET_KW:
+			switch ( Interpreter.AdaptivePredict(TokenStream,36,Context) ) {
+			case 1:
 				_localctx = new NetDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 319;
+				State = 358;
 				Match(NET_KW);
-				State = 320;
+				State = 359;
 				Match(IDENT);
-				State = 321;
+				State = 360;
 				Match(COLON);
-				State = 322;
+				State = 361;
 				portType();
 				}
 				break;
-			case DEVICE_TYPE:
+			case 2:
 				_localctx = new DeviceDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 323;
+				State = 362;
 				Match(DEVICE_TYPE);
-				State = 324;
+				State = 363;
 				deviceId();
-				State = 325;
-				Match(LPAREN);
-				State = 326;
-				bindingList();
-				State = 327;
-				Match(RPAREN);
-				State = 328;
-				Match(COLON);
-				State = 330;
-				ErrorHandler.Sync(this);
-				switch ( Interpreter.AdaptivePredict(TokenStream,26,Context) ) {
-				case 1:
-					{
-					State = 329;
-					deviceParams();
-					}
-					break;
-				}
-				State = 333;
-				ErrorHandler.Sync(this);
-				switch ( Interpreter.AdaptivePredict(TokenStream,27,Context) ) {
-				case 1:
-					{
-					State = 332;
-					pdkDeviceName();
-					}
-					break;
-				}
-				}
-				break;
-			case INST_KW:
-				_localctx = new InstanceDeclContext(_localctx);
-				EnterOuterAlt(_localctx, 3);
-				{
-				State = 335;
-				Match(INST_KW);
-				State = 336;
-				Match(IDENT);
-				State = 341;
+				State = 365;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==LPAREN) {
 					{
-					State = 337;
-					Match(LPAREN);
-					State = 338;
+					State = 364;
 					bindingList();
-					State = 339;
-					Match(RPAREN);
 					}
 				}
 
-				State = 343;
+				State = 367;
 				Match(COLON);
-				State = 344;
-				Match(IDENT);
-				State = 348;
+				State = 368;
+				pdkDeviceName();
+				State = 372;
 				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,29,Context);
+				_alt = Interpreter.AdaptivePredict(TokenStream,31,Context);
 				while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
 					if ( _alt==1 ) {
 						{
 						{
-						State = 345;
-						instanceMember();
+						State = 369;
+						deviceBodyItem();
 						}
 						} 
 					}
-					State = 350;
+					State = 374;
 					ErrorHandler.Sync(this);
-					_alt = Interpreter.AdaptivePredict(TokenStream,29,Context);
+					_alt = Interpreter.AdaptivePredict(TokenStream,31,Context);
 				}
 				}
 				break;
-			case ATTACH_KW:
-				_localctx = new AttachDeclContext(_localctx);
-				EnterOuterAlt(_localctx, 4);
+			case 3:
+				_localctx = new InstanceDeclContext(_localctx);
+				EnterOuterAlt(_localctx, 3);
 				{
-				State = 351;
-				Match(ATTACH_KW);
-				State = 352;
+				State = 375;
+				Match(INST_KW);
+				State = 376;
 				Match(IDENT);
-				State = 353;
-				attachTargetList();
-				State = 354;
-				Match(VIA_KW);
-				State = 355;
-				Match(IDENT);
-				State = 356;
-				Match(COLONCOLON);
-				State = 357;
-				Match(IDENT);
-				State = 360;
+				State = 378;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
-				if (_la==AS_KW) {
+				if (_la==LPAREN) {
 					{
-					State = 358;
-					Match(AS_KW);
-					State = 359;
-					Match(IDENT);
+					State = 377;
+					bindingList();
 					}
 				}
 
-				State = 363;
+				State = 380;
+				Match(COLON);
+				State = 381;
+				Match(IDENT);
+				State = 385;
+				ErrorHandler.Sync(this);
+				_alt = Interpreter.AdaptivePredict(TokenStream,33,Context);
+				while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
+					if ( _alt==1 ) {
+						{
+						{
+						State = 382;
+						instanceBodyItem();
+						}
+						} 
+					}
+					State = 387;
+					ErrorHandler.Sync(this);
+					_alt = Interpreter.AdaptivePredict(TokenStream,33,Context);
+				}
+				}
+				break;
+			case 4:
+				_localctx = new AttachDeclContext(_localctx);
+				EnterOuterAlt(_localctx, 4);
+				{
+				State = 388;
+				Match(ATTACH_KW);
+				State = 389;
+				Match(IDENT);
+				State = 390;
+				attachTargetList();
+				State = 391;
+				Match(VIA_KW);
+				State = 392;
+				Match(IDENT);
+				State = 393;
+				Match(COLONCOLON);
+				State = 394;
+				Match(IDENT);
+				State = 397;
+				ErrorHandler.Sync(this);
+				switch ( Interpreter.AdaptivePredict(TokenStream,34,Context) ) {
+				case 1:
+					{
+					State = 395;
+					Match(AS_KW);
+					State = 396;
+					Match(IDENT);
+					}
+					break;
+				}
+				State = 400;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==LBRACE) {
 					{
-					State = 362;
+					State = 399;
 					attachOverrides();
 					}
 				}
 
 				}
 				break;
-			case CONNECT_KW:
+			case 5:
 				_localctx = new ConnectDeclContext(_localctx);
 				EnterOuterAlt(_localctx, 5);
 				{
-				State = 365;
-				Match(CONNECT_KW);
-				State = 366;
+				State = 402;
 				pinRef();
-				State = 367;
-				Match(ARROW);
-				State = 368;
+				State = 403;
+				Match(WIRE_OP);
+				State = 404;
 				pinRef();
 				}
 				break;
-			default:
-				throw new NoViableAltException(this);
 			}
 		}
 		catch (RecognitionException re) {
@@ -2060,6 +2709,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_pdkDeviceName; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPdkDeviceName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPdkDeviceName(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitPdkDeviceName(this);
@@ -2070,12 +2729,12 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public PdkDeviceNameContext pdkDeviceName() {
 		PdkDeviceNameContext _localctx = new PdkDeviceNameContext(Context, State);
-		EnterRule(_localctx, 40, RULE_pdkDeviceName);
+		EnterRule(_localctx, 48, RULE_pdkDeviceName);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 372;
+			State = 408;
 			_la = TokenStream.LA(1);
 			if ( !(_la==DEVICE_TYPE || _la==IDENT) ) {
 			ErrorHandler.RecoverInline(this);
@@ -2114,6 +2773,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_deviceId; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceId(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceId(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitDeviceId(this);
@@ -2124,26 +2793,26 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public DeviceIdContext deviceId() {
 		DeviceIdContext _localctx = new DeviceIdContext(Context, State);
-		EnterRule(_localctx, 42, RULE_deviceId);
+		EnterRule(_localctx, 50, RULE_deviceId);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 374;
+			State = 410;
 			idPart();
-			State = 379;
+			State = 415;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==DOT) {
 				{
 				{
-				State = 375;
+				State = 411;
 				Match(DOT);
-				State = 376;
+				State = 412;
 				idPart();
 				}
 				}
-				State = 381;
+				State = 417;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
@@ -2174,11 +2843,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PORT_KW() { return GetToken(ACIRParser.PORT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PARAM_KW() { return GetToken(ACIRParser.PARAM_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ATTACH_KW() { return GetToken(ACIRParser.ATTACH_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONNECT_KW() { return GetToken(ACIRParser.CONNECT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ON_KW() { return GetToken(ACIRParser.ON_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode TO_KW() { return GetToken(ACIRParser.TO_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FOR_KW() { return GetToken(ACIRParser.FOR_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode VIA_KW() { return GetToken(ACIRParser.VIA_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode AS_KW() { return GetToken(ACIRParser.AS_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BENCH_KW() { return GetToken(ACIRParser.BENCH_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BUILTIN_KW() { return GetToken(ACIRParser.BUILTIN_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode OUTPUTS_KW() { return GetToken(ACIRParser.OUTPUTS_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONFIG_KW() { return GetToken(ACIRParser.CONFIG_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IMPLEMENTS_KW() { return GetToken(ACIRParser.IMPLEMENTS_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode REAL_KW() { return GetToken(ACIRParser.REAL_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode INT_KW() { return GetToken(ACIRParser.INT_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode AUTO_KW() { return GetToken(ACIRParser.AUTO_KW, 0); }
@@ -2191,6 +2865,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_idPart; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterIdPart(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitIdPart(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitIdPart(this);
@@ -2201,14 +2885,14 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public IdPartContext idPart() {
 		IdPartContext _localctx = new IdPartContext(Context, State);
-		EnterRule(_localctx, 44, RULE_idPart);
+		EnterRule(_localctx, 52, RULE_idPart);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 382;
+			State = 418;
 			_la = TokenStream.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 2198015065248L) != 0) || _la==IDENT) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 34077342726480L) != 0) || _la==IDENT) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -2229,12 +2913,14 @@ public partial class ACIRParser : Parser {
 	}
 
 	public partial class BindingListContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(ACIRParser.LPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public BindingContext[] binding() {
 			return GetRuleContexts<BindingContext>();
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public BindingContext binding(int i) {
 			return GetRuleContext<BindingContext>(i);
 		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(ACIRParser.RPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] COMMA() { return GetTokens(ACIRParser.COMMA); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMMA(int i) {
 			return GetToken(ACIRParser.COMMA, i);
@@ -2244,6 +2930,16 @@ public partial class ACIRParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_bindingList; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBindingList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBindingList(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -2255,65 +2951,33 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public BindingListContext bindingList() {
 		BindingListContext _localctx = new BindingListContext(Context, State);
-		EnterRule(_localctx, 46, RULE_bindingList);
+		EnterRule(_localctx, 54, RULE_bindingList);
 		int _la;
 		try {
-			State = 393;
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 420;
+			Match(LPAREN);
+			State = 421;
+			binding();
+			State = 426;
 			ErrorHandler.Sync(this);
-			switch (TokenStream.LA(1)) {
-			case PORT_KW:
-			case LEVEL_KW:
-			case SUPPLY_KW:
-			case GROUND_KW:
-			case PARAM_KW:
-			case SIZE_KW:
-			case NET_KW:
-			case ATTACH_KW:
-			case CONNECT_KW:
-			case TO_KW:
-			case VIA_KW:
-			case AS_KW:
-			case BIAS_KW:
-			case LOAD_KW:
-			case SOURCE_KW:
-			case SWEEP_KW:
-			case ICMR_KW:
-			case PVT_KW:
-			case AUTO_KW:
-			case Z_KW:
-			case ON_KW:
-			case REAL_KW:
-			case INT_KW:
-			case IDENT:
-				EnterOuterAlt(_localctx, 1);
+			_la = TokenStream.LA(1);
+			while (_la==COMMA) {
 				{
-				State = 384;
+				{
+				State = 422;
+				Match(COMMA);
+				State = 423;
 				binding();
-				State = 389;
+				}
+				}
+				State = 428;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
-				while (_la==COMMA) {
-					{
-					{
-					State = 385;
-					Match(COMMA);
-					State = 386;
-					binding();
-					}
-					}
-					State = 391;
-					ErrorHandler.Sync(this);
-					_la = TokenStream.LA(1);
-				}
-				}
-				break;
-			case RPAREN:
-				EnterOuterAlt(_localctx, 2);
-				{
-				}
-				break;
-			default:
-				throw new NoViableAltException(this);
+			}
+			State = 429;
+			Match(RPAREN);
 			}
 		}
 		catch (RecognitionException re) {
@@ -2334,12 +2998,24 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext pinRef(int i) {
 			return GetRuleContext<PinRefContext>(i);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ARROW() { return GetToken(ACIRParser.ARROW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode WIRE_OP() { return GetToken(ACIRParser.WIRE_OP, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DOT() { return GetToken(ACIRParser.DOT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BIND_DOT() { return GetToken(ACIRParser.BIND_DOT, 0); }
 		public BindingContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
 		public override int RuleIndex { get { return RULE_binding; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBinding(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBinding(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -2351,15 +3027,25 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public BindingContext binding() {
 		BindingContext _localctx = new BindingContext(Context, State);
-		EnterRule(_localctx, 48, RULE_binding);
+		EnterRule(_localctx, 56, RULE_binding);
+		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 395;
+			State = 431;
+			_la = TokenStream.LA(1);
+			if ( !(_la==BIND_DOT || _la==DOT) ) {
+			ErrorHandler.RecoverInline(this);
+			}
+			else {
+				ErrorHandler.ReportMatch(this);
+			    Consume();
+			}
+			State = 432;
 			pinRef();
-			State = 396;
-			Match(ARROW);
-			State = 397;
+			State = 433;
+			Match(WIRE_OP);
+			State = 434;
 			pinRef();
 			}
 		}
@@ -2374,54 +3060,141 @@ public partial class ACIRParser : Parser {
 		return _localctx;
 	}
 
-	public partial class DeviceParamsContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public DeviceParamContext[] deviceParam() {
-			return GetRuleContexts<DeviceParamContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public DeviceParamContext deviceParam(int i) {
-			return GetRuleContext<DeviceParamContext>(i);
-		}
-		public DeviceParamsContext(ParserRuleContext parent, int invokingState)
+	public partial class DeviceBodyItemContext : ParserRuleContext {
+		public DeviceBodyItemContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
-		public override int RuleIndex { get { return RULE_deviceParams; } }
+		public override int RuleIndex { get { return RULE_deviceBodyItem; } }
+	 
+		public DeviceBodyItemContext() { }
+		public virtual void CopyFrom(DeviceBodyItemContext context) {
+			base.CopyFrom(context);
+		}
+	}
+	public partial class DeviceParamLineContext : DeviceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public DeviceParamAssignContext deviceParamAssign() {
+			return GetRuleContext<DeviceParamAssignContext>(0);
+		}
+		public DeviceParamLineContext(DeviceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceParamLine(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceParamLine(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitDeviceParams(this);
+			if (typedVisitor != null) return typedVisitor.VisitDeviceParamLine(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class DeviceSizeStmtContext : DeviceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SIZE_KW() { return GetToken(ACIRParser.SIZE_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public SizeLiteralContext sizeLiteral() {
+			return GetRuleContext<SizeLiteralContext>(0);
+		}
+		public DeviceSizeStmtContext(DeviceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceSizeStmt(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceSizeStmt(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitDeviceSizeStmt(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class DeviceBindingContext : DeviceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public BindingContext binding() {
+			return GetRuleContext<BindingContext>(0);
+		}
+		public DeviceBindingContext(DeviceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceBinding(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceBinding(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitDeviceBinding(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
 
 	[RuleVersion(0)]
-	public DeviceParamsContext deviceParams() {
-		DeviceParamsContext _localctx = new DeviceParamsContext(Context, State);
-		EnterRule(_localctx, 50, RULE_deviceParams);
+	public DeviceBodyItemContext deviceBodyItem() {
+		DeviceBodyItemContext _localctx = new DeviceBodyItemContext(Context, State);
+		EnterRule(_localctx, 58, RULE_deviceBodyItem);
 		try {
-			int _alt;
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 400;
+			State = 443;
 			ErrorHandler.Sync(this);
-			_alt = 1;
-			do {
-				switch (_alt) {
-				case 1:
+			switch (TokenStream.LA(1)) {
+			case SIZE_KW:
+				_localctx = new DeviceSizeStmtContext(_localctx);
+				EnterOuterAlt(_localctx, 1);
+				{
+				State = 436;
+				Match(SIZE_KW);
+				State = 439;
+				ErrorHandler.Sync(this);
+				switch (TokenStream.LA(1)) {
+				case IDENT:
 					{
-					{
-					State = 399;
-					deviceParam();
+					State = 437;
+					Match(IDENT);
 					}
+					break;
+				case LPAREN:
+					{
+					State = 438;
+					sizeLiteral();
 					}
 					break;
 				default:
 					throw new NoViableAltException(this);
 				}
-				State = 402;
-				ErrorHandler.Sync(this);
-				_alt = Interpreter.AdaptivePredict(TokenStream,36,Context);
-			} while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER );
+				}
+				break;
+			case LOAD_TYPE:
+			case IDENT:
+				_localctx = new DeviceParamLineContext(_localctx);
+				EnterOuterAlt(_localctx, 2);
+				{
+				State = 441;
+				deviceParamAssign();
+				}
+				break;
+			case BIND_DOT:
+			case DOT:
+				_localctx = new DeviceBindingContext(_localctx);
+				EnterOuterAlt(_localctx, 3);
+				{
+				State = 442;
+				binding();
+				}
+				break;
+			default:
+				throw new NoViableAltException(this);
 			}
 		}
 		catch (RecognitionException re) {
@@ -2435,82 +3208,202 @@ public partial class ACIRParser : Parser {
 		return _localctx;
 	}
 
-	public partial class DeviceParamContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+	public partial class DeviceParamAssignContext : ParserRuleContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public DeviceParamValueContext deviceParamValue() {
 			return GetRuleContext<DeviceParamValueContext>(0);
 		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LOAD_TYPE() { return GetToken(ACIRParser.LOAD_TYPE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SIZE_KW() { return GetToken(ACIRParser.SIZE_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public SizeLiteralContext sizeLiteral() {
-			return GetRuleContext<SizeLiteralContext>(0);
-		}
-		public DeviceParamContext(ParserRuleContext parent, int invokingState)
+		public DeviceParamAssignContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
-		public override int RuleIndex { get { return RULE_deviceParam; } }
+		public override int RuleIndex { get { return RULE_deviceParamAssign; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceParamAssign(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceParamAssign(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitDeviceParam(this);
+			if (typedVisitor != null) return typedVisitor.VisitDeviceParamAssign(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
 
 	[RuleVersion(0)]
-	public DeviceParamContext deviceParam() {
-		DeviceParamContext _localctx = new DeviceParamContext(Context, State);
-		EnterRule(_localctx, 52, RULE_deviceParam);
+	public DeviceParamAssignContext deviceParamAssign() {
+		DeviceParamAssignContext _localctx = new DeviceParamAssignContext(Context, State);
+		EnterRule(_localctx, 60, RULE_deviceParamAssign);
+		int _la;
 		try {
-			State = 416;
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 445;
+			_la = TokenStream.LA(1);
+			if ( !(_la==LOAD_TYPE || _la==IDENT) ) {
+			ErrorHandler.RecoverInline(this);
+			}
+			else {
+				ErrorHandler.ReportMatch(this);
+			    Consume();
+			}
+			State = 446;
+			Match(EQ);
+			State = 447;
+			deviceParamValue();
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class InstanceBodyItemContext : ParserRuleContext {
+		public InstanceBodyItemContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_instanceBodyItem; } }
+	 
+		public InstanceBodyItemContext() { }
+		public virtual void CopyFrom(InstanceBodyItemContext context) {
+			base.CopyFrom(context);
+		}
+	}
+	public partial class InstanceBindingContext : InstanceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public BindingContext binding() {
+			return GetRuleContext<BindingContext>(0);
+		}
+		public InstanceBindingContext(InstanceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterInstanceBinding(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitInstanceBinding(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInstanceBinding(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class InstanceParamContext : InstanceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PARAM_KW() { return GetToken(ACIRParser.PARAM_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ParamValueContext paramValue() {
+			return GetRuleContext<ParamValueContext>(0);
+		}
+		public InstanceParamContext(InstanceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterInstanceParam(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitInstanceParam(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInstanceParam(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+	public partial class InstanceSizeContext : InstanceBodyItemContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SIZE_KW() { return GetToken(ACIRParser.SIZE_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public SizeLiteralContext sizeLiteral() {
+			return GetRuleContext<SizeLiteralContext>(0);
+		}
+		public InstanceSizeContext(InstanceBodyItemContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterInstanceSize(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitInstanceSize(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInstanceSize(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public InstanceBodyItemContext instanceBodyItem() {
+		InstanceBodyItemContext _localctx = new InstanceBodyItemContext(Context, State);
+		EnterRule(_localctx, 62, RULE_instanceBodyItem);
+		try {
+			State = 458;
 			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,37,Context) ) {
-			case 1:
+			switch (TokenStream.LA(1)) {
+			case PARAM_KW:
+				_localctx = new InstanceParamContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 404;
+				State = 449;
+				Match(PARAM_KW);
+				State = 450;
 				Match(IDENT);
-				State = 405;
+				State = 451;
 				Match(EQ);
-				State = 406;
-				deviceParamValue();
+				State = 452;
+				paramValue();
 				}
 				break;
-			case 2:
+			case SIZE_KW:
+				_localctx = new InstanceSizeContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 407;
-				Match(LOAD_TYPE);
-				State = 408;
-				Match(EQ);
-				State = 409;
-				deviceParamValue();
-				}
-				break;
-			case 3:
-				EnterOuterAlt(_localctx, 3);
-				{
-				State = 410;
+				State = 453;
 				Match(SIZE_KW);
-				State = 411;
+				State = 454;
+				Match(IDENT);
+				State = 455;
 				Match(EQ);
-				State = 412;
+				State = 456;
 				sizeLiteral();
 				}
 				break;
-			case 4:
-				EnterOuterAlt(_localctx, 4);
+			case BIND_DOT:
+			case DOT:
+				_localctx = new InstanceBindingContext(_localctx);
+				EnterOuterAlt(_localctx, 3);
 				{
-				State = 413;
-				Match(SIZE_KW);
-				State = 414;
-				Match(EQ);
-				State = 415;
-				Match(IDENT);
+				State = 457;
+				binding();
 				}
 				break;
+			default:
+				throw new NoViableAltException(this);
 			}
 		}
 		catch (RecognitionException re) {
@@ -2534,6 +3427,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_deviceParamValue; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterDeviceParamValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitDeviceParamValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitDeviceParamValue(this);
@@ -2544,163 +3447,20 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public DeviceParamValueContext deviceParamValue() {
 		DeviceParamValueContext _localctx = new DeviceParamValueContext(Context, State);
-		EnterRule(_localctx, 54, RULE_deviceParamValue);
+		EnterRule(_localctx, 64, RULE_deviceParamValue);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 418;
+			State = 460;
 			_la = TokenStream.LA(1);
-			if ( !(((((_la - 65)) & ~0x3f) == 0 && ((1L << (_la - 65)) & 13L) != 0)) ) {
+			if ( !(((((_la - 70)) & ~0x3f) == 0 && ((1L << (_la - 70)) & 13L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
 				ErrorHandler.ReportMatch(this);
 			    Consume();
 			}
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class InstanceMemberContext : ParserRuleContext {
-		public InstanceMemberContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_instanceMember; } }
-	 
-		public InstanceMemberContext() { }
-		public virtual void CopyFrom(InstanceMemberContext context) {
-			base.CopyFrom(context);
-		}
-	}
-	public partial class InstanceBindingContext : InstanceMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public BindingContext binding() {
-			return GetRuleContext<BindingContext>(0);
-		}
-		public InstanceBindingContext(InstanceMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInstanceBinding(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class InstanceParamContext : InstanceMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PARAM_KW() { return GetToken(ACIRParser.PARAM_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ParamValueContext paramValue() {
-			return GetRuleContext<ParamValueContext>(0);
-		}
-		public InstanceParamContext(InstanceMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInstanceParam(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class InstanceSizeContext : InstanceMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode SIZE_KW() { return GetToken(ACIRParser.SIZE_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public SizeLiteralContext sizeLiteral() {
-			return GetRuleContext<SizeLiteralContext>(0);
-		}
-		public InstanceSizeContext(InstanceMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInstanceSize(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class InstanceConnectContext : InstanceMemberContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CONNECT_KW() { return GetToken(ACIRParser.CONNECT_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext[] pinRef() {
-			return GetRuleContexts<PinRefContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext pinRef(int i) {
-			return GetRuleContext<PinRefContext>(i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ARROW() { return GetToken(ACIRParser.ARROW, 0); }
-		public InstanceConnectContext(InstanceMemberContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitInstanceConnect(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-
-	[RuleVersion(0)]
-	public InstanceMemberContext instanceMember() {
-		InstanceMemberContext _localctx = new InstanceMemberContext(Context, State);
-		EnterRule(_localctx, 56, RULE_instanceMember);
-		try {
-			State = 434;
-			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,38,Context) ) {
-			case 1:
-				_localctx = new InstanceParamContext(_localctx);
-				EnterOuterAlt(_localctx, 1);
-				{
-				State = 420;
-				Match(PARAM_KW);
-				State = 421;
-				Match(IDENT);
-				State = 422;
-				Match(EQ);
-				State = 423;
-				paramValue();
-				}
-				break;
-			case 2:
-				_localctx = new InstanceSizeContext(_localctx);
-				EnterOuterAlt(_localctx, 2);
-				{
-				State = 424;
-				Match(SIZE_KW);
-				State = 425;
-				Match(IDENT);
-				State = 426;
-				Match(EQ);
-				State = 427;
-				sizeLiteral();
-				}
-				break;
-			case 3:
-				_localctx = new InstanceConnectContext(_localctx);
-				EnterOuterAlt(_localctx, 3);
-				{
-				State = 428;
-				Match(CONNECT_KW);
-				State = 429;
-				pinRef();
-				State = 430;
-				Match(ARROW);
-				State = 431;
-				pinRef();
-				}
-				break;
-			case 4:
-				_localctx = new InstanceBindingContext(_localctx);
-				EnterOuterAlt(_localctx, 4);
-				{
-				State = 433;
-				binding();
-				}
-				break;
 			}
 		}
 		catch (RecognitionException re) {
@@ -2729,6 +3489,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_attachTargetList; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterAttachTargetList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitAttachTargetList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitAttachTargetList(this);
@@ -2739,24 +3509,24 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public AttachTargetListContext attachTargetList() {
 		AttachTargetListContext _localctx = new AttachTargetListContext(Context, State);
-		EnterRule(_localctx, 58, RULE_attachTargetList);
+		EnterRule(_localctx, 66, RULE_attachTargetList);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 438;
+			State = 464;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			do {
 				{
 				{
-				State = 436;
+				State = 462;
 				Match(TO_KW);
-				State = 437;
+				State = 463;
 				Match(IDENT);
 				}
 				}
-				State = 440;
+				State = 466;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			} while ( _la==TO_KW );
@@ -2788,6 +3558,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_attachOverrides; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterAttachOverrides(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitAttachOverrides(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitAttachOverrides(this);
@@ -2798,28 +3578,28 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public AttachOverridesContext attachOverrides() {
 		AttachOverridesContext _localctx = new AttachOverridesContext(Context, State);
-		EnterRule(_localctx, 60, RULE_attachOverrides);
+		EnterRule(_localctx, 68, RULE_attachOverrides);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 442;
+			State = 468;
 			Match(LBRACE);
-			State = 446;
+			State = 472;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			while ((((_la) & ~0x3f) == 0 && ((1L << _la) & 2198015065248L) != 0) || _la==IDENT) {
+			while (_la==BIND_DOT || _la==DOT) {
 				{
 				{
-				State = 443;
+				State = 469;
 				binding();
 				}
 				}
-				State = 448;
+				State = 474;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
-			State = 449;
+			State = 475;
 			Match(RBRACE);
 			}
 		}
@@ -2845,14 +3625,33 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DOT(int i) {
 			return GetToken(ACIRParser.DOT, i);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LBRACK() { return GetToken(ACIRParser.LBRACK, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMBER() { return GetToken(ACIRParser.NUMBER, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACK() { return GetToken(ACIRParser.RBRACK, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] LBRACK() { return GetTokens(ACIRParser.LBRACK); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LBRACK(int i) {
+			return GetToken(ACIRParser.LBRACK, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] NUMBER() { return GetTokens(ACIRParser.NUMBER); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMBER(int i) {
+			return GetToken(ACIRParser.NUMBER, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] RBRACK() { return GetTokens(ACIRParser.RBRACK); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACK(int i) {
+			return GetToken(ACIRParser.RBRACK, i);
+		}
 		public PinRefContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
 		public override int RuleIndex { get { return RULE_pinRef; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPinRef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPinRef(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -2864,43 +3663,53 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public PinRefContext pinRef() {
 		PinRefContext _localctx = new PinRefContext(Context, State);
-		EnterRule(_localctx, 62, RULE_pinRef);
-		int _la;
+		EnterRule(_localctx, 70, RULE_pinRef);
 		try {
+			int _alt;
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 451;
+			State = 477;
 			idPart();
-			State = 456;
+			State = 485;
 			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			while (_la==DOT) {
-				{
-				{
-				State = 452;
-				Match(DOT);
-				State = 453;
-				idPart();
+			_alt = Interpreter.AdaptivePredict(TokenStream,45,Context);
+			while ( _alt!=2 && _alt!=global::Antlr4.Runtime.Atn.ATN.INVALID_ALT_NUMBER ) {
+				if ( _alt==1 ) {
+					{
+					State = 483;
+					ErrorHandler.Sync(this);
+					switch (TokenStream.LA(1)) {
+					case DOT:
+						{
+						{
+						State = 478;
+						Match(DOT);
+						State = 479;
+						idPart();
+						}
+						}
+						break;
+					case LBRACK:
+						{
+						{
+						State = 480;
+						Match(LBRACK);
+						State = 481;
+						Match(NUMBER);
+						State = 482;
+						Match(RBRACK);
+						}
+						}
+						break;
+					default:
+						throw new NoViableAltException(this);
+					}
+					} 
 				}
-				}
-				State = 458;
+				State = 487;
 				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
+				_alt = Interpreter.AdaptivePredict(TokenStream,45,Context);
 			}
-			State = 462;
-			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			if (_la==LBRACK) {
-				{
-				State = 459;
-				Match(LBRACK);
-				State = 460;
-				Match(NUMBER);
-				State = 461;
-				Match(RBRACK);
-				}
-			}
-
 			}
 		}
 		catch (RecognitionException re) {
@@ -2936,6 +3745,16 @@ public partial class ACIRParser : Parser {
 		}
 		public TechSectionContext(ConstraintSectionContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTechSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTechSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTechSection(this);
@@ -2952,25 +3771,19 @@ public partial class ACIRParser : Parser {
 		}
 		public GraphSectionContext(ConstraintSectionContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitGraphSection(this);
-			else return visitor.VisitChildren(this);
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterGraphSection(this);
 		}
-	}
-	public partial class MeasureSectionContext : ConstraintSectionContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MEASURE_KW() { return GetToken(ACIRParser.MEASURE_KW, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public MeasureIntentContext[] measureIntent() {
-			return GetRuleContexts<MeasureIntentContext>();
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitGraphSection(this);
 		}
-		[System.Diagnostics.DebuggerNonUserCode] public MeasureIntentContext measureIntent(int i) {
-			return GetRuleContext<MeasureIntentContext>(i);
-		}
-		public MeasureSectionContext(ConstraintSectionContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitMeasureSection(this);
+			if (typedVisitor != null) return typedVisitor.VisitGraphSection(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -2984,6 +3797,16 @@ public partial class ACIRParser : Parser {
 		}
 		public NumericSectionContext(ConstraintSectionContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterNumericSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitNumericSection(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitNumericSection(this);
@@ -2994,29 +3817,29 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public ConstraintSectionContext constraintSection() {
 		ConstraintSectionContext _localctx = new ConstraintSectionContext(Context, State);
-		EnterRule(_localctx, 64, RULE_constraintSection);
+		EnterRule(_localctx, 72, RULE_constraintSection);
 		int _la;
 		try {
-			State = 492;
+			State = 509;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case NUMERIC_KW:
 				_localctx = new NumericSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 464;
+				State = 488;
 				Match(NUMERIC_KW);
-				State = 468;
+				State = 492;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==IDENT) {
 					{
 					{
-					State = 465;
+					State = 489;
 					numericConstraint();
 					}
 					}
-					State = 470;
+					State = 494;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -3026,19 +3849,19 @@ public partial class ACIRParser : Parser {
 				_localctx = new TechSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 471;
+				State = 495;
 				Match(TECH_KW);
-				State = 475;
+				State = 499;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==IDENT) {
 					{
 					{
-					State = 472;
+					State = 496;
 					techConstraint();
 					}
 					}
-					State = 477;
+					State = 501;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -3048,41 +3871,19 @@ public partial class ACIRParser : Parser {
 				_localctx = new GraphSectionContext(_localctx);
 				EnterOuterAlt(_localctx, 3);
 				{
-				State = 478;
+				State = 502;
 				Match(GRAPH_KW);
-				State = 482;
+				State = 506;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==IDENT) {
 					{
 					{
-					State = 479;
+					State = 503;
 					graphConstraint();
 					}
 					}
-					State = 484;
-					ErrorHandler.Sync(this);
-					_la = TokenStream.LA(1);
-				}
-				}
-				break;
-			case MEASURE_KW:
-				_localctx = new MeasureSectionContext(_localctx);
-				EnterOuterAlt(_localctx, 4);
-				{
-				State = 485;
-				Match(MEASURE_KW);
-				State = 489;
-				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
-				while (_la==IDENT) {
-					{
-					{
-					State = 486;
-					measureIntent();
-					}
-					}
-					State = 491;
+					State = 508;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -3104,19 +3905,32 @@ public partial class ACIRParser : Parser {
 	}
 
 	public partial class NumericConstraintContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(ACIRParser.IDENT, i);
-		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public BenchMetricRefContext benchMetricRef() {
+			return GetRuleContext<BenchMetricRefContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMPARISON_OP() { return GetToken(ACIRParser.COMPARISON_OP, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode QUANTITY() { return GetToken(ACIRParser.QUANTITY, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode AT() { return GetToken(ACIRParser.AT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode AT_KW() { return GetToken(ACIRParser.AT_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public NodeRefContext nodeRef() {
+			return GetRuleContext<NodeRefContext>(0);
+		}
 		public NumericConstraintContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
 		}
 		public override int RuleIndex { get { return RULE_numericConstraint; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterNumericConstraint(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitNumericConstraint(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -3128,33 +3942,202 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public NumericConstraintContext numericConstraint() {
 		NumericConstraintContext _localctx = new NumericConstraintContext(Context, State);
-		EnterRule(_localctx, 66, RULE_numericConstraint);
+		EnterRule(_localctx, 74, RULE_numericConstraint);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 494;
+			State = 511;
 			Match(IDENT);
-			State = 495;
+			State = 512;
 			Match(COLON);
-			State = 496;
-			Match(IDENT);
-			State = 499;
+			State = 513;
+			benchMetricRef();
+			State = 516;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if (_la==AT) {
+			if (_la==AT_KW) {
 				{
-				State = 497;
-				Match(AT);
-				State = 498;
-				Match(IDENT);
+				State = 514;
+				Match(AT_KW);
+				State = 515;
+				nodeRef();
 				}
 			}
 
-			State = 501;
+			State = 518;
 			Match(COMPARISON_OP);
-			State = 502;
+			State = 519;
 			Match(QUANTITY);
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class BenchMetricRefContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
+			return GetToken(ACIRParser.IDENT, i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLONCOLON() { return GetToken(ACIRParser.COLONCOLON, 0); }
+		public BenchMetricRefContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_benchMetricRef; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterBenchMetricRef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitBenchMetricRef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBenchMetricRef(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public BenchMetricRefContext benchMetricRef() {
+		BenchMetricRefContext _localctx = new BenchMetricRefContext(Context, State);
+		EnterRule(_localctx, 76, RULE_benchMetricRef);
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 521;
+			Match(IDENT);
+			State = 522;
+			Match(COLONCOLON);
+			State = 523;
+			Match(IDENT);
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class NodeRefContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public NodeScopeContext nodeScope() {
+			return GetRuleContext<NodeScopeContext>(0);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLONCOLON() { return GetToken(ACIRParser.COLONCOLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public PinRefContext pinRef() {
+			return GetRuleContext<PinRefContext>(0);
+		}
+		public NodeRefContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_nodeRef; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterNodeRef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitNodeRef(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNodeRef(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public NodeRefContext nodeRef() {
+		NodeRefContext _localctx = new NodeRefContext(Context, State);
+		EnterRule(_localctx, 78, RULE_nodeRef);
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 525;
+			nodeScope();
+			State = 526;
+			Match(COLONCOLON);
+			State = 527;
+			pinRef();
+			}
+		}
+		catch (RecognitionException re) {
+			_localctx.exception = re;
+			ErrorHandler.ReportError(this, re);
+			ErrorHandler.Recover(this, re);
+		}
+		finally {
+			ExitRule();
+		}
+		return _localctx;
+	}
+
+	public partial class NodeScopeContext : ParserRuleContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NET_KW() { return GetToken(ACIRParser.NET_KW, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode PORT_KW() { return GetToken(ACIRParser.PORT_KW, 0); }
+		public NodeScopeContext(ParserRuleContext parent, int invokingState)
+			: base(parent, invokingState)
+		{
+		}
+		public override int RuleIndex { get { return RULE_nodeScope; } }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterNodeScope(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitNodeScope(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNodeScope(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
+
+	[RuleVersion(0)]
+	public NodeScopeContext nodeScope() {
+		NodeScopeContext _localctx = new NodeScopeContext(Context, State);
+		EnterRule(_localctx, 80, RULE_nodeScope);
+		int _la;
+		try {
+			EnterOuterAlt(_localctx, 1);
+			{
+			State = 529;
+			_la = TokenStream.LA(1);
+			if ( !(_la==PORT_KW || _la==NET_KW || _la==IDENT) ) {
+			ErrorHandler.RecoverInline(this);
+			}
+			else {
+				ErrorHandler.ReportMatch(this);
+			    Consume();
+			}
 			}
 		}
 		catch (RecognitionException re) {
@@ -3186,6 +4169,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_techConstraint; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTechConstraint(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTechConstraint(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTechConstraint(this);
@@ -3196,23 +4189,23 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public TechConstraintContext techConstraint() {
 		TechConstraintContext _localctx = new TechConstraintContext(Context, State);
-		EnterRule(_localctx, 68, RULE_techConstraint);
+		EnterRule(_localctx, 82, RULE_techConstraint);
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 504;
+			State = 531;
 			Match(IDENT);
-			State = 505;
+			State = 532;
 			Match(COLON);
-			State = 506;
+			State = 533;
 			Match(IDENT);
-			State = 507;
+			State = 534;
 			Match(COMPARISON_OP);
-			State = 508;
+			State = 535;
 			Match(QUANTITY);
-			State = 509;
+			State = 536;
 			Match(ON_KW);
-			State = 510;
+			State = 537;
 			techConstraintScope();
 			}
 		}
@@ -3236,6 +4229,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_techConstraintScope; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterTechConstraintScope(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitTechConstraintScope(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitTechConstraintScope(this);
@@ -3246,12 +4249,12 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public TechConstraintScopeContext techConstraintScope() {
 		TechConstraintScopeContext _localctx = new TechConstraintScopeContext(Context, State);
-		EnterRule(_localctx, 70, RULE_techConstraintScope);
+		EnterRule(_localctx, 84, RULE_techConstraintScope);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 512;
+			State = 539;
 			_la = TokenStream.LA(1);
 			if ( !(_la==STAR || _la==IDENT) ) {
 			ErrorHandler.RecoverInline(this);
@@ -3290,6 +4293,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_graphConstraint; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterGraphConstraint(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitGraphConstraint(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitGraphConstraint(this);
@@ -3300,27 +4313,27 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public GraphConstraintContext graphConstraint() {
 		GraphConstraintContext _localctx = new GraphConstraintContext(Context, State);
-		EnterRule(_localctx, 72, RULE_graphConstraint);
+		EnterRule(_localctx, 86, RULE_graphConstraint);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 514;
+			State = 541;
 			Match(IDENT);
-			State = 515;
+			State = 542;
 			Match(COLON);
-			State = 516;
+			State = 543;
 			Match(IDENT);
-			State = 521;
+			State = 548;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			if (_la==LBRACE) {
 				{
-				State = 517;
+				State = 544;
 				Match(LBRACE);
-				State = 518;
+				State = 545;
 				graphProps();
-				State = 519;
+				State = 546;
 				Match(RBRACE);
 				}
 			}
@@ -3355,6 +4368,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_graphProps; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterGraphProps(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitGraphProps(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitGraphProps(this);
@@ -3365,26 +4388,26 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public GraphPropsContext graphProps() {
 		GraphPropsContext _localctx = new GraphPropsContext(Context, State);
-		EnterRule(_localctx, 74, RULE_graphProps);
+		EnterRule(_localctx, 88, RULE_graphProps);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 523;
+			State = 550;
 			graphProp();
-			State = 528;
+			State = 555;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==COMMA) {
 				{
 				{
-				State = 524;
+				State = 551;
 				Match(COMMA);
-				State = 525;
+				State = 552;
 				graphProp();
 				}
 				}
-				State = 530;
+				State = 557;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 			}
@@ -3416,6 +4439,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_graphProp; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterGraphProp(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitGraphProp(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitGraphProp(this);
@@ -3426,85 +4459,24 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public GraphPropContext graphProp() {
 		GraphPropContext _localctx = new GraphPropContext(Context, State);
-		EnterRule(_localctx, 76, RULE_graphProp);
+		EnterRule(_localctx, 90, RULE_graphProp);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 531;
+			State = 558;
 			Match(IDENT);
-			State = 532;
+			State = 559;
 			Match(EQ);
-			State = 533;
+			State = 560;
 			_la = TokenStream.LA(1);
-			if ( !(((((_la - 67)) & ~0x3f) == 0 && ((1L << (_la - 67)) & 15L) != 0)) ) {
+			if ( !(((((_la - 72)) & ~0x3f) == 0 && ((1L << (_la - 72)) & 15L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
 				ErrorHandler.ReportMatch(this);
 			    Consume();
 			}
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class MeasureIntentContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(ACIRParser.IDENT, i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode AT() { return GetToken(ACIRParser.AT, 0); }
-		public MeasureIntentContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_measureIntent; } }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitMeasureIntent(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-
-	[RuleVersion(0)]
-	public MeasureIntentContext measureIntent() {
-		MeasureIntentContext _localctx = new MeasureIntentContext(Context, State);
-		EnterRule(_localctx, 78, RULE_measureIntent);
-		int _la;
-		try {
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 535;
-			Match(IDENT);
-			State = 536;
-			Match(COLON);
-			State = 537;
-			Match(IDENT);
-			State = 538;
-			Match(IDENT);
-			State = 541;
-			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			if (_la==AT) {
-				{
-				State = 539;
-				Match(AT);
-				State = 540;
-				Match(IDENT);
-				}
-			}
-
 			}
 		}
 		catch (RecognitionException re) {
@@ -3537,6 +4509,16 @@ public partial class ACIRParser : Parser {
 		}
 		public HarnessPvtContext(HarnessStatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessPvt(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessPvt(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessPvt(this);
@@ -3550,6 +4532,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<SourceSpecContext>(0);
 		}
 		public HarnessSourceContext(HarnessStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessSource(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessSource(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -3565,6 +4557,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<HarnessValueContext>(0);
 		}
 		public HarnessSupplyContext(HarnessStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessSupply(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessSupply(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -3583,6 +4585,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACK() { return GetToken(ACIRParser.RBRACK, 0); }
 		public HarnessIcmrContext(HarnessStatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessIcmr(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessIcmr(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessIcmr(this);
@@ -3597,6 +4609,16 @@ public partial class ACIRParser : Parser {
 		}
 		public HarnessSweepContext(HarnessStatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessSweep(this);
@@ -3610,6 +4632,16 @@ public partial class ACIRParser : Parser {
 			return GetRuleContext<LoadSpecContext>(0);
 		}
 		public HarnessLoadContext(HarnessStatementContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessLoad(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessLoad(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -3626,6 +4658,16 @@ public partial class ACIRParser : Parser {
 		}
 		public HarnessBiasContext(HarnessStatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessBias(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessBias(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessBias(this);
@@ -3636,22 +4678,22 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public HarnessStatementContext harnessStatement() {
 		HarnessStatementContext _localctx = new HarnessStatementContext(Context, State);
-		EnterRule(_localctx, 80, RULE_harnessStatement);
+		EnterRule(_localctx, 92, RULE_harnessStatement);
 		try {
-			State = 568;
+			State = 587;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case SUPPLY_KW:
 				_localctx = new HarnessSupplyContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 543;
+				State = 562;
 				Match(SUPPLY_KW);
-				State = 544;
+				State = 563;
 				Match(IDENT);
-				State = 545;
+				State = 564;
 				Match(EQ);
-				State = 546;
+				State = 565;
 				harnessValue();
 				}
 				break;
@@ -3659,13 +4701,13 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessBiasContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 547;
+				State = 566;
 				Match(BIAS_KW);
-				State = 548;
+				State = 567;
 				Match(IDENT);
-				State = 549;
+				State = 568;
 				Match(EQ);
-				State = 550;
+				State = 569;
 				harnessValue();
 				}
 				break;
@@ -3673,11 +4715,11 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessLoadContext(_localctx);
 				EnterOuterAlt(_localctx, 3);
 				{
-				State = 551;
+				State = 570;
 				Match(LOAD_KW);
-				State = 552;
+				State = 571;
 				Match(IDENT);
-				State = 553;
+				State = 572;
 				loadSpec();
 				}
 				break;
@@ -3685,11 +4727,11 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessSourceContext(_localctx);
 				EnterOuterAlt(_localctx, 4);
 				{
-				State = 554;
+				State = 573;
 				Match(SOURCE_KW);
-				State = 555;
+				State = 574;
 				Match(IDENT);
-				State = 556;
+				State = 575;
 				sourceSpec();
 				}
 				break;
@@ -3697,11 +4739,11 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessSweepContext(_localctx);
 				EnterOuterAlt(_localctx, 5);
 				{
-				State = 557;
+				State = 576;
 				Match(SWEEP_KW);
-				State = 558;
+				State = 577;
 				Match(IDENT);
-				State = 559;
+				State = 578;
 				sweepSpec();
 				}
 				break;
@@ -3709,17 +4751,17 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessIcmrContext(_localctx);
 				EnterOuterAlt(_localctx, 6);
 				{
-				State = 560;
+				State = 579;
 				Match(ICMR_KW);
-				State = 561;
+				State = 580;
 				Match(LBRACK);
-				State = 562;
+				State = 581;
 				Match(QUANTITY);
-				State = 563;
+				State = 582;
 				Match(COLON);
-				State = 564;
+				State = 583;
 				Match(QUANTITY);
-				State = 565;
+				State = 584;
 				Match(RBRACK);
 				}
 				break;
@@ -3727,9 +4769,9 @@ public partial class ACIRParser : Parser {
 				_localctx = new HarnessPvtContext(_localctx);
 				EnterOuterAlt(_localctx, 7);
 				{
-				State = 566;
+				State = 585;
 				Match(PVT_KW);
-				State = 567;
+				State = 586;
 				pvtList();
 				}
 				break;
@@ -3758,6 +4800,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_harnessValue; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterHarnessValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitHarnessValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitHarnessValue(this);
@@ -3768,30 +4820,30 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public HarnessValueContext harnessValue() {
 		HarnessValueContext _localctx = new HarnessValueContext(Context, State);
-		EnterRule(_localctx, 82, RULE_harnessValue);
+		EnterRule(_localctx, 94, RULE_harnessValue);
 		int _la;
 		try {
-			State = 575;
+			State = 594;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case QUANTITY:
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 570;
+				State = 589;
 				Match(QUANTITY);
 				}
 				break;
 			case NUMBER:
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 571;
+				State = 590;
 				Match(NUMBER);
-				State = 573;
+				State = 592;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==IDENT) {
 					{
-					State = 572;
+					State = 591;
 					Match(IDENT);
 					}
 				}
@@ -3838,6 +4890,16 @@ public partial class ACIRParser : Parser {
 		}
 		public SimpleLoadSpecContext(LoadSpecContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSimpleLoadSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSimpleLoadSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSimpleLoadSpec(this);
@@ -3863,6 +4925,16 @@ public partial class ACIRParser : Parser {
 		}
 		public ParenLoadSpecContext(LoadSpecContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterParenLoadSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitParenLoadSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitParenLoadSpec(this);
@@ -3873,31 +4945,31 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public LoadSpecContext loadSpec() {
 		LoadSpecContext _localctx = new LoadSpecContext(Context, State);
-		EnterRule(_localctx, 84, RULE_loadSpec);
+		EnterRule(_localctx, 96, RULE_loadSpec);
 		int _la;
 		try {
-			State = 596;
+			State = 615;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case LOAD_TYPE:
 				_localctx = new SimpleLoadSpecContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 577;
+				State = 596;
 				loadElement();
-				State = 582;
+				State = 601;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==COMMA) {
 					{
 					{
-					State = 578;
+					State = 597;
 					Match(COMMA);
-					State = 579;
+					State = 598;
 					loadElement();
 					}
 					}
-					State = 584;
+					State = 603;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
@@ -3907,17 +4979,17 @@ public partial class ACIRParser : Parser {
 				_localctx = new ParenLoadSpecContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 585;
+				State = 604;
 				Match(LPAREN);
-				State = 586;
+				State = 605;
 				loadElement();
-				State = 591;
+				State = 610;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				while (_la==PIPEPIPE || _la==COMMA) {
 					{
 					{
-					State = 587;
+					State = 606;
 					_la = TokenStream.LA(1);
 					if ( !(_la==PIPEPIPE || _la==COMMA) ) {
 					ErrorHandler.RecoverInline(this);
@@ -3926,15 +4998,15 @@ public partial class ACIRParser : Parser {
 						ErrorHandler.ReportMatch(this);
 					    Consume();
 					}
-					State = 588;
+					State = 607;
 					loadElement();
 					}
 					}
-					State = 593;
+					State = 612;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
 				}
-				State = 594;
+				State = 613;
 				Match(RPAREN);
 				}
 				break;
@@ -3965,6 +5037,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_loadElement; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterLoadElement(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitLoadElement(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitLoadElement(this);
@@ -3975,16 +5057,16 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public LoadElementContext loadElement() {
 		LoadElementContext _localctx = new LoadElementContext(Context, State);
-		EnterRule(_localctx, 86, RULE_loadElement);
+		EnterRule(_localctx, 98, RULE_loadElement);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 598;
+			State = 617;
 			Match(LOAD_TYPE);
-			State = 599;
+			State = 618;
 			Match(EQ);
-			State = 600;
+			State = 619;
 			_la = TokenStream.LA(1);
 			if ( !(_la==QUANTITY || _la==NUMBER) ) {
 			ErrorHandler.RecoverInline(this);
@@ -3993,12 +5075,12 @@ public partial class ACIRParser : Parser {
 				ErrorHandler.ReportMatch(this);
 			    Consume();
 			}
-			State = 602;
+			State = 621;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			if (_la==IDENT) {
 				{
-				State = 601;
+				State = 620;
 				Match(IDENT);
 				}
 			}
@@ -4027,6 +5109,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_sourceSpec; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSourceSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSourceSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSourceSpec(this);
@@ -4037,16 +5129,16 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SourceSpecContext sourceSpec() {
 		SourceSpecContext _localctx = new SourceSpecContext(Context, State);
-		EnterRule(_localctx, 88, RULE_sourceSpec);
+		EnterRule(_localctx, 100, RULE_sourceSpec);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 604;
+			State = 623;
 			Match(Z_KW);
-			State = 605;
+			State = 624;
 			Match(EQ);
-			State = 606;
+			State = 625;
 			_la = TokenStream.LA(1);
 			if ( !(_la==QUANTITY || _la==NUMBER) ) {
 			ErrorHandler.RecoverInline(this);
@@ -4081,6 +5173,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_sweepSpec; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSweepSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSweepSpec(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSweepSpec(this);
@@ -4091,30 +5193,30 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SweepSpecContext sweepSpec() {
 		SweepSpecContext _localctx = new SweepSpecContext(Context, State);
-		EnterRule(_localctx, 90, RULE_sweepSpec);
+		EnterRule(_localctx, 102, RULE_sweepSpec);
 		try {
-			State = 615;
+			State = 634;
 			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,59,Context) ) {
+			switch ( Interpreter.AdaptivePredict(TokenStream,60,Context) ) {
 			case 1:
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 608;
+				State = 627;
 				Match(LBRACK);
-				State = 609;
+				State = 628;
 				sweepRange();
-				State = 610;
+				State = 629;
 				Match(RBRACK);
 				}
 				break;
 			case 2:
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 612;
+				State = 631;
 				Match(LBRACK);
-				State = 613;
+				State = 632;
 				Match(AUTO_KW);
-				State = 614;
+				State = 633;
 				Match(RBRACK);
 				}
 				break;
@@ -4153,6 +5255,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(ACIRParser.COLON, 0); }
 		public AutoStepSweepContext(SweepRangeContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterAutoStepSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitAutoStepSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitAutoStepSweep(this);
@@ -4172,6 +5284,16 @@ public partial class ACIRParser : Parser {
 		}
 		public ExplicitSweepContext(SweepRangeContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterExplicitSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitExplicitSweep(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitExplicitSweep(this);
@@ -4182,24 +5304,24 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SweepRangeContext sweepRange() {
 		SweepRangeContext _localctx = new SweepRangeContext(Context, State);
-		EnterRule(_localctx, 92, RULE_sweepRange);
+		EnterRule(_localctx, 104, RULE_sweepRange);
 		try {
-			State = 627;
+			State = 646;
 			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,60,Context) ) {
+			switch ( Interpreter.AdaptivePredict(TokenStream,61,Context) ) {
 			case 1:
 				_localctx = new ExplicitSweepContext(_localctx);
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 617;
+				State = 636;
 				sweepValue();
-				State = 618;
+				State = 637;
 				Match(COLON);
-				State = 619;
+				State = 638;
 				sweepValue();
-				State = 620;
+				State = 639;
 				Match(COLON);
-				State = 621;
+				State = 640;
 				sweepValue();
 				}
 				break;
@@ -4207,11 +5329,11 @@ public partial class ACIRParser : Parser {
 				_localctx = new AutoStepSweepContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 623;
+				State = 642;
 				sweepValue();
-				State = 624;
+				State = 643;
 				Match(COLON);
-				State = 625;
+				State = 644;
 				sweepValue();
 				}
 				break;
@@ -4238,6 +5360,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_sweepValue; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterSweepValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitSweepValue(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitSweepValue(this);
@@ -4248,30 +5380,30 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public SweepValueContext sweepValue() {
 		SweepValueContext _localctx = new SweepValueContext(Context, State);
-		EnterRule(_localctx, 94, RULE_sweepValue);
+		EnterRule(_localctx, 106, RULE_sweepValue);
 		int _la;
 		try {
-			State = 634;
+			State = 653;
 			ErrorHandler.Sync(this);
 			switch (TokenStream.LA(1)) {
 			case QUANTITY:
 				EnterOuterAlt(_localctx, 1);
 				{
-				State = 629;
+				State = 648;
 				Match(QUANTITY);
 				}
 				break;
 			case NUMBER:
 				EnterOuterAlt(_localctx, 2);
 				{
-				State = 630;
+				State = 649;
 				Match(NUMBER);
-				State = 632;
+				State = 651;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
 				if (_la==IDENT) {
 					{
-					State = 631;
+					State = 650;
 					Match(IDENT);
 					}
 				}
@@ -4308,6 +5440,16 @@ public partial class ACIRParser : Parser {
 		}
 		public override int RuleIndex { get { return RULE_pvtList; } }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterPvtList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitPvtList(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitPvtList(this);
@@ -4318,204 +5460,28 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public PvtListContext pvtList() {
 		PvtListContext _localctx = new PvtListContext(Context, State);
-		EnterRule(_localctx, 96, RULE_pvtList);
+		EnterRule(_localctx, 108, RULE_pvtList);
 		int _la;
 		try {
 			EnterOuterAlt(_localctx, 1);
 			{
-			State = 636;
+			State = 655;
 			Match(IDENT);
-			State = 641;
+			State = 660;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
 			while (_la==COMMA) {
 				{
 				{
-				State = 637;
+				State = 656;
 				Match(COMMA);
-				State = 638;
+				State = 657;
 				Match(IDENT);
 				}
 				}
-				State = 643;
+				State = 662;
 				ErrorHandler.Sync(this);
 				_la = TokenStream.LA(1);
-			}
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class BenchEntryContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(ACIRParser.IDENT, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LBRACE() { return GetToken(ACIRParser.LBRACE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public BenchConfigContext benchConfig() {
-			return GetRuleContext<BenchConfigContext>(0);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACE() { return GetToken(ACIRParser.RBRACE, 0); }
-		public BenchEntryContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_benchEntry; } }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitBenchEntry(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-
-	[RuleVersion(0)]
-	public BenchEntryContext benchEntry() {
-		BenchEntryContext _localctx = new BenchEntryContext(Context, State);
-		EnterRule(_localctx, 98, RULE_benchEntry);
-		int _la;
-		try {
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 644;
-			Match(IDENT);
-			State = 649;
-			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			if (_la==LBRACE) {
-				{
-				State = 645;
-				Match(LBRACE);
-				State = 646;
-				benchConfig();
-				State = 647;
-				Match(RBRACE);
-				}
-			}
-
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class BenchConfigContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public BenchConfigEntryContext[] benchConfigEntry() {
-			return GetRuleContexts<BenchConfigEntryContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public BenchConfigEntryContext benchConfigEntry(int i) {
-			return GetRuleContext<BenchConfigEntryContext>(i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] COMMA() { return GetTokens(ACIRParser.COMMA); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMMA(int i) {
-			return GetToken(ACIRParser.COMMA, i);
-		}
-		public BenchConfigContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_benchConfig; } }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitBenchConfig(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-
-	[RuleVersion(0)]
-	public BenchConfigContext benchConfig() {
-		BenchConfigContext _localctx = new BenchConfigContext(Context, State);
-		EnterRule(_localctx, 100, RULE_benchConfig);
-		int _la;
-		try {
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 651;
-			benchConfigEntry();
-			State = 656;
-			ErrorHandler.Sync(this);
-			_la = TokenStream.LA(1);
-			while (_la==COMMA) {
-				{
-				{
-				State = 652;
-				Match(COMMA);
-				State = 653;
-				benchConfigEntry();
-				}
-				}
-				State = 658;
-				ErrorHandler.Sync(this);
-				_la = TokenStream.LA(1);
-			}
-			}
-		}
-		catch (RecognitionException re) {
-			_localctx.exception = re;
-			ErrorHandler.ReportError(this, re);
-			ErrorHandler.Recover(this, re);
-		}
-		finally {
-			ExitRule();
-		}
-		return _localctx;
-	}
-
-	public partial class BenchConfigEntryContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(ACIRParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(ACIRParser.IDENT, i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NUMBER() { return GetToken(ACIRParser.NUMBER, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode QUANTITY() { return GetToken(ACIRParser.QUANTITY, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING() { return GetToken(ACIRParser.STRING, 0); }
-		public BenchConfigEntryContext(ParserRuleContext parent, int invokingState)
-			: base(parent, invokingState)
-		{
-		}
-		public override int RuleIndex { get { return RULE_benchConfigEntry; } }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitBenchConfigEntry(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-
-	[RuleVersion(0)]
-	public BenchConfigEntryContext benchConfigEntry() {
-		BenchConfigEntryContext _localctx = new BenchConfigEntryContext(Context, State);
-		EnterRule(_localctx, 102, RULE_benchConfigEntry);
-		int _la;
-		try {
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 659;
-			Match(IDENT);
-			State = 660;
-			Match(EQ);
-			State = 661;
-			_la = TokenStream.LA(1);
-			if ( !(((((_la - 67)) & ~0x3f) == 0 && ((1L << (_la - 67)) & 15L) != 0)) ) {
-			ErrorHandler.RecoverInline(this);
-			}
-			else {
-				ErrorHandler.ReportMatch(this);
-			    Consume();
 			}
 			}
 		}
@@ -4554,6 +5520,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RBRACK() { return GetToken(ACIRParser.RBRACK, 0); }
 		public ProvenanceSourceContext(ProvenanceEntryContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterProvenanceSource(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitProvenanceSource(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitProvenanceSource(this);
@@ -4564,6 +5540,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode TRANSFORM_KW() { return GetToken(ACIRParser.TRANSFORM_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING() { return GetToken(ACIRParser.STRING, 0); }
 		public ProvenanceTransformContext(ProvenanceEntryContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterProvenanceTransform(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitProvenanceTransform(this);
+		}
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
@@ -4580,6 +5566,16 @@ public partial class ACIRParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQ() { return GetToken(ACIRParser.EQ, 0); }
 		public ProvenanceAliasContext(ProvenanceEntryContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
+		public override void EnterRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.EnterProvenanceAlias(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override void ExitRule(IParseTreeListener listener) {
+			IACIRListener typedListener = listener as IACIRListener;
+			if (typedListener != null) typedListener.ExitProvenanceAlias(this);
+		}
+		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IACIRVisitor<TResult> typedVisitor = visitor as IACIRVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitProvenanceAlias(this);
@@ -4590,7 +5586,7 @@ public partial class ACIRParser : Parser {
 	[RuleVersion(0)]
 	public ProvenanceEntryContext provenanceEntry() {
 		ProvenanceEntryContext _localctx = new ProvenanceEntryContext(Context, State);
-		EnterRule(_localctx, 104, RULE_provenanceEntry);
+		EnterRule(_localctx, 110, RULE_provenanceEntry);
 		int _la;
 		try {
 			State = 678;
@@ -4664,235 +5660,234 @@ public partial class ACIRParser : Parser {
 	}
 
 	private static int[] _serializedATN = {
-		4,1,72,681,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,7,
+		4,1,78,681,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,7,
 		7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,2,14,7,14,
 		2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,7,20,2,21,7,21,
 		2,22,7,22,2,23,7,23,2,24,7,24,2,25,7,25,2,26,7,26,2,27,7,27,2,28,7,28,
 		2,29,7,29,2,30,7,30,2,31,7,31,2,32,7,32,2,33,7,33,2,34,7,34,2,35,7,35,
 		2,36,7,36,2,37,7,37,2,38,7,38,2,39,7,39,2,40,7,40,2,41,7,41,2,42,7,42,
 		2,43,7,43,2,44,7,44,2,45,7,45,2,46,7,46,2,47,7,47,2,48,7,48,2,49,7,49,
-		2,50,7,50,2,51,7,51,2,52,7,52,1,0,3,0,108,8,0,1,0,5,0,111,8,0,10,0,12,
-		0,114,9,0,1,0,5,0,117,8,0,10,0,12,0,120,9,0,1,0,5,0,123,8,0,10,0,12,0,
-		126,9,0,1,0,1,0,1,1,1,1,1,1,1,2,1,2,1,2,1,2,4,2,137,8,2,11,2,12,2,138,
-		1,3,1,3,1,3,1,3,1,4,1,4,1,4,1,4,4,4,149,8,4,11,4,12,4,150,1,5,1,5,1,5,
-		1,5,1,5,1,5,1,5,4,5,160,8,5,11,5,12,5,161,3,5,164,8,5,1,6,1,6,1,6,1,6,
-		4,6,170,8,6,11,6,12,6,171,1,7,1,7,1,7,1,7,1,8,1,8,1,8,1,8,3,8,182,8,8,
-		1,8,5,8,185,8,8,10,8,12,8,188,9,8,1,9,1,9,1,9,5,9,193,8,9,10,9,12,9,196,
-		9,9,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,10,1,
-		10,1,10,1,10,1,10,1,10,1,10,1,10,3,10,218,8,10,1,10,1,10,1,10,1,10,3,10,
-		224,8,10,1,10,1,10,5,10,228,8,10,10,10,12,10,231,9,10,1,10,1,10,5,10,235,
-		8,10,10,10,12,10,238,9,10,1,10,1,10,5,10,242,8,10,10,10,12,10,245,9,10,
-		1,10,1,10,5,10,249,8,10,10,10,12,10,252,9,10,1,10,1,10,5,10,256,8,10,10,
-		10,12,10,259,9,10,3,10,261,8,10,1,11,1,11,1,12,1,12,1,12,5,12,268,8,12,
-		10,12,12,12,271,9,12,1,12,1,12,1,12,3,12,276,8,12,1,12,1,12,1,12,5,12,
-		281,8,12,10,12,12,12,284,9,12,1,12,1,12,1,12,3,12,289,8,12,1,13,1,13,1,
-		14,1,14,1,15,1,15,1,16,1,16,1,16,1,16,5,16,301,8,16,10,16,12,16,304,9,
-		16,1,16,1,16,1,17,1,17,1,17,1,17,1,18,1,18,1,18,5,18,315,8,18,10,18,12,
-		18,318,9,18,1,19,1,19,1,19,1,19,1,19,1,19,1,19,1,19,1,19,1,19,1,19,3,19,
-		331,8,19,1,19,3,19,334,8,19,1,19,1,19,1,19,1,19,1,19,1,19,3,19,342,8,19,
-		1,19,1,19,1,19,5,19,347,8,19,10,19,12,19,350,9,19,1,19,1,19,1,19,1,19,
-		1,19,1,19,1,19,1,19,1,19,3,19,361,8,19,1,19,3,19,364,8,19,1,19,1,19,1,
-		19,1,19,1,19,3,19,371,8,19,1,20,1,20,1,21,1,21,1,21,5,21,378,8,21,10,21,
-		12,21,381,9,21,1,22,1,22,1,23,1,23,1,23,5,23,388,8,23,10,23,12,23,391,
-		9,23,1,23,3,23,394,8,23,1,24,1,24,1,24,1,24,1,25,4,25,401,8,25,11,25,12,
-		25,402,1,26,1,26,1,26,1,26,1,26,1,26,1,26,1,26,1,26,1,26,1,26,1,26,3,26,
-		417,8,26,1,27,1,27,1,28,1,28,1,28,1,28,1,28,1,28,1,28,1,28,1,28,1,28,1,
-		28,1,28,1,28,1,28,3,28,435,8,28,1,29,1,29,4,29,439,8,29,11,29,12,29,440,
-		1,30,1,30,5,30,445,8,30,10,30,12,30,448,9,30,1,30,1,30,1,31,1,31,1,31,
-		5,31,455,8,31,10,31,12,31,458,9,31,1,31,1,31,1,31,3,31,463,8,31,1,32,1,
-		32,5,32,467,8,32,10,32,12,32,470,9,32,1,32,1,32,5,32,474,8,32,10,32,12,
-		32,477,9,32,1,32,1,32,5,32,481,8,32,10,32,12,32,484,9,32,1,32,1,32,5,32,
-		488,8,32,10,32,12,32,491,9,32,3,32,493,8,32,1,33,1,33,1,33,1,33,1,33,3,
-		33,500,8,33,1,33,1,33,1,33,1,34,1,34,1,34,1,34,1,34,1,34,1,34,1,34,1,35,
-		1,35,1,36,1,36,1,36,1,36,1,36,1,36,1,36,3,36,522,8,36,1,37,1,37,1,37,5,
-		37,527,8,37,10,37,12,37,530,9,37,1,38,1,38,1,38,1,38,1,39,1,39,1,39,1,
-		39,1,39,1,39,3,39,542,8,39,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,
-		1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,1,40,
-		1,40,1,40,3,40,569,8,40,1,41,1,41,1,41,3,41,574,8,41,3,41,576,8,41,1,42,
-		1,42,1,42,5,42,581,8,42,10,42,12,42,584,9,42,1,42,1,42,1,42,1,42,5,42,
-		590,8,42,10,42,12,42,593,9,42,1,42,1,42,3,42,597,8,42,1,43,1,43,1,43,1,
-		43,3,43,603,8,43,1,44,1,44,1,44,1,44,1,45,1,45,1,45,1,45,1,45,1,45,1,45,
-		3,45,616,8,45,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,3,46,628,
-		8,46,1,47,1,47,1,47,3,47,633,8,47,3,47,635,8,47,1,48,1,48,1,48,5,48,640,
-		8,48,10,48,12,48,643,9,48,1,49,1,49,1,49,1,49,1,49,3,49,650,8,49,1,50,
-		1,50,1,50,5,50,655,8,50,10,50,12,50,658,9,50,1,51,1,51,1,51,1,51,1,52,
-		1,52,1,52,1,52,1,52,1,52,1,52,3,52,671,8,52,1,52,1,52,1,52,1,52,1,52,1,
-		52,3,52,679,8,52,1,52,0,0,53,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,
-		32,34,36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,
-		80,82,84,86,88,90,92,94,96,98,100,102,104,0,12,1,0,44,46,3,0,10,11,30,
-		30,69,69,1,0,39,40,2,0,65,65,67,70,1,0,65,68,2,0,47,47,69,69,7,0,5,5,7,
-		7,10,13,19,19,21,25,30,40,69,69,2,0,65,65,67,68,2,0,63,63,69,69,1,0,67,
-		70,2,0,52,52,54,54,1,0,67,68,721,0,107,1,0,0,0,2,129,1,0,0,0,4,132,1,0,
-		0,0,6,140,1,0,0,0,8,144,1,0,0,0,10,163,1,0,0,0,12,165,1,0,0,0,14,173,1,
-		0,0,0,16,177,1,0,0,0,18,189,1,0,0,0,20,260,1,0,0,0,22,262,1,0,0,0,24,288,
-		1,0,0,0,26,290,1,0,0,0,28,292,1,0,0,0,30,294,1,0,0,0,32,296,1,0,0,0,34,
-		307,1,0,0,0,36,311,1,0,0,0,38,370,1,0,0,0,40,372,1,0,0,0,42,374,1,0,0,
-		0,44,382,1,0,0,0,46,393,1,0,0,0,48,395,1,0,0,0,50,400,1,0,0,0,52,416,1,
-		0,0,0,54,418,1,0,0,0,56,434,1,0,0,0,58,438,1,0,0,0,60,442,1,0,0,0,62,451,
-		1,0,0,0,64,492,1,0,0,0,66,494,1,0,0,0,68,504,1,0,0,0,70,512,1,0,0,0,72,
-		514,1,0,0,0,74,523,1,0,0,0,76,531,1,0,0,0,78,535,1,0,0,0,80,568,1,0,0,
-		0,82,575,1,0,0,0,84,596,1,0,0,0,86,598,1,0,0,0,88,604,1,0,0,0,90,615,1,
-		0,0,0,92,627,1,0,0,0,94,634,1,0,0,0,96,636,1,0,0,0,98,644,1,0,0,0,100,
-		651,1,0,0,0,102,659,1,0,0,0,104,678,1,0,0,0,106,108,3,2,1,0,107,106,1,
-		0,0,0,107,108,1,0,0,0,108,112,1,0,0,0,109,111,3,4,2,0,110,109,1,0,0,0,
-		111,114,1,0,0,0,112,110,1,0,0,0,112,113,1,0,0,0,113,118,1,0,0,0,114,112,
-		1,0,0,0,115,117,3,8,4,0,116,115,1,0,0,0,117,120,1,0,0,0,118,116,1,0,0,
-		0,118,119,1,0,0,0,119,124,1,0,0,0,120,118,1,0,0,0,121,123,3,16,8,0,122,
-		121,1,0,0,0,123,126,1,0,0,0,124,122,1,0,0,0,124,125,1,0,0,0,125,127,1,
-		0,0,0,126,124,1,0,0,0,127,128,5,0,0,1,128,1,1,0,0,0,129,130,5,1,0,0,130,
-		131,5,68,0,0,131,3,1,0,0,0,132,133,5,2,0,0,133,134,5,69,0,0,134,136,5,
-		53,0,0,135,137,3,6,3,0,136,135,1,0,0,0,137,138,1,0,0,0,138,136,1,0,0,0,
-		138,139,1,0,0,0,139,5,1,0,0,0,140,141,5,69,0,0,141,142,5,53,0,0,142,143,
-		5,69,0,0,143,7,1,0,0,0,144,145,5,3,0,0,145,146,5,69,0,0,146,148,5,53,0,
-		0,147,149,3,10,5,0,148,147,1,0,0,0,149,150,1,0,0,0,150,148,1,0,0,0,150,
-		151,1,0,0,0,151,9,1,0,0,0,152,153,5,5,0,0,153,154,3,24,12,0,154,155,5,
-		53,0,0,155,156,3,26,13,0,156,164,1,0,0,0,157,159,5,6,0,0,158,160,3,12,
-		6,0,159,158,1,0,0,0,160,161,1,0,0,0,161,159,1,0,0,0,161,162,1,0,0,0,162,
-		164,1,0,0,0,163,152,1,0,0,0,163,157,1,0,0,0,164,11,1,0,0,0,165,166,5,23,
-		0,0,166,167,5,69,0,0,167,169,5,53,0,0,168,170,3,14,7,0,169,168,1,0,0,0,
-		170,171,1,0,0,0,171,169,1,0,0,0,171,172,1,0,0,0,172,13,1,0,0,0,173,174,
-		3,62,31,0,174,175,5,50,0,0,175,176,3,62,31,0,176,15,1,0,0,0,177,178,5,
-		4,0,0,178,181,5,69,0,0,179,180,5,53,0,0,180,182,3,18,9,0,181,179,1,0,0,
-		0,181,182,1,0,0,0,182,186,1,0,0,0,183,185,3,20,10,0,184,183,1,0,0,0,185,
-		188,1,0,0,0,186,184,1,0,0,0,186,187,1,0,0,0,187,17,1,0,0,0,188,186,1,0,
-		0,0,189,194,5,69,0,0,190,191,5,54,0,0,191,193,5,69,0,0,192,190,1,0,0,0,
-		193,196,1,0,0,0,194,192,1,0,0,0,194,195,1,0,0,0,195,19,1,0,0,0,196,194,
-		1,0,0,0,197,198,5,7,0,0,198,261,3,22,11,0,199,261,5,8,0,0,200,201,5,9,
-		0,0,201,261,3,36,18,0,202,203,5,10,0,0,203,261,5,69,0,0,204,205,5,11,0,
-		0,205,261,5,69,0,0,206,207,5,5,0,0,207,208,3,24,12,0,208,209,5,53,0,0,
-		209,210,3,26,13,0,210,261,1,0,0,0,211,212,5,12,0,0,212,213,5,69,0,0,213,
-		214,5,53,0,0,214,217,3,28,14,0,215,216,5,56,0,0,216,218,3,30,15,0,217,
-		215,1,0,0,0,217,218,1,0,0,0,218,261,1,0,0,0,219,220,5,13,0,0,220,223,5,
-		69,0,0,221,222,5,56,0,0,222,224,3,32,16,0,223,221,1,0,0,0,223,224,1,0,
-		0,0,224,261,1,0,0,0,225,229,5,14,0,0,226,228,3,38,19,0,227,226,1,0,0,0,
-		228,231,1,0,0,0,229,227,1,0,0,0,229,230,1,0,0,0,230,261,1,0,0,0,231,229,
-		1,0,0,0,232,236,5,15,0,0,233,235,3,64,32,0,234,233,1,0,0,0,235,238,1,0,
-		0,0,236,234,1,0,0,0,236,237,1,0,0,0,237,261,1,0,0,0,238,236,1,0,0,0,239,
-		243,5,16,0,0,240,242,3,80,40,0,241,240,1,0,0,0,242,245,1,0,0,0,243,241,
-		1,0,0,0,243,244,1,0,0,0,244,261,1,0,0,0,245,243,1,0,0,0,246,250,5,17,0,
-		0,247,249,3,98,49,0,248,247,1,0,0,0,249,252,1,0,0,0,250,248,1,0,0,0,250,
-		251,1,0,0,0,251,261,1,0,0,0,252,250,1,0,0,0,253,257,5,18,0,0,254,256,3,
-		104,52,0,255,254,1,0,0,0,256,259,1,0,0,0,257,255,1,0,0,0,257,258,1,0,0,
-		0,258,261,1,0,0,0,259,257,1,0,0,0,260,197,1,0,0,0,260,199,1,0,0,0,260,
-		200,1,0,0,0,260,202,1,0,0,0,260,204,1,0,0,0,260,206,1,0,0,0,260,211,1,
-		0,0,0,260,219,1,0,0,0,260,225,1,0,0,0,260,232,1,0,0,0,260,239,1,0,0,0,
-		260,246,1,0,0,0,260,253,1,0,0,0,261,21,1,0,0,0,262,263,7,0,0,0,263,23,
-		1,0,0,0,264,269,5,69,0,0,265,266,5,55,0,0,266,268,5,69,0,0,267,265,1,0,
-		0,0,268,271,1,0,0,0,269,267,1,0,0,0,269,270,1,0,0,0,270,275,1,0,0,0,271,
-		269,1,0,0,0,272,273,5,59,0,0,273,274,5,68,0,0,274,276,5,60,0,0,275,272,
-		1,0,0,0,275,276,1,0,0,0,276,289,1,0,0,0,277,282,5,69,0,0,278,279,5,55,
-		0,0,279,281,5,69,0,0,280,278,1,0,0,0,281,284,1,0,0,0,282,280,1,0,0,0,282,
-		283,1,0,0,0,283,285,1,0,0,0,284,282,1,0,0,0,285,286,5,59,0,0,286,287,5,
-		63,0,0,287,289,5,60,0,0,288,264,1,0,0,0,288,277,1,0,0,0,289,25,1,0,0,0,
-		290,291,7,1,0,0,291,27,1,0,0,0,292,293,7,2,0,0,293,29,1,0,0,0,294,295,
-		7,3,0,0,295,31,1,0,0,0,296,297,5,57,0,0,297,302,3,34,17,0,298,299,5,54,
-		0,0,299,301,3,34,17,0,300,298,1,0,0,0,301,304,1,0,0,0,302,300,1,0,0,0,
-		302,303,1,0,0,0,303,305,1,0,0,0,304,302,1,0,0,0,305,306,5,58,0,0,306,33,
-		1,0,0,0,307,308,5,69,0,0,308,309,5,56,0,0,309,310,7,4,0,0,310,35,1,0,0,
-		0,311,316,5,69,0,0,312,313,5,55,0,0,313,315,5,69,0,0,314,312,1,0,0,0,315,
-		318,1,0,0,0,316,314,1,0,0,0,316,317,1,0,0,0,317,37,1,0,0,0,318,316,1,0,
-		0,0,319,320,5,19,0,0,320,321,5,69,0,0,321,322,5,53,0,0,322,371,3,26,13,
-		0,323,324,5,47,0,0,324,325,3,42,21,0,325,326,5,57,0,0,326,327,3,46,23,
-		0,327,328,5,58,0,0,328,330,5,53,0,0,329,331,3,50,25,0,330,329,1,0,0,0,
-		330,331,1,0,0,0,331,333,1,0,0,0,332,334,3,40,20,0,333,332,1,0,0,0,333,
-		334,1,0,0,0,334,371,1,0,0,0,335,336,5,20,0,0,336,341,5,69,0,0,337,338,
-		5,57,0,0,338,339,3,46,23,0,339,340,5,58,0,0,340,342,1,0,0,0,341,337,1,
-		0,0,0,341,342,1,0,0,0,342,343,1,0,0,0,343,344,5,53,0,0,344,348,5,69,0,
-		0,345,347,3,56,28,0,346,345,1,0,0,0,347,350,1,0,0,0,348,346,1,0,0,0,348,
-		349,1,0,0,0,349,371,1,0,0,0,350,348,1,0,0,0,351,352,5,21,0,0,352,353,5,
-		69,0,0,353,354,3,58,29,0,354,355,5,24,0,0,355,356,5,69,0,0,356,357,5,51,
-		0,0,357,360,5,69,0,0,358,359,5,25,0,0,359,361,5,69,0,0,360,358,1,0,0,0,
-		360,361,1,0,0,0,361,363,1,0,0,0,362,364,3,60,30,0,363,362,1,0,0,0,363,
-		364,1,0,0,0,364,371,1,0,0,0,365,366,5,22,0,0,366,367,3,62,31,0,367,368,
-		5,50,0,0,368,369,3,62,31,0,369,371,1,0,0,0,370,319,1,0,0,0,370,323,1,0,
-		0,0,370,335,1,0,0,0,370,351,1,0,0,0,370,365,1,0,0,0,371,39,1,0,0,0,372,
-		373,7,5,0,0,373,41,1,0,0,0,374,379,3,44,22,0,375,376,5,55,0,0,376,378,
-		3,44,22,0,377,375,1,0,0,0,378,381,1,0,0,0,379,377,1,0,0,0,379,380,1,0,
-		0,0,380,43,1,0,0,0,381,379,1,0,0,0,382,383,7,6,0,0,383,45,1,0,0,0,384,
-		389,3,48,24,0,385,386,5,54,0,0,386,388,3,48,24,0,387,385,1,0,0,0,388,391,
-		1,0,0,0,389,387,1,0,0,0,389,390,1,0,0,0,390,394,1,0,0,0,391,389,1,0,0,
-		0,392,394,1,0,0,0,393,384,1,0,0,0,393,392,1,0,0,0,394,47,1,0,0,0,395,396,
-		3,62,31,0,396,397,5,50,0,0,397,398,3,62,31,0,398,49,1,0,0,0,399,401,3,
-		52,26,0,400,399,1,0,0,0,401,402,1,0,0,0,402,400,1,0,0,0,402,403,1,0,0,
-		0,403,51,1,0,0,0,404,405,5,69,0,0,405,406,5,56,0,0,406,417,3,54,27,0,407,
-		408,5,48,0,0,408,409,5,56,0,0,409,417,3,54,27,0,410,411,5,13,0,0,411,412,
-		5,56,0,0,412,417,3,32,16,0,413,414,5,13,0,0,414,415,5,56,0,0,415,417,5,
-		69,0,0,416,404,1,0,0,0,416,407,1,0,0,0,416,410,1,0,0,0,416,413,1,0,0,0,
-		417,53,1,0,0,0,418,419,7,7,0,0,419,55,1,0,0,0,420,421,5,12,0,0,421,422,
-		5,69,0,0,422,423,5,56,0,0,423,435,3,30,15,0,424,425,5,13,0,0,425,426,5,
-		69,0,0,426,427,5,56,0,0,427,435,3,32,16,0,428,429,5,22,0,0,429,430,3,62,
-		31,0,430,431,5,50,0,0,431,432,3,62,31,0,432,435,1,0,0,0,433,435,3,48,24,
-		0,434,420,1,0,0,0,434,424,1,0,0,0,434,428,1,0,0,0,434,433,1,0,0,0,435,
-		57,1,0,0,0,436,437,5,23,0,0,437,439,5,69,0,0,438,436,1,0,0,0,439,440,1,
-		0,0,0,440,438,1,0,0,0,440,441,1,0,0,0,441,59,1,0,0,0,442,446,5,61,0,0,
-		443,445,3,48,24,0,444,443,1,0,0,0,445,448,1,0,0,0,446,444,1,0,0,0,446,
-		447,1,0,0,0,447,449,1,0,0,0,448,446,1,0,0,0,449,450,5,62,0,0,450,61,1,
-		0,0,0,451,456,3,44,22,0,452,453,5,55,0,0,453,455,3,44,22,0,454,452,1,0,
-		0,0,455,458,1,0,0,0,456,454,1,0,0,0,456,457,1,0,0,0,457,462,1,0,0,0,458,
-		456,1,0,0,0,459,460,5,59,0,0,460,461,5,68,0,0,461,463,5,60,0,0,462,459,
-		1,0,0,0,462,463,1,0,0,0,463,63,1,0,0,0,464,468,5,26,0,0,465,467,3,66,33,
-		0,466,465,1,0,0,0,467,470,1,0,0,0,468,466,1,0,0,0,468,469,1,0,0,0,469,
-		493,1,0,0,0,470,468,1,0,0,0,471,475,5,27,0,0,472,474,3,68,34,0,473,472,
-		1,0,0,0,474,477,1,0,0,0,475,473,1,0,0,0,475,476,1,0,0,0,476,493,1,0,0,
-		0,477,475,1,0,0,0,478,482,5,28,0,0,479,481,3,72,36,0,480,479,1,0,0,0,481,
-		484,1,0,0,0,482,480,1,0,0,0,482,483,1,0,0,0,483,493,1,0,0,0,484,482,1,
-		0,0,0,485,489,5,29,0,0,486,488,3,78,39,0,487,486,1,0,0,0,488,491,1,0,0,
-		0,489,487,1,0,0,0,489,490,1,0,0,0,490,493,1,0,0,0,491,489,1,0,0,0,492,
-		464,1,0,0,0,492,471,1,0,0,0,492,478,1,0,0,0,492,485,1,0,0,0,493,65,1,0,
-		0,0,494,495,5,69,0,0,495,496,5,53,0,0,496,499,5,69,0,0,497,498,5,64,0,
-		0,498,500,5,69,0,0,499,497,1,0,0,0,499,500,1,0,0,0,500,501,1,0,0,0,501,
-		502,5,49,0,0,502,503,5,67,0,0,503,67,1,0,0,0,504,505,5,69,0,0,505,506,
-		5,53,0,0,506,507,5,69,0,0,507,508,5,49,0,0,508,509,5,67,0,0,509,510,5,
-		38,0,0,510,511,3,70,35,0,511,69,1,0,0,0,512,513,7,8,0,0,513,71,1,0,0,0,
-		514,515,5,69,0,0,515,516,5,53,0,0,516,521,5,69,0,0,517,518,5,61,0,0,518,
-		519,3,74,37,0,519,520,5,62,0,0,520,522,1,0,0,0,521,517,1,0,0,0,521,522,
-		1,0,0,0,522,73,1,0,0,0,523,528,3,76,38,0,524,525,5,54,0,0,525,527,3,76,
-		38,0,526,524,1,0,0,0,527,530,1,0,0,0,528,526,1,0,0,0,528,529,1,0,0,0,529,
-		75,1,0,0,0,530,528,1,0,0,0,531,532,5,69,0,0,532,533,5,56,0,0,533,534,7,
-		9,0,0,534,77,1,0,0,0,535,536,5,69,0,0,536,537,5,53,0,0,537,538,5,69,0,
-		0,538,541,5,69,0,0,539,540,5,64,0,0,540,542,5,69,0,0,541,539,1,0,0,0,541,
-		542,1,0,0,0,542,79,1,0,0,0,543,544,5,10,0,0,544,545,5,69,0,0,545,546,5,
-		56,0,0,546,569,3,82,41,0,547,548,5,30,0,0,548,549,5,69,0,0,549,550,5,56,
-		0,0,550,569,3,82,41,0,551,552,5,31,0,0,552,553,5,69,0,0,553,569,3,84,42,
-		0,554,555,5,32,0,0,555,556,5,69,0,0,556,569,3,88,44,0,557,558,5,33,0,0,
-		558,559,5,69,0,0,559,569,3,90,45,0,560,561,5,34,0,0,561,562,5,59,0,0,562,
-		563,5,67,0,0,563,564,5,53,0,0,564,565,5,67,0,0,565,569,5,60,0,0,566,567,
-		5,35,0,0,567,569,3,96,48,0,568,543,1,0,0,0,568,547,1,0,0,0,568,551,1,0,
-		0,0,568,554,1,0,0,0,568,557,1,0,0,0,568,560,1,0,0,0,568,566,1,0,0,0,569,
-		81,1,0,0,0,570,576,5,67,0,0,571,573,5,68,0,0,572,574,5,69,0,0,573,572,
-		1,0,0,0,573,574,1,0,0,0,574,576,1,0,0,0,575,570,1,0,0,0,575,571,1,0,0,
-		0,576,83,1,0,0,0,577,582,3,86,43,0,578,579,5,54,0,0,579,581,3,86,43,0,
-		580,578,1,0,0,0,581,584,1,0,0,0,582,580,1,0,0,0,582,583,1,0,0,0,583,597,
-		1,0,0,0,584,582,1,0,0,0,585,586,5,57,0,0,586,591,3,86,43,0,587,588,7,10,
-		0,0,588,590,3,86,43,0,589,587,1,0,0,0,590,593,1,0,0,0,591,589,1,0,0,0,
-		591,592,1,0,0,0,592,594,1,0,0,0,593,591,1,0,0,0,594,595,5,58,0,0,595,597,
-		1,0,0,0,596,577,1,0,0,0,596,585,1,0,0,0,597,85,1,0,0,0,598,599,5,48,0,
-		0,599,600,5,56,0,0,600,602,7,11,0,0,601,603,5,69,0,0,602,601,1,0,0,0,602,
-		603,1,0,0,0,603,87,1,0,0,0,604,605,5,37,0,0,605,606,5,56,0,0,606,607,7,
-		11,0,0,607,89,1,0,0,0,608,609,5,59,0,0,609,610,3,92,46,0,610,611,5,60,
-		0,0,611,616,1,0,0,0,612,613,5,59,0,0,613,614,5,36,0,0,614,616,5,60,0,0,
-		615,608,1,0,0,0,615,612,1,0,0,0,616,91,1,0,0,0,617,618,3,94,47,0,618,619,
-		5,53,0,0,619,620,3,94,47,0,620,621,5,53,0,0,621,622,3,94,47,0,622,628,
-		1,0,0,0,623,624,3,94,47,0,624,625,5,53,0,0,625,626,3,94,47,0,626,628,1,
-		0,0,0,627,617,1,0,0,0,627,623,1,0,0,0,628,93,1,0,0,0,629,635,5,67,0,0,
-		630,632,5,68,0,0,631,633,5,69,0,0,632,631,1,0,0,0,632,633,1,0,0,0,633,
-		635,1,0,0,0,634,629,1,0,0,0,634,630,1,0,0,0,635,95,1,0,0,0,636,641,5,69,
-		0,0,637,638,5,54,0,0,638,640,5,69,0,0,639,637,1,0,0,0,640,643,1,0,0,0,
-		641,639,1,0,0,0,641,642,1,0,0,0,642,97,1,0,0,0,643,641,1,0,0,0,644,649,
-		5,69,0,0,645,646,5,61,0,0,646,647,3,100,50,0,647,648,5,62,0,0,648,650,
-		1,0,0,0,649,645,1,0,0,0,649,650,1,0,0,0,650,99,1,0,0,0,651,656,3,102,51,
-		0,652,653,5,54,0,0,653,655,3,102,51,0,654,652,1,0,0,0,655,658,1,0,0,0,
-		656,654,1,0,0,0,656,657,1,0,0,0,657,101,1,0,0,0,658,656,1,0,0,0,659,660,
-		5,69,0,0,660,661,5,56,0,0,661,662,7,9,0,0,662,103,1,0,0,0,663,664,5,41,
-		0,0,664,670,5,70,0,0,665,666,5,59,0,0,666,667,5,68,0,0,667,668,5,53,0,
-		0,668,669,5,68,0,0,669,671,5,60,0,0,670,665,1,0,0,0,670,671,1,0,0,0,671,
-		679,1,0,0,0,672,673,5,42,0,0,673,679,5,70,0,0,674,675,5,43,0,0,675,676,
-		5,69,0,0,676,677,5,56,0,0,677,679,5,69,0,0,678,663,1,0,0,0,678,672,1,0,
-		0,0,678,674,1,0,0,0,679,105,1,0,0,0,68,107,112,118,124,138,150,161,163,
-		171,181,186,194,217,223,229,236,243,250,257,260,269,275,282,288,302,316,
-		330,333,341,348,360,363,370,379,389,393,402,416,434,440,446,456,462,468,
-		475,482,489,492,499,521,528,541,568,573,575,582,591,596,602,615,627,632,
-		634,641,649,656,670,678
+		2,50,7,50,2,51,7,51,2,52,7,52,2,53,7,53,2,54,7,54,2,55,7,55,1,0,3,0,114,
+		8,0,1,0,5,0,117,8,0,10,0,12,0,120,9,0,1,0,5,0,123,8,0,10,0,12,0,126,9,
+		0,1,0,5,0,129,8,0,10,0,12,0,132,9,0,1,0,5,0,135,8,0,10,0,12,0,138,9,0,
+		1,0,1,0,1,1,1,1,1,1,1,2,1,2,1,2,1,2,4,2,149,8,2,11,2,12,2,150,1,3,1,3,
+		1,3,1,3,1,4,1,4,1,4,1,4,4,4,161,8,4,11,4,12,4,162,1,5,1,5,1,5,1,5,1,5,
+		1,5,1,5,4,5,172,8,5,11,5,12,5,173,3,5,176,8,5,1,6,1,6,1,6,1,6,4,6,182,
+		8,6,11,6,12,6,183,1,7,1,7,1,7,1,7,1,8,1,8,1,8,1,8,1,8,5,8,195,8,8,10,8,
+		12,8,198,9,8,1,9,1,9,1,9,1,9,5,9,204,8,9,10,9,12,9,207,9,9,1,9,1,9,5,9,
+		211,8,9,10,9,12,9,214,9,9,3,9,216,8,9,1,10,1,10,1,10,1,10,1,11,1,11,1,
+		12,1,12,1,12,1,12,3,12,228,8,12,1,12,5,12,231,8,12,10,12,12,12,234,9,12,
+		1,13,1,13,1,13,5,13,239,8,13,10,13,12,13,242,9,13,1,14,1,14,1,14,1,14,
+		1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,1,14,
+		1,14,1,14,3,14,264,8,14,1,14,1,14,1,14,1,14,3,14,270,8,14,1,14,1,14,5,
+		14,274,8,14,10,14,12,14,277,9,14,1,14,1,14,5,14,281,8,14,10,14,12,14,284,
+		9,14,1,14,1,14,5,14,288,8,14,10,14,12,14,291,9,14,1,14,1,14,5,14,295,8,
+		14,10,14,12,14,298,9,14,3,14,300,8,14,1,15,1,15,1,16,1,16,1,16,5,16,307,
+		8,16,10,16,12,16,310,9,16,1,16,1,16,1,16,3,16,315,8,16,1,16,1,16,1,16,
+		5,16,320,8,16,10,16,12,16,323,9,16,1,16,1,16,1,16,3,16,328,8,16,1,17,1,
+		17,1,18,1,18,1,19,1,19,1,20,1,20,1,20,1,20,5,20,340,8,20,10,20,12,20,343,
+		9,20,1,20,1,20,1,21,1,21,1,21,1,21,1,22,1,22,1,22,5,22,354,8,22,10,22,
+		12,22,357,9,22,1,23,1,23,1,23,1,23,1,23,1,23,1,23,3,23,366,8,23,1,23,1,
+		23,1,23,5,23,371,8,23,10,23,12,23,374,9,23,1,23,1,23,1,23,3,23,379,8,23,
+		1,23,1,23,1,23,5,23,384,8,23,10,23,12,23,387,9,23,1,23,1,23,1,23,1,23,
+		1,23,1,23,1,23,1,23,1,23,3,23,398,8,23,1,23,3,23,401,8,23,1,23,1,23,1,
+		23,1,23,3,23,407,8,23,1,24,1,24,1,25,1,25,1,25,5,25,414,8,25,10,25,12,
+		25,417,9,25,1,26,1,26,1,27,1,27,1,27,1,27,5,27,425,8,27,10,27,12,27,428,
+		9,27,1,27,1,27,1,28,1,28,1,28,1,28,1,28,1,29,1,29,1,29,3,29,440,8,29,1,
+		29,1,29,3,29,444,8,29,1,30,1,30,1,30,1,30,1,31,1,31,1,31,1,31,1,31,1,31,
+		1,31,1,31,1,31,3,31,459,8,31,1,32,1,32,1,33,1,33,4,33,465,8,33,11,33,12,
+		33,466,1,34,1,34,5,34,471,8,34,10,34,12,34,474,9,34,1,34,1,34,1,35,1,35,
+		1,35,1,35,1,35,1,35,5,35,484,8,35,10,35,12,35,487,9,35,1,36,1,36,5,36,
+		491,8,36,10,36,12,36,494,9,36,1,36,1,36,5,36,498,8,36,10,36,12,36,501,
+		9,36,1,36,1,36,5,36,505,8,36,10,36,12,36,508,9,36,3,36,510,8,36,1,37,1,
+		37,1,37,1,37,1,37,3,37,517,8,37,1,37,1,37,1,37,1,38,1,38,1,38,1,38,1,39,
+		1,39,1,39,1,39,1,40,1,40,1,41,1,41,1,41,1,41,1,41,1,41,1,41,1,41,1,42,
+		1,42,1,43,1,43,1,43,1,43,1,43,1,43,1,43,3,43,549,8,43,1,44,1,44,1,44,5,
+		44,554,8,44,10,44,12,44,557,9,44,1,45,1,45,1,45,1,45,1,46,1,46,1,46,1,
+		46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,1,
+		46,1,46,1,46,1,46,1,46,1,46,1,46,1,46,3,46,588,8,46,1,47,1,47,1,47,3,47,
+		593,8,47,3,47,595,8,47,1,48,1,48,1,48,5,48,600,8,48,10,48,12,48,603,9,
+		48,1,48,1,48,1,48,1,48,5,48,609,8,48,10,48,12,48,612,9,48,1,48,1,48,3,
+		48,616,8,48,1,49,1,49,1,49,1,49,3,49,622,8,49,1,50,1,50,1,50,1,50,1,51,
+		1,51,1,51,1,51,1,51,1,51,1,51,3,51,635,8,51,1,52,1,52,1,52,1,52,1,52,1,
+		52,1,52,1,52,1,52,1,52,3,52,647,8,52,1,53,1,53,1,53,3,53,652,8,53,3,53,
+		654,8,53,1,54,1,54,1,54,5,54,659,8,54,10,54,12,54,662,9,54,1,55,1,55,1,
+		55,1,55,1,55,1,55,1,55,3,55,671,8,55,1,55,1,55,1,55,1,55,1,55,1,55,3,55,
+		679,8,55,1,55,0,0,56,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,
+		36,38,40,42,44,46,48,50,52,54,56,58,60,62,64,66,68,70,72,74,76,78,80,82,
+		84,86,88,90,92,94,96,98,100,102,104,106,108,110,0,15,1,0,72,75,1,0,48,
+		50,3,0,11,12,33,33,74,74,1,0,43,44,2,0,70,70,72,75,1,0,70,73,2,0,51,51,
+		74,74,9,0,4,4,6,6,8,8,11,14,19,19,21,29,33,39,41,44,74,74,1,0,59,60,2,
+		0,52,52,74,74,2,0,70,70,72,73,3,0,6,6,19,19,74,74,2,0,68,68,74,74,2,0,
+		56,56,58,58,1,0,72,73,714,0,113,1,0,0,0,2,141,1,0,0,0,4,144,1,0,0,0,6,
+		152,1,0,0,0,8,156,1,0,0,0,10,175,1,0,0,0,12,177,1,0,0,0,14,185,1,0,0,0,
+		16,189,1,0,0,0,18,215,1,0,0,0,20,217,1,0,0,0,22,221,1,0,0,0,24,223,1,0,
+		0,0,26,235,1,0,0,0,28,299,1,0,0,0,30,301,1,0,0,0,32,327,1,0,0,0,34,329,
+		1,0,0,0,36,331,1,0,0,0,38,333,1,0,0,0,40,335,1,0,0,0,42,346,1,0,0,0,44,
+		350,1,0,0,0,46,406,1,0,0,0,48,408,1,0,0,0,50,410,1,0,0,0,52,418,1,0,0,
+		0,54,420,1,0,0,0,56,431,1,0,0,0,58,443,1,0,0,0,60,445,1,0,0,0,62,458,1,
+		0,0,0,64,460,1,0,0,0,66,464,1,0,0,0,68,468,1,0,0,0,70,477,1,0,0,0,72,509,
+		1,0,0,0,74,511,1,0,0,0,76,521,1,0,0,0,78,525,1,0,0,0,80,529,1,0,0,0,82,
+		531,1,0,0,0,84,539,1,0,0,0,86,541,1,0,0,0,88,550,1,0,0,0,90,558,1,0,0,
+		0,92,587,1,0,0,0,94,594,1,0,0,0,96,615,1,0,0,0,98,617,1,0,0,0,100,623,
+		1,0,0,0,102,634,1,0,0,0,104,646,1,0,0,0,106,653,1,0,0,0,108,655,1,0,0,
+		0,110,678,1,0,0,0,112,114,3,2,1,0,113,112,1,0,0,0,113,114,1,0,0,0,114,
+		118,1,0,0,0,115,117,3,4,2,0,116,115,1,0,0,0,117,120,1,0,0,0,118,116,1,
+		0,0,0,118,119,1,0,0,0,119,124,1,0,0,0,120,118,1,0,0,0,121,123,3,8,4,0,
+		122,121,1,0,0,0,123,126,1,0,0,0,124,122,1,0,0,0,124,125,1,0,0,0,125,130,
+		1,0,0,0,126,124,1,0,0,0,127,129,3,16,8,0,128,127,1,0,0,0,129,132,1,0,0,
+		0,130,128,1,0,0,0,130,131,1,0,0,0,131,136,1,0,0,0,132,130,1,0,0,0,133,
+		135,3,24,12,0,134,133,1,0,0,0,135,138,1,0,0,0,136,134,1,0,0,0,136,137,
+		1,0,0,0,137,139,1,0,0,0,138,136,1,0,0,0,139,140,5,0,0,1,140,1,1,0,0,0,
+		141,142,5,1,0,0,142,143,5,73,0,0,143,3,1,0,0,0,144,145,5,2,0,0,145,146,
+		5,74,0,0,146,148,5,57,0,0,147,149,3,6,3,0,148,147,1,0,0,0,149,150,1,0,
+		0,0,150,148,1,0,0,0,150,151,1,0,0,0,151,5,1,0,0,0,152,153,5,74,0,0,153,
+		154,5,57,0,0,154,155,5,74,0,0,155,7,1,0,0,0,156,157,5,3,0,0,157,158,5,
+		74,0,0,158,160,5,57,0,0,159,161,3,10,5,0,160,159,1,0,0,0,161,162,1,0,0,
+		0,162,160,1,0,0,0,162,163,1,0,0,0,163,9,1,0,0,0,164,165,5,6,0,0,165,166,
+		3,32,16,0,166,167,5,57,0,0,167,168,3,34,17,0,168,176,1,0,0,0,169,171,5,
+		7,0,0,170,172,3,12,6,0,171,170,1,0,0,0,172,173,1,0,0,0,173,171,1,0,0,0,
+		173,174,1,0,0,0,174,176,1,0,0,0,175,164,1,0,0,0,175,169,1,0,0,0,176,11,
+		1,0,0,0,177,178,5,22,0,0,178,179,5,74,0,0,179,181,5,57,0,0,180,182,3,14,
+		7,0,181,180,1,0,0,0,182,183,1,0,0,0,183,181,1,0,0,0,183,184,1,0,0,0,184,
+		13,1,0,0,0,185,186,3,70,35,0,186,187,5,54,0,0,187,188,3,70,35,0,188,15,
+		1,0,0,0,189,190,5,4,0,0,190,191,5,74,0,0,191,192,5,23,0,0,192,196,5,74,
+		0,0,193,195,3,18,9,0,194,193,1,0,0,0,195,198,1,0,0,0,196,194,1,0,0,0,196,
+		197,1,0,0,0,197,17,1,0,0,0,198,196,1,0,0,0,199,200,5,26,0,0,200,216,5,
+		74,0,0,201,205,5,28,0,0,202,204,3,20,10,0,203,202,1,0,0,0,204,207,1,0,
+		0,0,205,203,1,0,0,0,205,206,1,0,0,0,206,216,1,0,0,0,207,205,1,0,0,0,208,
+		212,5,27,0,0,209,211,3,22,11,0,210,209,1,0,0,0,211,214,1,0,0,0,212,210,
+		1,0,0,0,212,213,1,0,0,0,213,216,1,0,0,0,214,212,1,0,0,0,215,199,1,0,0,
+		0,215,201,1,0,0,0,215,208,1,0,0,0,216,19,1,0,0,0,217,218,5,74,0,0,218,
+		219,5,61,0,0,219,220,7,0,0,0,220,21,1,0,0,0,221,222,5,74,0,0,222,23,1,
+		0,0,0,223,224,5,5,0,0,224,227,5,74,0,0,225,226,5,29,0,0,226,228,3,26,13,
+		0,227,225,1,0,0,0,227,228,1,0,0,0,228,232,1,0,0,0,229,231,3,28,14,0,230,
+		229,1,0,0,0,231,234,1,0,0,0,232,230,1,0,0,0,232,233,1,0,0,0,233,25,1,0,
+		0,0,234,232,1,0,0,0,235,240,5,74,0,0,236,237,5,58,0,0,237,239,5,74,0,0,
+		238,236,1,0,0,0,239,242,1,0,0,0,240,238,1,0,0,0,240,241,1,0,0,0,241,27,
+		1,0,0,0,242,240,1,0,0,0,243,244,5,8,0,0,244,300,3,30,15,0,245,300,5,9,
+		0,0,246,247,5,10,0,0,247,300,3,44,22,0,248,249,5,11,0,0,249,300,5,74,0,
+		0,250,251,5,12,0,0,251,300,5,74,0,0,252,253,5,6,0,0,253,254,3,32,16,0,
+		254,255,5,57,0,0,255,256,3,34,17,0,256,300,1,0,0,0,257,258,5,13,0,0,258,
+		259,5,74,0,0,259,260,5,57,0,0,260,263,3,36,18,0,261,262,5,61,0,0,262,264,
+		3,38,19,0,263,261,1,0,0,0,263,264,1,0,0,0,264,300,1,0,0,0,265,266,5,14,
+		0,0,266,269,5,74,0,0,267,268,5,61,0,0,268,270,3,40,20,0,269,267,1,0,0,
+		0,269,270,1,0,0,0,270,300,1,0,0,0,271,275,5,15,0,0,272,274,3,46,23,0,273,
+		272,1,0,0,0,274,277,1,0,0,0,275,273,1,0,0,0,275,276,1,0,0,0,276,300,1,
+		0,0,0,277,275,1,0,0,0,278,282,5,16,0,0,279,281,3,72,36,0,280,279,1,0,0,
+		0,281,284,1,0,0,0,282,280,1,0,0,0,282,283,1,0,0,0,283,300,1,0,0,0,284,
+		282,1,0,0,0,285,289,5,17,0,0,286,288,3,92,46,0,287,286,1,0,0,0,288,291,
+		1,0,0,0,289,287,1,0,0,0,289,290,1,0,0,0,290,300,1,0,0,0,291,289,1,0,0,
+		0,292,296,5,18,0,0,293,295,3,110,55,0,294,293,1,0,0,0,295,298,1,0,0,0,
+		296,294,1,0,0,0,296,297,1,0,0,0,297,300,1,0,0,0,298,296,1,0,0,0,299,243,
+		1,0,0,0,299,245,1,0,0,0,299,246,1,0,0,0,299,248,1,0,0,0,299,250,1,0,0,
+		0,299,252,1,0,0,0,299,257,1,0,0,0,299,265,1,0,0,0,299,271,1,0,0,0,299,
+		278,1,0,0,0,299,285,1,0,0,0,299,292,1,0,0,0,300,29,1,0,0,0,301,302,7,1,
+		0,0,302,31,1,0,0,0,303,308,5,74,0,0,304,305,5,60,0,0,305,307,5,74,0,0,
+		306,304,1,0,0,0,307,310,1,0,0,0,308,306,1,0,0,0,308,309,1,0,0,0,309,314,
+		1,0,0,0,310,308,1,0,0,0,311,312,5,64,0,0,312,313,5,73,0,0,313,315,5,65,
+		0,0,314,311,1,0,0,0,314,315,1,0,0,0,315,328,1,0,0,0,316,321,5,74,0,0,317,
+		318,5,60,0,0,318,320,5,74,0,0,319,317,1,0,0,0,320,323,1,0,0,0,321,319,
+		1,0,0,0,321,322,1,0,0,0,322,324,1,0,0,0,323,321,1,0,0,0,324,325,5,64,0,
+		0,325,326,5,68,0,0,326,328,5,65,0,0,327,303,1,0,0,0,327,316,1,0,0,0,328,
+		33,1,0,0,0,329,330,7,2,0,0,330,35,1,0,0,0,331,332,7,3,0,0,332,37,1,0,0,
+		0,333,334,7,4,0,0,334,39,1,0,0,0,335,336,5,62,0,0,336,341,3,42,21,0,337,
+		338,5,58,0,0,338,340,3,42,21,0,339,337,1,0,0,0,340,343,1,0,0,0,341,339,
+		1,0,0,0,341,342,1,0,0,0,342,344,1,0,0,0,343,341,1,0,0,0,344,345,5,63,0,
+		0,345,41,1,0,0,0,346,347,5,74,0,0,347,348,5,61,0,0,348,349,7,5,0,0,349,
+		43,1,0,0,0,350,355,5,74,0,0,351,352,5,60,0,0,352,354,5,74,0,0,353,351,
+		1,0,0,0,354,357,1,0,0,0,355,353,1,0,0,0,355,356,1,0,0,0,356,45,1,0,0,0,
+		357,355,1,0,0,0,358,359,5,19,0,0,359,360,5,74,0,0,360,361,5,57,0,0,361,
+		407,3,34,17,0,362,363,5,51,0,0,363,365,3,50,25,0,364,366,3,54,27,0,365,
+		364,1,0,0,0,365,366,1,0,0,0,366,367,1,0,0,0,367,368,5,57,0,0,368,372,3,
+		48,24,0,369,371,3,58,29,0,370,369,1,0,0,0,371,374,1,0,0,0,372,370,1,0,
+		0,0,372,373,1,0,0,0,373,407,1,0,0,0,374,372,1,0,0,0,375,376,5,20,0,0,376,
+		378,5,74,0,0,377,379,3,54,27,0,378,377,1,0,0,0,378,379,1,0,0,0,379,380,
+		1,0,0,0,380,381,5,57,0,0,381,385,5,74,0,0,382,384,3,62,31,0,383,382,1,
+		0,0,0,384,387,1,0,0,0,385,383,1,0,0,0,385,386,1,0,0,0,386,407,1,0,0,0,
+		387,385,1,0,0,0,388,389,5,21,0,0,389,390,5,74,0,0,390,391,3,66,33,0,391,
+		392,5,24,0,0,392,393,5,74,0,0,393,394,5,55,0,0,394,397,5,74,0,0,395,396,
+		5,25,0,0,396,398,5,74,0,0,397,395,1,0,0,0,397,398,1,0,0,0,398,400,1,0,
+		0,0,399,401,3,68,34,0,400,399,1,0,0,0,400,401,1,0,0,0,401,407,1,0,0,0,
+		402,403,3,70,35,0,403,404,5,54,0,0,404,405,3,70,35,0,405,407,1,0,0,0,406,
+		358,1,0,0,0,406,362,1,0,0,0,406,375,1,0,0,0,406,388,1,0,0,0,406,402,1,
+		0,0,0,407,47,1,0,0,0,408,409,7,6,0,0,409,49,1,0,0,0,410,415,3,52,26,0,
+		411,412,5,60,0,0,412,414,3,52,26,0,413,411,1,0,0,0,414,417,1,0,0,0,415,
+		413,1,0,0,0,415,416,1,0,0,0,416,51,1,0,0,0,417,415,1,0,0,0,418,419,7,7,
+		0,0,419,53,1,0,0,0,420,421,5,62,0,0,421,426,3,56,28,0,422,423,5,58,0,0,
+		423,425,3,56,28,0,424,422,1,0,0,0,425,428,1,0,0,0,426,424,1,0,0,0,426,
+		427,1,0,0,0,427,429,1,0,0,0,428,426,1,0,0,0,429,430,5,63,0,0,430,55,1,
+		0,0,0,431,432,7,8,0,0,432,433,3,70,35,0,433,434,5,54,0,0,434,435,3,70,
+		35,0,435,57,1,0,0,0,436,439,5,14,0,0,437,440,5,74,0,0,438,440,3,40,20,
+		0,439,437,1,0,0,0,439,438,1,0,0,0,440,444,1,0,0,0,441,444,3,60,30,0,442,
+		444,3,56,28,0,443,436,1,0,0,0,443,441,1,0,0,0,443,442,1,0,0,0,444,59,1,
+		0,0,0,445,446,7,9,0,0,446,447,5,61,0,0,447,448,3,64,32,0,448,61,1,0,0,
+		0,449,450,5,13,0,0,450,451,5,74,0,0,451,452,5,61,0,0,452,459,3,38,19,0,
+		453,454,5,14,0,0,454,455,5,74,0,0,455,456,5,61,0,0,456,459,3,40,20,0,457,
+		459,3,56,28,0,458,449,1,0,0,0,458,453,1,0,0,0,458,457,1,0,0,0,459,63,1,
+		0,0,0,460,461,7,10,0,0,461,65,1,0,0,0,462,463,5,22,0,0,463,465,5,74,0,
+		0,464,462,1,0,0,0,465,466,1,0,0,0,466,464,1,0,0,0,466,467,1,0,0,0,467,
+		67,1,0,0,0,468,472,5,66,0,0,469,471,3,56,28,0,470,469,1,0,0,0,471,474,
+		1,0,0,0,472,470,1,0,0,0,472,473,1,0,0,0,473,475,1,0,0,0,474,472,1,0,0,
+		0,475,476,5,67,0,0,476,69,1,0,0,0,477,485,3,52,26,0,478,479,5,60,0,0,479,
+		484,3,52,26,0,480,481,5,64,0,0,481,482,5,73,0,0,482,484,5,65,0,0,483,478,
+		1,0,0,0,483,480,1,0,0,0,484,487,1,0,0,0,485,483,1,0,0,0,485,486,1,0,0,
+		0,486,71,1,0,0,0,487,485,1,0,0,0,488,492,5,30,0,0,489,491,3,74,37,0,490,
+		489,1,0,0,0,491,494,1,0,0,0,492,490,1,0,0,0,492,493,1,0,0,0,493,510,1,
+		0,0,0,494,492,1,0,0,0,495,499,5,31,0,0,496,498,3,82,41,0,497,496,1,0,0,
+		0,498,501,1,0,0,0,499,497,1,0,0,0,499,500,1,0,0,0,500,510,1,0,0,0,501,
+		499,1,0,0,0,502,506,5,32,0,0,503,505,3,86,43,0,504,503,1,0,0,0,505,508,
+		1,0,0,0,506,504,1,0,0,0,506,507,1,0,0,0,507,510,1,0,0,0,508,506,1,0,0,
+		0,509,488,1,0,0,0,509,495,1,0,0,0,509,502,1,0,0,0,510,73,1,0,0,0,511,512,
+		5,74,0,0,512,513,5,57,0,0,513,516,3,76,38,0,514,515,5,40,0,0,515,517,3,
+		78,39,0,516,514,1,0,0,0,516,517,1,0,0,0,517,518,1,0,0,0,518,519,5,53,0,
+		0,519,520,5,72,0,0,520,75,1,0,0,0,521,522,5,74,0,0,522,523,5,55,0,0,523,
+		524,5,74,0,0,524,77,1,0,0,0,525,526,3,80,40,0,526,527,5,55,0,0,527,528,
+		3,70,35,0,528,79,1,0,0,0,529,530,7,11,0,0,530,81,1,0,0,0,531,532,5,74,
+		0,0,532,533,5,57,0,0,533,534,5,74,0,0,534,535,5,53,0,0,535,536,5,72,0,
+		0,536,537,5,42,0,0,537,538,3,84,42,0,538,83,1,0,0,0,539,540,7,12,0,0,540,
+		85,1,0,0,0,541,542,5,74,0,0,542,543,5,57,0,0,543,548,5,74,0,0,544,545,
+		5,66,0,0,545,546,3,88,44,0,546,547,5,67,0,0,547,549,1,0,0,0,548,544,1,
+		0,0,0,548,549,1,0,0,0,549,87,1,0,0,0,550,555,3,90,45,0,551,552,5,58,0,
+		0,552,554,3,90,45,0,553,551,1,0,0,0,554,557,1,0,0,0,555,553,1,0,0,0,555,
+		556,1,0,0,0,556,89,1,0,0,0,557,555,1,0,0,0,558,559,5,74,0,0,559,560,5,
+		61,0,0,560,561,7,0,0,0,561,91,1,0,0,0,562,563,5,11,0,0,563,564,5,74,0,
+		0,564,565,5,61,0,0,565,588,3,94,47,0,566,567,5,33,0,0,567,568,5,74,0,0,
+		568,569,5,61,0,0,569,588,3,94,47,0,570,571,5,34,0,0,571,572,5,74,0,0,572,
+		588,3,96,48,0,573,574,5,35,0,0,574,575,5,74,0,0,575,588,3,100,50,0,576,
+		577,5,36,0,0,577,578,5,74,0,0,578,588,3,102,51,0,579,580,5,37,0,0,580,
+		581,5,64,0,0,581,582,5,72,0,0,582,583,5,57,0,0,583,584,5,72,0,0,584,588,
+		5,65,0,0,585,586,5,38,0,0,586,588,3,108,54,0,587,562,1,0,0,0,587,566,1,
+		0,0,0,587,570,1,0,0,0,587,573,1,0,0,0,587,576,1,0,0,0,587,579,1,0,0,0,
+		587,585,1,0,0,0,588,93,1,0,0,0,589,595,5,72,0,0,590,592,5,73,0,0,591,593,
+		5,74,0,0,592,591,1,0,0,0,592,593,1,0,0,0,593,595,1,0,0,0,594,589,1,0,0,
+		0,594,590,1,0,0,0,595,95,1,0,0,0,596,601,3,98,49,0,597,598,5,58,0,0,598,
+		600,3,98,49,0,599,597,1,0,0,0,600,603,1,0,0,0,601,599,1,0,0,0,601,602,
+		1,0,0,0,602,616,1,0,0,0,603,601,1,0,0,0,604,605,5,62,0,0,605,610,3,98,
+		49,0,606,607,7,13,0,0,607,609,3,98,49,0,608,606,1,0,0,0,609,612,1,0,0,
+		0,610,608,1,0,0,0,610,611,1,0,0,0,611,613,1,0,0,0,612,610,1,0,0,0,613,
+		614,5,63,0,0,614,616,1,0,0,0,615,596,1,0,0,0,615,604,1,0,0,0,616,97,1,
+		0,0,0,617,618,5,52,0,0,618,619,5,61,0,0,619,621,7,14,0,0,620,622,5,74,
+		0,0,621,620,1,0,0,0,621,622,1,0,0,0,622,99,1,0,0,0,623,624,5,41,0,0,624,
+		625,5,61,0,0,625,626,7,14,0,0,626,101,1,0,0,0,627,628,5,64,0,0,628,629,
+		3,104,52,0,629,630,5,65,0,0,630,635,1,0,0,0,631,632,5,64,0,0,632,633,5,
+		39,0,0,633,635,5,65,0,0,634,627,1,0,0,0,634,631,1,0,0,0,635,103,1,0,0,
+		0,636,637,3,106,53,0,637,638,5,57,0,0,638,639,3,106,53,0,639,640,5,57,
+		0,0,640,641,3,106,53,0,641,647,1,0,0,0,642,643,3,106,53,0,643,644,5,57,
+		0,0,644,645,3,106,53,0,645,647,1,0,0,0,646,636,1,0,0,0,646,642,1,0,0,0,
+		647,105,1,0,0,0,648,654,5,72,0,0,649,651,5,73,0,0,650,652,5,74,0,0,651,
+		650,1,0,0,0,651,652,1,0,0,0,652,654,1,0,0,0,653,648,1,0,0,0,653,649,1,
+		0,0,0,654,107,1,0,0,0,655,660,5,74,0,0,656,657,5,58,0,0,657,659,5,74,0,
+		0,658,656,1,0,0,0,659,662,1,0,0,0,660,658,1,0,0,0,660,661,1,0,0,0,661,
+		109,1,0,0,0,662,660,1,0,0,0,663,664,5,45,0,0,664,670,5,75,0,0,665,666,
+		5,64,0,0,666,667,5,73,0,0,667,668,5,57,0,0,668,669,5,73,0,0,669,671,5,
+		65,0,0,670,665,1,0,0,0,670,671,1,0,0,0,671,679,1,0,0,0,672,673,5,46,0,
+		0,673,679,5,75,0,0,674,675,5,47,0,0,675,676,5,74,0,0,676,677,5,61,0,0,
+		677,679,5,74,0,0,678,663,1,0,0,0,678,672,1,0,0,0,678,674,1,0,0,0,679,111,
+		1,0,0,0,67,113,118,124,130,136,150,162,173,175,183,196,205,212,215,227,
+		232,240,263,269,275,282,289,296,299,308,314,321,327,341,355,365,372,378,
+		385,397,400,406,415,426,439,443,458,466,472,483,485,492,499,506,509,516,
+		548,555,587,592,594,601,610,615,621,634,646,651,653,660,670,678
 	};
 
 	public static readonly ATN _ATN =

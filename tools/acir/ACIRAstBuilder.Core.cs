@@ -72,6 +72,7 @@ internal sealed partial class ACIRAstBuilder
             VersionMinor = minor,
             BundleTypes = ctx.bundleDef().Select(BuildBundle).ToList(),
             Traits = ctx.traitDef().Select(BuildTrait).ToList(),
+            BenchDefinitions = ctx.benchDef().Select(BuildBenchDefinition).ToList(),
             Circuits = ctx.circuit().Select(BuildCircuit).ToList(),
         };
     }
@@ -140,6 +141,97 @@ internal sealed partial class ACIRAstBuilder
         return trait;
     }
 
+    /// <summary>Builds a bench definition from its parse context.</summary>
+    private BenchDefinition BuildBenchDefinition(ACIRParser.BenchDefContext ctx)
+    {
+        var name = ctx.IDENT(0).GetText();
+        var trait = ctx.IDENT(1).GetText();
+        string? builtin = null;
+        var config = new Dictionary<string, string>();
+        var outputs = new List<string>();
+
+        foreach (var memberCtx in ctx.benchMember())
+        {
+            if (memberCtx.BUILTIN_KW() != null)
+            {
+                builtin = memberCtx.IDENT().GetText();
+                continue;
+            }
+
+            if (memberCtx.CONFIG_KW() != null)
+            {
+                foreach (var entryCtx in memberCtx.benchConfigEntry())
+                {
+                    var key = entryCtx.IDENT(0).GetText();
+                    var value = BuildBenchConfigValue(entryCtx);
+                    if (config.ContainsKey(key))
+                    {
+                        AddDiagnostic(
+                            entryCtx,
+                            DiagnosticSeverity.Error,
+                            $"Duplicate bench config key '{key}'"
+                        );
+                        continue;
+                    }
+                    config[key] = value;
+                }
+                continue;
+            }
+
+            if (memberCtx.OUTPUTS_KW() != null)
+            {
+                foreach (var outputCtx in memberCtx.benchOutput())
+                {
+                    outputs.Add(outputCtx.IDENT().GetText());
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(builtin))
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Bench '{name}' must declare a builtin template."
+            );
+        }
+
+        return new BenchDefinition
+        {
+            Name = name,
+            Trait = trait,
+            Builtin = builtin,
+            Config = config,
+            Outputs = outputs,
+        };
+    }
+
+    private static string BuildBenchConfigValue(ACIRParser.BenchConfigEntryContext ctx)
+    {
+        if (ctx.STRING() != null)
+        {
+            return Unquote(ctx.STRING().GetText());
+        }
+
+        var identNodes = ctx.IDENT();
+        if (identNodes.Length > 1)
+        {
+            return identNodes[1].GetText();
+        }
+
+        return ctx.NUMBER()?.GetText() ?? ctx.QUANTITY()?.GetText() ?? string.Empty;
+    }
+
+    private static string Unquote(string value)
+    {
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+        {
+            return value[1..^1];
+        }
+
+        return value;
+    }
+
     /// <summary>Parses a level keyword into the ACIR level enum.</summary>
     /// <param name="ctx">Level value context.</param>
     /// <returns>Parsed ACIR level.</returns>
@@ -189,14 +281,7 @@ internal sealed partial class ACIRAstBuilder
     /// <returns>Normalized pin reference.</returns>
     private static string BuildPinRef(ACIRParser.PinRefContext ctx)
     {
-        // pinRef uses idPart which can be IDENT or various keywords (e.g., load.D)
-        var parts = ctx.idPart().Select(p => p.GetText()).ToList();
-        var result = string.Join(".", parts);
-        if (ctx.NUMBER() != null)
-        {
-            result += $"[{ctx.NUMBER().GetText()}]";
-        }
-        return result;
+        return ctx.GetText();
     }
 
     /// <summary>Adds a diagnostic anchored to a parse context.</summary>

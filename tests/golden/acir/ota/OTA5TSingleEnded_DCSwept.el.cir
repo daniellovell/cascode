@@ -4,7 +4,13 @@ bundle Diff:
   P : analog
   N : analog
 
-circuit OTA5TSingleEnded_DCSwept
+bench DCBench for SingleEndedOpAmp
+  builtin SEOpAmpDCBench
+  outputs:
+    OutputDCBias
+    QuiescentPower
+
+circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
@@ -14,22 +20,22 @@ circuit OTA5TSingleEnded_DCSwept
   fill:
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (B->GND, D->mirror_gate, G->IN.P, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_P (B->GND, D->OUT, G->IN.N, S->tnode) : size=(W=2u, L=180n, M=1) nmos
-    nmos dp.M_TAIL (B->GND, D->tnode, G->VTAIL, S->GND) : size=(W=4u, L=180n, M=1) nmos
-    pmos cm.M_SENSE (B->VDD, D->mirror_gate, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
-    pmos cm.M_TAP0 (B->VDD, D->OUT, G->mirror_gate, S->VDD) : size=(W=2u, L=180n, M=1) pmos
+    nmos dp.M_N (.B--GND, .D--mirror_gate, .G--IN.P, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_P (.B--GND, .D--OUT, .G--IN.N, .S--tnode) : nmos
+      size (W=2u, L=180n, M=1)
+    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nmos
+      size (W=4u, L=180n, M=1)
+    pmos cm.M_SENSE (.B--VDD, .D--mirror_gate, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
+    pmos cm.M_TAP0 (.B--VDD, .D--OUT, .G--mirror_gate, .S--VDD) : pmos
+      size (W=2u, L=180n, M=1)
   constraints:
     numeric:
-      c_out_bias : OutputDCBias @ OUT >= 0.4V
-      c_power : QuiescentPower <= 500uW
-    measure:
-      m_out_bias : SEOpAmpDCBench OutputDCBias @ OUT
-      m_power : SEOpAmpDCBench QuiescentPower
+      c_out_bias : DCBench::OutputDCBias at net::OUT >= 0.4V
+      c_power : DCBench::QuiescentPower <= 500uW
   harness:
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
     load OUT C=1pF
-  benches:
-    SEOpAmpDCBench

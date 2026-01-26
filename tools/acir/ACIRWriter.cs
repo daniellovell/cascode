@@ -36,6 +36,15 @@ public static class ACIRWriter
             writer.WriteLine();
         }
 
+        // Bench definitions
+        foreach (
+            var bench in document.BenchDefinitions.OrderBy(b => b.Name, StringComparer.Ordinal)
+        )
+        {
+            WriteBenchDefinition(bench, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -77,8 +86,36 @@ public static class ACIRWriter
                 writer.WriteLine($"    to {connector.TargetTrait}:");
                 foreach (var mapping in connector.Mappings)
                 {
-                    writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+                    writer.WriteLine($"      {mapping.SourcePort}--{mapping.TargetPort}");
                 }
+            }
+        }
+    }
+
+    private static void WriteBenchDefinition(BenchDefinition bench, TextWriter writer)
+    {
+        writer.WriteLine($"bench {bench.Name} for {bench.Trait}");
+
+        if (!string.IsNullOrEmpty(bench.Builtin))
+        {
+            writer.WriteLine($"  builtin {bench.Builtin}");
+        }
+
+        if (bench.Config.Count > 0)
+        {
+            writer.WriteLine("  config:");
+            foreach (var entry in bench.Config.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {entry.Key} = {entry.Value}");
+            }
+        }
+
+        if (bench.Outputs.Count > 0)
+        {
+            writer.WriteLine("  outputs:");
+            foreach (var output in bench.Outputs.OrderBy(o => o, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {output}");
             }
         }
     }
@@ -89,7 +126,7 @@ public static class ACIRWriter
         var header = $"circuit {circuit.Name}";
         if (circuit.Traits is { Count: > 0 })
         {
-            header += $" : {string.Join(", ", circuit.Traits)}";
+            header += $" implements {string.Join(", ", circuit.Traits)}";
         }
         writer.WriteLine(header);
 
@@ -175,12 +212,6 @@ public static class ACIRWriter
             WriteHarness(circuit.Harness, writer);
         }
 
-        // Benches
-        if (circuit.Benches is not null)
-        {
-            WriteBenches(circuit.Benches, writer);
-        }
-
         // Provenance
         if (circuit.Provenance is not null)
         {
@@ -196,7 +227,7 @@ public static class ACIRWriter
             var bindings = string.Join(
                 ", ",
                 slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
@@ -238,15 +269,16 @@ public static class ACIRWriter
         }
 
         // Connections
-        foreach (var conn in fill.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"    connect {conn.From} -> {conn.To}");
-        }
-
         // Attach statements (EL level)
         foreach (var attach in fill.Attaches.OrderBy(a => a.SourceInstance, StringComparer.Ordinal))
         {
             WriteAttach(attach, writer);
+        }
+
+        // Explicit connections
+        foreach (var conn in fill.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    {conn.From}--{conn.To}");
         }
     }
 
@@ -272,7 +304,7 @@ public static class ACIRWriter
                 var mapping in attach.Overrides.OrderBy(m => m.SourcePort, StringComparer.Ordinal)
             )
             {
-                writer.WriteLine($"      {mapping.SourcePort} -> {mapping.TargetPort}");
+                writer.WriteLine($"      .{mapping.SourcePort}--{mapping.TargetPort}");
             }
             writer.WriteLine("    }");
         }
@@ -291,7 +323,7 @@ public static class ACIRWriter
             var bindings = string.Join(
                 ", ",
                 inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
@@ -303,7 +335,7 @@ public static class ACIRWriter
         {
             foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {binding.Key} -> {binding.Value}");
+                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
             }
         }
 
@@ -317,12 +349,6 @@ public static class ACIRWriter
         foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
         {
             writer.WriteLine($"      size {size.Key} = {FormatSizePack(size.Value)}");
-        }
-
-        // Instance-level connects
-        foreach (var conn in inst.Connects.OrderBy(c => c.From, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"      connect {conn.From} -> {conn.To}");
         }
     }
 
@@ -342,27 +368,33 @@ public static class ACIRWriter
                 ", ",
                 device
                     .Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $"{b.Key}->{b.Value}")
+                    .Select(b => $".{b.Key}--{b.Value}")
             );
             header += $" ({bindings})";
         }
-        header += " : ";
-        var paramParts = device
-            .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
-            .Select(p => $"{p.Key}={p.Value}");
-        header += string.Join(" ", paramParts);
-        if (!string.IsNullOrEmpty(device.PdkDevice))
-        {
-            header += $" {device.PdkDevice}";
-        }
+        header += $" : {device.PdkDevice}";
         writer.WriteLine(header);
+
+        // Device parameters / sizing always live in the body.
+        if (device.Params.TryGetValue("size", out var sizeValue))
+        {
+            writer.WriteLine($"      size {sizeValue}");
+        }
+        foreach (
+            var (key, value) in device
+                .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
+                .Where(p => !string.Equals(p.Key, "size", StringComparison.Ordinal))
+        )
+        {
+            writer.WriteLine($"      {key} = {value}");
+        }
 
         // If bindings weren't inline, write them indented
         if (device.Bindings.Count > 4)
         {
             foreach (var binding in device.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {binding.Key} -> {binding.Value}");
+                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
             }
         }
     }
@@ -375,8 +407,10 @@ public static class ACIRWriter
             writer.WriteLine("    numeric:");
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
-                var scope = c.Node is not null ? $" @ {c.Node}" : "";
-                writer.WriteLine($"      {c.Id} : {c.Metric}{scope} {c.Op} {c.Value}{c.Unit}");
+                var node = c.Node is not null ? $" at {c.Node}" : "";
+                writer.WriteLine(
+                    $"      {c.Id} : {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
+                );
             }
         }
         if (constraints.Tech.Count > 0)
@@ -393,15 +427,6 @@ public static class ACIRWriter
             foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
-            }
-        }
-        if (constraints.Measure.Count > 0)
-        {
-            writer.WriteLine("    measure:");
-            foreach (var m in constraints.Measure.OrderBy(m => m.Id, StringComparer.Ordinal))
-            {
-                var node = m.Node is not null ? $" @ {m.Node}" : "";
-                writer.WriteLine($"      {m.Id} : {m.Bench} {m.Metric}{node}");
             }
         }
     }
@@ -447,26 +472,6 @@ public static class ACIRWriter
         if (harness.Pvt.Count > 0)
         {
             writer.WriteLine($"    pvt {string.Join(", ", harness.Pvt)}");
-        }
-    }
-
-    private static void WriteBenches(BenchesBlock benches, TextWriter writer)
-    {
-        writer.WriteLine("  benches:");
-        foreach (var bench in benches.Benches.OrderBy(b => b.Name, StringComparer.Ordinal))
-        {
-            if (bench.Config.Count == 0)
-            {
-                writer.WriteLine($"    {bench.Name}");
-            }
-            else
-            {
-                writer.WriteLine($"    {bench.Name}:");
-                foreach (var kvp in bench.Config.OrderBy(c => c.Key, StringComparer.Ordinal))
-                {
-                    writer.WriteLine($"      {kvp.Key} = {kvp.Value}");
-                }
-            }
         }
     }
 

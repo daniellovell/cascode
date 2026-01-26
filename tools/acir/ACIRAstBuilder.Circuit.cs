@@ -26,7 +26,6 @@ internal sealed partial class ACIRAstBuilder
             Fill = memberState.Fill,
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
-            Benches = memberState.Benches,
             Provenance = memberState.Provenance,
         };
     }
@@ -88,10 +87,6 @@ internal sealed partial class ACIRAstBuilder
                     state.Harness = BuildHarnessBlock(harnessCtx);
                     break;
 
-                case ACIRParser.BenchesSectionContext benchesCtx:
-                    state.Benches = BuildBenchesBlock(benchesCtx);
-                    break;
-
                 case ACIRParser.ProvenanceSectionContext provCtx:
                     state.Provenance = BuildProvenanceBlock(provCtx);
                     break;
@@ -111,7 +106,6 @@ internal sealed partial class ACIRAstBuilder
         public FillBlock? Fill { get; set; }
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
-        public BenchesBlock? Benches { get; set; }
         public ProvenanceBlock? Provenance { get; set; }
         public ACIRLevel Level { get; set; } = ACIRLevel.ML;
         public bool IsInline { get; set; }
@@ -171,7 +165,7 @@ internal sealed partial class ACIRAstBuilder
 
             if (entries.ContainsKey(key))
             {
-                // Use the provided context for diagnostic location, or fall back to the entry context
+                // Use the provided context for diagnostic location, or fall back to the entry context.
                 AddDiagnostic(
                     diagnosticCtx ?? entryCtx,
                     DiagnosticSeverity.Error,
@@ -221,7 +215,7 @@ internal sealed partial class ACIRAstBuilder
         }
         if (ctx.STRING() != null)
         {
-            // Remove quotes
+            // Remove quotes.
             var str = ctx.STRING().GetText();
             return new ParamValue { Literal = str[1..^1] };
         }
@@ -284,8 +278,82 @@ internal sealed partial class ACIRAstBuilder
     {
         var deviceType = ctx.DEVICE_TYPE().GetText();
         var deviceId = BuildDeviceId(ctx.deviceId());
-        var bindings = BuildBindings(ctx.bindingList());
-        var (deviceParams, pdkDevice) = BuildDeviceParams(ctx.deviceParams(), ctx.pdkDeviceName());
+
+        var bindings =
+            ctx.bindingList() != null
+                ? BuildBindings(ctx.bindingList())
+                : new Dictionary<string, string>();
+
+        var deviceParams = new Dictionary<string, string>();
+
+        var hasBodyBindings = false;
+        foreach (var itemCtx in ctx.deviceBodyItem())
+        {
+            switch (itemCtx)
+            {
+                case ACIRParser.DeviceSizeStmtContext sizeCtx:
+                    if (deviceType is "resistor" or "capacitor" or "inductor" or "diode")
+                    {
+                        AddDiagnostic(
+                            sizeCtx,
+                            DiagnosticSeverity.Error,
+                            $"ACIR0034: '{deviceType}' devices do not support size statements"
+                        );
+                        break;
+                    }
+
+                    if (deviceParams.ContainsKey("size"))
+                    {
+                        AddDiagnostic(
+                            sizeCtx,
+                            DiagnosticSeverity.Error,
+                            "ACIR0031: Duplicate device size statement"
+                        );
+                        break;
+                    }
+
+                    if (sizeCtx.sizeLiteral() != null)
+                    {
+                        BuildSizeLiteral(sizeCtx.sizeLiteral(), sizeCtx);
+                        deviceParams["size"] = RenderSizeLiteral(sizeCtx.sizeLiteral());
+                    }
+                    else if (sizeCtx.IDENT() != null)
+                    {
+                        deviceParams["size"] = sizeCtx.IDENT().GetText();
+                    }
+                    break;
+
+                case ACIRParser.DeviceParamLineContext paramLineCtx:
+                    var (key, value) = BuildDeviceParamAssign(paramLineCtx.deviceParamAssign());
+                    if (deviceParams.ContainsKey(key))
+                    {
+                        AddDiagnostic(
+                            paramLineCtx,
+                            DiagnosticSeverity.Error,
+                            $"ACIR0032: Duplicate device parameter '{key}'"
+                        );
+                        break;
+                    }
+
+                    deviceParams[key] = value;
+                    break;
+
+                case ACIRParser.DeviceBindingContext bindingCtx:
+                    hasBodyBindings = true;
+                    var pins = bindingCtx.binding().pinRef();
+                    bindings[BuildPinRef(pins[0])] = BuildPinRef(pins[1]);
+                    break;
+            }
+        }
+
+        if (ctx.bindingList() != null && hasBodyBindings)
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                "ACIR0030: Cannot mix inline and body bindings in a single declaration."
+            );
+        }
 
         return new DeviceDeclaration
         {
@@ -293,8 +361,23 @@ internal sealed partial class ACIRAstBuilder
             Id = deviceId,
             Bindings = bindings,
             Params = deviceParams,
-            PdkDevice = pdkDevice,
+            PdkDevice = ctx.pdkDeviceName().GetText(),
         };
+    }
+
+    private static (string Key, string Value) BuildDeviceParamAssign(
+        ACIRParser.DeviceParamAssignContext ctx
+    )
+    {
+        var key = ctx.IDENT()?.GetText() ?? ctx.LOAD_TYPE()?.GetText() ?? string.Empty;
+        var valueCtx = ctx.deviceParamValue();
+        var value =
+            valueCtx.NUMBER()?.GetText()
+            ?? valueCtx.QUANTITY()?.GetText()
+            ?? valueCtx.SYMBOLIC()?.GetText()
+            ?? string.Empty;
+
+        return (key, value);
     }
 
     private static string BuildDeviceId(ACIRParser.DeviceIdContext ctx)
@@ -315,103 +398,38 @@ internal sealed partial class ACIRAstBuilder
         return bindings;
     }
 
-    /// <summary>Builds instance bindings while stripping the instance prefix.</summary>
-    private static Dictionary<string, string> BuildBindingsForInstance(
-        ACIRParser.BindingListContext ctx,
-        string instanceId
-    )
-    {
-        var bindings = new Dictionary<string, string>();
-        var prefix = instanceId + ".";
-        foreach (var bindingCtx in ctx.binding())
-        {
-            var pins = bindingCtx.pinRef();
-            var from = BuildPinRef(pins[0]);
-            var to = BuildPinRef(pins[1]);
-            // Strip instance prefix if present (e.g., "dp.VDD" -> "VDD")
-            if (from.StartsWith(prefix))
-            {
-                from = from.Substring(prefix.Length);
-            }
-            bindings[from] = to;
-        }
-        return bindings;
-    }
-
-    /// <summary>Builds device parameters and optional PDK device name.</summary>
-    private (Dictionary<string, string> Params, string? PdkDevice) BuildDeviceParams(
-        ACIRParser.DeviceParamsContext? ctx,
-        ACIRParser.PdkDeviceNameContext? pdkCtx
-    )
-    {
-        var deviceParams = new Dictionary<string, string>();
-        string? pdkDevice = pdkCtx?.GetText();
-
-        if (ctx == null)
-        {
-            return (deviceParams, pdkDevice);
-        }
-
-        foreach (var paramCtx in ctx.deviceParam())
-        {
-            if (paramCtx.SIZE_KW() != null)
-            {
-                // Handle size=(...) or size=SizeName
-                if (paramCtx.sizeLiteral() != null)
-                {
-                    // Validate the size literal (for duplicate key checking)
-                    BuildSizeLiteral(paramCtx.sizeLiteral(), paramCtx);
-                    // Store as packed string for EmissionValidator compatibility
-                    deviceParams["size"] = RenderSizeLiteral(paramCtx.sizeLiteral());
-                }
-                else if (paramCtx.IDENT() != null)
-                {
-                    deviceParams["size"] = paramCtx.IDENT().GetText();
-                }
-            }
-            else if (paramCtx.IDENT() != null)
-            {
-                var key = paramCtx.IDENT().GetText();
-                var valueCtx = paramCtx.deviceParamValue();
-                var value =
-                    valueCtx.NUMBER()?.GetText()
-                    ?? valueCtx.QUANTITY()?.GetText()
-                    ?? valueCtx.SYMBOLIC()?.GetText()
-                    ?? string.Empty;
-                deviceParams[key] = value;
-            }
-            else if (paramCtx.LOAD_TYPE() != null)
-            {
-                // Handle R/C as param names (e.g., R=10k for resistor params)
-                var key = paramCtx.LOAD_TYPE().GetText();
-                var valueCtx = paramCtx.deviceParamValue();
-                var value =
-                    valueCtx.NUMBER()?.GetText()
-                    ?? valueCtx.QUANTITY()?.GetText()
-                    ?? valueCtx.SYMBOLIC()?.GetText()
-                    ?? string.Empty;
-                deviceParams[key] = value;
-            }
-        }
-
-        return (deviceParams, pdkDevice);
-    }
-
-    /// <summary>Builds an instance declaration with parameters, sizes, and connects.</summary>
+    /// <summary>Builds an instance declaration with parameters and bindings.</summary>
     private InstanceDeclaration BuildInstance(ACIRParser.InstanceDeclContext ctx)
     {
         var id = ctx.IDENT(0).GetText();
         var type = ctx.IDENT(1).GetText();
+
         var bindings =
             ctx.bindingList() != null
-                ? BuildBindingsForInstance(ctx.bindingList(), id)
+                ? BuildBindings(ctx.bindingList())
                 : new Dictionary<string, string>();
+        if (ctx.bindingList() != null)
+        {
+            var prefix = $"{id}.";
+            var invalidKeys = bindings
+                .Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
+                .ToList();
+            foreach (var key in invalidKeys)
+            {
+                bindings.Remove(key);
+                AddDiagnostic(
+                    ctx.bindingList(),
+                    DiagnosticSeverity.Error,
+                    $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
+                );
+            }
+        }
+
+        var hasBodyBindings = false;
         var instanceParams = new Dictionary<string, ParamValue>();
         var sizes = new Dictionary<string, SizePack>();
-        var connects = new List<ConnectionStatement>();
-        var prefix = id + ".";
 
-        foreach (var memberCtx in ctx.instanceMember())
+        foreach (var memberCtx in ctx.instanceBodyItem())
         {
             switch (memberCtx)
             {
@@ -428,29 +446,32 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.InstanceConnectContext connectCtx:
-                    var connPins = connectCtx.pinRef();
-                    var from = BuildPinRef(connPins[0]);
-                    var to = BuildPinRef(connPins[1]);
-
-                    // ACIR0028: Validate that at least one side references the instance
-                    if (!from.StartsWith(prefix) && !to.StartsWith(prefix))
+                case ACIRParser.InstanceBindingContext bindingCtx:
+                    hasBodyBindings = true;
+                    var pins = bindingCtx.binding().pinRef();
+                    var from = BuildPinRef(pins[0]);
+                    if (from.StartsWith($"{id}.", StringComparison.Ordinal))
                     {
                         AddDiagnostic(
-                            connectCtx,
+                            bindingCtx,
                             DiagnosticSeverity.Error,
-                            $"ACIR0028: Instance connect statement must reference '{id}' on at least one side"
+                            $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
                         );
+                        break;
                     }
 
-                    connects.Add(new ConnectionStatement { From = from, To = to });
-                    break;
-
-                case ACIRParser.InstanceBindingContext bindingCtx:
-                    var bindPins = bindingCtx.binding().pinRef();
-                    bindings[BuildPinRef(bindPins[0])] = BuildPinRef(bindPins[1]);
+                    bindings[from] = BuildPinRef(pins[1]);
                     break;
             }
+        }
+
+        if (ctx.bindingList() != null && hasBodyBindings)
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                "ACIR0030: Cannot mix inline and body bindings in a single declaration."
+            );
         }
 
         return new InstanceDeclaration
@@ -460,7 +481,7 @@ internal sealed partial class ACIRAstBuilder
             Bindings = bindings,
             Params = instanceParams,
             Sizes = sizes,
-            Connects = connects,
+            Connects = new List<ConnectionStatement>(),
         };
     }
 

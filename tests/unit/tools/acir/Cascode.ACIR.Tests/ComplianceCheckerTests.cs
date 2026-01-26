@@ -132,8 +132,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_out1",
+                        Bench = "TestBench",
                         Metric = "Gain",
-                        Node = "OUT1",
+                        Node = new NodeRef { Scope = "net", Path = "OUT1" },
                         Op = ">=",
                         Value = "40",
                         Unit = "dB",
@@ -141,8 +142,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_out2",
+                        Bench = "TestBench",
                         Metric = "Gain",
-                        Node = "OUT2",
+                        Node = new NodeRef { Scope = "net", Path = "OUT2" },
                         Op = ">=",
                         Value = "30",
                         Unit = "dB",
@@ -272,8 +274,7 @@ public class ComplianceCheckerTests
 
         var circuit = doc.Circuits[0];
         Assert.NotNull(circuit.Constraints);
-        Assert.Equal(4, circuit.Constraints.Numeric.Count);
-        Assert.Equal(4, circuit.Constraints.Measure.Count);
+        Assert.Equal(5, circuit.Constraints.Numeric.Count);
     }
 
     [Fact]
@@ -354,7 +355,8 @@ public class ComplianceCheckerTests
         string? node,
         string op,
         string value,
-        string unit
+        string unit,
+        string bench = "TestBench"
     )
     {
         return new Circuit
@@ -367,8 +369,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = id,
+                        Bench = bench,
                         Metric = metric,
-                        Node = node,
+                        Node = node != null ? new NodeRef { Scope = "net", Path = node } : null,
                         Op = op,
                         Value = value,
                         Unit = unit,
@@ -415,8 +418,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
+                        Bench = "ACBench",
                         Metric = "GainBandwidth",
-                        Node = "OUT",
+                        Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
                         Value = "100M",
                         Unit = "Hz",
@@ -424,8 +428,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
+                        Bench = "ACBench",
                         Metric = "PassbandGain",
-                        Node = "OUT",
+                        Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
                         Value = "40",
                         Unit = "dB",
@@ -433,33 +438,11 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
+                        Bench = "DCBench",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
                         Unit = "W",
-                    },
-                },
-                Measure = new List<MeasureIntent>
-                {
-                    new()
-                    {
-                        Id = "m_gbw",
-                        Bench = "SEOpAmpACBench",
-                        Metric = "GainBandwidth",
-                        Node = "OUT",
-                    },
-                    new()
-                    {
-                        Id = "m_gain",
-                        Bench = "SEOpAmpACBench",
-                        Metric = "PassbandGain",
-                        Node = "OUT",
-                    },
-                    new()
-                    {
-                        Id = "m_pwr",
-                        Bench = "SEOpAmpDCBench",
-                        Metric = "QuiescentPower",
                     },
                 },
             },
@@ -468,7 +451,7 @@ public class ComplianceCheckerTests
         var acResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "SEOpAmpACBench",
+            Bench = "ACBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["gbw"] = new()
@@ -494,9 +477,9 @@ public class ComplianceCheckerTests
         Assert.Equal(2, report.PassedCount);
         Assert.Equal(0, report.FailedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpDCBench"));
-        Assert.Single(report.UncheckedByBench["SEOpAmpDCBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["SEOpAmpDCBench"][0].Id);
+        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
+        Assert.Single(report.UncheckedByBench["DCBench"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
     }
 
     [Fact]
@@ -512,8 +495,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
+                        Bench = "ACBench",
                         Metric = "GainBandwidth",
-                        Node = "OUT",
+                        Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
                         Value = "100M",
                         Unit = "Hz",
@@ -521,26 +505,11 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
+                        Bench = "DCBench",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
                         Unit = "W",
-                    },
-                },
-                Measure = new List<MeasureIntent>
-                {
-                    new()
-                    {
-                        Id = "m_gbw",
-                        Bench = "SEOpAmpACBench",
-                        Metric = "GainBandwidth",
-                        Node = "OUT",
-                    },
-                    new()
-                    {
-                        Id = "m_pwr",
-                        Bench = "SEOpAmpDCBench",
-                        Metric = "QuiescentPower",
                     },
                 },
             },
@@ -549,7 +518,7 @@ public class ComplianceCheckerTests
         var dcResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "SEOpAmpDCBench",
+            Bench = "DCBench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["pwr"] = new()
@@ -566,7 +535,7 @@ public class ComplianceCheckerTests
         Assert.Equal(1, report.TotalCount);
         Assert.Equal(1, report.PassedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpACBench"));
+        Assert.True(report.UncheckedByBench.ContainsKey("ACBench"));
     }
 
     [Fact]
@@ -583,8 +552,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
+                        Bench = "ACBench",
                         Metric = "GainBandwidth",
-                        Node = "OUT",
+                        Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
                         Value = "100M",
                         Unit = "Hz",
@@ -592,8 +562,9 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
+                        Bench = "ACBench",
                         Metric = "PassbandGain",
-                        Node = "OUT",
+                        Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
                         Value = "40",
                         Unit = "dB",
@@ -601,33 +572,11 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
+                        Bench = "DCBench",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
                         Unit = "W",
-                    },
-                },
-                Measure = new List<MeasureIntent>
-                {
-                    new()
-                    {
-                        Id = "m_gbw",
-                        Bench = "SEOpAmpACBench",
-                        Metric = "GainBandwidth",
-                        Node = "OUT",
-                    },
-                    new()
-                    {
-                        Id = "m_gain",
-                        Bench = "SEOpAmpACBench",
-                        Metric = "PassbandGain",
-                        Node = "OUT",
-                    },
-                    new()
-                    {
-                        Id = "m_pwr",
-                        Bench = "SEOpAmpDCBench",
-                        Metric = "QuiescentPower",
                     },
                 },
             },
@@ -674,7 +623,7 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
-    public void Check_NoMeasureSection_FallsBackToCheckingAllConstraints()
+    public void Check_NoBenchQualifier_ChecksAllConstraints()
     {
         var circuit = new Circuit
         {
@@ -686,6 +635,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
+                        Bench = string.Empty,
                         Metric = "GainBandwidth",
                         Op = ">=",
                         Value = "100M",
@@ -694,13 +644,13 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
+                        Bench = string.Empty,
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
                         Unit = "W",
                     },
                 },
-                // No Measure section
             },
         };
 
@@ -735,7 +685,7 @@ public class ComplianceCheckerTests
         var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
         var resultsPath = Path.Combine(
             repoRoot,
-            "tests/golden/results/ota/OTA5TSingleEnded_SEOpAmpACBench_results.json"
+            "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
         );
 
         using var acirReader = File.OpenText(acirPath);
@@ -754,9 +704,12 @@ public class ComplianceCheckerTests
         Assert.Equal(0, report.FailedCount);
 
         // Power constraint should be tracked as unchecked
-        Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("SEOpAmpDCBench"));
-        Assert.Single(report.UncheckedByBench["SEOpAmpDCBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["SEOpAmpDCBench"][0].Id);
+        Assert.Equal(2, report.UncheckedByBench.Count);
+        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
+        Assert.True(report.UncheckedByBench.ContainsKey("TranBench"));
+        Assert.Single(report.UncheckedByBench["DCBench"]);
+        Assert.Single(report.UncheckedByBench["TranBench"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
+        Assert.Equal("c_swing", report.UncheckedByBench["TranBench"][0].Id);
     }
 }

@@ -11,7 +11,7 @@ public class ACIRReaderHarnessTests
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test : SingleEndedAmp
+circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -64,7 +64,7 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test : SingleEndedAmp
+circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -86,7 +86,7 @@ circuit Test : SingleEndedAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test : SingleEndedAmp
+circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
@@ -197,7 +197,7 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test : SingleEndedAmp
+circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND

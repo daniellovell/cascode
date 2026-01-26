@@ -64,6 +64,15 @@ public sealed class TestbenchGenerator
 
     private static string? TryRenderTemplate(TestbenchContext ctx, TestbenchPlan plan)
     {
+        if (plan.Data.TryGetValue("template_text", out var textObj))
+        {
+            var inlineText = textObj?.ToString();
+            if (!string.IsNullOrWhiteSpace(inlineText))
+            {
+                return RenderTemplate(ctx, plan, inlineText);
+            }
+        }
+
         if (!plan.Data.TryGetValue("template_path", out var pathObj))
         {
             return null;
@@ -107,8 +116,15 @@ public sealed class TestbenchGenerator
             return null;
         }
 
-        var tpl = templateText!;
+        return RenderTemplate(ctx, plan, templateText);
+    }
 
+    private static string RenderTemplate(
+        TestbenchContext ctx,
+        TestbenchPlan plan,
+        string templateText
+    )
+    {
         // Use template_model from plan if available (ACIR templates), otherwise build default model
         object model;
         if (plan.Data.TryGetValue("template_model", out var templateModel))
@@ -137,7 +153,7 @@ public sealed class TestbenchGenerator
             };
         }
 
-        return TemplateRenderer.Render(tpl, model);
+        return TemplateRenderer.Render(templateText, model);
     }
 
     private static string EnsureJobDir(string path)

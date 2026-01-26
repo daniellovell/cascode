@@ -164,9 +164,14 @@ internal static class CliIntegrationTestHelper
         var exeName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "Cascode.Cli.exe"
             : "Cascode.Cli";
-        foreach (var tfmDirectory in Directory.GetDirectories(configurationPath))
+        var tfmDirectories = Directory
+            .GetDirectories(configurationPath)
+            .Select(path => new { Path = path, Version = TryParseNetTfm(Path.GetFileName(path)) })
+            .OrderByDescending(entry => entry.Version ?? new Version(0, 0))
+            .ThenBy(entry => entry.Path, StringComparer.Ordinal);
+        foreach (var tfmDirectory in tfmDirectories)
         {
-            var candidate = Path.Combine(tfmDirectory, exeName);
+            var candidate = Path.Combine(tfmDirectory.Path, exeName);
             if (File.Exists(candidate))
                 return candidate;
         }
@@ -202,6 +207,39 @@ internal static class CliIntegrationTestHelper
         var parts = new List<string> { Q(executable) };
         parts.AddRange(arguments.Select(Q));
         return string.Join(' ', parts);
+    }
+
+    private static Version? TryParseNetTfm(string? tfmName)
+    {
+        if (string.IsNullOrWhiteSpace(tfmName))
+            return null;
+        if (!tfmName.StartsWith("net", StringComparison.OrdinalIgnoreCase))
+            return null;
+        var span = tfmName.AsSpan(3);
+        var length = 0;
+        while (length < span.Length && (char.IsDigit(span[length]) || span[length] == '.'))
+        {
+            length++;
+        }
+
+        if (length == 0)
+            return null;
+        var versionText = span[..length].ToString();
+        if (versionText.Length > 1 && versionText[0] == '4' && versionText.All(char.IsDigit))
+        {
+            var dottedChars = new char[(versionText.Length * 2) - 1];
+            dottedChars[0] = versionText[0];
+            var dst = 1;
+            for (var i = 1; i < versionText.Length; i++)
+            {
+                dottedChars[dst++] = '.';
+                dottedChars[dst++] = versionText[i];
+            }
+
+            versionText = new string(dottedChars);
+        }
+
+        return Version.TryParse(versionText, out var version) ? version : null;
     }
 
     /// <summary>

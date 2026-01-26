@@ -54,7 +54,9 @@ public class AcirJsonConverterRoundTripTests
         var roundTrippedConstraint = roundTripped.Circuits[0].Constraints!.Numeric[0];
 
         Assert.Equal(originalConstraint.Id, roundTrippedConstraint.Id);
+        Assert.Equal(originalConstraint.Bench, roundTrippedConstraint.Bench);
         Assert.Equal(originalConstraint.Metric, roundTrippedConstraint.Metric);
+        Assert.Equal(originalConstraint.Node?.ToString(), roundTrippedConstraint.Node?.ToString());
         Assert.Equal(originalConstraint.Op, roundTrippedConstraint.Op);
         Assert.Equal(originalConstraint.Value, roundTrippedConstraint.Value);
         Assert.Equal(originalConstraint.Unit, roundTrippedConstraint.Unit);
@@ -95,7 +97,7 @@ public class AcirJsonConverterRoundTripTests
     }
 
     [Fact]
-    public void RoundTrip_WithBenches_PreservesBenchNames()
+    public void RoundTrip_WithBenchDefinitions_PreservesBenchNames()
     {
         var original = CreateCircuitWithBenches();
 
@@ -104,24 +106,23 @@ public class AcirJsonConverterRoundTripTests
         Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
         var roundTripped = result.Document!;
 
-        Assert.NotNull(roundTripped.Circuits[0].Benches);
-        Assert.Equal(2, roundTripped.Circuits[0].Benches!.Benches.Count);
-        Assert.Equal("DCOpPoint", roundTripped.Circuits[0].Benches!.Benches[0].Name);
-        Assert.Equal("ACSmallSignal", roundTripped.Circuits[0].Benches!.Benches[1].Name);
+        Assert.Equal(2, roundTripped.BenchDefinitions.Count);
+        Assert.Equal("DCBench", roundTripped.BenchDefinitions[0].Name);
+        Assert.Equal("ACBench", roundTripped.BenchDefinitions[1].Name);
     }
 
     [Fact]
-    public void ToJson_WithBenches_EmitsBenchesArray()
+    public void ToJson_WithBenchDefinitions_EmitsBenchDefinitionsArray()
     {
         var doc = CreateCircuitWithBenches();
 
         var json = AcirJsonConverter.ToJson(doc);
         var parsed = JsonDocument.Parse(json);
 
-        var benches = parsed.RootElement.GetProperty("benches");
+        var benches = parsed.RootElement.GetProperty("benchDefinitions");
         Assert.Equal(2, benches.GetArrayLength());
-        Assert.Equal("DCOpPoint", benches[0].GetString());
-        Assert.Equal("ACSmallSignal", benches[1].GetString());
+        Assert.Equal("DCBench", benches[0].GetProperty("name").GetString());
+        Assert.Equal("ACBench", benches[1].GetProperty("name").GetString());
     }
 
     [Fact]
@@ -267,8 +268,9 @@ public class AcirJsonConverterRoundTripTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
+                                Bench = "ACBench",
                                 Metric = "GainBandwidth",
-                                Node = "OUT",
+                                Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",
                                 Value = "20M",
                                 Unit = "Hz",
@@ -286,24 +288,34 @@ public class AcirJsonConverterRoundTripTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            BenchDefinitions =
+            [
+                new BenchDefinition
+                {
+                    Name = "DCBench",
+                    Trait = "SingleEndedOpAmp",
+                    Builtin = "SEOpAmpDCBench",
+                    Outputs = ["QuiescentPower"],
+                },
+                new BenchDefinition
+                {
+                    Name = "ACBench",
+                    Trait = "SingleEndedOpAmp",
+                    Builtin = "SEOpAmpACBench",
+                    Outputs = ["GainBandwidth", "PassbandGain"],
+                },
+            ],
             Circuits =
             [
                 new Circuit
                 {
                     Name = "TestCircuit",
                     Level = ACIRLevel.EL,
+                    Traits = ["SingleEndedOpAmp"],
                     Supplies = ["VDD"],
                     Grounds = ["GND"],
                     Ports = [],
                     Fill = new FillBlock { Devices = [] },
-                    Benches = new BenchesBlock
-                    {
-                        Benches =
-                        [
-                            new BenchConfig { Name = "DCOpPoint" },
-                            new BenchConfig { Name = "ACSmallSignal" },
-                        ],
-                    },
                 },
             ],
         };

@@ -192,10 +192,10 @@ public static class SpiceEmitter
     }
 
     /// <summary>
-    /// Emits a SPICE testbench for a given bench configuration.
+    /// Emits a SPICE testbench for a given bench definition.
     /// </summary>
     /// <param name="circuit">The circuit containing the bench.</param>
-    /// <param name="bench">The bench configuration.</param>
+    /// <param name="bench">The bench definition.</param>
     /// <param name="designPath">Path to the design .sp file to include.</param>
     /// <param name="writer">Text writer for output.</param>
     /// <param name="backend">Backend type for testbench generation.</param>
@@ -207,7 +207,7 @@ public static class SpiceEmitter
     [Obsolete("Use Emit() method with backend parameter instead")]
     public static void EmitTestbench(
         Circuit circuit,
-        BenchConfig bench,
+        BenchDefinition bench,
         string designPath,
         TextWriter writer,
         BenchBackendType backend = BenchBackendType.Ngspice
@@ -264,7 +264,7 @@ public static class SpiceEmitter
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <returns>Result containing paths to generated files.</returns>
     /// <remarks>
     /// Processes all EL-level circuits in the document:
@@ -330,23 +330,26 @@ public static class SpiceEmitter
         // Emit testbenches after all design files are emitted (for hierarchical dependencies)
         foreach (var circuit in orderedCircuits.Where(c => c.Level == ACIRLevel.EL))
         {
-            if (circuit.Benches?.Benches.Count > 0)
+            var benchDefinitions = BenchDefinitionResolver.ResolveForCircuit(doc, circuit);
+            if (benchDefinitions.Count == 0)
             {
-                var includeResolution = includeResolver?.Resolve(circuit, backend, doc);
-                foreach (var bench in circuit.Benches.Benches)
-                {
-                    var files = ACIRBenchAdapter.GenerateTestbench(
-                        circuit,
-                        bench,
-                        backend,
-                        outputDir,
-                        workspaceRoot,
-                        includeResolution,
-                        result.DesignPaths,
-                        doc
-                    );
-                    result.TestbenchPaths.Add(files.NetlistPath);
-                }
+                continue;
+            }
+
+            var includeResolution = includeResolver?.Resolve(circuit, backend, doc);
+            foreach (var bench in benchDefinitions)
+            {
+                var files = ACIRBenchAdapter.GenerateTestbench(
+                    circuit,
+                    bench,
+                    backend,
+                    outputDir,
+                    workspaceRoot,
+                    includeResolution,
+                    result.DesignPaths,
+                    doc
+                );
+                result.TestbenchPaths.Add(files.NetlistPath);
             }
         }
 
@@ -359,7 +362,7 @@ public static class SpiceEmitter
     /// <param name="doc">The ACIR document.</param>
     /// <param name="outputDir">Output directory for generated files.</param>
     /// <param name="backend">Backend type for testbench generation (default: ngspice).</param>
-    /// <param name="workspaceRoot">Optional workspace root for template discovery.</param>
+    /// <param name="workspaceRoot">Optional workspace root for include resolution.</param>
     /// <returns>Result containing paths to generated files and validation result.</returns>
     /// <remarks>
     /// Runs hierarchy validation and emission validation before attempting SPICE generation.
@@ -1551,7 +1554,7 @@ public static class SpiceEmitter
     /// <summary>
     /// Emits analysis commands based on bench type.
     /// </summary>
-    /// <param name="bench">Bench configuration.</param>
+    /// <param name="bench">Bench definition.</param>
     /// <param name="writer">Text writer for output.</param>
     /// <remarks>
     /// Bench type is inferred from the bench name:
@@ -1559,12 +1562,12 @@ public static class SpiceEmitter
     /// - "STEP" or "TRAN" → Transient analysis (op + tran)
     /// - Default → DC operating point only
     /// </remarks>
-    private static void EmitAnalysis(BenchConfig bench, TextWriter writer)
+    private static void EmitAnalysis(BenchDefinition bench, TextWriter writer)
     {
         writer.WriteLine(".control");
 
         // Determine analysis type from bench name
-        var benchName = bench.Name.ToUpperInvariant();
+        var benchName = (bench.Builtin ?? bench.Name).ToUpperInvariant();
         if (benchName.Contains("AC"))
         {
             writer.WriteLine("op");
