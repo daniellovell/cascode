@@ -1,10 +1,10 @@
 # RFC: ACIR Measurement Abstraction System
 
-**Status:** Draft  
-**Authors:** [Author]  
-**Created:** 2026-01-25  
-**Last Updated:** 2026-01-25  
-**Target Version:** ACIR 3.0
+Status: Draft  
+Authors: Daniel Lovell
+Created: 2026-01-25  
+Last Updated: 2026-01-25  
+Target Version: ACIR 3.0
 
 ---
 
@@ -12,11 +12,11 @@
 
 This RFC proposes a measurement abstraction system for ACIR that eliminates redundant bench definitions across circuit topologies while maintaining type safety and enabling automatic testbench synthesis. The design introduces:
 
-1. **Port abstraction**: A two-node pair representing where signals are stimulated or measured, agnostic to voltage/current mode
-2. **Explicit bench bindings**: Circuit-level bindings that map abstract measurement roles to concrete node pairs
-3. **Reusable measurement definitions**: Specifications with typed role requirements and fixed primitive operations
-4. **Multi-simulation support**: Fixed stimulus mode vocabulary for measurements requiring multiple simulation runs
-5. **Programmatic testbench generation**: C# emission (eliminating template maintenance)
+1. Port abstraction: A two-node pair representing where signals are stimulated or measured, agnostic to voltage/current mode
+2. Explicit bench bindings: Circuit-level bindings that map abstract measurement roles to concrete node pairs
+3. Reusable measurement definitions: Specifications with typed role requirements and fixed primitive operations
+4. Multi-simulation support: Fixed stimulus mode vocabulary for measurements requiring multiple simulation runs
+5. Programmatic testbench generation: C# emission (eliminating template maintenance)
 
 ---
 
@@ -36,7 +36,7 @@ bench FDOpAmpACBench for FullyDifferentialOpAmp
   outputs: GainBandwidth, PassbandGain, PhaseMargin, LowpassBandwidth
 ```
 
-These benches measure **identical specifications** but require separate implementations because:
+These benches measure identical specifications but require separate implementations because:
 
 1. Stimulus generation differs (differential vs single-ended input drive)
 2. Response probing differs (differential vs single-ended output measurement)
@@ -44,18 +44,18 @@ These benches measure **identical specifications** but require separate implemen
 
 ### 1.2 Consequences
 
-1. **Code duplication**: Measurement logic reimplemented in every bench template
-2. **Maintenance burden**: Bug fixes require changes across multiple templates
-3. **Template explosion**: N topologies × M backends × K measurements = O(N×M×K) templates
-4. **Manual applicability tracking**: No compile-time validation of measurement applicability
+1. Code duplication: Measurement logic reimplemented in every bench template
+2. Maintenance burden: Bug fixes require changes across multiple templates
+3. Template explosion: N topologies x M backends x K measurements = O(N x M x K) templates
+4. Manual applicability tracking: No compile-time validation of measurement applicability
 
 ### 1.3 Desired Properties
 
-1. **Single definition**: Each measurement defined exactly once
-2. **Explicit binding**: Measurements bind to circuit nodes through explicit declarations
-3. **Type-safe applicability**: Topology requirements validated at compile time via Port types
-4. **No implicit behaviors**: All bindings explicit; no context-dependent resolution rules
-5. **Programmatic generation**: Testbench generation in C# code, not templates
+1. Single definition: Each measurement defined exactly once
+2. Explicit binding: Measurements bind to circuit nodes through explicit declarations
+3. Type-safe applicability: Topology requirements validated at compile time via Port types
+4. No implicit behaviors: All bindings explicit; no context-dependent resolution rules
+5. Programmatic generation: Testbench generation in C# code, not templates
 
 ---
 
@@ -76,7 +76,7 @@ trait DiffPairLike:
       OUT.N--TAP[0]
 ```
 
-Traits specify port interfaces and connector rules. This RFC preserves traits for their original purpose (interface contracts, hierarchical composition) but **removes measurement binding from traits**.
+Traits specify port interfaces and connector rules. This RFC preserves traits for their original purpose (interface contracts, hierarchical composition) but removes measurement binding from traits.
 
 ### 2.2 ACIR Bundle System
 
@@ -90,7 +90,7 @@ bundle Diff:
 
 ### 2.3 Two-Port Network Model
 
-A key insight informs this design: measurements operate on **ports** in the network-analysis sense—two-terminal access points where signals can be applied or observed.
+A key insight informs this design: measurements operate on ports in the network-analysis sense, two-terminal access points where signals can be applied or observed.
 
 | Circuit Type | Input Port | Output Port |
 |--------------|------------|-------------|
@@ -98,7 +98,7 @@ A key insight informs this design: measurements operate on **ports** in the netw
 | TIA | Current driven, two terminals | Voltage measured, two terminals |
 | Fully differential amp | Differential voltage, two terminals | Differential voltage, two terminals |
 
-The **Port** abstraction captures "where" without prescribing "what kind" (voltage/current). A Port is always defined by two nodes: `Port(positive_node, negative_node)`.
+The Port abstraction captures "where" without prescribing "what kind" (voltage/current). A Port is always defined by two nodes: `Port(positive_node, negative_node)`.
 
 ### 2.4 Existing Harness System
 
@@ -121,24 +121,24 @@ This RFC preserves and extends this system.
 
 ### 3.1 Core Components
 
-1. **Direction keywords**: `input`, `output`, `inout` replace the `port` keyword
-2. **Port abstraction**: `Port(node_a, node_b)` defines a two-terminal measurement/stimulus point
-3. **Port types**: `Port` (base), `DifferentialPort` (both nodes independently drivable)
-4. **Bench bindings**: Circuit-level `bench_bindings:` block maps abstract roles to concrete Ports
-5. **Measurement definitions**: Reusable specs with typed role requirements
-6. **Fixed primitive vocabulary**: Well-defined operations for procedure expressions
-7. **Stimulus modes**: Fixed vocabulary for multi-simulation measurements
-8. **Programmatic emission**: C# generates testbenches directly
+1. Direction keywords: `input`, `output`, `inout` replace the `port` keyword
+2. Port abstraction: `Port(node_a, node_b)` defines a two-terminal measurement/stimulus point
+3. Port types: `Port` (base), `DifferentialPort` (both nodes independently drivable)
+4. Bench bindings: Circuit-level `bench_bindings:` block maps abstract roles to concrete Ports
+5. Measurement definitions: Reusable specs with typed role requirements
+6. Fixed primitive vocabulary: Well-defined operations for procedure expressions
+7. Stimulus modes: Fixed vocabulary for multi-simulation measurements
+8. Programmatic emission: C# generates testbenches directly
 
 ### 3.2 Design Philosophy
 
-**Explicit over implicit**: All bindings are explicit. No context-dependent resolution rules.
+Explicit over implicit: All bindings are explicit. No context-dependent resolution rules.
 
-**Port as core abstraction**: A Port is two nodes. The measurement system doesn't know or care whether the underlying circuit uses `Diff` bundles or `analog` scalars—it only sees node pairs.
+Port as core abstraction: A Port is two nodes. The measurement system does not know or care whether the underlying circuit uses `Diff` bundles or `analog` scalars, it only sees node pairs.
 
-**Type-safe applicability**: `DifferentialPort` vs `Port` determines measurement applicability at compile time. CMRR requires `DifferentialPort` for stimulus; a circuit binding `Port(IN, GND)` cannot satisfy this—compile error.
+Type-safe applicability: `DifferentialPort` vs `Port` determines measurement applicability at compile time. CMRR requires `DifferentialPort` for stimulus; a circuit binding `Port(IN, GND)` cannot satisfy this and triggers a compile error.
 
-**Fixed primitives, extensible later**: The procedure DSL uses a fixed set of primitives with documented type signatures. This can be extended to a full expression language in future versions.
+Fixed primitives, extensible later: The procedure DSL uses a fixed set of primitives with documented type signatures. This can be extended to a full expression language in future versions.
 
 ---
 
@@ -197,7 +197,7 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
 
 #### 4.2.1 Concept
 
-A **Port** is a two-terminal access point defined by two nodes. It represents "where" a signal is stimulated or measured, independent of whether the physical quantity is voltage or current.
+A Port is a two-terminal access point defined by two nodes. It represents "where" a signal is stimulated or measured, independent of whether the physical quantity is voltage or current.
 
 ```
 Port(positive_node, negative_node)
@@ -212,7 +212,7 @@ This maps directly to the network-analysis concept of a port: the voltage across
 | `Port` | Any two-node pair | General stimulus/response point |
 | `DifferentialPort` | Two nodes where neither is a fixed reference | Required for differential/common-mode measurements |
 
-**DifferentialPort constraint**: A `DifferentialPort` requires that both nodes can be independently driven. This excludes ground nodes and supply nodes.
+DifferentialPort constraint: A `DifferentialPort` requires that both nodes can be independently driven. This excludes ground nodes and supply nodes.
 
 #### 4.2.3 Type Checking Rules
 
@@ -227,14 +227,14 @@ The compiler checks the circuit's bench binding:
 
 ```acir
 bench_bindings:
-  stim = Port(IN.P, IN.N)    # IN.P and IN.N are both signal nodes → DifferentialPort ✓
-  stim = Port(IN, GND)       # GND is a ground node → Port only, NOT DifferentialPort ✗
+  stim = Port(IN.P, IN.N)    # IN.P and IN.N are both signal nodes -> DifferentialPort (ok)
+  stim = Port(IN, GND)       # GND is a ground node -> Port only, not DifferentialPort
 ```
 
-**Determining DifferentialPort eligibility:**
-- If either node is declared via `ground` → NOT DifferentialPort
-- If either node is declared via `supply` → NOT DifferentialPort  
-- Otherwise → DifferentialPort
+Determining DifferentialPort eligibility:
+- If either node is declared via `ground` -> not DifferentialPort
+- If either node is declared via `supply` -> not DifferentialPort
+- Otherwise -> DifferentialPort
 
 This is a compile-time check based on node declarations.
 
@@ -263,7 +263,7 @@ Measurements use these standard role names:
 
 #### 4.3.3 Examples
 
-**Single-ended output OTA:**
+Single-ended output OTA:
 ```acir
 circuit OTA5T implements SingleEndedOpAmp
   supply VDD
@@ -277,7 +277,7 @@ circuit OTA5T implements SingleEndedOpAmp
     supply = VDD
 ```
 
-**Fully differential OTA:**
+Fully differential OTA:
 ```acir
 circuit FullyDiffOTA implements FullyDifferentialOpAmp
   supply VDD
@@ -291,7 +291,7 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
     supply = VDD
 ```
 
-**RC lowpass filter (no differential, no supply):**
+RC lowpass filter (no differential, no supply):
 ```acir
 circuit RCLowpass implements Filter
   ground GND
@@ -308,9 +308,9 @@ circuit RCLowpass implements Filter
 
 At compile time:
 
-1. **Completeness**: All roles required by referenced measurements must be bound
-2. **Type compatibility**: Bindings must satisfy role type requirements
-3. **Node existence**: Referenced nodes must exist in the circuit
+1. Completeness: All roles required by referenced measurements must be bound
+2. Type compatibility: Bindings must satisfy role type requirements
+3. Node existence: Referenced nodes must exist in the circuit
 
 Error example:
 ```
@@ -428,7 +428,7 @@ measurement QuiescentPower:
 
 Some measurements require multiple simulation runs with different stimulus configurations. The `analysis: multi(...)` clause declares this, and the procedure uses `in <mode>` syntax to reference data from each simulation.
 
-**Stimulus Modes (Fixed Vocabulary):**
+Stimulus Modes (Fixed Vocabulary):
 
 | Mode | Semantics | Applicable To |
 |------|-----------|---------------|
@@ -477,15 +477,15 @@ measurement GainBandwidth:
   unit: Hz
 ```
 
-**Semantics:**
+Semantics:
 1. Simulation runs normally
 2. Precondition is evaluated
 3. If false: measurement result is `NaN`, warning logged
 4. Constraint evaluation treats `NaN` as failure
 
-**Distinction from `requires:`**
-- `requires:` — compile-time structural requirements (Port types)
-- `precondition:` — runtime behavioral requirements (circuit must have gain > 0dB)
+Distinction from `requires:`:
+- `requires:` - compile-time structural requirements (Port types)
+- `precondition:` - runtime behavioral requirements (circuit must have gain > 0dB)
 
 ### 4.5 Procedure Primitives
 
@@ -498,46 +498,46 @@ The procedure DSL uses a fixed set of primitives with documented type signatures
 
 #### 4.5.2 Primitive Definitions
 
-**Transfer Function Primitives:**
+Transfer Function Primitives:
 
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
-| `transfer(p1, p2)` | `(Port, Port) → TransferFunction` | Complex voltage transfer function V(p2)/V(p1) |
-| `transfer_from_supply(s, p)` | `(Supply, Port) → TransferFunction` | Transfer function from supply perturbation to port |
+| `transfer(p1, p2)` | `(Port, Port) -> TransferFunction` | Complex voltage transfer function V(p2)/V(p1) |
+| `transfer_from_supply(s, p)` | `(Supply, Port) -> TransferFunction` | Transfer function from supply perturbation to port |
 
-**Function Transformation Primitives:**
-
-| Primitive | Signature | Semantics |
-|-----------|-----------|-----------|
-| `mag(H)` | `TransferFunction → MagnitudeFunction` | Linear magnitude \|H(f)\| |
-| `mag_dB(H)` | `TransferFunction → MagnitudeFunction` | Magnitude in dB: 20·log₁₀(\|H(f)\|) |
-| `phase(H)` | `TransferFunction → PhaseFunction` | Phase in degrees |
-
-**Evaluation Primitives:**
+Function Transformation Primitives:
 
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
-| `eval(F, f)` | `(Function, Frequency) → Scalar` | Evaluate function at frequency f |
-| `eval(F, DC)` | `(Function, DC) → Scalar` | Evaluate at DC (f → 0) |
+| `mag(H)` | `TransferFunction -> MagnitudeFunction` | Linear magnitude |H(f)| |
+| `mag_dB(H)` | `TransferFunction -> MagnitudeFunction` | Magnitude in dB: 20*log10(|H(f)|) |
+| `phase(H)` | `TransferFunction -> PhaseFunction` | Phase in degrees |
 
-**Search Primitives:**
+Evaluation Primitives:
 
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
-| `find_crossing(F, threshold, direction)` | `(Function, Scalar, Direction) → Frequency` | Find frequency where F crosses threshold |
+| `eval(F, f)` | `(Function, Frequency) -> Scalar` | Evaluate function at frequency f |
+| `eval(F, DC)` | `(Function, DC) -> Scalar` | Evaluate at DC (f -> 0) |
+
+Search Primitives:
+
+| Primitive | Signature | Semantics |
+|-----------|-----------|-----------|
+| `find_crossing(F, threshold, direction)` | `(Function, Scalar, Direction) -> Frequency` | Find frequency where F crosses threshold |
 
 Where `direction` is `rising` or `falling`.
 
-**Search failure:** If no crossing exists, result is `NaN` and a warning is logged.
+Search failure: If no crossing exists, result is `NaN` and a warning is logged.
 
-**DC Measurement Primitives:**
+DC Measurement Primitives:
 
 | Primitive | Signature | Semantics |
 |-----------|-----------|-----------|
-| `supply_voltage(s)` | `Supply → Voltage` | DC voltage of supply |
-| `supply_current(s)` | `Supply → Current` | DC current into supply (positive = into circuit) |
+| `supply_voltage(s)` | `Supply -> Voltage` | DC voltage of supply |
+| `supply_current(s)` | `Supply -> Current` | DC current into supply (positive = into circuit) |
 
-**Arithmetic:**
+Arithmetic:
 
 Standard arithmetic operators (`+`, `-`, `*`, `/`) and `abs()` are available for `Scalar` values.
 
@@ -562,7 +562,7 @@ procedure:
   H = transfer(stim, resp)      # H : TransferFunction
   gain = mag_dB(H)              # gain : MagnitudeFunction  
   dc_gain = eval(gain, DC)      # dc_gain : Scalar
-  result = dc_gain + 3          # Scalar + Scalar → Scalar ✓
+  result = dc_gain + 3          # Scalar + Scalar -> Scalar (ok)
 ```
 
 Type errors:
@@ -609,15 +609,15 @@ bench NoiseBench:
     SpotNoise
 ```
 
-**Note:** Benches no longer have a `for Trait` clause. Applicability is determined entirely by whether the circuit's `bench_bindings` satisfy each measurement's `requires:` clause.
+Note: Benches no longer have a `for Trait` clause. Applicability is determined entirely by whether the circuit's `bench_bindings` satisfy each measurement's `requires:` clause.
 
 #### 4.6.3 Measurement Filtering
 
 When a circuit references a bench in constraints:
 
-1. **Applicable measurements**: Role requirements satisfied by `bench_bindings` → included
-2. **Inapplicable, not in constraints**: Silently excluded from testbench
-3. **Inapplicable, referenced in constraint**: Compile error
+1. Applicable measurements: Role requirements satisfied by `bench_bindings` -> included
+2. Inapplicable, not in constraints: Silently excluded from testbench
+3. Inapplicable, referenced in constraint: Compile error
 
 ### 4.7 Constraints
 
@@ -824,7 +824,7 @@ TestbenchResults:
 
 ### 5.1 Design Decision: Programmatic Generation
 
-**This RFC mandates programmatic testbench generation in C#, not templates.**
+This RFC mandates programmatic testbench generation in C#, not templates.
 
 Rationale:
 1. Templates with conditionals become unmaintainable at scale
@@ -834,26 +834,29 @@ Rationale:
 
 ### 5.2 Architecture
 
+
+![Emission Pipeline](../../resources/0000/0000-emission-flow.svg)
+
+
+
+
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  ACIR       │────▶│    Binding       │────▶│  TestbenchModel │
-│  Document   │     │   Resolution     │     │                 │
-└─────────────┘     └──────────────────┘     └─────────────────┘
-                                                      │
-                    ┌─────────────────────────────────┘
-                    │
-                    ▼
-           ┌─────────────────┐
-           │ ITestbenchEmitter │
-           │  (per backend)    │
-           └─────────────────┘
-                    │
-        ┌───────────┼───────────┐
-        ▼           ▼           ▼
-   ┌─────────┐ ┌─────────┐ ┌─────────┐
-   │ ngspice │ │ Spectre │ │  Xyce   │
-   │ Emitter │ │ Emitter │ │ Emitter │
-   └─────────┘ └─────────┘ └─────────┘
+direction: right
+
+ACIR_Document: "ACIR Document"
+Binding_Resolution: "Binding Resolution"
+TestbenchModel: "TestbenchModel"
+
+ITestbenchEmitter: "ITestbenchEmitter\n(per backend)"
+ngspice: "ngspice\nEmitter"
+Spectre: "Spectre\nEmitter"
+Xyce: "Xyce\nEmitter"
+
+ACIR_Document -> Binding_Resolution -> TestbenchModel
+TestbenchModel -> ITestbenchEmitter
+ITestbenchEmitter -> ngspice
+ITestbenchEmitter -> Spectre
+ITestbenchEmitter -> Xyce
 ```
 
 ### 5.3 TestbenchModel
@@ -1107,11 +1110,11 @@ public class MeasurementRunner
 
 ```
 lib/
-├── std.acir                     # Meta-include
-├── measurements/
-│   └── standard.acir            # Standard measurement definitions
-└── benches/
-    └── standard.acir            # Standard bench definitions
+|-- std.acir                     # Meta-include
+|-- measurements/
+|   `-- standard.acir            # Standard measurement definitions
+`-- benches/
+    `-- standard.acir            # Standard bench definitions
 ```
 
 The `lib/std.acir` file includes all standard definitions:
@@ -1318,10 +1321,10 @@ circuit OTA5T implements SingleEndedOpAmp
     load OUT C=1pF
 ```
 
-**Applicability:**
-- `stim = Port(IN.P, IN.N)` → both nodes are signals → `DifferentialPort` ✓
-- CMRR requires `DifferentialPort` → applicable ✓
-- PSRR requires `Supply` → `supply = VDD` → applicable ✓
+Applicability:
+- `stim = Port(IN.P, IN.N)` -> both nodes are signals -> `DifferentialPort` (ok)
+- CMRR requires `DifferentialPort` -> applicable
+- PSRR requires `Supply` -> `supply = VDD` -> applicable
 
 ### 7.2 Fully-Differential OTA
 
@@ -1359,7 +1362,7 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
     load OUT C=500fF
 ```
 
-**Note:** With multiple supplies, the `bench_bindings` explicitly chooses which supply to use for PSRR. To measure PSRR for both supplies, add separate constraints:
+Note: With multiple supplies, the `bench_bindings` explicitly chooses which supply to use for PSRR. To measure PSRR for both supplies, add separate constraints:
 
 ```acir
 bench_bindings:
@@ -1408,10 +1411,10 @@ circuit RCLowpass implements Filter
     source IN Z=50Ohm
 ```
 
-**Applicability:**
-- `stim = Port(IN, GND)` → GND is a ground node → NOT `DifferentialPort`
-- CMRR requires `DifferentialPort` → NOT applicable
-- No supply binding → PSRR NOT applicable
+Applicability:
+- `stim = Port(IN, GND)` -> GND is a ground node -> not `DifferentialPort`
+- CMRR requires `DifferentialPort` -> not applicable
+- No supply binding -> PSRR not applicable
 
 ### 7.4 TIA (Transimpedance Amplifier)
 
@@ -1436,7 +1439,8 @@ circuit SimpleTIA implements SingleEndedOpAmp
   # ... fill and constraints ...
 ```
 
-**Note:** The `Port` abstraction works for TIAs despite the input being current-driven. The testbench harness (defined separately or in future extensions) can specify current-mode stimulus. The measurement infrastructure only needs to know *where* — the two nodes.
+> **Note:**  
+> The `Port` abstraction works for TIAs even when the input is current-driven. Testbench harnesses (defined separately or in future extensions) can specify current-mode stimulus as needed. The measurement infrastructure only cares about the node locations for stimulus, not the signal type.
 
 ### 7.5 Legacy Circuit with Non-Standard Port Names
 
@@ -1673,7 +1677,7 @@ DEDENT = (* indentation decrease *) ;
 
 ### 9.2 Migration Steps
 
-1. **Replace `port` keyword:**
+1. Replace `port` keyword:
    ```
    # Before
    port IN : Diff
@@ -1684,7 +1688,7 @@ DEDENT = (* indentation decrease *) ;
    output OUT : analog
    ```
 
-2. **Add bench_bindings block:**
+2. Add bench_bindings block:
    ```acir
    bench_bindings:
      stim = Port(IN.P, IN.N)
@@ -1692,7 +1696,7 @@ DEDENT = (* indentation decrease *) ;
      supply = VDD
    ```
 
-3. **Update constraints to use standard benches:**
+3. Update constraints to use standard benches:
    ```
    # Before
    constraints:
@@ -1703,7 +1707,7 @@ DEDENT = (* indentation decrease *) ;
      c_gbw = ACBench::GainBandwidth >= 100MHz
    ```
 
-4. **Remove builtin bench references:**
+4. Remove builtin bench references:
    - Delete any `bench ... builtin ...` declarations
    - Use `include lib/std` to access standard benches
 
@@ -1725,7 +1729,7 @@ The tool will:
 
 ## 10. Implementation Plan
 
-### 10.1 Phase 1: Grammar and Parser (2 weeks)
+### 10.1 Phase 1: Grammar and Parser
 
 1. Update lexer with direction keywords (`input`, `output`, `inout`)
 2. Remove `port` keyword
@@ -1735,7 +1739,7 @@ The tool will:
 6. Remove `builtin` keyword
 7. Update constraint syntax (`:` separator)
 
-### 10.2 Phase 2: Semantic Analysis (2 weeks)
+### 10.2 Phase 2: Semantic Analysis 
 
 1. Implement Port type checking (Port vs DifferentialPort)
 2. Implement bench binding validation
@@ -1743,7 +1747,7 @@ The tool will:
 4. Implement procedure primitive type checking
 5. Emit diagnostics for inapplicable measurements in constraints
 
-### 10.3 Phase 3: Emission Pipeline (3 weeks)
+### 10.3 Phase 3: Emission Pipeline 
 
 1. Define `TestbenchModel`, `PortBinding`, `ResolvedMeasurement` structures
 2. Implement `ITestbenchEmitter` interface
@@ -1752,14 +1756,14 @@ The tool will:
 5. Implement multi-simulation orchestration for stimulus modes
 6. Implement measurement calculators for multi-sim measurements
 
-### 10.4 Phase 4: Standard Library (1 week)
+### 10.4 Phase 4: Standard Library 
 
 1. Create `lib/measurements/standard.acir`
 2. Create `lib/benches/standard.acir`
 3. Create `lib/std.acir` meta-include
 4. Implement C# calculators: `CMRRCalculator`, `PSRRCalculator`
 
-### 10.5 Phase 5: Migration and Testing (1 week)
+### 10.5 Phase 5: Migration and Testing
 
 1. Implement `acir-migrate` tool
 2. Unit tests for binding resolution and type checking
