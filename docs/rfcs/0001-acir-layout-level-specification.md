@@ -1567,17 +1567,8 @@ The specific mechanism is implementation-defined. The ACIR-LL document captures 
 ACIR-LL output must pass foundry DRC to be manufacturable.
 
 Verification flow:
-```d2
-direction: right
+![ACIR Toolchain Architecture](resources/0001/drc.svg)
 
-acir: "ACIR-LL"
-expander: "Expander"
-gds: "GDS"
-drc: "DRC tool"
-results: "Results"
-
-acir -> expander -> gds -> drc -> results
-```
 
 DRC coordinate mapping:
 
@@ -1592,22 +1583,8 @@ DRC violations are reported with coordinates. To map back to ACIR-LL:
 ACIR-LL implements an ACIR-EL netlist. LVS verifies this correspondence.
 
 Verification flow:
-```d2
-direction: right
+![ACIR Toolchain Architecture](resources/0001/lvs.svg)
 
-acir_ll: "ACIR-LL"
-expander: "Expander"
-gds: "GDS"
-
-acir_el: "ACIR-EL"
-spicegen: "SPICE generator"
-
-lvs: "LVS tool"
-results: "Results"
-
-acir_ll -> expander -> gds -> lvs -> results
-acir_el -> spicegen -> lvs
-```
 
 LVS correspondence requirements:
 
