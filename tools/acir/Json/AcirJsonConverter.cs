@@ -169,22 +169,36 @@ public static class AcirJsonConverter
             Sizes = BuildCircuitSizes(jsonDoc.Circuit.Sizes),
             Supplies = jsonDoc.Supplies.ToList(),
             Grounds = jsonDoc.Grounds.ToList(),
-            Ports = jsonDoc
-                .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
-                .ToList(),
+            Ports =
+                BuildPortDeclarations(
+                    jsonDoc.Ports,
+                    filePath,
+                    diagnostics,
+                    $"circuit '{jsonDoc.Circuit.Name}'"
+                ) ?? [],
             Fill = BuildFillBlock(jsonDoc),
             Constraints = BuildConstraintsBlock(jsonDoc.Constraints),
             Harness = BuildHarnessBlock(jsonDoc.Harness),
         };
 
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
+
         var doc = new ACIRDocument
         {
             VersionMajor = major,
             VersionMinor = minor,
-            Traits = BuildTraits(jsonDoc.Traits),
+            Traits = BuildTraits(jsonDoc.Traits, filePath, diagnostics) ?? [],
             BenchDefinitions = BuildBenchDefinitions(jsonDoc.BenchDefinitions),
             Circuits = [circuit],
         };
+
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
+        }
 
         return new ACIRReadResult { Document = doc, Diagnostics = diagnostics };
     }
@@ -219,7 +233,12 @@ public static class AcirJsonConverter
             Supplies = circuit.Supplies,
             Grounds = circuit.Grounds,
             Ports = circuit
-                .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
+                .Ports.Select(p => new AcirJsonPort
+                {
+                    Name = p.Name,
+                    Direction = FormatPortDirection(p.Direction),
+                    Kind = p.Type,
+                })
                 .ToList(),
             Nets = ConvertNets(circuit.Fill),
             Components = ConvertDevices(circuit.Fill),
@@ -285,7 +304,12 @@ public static class AcirJsonConverter
             {
                 Name = t.Name,
                 Ports = t
-                    .Ports.Select(p => new AcirJsonPort { Name = p.Name, Kind = p.Type })
+                    .Ports.Select(p => new AcirJsonPort
+                    {
+                        Name = p.Name,
+                        Direction = FormatPortDirection(p.Direction),
+                        Kind = p.Type,
+                    })
                     .ToList(),
                 Connectors =
                     t.Connectors.Count > 0
@@ -650,7 +674,11 @@ public static class AcirJsonConverter
         };
     }
 
-    private static List<TraitDefinition> BuildTraits(IReadOnlyList<AcirJsonTrait>? traits)
+    private static List<TraitDefinition>? BuildTraits(
+        IReadOnlyList<AcirJsonTrait>? traits,
+        string filePath,
+        List<Diagnostic> diagnostics
+    )
     {
         if (traits is null or { Count: 0 })
             return [];
@@ -659,9 +687,9 @@ public static class AcirJsonConverter
             .Select(t => new TraitDefinition
             {
                 Name = t.Name,
-                Ports = t
-                    .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
-                    .ToList(),
+                Ports =
+                    BuildPortDeclarations(t.Ports, filePath, diagnostics, $"trait '{t.Name}'")
+                    ?? [],
                 Connectors =
                     t.Connectors?.Select(c => new TraitConnector
                         {
@@ -679,6 +707,78 @@ public static class AcirJsonConverter
             })
             .ToList();
     }
+
+    private static List<PortDeclaration>? BuildPortDeclarations(
+        IReadOnlyList<AcirJsonPort> ports,
+        string filePath,
+        List<Diagnostic> diagnostics,
+        string owner
+    )
+    {
+        var result = new List<PortDeclaration>(ports.Count);
+
+        foreach (var port in ports)
+        {
+            if (!TryParsePortDirection(port.Direction, out var direction))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"ACIR0017: Invalid port direction '{port.Direction ?? "<missing>"}' for {owner} port '{port.Name}' - expected input, output, or io",
+                        DiagnosticSeverity.Error,
+                        filePath,
+                        1,
+                        1
+                    )
+                );
+                return null;
+            }
+
+            result.Add(
+                new PortDeclaration
+                {
+                    Direction = direction,
+                    Name = port.Name,
+                    Type = port.Kind,
+                }
+            );
+        }
+
+        return result;
+    }
+
+    private static bool TryParsePortDirection(string? raw, out PortDirection direction)
+    {
+        direction = default;
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        switch (raw.Trim().ToLowerInvariant())
+        {
+            case "input":
+                direction = PortDirection.Input;
+                return true;
+            case "output":
+                direction = PortDirection.Output;
+                return true;
+            case "io":
+                direction = PortDirection.Io;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static string FormatPortDirection(PortDirection direction) =>
+        direction switch
+        {
+            PortDirection.Input => "input",
+            PortDirection.Output => "output",
+            PortDirection.Io => "io",
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
+        };
 
     private static List<BenchDefinition> BuildBenchDefinitions(
         IReadOnlyList<AcirJsonBenchDefinition>? benches

@@ -103,17 +103,21 @@ public sealed class CircuitGraph
             if (domain == "bias")
             {
                 biasPorts.Add(port.Name);
+                continue;
             }
-            else if (
-                port.Name.StartsWith("OUT", StringComparison.OrdinalIgnoreCase)
-                || port.Name.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
-            )
+
+            switch (port.Direction)
             {
-                outputPorts.Add(port.Name);
-            }
-            else
-            {
-                inputPorts.Add(port.Name);
+                case PortDirection.Output:
+                    outputPorts.Add(port.Name);
+                    break;
+                case PortDirection.Input:
+                case PortDirection.Io:
+                    inputPorts.Add(port.Name);
+                    break;
+                default:
+                    inputPorts.Add(port.Name);
+                    break;
             }
         }
 

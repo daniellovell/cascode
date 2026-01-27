@@ -209,8 +209,18 @@ public class AcirJsonConverterRoundTripTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock
                     {
@@ -257,8 +267,18 @@ public class AcirJsonConverterRoundTripTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock { Devices = [] },
                     Constraints = new ConstraintsBlock

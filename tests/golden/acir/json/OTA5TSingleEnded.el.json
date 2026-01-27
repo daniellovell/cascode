@@ -16,18 +16,22 @@
   "ports": [
     {
       "name": "IN_P",
+      "direction": "input",
       "kind": "analog"
     },
     {
       "name": "IN_N",
+      "direction": "input",
       "kind": "analog"
     },
     {
       "name": "OUT",
+      "direction": "output",
       "kind": "analog"
     },
     {
       "name": "VTAIL",
+      "direction": "input",
       "kind": "bias"
     }
   ],

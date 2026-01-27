@@ -17,6 +17,9 @@ namespace Cascode.ACIR.Validation;
 /// - EMIT-005: Non-EL level circuit
 /// - EMIT-006: Unresolved [Auto] sweep at EL level
 /// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size=...)
+/// - HARN-001: Harness source direction mismatch or unknown port
+/// - HARN-002: Harness load direction mismatch or unknown port
+/// - HARN-003: Harness bias target mismatch or unknown terminal
 /// </remarks>
 public static class EmissionValidator
 {
@@ -91,6 +94,8 @@ public static class EmissionValidator
             }
         }
 
+        ValidateHarnessIntent(circuit, result);
+
         // Build set of valid nets from all sources (ports are already desugared)
         var validNets = BuildValidNetSet(circuit);
 
@@ -111,6 +116,120 @@ public static class EmissionValidator
 
         return result;
     }
+
+    private static void ValidateHarnessIntent(Circuit circuit, ValidationResult result)
+    {
+        if (circuit.Harness == null)
+        {
+            return;
+        }
+
+        var portsByName = new Dictionary<string, PortDeclaration>(StringComparer.Ordinal);
+        foreach (var port in circuit.Ports)
+        {
+            // If duplicates exist, keep the first definition to avoid cascading exceptions.
+            portsByName.TryAdd(port.Name, port);
+        }
+        var supplies = circuit.Supplies.ToHashSet(StringComparer.Ordinal);
+        var grounds = circuit.Grounds.ToHashSet(StringComparer.Ordinal);
+
+        foreach (var source in circuit.Harness.Sources)
+        {
+            if (!portsByName.TryGetValue(source.Net, out var port))
+            {
+                result.AddError(
+                    "HARN-001",
+                    $"Harness source references unknown port '{source.Net}'",
+                    $"harness source {source.Net}",
+                    "Update the harness source target to a declared port"
+                );
+                continue;
+            }
+
+            if (port.Direction is not (PortDirection.Input or PortDirection.Io))
+            {
+                result.AddError(
+                    "HARN-001",
+                    $"Harness source '{source.Net}' must reference an input or io port, but '{source.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"harness source {source.Net}",
+                    "Update the harness source target or change the port direction"
+                );
+            }
+        }
+
+        foreach (var load in circuit.Harness.Loads)
+        {
+            if (!portsByName.TryGetValue(load.Net, out var port))
+            {
+                result.AddError(
+                    "HARN-002",
+                    $"Harness load references unknown port '{load.Net}'",
+                    $"harness load {load.Net}",
+                    "Update the harness load target to a declared port"
+                );
+                continue;
+            }
+
+            if (port.Direction is not (PortDirection.Output or PortDirection.Io))
+            {
+                result.AddError(
+                    "HARN-002",
+                    $"Harness load '{load.Net}' must reference an output or io port, but '{load.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"harness load {load.Net}",
+                    "Update the harness load target or change the port direction"
+                );
+            }
+        }
+
+        foreach (var bias in circuit.Harness.Biases)
+        {
+            if (supplies.Contains(bias.Net) || grounds.Contains(bias.Net))
+            {
+                continue;
+            }
+
+            if (!portsByName.TryGetValue(bias.Net, out var port))
+            {
+                result.AddError(
+                    "HARN-003",
+                    $"Harness bias references unknown terminal '{bias.Net}'",
+                    $"harness bias {bias.Net}",
+                    "Update the harness bias target to a declared bias port, supply, or ground"
+                );
+                continue;
+            }
+
+            if (!string.Equals(port.Type, "bias", StringComparison.OrdinalIgnoreCase))
+            {
+                result.AddError(
+                    "HARN-003",
+                    $"Harness bias '{bias.Net}' must reference a bias-domain port, supply, or ground, but '{bias.Net}' is of type '{port.Type}'",
+                    $"harness bias {bias.Net}",
+                    "Change the port domain to bias or update the harness bias target"
+                );
+                continue;
+            }
+
+            if (port.Direction is not (PortDirection.Input or PortDirection.Io))
+            {
+                result.AddError(
+                    "HARN-003",
+                    $"Harness bias '{bias.Net}' must reference an input or io bias port, but '{bias.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"harness bias {bias.Net}",
+                    "Update the harness bias target or change the port direction"
+                );
+            }
+        }
+    }
+
+    private static string FormatPortDirection(PortDirection direction) =>
+        direction switch
+        {
+            PortDirection.Input => "input",
+            PortDirection.Output => "output",
+            PortDirection.Io => "io",
+            _ => direction.ToString(),
+        };
 
     /// <summary>
     /// Builds a set of all valid net names in the circuit.

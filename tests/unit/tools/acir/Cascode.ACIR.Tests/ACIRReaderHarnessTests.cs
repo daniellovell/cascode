@@ -15,8 +15,8 @@ circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   harness:
     supply VDD = 1.8 V
     sweep InputDCBias [0.3 V:100 mV:1.5 V]
@@ -68,8 +68,8 @@ circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   harness:
     supply VDD = 1.8 V
     sweep InputDCBias [Auto]
@@ -90,8 +90,8 @@ circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   harness:
     sweep InputDCBias [0.3 V:1.5 V]
 ";
@@ -201,8 +201,8 @@ circuit Test implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   harness:
     sweep InputDCBias []
 ";
@@ -226,9 +226,9 @@ circuit Test
   level EL
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
-  port OUT : analog
+  input IN_P : analog
+  input IN_N : analog
+  output OUT : analog
   harness:
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
     sweep OutputDCCommonMode [0.5V:1.3V]

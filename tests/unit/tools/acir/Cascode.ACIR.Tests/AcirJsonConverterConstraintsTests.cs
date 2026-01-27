@@ -160,8 +160,18 @@ public class AcirJsonConverterConstraintsTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock
                     {
@@ -222,7 +232,15 @@ public class AcirJsonConverterConstraintsTests
                     Level = ACIRLevel.EL,
                     Supplies = ["VDD"],
                     Grounds = ["GND"],
-                    Ports = [new PortDeclaration { Name = "OUT", Type = "analog" }],
+                    Ports =
+                    [
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    ],
                     Fill = new FillBlock { Devices = [] },
                     Constraints = new ConstraintsBlock
                     {

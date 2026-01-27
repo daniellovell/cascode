@@ -95,7 +95,7 @@ circuit Top
   level EL
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, M=1)
@@ -107,7 +107,7 @@ circuit Leaf
   size Tail = (W=4u, L=180n, M=1)
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     net t : analog
     nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
@@ -150,7 +150,7 @@ circuit Top
   level EL
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, M=1)
@@ -161,7 +161,7 @@ circuit Leaf
   size InputPair
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     net t : analog
     // Explicit W should override size-pack W
@@ -196,7 +196,7 @@ circuit Top
   level EL
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
       size InputPair = (W=2u, L=180n, W=3u)
@@ -207,7 +207,7 @@ circuit Leaf
   size InputPair
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     net t : analog
     nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
@@ -232,7 +232,7 @@ circuit Top
   size Params = (W=2u, L=180n, W=3u)
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   fill:
     nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--GND) : nmos
       size Params

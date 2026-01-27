@@ -21,8 +21,18 @@ public class ACIRWriterHierarchyTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -43,8 +53,8 @@ public class ACIRWriterHierarchyTests
         var output = writer.ToString();
 
         Assert.Contains("trait CurrentMirror:", output);
-        Assert.Contains("port IN : analog", output);
-        Assert.Contains("port OUT : analog", output);
+        Assert.Contains("input IN : analog", output);
+        Assert.Contains("output OUT : analog", output);
     }
 
     [Fact]
@@ -61,7 +71,12 @@ public class ACIRWriterHierarchyTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -363,8 +378,8 @@ public class ACIRWriterHierarchyTests
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirror:
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   connectors:
     to LoadBranch:
       OUT--IN

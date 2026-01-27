@@ -5,15 +5,15 @@ bundle Diff:
   N : analog
 
 trait CurrentMirrorLike:
-  port SENSE : analog
-  port TAP[0] : analog
+  input SENSE : analog
+  output TAP[0] : analog
   connectors:
     to DiffPairLike:
       SENSE--OUT.N
       TAP[0]--OUT.P
 
 trait DiffPairLike:
-  port OUT : Diff
+  output OUT : Diff
 
 bench ACBench for SingleEndedOpAmp
   builtin SEOpAmpACBench
@@ -31,9 +31,9 @@ circuit OTA5T_Hierarchical implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
   fill:
     net mirror_gate : analog
     inst dp : DiffPair
@@ -69,9 +69,9 @@ circuit DiffPair implements DiffPairLike
   size Tail
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
-  port TAIL : bias
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
   fill:
     net tnode : analog
     nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
@@ -87,8 +87,8 @@ circuit CurrentMirror implements CurrentMirrorLike
   size Sense = (W=2u, L=180n, M=1)
   supply VDD
   ground GND
-  port SENSE : analog
-  port TAP[0] : analog
+  input SENSE : analog
+  output TAP[0] : analog
   fill:
     pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
       size Sense

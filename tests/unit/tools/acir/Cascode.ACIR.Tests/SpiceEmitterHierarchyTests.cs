@@ -24,8 +24,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -36,8 +46,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SIG_IN", Type = "analog" },
-                        new PortDeclaration { Name = "SIG_OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "SIG_IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SIG_OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -88,9 +108,24 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "VSS" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "B", Type = "analog" },
-                        new PortDeclaration { Name = "Y", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "B",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Y",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -150,7 +185,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -209,7 +249,12 @@ public class SpiceEmitterHierarchyTests
                     Name = "TraitA",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -232,7 +277,12 @@ public class SpiceEmitterHierarchyTests
                     Level = ACIRLevel.EL,
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -241,7 +291,12 @@ public class SpiceEmitterHierarchyTests
                     Level = ACIRLevel.EL,
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -298,8 +353,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -310,8 +375,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "Y", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Y",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -414,8 +489,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -466,8 +551,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "Y", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Y",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -526,8 +621,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -582,8 +687,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "Y", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Y",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -635,8 +750,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string>(),
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "P", Type = "analog" },
-                        new PortDeclaration { Name = "N", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "P",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "N",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -664,7 +789,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1087,8 +1217,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "Z", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Z",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1127,8 +1267,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1181,8 +1331,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SIG_IN", Type = "analog" },
-                        new PortDeclaration { Name = "SIG_OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "SIG_IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SIG_OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1252,8 +1412,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "P", Type = "analog" },
-                        new PortDeclaration { Name = "N", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "P",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "N",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -1265,8 +1435,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1319,8 +1499,18 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "A", Type = "analog" },
-                        new PortDeclaration { Name = "Z", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "A",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "Z",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1382,7 +1572,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "X", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "X",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1417,7 +1612,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "Y", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "Y",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1446,7 +1646,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "Z", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "Z",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -1474,7 +1679,12 @@ public class SpiceEmitterHierarchyTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SIG", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Io,
+                            Name = "SIG",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {

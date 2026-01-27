@@ -170,11 +170,24 @@ public sealed class Circuit
 /// </summary>
 public sealed class PortDeclaration
 {
+    /// <summary>Port direction (input, output, or bidirectional).</summary>
+    public required PortDirection Direction { get; init; }
+
     /// <summary>Port name.</summary>
     public string Name { get; init; } = string.Empty;
 
     /// <summary>Port type (domain or bundle type name).</summary>
     public string Type { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Directional intent for a port at the circuit boundary.
+/// </summary>
+public enum PortDirection
+{
+    Input,
+    Output,
+    Io,
 }
 
 /// <summary>

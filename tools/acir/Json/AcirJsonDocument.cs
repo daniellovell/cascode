@@ -90,6 +90,9 @@ public sealed record AcirJsonPort
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    [JsonPropertyName("direction")]
+    public string? Direction { get; init; }
+
     [JsonPropertyName("kind")]
     public required string Kind { get; init; }
 }

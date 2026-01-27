@@ -108,6 +108,7 @@ internal sealed partial class ACIRAstBuilder
                     trait.Ports.Add(
                         new PortDeclaration
                         {
+                            Direction = BuildPortDirection(portCtx.direction()),
                             Name = BuildPortName(portCtx.portName()),
                             Type = BuildPortType(portCtx.portType()),
                         }
@@ -260,6 +261,21 @@ internal sealed partial class ACIRAstBuilder
             return $"{name}[*]";
         }
         return name;
+    }
+
+    private static PortDirection BuildPortDirection(ACIRParser.DirectionContext ctx)
+    {
+        if (ctx.INPUT_KW() != null)
+        {
+            return PortDirection.Input;
+        }
+
+        if (ctx.OUTPUT_KW() != null)
+        {
+            return PortDirection.Output;
+        }
+
+        return PortDirection.Io;
     }
 
     /// <summary>Resolves the port type token into its textual form.</summary>

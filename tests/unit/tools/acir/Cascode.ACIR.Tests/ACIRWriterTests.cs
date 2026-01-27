@@ -48,8 +48,18 @@ public class ACIRWriterTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "VTAIL", Type = "bias" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VTAIL",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock(),
             Harness = new HarnessBlock

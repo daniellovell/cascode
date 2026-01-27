@@ -68,8 +68,8 @@ circuit SizePackSmoke
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   size InputPair = (W=2u, L=180n, M=1)
   fill:
     net t : analog

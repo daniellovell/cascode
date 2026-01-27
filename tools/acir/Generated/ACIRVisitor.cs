@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from ACIR.g4 by ANTLR 4.13.1
+// Generated from tools/acir/ACIR.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -213,6 +213,12 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitLevelValue([NotNull] ACIRParser.LevelValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.direction"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitDirection([NotNull] ACIRParser.DirectionContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.portName"/>.
 	/// </summary>

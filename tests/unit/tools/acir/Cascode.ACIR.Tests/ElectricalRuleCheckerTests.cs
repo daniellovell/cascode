@@ -25,7 +25,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -72,8 +77,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -116,7 +131,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -178,7 +198,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -225,7 +250,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -268,8 +298,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -296,8 +336,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "VSS" }, // Same name as supply
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -327,8 +377,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -364,8 +424,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -411,8 +481,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -456,8 +536,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -502,8 +592,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -544,7 +644,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -585,7 +690,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -626,7 +736,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -667,8 +782,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -717,7 +842,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -764,7 +894,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -811,7 +946,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -857,7 +997,12 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -908,8 +1053,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -947,8 +1102,18 @@ public class ElectricalRuleCheckerTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {

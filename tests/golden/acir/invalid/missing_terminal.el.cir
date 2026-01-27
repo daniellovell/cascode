@@ -9,8 +9,8 @@ circuit MissingTerminalExample
   supply VDD
   ground GND
 
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 
   fill:
     nmos M1 (.G--IN, .D--OUT, .S--GND) : nmos

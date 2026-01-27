@@ -17,8 +17,18 @@ public class CircuitGraphTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "signal" },
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -164,7 +174,12 @@ public class CircuitGraphTests
             Supplies = new List<string> { "VDD" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {

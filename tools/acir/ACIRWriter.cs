@@ -69,7 +69,7 @@ public static class ACIRWriter
         // Ports
         foreach (var port in trait.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
-            writer.WriteLine($"  port {port.Name} : {port.Type}");
+            writer.WriteLine($"  {FormatPortDirection(port.Direction)} {port.Name} : {port.Type}");
         }
 
         // Connectors
@@ -181,7 +181,7 @@ public static class ACIRWriter
         // Ports
         foreach (var port in circuit.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
-            writer.WriteLine($"  port {port.Name} : {port.Type}");
+            writer.WriteLine($"  {FormatPortDirection(port.Direction)} {port.Name} : {port.Type}");
         }
 
         // Slots (HL level)
@@ -247,6 +247,15 @@ public static class ACIRWriter
             writer.WriteLine($"    param {param.Key} = {FormatParamValue(param.Value)}");
         }
     }
+
+    private static string FormatPortDirection(PortDirection direction) =>
+        direction switch
+        {
+            PortDirection.Input => "input",
+            PortDirection.Output => "output",
+            PortDirection.Io => "io",
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
+        };
 
     private static void WriteFillBlock(FillBlock fill, TextWriter writer)
     {

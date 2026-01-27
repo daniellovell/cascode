@@ -16,8 +16,18 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "signal" },
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -48,7 +58,12 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "BIAS", Type = "bias" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "BIAS",
+                    Type = "bias",
+                },
             },
             Fill = new FillBlock
             {
@@ -83,7 +98,12 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -114,9 +134,24 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN_P", Type = "signal" },
-                new() { Name = "IN_N", Type = "signal" },
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN_P",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN_N",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -163,12 +198,42 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN_P", Type = "signal" },
-                new() { Name = "IN_N", Type = "signal" },
-                new() { Name = "VBIAS1", Type = "bias" },
-                new() { Name = "VBIAS2", Type = "bias" },
-                new() { Name = "OUT_P", Type = "signal" },
-                new() { Name = "OUT_N", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN_P",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN_N",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS1",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VBIAS2",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT_P",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT_N",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -229,8 +294,18 @@ internal static class TestCircuits
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT_P", Type = "signal" },
-                new() { Name = "OUT_N", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT_P",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT_N",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
