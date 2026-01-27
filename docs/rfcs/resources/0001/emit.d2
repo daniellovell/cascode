@@ -1,0 +1,17 @@
+direction: down
+
+pipeline: "ACIR-LL Emission to GDS" {
+  grid-columns: 1
+  vertical-gap: 16 # try 0–16
+
+  doc: "ACIR-LL document" {style.fill: "#cfd2dd"}
+  parser: "Parser\nlex + syntax + AST"
+  consts: "Constant Resolution\nsubstitute + expand repeat"
+  anchors: "Anchor Resolution\ncompute + resolve"
+  validate: "Validator\nPDK + layer + params + nets + groups"
+  expand: "Expander\ninstantiate P-cells + expand vias + units->DBU + snap + emit mode"
+  writer: "GDS Writer\nstream formatting + records + output"
+  gds: "GDS-II file" {style.fill: "#cfd2dd"}
+}
+
+pipeline.doc -> pipeline.parser -> pipeline.consts -> pipeline.anchors -> pipeline.validate -> pipeline.expand -> pipeline.writer -> pipeline.gds

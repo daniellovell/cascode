@@ -6,13 +6,13 @@ vars: {
 
 direction: down
 
-acir_el: "ACIR-EL document\nDevices, nets, connectivity" {style.fill: "#b4aef8"}
+acir_el: "ACIR-EL document\nDevices, nets, connectivity" {style.fill: "#cfd2dd"}
 layout: "Layout engine\nPlacement + routing decisions"
-acir_ll: "ACIR-LL document\nPDK-specific geometry" {style.fill: "#b4aef8"}
+acir_ll: "ACIR-LL document\nPDK-specific geometry" {style.fill: "#cfd2dd"}
 expander: "ACIR-LL expander\nResolve anchors/consts, instantiate P-cells, via expand, snap"
 gds: "GDS-II / OASIS" {
   style.shadow: false
-  style.fill: "#b4aef8"
+  style.fill: "#cfd2dd"
 }
 
 acir_el -> layout -> acir_ll -> expander -> gds
