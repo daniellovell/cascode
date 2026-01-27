@@ -3,7 +3,7 @@
 Status: Draft  
 Authors: Daniel Lovell
 Created: 2026-01-25  
-Last Updated: 2026-01-25  
+Last Updated: 2026-01-27  
 Target Version: ACIR 3.0
 
 ---
@@ -183,8 +183,8 @@ class Amplifier:
     HasSupplyPort
 
 class SingleEndedOpAmp extends Amplifier:
-  input IN : Diff
-  output OUT : analog
+  port IN : Diff
+  port OUT : analog
   supply VDD
   ground GND
 
@@ -277,8 +277,8 @@ circuit MixedSupplyOTA implements FullyDifferentialOpAmp
   supply AVDD
   supply DVDD
   ground VSS
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   ports:
     in = Port(IN.P, IN.N)
@@ -331,58 +331,11 @@ Section 7 will include complete, end-to-end examples that explicitly hit each fa
 
 ## 4. Detailed Design
 
-### 4.1 Direction Keywords
+This RFC assumes existing ACIR terminal declarations (`port`, `supply`, `ground`). Directional terminals (`input`/`output`/`inout`) are proposed separately in RFC 0002.
 
-#### 4.1.1 Syntax
+### 4.1 Port Abstraction
 
-```ebnf
-portDecl   = direction IDENT ":" typeSpec ;
-direction  = "input" | "output" | "inout" ;
-typeSpec   = domain | bundleType ;
-domain     = "analog" | "bias" ;
-bundleType = IDENT ;
-
-supplyDecl = "supply" IDENT ;
-groundDecl = "ground" IDENT ;
-```
-
-#### 4.1.2 Semantics
-
-| Keyword | Direction | Typical Use |
-|---------|-----------|-------------|
-| `input` | into circuit | Signal inputs, bias inputs |
-| `output` | out of circuit | Signal outputs |
-| `inout` | bidirectional | I/O pads, transmission gates |
-| `supply` | into circuit | Power rails (VDD, AVDD, etc.) |
-| `ground` | into circuit | Ground references (GND, VSS, etc.) |
-
-#### 4.1.3 Examples
-
-```acir
-circuit OTA5T implements SingleEndedOpAmp
-  level EL
-
-  supply VDD
-  ground GND
-  input IN : Diff
-  output OUT : analog
-  input VTAIL : bias
-```
-
-```acir
-circuit FullyDiffOTA implements FullyDifferentialOpAmp
-  level EL
-
-  supply AVDD
-  supply DVDD
-  ground AVSS
-  input IN : Diff
-  output OUT : Diff
-```
-
-### 4.2 Port Abstraction
-
-#### 4.2.1 Concept
+#### 4.1.1 Concept
 
 A port is a two-terminal access point defined by two nodes. It represents “where” a signal is stimulated or measured, independent of whether the physical quantity is voltage or current.
 
@@ -392,7 +345,7 @@ Port(positive_node, negative_node)
 
 This maps directly to the network-analysis concept of a port: the voltage across the port is \(v(p) = V(positive) - V(negative)\), and (by convention) current \(i(p)\) flows into the positive terminal.
 
-#### 4.2.2 Across-port quantities are the stable measurement API
+#### 4.1.2 Across-port quantities are the stable measurement API
 
 Benches and measurement procedures should be written in terms of across-port quantities \(v(p)\) and \(i(p)\), not in terms of whether a circuit’s pins are single-ended or differential. This is the central mechanism that prevents “SE/DIFF variant infection.”
 
@@ -405,7 +358,7 @@ out = Port(OUT.P, OUT.N)     # differential output
 
 In both cases, a transfer function primitive such as `transfer(in, out)` is defined as \(v(out)/v(in)\). The bench hookup differs only in which concrete nodes those port terminals map to; measurement extraction remains shared.
 
-#### 4.2.3 Port-shape traits (balanced vs unbalanced)
+#### 4.1.3 Port-shape traits (balanced vs unbalanced)
 
 Some benches need additional degrees of freedom: common-mode excitation, mixed-mode impedance, or output common-mode measurement. Rather than introducing multiple port kinds, the reference vocabulary uses explicit traits that describe the *shape* of the named ports in the selected view:
 
@@ -418,7 +371,7 @@ Some benches need additional degrees of freedom: common-mode excitation, mixed-m
 
 These traits are declared and inherited as part of the class/view contract, and implementations are expected to validate obvious inconsistencies at compile time. For example, a view that declares `UnbalancedOutput` must bind `out` to include a declared `ground` terminal, while a view that declares `BalancedOutput` must not bind either side of `out` to a declared `ground` terminal.
 
-#### 4.2.4 Mixed-mode drive and sensing uses adapters, not new benches
+#### 4.1.4 Mixed-mode drive and sensing uses adapters, not new benches
 
 For balanced ports, benches may define mixed-mode quantities (differential-mode and common-mode) by specifying a reference node as part of the bench hookup. This does not require separate bench definitions for “single-ended” vs “differential” devices. Instead, the emitter uses a small set of port-driver adapters:
 
@@ -427,9 +380,9 @@ For balanced ports, benches may define mixed-mode quantities (differential-mode 
 
 Measurements such as transfer, PSRR, and many impedance forms remain expressed in terms of \(v(p)\) and \(i(p)\). Port-shape traits only gate which stimulation/sense modes are meaningful, and therefore which measurements a bench can legally request.
 
-### 4.3 Port Bindings and Views
+### 4.2 Port Bindings and Views
 
-#### 4.3.1 Syntax (illustrative)
+#### 4.2.1 Syntax (illustrative)
 
 ```ebnf
 portsBlock = "ports:" NL INDENT (bindingDecl NL)+ DEDENT ;
@@ -441,7 +394,7 @@ viewDecl = IDENT (":" IDENT)? NL INDENT viewBody DEDENT ;
 viewBody = traitsBlock? portsBlock? ;
 ```
 
-#### 4.3.2 Standard port role names
+#### 4.2.2 Standard port role names
 
 Standard benches use a small set of conventional port role names:
 
@@ -451,14 +404,14 @@ Standard benches use a small set of conventional port role names:
 | `out` | Signal output network port (two-terminal). |
 | `supply` | Supply perturbation port (two-terminal, typically `Port(VDD, GND)`). |
 
-#### 4.3.3 Examples
+#### 4.2.3 Examples
 
 A single-ended op-amp class defines its canonical ports once:
 
 ```acir
 class SingleEndedOpAmp extends Amplifier:
-  input IN : Diff
-  output OUT : analog
+  port IN : Diff
+  port OUT : analog
   supply VDD
   ground GND
 
@@ -479,8 +432,8 @@ class FullyDifferentialOpAmp extends Amplifier:
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   ports:
     in = Port(IN.P, IN.N)
@@ -505,7 +458,7 @@ class DualChannelAmplifier:
         supply = Port(VDD, GND)
 ```
 
-#### 4.3.4 Binding Validation
+#### 4.2.4 Binding Validation
 
 At compile time:
 
@@ -513,9 +466,9 @@ At compile time:
 2. Trait consistency: if a view declares `BalancedInput`/`UnbalancedInput` (etc.), its bindings must match the trait contract.
 3. Node existence: referenced terminals must exist and be well-typed for the containing class or circuit.
 
-### 4.4 Measurement Definitions
+### 4.3 Measurement Definitions
 
-#### 4.4.1 Syntax
+#### 4.3.1 Syntax
 
 ```ebnf
 measurementDef = "measurement" IDENT ":" NL INDENT measurementBody DEDENT ;
@@ -551,7 +504,7 @@ paramType = "Frequency" | "Voltage" | "Current" | "Time" ;
 unitClause = "unit:" UNIT NL ;
 ```
 
-#### 4.4.2 Role Semantics
+#### 4.3.2 Role Semantics
 
 Roles are typed abstract names:
 
@@ -561,7 +514,7 @@ Roles are typed abstract names:
 | `out : Port` | Output network port role for response measurement (two-terminal) |
 | `supply : Port` | Supply perturbation port role (two-terminal) |
 
-#### 4.4.3 Single-Simulation Measurements
+#### 4.3.3 Single-Simulation Measurements
 
 ```acir
 measurement PassbandGain:
@@ -615,7 +568,7 @@ measurement QuiescentPower:
   unit: W
 ```
 
-#### 4.4.4 Multi-Simulation Measurements
+#### 4.3.4 Multi-Simulation Measurements
 
 Some measurements require multiple simulation runs with different stimulus configurations. The `analysis: multi(...)` clause declares this, and the procedure uses `in <mode>` syntax to reference data from each simulation.
 
@@ -654,7 +607,7 @@ measurement PSRR:
   unit: dB
 ```
 
-#### 4.4.5 Preconditions (Runtime Validity)
+#### 4.3.5 Preconditions (Runtime Validity)
 
 The `precondition:` clause specifies a runtime condition that must hold for the measurement to be valid:
 
@@ -678,16 +631,16 @@ Distinction from `requires:`:
 - `requires:` - compile-time structural requirements (ports and declared traits)
 - `precondition:` - runtime behavioral requirements (circuit must have gain > 0dB)
 
-### 4.5 Procedure Primitives
+### 4.4 Procedure Primitives
 
-#### 4.5.1 Design Principle
+#### 4.4.1 Design Principle
 
 The procedure DSL uses a fixed set of primitives with documented type signatures. This enables:
 - Unambiguous semantics
 - Straightforward code generation
 - Future extension without breaking changes
 
-#### 4.5.2 Primitive Definitions
+#### 4.4.2 Primitive Definitions
 
 Transfer Function Primitives:
 
@@ -733,7 +686,7 @@ Arithmetic:
 
 Standard arithmetic operators (`+`, `-`, `*`, `/`) and `abs()` are available for `Scalar` values.
 
-#### 4.5.3 Operator Precedence
+#### 4.4.3 Operator Precedence
 
 For arithmetic expressions:
 
@@ -745,7 +698,7 @@ For arithmetic expressions:
 
 Parentheses override precedence.
 
-#### 4.5.4 Type Checking
+#### 4.4.4 Type Checking
 
 Procedures are type-checked at compile time:
 
@@ -764,9 +717,9 @@ procedure:
   result = H + 3                # ERROR: TransferFunction + Scalar undefined
 ```
 
-### 4.6 Bench Definitions
+### 4.5 Bench Definitions
 
-#### 4.6.1 Syntax
+#### 4.5.1 Syntax
 
 ```ebnf
 benchDef = "bench" IDENT ":" NL INDENT benchBody DEDENT ;
@@ -774,7 +727,7 @@ benchBody = measurementsBlock ;
 measurementsBlock = "measurements:" NL INDENT (IDENT NL)+ DEDENT ;
 ```
 
-#### 4.6.2 Semantics
+#### 4.5.2 Semantics
 
 A bench groups related measurements:
 
@@ -803,7 +756,7 @@ bench NoiseBench:
 
 Note: Benches no longer have a `for Trait` clause. Applicability is determined by whether the selected view provides the named ports in `requires:` and the declared capabilities in `requires_traits:` for each referenced measurement.
 
-#### 4.6.3 Measurement Filtering
+#### 4.5.3 Measurement Filtering
 
 When a circuit references a bench in constraints:
 
@@ -811,9 +764,9 @@ When a circuit references a bench in constraints:
 2. Not referenced by constraints: may be excluded from emission (even if applicable)
 3. Referenced in a constraint but inapplicable: compile error
 
-### 4.7 Constraints
+### 4.6 Constraints
 
-#### 4.7.1 Syntax
+#### 4.6.1 Syntax
 
 ```ebnf
 constraintsBlock = "constraints:" NL INDENT (constraint NL)+ DEDENT ;
@@ -826,7 +779,7 @@ paramAssign = IDENT "=" value ;
 comparator = ">=" | "<=" | ">" | "<" | "==" ;
 ```
 
-#### 4.7.2 Examples
+#### 4.6.2 Examples
 
 ```acir
 constraints:
@@ -840,7 +793,7 @@ constraints:
   c_power = DCBench::QuiescentPower <= 100uW
 ```
 
-#### 4.7.3 Parameter Overrides
+#### 4.6.3 Parameter Overrides
 
 Measurement parameters can be overridden at the constraint level:
 
@@ -849,9 +802,9 @@ c_cmrr_1k = ACBench::CMRR(f=1kHz) >= 60dB
 c_cmrr_1M = ACBench::CMRR(f=1MHz) >= 40dB
 ```
 
-### 4.8 Harness
+### 4.7 Harness
 
-#### 4.8.1 Syntax
+#### 4.7.1 Syntax
 
 ```ebnf
 harnessBlock = "harness:" NL INDENT (harnessEntry NL)+ DEDENT ;
@@ -868,7 +821,7 @@ pvtList = pvtPoint ("," pvtPoint)* ;
 pvtPoint = IDENT "@" TEMPERATURE ;
 ```
 
-#### 4.8.2 Examples
+#### 4.7.2 Examples
 
 ```acir
 harness:
@@ -886,9 +839,9 @@ harness:
   load OUT C=500fF R=10k
 ```
 
-### 4.9 Applicability Resolution
+### 4.8 Applicability Resolution
 
-#### 4.9.1 Algorithm
+#### 4.8.1 Algorithm
 
 ```python
 def resolve_applicability(circuit, bench, constraints, *, view_name="main"):
@@ -931,7 +884,7 @@ def resolve_applicability(circuit, bench, constraints, *, view_name="main"):
     return applicable, errors
 ```
 
-#### 4.9.2 Error Messages
+#### 4.8.2 Error Messages
 
 Clear diagnostics for inapplicable measurements:
 
@@ -947,9 +900,9 @@ note: selected view 'main' declares: UnbalancedInput
 help: CMRR requires a balanced input port; choose a different view/class or remove the constraint
 ```
 
-### 4.10 Failure Handling
+### 4.9 Failure Handling
 
-#### 4.10.1 Failure Modes
+#### 4.9.1 Failure Modes
 
 | Failure | When | Result | Behavior |
 |---------|------|--------|----------|
@@ -959,7 +912,7 @@ help: CMRR requires a balanced input port; choose a different view/class or remo
 | Search failure | No crossing found | `NaN` | Warning logged, constraint fails |
 | Simulation error | Simulator fails | `NaN` | Error logged, constraint fails |
 
-#### 4.10.2 Partial Results
+#### 4.9.2 Partial Results
 
 When a testbench contains multiple measurements:
 
@@ -968,7 +921,7 @@ When a testbench contains multiple measurements:
 3. Results are reported per-measurement with status (success/failure/skipped)
 4. Overall constraint satisfaction requires all referenced measurements to succeed
 
-#### 4.10.3 Result Structure
+#### 4.9.3 Result Structure
 
 ```
 TestbenchResults:
@@ -1333,8 +1286,8 @@ class SingleEndedFilter extends Filter:
     UnbalancedOutput
 
   ground GND
-  input IN : analog
-  output OUT : analog
+  port IN : analog
+  port OUT : analog
 
   ports:
     in = Port(IN, GND)
@@ -1346,8 +1299,8 @@ class FullyDifferentialFilter extends Filter:
     BalancedOutput
 
   ground GND
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   ports:
     in = Port(IN.P, IN.N)
@@ -1376,8 +1329,8 @@ class SingleEndedAmplifier extends Amplifier:
 
   supply VDD
   ground GND
-  input IN : analog
-  output OUT : analog
+  port IN : analog
+  port OUT : analog
 
   ports:
     in = Port(IN, GND)
@@ -1391,8 +1344,8 @@ class SingleEndedOpAmp extends Amplifier:
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : analog
+  port IN : Diff
+  port OUT : analog
 
   ports:
     in = Port(IN.P, IN.N)
@@ -1406,8 +1359,8 @@ class FullyDifferentialOpAmp extends Amplifier:
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   ports:
     in = Port(IN.P, IN.N)
@@ -1422,7 +1375,7 @@ class VoltageReference:
 
   supply VDD
   ground GND
-  output VREF : analog
+  port VREF : analog
 
   ports:
     out = Port(VREF, GND)
@@ -1436,7 +1389,7 @@ class CurrentReference:
 
   supply VDD
   ground GND
-  output IOUT : analog
+  port IOUT : analog
 
   ports:
     out = Port(IOUT, GND)
@@ -1604,8 +1557,8 @@ circuit SE_RCLowpass implements SingleEndedFilter
   level EL
 
   ground GND
-  input IN : analog
-  output OUT : analog
+  port IN : analog
+  port OUT : analog
 
   fill:
     resistor R1 (.P--IN, .N--OUT) : resistor
@@ -1631,8 +1584,8 @@ circuit FD_RCLowpass implements FullyDifferentialFilter
   level EL
 
   ground GND
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   fill:
     // A simple differential lowpass realized as two symmetric RC halves to ground.
@@ -1671,8 +1624,8 @@ circuit FD_SallenKeyLP implements FullyDifferentialSallenKeyFilter
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   // The active core is left as a slot at HL and must be bound to a fully
   // differential op-amp (or another class carrying the same trait bundle).
@@ -1713,8 +1666,8 @@ circuit SE_Amp implements SingleEndedAmplifier
 
   supply VDD
   ground GND
-  input IN : analog
-  output OUT : analog
+  port IN : analog
+  port OUT : analog
 
   constraints:
     c_gain = ACBench::PassbandGain(f_measure=1kHz) >= 20dB
@@ -1735,9 +1688,9 @@ circuit OTA5T implements SingleEndedOpAmp
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : analog
-  input VTAIL : bias
+  port IN : Diff
+  port OUT : analog
+  port VTAIL : bias
 
   fill:
     net mirror_gate : analog
@@ -1782,8 +1735,8 @@ circuit MixedSupplyOTA implements FullyDifferentialOpAmp
   supply AVDD
   supply DVDD
   ground VSS
-  input IN : Diff
-  output OUT : Diff
+  port IN : Diff
+  port OUT : Diff
 
   // Default view uses AVDD.
   ports:
@@ -1823,7 +1776,7 @@ circuit BandgapRef implements VoltageReference
 
   supply VDD
   ground GND
-  output VREF : analog
+  port VREF : analog
 
   constraints:
     c_psrr = ACBench::PSRR(f=1kHz) >= 60dB
@@ -1841,7 +1794,7 @@ circuit CurrentRef implements CurrentReference
 
   supply VDD
   ground GND
-  output IOUT : analog
+  port IOUT : analog
 
   constraints:
     c_psrr = ACBench::PSRR(f=1kHz) >= 50dB
@@ -1865,10 +1818,10 @@ class IQPolyphaseFilter:
     Multiport
 
   ground GND
-  input IN_I : Diff
-  input IN_Q : Diff
-  output OUT_I : Diff
-  output OUT_Q : Diff
+  port IN_I : Diff
+  port IN_Q : Diff
+  port OUT_I : Diff
+  port OUT_Q : Diff
 
   // The class is multiport, but it exports two two-port projections as views so
   // existing two-port benches can be reused without introducing a new template family.
@@ -1886,10 +1839,10 @@ circuit IQ_Filter implements IQPolyphaseFilter
   level HL
 
   ground GND
-  input IN_I : Diff
-  input IN_Q : Diff
-  output OUT_I : Diff
-  output OUT_Q : Diff
+  port IN_I : Diff
+  port IN_Q : Diff
+  port OUT_I : Diff
+  port OUT_Q : Diff
 
   constraints:
     c_i_gain = ACBench[i_path]::PassbandGain(f_measure=10kHz) >= -1dB
@@ -1913,9 +1866,9 @@ circuit LegacyAmpHardmacro
 
   supply VCC
   ground VSS
-  input VINP : analog
-  input VINN : analog
-  output VOUT : analog
+  port VINP : analog
+  port VINN : analog
+  port VOUT : analog
 
   slot core (.VCC--VCC, .VSS--VSS, .VINP--VINP, .VINN--VINN, .VOUT--VOUT) : [BlackBox]
 
@@ -1925,8 +1878,8 @@ circuit LegacyAmpAdapter implements SingleEndedOpAmp
 
   supply VDD
   ground GND
-  input IN : Diff
-  output OUT : analog
+  port IN : Diff
+  port OUT : analog
 
   fill:
     inst U1 (.VCC--VDD, .VSS--GND, .VINP--IN.P, .VINN--IN.N, .VOUT--OUT) : LegacyAmpHardmacro
@@ -1987,8 +1940,7 @@ connectionStmt = nodeRef "--" nodeRef ;
 (* Port Declarations *)
 (* ============================================================ *)
 
-portDecl = direction IDENT ":" typeSpec ;
-direction = "input" | "output" | "inout" ;
+portDecl = "port" IDENT ":" typeSpec ;
 typeSpec = domain | bundleType ;
 domain = "analog" | "bias" ;
 bundleType = IDENT ;
@@ -2142,30 +2094,20 @@ DEDENT = (* indentation decrease *) ;
 
 ### 9.1 Breaking Changes
 
+Directional terminal declarations (`input`/`output`/`inout`) are proposed separately in RFC 0002 and are not part of this migration.
+
 | ACIR 2.x | ACIR 3.0 | Migration |
 |----------|----------|-----------|
-| `port IN : Diff` | `input IN : Diff` | Change keyword |
 | `builtin SEOpAmpACBench` | Removed | Use standard benches (`include lib/std`) |
 | Topology-specific bench templates | Removed | Use class-defined `ports:` + trait requirements to select applicable measurements |
 
 ### 9.2 Migration Steps
 
-1. Replace `port` keyword:
-   ```
-   # Before
-   port IN : Diff
-   port OUT : analog
-   
-   # After
-   input IN : Diff
-   output OUT : analog
-   ```
-
-2. Choose a standard class (or define one) with canonical `ports:`:
+1. Choose a standard class (or define one) with canonical `ports:`:
    - For example, `SingleEndedOpAmp` defines `in`, `out`, and `supply` once using `Port(a, b)`.
    - Your circuits then simply `implements SingleEndedOpAmp` and inherit the port bindings; no per-circuit bench glue is required.
 
-3. Update constraints to use standard benches:
+2. Update constraints to use standard benches:
    ```
    # Before
    constraints:
@@ -2176,7 +2118,7 @@ DEDENT = (* indentation decrease *) ;
      c_gbw = ACBench::GainBandwidth >= 100MHz
    ```
 
-4. Remove builtin bench references:
+3. Remove builtin bench references:
    - Delete any `bench ... builtin ...` declarations
    - Use `include lib/std` to access standard benches
 
@@ -2189,7 +2131,6 @@ acir-migrate --from 2.x --to 3.0 circuit.acir
 ```
 
 The tool will:
-- Replace `port` with appropriate direction keyword
 - Suggest or insert a standard class conformance (`implements <class>`) and, when pin names are non-canonical, generate a small adapter circuit skeleton
 - Update constraint bench references
 - Report any manual changes required
@@ -2200,13 +2141,11 @@ The tool will:
 
 ### 10.1 Phase 1: Grammar and Parser
 
-1. Update lexer with direction keywords (`input`, `output`, `inout`)
-2. Remove `port` keyword
-3. Add `class` parsing with `traits:`, `ports:`, and `views:`
-4. Add `measurement` definition blocks with `stimulus_modes` and `in <mode>` clause
-5. Add `precondition:` clause
-6. Remove `builtin` keyword
-7. Add view selection in constraints: `Bench[view]::Measurement(...)`
+1. Add `class` parsing with `traits:`, `ports:`, and `views:`
+2. Add `measurement` definition blocks with `stimulus_modes` and `in <mode>` clause
+3. Add `precondition:` clause
+4. Remove `builtin` keyword
+5. Add view selection in constraints: `Bench[view]::Measurement(...)`
 
 ### 10.2 Phase 2: Semantic Analysis 
 
