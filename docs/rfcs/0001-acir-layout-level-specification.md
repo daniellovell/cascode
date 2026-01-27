@@ -354,7 +354,7 @@ topcell <cell_name>
 #### 3.2.1 Version Declaration
 
 ```
-ACIR-LL 1.1
+ACIR-LL 1.0
 ```
 
 Required. Specifies the ACIR-LL language version.
@@ -1733,7 +1733,7 @@ For large designs:
 ### 8.1 Minimal Example
 
 ```
-ACIR-LL 1.1
+ACIR-LL 1.0
 pdk sky130 1.0.45
 topcell inverter
 
@@ -1775,7 +1775,7 @@ port GND m1 (1.8u, 0) (2.2u, 200n)
 ### 8.2 Grouped Differential Pair
 
 ```
-ACIR-LL 1.1
+ACIR-LL 1.0
 pdk sky130 1.0.45
 topcell diff_pair
 
@@ -1830,7 +1830,7 @@ port IN.N m1 (0, in_n_tap.y - 200n) (500n, in_n_tap.y + 200n)
 ### 8.3 Using Repeat for Regular Structures
 
 ```
-ACIR-LL 1.1
+ACIR-LL 1.0
 pdk sky130 1.0.45
 topcell current_mirror
 
@@ -1881,7 +1881,7 @@ path [GND] m1 400n
 ### 8.4 Complete Five-Transistor OTA
 
 ```
-ACIR-LL 1.1
+ACIR-LL 1.0
 pdk sky130 1.0.45
 topcell OTA5TSingleEnded
 
