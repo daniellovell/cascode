@@ -2443,36 +2443,10 @@ pcells:
 
 ---
 
-## Appendix B: Migration from ACIR-LL 1.0
 
-Documents written for ACIR-LL 1.0 (if any exist) can be migrated to 1.1:
+## Appendix B: Anchor Resolution Examples
 
-1. Add PDK version: Change `pdk sky130` to `pdk sky130 <version>`.
-
-2. Update device IDs: Remove finger indices from device IDs and wrap in groups:
-   ```
-   // 1.0
-   place dp.M_N.f0 nfet_01v8 (...) @ (5u, 12u) R0
-   place dp.M_N.f1 nfet_01v8 (...) @ (5.52u, 12u) R0
-   
-   // 1.1
-   group dp.M_N : fingers {
-       place f0 nfet_01v8 (...) @ (5u, 12u) R0
-       place f1 nfet_01v8 (...) @ f0@origin + (520n, 0) R0
-   }
-   ```
-
-3. Add net attribution: Add `[net]` to paths and rects where appropriate.
-
-4. Extract constants: Identify repeated values and define constants.
-
-5. Convert to relative coordinates: Where beneficial, convert absolute coordinates to anchor-relative expressions.
-
----
-
-## Appendix C: Anchor Resolution Examples
-
-### C.1 Simple Device Placement
+### B.1 Simple Device Placement
 
 ```
 place M1 nfet_01v8 (W=1u, L=180n, NF=1) @ (10u, 5u) R0
@@ -2485,7 +2459,7 @@ Given PDK anchor `drain: [L + 260n, W/2]`:
 
 Result: `M1@drain` = `(10.44u, 5.5u)`
 
-### C.2 Mirrored Device
+### B.2 Mirrored Device
 
 ```
 place M2 nfet_01v8 (W=1u, L=180n, NF=1) @ (15u, 5u) MY
@@ -2497,7 +2471,7 @@ Given PDK anchor `drain: [440n, 500n]` (after parameter substitution):
 
 Result: `M2@drain` = `(14.56u, 5.5u)`
 
-### C.3 Relative Placement Chain
+### B.3 Relative Placement Chain
 
 ```
 place M1 nfet_01v8 (W=500n, L=180n, NF=1) @ (5u, 10u) R0
