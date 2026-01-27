@@ -91,34 +91,11 @@ Extensibility: Attribute annotations support tool-specific metadata without lang
 
 ### 2.1 Position in the Cascode Toolchain
 
-```d2
-direction: right
-
-acir_hl: "ACIR-HL\n(slots)"
-acir_ml: "ACIR-ML\n(motifs)"
-acir_el: "ACIR-EL\n(devices)"
-acir_ll: "ACIR-LL\n(geometry)"
-gds: "GDS/OASIS"
-
-acir_hl -> acir_ml -> acir_el -> acir_ll -> gds
-gds -> drc: "DRC"
-gds -> lvs: "LVS"
-gds -> pex: "PEX/Sim"
-```
+![ACIR Toolchain Architecture](resources/0001/acir-ll.svg)
 
 ### 2.2 Data Flow
 
-```d2
-direction: down
-
-acir_el: "ACIR-EL document\n(devices, nets, connectivity)"
-layout: "Layout engine\n(placement + routing decisions)"
-acir_ll: "ACIR-LL document\n(PDK-specific geometry)"
-expander: "ACIR-LL expander\n(resolve anchors/consts, instantiate P-cells, via expand, snap)"
-gds: "GDS-II / OASIS"
-
-acir_el -> layout -> acir_ll -> expander -> gds
-```
+<img src="resources/0001/data-flow.svg" alt="ACIR Toolchain Architecture" style="width:500px;"/>
 
 ### 2.3 PDK Binding
 
