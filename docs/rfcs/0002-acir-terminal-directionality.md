@@ -10,7 +10,7 @@ Target Version: ACIR 3.0
 
 ## Abstract
 
-This RFC proposes making ACIR terminal declarations directional by replacing the single `port` keyword with `input`, `output`, and `inout`. The goal is to preserve interface intent (already present in Cascode source) into ACIR so tools can perform correctness checks without relying on naming conventions. `supply` and `ground` declarations remain unchanged.
+This RFC proposes making ACIR terminal declarations directional by replacing the single `port` keyword with `input`, `output`, and `io`. The goal is to preserve interface intent (already present in Cascode source) into ACIR so tools can perform correctness checks without relying on naming conventions. `supply` and `ground` declarations remain unchanged.
 
 This RFC is intentionally orthogonal to RFC 0000 (ACIR measurement abstraction). RFC 0000 can assume either the legacy `port` form or the directional form defined here.
 
@@ -50,7 +50,7 @@ Non-goals:
 
 ```ebnf
 portDecl   = direction IDENT ":" typeSpec ;
-direction  = "input" | "output" | "inout" ;
+direction  = "input" | "output" | "io" ;
 typeSpec   = domain | bundleType ;
 domain     = "analog" | "bias" ;
 bundleType = IDENT ;
@@ -65,7 +65,7 @@ groundDecl = "ground" IDENT ;
 |---------|-----------|-------------|
 | `input` | into circuit | Signal inputs, bias inputs |
 | `output` | out of circuit | Signal outputs |
-| `inout` | bidirectional | I/O pads, transmission gates |
+| `io` | bidirectional | I/O pads, transmission gates |
 | `supply` | into circuit | Power rails (VDD, AVDD, etc.) |
 | `ground` | into circuit | Ground references (GND, VSS, etc.) |
 
@@ -73,6 +73,7 @@ Notes:
 
 - Direction applies to the declared port as a whole. For bundle ports (e.g., `Diff`), the direction applies uniformly to all expanded fields.
 - Directionality describes the circuit boundary contract under normal composition. It does not imply “no current may flow” or similar electrical restrictions.
+- `io` is intentionally short to avoid visual confusion with `input` in diffs and fixed-width listings (a motivating problem with `inout`).
 
 #### 3.1.3 Examples
 
@@ -98,6 +99,17 @@ circuit FullyDiffOTA implements FullyDifferentialOpAmp
   output OUT : Diff
 ```
 
+```acir
+circuit TransmissionGate
+  level EL
+
+  supply VDD
+  ground GND
+  io A : analog
+  io B : analog
+  input EN : bias
+```
+
 ---
 
 ## 4. Validation and Enforcement
@@ -108,9 +120,9 @@ Directionality is intended to be enforced primarily at ACIR validation boundarie
 
 When a harness entry references a circuit terminal name (for example, `source IN ...`), tools SHOULD validate that the referenced name exists and that its direction is compatible with the harness entry:
 
-- `source <Name> ...` MUST reference an `input` or `inout` port.
-- `load <Name> ...` MUST reference an `output` or `inout` port.
-- `bias <Name> = <Value>` SHOULD reference an `input` or `inout` port with domain `bias`.
+- `source <Name> ...` MUST reference an `input` or `io` port.
+- `load <Name> ...` MUST reference an `output` or `io` port.
+- `bias <Name> = <Value>` MUST reference an `input` or `io` port with domain `bias`, or a `supply`/`ground` declaration (for example, `bias VDD = 1.8` referencing `supply VDD`).
 
 Rationale: these checks catch common mis-wires (“loaded an input”, “drove an output”) without constraining benches that intentionally drive outputs for measurement.
 
@@ -120,7 +132,7 @@ Tools MAY use directionality to detect obviously invalid compositions, especiall
 
 - `output` ports are drivers.
 - `input` ports are sinks.
-- `inout` ports may be both driver and sink.
+- `io` ports may be both driver and sink.
 
 Any stricter driver analysis (tri-state, wired-OR, analog multi-drive) is outside the scope of this RFC.
 
@@ -132,7 +144,7 @@ In the ACIR grammar, directional terminals replace `port` declarations:
 
 ```ebnf
 portDecl = direction IDENT ":" typeSpec ;
-direction = "input" | "output" | "inout" ;
+direction = "input" | "output" | "io" ;
 ```
 
 `supply` and `ground` declarations remain unchanged.
@@ -175,7 +187,7 @@ This is the status quo. It is brittle and fails on non-canonical naming.
 
 ## 8. Implementation Plan
 
-1. Update the lexer with direction keywords (`input`, `output`, `inout`).
+1. Update the lexer with direction keywords (`input`, `output`, `io`).
 2. Remove the `port` keyword in favor of directional declarations.
 3. Persist directionality into ACIR (including in pretty-printer output) so roundtrips preserve the choice.
 4. Add validation errors for harness-direction mismatches.
