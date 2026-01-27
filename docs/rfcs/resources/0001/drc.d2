@@ -1,15 +1,14 @@
-vars: {
-  d2-config: {
-    layout-engine: tala
-  }
-}
-
 direction: right
 
-acir: "ACIR-LL" {style.fill: "#cfd2dd"}
-expander: "Expander"
-gds: "GDS" {style.fill: "#cfd2dd"}
-drc: "DRC tool"
-results: "Results" {style.fill: "#cfd2dd"}
+pipeline: "ACIR-LL to DRC Verification" {
+  grid-columns: 5
+  horizontal-gap: 20
 
-acir -> expander -> gds -> drc -> results
+  acir: "ACIR-LL document" {style.fill: "#cfd2dd"}
+  expander: "Expander\nInstantiate P-cells + expand vias + snap"
+  gds: "GDS-II file" {style.fill: "#cfd2dd"}
+  drc: "DRC Tool\nGeometry + spacing checks"
+  results: "DRC Results" {style.fill: "#cfd2dd"}
+}
+
+pipeline.acir -> pipeline.expander -> pipeline.gds -> pipeline.drc -> pipeline.results
