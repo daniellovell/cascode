@@ -63,7 +63,7 @@ circuit OTA5T_Hierarchical implements SingleEndedOpAmp
       .SENSE--mirror_gate
       .TAP[0]--OUT
     }
-    attach cm to dp via 
+    attach cm to dp via CurrentMirrorLike::DiffPairLike
   }
   constraints {
     numeric {

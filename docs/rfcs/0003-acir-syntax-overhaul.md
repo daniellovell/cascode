@@ -207,7 +207,7 @@ Circuit parameters and size declarations move from the body to the signature.
 #### 3.4.1 Syntax
 
 ```ebnf
-circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" traitList ["{" circuitBody "}"] ;
+circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" traitList "{" circuitBody "}" ; 
 paramList   = paramDecl ("," paramDecl)* ;
 paramDecl   = "size" IDENT ["=" sizeDefault]
             | typeName IDENT ["=" defaultValue] ;
