@@ -15,9 +15,9 @@ circuit OTA5TFullyDiff_DCSwept implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : Diff
+  input VTAIL : bias
   fill:
     net tnode : analog
     net vcm_node : analog

@@ -25,8 +25,8 @@ circuit Test implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   constraints:
     numeric:
       c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz  // target gain-bandwidth product
@@ -66,7 +66,7 @@ circuit Test
   level EL
   supply VDD
   ground GND
-  port OUT : analog
+  output OUT : analog
   constraints:
     numeric:
       // This is a full line comment

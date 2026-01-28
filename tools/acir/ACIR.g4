@@ -50,7 +50,7 @@ traitDef
     ;
 
 traitMember
-    : PORT_KW portName COLON portType                               # TraitPort
+    : direction portName COLON portType                             # TraitPort
     | CONNECTORS_KW connectorDef+                                   # TraitConnectors
     ;
 
@@ -102,7 +102,7 @@ circuitMember
     | PACKAGE_KW qualifiedName                                      # PackageDecl
     | SUPPLY_KW IDENT                                               # SupplyDecl
     | GROUND_KW IDENT                                               # GroundDecl
-    | PORT_KW portName COLON portType                               # PortDecl
+    | direction portName COLON portType                             # PortDecl
     | PARAM_KW IDENT COLON paramType (EQ paramValue)?               # ParamDecl
     | SIZE_KW IDENT (EQ sizeLiteral)?                               # SizeDecl
     | FILL_KW fillStatement*                                        # FillSection
@@ -113,6 +113,12 @@ circuitMember
 
 levelValue
     : HL_KW | ML_KW | EL_KW
+    ;
+
+direction
+    : INPUT_KW
+    | OUTPUT_KW
+    | IO_KW
     ;
 
 // Port names can have dots (e.g., OUT.P) and optional array indices
@@ -181,6 +187,9 @@ deviceId
 // Some keywords (like load, bias, etc.) can appear as part of device/net names
 idPart
     : IDENT
+    | INPUT_KW
+    | OUTPUT_KW
+    | IO_KW
     | LOAD_KW
     | BIAS_KW
     | SUPPLY_KW
@@ -384,6 +393,9 @@ TRAIT_KW        : 'trait' ;
 BENCH_KW        : 'bench' ;
 CIRCUIT_KW      : 'circuit' ;
 PORT_KW         : 'port' ;
+INPUT_KW        : 'input' ;
+OUTPUT_KW       : 'output' ;
+IO_KW           : 'io' ;
 CONNECTORS_KW   : 'connectors:' ;
 LEVEL_KW        : 'level' ;
 INLINE_KW       : 'inline' ;

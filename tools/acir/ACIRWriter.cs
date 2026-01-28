@@ -69,7 +69,7 @@ public static class ACIRWriter
         // Ports
         foreach (var port in trait.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
-            writer.WriteLine($"  port {port.Name} : {port.Type}");
+            writer.WriteLine($"  {port.Direction.ToAcirString()} {port.Name} : {port.Type}");
         }
 
         // Connectors
@@ -181,7 +181,7 @@ public static class ACIRWriter
         // Ports
         foreach (var port in circuit.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
-            writer.WriteLine($"  port {port.Name} : {port.Type}");
+            writer.WriteLine($"  {port.Direction.ToAcirString()} {port.Name} : {port.Type}");
         }
 
         // Slots (HL level)

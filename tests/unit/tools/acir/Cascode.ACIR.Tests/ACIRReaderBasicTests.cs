@@ -16,8 +16,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     nmos M1 (.G--IN, .D--OUT, .S--GND, .B--GND) : nmos
       size (W=1u, L=180n)
@@ -43,7 +43,7 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
+  input IN : analog
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -82,7 +82,7 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
+  input IN : analog
   fill:
     nmos M1 bad_syntax here
 ";
@@ -106,8 +106,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     nmos M1 (.G--IN, bad_binding, .D--OUT, .S--GND, .B--GND) : nmos
       size (W=1u, L=180n)
@@ -133,8 +133,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     nmos M1 (.G->IN, .D--OUT, .S--GND, .B--GND) : nmos
       size (W=1u, L=180n)
@@ -303,8 +303,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 ";
 
         using var reader = new StringReader(acir);
@@ -327,14 +327,14 @@ circuit TestCircuit
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirrorLike:
-  port SENSE : analog
+  io SENSE : analog
   connectors:
     to DiffPairLike:
       SENSE--OUT.P
 
 trait DiffPairLike:
-  port OUT.P : analog
-  port OUT.N : analog
+  io OUT.P : analog
+  io OUT.N : analog
 
 circuit Test
   level EL
@@ -373,14 +373,14 @@ circuit Test
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirrorLike:
-  port SENSE : analog
+  io SENSE : analog
   connectors:
     to DiffPairLike:
       SENSE--OUT.P
 
 trait DiffPairLike:
-  port OUT.P : analog
-  port OUT.N : analog
+  io OUT.P : analog
+  io OUT.N : analog
 
 circuit Test
   level EL
@@ -418,16 +418,16 @@ circuit Test
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirrorLike:
-  port SENSE : analog
-  port TAP : analog
+  io SENSE : analog
+  io TAP : analog
   connectors:
     to DiffPairLike:
       SENSE--OUT.P
       TAP--OUT.N
 
 trait DiffPairLike:
-  port OUT.P : analog
-  port OUT.N : analog
+  io OUT.P : analog
+  io OUT.N : analog
 
 circuit Test
   level EL
@@ -463,13 +463,13 @@ circuit Test
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirrorLike:
-  port SENSE : analog
+  io SENSE : analog
   connectors:
     to DiffPairLike:
       SENSE--OUT.P
 
 trait DiffPairLike:
-  port OUT.P : analog
+  io OUT.P : analog
 
 circuit Test
   level EL
@@ -514,8 +514,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     nmos M1 ({gBinding}, {dBinding}, {sBinding}, {bBinding}) : nmos
       size (W=1u, L=180n)
@@ -552,13 +552,13 @@ circuit TestCircuit
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirrorLike:
-  port SENSE : analog
+  io SENSE : analog
   connectors:
     to DiffPairLike:
       {mapping}
 
 trait DiffPairLike:
-  port OUT.P : analog
+  io OUT.P : analog
 
 circuit Test
   level EL
@@ -595,7 +595,7 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
+  input IN : analog
   fill:
     inst dp (.VDD--VDD, .GND--GND) : DiffPair
     {connect}

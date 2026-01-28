@@ -16,10 +16,10 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
-  port OUT : analog
-  port VTAIL : bias
+  input IN_P : analog
+  input IN_N : analog
+  output OUT : analog
+  input VTAIL : bias
   fill:
     net mirror_gate : analog
     net tnode : analog
@@ -45,5 +45,4 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
-
 

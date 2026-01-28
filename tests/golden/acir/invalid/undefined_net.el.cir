@@ -9,7 +9,7 @@ circuit UndefinedNetExample
   supply VDD
   ground GND
 
-  port OUT : analog
+  output OUT : analog
 
   fill:
     nmos M1 (.G--nonexistent_net, .D--OUT, .S--GND, .B--GND) : nmos

@@ -70,7 +70,7 @@ ACIR <major>.<minor>
 
 circuit <name> implements <trait list> ...
   [level, package]
-  [supply/ground/port declarations]
+  [supply/ground/directional port declarations]
   fill:
     [nets, instances/devices]
   [constraints, harness, provenance]
@@ -131,7 +131,7 @@ The SI prefix table:
 Statements may optionally include source attribution in the form `@[file:line]` or `@[file:line:column]`. Source attribution is **not required** and should be omitted in most cases. It is primarily useful for debugging, error messages, and tracing elaborated designs back to their ADL source.
 
 ```acir
-port OUT : analog @[OTA.cas:7]
+output OUT : analog @[OTA.cas:7]
 nmos dp.M_N (.G--IN_P, .D--OUT_N, .S--tnode) : nfet_01v8 @[DiffPair.cas:12]
   size (W=1u, L=100n, M=1)
 inst dp (.IN.P--IN_P) : DiffPair @[OTA.cas:9]
@@ -172,7 +172,7 @@ The domain field specifies one of:
 
 Net placement:
 
-- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not require explicit declaration.
+- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `input IN : Diff`) are implicit and do not require explicit declaration.
 - Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block at ML and EL levels.
 - At HL level, internal nets may appear at the circuit body level if needed for slot connectivity.
 
@@ -240,23 +240,23 @@ Built-in bundle type: The `Diff` bundle is predefined with fields `P` and `N`, b
 
 ### 3.3.4 Port Declarations
 
-Ports declare the external interface of a circuit. Each port has a name, a domain or bundle type, and optional source attribution.
+Ports declare the external interface of a circuit. Each port has a direction (`input`, `output`, or `io`), a name, a domain or bundle type, and optional source attribution.
 
 ```acir
-port <name> : <domain|BundleType>
+<input|output|io> <name> : <domain|BundleType>
 ```
 
 Examples:
 
 ```acir
-port VIN : analog
-port IN : Diff
-port OUT : analog
-port EN : digital
-port VTAIL : bias
+input VIN : analog
+input IN : Diff
+output OUT : analog
+input EN : digital
+input VTAIL : bias
 ```
 
-Bundle port expansion: A port declared with a bundle type expands to multiple underlying nets. For `port IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
+Bundle port expansion: A port declared with a bundle type expands to multiple underlying nets. For `input IN : Diff`, the nets `IN_P` and `IN_N` are created, accessible as `IN.P` and `IN.N` in terminal bindings.
 
 ### 3.3.5 Slot Declarations (HL)
 
@@ -389,9 +389,9 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
 
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
 
   fill:
     inst dp : DiffPair_hasTail_true_p_NMOS
@@ -453,10 +453,10 @@ circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   param tail_ratio : real = 2
 
   supply RAIL
-  port BASE : analog
-  port IN : Diff
-  port OUT : Diff
-  port BIAS : bias
+  input BASE : analog
+  input IN : Diff
+  output OUT : Diff
+  input BIAS : bias
 
   size Input
   size Tail
@@ -556,7 +556,7 @@ circuit DiffPair implements DiffPairLike
       size Tail
 ```
 
-This construct uses `=` for value assignment; in ACIR, `:` introduces a declaration’s type or domain (for example `port OUT : analog` or `param L : real`).
+This construct uses `=` for value assignment; in ACIR, `:` introduces a declaration’s type or domain (for example `output OUT : analog` or `param L : real`).
 
 ### 3.3.8 The `inline` Annotation
 
@@ -754,13 +754,13 @@ Example:
 
 ```acir
 trait TraitA:
-  port X : analog
+  io X : analog
   connectors:
     to TraitC:
       X--Z
 
 trait TraitB:
-  port Y : analog
+  io Y : analog
   connectors:
     to TraitC:
       Y--Z
@@ -786,7 +786,7 @@ Syntax:
 
 ```acir
 trait <TraitName>:
-  port <name> : <domain|BundleType>
+  <input|output|io> <name> : <domain|BundleType>
   ...
 
   connectors:
@@ -795,7 +795,7 @@ trait <TraitName>:
       ...
 ```
 
-Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `TAP[*]`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see [§3.3.12](#3312-topological-monomorphization)).
+Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `output TAP[*] : analog`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see [§3.3.12](#3312-topological-monomorphization)).
 
 Connectors define how instances of one trait connect to instances of another. The connector `to DiffPairLike` on `CurrentMirrorLike` is referenced as `CurrentMirrorLike::DiffPairLike` in attach statements.
 
@@ -893,7 +893,7 @@ Semantics:
 
 Net placement:
 
-- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `port IN : Diff`) are implicit and do not appear in the `fill:` block.
+- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `input IN : Diff`) are implicit and do not appear in the `fill:` block.
 - Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block.
 
 Example:
@@ -904,8 +904,8 @@ circuit SimpleAmp
 
   supply VDD
   ground VSS
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 
   fill:
     net tnode : analog
@@ -1035,6 +1035,12 @@ harness:
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
 ```
+
+Terminal reference validation (normative):
+
+- `source <Name> ...` MUST reference an `input` or `io` port.
+- `load <Name> ...` MUST reference an `output` or `io` port.
+- `bias <Name> = <Value>` MUST reference an `input` or `io` port with domain `bias`, or a `supply`/`ground` declaration (for example, `bias VDD = 1.8V` referencing `supply VDD`).
 
 ### Sweep Conditions
 
@@ -1343,9 +1349,9 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   supply VDD
   ground GND
 
-  port IN : Diff
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
 
   fill:
     net mirror_gate : analog
@@ -1369,10 +1375,10 @@ circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   param L : real
   param tail_ratio : real = 2
 
-  port IN : Diff
-  port OUT : Diff
-  port BASE : analog
-  port BIAS : bias
+  input IN : Diff
+  output OUT : Diff
+  input BASE : analog
+  input BIAS : bias
 
   fill:
     net tnode : analog
@@ -1397,9 +1403,9 @@ circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   param W_sense : real
   param L : real
 
-  port RAIL : supply
-  port SENSE : analog
-  port TAP[0] : analog
+  supply RAIL
+  input SENSE : analog
+  output TAP[0] : analog
 
   fill:
     inst M_SENSE (.G--SENSE, .D--SENSE, .S--RAIL) : MOS_PMOS
@@ -1436,10 +1442,10 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   supply VDD
   ground GND
 
-  port IN_P : analog
-  port IN_N : analog
-  port OUT : analog
-  port VTAIL : bias
+  input IN_P : analog
+  input IN_N : analog
+  output OUT : analog
+  input VTAIL : bias
 
   fill:
     net tnode : analog        // from dp.tnode
@@ -1485,8 +1491,8 @@ This example demonstrates a stdcell inverter used as an output buffer, showing h
 ACIR 3.0
 
 trait DigitalBuffer:
-  port COMP_OUT : digital
-  port PAD : digital
+  input COMP_OUT : digital
+  output PAD : digital
 
 bench StepToggle for DigitalBuffer
   builtin StepToggle
@@ -1507,8 +1513,8 @@ circuit LatchPadBuffer implements DigitalBuffer
   supply VDD
   ground GND
 
-  port COMP_OUT : digital
-  port PAD : digital
+  input COMP_OUT : digital
+  output PAD : digital
 
   fill:
     inst Buf (.IN--COMP_OUT, .OUT--PAD, .VDD--VDD, .GND--GND, .VPB--VDD, .VNB--GND) : sky130_fd_sc_hd__inv_4
@@ -1534,8 +1540,8 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 ACIR 3.0
 
 trait SingleEndedAmp:
-  port vin : analog
-  port vout : analog
+  input vin : analog
+  output vout : analog
 
 bench ACBench for SingleEndedAmp
   builtin SEAmpACBench
@@ -1555,9 +1561,9 @@ circuit CSAmplifier implements SingleEndedAmp
   supply VDD
   ground GND
 
-  port vin : analog
-  port vout : analog
-  port vb1 : bias
+  input vin : analog
+  output vout : analog
+  input vb1 : bias
 
   fill:
     nmos M_in (.G--vin, .D--vout, .S--GND, .B--GND) : nfet_01v8
@@ -1599,16 +1605,16 @@ bundle Diff:
   N : analog
 
 trait DiffPairLike:
-  port IN : Diff
-  port OUT : Diff
+  input IN : Diff
+  output OUT : Diff
 
 trait SingleEndedOpAmp:
-  port IN : Diff
-  port OUT : analog
+  input IN : Diff
+  output OUT : analog
 
 trait CurrentMirrorLike:
-  port SENSE : analog
-  port TAP[*] : analog
+  input SENSE : analog
+  output TAP[*] : analog
 
   connectors:
     to DiffPairLike:
@@ -1628,9 +1634,9 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
 
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
 
   fill:
     inst dp : DiffPair_hasTail_true_p_NMOS
@@ -1672,10 +1678,10 @@ circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   param tail_ratio : real = 2
 
   supply RAIL
-  port BASE : analog
-  port IN : Diff
-  port OUT : Diff
-  port BIAS : bias
+  input BASE : analog
+  input IN : Diff
+  output OUT : Diff
+  input BIAS : bias
 
   size Input
   size Tail
@@ -1697,8 +1703,8 @@ circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
   param L : real = 180n
 
   supply RAIL
-  port SENSE : analog
-  port TAP[0] : analog
+  input SENSE : analog
+  output TAP[0] : analog
 
   size Sense
 
@@ -1834,9 +1840,9 @@ ACIR uses named binding; SPICE requires positional `.subckt` pin order. The cano
 circuit OTA5TSingleEnded implements SingleEndedOpAmp
   supply VDD
   ground GND
-  port IN : Diff      // expands to IN_P, IN_N
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff      // expands to IN_P, IN_N
+  output OUT : analog
+  input VTAIL : bias
 
 // Emits as:
 .subckt OTA5TSingleEnded VDD GND IN_P IN_N OUT VTAIL
@@ -2008,7 +2014,8 @@ field        = IDENT ":" domain ;
 
 traitDef     = "trait" IDENT ":" NL (INDENT traitMember NL)+ ;
 traitMember  = traitPort | connectorsBlock ;
-traitPort    = "port" traitPortName ":" (domain | IDENT) ;
+direction    = "input" | "output" | "io" ;
+traitPort    = direction traitPortName ":" (domain | IDENT) ;
 traitPortName= IDENT | IDENT "[" "*" "]" ;
 connectorsBlock = "connectors:" NL (INDENT INDENT connectorDef NL)+ ;
 connectorDef = "to" IDENT ":" NL (INDENT INDENT INDENT connectorMapping NL)+ ;
@@ -2039,7 +2046,7 @@ sizeDecl     = "size" IDENT ("=" sizeLiteral)? ;
 paramType    = "real" | "int" ;
 supplyDecl   = "supply" IDENT source? ;
 groundDecl   = "ground" IDENT source? ;
-portDecl     = "port" IDENT ":" (domain | IDENT) source? ;
+portDecl     = direction IDENT ":" (domain | IDENT) source? ;
 
 slotDecl     = "slot" IDENT connectionList? ":" (IDENT | traitList) source? NL (INDENT slotBody NL)* ;
 traitList    = "[" IDENT ("," IDENT)* "]" ;

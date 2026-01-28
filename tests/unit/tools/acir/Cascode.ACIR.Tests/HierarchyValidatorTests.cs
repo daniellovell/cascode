@@ -112,8 +112,18 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -251,7 +261,12 @@ public class HierarchyValidatorTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -270,7 +285,12 @@ public class HierarchyValidatorTests
                     Name = "LoadBranch",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -285,8 +305,18 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Parameters = new List<CircuitParameter>
                     {
@@ -307,7 +337,12 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -526,8 +561,18 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -591,7 +636,12 @@ public class HierarchyValidatorTests
                     Name = "Driver",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -610,7 +660,12 @@ public class HierarchyValidatorTests
                     Name = "Receiver",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -625,7 +680,12 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit
@@ -637,7 +697,12 @@ public class HierarchyValidatorTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
                     },
                 },
                 new Circuit

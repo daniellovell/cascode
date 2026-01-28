@@ -292,8 +292,18 @@ namespace Cascode.ACIR.Tests
                 Name = "Test",
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" },
+                    new()
+                    {
+                        Direction = PortDirection.Input,
+                        Name = "IN",
+                        Type = "analog",
+                    },
+                    new()
+                    {
+                        Direction = PortDirection.Output,
+                        Name = "OUT",
+                        Type = "analog",
+                    },
                 },
             };
 
@@ -310,7 +320,12 @@ namespace Cascode.ACIR.Tests
                 Name = "Test",
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "out", Type = "analog" },
+                    new()
+                    {
+                        Direction = PortDirection.Output,
+                        Name = "out",
+                        Type = "analog",
+                    },
                 },
             };
 
@@ -320,21 +335,31 @@ namespace Cascode.ACIR.Tests
         }
 
         [Fact]
-        public void ReturnsFirstPort_WhenNoOutPort()
+        public void ReturnsFirstOutputPort_WhenNoOutPort()
         {
             var circuit = new Circuit
             {
                 Name = "Test",
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "IN", Type = "analog" },
-                    new() { Name = "VOUT", Type = "analog" },
+                    new()
+                    {
+                        Direction = PortDirection.Input,
+                        Name = "IN",
+                        Type = "analog",
+                    },
+                    new()
+                    {
+                        Direction = PortDirection.Output,
+                        Name = "VOUT",
+                        Type = "analog",
+                    },
                 },
             };
 
             var result = ACIRBenchAdapter.DetermineOutNode(circuit);
 
-            Assert.Equal("IN", result);
+            Assert.Equal("VOUT", result);
         }
 
         [Fact]
@@ -360,8 +385,18 @@ namespace Cascode.ACIR.Tests
                 Name = "Test",
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" },
+                    new()
+                    {
+                        Direction = PortDirection.Input,
+                        Name = "IN",
+                        Type = "analog",
+                    },
+                    new()
+                    {
+                        Direction = PortDirection.Output,
+                        Name = "OUT",
+                        Type = "analog",
+                    },
                 },
                 Supplies = new List<string> { "VDD" },
                 Grounds = new List<string> { "VSS" },
@@ -774,8 +809,18 @@ namespace Cascode.ACIR.Tests
                 Grounds = new List<string> { "GND" },
                 Ports = new List<PortDeclaration>
                 {
-                    new() { Name = "IN", Type = "analog" },
-                    new() { Name = "OUT", Type = "analog" },
+                    new()
+                    {
+                        Direction = PortDirection.Input,
+                        Name = "IN",
+                        Type = "analog",
+                    },
+                    new()
+                    {
+                        Direction = PortDirection.Output,
+                        Name = "OUT",
+                        Type = "analog",
+                    },
                 },
                 Harness = new HarnessBlock
                 {

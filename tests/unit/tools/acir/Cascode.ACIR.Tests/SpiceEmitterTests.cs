@@ -29,9 +29,24 @@ public class SpiceEmitterTests
             Level = ACIRLevel.EL,
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "A", Type = "analog" },
-                new() { Name = "B", Type = "analog" },
-                new() { Name = "C", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Io,
+                    Name = "A",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Io,
+                    Name = "B",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Io,
+                    Name = "C",
+                    Type = "analog",
+                },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "VSS" },
@@ -55,8 +70,18 @@ public class SpiceEmitterTests
             Level = ACIRLevel.EL,
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
@@ -153,8 +178,18 @@ public class SpiceEmitterTests
             Level = ACIRLevel.EL,
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },

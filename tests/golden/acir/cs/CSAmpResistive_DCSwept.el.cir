@@ -10,8 +10,8 @@ circuit CSAmpResistive_DCSwept implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
       size (W=10u, L=180n, M=1)
