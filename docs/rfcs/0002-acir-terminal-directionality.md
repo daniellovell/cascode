@@ -1,9 +1,9 @@
 # RFC: ACIR Terminal Directionality
 
-Status: Draft  
+Status: Active
 Authors: Daniel Lovell
-Created: 2026-01-27  
-Last Updated: 2026-01-27  
+Created: 2026-01-27
+Last Updated: 2026-01-27
 Target Version: ACIR 3.0
 
 ---
