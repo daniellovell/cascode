@@ -83,12 +83,15 @@ public sealed record AcirJsonCircuitInfo
 }
 
 /// <summary>
-/// Port declaration with name and kind (domain).
+/// Port declaration with name, direction, and kind (domain).
 /// </summary>
 public sealed record AcirJsonPort
 {
     [JsonPropertyName("name")]
     public required string Name { get; init; }
+
+    [JsonPropertyName("direction")]
+    public string? Direction { get; init; }
 
     [JsonPropertyName("kind")]
     public required string Kind { get; init; }

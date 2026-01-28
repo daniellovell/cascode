@@ -61,6 +61,7 @@ internal sealed partial class ACIRAstBuilder
                     state.Ports.Add(
                         new PortDeclaration
                         {
+                            Direction = BuildPortDirection(portCtx.direction()),
                             Name = BuildPortName(portCtx.portName()),
                             Type = BuildPortType(portCtx.portType()),
                         }

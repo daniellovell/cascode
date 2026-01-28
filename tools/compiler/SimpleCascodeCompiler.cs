@@ -388,13 +388,48 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             Supplies = motif.Supplies.Select(s => s.Name).ToList(),
             Grounds = motif.Grounds.Select(g => g.Name).ToList(),
             Ports = motif
-                .Ports.Select(p => new PortDeclaration { Name = p.Name, Type = p.Kind })
+                .Ports.Select(p => new PortDeclaration
+                {
+                    Direction = InferPortDirection(p),
+                    Name = p.Name,
+                    Type = p.Kind,
+                })
                 .ToList(),
             Fill = fill,
         };
 
         doc.Circuits.Add(circuit);
         return doc;
+    }
+
+    private static PortDirection InferPortDirection(PortDeclarationSyntax port)
+    {
+        if (string.Equals(port.Kind, "bias", StringComparison.OrdinalIgnoreCase))
+        {
+            return PortDirection.Input;
+        }
+
+        if (string.Equals(port.Kind, "ground", StringComparison.OrdinalIgnoreCase))
+        {
+            return PortDirection.Input;
+        }
+
+        if (string.Equals(port.Kind, "supply", StringComparison.OrdinalIgnoreCase))
+        {
+            return PortDirection.Input;
+        }
+
+        if (
+            port.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase)
+            || port.Name.StartsWith("OUT", StringComparison.OrdinalIgnoreCase)
+            || port.Name.EndsWith("OUT", StringComparison.OrdinalIgnoreCase)
+            || port.Name.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            return PortDirection.Output;
+        }
+
+        return PortDirection.Input;
     }
 
     /// <summary>

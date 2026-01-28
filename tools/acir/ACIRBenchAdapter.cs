@@ -518,10 +518,38 @@ public static class ACIRBenchAdapter
 
     /// <summary>
     /// Determines the output node name from circuit ports.
-    /// Returns the first port named "OUT" (case-insensitive), or the first port, or "OUT" as fallback.
+    /// Prefers explicitly declared output ports, falling back to "OUT" naming conventions.
     /// </summary>
     internal static string DetermineOutNode(Circuit circuit)
     {
+        var explicitOutput =
+            circuit
+                .Ports.FirstOrDefault(p =>
+                    p.Direction == PortDirection.Output
+                    && p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase)
+                )
+                ?.Name
+            ?? circuit.Ports.FirstOrDefault(p => p.Direction == PortDirection.Output)?.Name;
+
+        if (!string.IsNullOrEmpty(explicitOutput))
+        {
+            return explicitOutput;
+        }
+
+        var explicitIo =
+            circuit
+                .Ports.FirstOrDefault(p =>
+                    p.Direction == PortDirection.Io
+                    && p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase)
+                )
+                ?.Name
+            ?? circuit.Ports.FirstOrDefault(p => p.Direction == PortDirection.Io)?.Name;
+
+        if (!string.IsNullOrEmpty(explicitIo))
+        {
+            return explicitIo;
+        }
+
         return circuit
                 .Ports.FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))
                 ?.Name

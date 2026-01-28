@@ -15,9 +15,9 @@ circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
   fill:
     net mirror_gate : analog
     net tnode : analog

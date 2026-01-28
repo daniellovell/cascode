@@ -17,8 +17,18 @@ public class CircuitGraphTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "signal" },
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -164,7 +174,12 @@ public class CircuitGraphTests
             Supplies = new List<string> { "VDD" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -196,5 +211,30 @@ public class CircuitGraphTests
         Assert.Contains("internal", graph.InternalNets);
         Assert.DoesNotContain("VDD", graph.InternalNets);
         Assert.DoesNotContain("IN", graph.InternalNets);
+    }
+
+    [Fact]
+    public void Build_ClassifiesIoPortAsInputForLayout()
+    {
+        var circuit = new Circuit
+        {
+            Name = "test",
+            Level = ACIRLevel.EL,
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Io,
+                    Name = "BIDIR",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock { Devices = new List<DeviceDeclaration>() },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+
+        Assert.Contains("BIDIR", graph.InputPorts);
+        Assert.DoesNotContain("BIDIR", graph.OutputPorts);
     }
 }

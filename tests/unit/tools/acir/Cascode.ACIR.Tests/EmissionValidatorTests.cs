@@ -39,8 +39,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -83,8 +93,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -127,8 +147,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -174,8 +204,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -218,8 +258,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Sizes = new List<SizeDeclaration>
             {
@@ -273,8 +323,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -311,7 +371,12 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -349,7 +414,12 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -388,7 +458,12 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -425,8 +500,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -472,8 +557,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {
@@ -516,8 +611,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Harness = new HarnessBlock
             {
@@ -566,8 +671,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Harness = new HarnessBlock
             {
@@ -621,8 +736,18 @@ public class EmissionValidatorTests
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN", Type = "analog" },
-                new() { Name = "OUT", Type = "analog" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "analog",
+                },
             },
             Fill = new FillBlock
             {

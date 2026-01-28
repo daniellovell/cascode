@@ -9,7 +9,7 @@ circuit VddGndShortExample
   supply VDD
   ground GND
 
-  port IN : analog
+  input IN : analog
 
   fill:
     nmos M_short (.G--IN, .D--VDD, .S--GND, .B--GND) : nmos

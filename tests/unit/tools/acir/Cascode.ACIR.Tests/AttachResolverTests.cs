@@ -49,8 +49,18 @@ public class AttachResolverTests
                     Grounds = new List<string> { "GND" },
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Fill = new FillBlock
                     {
@@ -176,7 +186,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -238,7 +253,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -302,8 +322,18 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
-                        new PortDeclaration { Name = "REF", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "REF",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -369,7 +399,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -433,7 +468,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -498,7 +538,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -610,7 +655,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -749,7 +799,12 @@ public class AttachResolverTests
                     Name = "SourceTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SENSE", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SENSE",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -768,7 +823,12 @@ public class AttachResolverTests
                     Name = "TargetTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "bias" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "OUT",
+                            Type = "bias",
+                        },
                     },
                 },
             },
@@ -822,7 +882,12 @@ public class AttachResolverTests
                     Name = "SourceTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SENSE", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SENSE",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -841,7 +906,12 @@ public class AttachResolverTests
                     Name = "TargetTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -892,7 +962,12 @@ public class AttachResolverTests
                     Name = "AnalogTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SIG", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "SIG",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -911,7 +986,12 @@ public class AttachResolverTests
                     Name = "BiasTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "BIAS", Type = "bias" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "BIAS",
+                            Type = "bias",
+                        },
                     },
                 },
             },
@@ -1012,7 +1092,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SENSE", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SENSE",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -1031,8 +1116,18 @@ public class AttachResolverTests
                     Name = "DiffPair",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT.P", Type = "analog" },
-                        new PortDeclaration { Name = "OUT.N", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT.P",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT.N",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -1100,7 +1195,12 @@ public class AttachResolverTests
                     Name = "CurrentMirror",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SENSE", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "SENSE",
+                            Type = "analog",
+                        },
                     },
                     Connectors = new List<TraitConnector>
                     {
@@ -1119,7 +1219,12 @@ public class AttachResolverTests
                     Name = "DiffPair",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "OUT.P", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT.P",
+                            Type = "analog",
+                        },
                     },
                 },
             },
@@ -1183,7 +1288,12 @@ public class AttachResolverTests
                     Name = "DuplicateTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "FirstPort", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "FirstPort",
+                            Type = "analog",
+                        },
                     },
                 },
                 new TraitDefinition
@@ -1191,7 +1301,12 @@ public class AttachResolverTests
                     Name = "DuplicateTrait",
                     Ports = new List<PortDeclaration>
                     {
-                        new PortDeclaration { Name = "SecondPort", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "SecondPort",
+                            Type = "analog",
+                        },
                     },
                 },
             },

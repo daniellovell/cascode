@@ -9,8 +9,8 @@ bundle Diff:
   N : analog
 
 trait MirrorLike:
-  port SENSE : analog
-  port TAP : analog
+  input SENSE : analog
+  output TAP : analog
   connectors:
     to LoadLike:
       SENSE--OUT.P
@@ -19,7 +19,7 @@ trait MirrorLike:
       // spaces around operator
 
 trait LoadLike:
-  port OUT : Diff
+  output OUT : Diff
 
 bench ACBench for SingleEndedOpAmp
   builtin SEOpAmpACBench
@@ -30,8 +30,8 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
+  input IN : Diff
+  output OUT : analog
   fill:
     net mid : analog
     // Device bindings: mixed whitespace styles within a single declaration
@@ -65,8 +65,8 @@ circuit DiffPairSub implements LoadLike
   inline
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
+  input IN : Diff
+  output OUT : Diff
   fill:
     net tnode : analog
     nmos M_N (.B--GND, .D--OUT.N, .G -- IN.P, .S--tnode) : nmos

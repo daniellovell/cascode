@@ -23,6 +23,26 @@ public class AcirJsonConverterRoundTripTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesPortDirection()
+    {
+        var original = CreateSimpleElCircuit();
+
+        var json = AcirJsonConverter.ToJson(original);
+        var result = AcirJsonConverter.FromJson(json);
+        Assert.True(result.Success, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+        var roundTripped = result.Document!;
+
+        Assert.Equal(
+            original.Circuits[0].Ports[0].Direction,
+            roundTripped.Circuits[0].Ports[0].Direction
+        );
+        Assert.Equal(
+            original.Circuits[0].Ports[1].Direction,
+            roundTripped.Circuits[0].Ports[1].Direction
+        );
+    }
+
+    [Fact]
     public void RoundTrip_PreservesDevices()
     {
         var original = CreateSimpleElCircuit();
@@ -209,8 +229,18 @@ public class AcirJsonConverterRoundTripTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock
                     {
@@ -257,8 +287,18 @@ public class AcirJsonConverterRoundTripTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock { Devices = [] },
                     Constraints = new ConstraintsBlock
