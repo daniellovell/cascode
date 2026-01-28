@@ -100,10 +100,11 @@ public static class ACIRBenchAdapter
             includesWithoutSection.Add(designFile);
         }
 
+        var canonicalName = SpiceEmitter.GetDefaultVariantName(circuit);
         var args = new Dictionary<string, object?>
         {
             ["harness"] = "acir_template",
-            ["circuit_name"] = circuit.Name,
+            ["circuit_name"] = canonicalName,
             ["design_file"] = designFile,
             ["port_list"] = string.Join(" ", portList),
             ["out_node"] = outNode,

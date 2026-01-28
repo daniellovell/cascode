@@ -2165,7 +2165,7 @@ Value rendering: Each parameter type renders to a canonical string form:
 |------|-----------|---------|
 | bool | `true` or `false` | `_hasTail_true` |
 | int | Decimal without leading zeros | `_taps_2` |
-| real | Scientific notation, mantissa normalized to one digit before decimal | `_W_2e-6` |
+| real | SI-prefixed decimal using the canonical prefix set (`f`, `p`, `n`, `u`, `m`, `k`, `M`, `G`, `T`) | `_W_2u` |
 | polarity | `NMOS` or `PMOS` | `_p_NMOS` |
 
 Format: The subckt name follows the pattern:
@@ -2173,6 +2173,8 @@ Format: The subckt name follows the pattern:
 ```acir
 <CircuitName>_<param1>_<value1>_<param2>_<value2>...
 ```
+
+Size pack parameters declared in the circuit signature are flattened into individual fields. Each field uses the composite name `<SizeName>_<Field>` and participates in alphabetical ordering alongside scalar parameters.
 
 Length limit: SPICE subckt names must not exceed 64 characters. If the generated name exceeds this limit, use a hash fallback:
 

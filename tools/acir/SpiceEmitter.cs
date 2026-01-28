@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using Cascode.ACIR.Validation;
 using Cascode.Bench;
 
@@ -38,18 +37,17 @@ public static class SpiceEmitter
         "level1_pmos",
     };
 
-    private static readonly Regex NumericLiteralPattern = new(
-        @"^-?\d+\.?\d*(?:[eE][+\-]?\d+)?[fpnumkMGT]?[A-Za-z]*$",
-        RegexOptions.Compiled
-    );
-    private static readonly Regex SizeFieldReferencePattern = new(
-        @"\b(?<size>[A-Za-z_][A-Za-z0-9_]*)\.(?<field>[A-Za-z_][A-Za-z0-9_]*)\b",
-        RegexOptions.Compiled
-    );
-
     private static string SanitizeNetName(string netName)
     {
         return netName.Replace('.', '_');
+    }
+
+    internal sealed class CircuitVariant
+    {
+        public required Circuit Circuit { get; init; }
+        public required string CanonicalName { get; init; }
+        public required IReadOnlyDictionary<string, string> ResolvedParams { get; init; }
+        public required IReadOnlyDictionary<string, SizePack> ResolvedSizes { get; init; }
     }
 
     /// <summary>
@@ -83,6 +81,19 @@ public static class SpiceEmitter
         BenchBackendType backend = BenchBackendType.Ngspice
     )
     {
+        EmitDesignInternal(circuit, writer, deviceModelMap, document, resolution, backend, null);
+    }
+
+    private static void EmitDesignInternal(
+        Circuit circuit,
+        TextWriter writer,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        ACIRDocument? document,
+        CircuitResolutionResult? resolution,
+        BenchBackendType backend,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap
+    )
+    {
         if (circuit.Level != ACIRLevel.EL)
         {
             throw new InvalidOperationException(
@@ -96,150 +107,44 @@ public static class SpiceEmitter
 
         // Build port list: ports first, then supplies, then grounds
         // Ports are already desugared to scalar types by BundleDesugarer
-        var portList = new List<string>();
-        foreach (var port in circuit.Ports)
-        {
-            portList.Add(SanitizeNetName(port.Name));
-        }
-        foreach (var supply in circuit.Supplies)
-        {
-            portList.Add(SanitizeNetName(supply));
-        }
-        foreach (var ground in circuit.Grounds)
-        {
-            portList.Add(SanitizeNetName(ground));
-        }
+        var portList = BuildPortList(circuit);
 
         IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName = null;
+        IReadOnlyDictionary<string, Circuit>? circuitsByName = null;
         if (document is not null)
         {
             primitivesByName = document.Primitives.ToDictionary(
                 p => p.Name,
                 StringComparer.Ordinal
             );
+            circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         }
 
-        // Build subcircuit parameter defaults.
-        // ngspice requires parameters to be declared on the .subckt line (params: ...),
-        // even if they will always be overridden at instantiation.
-        var paramParts = new List<string>();
-        foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
+        if (document is not null && variantMap is null)
         {
-            var expr = ParamValueToExpression(param.Default) ?? "0";
-            paramParts.Add($"{param.Name}={RenderSpiceExpression(expr, backend)}");
+            variantMap = CollectAllVariants(document);
         }
 
-        if (primitivesByName is not null)
+        var variants = ResolveVariantsForCircuit(circuit, variantMap);
+        for (var index = 0; index < variants.Count; index++)
         {
-            var sizeDefaults = BuildSizeParamDefaults(circuit, primitivesByName, backend);
-            foreach (var entry in sizeDefaults.OrderBy(e => e.Key, StringComparer.Ordinal))
+            if (index > 0)
             {
-                paramParts.Add($"{entry.Key}={entry.Value}");
-            }
-        }
-
-        var paramSuffix = paramParts.Count > 0 ? " params: " + string.Join(" ", paramParts) : "";
-
-        writer.WriteLine($".subckt {circuit.Name} {string.Join(" ", portList)}{paramSuffix}");
-        writer.WriteLine();
-
-        // Internal nets comment
-        if (circuit.Fill?.Nets.Count > 0)
-        {
-            var netNames = circuit
-                .Fill.Nets.OrderBy(n => n.Id, StringComparer.Ordinal)
-                .Select(n => SanitizeNetName(n.Id));
-            writer.WriteLine($"* Internal nets: {string.Join(", ", netNames)}");
-            writer.WriteLine();
-        }
-
-        // Emit devices
-        if (circuit.Fill?.Devices.Count > 0)
-        {
-            if (primitivesByName is null)
-            {
-                throw new InvalidOperationException(
-                    "Primitive definitions are required for device emission. Provide the ACIR document when emitting."
-                );
+                writer.WriteLine();
             }
 
-            var localSizeBindings = BuildLocalSizeBindings(circuit);
-            foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
-            {
-                EmitDevice(
-                    device,
-                    writer,
-                    deviceModelMap,
-                    primitivesByName,
-                    localSizeBindings,
-                    backend
-                );
-            }
-        }
-
-        // Emit circuit instances as X-elements or inline expansion
-        if (circuit.Fill?.Instances.Count > 0 && document is not null)
-        {
-            var circuitsByName = document.Circuits.ToDictionary(
-                c => c.Name,
-                StringComparer.Ordinal
+            EmitVariant(
+                variants[index],
+                portList,
+                writer,
+                deviceModelMap,
+                circuitsByName,
+                primitivesByName,
+                variantMap,
+                resolution,
+                backend
             );
-            primitivesByName ??= document.Primitives.ToDictionary(
-                p => p.Name,
-                StringComparer.Ordinal
-            );
-
-            bool hasEmittedCircuitInstancesHeader = false;
-
-            foreach (
-                var instance in circuit.Fill.Instances.OrderBy(i => i.Id, StringComparer.Ordinal)
-            )
-            {
-                if (circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
-                {
-                    if (targetCircuit.Inline)
-                    {
-                        // Inline expansion: embed devices with hierarchical naming
-                        writer.WriteLine();
-                        writer.WriteLine($"* Inline expansion of {instance.Id} : {instance.Type}");
-                        ExpandInlineCircuit(
-                            instance,
-                            targetCircuit,
-                            hierarchyPath: new List<string>(),
-                            parentNetSubstitutions: new Dictionary<string, string>(
-                                StringComparer.Ordinal
-                            ),
-                            parentParamBindings: new Dictionary<string, string>(
-                                StringComparer.Ordinal
-                            ),
-                            parentSizeBindings: new Dictionary<string, SizePack>(
-                                StringComparer.Ordinal
-                            ),
-                            circuitsByName,
-                            resolution,
-                            deviceModelMap,
-                            primitivesByName,
-                            writer,
-                            backend
-                        );
-                    }
-                    else
-                    {
-                        // Non-inline: emit as X-element
-                        if (!hasEmittedCircuitInstancesHeader)
-                        {
-                            writer.WriteLine();
-                            writer.WriteLine("* Circuit instances");
-                            hasEmittedCircuitInstancesHeader = true;
-                        }
-                        EmitInstance(instance, targetCircuit, resolution, writer, backend);
-                    }
-                }
-            }
         }
-
-        writer.WriteLine();
-        writer.WriteLine($".ends {circuit.Name}");
     }
 
     /// <summary>
@@ -350,6 +255,7 @@ public static class SpiceEmitter
 
         // Order circuits by dependency (leaves first, top-level last)
         var orderedCircuits = OrderByDependency(doc);
+        var variantMap = CollectAllVariants(doc);
 
         foreach (var circuit in orderedCircuits)
         {
@@ -371,13 +277,14 @@ public static class SpiceEmitter
             var designPath = Path.Combine(outputDir, $"{circuit.Name}.sp");
             using (var writer = File.CreateText(designPath))
             {
-                EmitDesign(
+                EmitDesignInternal(
                     circuit,
                     writer,
                     includeResolution?.DeviceModelMap,
                     doc,
                     circuitResolution,
-                    backend
+                    backend,
+                    variantMap
                 );
             }
             result.DesignPaths.Add(designPath);
@@ -480,6 +387,589 @@ public static class SpiceEmitter
         return HierarchyValidator.GetTopologicalOrder(doc.Circuits, excludeInline: true);
     }
 
+    internal static string GetDefaultVariantName(Circuit circuit)
+    {
+        var variant = BuildVariant(
+            circuit,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            new Dictionary<string, SizePack>(StringComparer.Ordinal),
+            instance: null
+        );
+        return variant.CanonicalName;
+    }
+
+    private static List<string> BuildPortList(Circuit circuit)
+    {
+        var portList = new List<string>();
+        foreach (var port in circuit.Ports)
+        {
+            portList.Add(SanitizeNetName(port.Name));
+        }
+        foreach (var supply in circuit.Supplies)
+        {
+            portList.Add(SanitizeNetName(supply));
+        }
+        foreach (var ground in circuit.Grounds)
+        {
+            portList.Add(SanitizeNetName(ground));
+        }
+
+        return portList;
+    }
+
+    private static IReadOnlyList<CircuitVariant> ResolveVariantsForCircuit(
+        Circuit circuit,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap
+    )
+    {
+        if (variantMap is not null && variantMap.TryGetValue(circuit.Name, out var variants))
+        {
+            return variants;
+        }
+
+        return
+        [
+            BuildVariant(
+                circuit,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                new Dictionary<string, SizePack>(StringComparer.Ordinal),
+                instance: null
+            ),
+        ];
+    }
+
+    private static IReadOnlyDictionary<string, List<CircuitVariant>> CollectAllVariants(
+        ACIRDocument doc
+    )
+    {
+        var instanced = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var circuit in doc.Circuits)
+        {
+            if (circuit.Fill?.Instances is null)
+            {
+                continue;
+            }
+
+            foreach (var instance in circuit.Fill.Instances)
+            {
+                if (!string.IsNullOrWhiteSpace(instance.Type))
+                {
+                    instanced.Add(instance.Type);
+                }
+            }
+        }
+
+        var merged = new Dictionary<string, Dictionary<string, CircuitVariant>>(
+            StringComparer.Ordinal
+        );
+
+        foreach (var root in doc.Circuits.Where(c => c.Level == ACIRLevel.EL))
+        {
+            if (instanced.Contains(root.Name))
+            {
+                continue;
+            }
+
+            var rootVariants = CollectVariants(doc, root);
+            foreach (var (name, variants) in rootVariants)
+            {
+                if (!merged.TryGetValue(name, out var entries))
+                {
+                    entries = new Dictionary<string, CircuitVariant>(StringComparer.Ordinal);
+                    merged[name] = entries;
+                }
+
+                foreach (var variant in variants)
+                {
+                    entries.TryAdd(variant.CanonicalName, variant);
+                }
+            }
+        }
+
+        foreach (var circuit in doc.Circuits.Where(c => c.Level == ACIRLevel.EL && !c.Inline))
+        {
+            if (merged.ContainsKey(circuit.Name))
+            {
+                continue;
+            }
+
+            var variant = BuildVariant(
+                circuit,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                new Dictionary<string, SizePack>(StringComparer.Ordinal),
+                instance: null
+            );
+            merged[circuit.Name] = new Dictionary<string, CircuitVariant>(StringComparer.Ordinal)
+            {
+                [variant.CanonicalName] = variant,
+            };
+        }
+
+        return merged.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Values.OrderBy(v => v.CanonicalName, StringComparer.Ordinal).ToList(),
+            StringComparer.Ordinal
+        );
+    }
+
+    private static Dictionary<string, List<CircuitVariant>> CollectVariants(
+        ACIRDocument doc,
+        Circuit topLevel
+    )
+    {
+        var circuitsByName = doc.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var variantsByCircuit = new Dictionary<string, Dictionary<string, CircuitVariant>>(
+            StringComparer.Ordinal
+        );
+
+        void VisitCircuit(
+            Circuit circuit,
+            IReadOnlyDictionary<string, string> parentParams,
+            IReadOnlyDictionary<string, SizePack> parentSizes,
+            InstanceDeclaration? instance
+        )
+        {
+            var variant = BuildVariant(circuit, parentParams, parentSizes, instance);
+            if (!circuit.Inline)
+            {
+                if (!variantsByCircuit.TryGetValue(circuit.Name, out var entries))
+                {
+                    entries = new Dictionary<string, CircuitVariant>(StringComparer.Ordinal);
+                    variantsByCircuit[circuit.Name] = entries;
+                }
+
+                entries.TryAdd(variant.CanonicalName, variant);
+            }
+
+            if (circuit.Fill?.Instances is null)
+            {
+                return;
+            }
+
+            foreach (var child in circuit.Fill.Instances)
+            {
+                if (!circuitsByName.TryGetValue(child.Type, out var targetCircuit))
+                {
+                    continue;
+                }
+
+                VisitCircuit(targetCircuit, variant.ResolvedParams, variant.ResolvedSizes, child);
+            }
+        }
+
+        VisitCircuit(
+            topLevel,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            new Dictionary<string, SizePack>(StringComparer.Ordinal),
+            instance: null
+        );
+
+        return variantsByCircuit.ToDictionary(
+            kvp => kvp.Key,
+            kvp => kvp.Value.Values.OrderBy(v => v.CanonicalName, StringComparer.Ordinal).ToList(),
+            StringComparer.Ordinal
+        );
+    }
+
+    private static CircuitVariant BuildVariant(
+        Circuit circuit,
+        IReadOnlyDictionary<string, string> parentParams,
+        IReadOnlyDictionary<string, SizePack> parentSizes,
+        InstanceDeclaration? instance
+    )
+    {
+        var paramBindings = BuildParameterBindings(circuit, parentParams, instance);
+        var sizeBindings = BuildSizeBindings(circuit, parentSizes, instance);
+        var context = new ExpressionContext(paramBindings, sizeBindings);
+
+        var resolvedParams = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var param in circuit.Parameters)
+        {
+            if (!paramBindings.TryGetValue(param.Name, out var expr))
+            {
+                throw new InvalidOperationException(
+                    $"Missing required parameter '{param.Name}' for circuit '{circuit.Name}'."
+                );
+            }
+
+            resolvedParams[param.Name] = ResolveParameterValue(circuit, param, context, expr);
+        }
+
+        var resolvedSizes = ResolveSizeBindings(circuit, sizeBindings, context);
+        var nameSizes = SelectNamingSizes(circuit, resolvedSizes);
+        var canonicalName = VariantNaming.BuildCanonicalName(
+            circuit.Name,
+            resolvedParams,
+            nameSizes
+        );
+
+        return new CircuitVariant
+        {
+            Circuit = circuit,
+            CanonicalName = canonicalName,
+            ResolvedParams = resolvedParams,
+            ResolvedSizes = resolvedSizes,
+        };
+    }
+
+    private static Dictionary<string, string> BuildParameterBindings(
+        Circuit circuit,
+        IReadOnlyDictionary<string, string> parentParamBindings,
+        InstanceDeclaration? instance
+    )
+    {
+        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (name, value) in parentParamBindings)
+        {
+            bindings[name] = value;
+        }
+
+        foreach (var param in circuit.Parameters)
+        {
+            var expr = ParamValueToExpression(param.Default);
+            if (!string.IsNullOrWhiteSpace(expr))
+            {
+                bindings[param.Name] = expr;
+            }
+        }
+
+        if (instance is not null)
+        {
+            foreach (var (name, paramValue) in instance.Params)
+            {
+                var expr = ParamValueToExpression(paramValue);
+                if (!string.IsNullOrWhiteSpace(expr))
+                {
+                    bindings[name] = expr;
+                }
+            }
+        }
+
+        return bindings;
+    }
+
+    private static Dictionary<string, SizePack> BuildSizeBindings(
+        Circuit circuit,
+        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
+        InstanceDeclaration? instance
+    )
+    {
+        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+
+        foreach (var (name, pack) in parentSizeBindings)
+        {
+            bindings[name] = pack;
+        }
+
+        foreach (var size in circuit.Sizes)
+        {
+            if (size.Default is not null)
+            {
+                bindings[size.Name] = size.Default;
+            }
+        }
+
+        if (circuit.Fill?.Sizes is { Count: > 0 })
+        {
+            foreach (var size in circuit.Fill.Sizes)
+            {
+                if (size.Default is not null)
+                {
+                    bindings[size.Name] = size.Default;
+                }
+            }
+        }
+
+        if (instance is not null)
+        {
+            foreach (var (name, pack) in instance.Sizes)
+            {
+                bindings[name] = pack;
+            }
+        }
+
+        return bindings;
+    }
+
+    private static string ResolveParameterValue(
+        Circuit circuit,
+        CircuitParameter param,
+        ExpressionContext context,
+        string expression
+    )
+    {
+        var trimmed = expression.Trim();
+        if (trimmed.Length == 0)
+        {
+            throw new InvalidOperationException(
+                $"Empty value for parameter '{param.Name}' in circuit '{circuit.Name}'."
+            );
+        }
+
+        var type = param.Type.ToLowerInvariant();
+        if (type == "bool")
+        {
+            if (trimmed.Equals("true", StringComparison.OrdinalIgnoreCase))
+            {
+                return "true";
+            }
+
+            if (trimmed.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                return "false";
+            }
+
+            var numeric = context.Evaluate(trimmed);
+            var parsed = ParameterEvaluator.ParseNumeric(numeric);
+            return Math.Abs(parsed) > 0 ? "true" : "false";
+        }
+
+        if (type == "polarity")
+        {
+            if (trimmed.Equals("nmos", StringComparison.OrdinalIgnoreCase))
+            {
+                return "NMOS";
+            }
+
+            if (trimmed.Equals("pmos", StringComparison.OrdinalIgnoreCase))
+            {
+                return "PMOS";
+            }
+
+            return trimmed.ToUpperInvariant();
+        }
+
+        var evaluated = context.Evaluate(trimmed);
+        if (type == "int")
+        {
+            var value = ParameterEvaluator.ParseNumeric(evaluated);
+            var rounded = Math.Round(value, 0);
+            if (Math.Abs(value - rounded) > 1e-9)
+            {
+                throw new InvalidOperationException(
+                    $"Parameter '{param.Name}' in circuit '{circuit.Name}' is not an integer."
+                );
+            }
+
+            return ((long)rounded).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return ParameterEvaluator.FormatNumeric(ParameterEvaluator.ParseNumeric(evaluated));
+    }
+
+    private static Dictionary<string, SizePack> ResolveSizeBindings(
+        Circuit circuit,
+        IReadOnlyDictionary<string, SizePack> sizeBindings,
+        ExpressionContext context
+    )
+    {
+        var resolved = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+
+        void ResolveSizeDeclaration(SizeDeclaration size)
+        {
+            if (!sizeBindings.TryGetValue(size.Name, out var pack))
+            {
+                throw new InvalidOperationException(
+                    $"Missing required size pack '{size.Name}' for circuit '{circuit.Name}'."
+                );
+            }
+
+            var resolvedPack = new SizePack();
+            foreach (var (field, expr) in pack.Entries)
+            {
+                var evaluated = context.Evaluate(expr);
+                resolvedPack.Entries[field] = ParameterEvaluator.FormatNumeric(
+                    ParameterEvaluator.ParseNumeric(evaluated)
+                );
+            }
+
+            resolved[size.Name] = resolvedPack;
+        }
+
+        foreach (var size in circuit.Sizes)
+        {
+            ResolveSizeDeclaration(size);
+        }
+
+        if (circuit.Fill?.Sizes is { Count: > 0 })
+        {
+            foreach (var size in circuit.Fill.Sizes)
+            {
+                ResolveSizeDeclaration(size);
+            }
+        }
+
+        return resolved;
+    }
+
+    private static IReadOnlyDictionary<string, SizePack> SelectNamingSizes(
+        Circuit circuit,
+        IReadOnlyDictionary<string, SizePack> resolvedSizes
+    )
+    {
+        if (circuit.Sizes.Count == 0)
+        {
+            return new Dictionary<string, SizePack>(StringComparer.Ordinal);
+        }
+
+        var namingSizes = new Dictionary<string, SizePack>(StringComparer.Ordinal);
+        foreach (var size in circuit.Sizes)
+        {
+            if (resolvedSizes.TryGetValue(size.Name, out var pack))
+            {
+                namingSizes[size.Name] = pack;
+            }
+        }
+
+        return namingSizes;
+    }
+
+    private static string BuildVariantName(
+        Circuit circuit,
+        IReadOnlyDictionary<string, string> parentParams,
+        IReadOnlyDictionary<string, SizePack> parentSizes,
+        InstanceDeclaration instance,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap
+    )
+    {
+        var variant = BuildVariant(circuit, parentParams, parentSizes, instance);
+        if (variantMap is not null && variantMap.TryGetValue(circuit.Name, out var variants))
+        {
+            if (!variants.Any(v => v.CanonicalName == variant.CanonicalName))
+            {
+                throw new InvalidOperationException(
+                    $"Variant '{variant.CanonicalName}' for circuit '{circuit.Name}' was not collected."
+                );
+            }
+        }
+
+        return variant.CanonicalName;
+    }
+
+    // Long method: keeps variant emission steps contiguous for spec-ordered output.
+    private static void EmitVariant(
+        CircuitVariant variant,
+        IReadOnlyList<string> portList,
+        TextWriter writer,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        IReadOnlyDictionary<string, Circuit>? circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap,
+        CircuitResolutionResult? resolution,
+        BenchBackendType backend
+    )
+    {
+        var circuit = variant.Circuit;
+
+        writer.WriteLine($".subckt {variant.CanonicalName} {string.Join(" ", portList)}");
+        writer.WriteLine();
+
+        if (circuit.Fill?.Nets.Count > 0)
+        {
+            var netNames = circuit
+                .Fill.Nets.OrderBy(n => n.Id, StringComparer.Ordinal)
+                .Select(n => SanitizeNetName(n.Id));
+            writer.WriteLine($"* Internal nets: {string.Join(", ", netNames)}");
+            writer.WriteLine();
+        }
+
+        var expressionContext = new ExpressionContext(
+            variant.ResolvedParams,
+            variant.ResolvedSizes
+        );
+
+        if (circuit.Fill?.Devices.Count > 0)
+        {
+            if (primitivesByName is null)
+            {
+                throw new InvalidOperationException(
+                    "Primitive definitions are required for device emission. Provide the ACIR document when emitting."
+                );
+            }
+
+            foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
+            {
+                EmitDevice(
+                    device,
+                    writer,
+                    deviceModelMap,
+                    primitivesByName,
+                    variant.ResolvedSizes,
+                    expressionContext,
+                    backend
+                );
+            }
+        }
+
+        if (circuit.Fill?.Instances.Count > 0 && circuitsByName is not null)
+        {
+            bool hasEmittedCircuitInstancesHeader = false;
+
+            foreach (
+                var instance in circuit.Fill.Instances.OrderBy(i => i.Id, StringComparer.Ordinal)
+            )
+            {
+                if (!circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
+                {
+                    continue;
+                }
+
+                if (targetCircuit.Inline)
+                {
+                    if (primitivesByName is null)
+                    {
+                        throw new InvalidOperationException(
+                            "Primitive definitions are required for device emission. Provide the ACIR document when emitting."
+                        );
+                    }
+
+                    writer.WriteLine();
+                    writer.WriteLine($"* Inline expansion of {instance.Id} : {instance.Type}");
+                    ExpandInlineCircuit(
+                        instance,
+                        targetCircuit,
+                        hierarchyPath: new List<string>(),
+                        parentNetSubstitutions: new Dictionary<string, string>(
+                            StringComparer.Ordinal
+                        ),
+                        parentParamBindings: variant.ResolvedParams,
+                        parentSizeBindings: variant.ResolvedSizes,
+                        circuitsByName,
+                        resolution,
+                        deviceModelMap,
+                        primitivesByName,
+                        variantMap,
+                        writer,
+                        backend
+                    );
+                }
+                else
+                {
+                    if (!hasEmittedCircuitInstancesHeader)
+                    {
+                        writer.WriteLine();
+                        writer.WriteLine("* Circuit instances");
+                        hasEmittedCircuitInstancesHeader = true;
+                    }
+
+                    EmitInstance(
+                        instance,
+                        targetCircuit,
+                        resolution,
+                        variant.ResolvedParams,
+                        variant.ResolvedSizes,
+                        variantMap,
+                        writer
+                    );
+                }
+            }
+        }
+
+        writer.WriteLine();
+        writer.WriteLine($".ends {variant.CanonicalName}");
+    }
+
     /// <summary>
     /// Emits a SPICE element line for a device declaration.
     /// </summary>
@@ -490,12 +980,14 @@ public static class SpiceEmitter
     /// <param name="sizeBindings">Local size bindings for parameter expansion.</param>
     /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
     /// <exception cref="InvalidOperationException">Thrown if device type is unknown or required terminals are missing.</exception>
+    // Long method: device emission is kept in one flow to preserve terminal ordering clarity.
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         IReadOnlyDictionary<string, SizePack> sizeBindings,
+        ExpressionContext expressionContext,
         BenchBackendType backend
     )
     {
@@ -529,7 +1021,7 @@ public static class SpiceEmitter
             };
             if (key is not null && deviceParams.TryGetValue(key, out var expr))
             {
-                passiveValue = RenderSpiceExpression(expr, backend);
+                passiveValue = RenderEvaluatedExpression(expressionContext, expr, backend);
                 paramExpressions = deviceParams
                     .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
                     .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
@@ -595,7 +1087,11 @@ public static class SpiceEmitter
             sb.Append(modelName);
         }
 
-        AppendParamAssignments(sb, paramExpressions, expr => RenderSpiceExpression(expr, backend));
+        AppendParamAssignments(
+            sb,
+            paramExpressions,
+            expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+        );
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
@@ -615,8 +1111,10 @@ public static class SpiceEmitter
         InstanceDeclaration instance,
         Circuit targetCircuit,
         CircuitResolutionResult? resolution,
-        TextWriter writer,
-        BenchBackendType backend
+        IReadOnlyDictionary<string, string> parentParamBindings,
+        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap,
+        TextWriter writer
     )
     {
         var sb = new StringBuilder();
@@ -668,11 +1166,14 @@ public static class SpiceEmitter
             sb.Append(' ');
         }
 
-        // Subcircuit name
-        sb.Append(targetCircuit.Name);
-
-        var paramExpressions = BuildInstanceParamExpressions(instance);
-        AppendParamAssignments(sb, paramExpressions, expr => RenderSpiceExpression(expr, backend));
+        var variantName = BuildVariantName(
+            targetCircuit,
+            parentParamBindings,
+            parentSizeBindings,
+            instance,
+            variantMap
+        );
+        sb.Append(variantName);
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
@@ -699,6 +1200,7 @@ public static class SpiceEmitter
     /// Supports recursive expansion of nested inline circuits.
     /// Non-inline instances within inline circuits are emitted as X-elements with hierarchical naming.
     /// </remarks>
+    // Long method: inline expansion is kept together to preserve hierarchy and substitution flow.
     private static void ExpandInlineCircuit(
         InstanceDeclaration instance,
         Circuit inlineCircuit,
@@ -706,10 +1208,11 @@ public static class SpiceEmitter
         Dictionary<string, string> parentNetSubstitutions,
         IReadOnlyDictionary<string, string> parentParamBindings,
         IReadOnlyDictionary<string, SizePack> parentSizeBindings,
-        Dictionary<string, Circuit> circuitsByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
         IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap,
         TextWriter writer,
         BenchBackendType backend
     )
@@ -721,11 +1224,8 @@ public static class SpiceEmitter
         var localSubstitutions = BuildNetSubstitutions(instance, inlineCircuit, resolution);
         var netSubstitutions = ComposeNetSubstitutions(parentNetSubstitutions, localSubstitutions);
 
-        // Build parameter bindings: compose parent bindings with local overrides
-        var paramBindings = ComposeParameterBindings(instance, inlineCircuit, parentParamBindings);
-
-        // Build size bindings: compose parent bindings with local overrides
-        var sizeBindings = ComposeSizeBindings(instance, inlineCircuit, parentSizeBindings);
+        var paramBindings = BuildParameterBindings(inlineCircuit, parentParamBindings, instance);
+        var sizeBindings = BuildSizeBindings(inlineCircuit, parentSizeBindings, instance);
 
         var expressionContext = new ExpressionContext(paramBindings, sizeBindings);
 
@@ -796,6 +1296,7 @@ public static class SpiceEmitter
                         resolution,
                         deviceModelMap,
                         primitivesByName,
+                        variantMap,
                         writer,
                         backend
                     );
@@ -810,9 +1311,10 @@ public static class SpiceEmitter
                         netSubstitutions,
                         internalNets,
                         resolution,
-                        expressionContext,
-                        writer,
-                        backend
+                        paramBindings,
+                        sizeBindings,
+                        variantMap,
+                        writer
                     );
                 }
             }
@@ -846,92 +1348,6 @@ public static class SpiceEmitter
     }
 
     /// <summary>
-    /// Composes parameter bindings by merging parent bindings with local circuit/instance bindings.
-    /// </summary>
-    private static Dictionary<string, string> ComposeParameterBindings(
-        InstanceDeclaration instance,
-        Circuit inlineCircuit,
-        IReadOnlyDictionary<string, string> parentParamBindings
-    )
-    {
-        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        // Start with parent bindings.
-        foreach (var (name, value) in parentParamBindings)
-        {
-            bindings[name] = value;
-        }
-
-        // Add circuit parameter defaults
-        foreach (var param in inlineCircuit.Parameters)
-        {
-            var expr = ParamValueToExpression(param.Default);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                bindings[param.Name] = expr;
-            }
-        }
-
-        // Override with instance parameters
-        foreach (var (name, paramValue) in instance.Params)
-        {
-            var expr = ParamValueToExpression(paramValue);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                bindings[name] = expr;
-            }
-        }
-
-        return bindings;
-    }
-
-    /// <summary>
-    /// Composes size pack bindings by merging parent bindings with local circuit/instance bindings.
-    /// </summary>
-    private static Dictionary<string, SizePack> ComposeSizeBindings(
-        InstanceDeclaration instance,
-        Circuit inlineCircuit,
-        IReadOnlyDictionary<string, SizePack> parentSizeBindings
-    )
-    {
-        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-
-        // Start with parent bindings
-        foreach (var (name, pack) in parentSizeBindings)
-        {
-            bindings[name] = pack;
-        }
-
-        // Add circuit size pack defaults
-        foreach (var size in inlineCircuit.Sizes)
-        {
-            if (size.Default is not null)
-            {
-                bindings[size.Name] = size.Default;
-            }
-        }
-
-        if (inlineCircuit.Fill?.Sizes is { Count: > 0 })
-        {
-            foreach (var size in inlineCircuit.Fill.Sizes)
-            {
-                if (size.Default is not null)
-                {
-                    bindings[size.Name] = size.Default;
-                }
-            }
-        }
-
-        // Override with instance size packs
-        foreach (var (name, pack) in instance.Sizes)
-        {
-            bindings[name] = pack;
-        }
-
-        return bindings;
-    }
-
-    /// <summary>
     /// Emits a non-inline instance within an inline circuit as an X-element with hierarchical naming.
     /// </summary>
     private static void EmitInlineInstance(
@@ -941,9 +1357,10 @@ public static class SpiceEmitter
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
         CircuitResolutionResult? resolution,
-        ExpressionContext expressionContext,
-        TextWriter writer,
-        BenchBackendType backend
+        IReadOnlyDictionary<string, string> parentParamBindings,
+        IReadOnlyDictionary<string, SizePack> parentSizeBindings,
+        IReadOnlyDictionary<string, List<CircuitVariant>>? variantMap,
+        TextWriter writer
     )
     {
         var sb = new StringBuilder();
@@ -994,33 +1411,16 @@ public static class SpiceEmitter
             sb.Append(' ');
         }
 
-        // Subcircuit name
-        sb.Append(targetCircuit.Name);
-
-        var paramExpressions = BuildInstanceParamExpressions(instance);
-        AppendParamAssignments(
-            sb,
-            paramExpressions,
-            expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+        var variantName = BuildVariantName(
+            targetCircuit,
+            parentParamBindings,
+            parentSizeBindings,
+            instance,
+            variantMap
         );
+        sb.Append(variantName);
 
         writer.WriteLine(sb.ToString().TrimEnd());
-    }
-
-    private static IReadOnlyDictionary<string, SizePack> BuildLocalSizeBindings(Circuit circuit)
-    {
-        var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-        if (circuit.Fill?.Sizes is { Count: > 0 })
-        {
-            foreach (var size in circuit.Fill.Sizes)
-            {
-                if (size.Default is not null)
-                {
-                    bindings[size.Name] = size.Default;
-                }
-            }
-        }
-        return bindings;
     }
 
     /// <summary>
@@ -1082,6 +1482,7 @@ public static class SpiceEmitter
     /// <summary>
     /// Emits a device from an inline circuit with hierarchical naming.
     /// </summary>
+    // Long method: inline device emission mirrors the non-inline path with substitutions.
     private static void EmitInlineDevice(
         DeviceDeclaration device,
         IReadOnlyList<string> hierarchyPath,
@@ -1293,35 +1694,6 @@ public static class SpiceEmitter
         return value.Numeric ?? value.Symbolic ?? value.Literal;
     }
 
-    private static IReadOnlyDictionary<string, string> BuildInstanceParamExpressions(
-        InstanceDeclaration instance
-    )
-    {
-        var expressions = new Dictionary<string, string>(StringComparer.Ordinal);
-
-        foreach (var (name, value) in instance.Params)
-        {
-            var expr = ParamValueToExpression(value);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                expressions[name] = expr;
-            }
-        }
-
-        foreach (var (sizeName, pack) in instance.Sizes)
-        {
-            foreach (var (field, expr) in pack.Entries)
-            {
-                if (!string.IsNullOrWhiteSpace(expr))
-                {
-                    expressions[EncodeSizeParamName(sizeName, field)] = expr;
-                }
-            }
-        }
-
-        return expressions;
-    }
-
     private static void AppendParamAssignments(
         StringBuilder sb,
         IReadOnlyDictionary<string, string> paramExpressions,
@@ -1343,40 +1715,6 @@ public static class SpiceEmitter
         }
     }
 
-    private static string RenderSpiceExpression(string expression, BenchBackendType backend)
-    {
-        var trimmed = NormalizeSizeFieldReferences(expression.Trim());
-        if (trimmed.Length == 0)
-        {
-            return trimmed;
-        }
-
-        if (NumericLiteralPattern.IsMatch(trimmed))
-        {
-            return ACIRBenchAdapter.TransformValueForBackend(trimmed, backend);
-        }
-
-        if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
-        {
-            return trimmed;
-        }
-
-        return $"{{{trimmed}}}";
-    }
-
-    private static string EncodeSizeParamName(string sizeName, string field)
-    {
-        return $"{sizeName}_{field}";
-    }
-
-    private static string NormalizeSizeFieldReferences(string expression)
-    {
-        return SizeFieldReferencePattern.Replace(
-            expression,
-            match => $"{match.Groups["size"].Value}_{match.Groups["field"].Value}"
-        );
-    }
-
     private static string RenderEvaluatedExpression(
         ExpressionContext context,
         string expression,
@@ -1388,193 +1726,8 @@ public static class SpiceEmitter
         {
             return trimmed;
         }
-
-        try
-        {
-            var evaluated = context.Evaluate(trimmed);
-            return ACIRBenchAdapter.TransformValueForBackend(evaluated, backend);
-        }
-        catch
-        {
-            return RenderSpiceExpression(trimmed, backend);
-        }
-    }
-
-    private static IEnumerable<string> EnumerateSizeFieldExpressions(Circuit circuit)
-    {
-        foreach (var parameter in circuit.Parameters)
-        {
-            var expr = ParamValueToExpression(parameter.Default);
-            if (!string.IsNullOrWhiteSpace(expr))
-            {
-                yield return expr;
-            }
-        }
-
-        foreach (var size in circuit.Sizes)
-        {
-            if (size.Default is null)
-            {
-                continue;
-            }
-
-            foreach (var expr in size.Default.Entries.Values)
-            {
-                if (!string.IsNullOrWhiteSpace(expr))
-                {
-                    yield return expr;
-                }
-            }
-        }
-
-        if (circuit.Fill?.Sizes is not null)
-        {
-            foreach (var size in circuit.Fill.Sizes)
-            {
-                if (size.Default is null)
-                {
-                    continue;
-                }
-
-                foreach (var expr in size.Default.Entries.Values)
-                {
-                    if (!string.IsNullOrWhiteSpace(expr))
-                    {
-                        yield return expr;
-                    }
-                }
-            }
-        }
-
-        if (circuit.Fill?.Devices is not null)
-        {
-            foreach (var device in circuit.Fill.Devices)
-            {
-                if (device.Size is null)
-                {
-                    continue;
-                }
-
-                foreach (var expr in device.Size.Entries.Values)
-                {
-                    if (!string.IsNullOrWhiteSpace(expr))
-                    {
-                        yield return expr;
-                    }
-                }
-            }
-        }
-
-        if (circuit.Fill?.Instances is not null)
-        {
-            foreach (var instance in circuit.Fill.Instances)
-            {
-                foreach (var pack in instance.Sizes.Values)
-                {
-                    foreach (var expr in pack.Entries.Values)
-                    {
-                        if (!string.IsNullOrWhiteSpace(expr))
-                        {
-                            yield return expr;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private static void AddSizeFieldReferences(
-        Dictionary<string, HashSet<string>> fieldsBySize,
-        IEnumerable<string> expressions
-    )
-    {
-        foreach (var expression in expressions)
-        {
-            foreach (Match match in SizeFieldReferencePattern.Matches(expression))
-            {
-                var sizeName = match.Groups["size"].Value;
-                if (!fieldsBySize.TryGetValue(sizeName, out var fields))
-                {
-                    continue;
-                }
-
-                fields.Add(match.Groups["field"].Value);
-            }
-        }
-    }
-
-    private static IReadOnlyDictionary<string, string> BuildSizeParamDefaults(
-        Circuit circuit,
-        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
-        BenchBackendType backend
-    )
-    {
-        if (circuit.Sizes.Count == 0)
-        {
-            return new Dictionary<string, string>();
-        }
-
-        var fieldsBySize = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        foreach (var size in circuit.Sizes)
-        {
-            fieldsBySize[size.Name] = new HashSet<string>(StringComparer.Ordinal);
-            if (size.Default is not null)
-            {
-                foreach (var key in size.Default.Entries.Keys)
-                {
-                    fieldsBySize[size.Name].Add(key);
-                }
-            }
-        }
-
-        AddSizeFieldReferences(fieldsBySize, EnumerateSizeFieldExpressions(circuit));
-
-        if (circuit.Fill?.Devices is not null)
-        {
-            foreach (var device in circuit.Fill.Devices)
-            {
-                if (string.IsNullOrWhiteSpace(device.SizeName))
-                {
-                    continue;
-                }
-
-                if (!fieldsBySize.TryGetValue(device.SizeName, out var fields))
-                {
-                    continue;
-                }
-
-                if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
-                {
-                    continue;
-                }
-
-                foreach (var field in PrimitiveResolver.GetSizeFields(primitive))
-                {
-                    fields.Add(field);
-                }
-            }
-        }
-
-        var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var size in circuit.Sizes)
-        {
-            if (!fieldsBySize.TryGetValue(size.Name, out var fields) || fields.Count == 0)
-            {
-                continue;
-            }
-
-            foreach (var field in fields.OrderBy(f => f, StringComparer.Ordinal))
-            {
-                var expr =
-                    size.Default?.Entries.TryGetValue(field, out var value) == true ? value : "0";
-                defaults[EncodeSizeParamName(size.Name, field)] = RenderSpiceExpression(
-                    expr,
-                    backend
-                );
-            }
-        }
-
-        return defaults;
+        var evaluated = context.Evaluate(trimmed);
+        return ACIRBenchAdapter.TransformValueForBackend(evaluated, backend);
     }
 
     /// <summary>
@@ -1744,7 +1897,8 @@ public static class SpiceEmitter
             portList.Add(SanitizeNetName(ground));
         }
 
-        writer.WriteLine($"XDUT {string.Join(" ", portList)} {circuit.Name}");
+        var subcktName = GetDefaultVariantName(circuit);
+        writer.WriteLine($"XDUT {string.Join(" ", portList)} {subcktName}");
     }
 
     /// <summary>
@@ -1915,13 +2069,19 @@ public static class SpiceEmitter
 
             var sizeName = identifier[..dotIndex];
             var field = identifier[(dotIndex + 1)..];
-            if (
-                _sizeBindings.TryGetValue(sizeName, out var pack)
-                && pack.Entries.TryGetValue(field, out var expr)
-            )
+            if (_sizeBindings.TryGetValue(sizeName, out var pack))
             {
-                expression = expr;
-                return true;
+                if (pack.Entries.TryGetValue(field, out var expr))
+                {
+                    expression = expr;
+                    return true;
+                }
+
+                if (field.Equals("M", StringComparison.OrdinalIgnoreCase))
+                {
+                    expression = "1";
+                    return true;
+                }
             }
 
             expression = string.Empty;

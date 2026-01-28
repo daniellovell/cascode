@@ -529,6 +529,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "2u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -550,6 +551,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -674,6 +676,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -695,6 +698,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -1175,7 +1179,10 @@ public class SpiceEmitterHierarchyTests
 
         // Should reference CurrentMirror as X-element
         Assert.Contains("Xcm", spiceContent);
-        Assert.Contains("CurrentMirror", spiceContent);
+
+        var mirror = doc.Circuits.First(c => c.Name == "CurrentMirror");
+        var mirrorVariant = SpiceEmitter.GetDefaultVariantName(mirror);
+        Assert.Contains(mirrorVariant, spiceContent);
     }
 
     [Fact]
@@ -1301,6 +1308,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -1355,6 +1363,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "2u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -1528,6 +1537,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },
@@ -1660,6 +1670,7 @@ public class SpiceEmitterHierarchyTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "100n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },

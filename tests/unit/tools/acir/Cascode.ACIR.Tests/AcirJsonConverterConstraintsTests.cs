@@ -211,6 +211,7 @@ public class AcirJsonConverterConstraintsTests
                                     {
                                         ["W"] = "1u",
                                         ["L"] = "180n",
+                                        ["M"] = "1",
                                     },
                                 },
                             },

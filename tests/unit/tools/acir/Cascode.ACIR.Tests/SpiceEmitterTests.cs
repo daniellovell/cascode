@@ -62,7 +62,7 @@ public class SpiceEmitterTests
     }
 
     [Fact]
-    public void EmitDesign_IncludesIndirectSizeParamFields()
+    public void EmitVariant_FullyResolvesParameters()
     {
         var acir =
             $@"ACIR {ACIRVersion.Current}
@@ -76,7 +76,7 @@ primitive nmos Level1_NMOS(size primSize) {{
   }}
 }}
 
-circuit Top(size Input) {{
+circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
   level EL
   supply VDD
   ground GND
@@ -103,8 +103,173 @@ circuit Top(size Input) {{
         SpiceEmitter.EmitDesign(circuit, writer, document: doc);
         var output = writer.ToString();
 
-        Assert.Contains("Input_W=0", output);
-        Assert.Contains("Input_L=0", output);
+        Assert.DoesNotContain("params:", output);
+        Assert.DoesNotContain("{", output);
+        Assert.Contains("W=2u", output);
+        Assert.Contains("L=180n", output);
+        Assert.Contains("m=1", output);
+    }
+
+    [Fact]
+    public void EmitVariant_ReferencesCorrectVariantName()
+    {
+        var doc = new ACIRDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Child",
+                    Level = ACIRLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "ratio",
+                            Type = "int",
+                            Default = new ParamValue { Numeric = "1" },
+                        },
+                    ],
+                    Sizes =
+                    [
+                        new SizeDeclaration
+                        {
+                            Name = "Sense",
+                            Default = new SizePack
+                            {
+                                Entries = new Dictionary<string, string>
+                                {
+                                    ["W"] = "2u",
+                                    ["L"] = "180n",
+                                    ["M"] = "1",
+                                },
+                            },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M1",
+                                Primitive = "Level1_NMOS",
+                                SizeName = "Sense",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "OUT",
+                                    ["G"] = "IN",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "u1",
+                                Type = "Child",
+                                Params = new Dictionary<string, ParamValue>
+                                {
+                                    ["ratio"] = new ParamValue { Numeric = "2" },
+                                },
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["IN"] = "IN",
+                                    ["OUT"] = "OUT",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        var variantName = VariantNaming.BuildCanonicalName(
+            "Child",
+            new Dictionary<string, string> { ["ratio"] = "2" },
+            new Dictionary<string, SizePack>
+            {
+                ["Sense"] = new SizePack
+                {
+                    Entries = new Dictionary<string, string>
+                    {
+                        ["W"] = "2u",
+                        ["L"] = "180n",
+                        ["M"] = "1",
+                    },
+                },
+            }
+        );
+
+        Assert.Contains(variantName, output);
     }
 
     [Fact]
