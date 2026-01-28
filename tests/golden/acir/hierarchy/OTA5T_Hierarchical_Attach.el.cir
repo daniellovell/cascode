@@ -1,95 +1,121 @@
 ACIR 3.0
 
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {
   input SENSE : analog
   output TAP[0] : analog
-  connectors:
-    to DiffPairLike:
+  connectors {
+    to DiffPairLike {
       SENSE--OUT.N
       TAP[0]--OUT.P
+    }
+  }
+}
 
-trait DiffPairLike:
+interface DiffPairLike {
   output OUT : Diff
+}
 
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
   input IN : Diff
   output OUT : analog
   input VTAIL : bias
-  fill:
-    inst dp : DiffPair
-      size InputPair = (W=2u, L=180n, M=1)
-      size Tail = (W=4u, L=180n, M=1)
+  fill {
+    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
       .OUT.P--OUT
       .TAIL--VTAIL
-    inst cm : CurrentMirror
-      param ratio = 1
+    }
+    cm = new CurrentMirror(ratio=1) {
       .GND--GND
       .VDD--VDD
       // TAP[0]--OUT intentionally omitted - covered by attach statement below
+    }
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
-      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 500uW
-  harness:
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+  }
+  harness {
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
+  }
+}
 
-circuit DiffPair implements DiffPairLike
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
-  size InputPair
-  size Tail
   supply VDD
   ground GND
   input IN : Diff
   output OUT : Diff
   input TAIL : bias
-  fill:
+  fill {
     net tnode : analog
-    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
-      size InputPair
-    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nmos
-      size InputPair
-    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
-      size Tail
+    nmos M_N = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    nmos M_P = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    nmos M_TAIL = new Level1_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
 
-circuit CurrentMirror implements CurrentMirrorLike
+circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), real ratio=1) implements CurrentMirrorLike {
   level EL
-  param ratio : real = 1
-  size Sense = (W=2u, L=180n, M=1)
   supply VDD
   ground GND
   input SENSE : analog
   output TAP[0] : analog
-  fill:
-    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
-      size Sense
-    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--VDD) : pmos
-      size Sense
-      M = $ratio
+  fill {
+    pmos M_SENSE = new Level1_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    pmos M_TAP0 = new Level1_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+  }
+}

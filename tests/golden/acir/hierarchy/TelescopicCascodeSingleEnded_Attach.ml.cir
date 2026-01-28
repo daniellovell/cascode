@@ -3,22 +3,29 @@ ACIR 3.0
 // ML-level (unsized) version of TelescopicCascodeSingleEnded_Attach
 // Same hierarchical topology as EL version but with ?? placeholders for sizing
 
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-trait DiffPairLike:
+trait DiffPairLike {
   output OUT : Diff
-
-trait LoadPairLike:
+}
+  
+trait LoadPairLike {
   input BIAS : bias
   io DRAIN : Diff
   io SOURCE : Diff
-  connectors:
-    to DiffPairLike:
+  connectors {
+    to DiffPairLike {
       DRAIN--OUT
-    to LoadPairLike:
-      DRAIN--SOURCE
+    }
+      
+    to LoadPairLike {
+       DRAIN--SOURCE
+    }
+  }
+}
 
 trait CurrentMirrorLike:
   input RAIL : Diff

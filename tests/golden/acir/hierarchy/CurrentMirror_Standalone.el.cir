@@ -1,13 +1,15 @@
 ACIR 3.0
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {
   input SENSE : analog
   output TAP[0] : analog
-  connectors:
+  connectors {
     to LoadBranch:
       TAP[0]--IN
-
-circuit CurrentMirror implements CurrentMirrorLike
+  }
+}
+  
+circuit CurrentMirror(int ratio) implements CurrentMirrorLike
   level EL
   param ratio : real = 1
   supply VDD

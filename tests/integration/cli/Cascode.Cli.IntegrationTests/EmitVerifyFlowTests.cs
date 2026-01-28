@@ -701,7 +701,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach_unsized.ml.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.ml.cir"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
