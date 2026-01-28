@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from ACIR.g4 by ANTLR 4.13.1
+// Generated from tools/acir/ACIR.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -399,6 +399,18 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitLevelValue([NotNull] ACIRParser.LevelValueContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.direction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterDirection([NotNull] ACIRParser.DirectionContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.direction"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitDirection([NotNull] ACIRParser.DirectionContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.portName"/>.
 	/// <para>The default implementation does nothing.</para>

@@ -10,9 +10,9 @@ circuit CommonSourceAmp implements SingleEndedAmp
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
-  port VBIAS : bias
+  input IN : analog
+  output OUT : analog
+  input VBIAS : bias
   fill:
     nmos M_in (.D--OUT, .G--IN, .S--GND, .B--GND) : nmos
       size (W=10u, L=180n, M=1)

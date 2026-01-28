@@ -232,7 +232,12 @@ public static class BundleDesugarer
                 var leafType = GetLeafType(port.Name, port.Type, terminalPath, bundlesByName);
 
                 expanded.Add(
-                    new PortDeclaration { Name = NormalizePath(terminalPath), Type = leafType }
+                    new PortDeclaration
+                    {
+                        Direction = port.Direction,
+                        Name = NormalizePath(terminalPath),
+                        Type = leafType,
+                    }
                 );
             }
         }

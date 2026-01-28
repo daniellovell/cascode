@@ -16,14 +16,17 @@
   "ports": [
     {
       "name": "IN",
+      "direction": "input",
       "kind": "analog"
     },
     {
       "name": "OUT",
+      "direction": "output",
       "kind": "analog"
     },
     {
       "name": "VBIAS",
+      "direction": "input",
       "kind": "bias"
     }
   ],

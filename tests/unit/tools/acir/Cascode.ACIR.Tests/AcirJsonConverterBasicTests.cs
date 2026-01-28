@@ -103,7 +103,7 @@ public class AcirJsonConverterBasicTests
             ""circuit"": {{ ""name"": ""TestCircuit"", ""level"": ""EL"" }},
             ""supplies"": [""VDD""],
             ""grounds"": [""GND""],
-            ""ports"": [{{ ""name"": ""IN"", ""kind"": ""analog"" }}],
+            ""ports"": [{{ ""name"": ""IN"", ""direction"": ""input"", ""kind"": ""analog"" }}],
             ""nets"": [],
             ""components"": [],
             ""benches"": []
@@ -198,8 +198,18 @@ public class AcirJsonConverterBasicTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock
                     {

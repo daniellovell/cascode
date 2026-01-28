@@ -9,7 +9,7 @@ circuit FloatingGateExample
   supply VDD
   ground GND
 
-  port OUT : analog
+  output OUT : analog
 
   fill:
     net floating_net : analog

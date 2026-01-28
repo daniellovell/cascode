@@ -153,8 +153,18 @@ public class AcirJsonConverterHarnessTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "VTAIL", Type = "bias" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "VTAIL",
+                            Type = "bias",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock { Devices = [] },
                     Harness = new HarnessBlock
@@ -242,8 +252,18 @@ public class AcirJsonConverterHarnessTests
                     Grounds = ["GND"],
                     Ports =
                     [
-                        new PortDeclaration { Name = "IN", Type = "analog" },
-                        new PortDeclaration { Name = "OUT", Type = "analog" },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new PortDeclaration
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
                     ],
                     Fill = new FillBlock
                     {

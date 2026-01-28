@@ -9,8 +9,8 @@ circuit MLLevelExample
   supply VDD
   ground GND
 
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 
   fill:
     net tnode : analog

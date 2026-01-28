@@ -9,7 +9,7 @@ circuit MissingGateExample
   supply VDD
   ground GND
 
-  port OUT : analog
+  output OUT : analog
 
   fill:
     pmos M_SENSE (.B--VDD, .D--OUT, .S--VDD) : pmos

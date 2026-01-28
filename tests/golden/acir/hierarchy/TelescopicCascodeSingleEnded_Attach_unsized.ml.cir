@@ -8,12 +8,12 @@ bundle Diff:
   N : analog
 
 trait DiffPairLike:
-  port OUT : Diff
+  output OUT : Diff
 
 trait LoadPairLike:
-  port BIAS : bias
-  port DRAIN : Diff
-  port SOURCE : Diff
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
   connectors:
     to DiffPairLike:
       DRAIN--OUT
@@ -21,9 +21,9 @@ trait LoadPairLike:
       DRAIN--SOURCE
 
 trait CurrentMirrorLike:
-  port RAIL : Diff
-  port SENSE : analog
-  port TAP[0] : analog
+  input RAIL : Diff
+  input SENSE : analog
+  output TAP[0] : analog
   connectors:
     to LoadPairLike:
       SENSE--SOURCE.N
@@ -48,10 +48,10 @@ circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp
   level ML
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : analog
-  port VBN : bias
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : analog
+  input VBN : bias
+  input VTAIL : bias
   fill:
     inst dp (.GND--GND, .VDD--VDD) : DiffPair
     inst nl (.GND--GND, .VDD--VDD) : LoadPair_N
@@ -84,9 +84,9 @@ circuit DiffPair implements DiffPairLike
   inline
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
-  port TAIL : bias
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
   fill:
     net tnode : analog
     nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nmos
@@ -101,9 +101,9 @@ circuit LoadPair_N implements LoadPairLike
   inline
   supply VDD
   ground GND
-  port BIAS : bias
-  port DRAIN : Diff
-  port SOURCE : Diff
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
   fill:
     nmos M_P (.B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P) : nmos
       size (W=??, L=??, M=??)
@@ -116,9 +116,9 @@ circuit CurrentMirror_P implements CurrentMirrorLike
   param ratio : real = 1
   supply VDD
   ground GND
-  port RAIL : Diff
-  port SENSE : analog
-  port TAP[0] : analog
+  input RAIL : Diff
+  input SENSE : analog
+  output TAP[0] : analog
   fill:
     pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--RAIL.N) : pmos
       size (W=??, L=??, M=??)

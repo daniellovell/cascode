@@ -14,9 +14,9 @@ public class ACIRReaderHierarchyTests
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirror:
-  port IN : analog
-  port OUT : analog
-  port BIAS : analog
+  input IN : analog
+  output OUT : analog
+  input BIAS : analog
 
 circuit TestCircuit
   level EL
@@ -44,8 +44,8 @@ circuit TestCircuit
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirror:
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   connectors:
     to LoadBranch:
       OUT--IN
@@ -81,8 +81,8 @@ circuit CurrentMirror
   inline
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -179,8 +179,8 @@ circuit TestCircuit
   level ML
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     inst cm (.IN--IN, .OUT--OUT) : CurrentMirror
 ";
@@ -473,15 +473,15 @@ circuit TestCircuit
             $@"ACIR {ACIRVersion.Current}
 
 trait CurrentMirror:
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 
 circuit CMirror implements CurrentMirror
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -527,8 +527,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     inst dp : DiffPair
       .VDD--VDD
@@ -559,10 +559,10 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN_P : analog
-  port IN_N : analog
-  port OUT : analog
-  port VTAIL : bias
+  input IN_P : analog
+  input IN_N : analog
+  output OUT : analog
+  input VTAIL : bias
   fill:
     inst dp : DiffPair
       size InputPair = (W=2u, L=180n, M=1)
@@ -623,8 +623,8 @@ circuit TestCircuit
   level EL
   supply VDD
   ground GND
-  port IN : analog
-  port OUT : analog
+  input IN : analog
+  output OUT : analog
   fill:
     inst dp : DiffPair
       size InputPair = (W=2u, L=180n, M=1)

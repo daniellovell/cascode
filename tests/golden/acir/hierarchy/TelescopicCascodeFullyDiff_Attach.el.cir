@@ -5,12 +5,12 @@ bundle Diff:
   N : analog
 
 trait DiffPairLike:
-  port OUT : Diff
+  output OUT : Diff
 
 trait LoadPairLike:
-  port BIAS : bias
-  port DRAIN : Diff
-  port SOURCE : Diff
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
   connectors:
     to DiffPairLike:
       DRAIN--OUT
@@ -33,12 +33,12 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
   level EL
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
-  port VBN : bias
-  port VBP1 : bias
-  port VBP2 : bias
-  port VTAIL : bias
+  input IN : Diff
+  output OUT : Diff
+  input VBN : bias
+  input VBP1 : bias
+  input VBP2 : bias
+  input VTAIL : bias
   fill:
     inst dp (.GND--GND, .VDD--VDD) : DiffPair
       size InputPair = (W=4u, L=500n, M=1)
@@ -81,9 +81,9 @@ circuit DiffPair implements DiffPairLike
   size Tail
   supply VDD
   ground GND
-  port IN : Diff
-  port OUT : Diff
-  port TAIL : bias
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
   fill:
     net tnode : analog
     nmos M_N (.B--GND, .D--OUT.P, .G--IN.P, .S--tnode) : nmos
@@ -99,9 +99,9 @@ circuit LoadPair_N implements LoadPairLike
   size Cascode
   supply VDD
   ground GND
-  port BIAS : bias
-  port DRAIN : Diff
-  port SOURCE : Diff
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
   fill:
     nmos M_P (.B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P) : nmos
       size Cascode
@@ -114,9 +114,9 @@ circuit LoadPair_P implements LoadPairLike
   size Cascode
   supply VDD
   ground GND
-  port BIAS : bias
-  port DRAIN : Diff
-  port SOURCE : Diff
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
   fill:
     pmos M_P (.B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P) : pmos
       size Cascode

@@ -1,8 +1,8 @@
 ACIR 3.0
 
 trait CurrentMirrorLike:
-  port SENSE : analog
-  port TAP[0] : analog
+  input SENSE : analog
+  output TAP[0] : analog
   connectors:
     to LoadBranch:
       TAP[0]--IN
@@ -12,8 +12,8 @@ circuit CurrentMirror implements CurrentMirrorLike
   param ratio : real = 1
   supply VDD
   ground GND
-  port SENSE : analog
-  port TAP[0] : analog
+  input SENSE : analog
+  output TAP[0] : analog
   fill:
     pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
       size (W=2u, L=180n, M=1)
