@@ -191,6 +191,52 @@ public enum PortDirection
 }
 
 /// <summary>
+/// Extension methods for <see cref="PortDirection"/> serialization.
+/// </summary>
+public static class PortDirectionExtensions
+{
+    /// <summary>
+    /// Converts a <see cref="PortDirection"/> value to its canonical ACIR string representation.
+    /// </summary>
+    public static string ToAcirString(this PortDirection direction) =>
+        direction switch
+        {
+            PortDirection.Input => "input",
+            PortDirection.Output => "output",
+            PortDirection.Io => "io",
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
+        };
+
+    /// <summary>
+    /// Attempts to parse a string into a <see cref="PortDirection"/> value.
+    /// </summary>
+    public static bool TryParse(string? raw, out PortDirection direction)
+    {
+        direction = default;
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        switch (raw.Trim().ToLowerInvariant())
+        {
+            case "input":
+                direction = PortDirection.Input;
+                return true;
+            case "output":
+                direction = PortDirection.Output;
+                return true;
+            case "io":
+                direction = PortDirection.Io;
+                return true;
+            default:
+                return false;
+        }
+    }
+}
+
+/// <summary>
 /// Declares a slot at HL level.
 /// </summary>
 public sealed class SlotDeclaration

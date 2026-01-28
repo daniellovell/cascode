@@ -236,7 +236,7 @@ public static class AcirJsonConverter
                 .Ports.Select(p => new AcirJsonPort
                 {
                     Name = p.Name,
-                    Direction = FormatPortDirection(p.Direction),
+                    Direction = p.Direction.ToAcirString(),
                     Kind = p.Type,
                 })
                 .ToList(),
@@ -307,7 +307,7 @@ public static class AcirJsonConverter
                     .Ports.Select(p => new AcirJsonPort
                     {
                         Name = p.Name,
-                        Direction = FormatPortDirection(p.Direction),
+                        Direction = p.Direction.ToAcirString(),
                         Kind = p.Type,
                     })
                     .ToList(),
@@ -719,7 +719,7 @@ public static class AcirJsonConverter
 
         foreach (var port in ports)
         {
-            if (!TryParsePortDirection(port.Direction, out var direction))
+            if (!PortDirectionExtensions.TryParse(port.Direction, out var direction))
             {
                 diagnostics.Add(
                     new Diagnostic(
@@ -745,40 +745,6 @@ public static class AcirJsonConverter
 
         return result;
     }
-
-    private static bool TryParsePortDirection(string? raw, out PortDirection direction)
-    {
-        direction = default;
-
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return false;
-        }
-
-        switch (raw.Trim().ToLowerInvariant())
-        {
-            case "input":
-                direction = PortDirection.Input;
-                return true;
-            case "output":
-                direction = PortDirection.Output;
-                return true;
-            case "io":
-                direction = PortDirection.Io;
-                return true;
-            default:
-                return false;
-        }
-    }
-
-    private static string FormatPortDirection(PortDirection direction) =>
-        direction switch
-        {
-            PortDirection.Input => "input",
-            PortDirection.Output => "output",
-            PortDirection.Io => "io",
-            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null),
-        };
 
     private static List<BenchDefinition> BuildBenchDefinitions(
         IReadOnlyList<AcirJsonBenchDefinition>? benches

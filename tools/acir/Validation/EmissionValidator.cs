@@ -150,7 +150,7 @@ public static class EmissionValidator
             {
                 result.AddError(
                     "HARN-001",
-                    $"Harness source '{source.Net}' must reference an input or io port, but '{source.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"Harness source '{source.Net}' must reference an input or io port, but '{source.Net}' is declared as {port.Direction.ToAcirString()}",
                     $"harness source {source.Net}",
                     "Update the harness source target or change the port direction"
                 );
@@ -174,7 +174,7 @@ public static class EmissionValidator
             {
                 result.AddError(
                     "HARN-002",
-                    $"Harness load '{load.Net}' must reference an output or io port, but '{load.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"Harness load '{load.Net}' must reference an output or io port, but '{load.Net}' is declared as {port.Direction.ToAcirString()}",
                     $"harness load {load.Net}",
                     "Update the harness load target or change the port direction"
                 );
@@ -214,22 +214,13 @@ public static class EmissionValidator
             {
                 result.AddError(
                     "HARN-003",
-                    $"Harness bias '{bias.Net}' must reference an input or io bias port, but '{bias.Net}' is declared as {FormatPortDirection(port.Direction)}",
+                    $"Harness bias '{bias.Net}' must reference an input or io bias port, but '{bias.Net}' is declared as {port.Direction.ToAcirString()}",
                     $"harness bias {bias.Net}",
                     "Update the harness bias target or change the port direction"
                 );
             }
         }
     }
-
-    private static string FormatPortDirection(PortDirection direction) =>
-        direction switch
-        {
-            PortDirection.Input => "input",
-            PortDirection.Output => "output",
-            PortDirection.Io => "io",
-            _ => direction.ToString(),
-        };
 
     /// <summary>
     /// Builds a set of all valid net names in the circuit.
