@@ -1,7 +1,6 @@
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Cascode.TestSupport;
+using Cascode.Bench;
 using Xunit;
 
 namespace Cascode.Bench.Tests;
@@ -18,19 +17,16 @@ public partial class NgspiceTemplateSyntaxTests
         // inside .control blocks. The param= form cannot contain simulation vectors like
         // v() or i() - those must use `let` statements instead.
 
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
-        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
-
+        var ngspiceTemplates = LoadNgspiceTemplates();
         Assert.NotEmpty(ngspiceTemplates); // Ensure we found templates to test
 
         // Pattern matches: meas dc <varname> param='...<v(...)>...' or similar with i(...)
         // This catches the invalid syntax where vectors are used in param expressions
         var invalidPattern = InvalidMeasParamVectorPattern();
 
-        foreach (var templatePath in ngspiceTemplates)
+        foreach (var template in ngspiceTemplates)
         {
-            var content = File.ReadAllText(templatePath);
+            var content = template.Text;
             var matches = invalidPattern.Matches(content);
 
             Assert.Empty(matches);
@@ -43,21 +39,21 @@ public partial class NgspiceTemplateSyntaxTests
         // Positive test: verify that power measurements use the correct `let` syntax
         // instead of the invalid `meas dc param=` syntax with vectors
 
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
-        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
+        var ngspiceTemplates = LoadNgspiceTemplates();
 
         // Pattern matches: let pwr_... = v(...)*(-i(V...))
         // Accounts for Scriban template syntax like {{ supply.net }}
         // Character class includes \w (word chars), {}, ., and spaces
         var validLetPattern = ValidPowerLetPattern();
 
-        var dcBenchTemplates = ngspiceTemplates.Where(t => t.Contains("DCBench")).ToArray();
+        var dcBenchTemplates = ngspiceTemplates
+            .Where(t => t.Name.Contains("DCBench", System.StringComparison.OrdinalIgnoreCase))
+            .ToArray();
         Assert.NotEmpty(dcBenchTemplates); // Ensure we have DC bench templates to test
 
-        foreach (var templatePath in dcBenchTemplates)
+        foreach (var template in dcBenchTemplates)
         {
-            var content = File.ReadAllText(templatePath);
+            var content = template.Text;
             var matches = validLetPattern.Matches(content);
 
             // DC bench templates should have at least one power measurement using let
@@ -71,15 +67,12 @@ public partial class NgspiceTemplateSyntaxTests
         // Verify that RESULT echo statements use $& syntax for ngspice variables.
         // Without $&, ngspice prints literal tokens like "gain_dc" instead of the value.
 
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
-        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
-
+        var ngspiceTemplates = LoadNgspiceTemplates();
         var resultEchoLineCount = 0;
 
-        foreach (var templatePath in ngspiceTemplates)
+        foreach (var template in ngspiceTemplates)
         {
-            var content = File.ReadAllText(templatePath);
+            var content = template.Text;
             var lines = content.Split('\n');
 
             foreach (var line in lines)
@@ -105,15 +98,13 @@ public partial class NgspiceTemplateSyntaxTests
         // ngspice foreach iterates literal tokens; it does not expand start:stop:step ranges.
         // Range sweeps must be implemented using while loops that increment a variable.
 
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
-        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
+        var ngspiceTemplates = LoadNgspiceTemplates();
 
         var invalidForeachRangePattern = InvalidForeachRangePattern();
 
-        foreach (var templatePath in ngspiceTemplates)
+        foreach (var template in ngspiceTemplates)
         {
-            var content = File.ReadAllText(templatePath);
+            var content = template.Text;
             var matches = invalidForeachRangePattern.Matches(content);
             Assert.Empty(matches);
         }
@@ -125,15 +116,13 @@ public partial class NgspiceTemplateSyntaxTests
         // ngspice `meas tran ... MAX/MIN` does not accept v(node_pos, node_neg) directly.
         // Use a `let` to define a vector (e.g., let vdiff = v(a) - v(b)), then measure that.
 
-        var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var templatesDir = Path.Combine(repoRoot, "lib", "benches");
-        var ngspiceTemplates = Directory.GetFiles(templatesDir, "*.ngspice.tpl");
+        var ngspiceTemplates = LoadNgspiceTemplates();
 
         var invalidMeasTranDifferentialVPattern = InvalidMeasTranDifferentialVPattern();
 
-        foreach (var templatePath in ngspiceTemplates)
+        foreach (var template in ngspiceTemplates)
         {
-            var content = File.ReadAllText(templatePath);
+            var content = template.Text;
             var matches = invalidMeasTranDifferentialVPattern.Matches(content);
             Assert.Empty(matches);
         }
@@ -166,4 +155,24 @@ public partial class NgspiceTemplateSyntaxTests
         "en-US"
     )]
     private static partial Regex InvalidForeachRangePattern();
+
+    private static IReadOnlyList<(string Name, string Text)> LoadNgspiceTemplates()
+    {
+        var templates = BenchTemplateLibrary
+            .GetBenchNames()
+            .Select(benchName =>
+            {
+                var found = BenchTemplateLibrary.TryGetTemplate(
+                    benchName,
+                    BenchBackendType.Ngspice,
+                    out var templateText
+                );
+                return (Found: found, Name: benchName, Text: templateText);
+            })
+            .Where(t => t.Found)
+            .Select(t => (t.Name, t.Text))
+            .ToArray();
+
+        return templates;
+    }
 }

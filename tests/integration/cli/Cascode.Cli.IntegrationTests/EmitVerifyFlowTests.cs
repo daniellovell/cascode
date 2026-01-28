@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -789,6 +790,10 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("alter VIN DC=$&bias_val", content);
         Assert.Contains("let out_dc = v(", content);
         Assert.Contains("echo CASCODE_POINT", content);
+
+        AssertApproximatelyEqual(0.3, ExtractLetValue(content, "bias_start"));
+        AssertApproximatelyEqual(1.5, ExtractLetValue(content, "bias_stop"));
+        AssertApproximatelyEqual(0.1, ExtractLetValue(content, "bias_step"));
     }
 
     [Fact]
@@ -818,6 +823,10 @@ public partial class EmitVerifyFlowTests : IDisposable
         Assert.Contains("while cm_val <= cm_stop", content);
         Assert.Contains("alter VIN_CM DC=$&cm_val", content);
         Assert.Contains("EIN_N", content); // VCVS ties IN_N to IN_P for true common-mode
+
+        AssertApproximatelyEqual(0.4, ExtractLetValue(content, "cm_start"));
+        AssertApproximatelyEqual(1.4, ExtractLetValue(content, "cm_stop"));
+        AssertApproximatelyEqual(0.1, ExtractLetValue(content, "cm_step"));
     }
 
     [Fact]
@@ -1629,6 +1638,25 @@ public partial class EmitVerifyFlowTests : IDisposable
             $@"RESULT:\s*{Regex.Escape(metricName)}\s*=\s*{FloatingPointPattern}",
             RegexOptions.Compiled
         );
+    }
+
+    private static double ExtractLetValue(string content, string variableName)
+    {
+        var match = Regex.Match(
+            content,
+            $@"(?m)^\s*let\s+{Regex.Escape(variableName)}\s*=\s*(?<value>{FloatingPointPattern})\s*$"
+        );
+        Assert.True(match.Success, $"Expected 'let {variableName} = <number>' in emitted bench.");
+        return double.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture);
+    }
+
+    private static void AssertApproximatelyEqual(
+        double expected,
+        double actual,
+        double tolerance = 1e-6
+    )
+    {
+        Assert.InRange(actual, expected - tolerance, expected + tolerance);
     }
 
     /// <summary>
