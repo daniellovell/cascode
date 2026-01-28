@@ -29,7 +29,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["width"] = "1u" };
 
-        var result = ParameterEvaluator.Evaluate("$width", bindings);
+        var result = ParameterEvaluator.Evaluate("width", bindings);
 
         Assert.Equal("1u", result);
     }
@@ -39,7 +39,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["W_input"] = "1u" };
 
-        var result = ParameterEvaluator.Evaluate("$W_input*2", bindings);
+        var result = ParameterEvaluator.Evaluate("W_input*2", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -49,7 +49,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["W_input"] = "4u" };
 
-        var result = ParameterEvaluator.Evaluate("$W_input/2", bindings);
+        var result = ParameterEvaluator.Evaluate("W_input/2", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -80,10 +80,10 @@ public class ParameterEvaluatorTests
         var bindings = new Dictionary<string, string>
         {
             ["actual_width"] = "1u",
-            ["W"] = "$actual_width",
+            ["W"] = "actual_width",
         };
 
-        var result = ParameterEvaluator.Evaluate("$W", bindings);
+        var result = ParameterEvaluator.Evaluate("W", bindings);
 
         Assert.Equal("1u", result);
     }
@@ -93,8 +93,8 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["ratio"] = "2" };
 
-        // $ratio*2+1 = 2*2+1 = 5 (left-to-right, no precedence)
-        var result = ParameterEvaluator.Evaluate("$ratio*2+1", bindings);
+        // ratio*2+1 = 2*2+1 = 5 (left-to-right, no precedence)
+        var result = ParameterEvaluator.Evaluate("ratio*2+1", bindings);
 
         Assert.Equal("5", result);
     }
@@ -105,7 +105,7 @@ public class ParameterEvaluatorTests
         var bindings = new Dictionary<string, string>();
 
         var ex = Assert.Throws<ArgumentException>(() =>
-            ParameterEvaluator.Evaluate("$undefined", bindings)
+            ParameterEvaluator.Evaluate("undefined", bindings)
         );
 
         Assert.Contains("Undefined parameter reference", ex.Message);
@@ -114,11 +114,9 @@ public class ParameterEvaluatorTests
     [Fact]
     public void Evaluate_CircularReference_ThrowsArgumentException()
     {
-        var bindings = new Dictionary<string, string> { ["A"] = "$B", ["B"] = "$A" };
+        var bindings = new Dictionary<string, string> { ["A"] = "B", ["B"] = "A" };
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            ParameterEvaluator.Evaluate("$A", bindings)
-        );
+        var ex = Assert.Throws<ArgumentException>(() => ParameterEvaluator.Evaluate("A", bindings));
 
         Assert.Contains("Circular", ex.Message);
     }

@@ -14,11 +14,11 @@ public static partial class ParamValueParser
     /// <returns>A ParamValue with the appropriate field set (Symbolic, Numeric, or Literal).</returns>
     public static ParamValue Parse(string value)
     {
-        if (value.StartsWith('$'))
-            return new ParamValue { Symbolic = value };
-
         if (NumericValuePattern().IsMatch(value))
             return new ParamValue { Numeric = value };
+
+        if (value == "??" || IdentifierPattern().IsMatch(value))
+            return new ParamValue { Symbolic = value };
 
         return new ParamValue { Literal = value };
     }
@@ -31,4 +31,7 @@ public static partial class ParamValueParser
     /// </summary>
     [GeneratedRegex(@"^-?\d+\.?\d*[fpnumkMGT]?[A-Za-z]*$")]
     private static partial Regex NumericValuePattern();
+
+    [GeneratedRegex(@"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$")]
+    private static partial Regex IdentifierPattern();
 }

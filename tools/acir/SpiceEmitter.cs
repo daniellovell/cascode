@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Cascode.ACIR.Validation;
 using Cascode.Bench;
 
@@ -33,7 +34,18 @@ public static class SpiceEmitter
     {
         "nmos",
         "pmos",
+        "level1_nmos",
+        "level1_pmos",
     };
+
+    private static readonly Regex NumericLiteralPattern = new(
+        @"^-?\d+\.?\d*(?:[eE][+\-]?\d+)?[fpnumkMGT]?[A-Za-z]*$",
+        RegexOptions.Compiled
+    );
+    private static readonly Regex SizeFieldReferencePattern = new(
+        @"\b(?<size>[A-Za-z_][A-Za-z0-9_]*)\.(?<field>[A-Za-z_][A-Za-z0-9_]*)\b",
+        RegexOptions.Compiled
+    );
 
     /// <summary>
     /// Emits a SPICE subcircuit definition for an EL-level circuit.
@@ -93,20 +105,35 @@ public static class SpiceEmitter
             portList.Add(ground);
         }
 
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName = null;
+        if (document is not null)
+        {
+            primitivesByName = document.Primitives.ToDictionary(
+                p => p.Name,
+                StringComparer.Ordinal
+            );
+        }
+
         // Build subcircuit parameter defaults.
         // ngspice requires parameters to be declared on the .subckt line (params: ...),
         // even if they will always be overridden at instantiation.
-        var paramSuffix = "";
-        if (circuit.Parameters.Count > 0)
+        var paramParts = new List<string>();
+        foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
-            var paramParts = new List<string>();
-            foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
-            {
-                paramParts.Add($"{param.Name}={RenderSpiceDefault(param.Default)}");
-            }
-
-            paramSuffix = " params: " + string.Join(" ", paramParts);
+            var expr = ParamValueToExpression(param.Default) ?? "0";
+            paramParts.Add($"{param.Name}={RenderSpiceExpression(expr, backend)}");
         }
+
+        if (primitivesByName is not null)
+        {
+            var sizeDefaults = BuildSizeParamDefaults(circuit, primitivesByName, backend);
+            foreach (var entry in sizeDefaults.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                paramParts.Add($"{entry.Key}={entry.Value}");
+            }
+        }
+
+        var paramSuffix = paramParts.Count > 0 ? " params: " + string.Join(" ", paramParts) : "";
 
         writer.WriteLine($".subckt {circuit.Name} {string.Join(" ", portList)}{paramSuffix}");
         writer.WriteLine();
@@ -124,10 +151,24 @@ public static class SpiceEmitter
         // Emit devices
         if (circuit.Fill?.Devices.Count > 0)
         {
-            var sizeBindings = BuildSizeBindings(circuit);
+            if (primitivesByName is null)
+            {
+                throw new InvalidOperationException(
+                    "Primitive definitions are required for device emission. Provide the ACIR document when emitting."
+                );
+            }
+
+            var localSizeBindings = BuildLocalSizeBindings(circuit);
             foreach (var device in circuit.Fill.Devices.OrderBy(d => d.Id, StringComparer.Ordinal))
             {
-                EmitDevice(device, writer, deviceModelMap, sizeBindings, backend);
+                EmitDevice(
+                    device,
+                    writer,
+                    deviceModelMap,
+                    primitivesByName,
+                    localSizeBindings,
+                    backend
+                );
             }
         }
 
@@ -136,6 +177,10 @@ public static class SpiceEmitter
         {
             var circuitsByName = document.Circuits.ToDictionary(
                 c => c.Name,
+                StringComparer.Ordinal
+            );
+            primitivesByName ??= document.Primitives.ToDictionary(
+                p => p.Name,
                 StringComparer.Ordinal
             );
 
@@ -168,6 +213,7 @@ public static class SpiceEmitter
                             circuitsByName,
                             resolution,
                             deviceModelMap,
+                            primitivesByName,
                             writer,
                             backend
                         );
@@ -181,7 +227,7 @@ public static class SpiceEmitter
                             writer.WriteLine("* Circuit instances");
                             hasEmittedCircuitInstancesHeader = true;
                         }
-                        EmitInstance(instance, targetCircuit, resolution, writer);
+                        EmitInstance(instance, targetCircuit, resolution, writer, backend);
                     }
                 }
             }
@@ -210,7 +256,8 @@ public static class SpiceEmitter
         BenchDefinition bench,
         string designPath,
         TextWriter writer,
-        BenchBackendType backend = BenchBackendType.Ngspice
+        BenchBackendType backend = BenchBackendType.Ngspice,
+        ACIRDocument? document = null
     )
     {
         if (circuit.Level != ACIRLevel.EL)
@@ -228,7 +275,11 @@ public static class SpiceEmitter
         writer.WriteLine();
 
         // Emit generic model definitions if circuit uses generic devices
-        var genericModels = GetRequiredGenericModels(circuit);
+        var primitivesByName = document?.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
+        var genericModels = GetRequiredGenericModels(circuit, primitivesByName);
         if (genericModels.Count > 0)
         {
             EmitGenericModels(genericModels, writer);
@@ -389,7 +440,7 @@ public static class SpiceEmitter
         var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
         foreach (var circuit in elCircuits)
         {
-            var circuitValidation = EmissionValidator.Validate(circuit);
+            var circuitValidation = EmissionValidator.Validate(circuit, doc);
             validationResult.Merge(circuitValidation);
         }
 
@@ -430,72 +481,116 @@ public static class SpiceEmitter
     /// <param name="device">Device to emit.</param>
     /// <param name="writer">Text writer for output.</param>
     /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
-    /// <param name="sizeBindings">Optional size pack bindings for device parameter expansion.</param>
+    /// <param name="primitivesByName">Primitive definitions keyed by name.</param>
+    /// <param name="sizeBindings">Local size bindings for parameter expansion.</param>
     /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
     /// <exception cref="InvalidOperationException">Thrown if device type is unknown or required terminals are missing.</exception>
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        IReadOnlyDictionary<string, SizePack>? sizeBindings,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, SizePack> sizeBindings,
         BenchBackendType backend
     )
     {
-        var deviceParams = ExpandSizeParams(device, sizeBindings);
-        var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
+        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+        {
+            throw new InvalidOperationException(
+                $"Device '{device.Id}' references undefined primitive '{device.Primitive}'."
+            );
+        }
+
+        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
+        var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
+        var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
-        var spiceType = device.DeviceType.ToLowerInvariant() switch
+        var deviceKind = device.DeviceType.ToLowerInvariant();
+        var isBuiltinPassive =
+            !useSubckt
+            && (deviceKind is "resistor" or "capacitor" or "inductor")
+            && modelName.Equals(deviceKind, StringComparison.OrdinalIgnoreCase);
+        var paramExpressions = deviceParams;
+        string? passiveValue = null;
+        if (isBuiltinPassive)
         {
-            "nmos" or "pmos" => useSubckt ? "X" : "M",
-            "resistor" => "R",
-            "capacitor" => "C",
-            "inductor" => "L",
-            "diode" => "D",
-            _ => throw new InvalidOperationException($"Unknown device type: {device.DeviceType}"),
-        };
+            var key = deviceKind switch
+            {
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                _ => null,
+            };
+            if (key is not null && deviceParams.TryGetValue(key, out var expr))
+            {
+                passiveValue = RenderSpiceExpression(expr, backend);
+                paramExpressions = deviceParams
+                    .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+            }
+        }
+        var spiceType = useSubckt
+            ? "X"
+            : deviceKind switch
+            {
+                "nmos" or "pmos" => "M",
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                "diode" => "D",
+                _ => throw new InvalidOperationException(
+                    $"Unknown device type: {device.DeviceType}"
+                ),
+            };
 
         var sb = new StringBuilder();
         sb.Append(spiceType);
         sb.Append(device.Id);
         sb.Append(' ');
 
-        // Terminal ordering and parameters depend on device type
-        if (spiceType is "M" or "X")
+        switch (deviceKind)
         {
-            EmitMosfetTerminalsAndParams(device, deviceParams, sb, deviceModelMap, useSubckt);
+            case "nmos":
+            case "pmos":
+                sb.Append(GetBinding(device, "D"));
+                sb.Append(' ');
+                sb.Append(GetBinding(device, "G"));
+                sb.Append(' ');
+                sb.Append(GetBinding(device, "S"));
+                sb.Append(' ');
+                sb.Append(GetBinding(device, "B"));
+                sb.Append(' ');
+                break;
+            case "resistor":
+            case "capacitor":
+            case "inductor":
+                sb.Append(GetBinding(device, "P"));
+                sb.Append(' ');
+                sb.Append(GetBinding(device, "N"));
+                sb.Append(' ');
+                break;
+            case "diode":
+                sb.Append(GetBinding(device, "A"));
+                sb.Append(' ');
+                sb.Append(GetBinding(device, "K"));
+                sb.Append(' ');
+                break;
         }
-        else if (spiceType is "R" or "C" or "L")
-        {
-            // Two-terminal: P N
-            sb.Append(GetBinding(device, "P"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "N"));
-            sb.Append(' ');
 
-            // Value parameter (transform for backend: M -> MEG for ngspice)
-            var valueKey = spiceType switch
+        if (isBuiltinPassive)
+        {
+            if (!string.IsNullOrWhiteSpace(passiveValue))
             {
-                "R" => "R",
-                "C" => "C",
-                "L" => "L",
-                _ => throw new InvalidOperationException(),
-            };
-            if (deviceParams.TryGetValue(valueKey, out var value))
-            {
-                var converted = ConvertParamRef(value);
-                sb.Append(ACIRBenchAdapter.TransformValueForBackend(converted, backend));
+                sb.Append(passiveValue);
             }
         }
-        else if (spiceType == "D")
+        else
         {
-            // Diode: A K
-            sb.Append(GetBinding(device, "A"));
-            sb.Append(' ');
-            sb.Append(GetBinding(device, "K"));
-            sb.Append(' ');
-            sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: "D"));
+            sb.Append(modelName);
         }
+
+        AppendParamAssignments(sb, paramExpressions, expr => RenderSpiceExpression(expr, backend));
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
@@ -515,7 +610,8 @@ public static class SpiceEmitter
         InstanceDeclaration instance,
         Circuit targetCircuit,
         CircuitResolutionResult? resolution,
-        TextWriter writer
+        TextWriter writer,
+        BenchBackendType backend
     )
     {
         var sb = new StringBuilder();
@@ -570,25 +666,8 @@ public static class SpiceEmitter
         // Subcircuit name
         sb.Append(targetCircuit.Name);
 
-        // Instance parameter overrides
-        if (instance.Params.Count > 0)
-        {
-            foreach (
-                var (name, value) in instance.Params.OrderBy(p => p.Key, StringComparer.Ordinal)
-            )
-            {
-                var rendered = RenderSpiceParam(value);
-                if (rendered is null)
-                {
-                    continue;
-                }
-
-                sb.Append(' ');
-                sb.Append(name);
-                sb.Append('=');
-                sb.Append(rendered);
-            }
-        }
+        var paramExpressions = BuildInstanceParamExpressions(instance);
+        AppendParamAssignments(sb, paramExpressions, expr => RenderSpiceExpression(expr, backend));
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
@@ -625,6 +704,7 @@ public static class SpiceEmitter
         Dictionary<string, Circuit> circuitsByName,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         TextWriter writer,
         BenchBackendType backend
     )
@@ -641,6 +721,8 @@ public static class SpiceEmitter
 
         // Build size bindings: compose parent bindings with local overrides
         var sizeBindings = ComposeSizeBindings(instance, inlineCircuit, parentSizeBindings);
+
+        var expressionContext = new ExpressionContext(paramBindings, sizeBindings);
 
         // Build set of internal nets (not ports, supplies, or grounds)
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
@@ -664,10 +746,11 @@ public static class SpiceEmitter
                     currentPath,
                     netSubstitutions,
                     internalNets,
-                    paramBindings,
-                    sizeBindings,
                     resolution,
                     deviceModelMap,
+                    primitivesByName,
+                    expressionContext,
+                    sizeBindings,
                     writer,
                     backend
                 );
@@ -707,6 +790,7 @@ public static class SpiceEmitter
                         circuitsByName,
                         resolution,
                         deviceModelMap,
+                        primitivesByName,
                         writer,
                         backend
                     );
@@ -720,9 +804,10 @@ public static class SpiceEmitter
                         nestedCircuit,
                         netSubstitutions,
                         internalNets,
-                        paramBindings,
                         resolution,
-                        writer
+                        expressionContext,
+                        writer,
+                        backend
                     );
                 }
             }
@@ -766,7 +851,7 @@ public static class SpiceEmitter
     {
         var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        // Start with parent bindings (for $param reference resolution)
+        // Start with parent bindings.
         foreach (var (name, value) in parentParamBindings)
         {
             bindings[name] = value;
@@ -775,26 +860,20 @@ public static class SpiceEmitter
         // Add circuit parameter defaults
         foreach (var param in inlineCircuit.Parameters)
         {
-            if (param.Default?.Numeric is not null)
+            var expr = ParamValueToExpression(param.Default);
+            if (!string.IsNullOrWhiteSpace(expr))
             {
-                bindings[param.Name] = param.Default.Numeric;
+                bindings[param.Name] = expr;
             }
         }
 
         // Override with instance parameters
         foreach (var (name, paramValue) in instance.Params)
         {
-            if (paramValue.Numeric is not null)
+            var expr = ParamValueToExpression(paramValue);
+            if (!string.IsNullOrWhiteSpace(expr))
             {
-                bindings[name] = paramValue.Numeric;
-            }
-            else if (paramValue.Symbolic is not null)
-            {
-                bindings[name] = paramValue.Symbolic;
-            }
-            else if (paramValue.Literal is not null)
-            {
-                bindings[name] = paramValue.Literal;
+                bindings[name] = expr;
             }
         }
 
@@ -827,6 +906,17 @@ public static class SpiceEmitter
             }
         }
 
+        if (inlineCircuit.Fill?.Sizes is { Count: > 0 })
+        {
+            foreach (var size in inlineCircuit.Fill.Sizes)
+            {
+                if (size.Default is not null)
+                {
+                    bindings[size.Name] = size.Default;
+                }
+            }
+        }
+
         // Override with instance size packs
         foreach (var (name, pack) in instance.Sizes)
         {
@@ -845,9 +935,10 @@ public static class SpiceEmitter
         Circuit targetCircuit,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
-        IReadOnlyDictionary<string, string> paramBindings,
         CircuitResolutionResult? resolution,
-        TextWriter writer
+        ExpressionContext expressionContext,
+        TextWriter writer,
+        BenchBackendType backend
     )
     {
         var sb = new StringBuilder();
@@ -901,106 +992,30 @@ public static class SpiceEmitter
         // Subcircuit name
         sb.Append(targetCircuit.Name);
 
-        // Instance parameter overrides (resolve through param bindings)
-        if (instance.Params.Count > 0)
-        {
-            foreach (
-                var (name, value) in instance.Params.OrderBy(p => p.Key, StringComparer.Ordinal)
-            )
-            {
-                var rendered = value.Numeric ?? value.Symbolic ?? value.Literal;
-                if (string.IsNullOrWhiteSpace(rendered))
-                {
-                    continue;
-                }
-
-                // Resolve parameter references
-                var resolvedValue = ResolveParameterValue(rendered, paramBindings);
-                sb.Append(' ');
-                sb.Append(name);
-                sb.Append('=');
-                sb.Append(resolvedValue);
-            }
-        }
+        var paramExpressions = BuildInstanceParamExpressions(instance);
+        AppendParamAssignments(
+            sb,
+            paramExpressions,
+            expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+        );
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
 
-    private static IReadOnlyDictionary<string, SizePack> BuildSizeBindings(Circuit circuit)
+    private static IReadOnlyDictionary<string, SizePack> BuildLocalSizeBindings(Circuit circuit)
     {
         var bindings = new Dictionary<string, SizePack>(StringComparer.Ordinal);
-        foreach (var size in circuit.Sizes)
+        if (circuit.Fill?.Sizes is { Count: > 0 })
         {
-            if (size.Default is not null)
+            foreach (var size in circuit.Fill.Sizes)
             {
-                bindings[size.Name] = size.Default;
+                if (size.Default is not null)
+                {
+                    bindings[size.Name] = size.Default;
+                }
             }
         }
         return bindings;
-    }
-
-    private static IReadOnlyDictionary<string, string> ExpandSizeParams(
-        DeviceDeclaration device,
-        IReadOnlyDictionary<string, SizePack>? sizeBindings
-    )
-    {
-        if (!device.Params.TryGetValue("size", out var rawSizeValue))
-        {
-            return device.Params;
-        }
-
-        var sizeValue = rawSizeValue.Trim();
-
-        // Handle inline size literal: size=(W=2u, L=180n, M=1)
-        if (sizeValue.StartsWith('(') && sizeValue.EndsWith(')'))
-        {
-            var literalContent = sizeValue[1..^1];
-            if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
-            {
-                throw new InvalidOperationException(
-                    $"Device '{device.Id}' has invalid inline size literal: {error}"
-                );
-            }
-
-            var expanded = new Dictionary<string, string>(StringComparer.Ordinal);
-            foreach (var kvp in pack.Entries)
-            {
-                expanded[kvp.Key] = kvp.Value;
-            }
-            foreach (var (key, value) in device.Params)
-            {
-                if (!string.Equals(key, "size", StringComparison.Ordinal))
-                {
-                    expanded[key] = value;
-                }
-            }
-            return expanded;
-        }
-
-        // Handle named size reference: size=PackName or size=$PackName
-        var sizeName = sizeValue.StartsWith('$') ? sizeValue[1..] : sizeValue;
-
-        if (sizeBindings is null || !sizeBindings.TryGetValue(sizeName, out var namedPack))
-        {
-            throw new InvalidOperationException(
-                $"Device '{device.Id}' references undefined size pack '{sizeName}'"
-            );
-        }
-
-        var expandedNamed = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (key, value) in namedPack.Entries)
-        {
-            expandedNamed[key] = value;
-        }
-        foreach (var (key, value) in device.Params)
-        {
-            if (!string.Equals(key, "size", StringComparison.Ordinal))
-            {
-                expandedNamed[key] = value;
-            }
-        }
-
-        return expandedNamed;
     }
 
     /// <summary>
@@ -1067,27 +1082,64 @@ public static class SpiceEmitter
         IReadOnlyList<string> hierarchyPath,
         Dictionary<string, string> netSubstitutions,
         HashSet<string> internalNets,
-        IReadOnlyDictionary<string, string> paramBindings,
-        IReadOnlyDictionary<string, SizePack>? sizeBindings,
         CircuitResolutionResult? resolution,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        ExpressionContext expressionContext,
+        IReadOnlyDictionary<string, SizePack> sizeBindings,
         TextWriter writer,
         BenchBackendType backend
     )
     {
-        var deviceParams = ExpandSizeParams(device, sizeBindings);
-        var resolvedModel = ResolveDeviceModel(device, deviceModelMap);
+        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+        {
+            throw new InvalidOperationException(
+                $"Device '{device.Id}' references undefined primitive '{device.Primitive}'."
+            );
+        }
+
+        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
+        var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
+        var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
 
-        var spiceType = device.DeviceType.ToLowerInvariant() switch
+        var deviceKind = device.DeviceType.ToLowerInvariant();
+        var isBuiltinPassive =
+            !useSubckt
+            && (deviceKind is "resistor" or "capacitor" or "inductor")
+            && modelName.Equals(deviceKind, StringComparison.OrdinalIgnoreCase);
+        var paramExpressions = deviceParams;
+        string? passiveValue = null;
+        if (isBuiltinPassive)
         {
-            "nmos" or "pmos" => useSubckt ? "X" : "M",
-            "resistor" => "R",
-            "capacitor" => "C",
-            "inductor" => "L",
-            "diode" => "D",
-            _ => throw new InvalidOperationException($"Unknown device type: {device.DeviceType}"),
-        };
+            var key = deviceKind switch
+            {
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                _ => null,
+            };
+            if (key is not null && deviceParams.TryGetValue(key, out var expr))
+            {
+                passiveValue = RenderEvaluatedExpression(expressionContext, expr, backend);
+                paramExpressions = deviceParams
+                    .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+            }
+        }
+        var spiceType = useSubckt
+            ? "X"
+            : deviceKind switch
+            {
+                "nmos" or "pmos" => "M",
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                "diode" => "D",
+                _ => throw new InvalidOperationException(
+                    $"Unknown device type: {device.DeviceType}"
+                ),
+            };
 
         var sb = new StringBuilder();
         sb.Append(spiceType);
@@ -1096,207 +1148,307 @@ public static class SpiceEmitter
         sb.Append(device.Id);
         sb.Append(' ');
 
-        // Emit terminals with net substitution
-        if (spiceType is "M" or "X")
+        switch (deviceKind)
         {
-            EmitInlineMosfetTerminalsAndParams(
-                device,
-                deviceParams,
-                hierarchyPath,
-                netSubstitutions,
-                internalNets,
-                paramBindings,
-                resolution,
-                sb,
-                deviceModelMap,
-                useSubckt
-            );
+            case "nmos":
+            case "pmos":
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "D"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "G"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "S"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "B"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                break;
+            case "resistor":
+            case "capacitor":
+            case "inductor":
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "P"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "N"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                break;
+            case "diode":
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "A"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                sb.Append(
+                    SubstituteNet(
+                        GetBinding(device, "K"),
+                        hierarchyPath,
+                        netSubstitutions,
+                        internalNets,
+                        resolution
+                    )
+                );
+                sb.Append(' ');
+                break;
         }
-        else if (spiceType is "R" or "C" or "L")
-        {
-            // Two-terminal: P N
-            sb.Append(
-                SubstituteNet(
-                    GetBinding(device, "P"),
-                    hierarchyPath,
-                    netSubstitutions,
-                    internalNets,
-                    resolution
-                )
-            );
-            sb.Append(' ');
-            sb.Append(
-                SubstituteNet(
-                    GetBinding(device, "N"),
-                    hierarchyPath,
-                    netSubstitutions,
-                    internalNets,
-                    resolution
-                )
-            );
-            sb.Append(' ');
 
-            var valueKey = spiceType switch
+        if (isBuiltinPassive)
+        {
+            if (!string.IsNullOrWhiteSpace(passiveValue))
             {
-                "R" => "R",
-                "C" => "C",
-                "L" => "L",
-                _ => throw new InvalidOperationException(),
-            };
-            if (deviceParams.TryGetValue(valueKey, out var value))
-            {
-                var resolved = ResolveParameterValue(value, paramBindings);
-                sb.Append(ACIRBenchAdapter.TransformValueForBackend(resolved, backend));
+                sb.Append(passiveValue);
             }
         }
-        else if (spiceType == "D")
+        else
         {
-            // Diode: A K
-            sb.Append(
-                SubstituteNet(
-                    GetBinding(device, "A"),
-                    hierarchyPath,
-                    netSubstitutions,
-                    internalNets,
-                    resolution
-                )
-            );
-            sb.Append(' ');
-            sb.Append(
-                SubstituteNet(
-                    GetBinding(device, "K"),
-                    hierarchyPath,
-                    netSubstitutions,
-                    internalNets,
-                    resolution
-                )
-            );
-            sb.Append(' ');
-            sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: "D"));
+            sb.Append(modelName);
         }
+
+        AppendParamAssignments(
+            sb,
+            paramExpressions,
+            expr => RenderEvaluatedExpression(expressionContext, expr, backend)
+        );
 
         writer.WriteLine(sb.ToString().TrimEnd());
     }
 
-    /// <summary>
-    /// Resolves a parameter value, evaluating $param references.
-    /// </summary>
-    private static string ResolveParameterValue(
-        string value,
-        IReadOnlyDictionary<string, string> paramBindings
-    )
+    private static string? ParamValueToExpression(ParamValue? value)
     {
-        if (value.Contains('$'))
+        if (value is null)
         {
-            return ParameterEvaluator.Evaluate(value, paramBindings);
+            return null;
         }
-        return value;
+
+        return value.Numeric ?? value.Symbolic ?? value.Literal;
     }
 
-    private static (string W, string L, string M) GetMosfetSizeParams(
-        DeviceDeclaration device,
-        IReadOnlyDictionary<string, string> deviceParams,
-        string origin
+    private static IReadOnlyDictionary<string, string> BuildInstanceParamExpressions(
+        InstanceDeclaration instance
     )
     {
-        var missing = new List<string>(capacity: 2);
-        if (!deviceParams.TryGetValue("W", out var w))
+        var expressions = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (name, value) in instance.Params)
         {
-            missing.Add("W");
-        }
-        if (!deviceParams.TryGetValue("L", out var l))
-        {
-            missing.Add("L");
+            var expr = ParamValueToExpression(value);
+            if (!string.IsNullOrWhiteSpace(expr))
+            {
+                expressions[name] = expr;
+            }
         }
 
-        if (missing.Count > 0)
+        foreach (var (sizeName, pack) in instance.Sizes)
         {
-            var missingList = string.Join(", ", missing);
-            throw new InvalidOperationException(
-                $"Device '{device.Id}' missing required size parameter(s) {missingList}. Origin: {origin}. Ensure size pack expansion provides W and L before MOSFET parameter emission."
-            );
+            foreach (var (field, expr) in pack.Entries)
+            {
+                if (!string.IsNullOrWhiteSpace(expr))
+                {
+                    expressions[EncodeSizeParamName(sizeName, field)] = expr;
+                }
+            }
         }
 
-        var m = deviceParams.GetValueOrDefault("M", "1");
-        return (w!, l!, m);
+        return expressions;
     }
 
-    /// <summary>
-    /// Emits MOSFET terminals and params for inline expansion.
-    /// </summary>
-    private static void EmitInlineMosfetTerminalsAndParams(
-        DeviceDeclaration device,
-        IReadOnlyDictionary<string, string> deviceParams,
-        IReadOnlyList<string> hierarchyPath,
-        Dictionary<string, string> netSubstitutions,
-        HashSet<string> internalNets,
-        IReadOnlyDictionary<string, string> paramBindings,
-        CircuitResolutionResult? resolution,
+    private static void AppendParamAssignments(
         StringBuilder sb,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        bool useSubckt
+        IReadOnlyDictionary<string, string> paramExpressions,
+        Func<string, string> renderValue
     )
     {
-        // MOSFET terminal ordering: D G S B
-        sb.Append(
-            SubstituteNet(
-                GetBinding(device, "D"),
-                hierarchyPath,
-                netSubstitutions,
-                internalNets,
-                resolution
-            )
-        );
-        sb.Append(' ');
-        sb.Append(
-            SubstituteNet(
-                GetBinding(device, "G"),
-                hierarchyPath,
-                netSubstitutions,
-                internalNets,
-                resolution
-            )
-        );
-        sb.Append(' ');
-        sb.Append(
-            SubstituteNet(
-                GetBinding(device, "S"),
-                hierarchyPath,
-                netSubstitutions,
-                internalNets,
-                resolution
-            )
-        );
-        sb.Append(' ');
-        sb.Append(
-            SubstituteNet(
-                GetBinding(device, "B"),
-                hierarchyPath,
-                netSubstitutions,
-                internalNets,
-                resolution
-            )
-        );
-        sb.Append(' ');
+        foreach (var (name, expr) in paramExpressions.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            var rendered = renderValue(expr);
+            if (string.IsNullOrWhiteSpace(rendered))
+            {
+                continue;
+            }
 
-        // Model name
-        sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
-        sb.Append(' ');
+            sb.Append(' ');
+            sb.Append(name);
+            sb.Append('=');
+            sb.Append(rendered);
+        }
+    }
 
-        // Parameters: W, L, m (must come from size pack expansion)
-        var (w, l, m) = GetMosfetSizeParams(
-            device,
-            deviceParams,
-            "SpiceEmitter.ResolveParameterValue in EmitInlineMosfetTerminalsAndParams"
+    private static string RenderSpiceExpression(string expression, BenchBackendType backend)
+    {
+        var trimmed = NormalizeSizeFieldReferences(expression.Trim());
+        if (trimmed.Length == 0)
+        {
+            return trimmed;
+        }
+
+        if (NumericLiteralPattern.IsMatch(trimmed))
+        {
+            return ACIRBenchAdapter.TransformValueForBackend(trimmed, backend);
+        }
+
+        if (trimmed.StartsWith('{') && trimmed.EndsWith('}'))
+        {
+            return trimmed;
+        }
+
+        return $"{{{trimmed}}}";
+    }
+
+    private static string EncodeSizeParamName(string sizeName, string field)
+    {
+        return $"{sizeName}_{field}";
+    }
+
+    private static string NormalizeSizeFieldReferences(string expression)
+    {
+        return SizeFieldReferencePattern.Replace(
+            expression,
+            match => $"{match.Groups["size"].Value}_{match.Groups["field"].Value}"
         );
+    }
 
-        var resolvedW = ResolveParameterValue(w, paramBindings);
-        var resolvedL = ResolveParameterValue(l, paramBindings);
-        var resolvedM = ResolveParameterValue(m, paramBindings);
+    private static string RenderEvaluatedExpression(
+        ExpressionContext context,
+        string expression,
+        BenchBackendType backend
+    )
+    {
+        var trimmed = expression.Trim();
+        if (trimmed.Length == 0)
+        {
+            return trimmed;
+        }
 
-        sb.Append(useSubckt ? $"w={resolvedW} " : $"W={resolvedW} ");
-        sb.Append(useSubckt ? $"l={resolvedL} " : $"L={resolvedL} ");
-        sb.Append(useSubckt ? $"mult={resolvedM}" : $"m={resolvedM}");
+        try
+        {
+            var evaluated = context.Evaluate(trimmed);
+            return ACIRBenchAdapter.TransformValueForBackend(evaluated, backend);
+        }
+        catch
+        {
+            return RenderSpiceExpression(trimmed, backend);
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildSizeParamDefaults(
+        Circuit circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        BenchBackendType backend
+    )
+    {
+        if (circuit.Sizes.Count == 0)
+        {
+            return new Dictionary<string, string>();
+        }
+
+        var fieldsBySize = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var size in circuit.Sizes)
+        {
+            fieldsBySize[size.Name] = new HashSet<string>(StringComparer.Ordinal);
+            if (size.Default is not null)
+            {
+                foreach (var key in size.Default.Entries.Keys)
+                {
+                    fieldsBySize[size.Name].Add(key);
+                }
+            }
+        }
+
+        if (circuit.Fill?.Devices is not null)
+        {
+            foreach (var device in circuit.Fill.Devices)
+            {
+                if (string.IsNullOrWhiteSpace(device.SizeName))
+                {
+                    continue;
+                }
+
+                if (!fieldsBySize.TryGetValue(device.SizeName, out var fields))
+                {
+                    continue;
+                }
+
+                if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+                {
+                    continue;
+                }
+
+                foreach (var field in PrimitiveResolver.GetSizeFields(primitive))
+                {
+                    fields.Add(field);
+                }
+            }
+        }
+
+        var defaults = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var size in circuit.Sizes)
+        {
+            if (!fieldsBySize.TryGetValue(size.Name, out var fields) || fields.Count == 0)
+            {
+                continue;
+            }
+
+            foreach (var field in fields.OrderBy(f => f, StringComparer.Ordinal))
+            {
+                var expr =
+                    size.Default?.Entries.TryGetValue(field, out var value) == true ? value : "0";
+                defaults[EncodeSizeParamName(size.Name, field)] = RenderSpiceExpression(
+                    expr,
+                    backend
+                );
+            }
+        }
+
+        return defaults;
     }
 
     /// <summary>
@@ -1344,116 +1496,30 @@ public static class SpiceEmitter
         return netName;
     }
 
-    /// <summary>
-    /// Emits MOSFET terminal connections and parameters.
-    /// </summary>
-    /// <param name="device">MOSFET device declaration.</param>
-    /// <param name="sb">StringBuilder to append to.</param>
-    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model names.</param>
-    private static void EmitMosfetTerminalsAndParams(
-        DeviceDeclaration device,
-        IReadOnlyDictionary<string, string> deviceParams,
-        StringBuilder sb,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        bool useSubckt
-    )
-    {
-        // MOSFET terminal ordering: D G S B
-        sb.Append(GetBinding(device, "D"));
-        sb.Append(' ');
-        sb.Append(GetBinding(device, "G"));
-        sb.Append(' ');
-        sb.Append(GetBinding(device, "S"));
-        sb.Append(' ');
-        sb.Append(GetBinding(device, "B"));
-        sb.Append(' ');
-
-        // Model name (resolved PDK model or generic)
-        sb.Append(ResolveDeviceModelName(device, deviceModelMap, defaultModel: device.DeviceType));
-        sb.Append(' ');
-
-        // Parameters: W, L, m (must come from size pack expansion)
-        var (w, l, m) = GetMosfetSizeParams(
-            device,
-            deviceParams,
-            "SpiceEmitter.EmitMosfetTerminalsAndParams"
-        );
-
-        var converted_w = ConvertParamRef(w);
-        var converted_l = ConvertParamRef(l);
-        var converted_m = ConvertParamRef(m);
-
-        sb.Append(useSubckt ? $"w={converted_w} " : $"W={converted_w} ");
-        sb.Append(useSubckt ? $"l={converted_l} " : $"L={converted_l} ");
-        sb.Append(useSubckt ? $"mult={converted_m}" : $"m={converted_m}");
-    }
-
-    /// <summary>
-    /// Converts ACIR parameter references ($param) to SPICE parameter syntax (param).
-    /// For subcircuit parameters, $param becomes param (bare name).
-    /// </summary>
-    private static string ConvertParamRef(string value)
-    {
-        if (!value.Contains('$'))
-        {
-            return value;
-        }
-
-        // ACIR uses $param references; ngspice evaluates parameter expressions inside { }.
-        var expr = value.Replace("$", string.Empty, StringComparison.Ordinal);
-        return $"{{{expr}}}";
-    }
-
-    /// <summary>
-    /// Renders a ParamValue for SPICE output, converting $param references to {param}.
-    /// </summary>
-    /// <returns>Rendered SPICE-compatible value, or null if empty.</returns>
-    private static string? RenderSpiceParam(ParamValue value)
-    {
-        var raw = value.Numeric ?? value.Symbolic ?? value.Literal;
-        return string.IsNullOrWhiteSpace(raw) ? null : ConvertParamRef(raw);
-    }
-
-    /// <summary>
-    /// Renders a parameter default value for SPICE subcircuit declaration.
-    /// </summary>
-    private static string RenderSpiceDefault(ParamValue? defaultValue)
-    {
-        var raw = defaultValue?.Numeric ?? "0";
-        return ConvertParamRef(raw);
-    }
-
     private static DeviceModelResolution? ResolveDeviceModel(
-        DeviceDeclaration device,
+        string deviceKey,
         IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
     )
     {
-        if (string.IsNullOrWhiteSpace(device.PdkDevice) || deviceModelMap is null)
+        if (string.IsNullOrWhiteSpace(deviceKey) || deviceModelMap is null)
         {
             return null;
         }
 
-        return deviceModelMap.TryGetValue(device.PdkDevice, out var resolution) ? resolution : null;
+        return deviceModelMap.TryGetValue(deviceKey, out var resolution) ? resolution : null;
     }
 
     private static string ResolveDeviceModelName(
-        DeviceDeclaration device,
-        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
-        string defaultModel
+        string deviceKey,
+        DeviceModelResolution? resolution
     )
     {
-        var resolved = ResolveDeviceModel(device, deviceModelMap);
-        if (resolved is not null && !string.IsNullOrWhiteSpace(resolved.ModelName))
+        if (resolution is not null && !string.IsNullOrWhiteSpace(resolution.ModelName))
         {
-            return resolved.ModelName;
+            return resolution.ModelName;
         }
 
-        if (!string.IsNullOrWhiteSpace(device.PdkDevice))
-        {
-            return device.PdkDevice;
-        }
-
-        return defaultModel;
+        return deviceKey;
     }
 
     /// <summary>
@@ -1597,7 +1663,10 @@ public static class SpiceEmitter
     /// </summary>
     /// <param name="circuit">The circuit to analyze.</param>
     /// <returns>Set of generic model names that need definitions.</returns>
-    private static HashSet<string> GetRequiredGenericModels(Circuit circuit)
+    private static HashSet<string> GetRequiredGenericModels(
+        Circuit circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName
+    )
     {
         var required = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1608,7 +1677,14 @@ public static class SpiceEmitter
 
         foreach (var device in circuit.Fill.Devices)
         {
-            var modelName = device.PdkDevice ?? device.DeviceType;
+            var modelName = device.DeviceType;
+            if (
+                primitivesByName is not null
+                && primitivesByName.TryGetValue(device.Primitive, out var primitive)
+            )
+            {
+                modelName = primitive.Device;
+            }
             if (GenericMosfetModels.Contains(modelName))
             {
                 required.Add(modelName.ToLowerInvariant());
@@ -1630,6 +1706,10 @@ public static class SpiceEmitter
         {
             var modelLine = model switch
             {
+                "level1_nmos" =>
+                    ".model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
+                "level1_pmos" =>
+                    ".model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 "nmos" => ".model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04",
                 "pmos" => ".model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05",
                 _ => null,
@@ -1638,6 +1718,84 @@ public static class SpiceEmitter
             {
                 writer.WriteLine(modelLine);
             }
+        }
+    }
+
+    private sealed class ExpressionContext
+    {
+        private readonly IReadOnlyDictionary<string, string> _paramBindings;
+        private readonly IReadOnlyDictionary<string, SizePack> _sizeBindings;
+        private readonly Dictionary<string, string> _cache = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _resolving = new(StringComparer.Ordinal);
+
+        public ExpressionContext(
+            IReadOnlyDictionary<string, string> paramBindings,
+            IReadOnlyDictionary<string, SizePack> sizeBindings
+        )
+        {
+            _paramBindings = paramBindings;
+            _sizeBindings = sizeBindings;
+        }
+
+        public string Evaluate(string expression)
+        {
+            return ParameterEvaluator.Evaluate(expression, ResolveIdentifier);
+        }
+
+        private string ResolveIdentifier(string identifier)
+        {
+            if (_cache.TryGetValue(identifier, out var cached))
+            {
+                return cached;
+            }
+
+            if (!_resolving.Add(identifier))
+            {
+                throw new ArgumentException($"Circular parameter reference detected: {identifier}");
+            }
+
+            if (TryResolveSizeField(identifier, out var sizeExpr))
+            {
+                var resolved = Evaluate(sizeExpr);
+                _cache[identifier] = resolved;
+                _resolving.Remove(identifier);
+                return resolved;
+            }
+
+            if (_paramBindings.TryGetValue(identifier, out var binding) && binding is not null)
+            {
+                var resolved = Evaluate(binding);
+                _cache[identifier] = resolved;
+                _resolving.Remove(identifier);
+                return resolved;
+            }
+
+            _resolving.Remove(identifier);
+            throw new ArgumentException($"Undefined parameter reference: {identifier}");
+        }
+
+        private bool TryResolveSizeField(string identifier, out string expression)
+        {
+            var dotIndex = identifier.IndexOf('.');
+            if (dotIndex <= 0)
+            {
+                expression = string.Empty;
+                return false;
+            }
+
+            var sizeName = identifier[..dotIndex];
+            var field = identifier[(dotIndex + 1)..];
+            if (
+                _sizeBindings.TryGetValue(sizeName, out var pack)
+                && pack.Entries.TryGetValue(field, out var expr)
+            )
+            {
+                expression = expr;
+                return true;
+            }
+
+            expression = string.Empty;
+            return false;
         }
     }
 }

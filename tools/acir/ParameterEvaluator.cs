@@ -13,14 +13,19 @@ namespace Cascode.ACIR;
 /// Expression grammar (per spec):
 /// <code>
 /// paramExpr = paramValue ((* | / | + | -) paramValue)*
-/// paramValue = NUMBER SIUNIT? | $ IDENT
+/// paramValue = NUMBER SIUNIT? | IDENT
 /// </code>
 /// Evaluation is left-to-right with no operator precedence.
 /// </remarks>
 public static class ParameterEvaluator
 {
     private static readonly Regex TokenPattern = new(
-        @"(\$[A-Za-z_][A-Za-z0-9_]*)|([+\-*/])|([0-9]*\.?[0-9]+(?:[eE][+\-]?[0-9]+)?[fpnumkMGT]?)",
+        @"([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)|([+\-*/])|([0-9]*\.?[0-9]+(?:[eE][+\-]?[0-9]+)?[fpnumkMGT]?)",
+        RegexOptions.Compiled
+    );
+
+    private static readonly Regex IdentifierPattern = new(
+        @"^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$",
         RegexOptions.Compiled
     );
 
@@ -40,14 +45,30 @@ public static class ParameterEvaluator
     /// <summary>
     /// Evaluates a parameter expression given bound parameter values.
     /// </summary>
-    /// <param name="expression">Expression to evaluate (e.g., "$W_input*2", "1u").</param>
+    /// <param name="expression">Expression to evaluate (e.g., "W_input*2", "1u").</param>
     /// <param name="bindings">Map of parameter names to their values.</param>
     /// <returns>Evaluated numeric value as a string with appropriate SI prefix.</returns>
     /// <exception cref="ArgumentException">Thrown if expression is invalid or references undefined parameters.</exception>
     public static string Evaluate(string expression, IReadOnlyDictionary<string, string> bindings)
     {
-        ArgumentNullException.ThrowIfNull(expression);
         bindings ??= new Dictionary<string, string>();
+        return Evaluate(expression, name => ResolveParameter(name, bindings));
+    }
+
+    /// <summary>
+    /// Evaluates a parameter expression using a custom identifier resolver.
+    /// </summary>
+    /// <param name="expression">Expression to evaluate.</param>
+    /// <param name="resolveIdentifier">Resolver for identifiers (including dotted names).</param>
+    /// <param name="allowUnresolvedIdentifiers">If true, a single unresolved identifier is returned as-is.</param>
+    public static string Evaluate(
+        string expression,
+        Func<string, string?> resolveIdentifier,
+        bool allowUnresolvedIdentifiers = false
+    )
+    {
+        ArgumentNullException.ThrowIfNull(expression);
+        ArgumentNullException.ThrowIfNull(resolveIdentifier);
 
         var tokens = Tokenize(expression);
         if (tokens.Count == 0)
@@ -58,11 +79,25 @@ public static class ParameterEvaluator
         // Single value - no operators
         if (tokens.Count == 1)
         {
-            return EvaluateSingleValue(tokens[0], bindings);
+            var token = tokens[0];
+            if (IsIdentifier(token))
+            {
+                var resolved = resolveIdentifier(token);
+                if (resolved is null)
+                {
+                    if (allowUnresolvedIdentifiers)
+                    {
+                        return token;
+                    }
+                    throw new ArgumentException($"Undefined parameter reference: {token}");
+                }
+                return resolved;
+            }
+            return token;
         }
 
         // Evaluate left-to-right
-        var result = ResolveValue(tokens[0], bindings);
+        var result = ResolveValue(tokens[0], resolveIdentifier);
         int i = 1;
         while (i < tokens.Count)
         {
@@ -74,7 +109,7 @@ public static class ParameterEvaluator
             }
 
             var op = tokens[i];
-            var right = ResolveValue(tokens[i + 1], bindings);
+            var right = ResolveValue(tokens[i + 1], resolveIdentifier);
 
             result = op switch
             {
@@ -225,30 +260,17 @@ public static class ParameterEvaluator
     }
 
     /// <summary>
-    /// Evaluates a single value (no operators).
-    /// </summary>
-    private static string EvaluateSingleValue(
-        string token,
-        IReadOnlyDictionary<string, string> bindings
-    )
-    {
-        if (token.StartsWith('$'))
-        {
-            var paramName = token[1..];
-            return ResolveParameter(paramName, bindings);
-        }
-        return token;
-    }
-
-    /// <summary>
     /// Resolves a token to its numeric value.
     /// </summary>
-    private static double ResolveValue(string token, IReadOnlyDictionary<string, string> bindings)
+    private static double ResolveValue(string token, Func<string, string?> resolveIdentifier)
     {
-        if (token.StartsWith('$'))
+        if (IsIdentifier(token))
         {
-            var paramName = token[1..];
-            var resolved = ResolveParameter(paramName, bindings);
+            var resolved = resolveIdentifier(token);
+            if (resolved is null)
+            {
+                throw new ArgumentException($"Undefined parameter reference: {token}");
+            }
             return ParseNumeric(resolved);
         }
         return ParseNumeric(token);
@@ -267,22 +289,26 @@ public static class ParameterEvaluator
 
         if (!bindings.TryGetValue(paramName, out var value))
         {
-            throw new ArgumentException($"Undefined parameter reference: ${paramName}");
+            throw new ArgumentException($"Undefined parameter reference: {paramName}");
         }
 
         // Check for circular reference
         if (!visited.Add(paramName))
         {
-            throw new ArgumentException($"Circular parameter reference detected: ${paramName}");
+            throw new ArgumentException($"Circular parameter reference detected: {paramName}");
         }
 
-        // If the value is another parameter reference, resolve recursively
-        if (value.StartsWith('$'))
+        // If the value is another parameter reference, resolve recursively.
+        if (IsIdentifier(value))
         {
-            var nestedParamName = value[1..];
-            return ResolveParameter(nestedParamName, bindings, visited);
+            return ResolveParameter(value, bindings, visited);
         }
 
         return value;
+    }
+
+    private static bool IsIdentifier(string token)
+    {
+        return IdentifierPattern.IsMatch(token);
     }
 }

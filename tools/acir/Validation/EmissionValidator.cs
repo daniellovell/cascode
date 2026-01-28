@@ -16,7 +16,7 @@ namespace Cascode.ACIR.Validation;
 /// - EMIT-004: Unknown device type
 /// - EMIT-005: Non-EL level circuit
 /// - EMIT-006: Unresolved [Auto] sweep at EL level
-/// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size=...)
+/// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size(...))
 /// - HARN-001: Harness source direction mismatch or unknown port
 /// - HARN-002: Harness load direction mismatch or unknown port
 /// - HARN-003: Harness bias target mismatch or unknown terminal
@@ -58,8 +58,9 @@ public static class EmissionValidator
     /// Validates a circuit for emission-blocking issues.
     /// </summary>
     /// <param name="circuit">The circuit to validate (must be desugared).</param>
+    /// <param name="document">Optional document for resolving primitives.</param>
     /// <returns>Validation result with any errors found.</returns>
-    public static ValidationResult Validate(Circuit circuit)
+    public static ValidationResult Validate(Circuit circuit, ACIRDocument? document = null)
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
@@ -104,13 +105,36 @@ public static class EmissionValidator
         var sizeDefaults = circuit
             .Sizes.Where(s => s.Default is not null)
             .ToDictionary(s => s.Name, s => s.Default!, StringComparer.Ordinal);
+        if (circuit.Fill?.Sizes is { Count: > 0 })
+        {
+            foreach (var size in circuit.Fill.Sizes)
+            {
+                validSizes.Add(size.Name);
+                if (size.Default is not null)
+                {
+                    sizeDefaults[size.Name] = size.Default;
+                }
+            }
+        }
+
+        var primitivesByName = document?.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
 
         // Validate devices if present
         if (circuit.Fill?.Devices != null)
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                ValidateDevice(device, validNets, validSizes, sizeDefaults, result);
+                ValidateDevice(
+                    device,
+                    validNets,
+                    validSizes,
+                    sizeDefaults,
+                    primitivesByName,
+                    result
+                );
             }
         }
 
@@ -259,6 +283,22 @@ public static class EmissionValidator
         return nets;
     }
 
+    private static bool HasRequiredSizeEntries(SizePack pack)
+    {
+        return HasSizedEntry(pack, "W") && HasSizedEntry(pack, "L");
+    }
+
+    private static bool HasSizedEntry(SizePack pack, string key)
+    {
+        return pack.Entries.TryGetValue(key, out var value) && !IsUnsizedExpression(value);
+    }
+
+    private static bool IsUnsizedExpression(string? expression)
+    {
+        return string.IsNullOrWhiteSpace(expression)
+            || expression.Contains("??", StringComparison.Ordinal);
+    }
+
     /// <summary>
     /// Validates a single device declaration.
     /// </summary>
@@ -267,10 +307,34 @@ public static class EmissionValidator
         HashSet<string> validNets,
         HashSet<string> validSizes,
         IReadOnlyDictionary<string, SizePack> sizeDefaults,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
         ValidationResult result
     )
     {
         var deviceType = device.DeviceType.ToLowerInvariant();
+
+        PrimitiveDefinition? primitive = null;
+        if (primitivesByName is not null)
+        {
+            if (!primitivesByName.TryGetValue(device.Primitive, out primitive))
+            {
+                result.AddError(
+                    "EMIT-008",
+                    $"Device '{device.Id}' references undefined primitive '{device.Primitive}'",
+                    $"device {device.Id}",
+                    "Define the primitive at document scope and ensure device kind matches."
+                );
+            }
+            else if (!primitive.Kind.Equals(deviceType, StringComparison.OrdinalIgnoreCase))
+            {
+                result.AddError(
+                    "EMIT-008",
+                    $"Device '{device.Id}' uses primitive '{device.Primitive}' with mismatched kind '{primitive.Kind}'",
+                    $"device {device.Id}",
+                    $"Primitive kind must be '{deviceType}' for this device."
+                );
+            }
+        }
 
         // EMIT-004: Unknown device type
         if (!KnownDeviceTypes.Contains(deviceType))
@@ -336,67 +400,52 @@ public static class EmissionValidator
         // EMIT-007: MOSFETs must use size packs
         if (deviceType is "nmos" or "pmos")
         {
-            if (!device.Params.TryGetValue("size", out var sizeValue))
+            var sizeName = device.SizeName;
+            var sizePack = device.Size;
+            if (sizeName is null && sizePack is null)
             {
                 result.AddError(
                     "EMIT-007",
                     $"Device '{device.Id}' missing required size reference",
                     $"device {device.Id}",
-                    "MOSFETs must use size packs: inline 'size=(W=2u, L=180n, M=1)' or named 'size=PackName'"
+                    "MOSFETs must provide a size argument: inline 'size(W=2u, L=180n, M=1)' or a named size pack reference"
                 );
             }
             else
             {
-                var trimmed = sizeValue.Trim();
-                // Validate inline literal syntax
-                if (trimmed.StartsWith('(') && trimmed.EndsWith(')'))
+                if (sizePack is not null)
                 {
-                    var literalContent = trimmed[1..^1];
-                    if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' has invalid inline size literal: {error}",
-                            $"device {device.Id}",
-                            "Use format 'size=(W=2u, L=180n, M=1)' with comma-separated key=value pairs"
-                        );
-                    }
-                    else if (!pack.Entries.ContainsKey("W") || !pack.Entries.ContainsKey("L"))
+                    if (!HasRequiredSizeEntries(sizePack))
                     {
                         result.AddError(
                             "EMIT-007",
                             $"Device '{device.Id}' inline size literal missing required W or L",
                             $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
+                            "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'"
                         );
                     }
                 }
-                // Validate named reference
-                else
+                else if (sizeName is not null)
                 {
-                    var sizeName = trimmed.StartsWith('$') ? trimmed[1..] : trimmed;
                     if (!validSizes.Contains(sizeName))
                     {
                         result.AddError(
                             "EMIT-007",
                             $"Device '{device.Id}' references undefined size pack '{sizeName}'",
                             $"device {device.Id}",
-                            $"Add 'size {sizeName}' or 'size {sizeName} = (...)' declaration at circuit level"
+                            $"Declare size pack '{sizeName}' in the circuit signature or fill block"
                         );
                     }
                     else if (
                         sizeDefaults.TryGetValue(sizeName, out var defaultPack)
-                        && (
-                            !defaultPack.Entries.ContainsKey("W")
-                            || !defaultPack.Entries.ContainsKey("L")
-                        )
+                        && !HasRequiredSizeEntries(defaultPack)
                     )
                     {
                         result.AddError(
                             "EMIT-007",
                             $"Device '{device.Id}' size pack '{sizeName}' missing required W or L",
                             $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
+                            "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'"
                         );
                     }
                 }
@@ -404,11 +453,11 @@ public static class EmissionValidator
         }
 
         // EMIT-003: Missing required parameters (passives only)
-        if (RequiredParams.TryGetValue(deviceType, out var requiredParams))
+        if (RequiredParams.TryGetValue(deviceType, out var requiredParams) && primitive is not null)
         {
             foreach (var param in requiredParams)
             {
-                if (!device.Params.ContainsKey(param))
+                if (!primitive.Params.ContainsKey(param))
                 {
                     var example = param switch
                     {

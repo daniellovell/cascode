@@ -91,27 +91,36 @@ public class SizePacksTests
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit Top
+circuit Top {{
   level EL
   supply VDD
   ground GND
   output OUT : analog
-  fill:
-    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
-      size InputPair = (W=2u, L=180n, M=1)
+  fill {{
+    leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
 
-circuit Leaf
+circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
   level EL
   inline
-  size InputPair
-  size Tail = (W=4u, L=180n, M=1)
   supply VDD
   ground GND
   output OUT : analog
-  fill:
+  fill {{
     net t : analog
-    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
-      size InputPair
+    nmos M1 = new Level1_NMOS(InputPair) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--t
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "sizes.cir");
@@ -146,28 +155,46 @@ circuit Leaf
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit Top
+primitive nmos Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top {{
   level EL
   supply VDD
   ground GND
   output OUT : analog
-  fill:
-    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
-      size InputPair = (W=2u, L=180n, M=1)
+  fill {{
+    leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
 
-circuit Leaf
+circuit Leaf(size InputPair) {{
   level EL
   inline
-  size InputPair
   supply VDD
   ground GND
   output OUT : analog
-  fill:
+  fill {{
     net t : analog
     // Explicit W should override size-pack W
-    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
-      size InputPair
-      W = 3u
+    nmos M1 = new Level1_NMOS(size(W=3u, L=InputPair.L, M=InputPair.M)) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--t
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "sizes.cir");
@@ -192,26 +219,36 @@ circuit Leaf
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit Top
+circuit Top {{
   level EL
   supply VDD
   ground GND
   output OUT : analog
-  fill:
-    inst leaf (.VDD--VDD, .GND--GND, .OUT--OUT) : Leaf
-      size InputPair = (W=2u, L=180n, W=3u)
+  fill {{
+    leaf = new Leaf(InputPair=size(W=2u, L=180n, W=3u)) {{
+      .VDD--VDD
+      .GND--GND
+      .OUT--OUT
+    }}
+  }}
+}}
 
-circuit Leaf
+circuit Leaf(size InputPair) {{
   level EL
   inline
-  size InputPair
   supply VDD
   ground GND
   output OUT : analog
-  fill:
+  fill {{
     net t : analog
-    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--t) : nmos
-      size InputPair
+    nmos M1 = new Level1_NMOS(InputPair) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--t
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
@@ -227,15 +264,20 @@ circuit Leaf
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit Top
+circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
   level EL
-  size Params = (W=2u, L=180n, W=3u)
   supply VDD
   ground GND
   output OUT : analog
-  fill:
-    nmos M1 (.B--GND, .D--OUT, .G--OUT, .S--GND) : nmos
-      size Params
+  fill {{
+    nmos M1 = new Level1_NMOS(Params) {{
+      .B--GND
+      .D--OUT
+      .G--OUT
+      .S--GND
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");

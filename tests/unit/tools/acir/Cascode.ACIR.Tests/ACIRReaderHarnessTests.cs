@@ -11,16 +11,18 @@ public class ACIRReaderHarnessTests
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test implements SingleEndedAmp
+circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  harness:
+  harness {{
     supply VDD = 1.8 V
     sweep InputDCBias [0.3 V:100 mV:1.5 V]
     load OUT C=1 pF
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -40,13 +42,15 @@ circuit Test implements SingleEndedAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
-  harness:
+  harness {{
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1p F
     source IN Z=50
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -64,15 +68,17 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test implements SingleEndedAmp
+circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  harness:
+  harness {{
     supply VDD = 1.8 V
     sweep InputDCBias [Auto]
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -86,14 +92,16 @@ circuit Test implements SingleEndedAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test implements SingleEndedAmp
+circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  harness:
+  harness {{
     sweep InputDCBias [0.3 V:1.5 V]
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -110,10 +118,12 @@ circuit Test implements SingleEndedAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
-  harness:
+  harness {{
     load OUT (C=1 pF || R=1 MOhm)
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -130,10 +140,12 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
-  harness:
+  harness {{
     load OUT (R=10 kOhm || C=10 pF)
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -150,10 +162,12 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
-  harness:
+  harness {{
     load OUT (C=1pF || R=1MOhm || C=15pF)
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -172,14 +186,16 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
-  harness:
+  harness {{
     load OUT (C=1 pF || )
     load OUT (|| R=1 MOhm)
     load OUT (C=1 pF R=1 MOhm)
     load OUT C=1 pF || R=1 MOhm
     load OUT (C= || R=1 MOhm)
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
@@ -197,14 +213,16 @@ circuit Test
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test implements SingleEndedAmp
+circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  harness:
+  harness {{
     sweep InputDCBias []
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content, "test.cir");
 
@@ -222,16 +240,18 @@ circuit Test implements SingleEndedAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
   input IN_P : analog
   input IN_N : analog
   output OUT : analog
-  harness:
+  harness {{
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
     sweep OutputDCCommonMode [0.5V:1.3V]
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);

@@ -13,15 +13,17 @@ public class ACIRReaderHierarchyTests
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirror:
+interface CurrentMirror {{
   input IN : analog
   output OUT : analog
   input BIAS : analog
+}}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -43,17 +45,21 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirror:
+interface CurrentMirror {{
   input IN : analog
   output OUT : analog
-  connectors:
-    to LoadBranch:
+  connectors {{
+    to LoadBranch {{
       OUT--IN
+    }}
+  }}
+}}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -76,13 +82,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit CurrentMirror
+circuit CurrentMirror {{
   level EL
   inline
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -99,10 +106,11 @@ circuit CurrentMirror
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -118,13 +126,11 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit(real ratio=2, real width, int count=4) {{
   level EL
-  param ratio : real = 2
-  param width : real
-  param count : int = 4
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -154,11 +160,11 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit(real width=Auto) {{
   level EL
-  param width : real = $Auto
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -166,7 +172,7 @@ circuit TestCircuit
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
         var param = result.Document!.Circuits[0].Parameters.First();
-        Assert.Equal("$Auto", param.Default!.Symbolic);
+        Assert.Equal("Auto", param.Default!.Symbolic);
     }
 
     [Fact]
@@ -175,14 +181,16 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level ML
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    inst cm (.IN--IN, .OUT--OUT) : CurrentMirror
+  fill {{
+    cm = new CurrentMirror {{ .IN--IN, .OUT--OUT }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -205,12 +213,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level ML
   supply VDD
   ground GND
-  fill:
-    inst cm : CurrentMirror
+  fill {{
+    cm = new CurrentMirror {{ }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -229,12 +239,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -256,12 +268,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch as bias_net
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -278,12 +292,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch {{ .SENSE--OUT.N }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -302,15 +318,17 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch {{
       .SENSE--OUT.N
       .OUT--IN
     }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -331,12 +349,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -353,12 +373,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch as bias_net
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -375,14 +397,16 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -400,14 +424,16 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch as bias_net {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -426,12 +452,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level ML
   supply VDD
   ground GND
-  fill:
-    inst bad syntax here
+  fill {{
+    bad = new
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -449,12 +477,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach bad syntax
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -472,16 +502,18 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirror:
+interface CurrentMirror {{
   input IN : analog
   output OUT : analog
+}}
 
-circuit CMirror implements CurrentMirror
+circuit CMirror implements CurrentMirror {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -500,10 +532,11 @@ circuit CMirror implements CurrentMirror
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit CMirror implements CurrentMirror, Foldable
+circuit CMirror implements CurrentMirror, Foldable {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -523,18 +556,21 @@ circuit CMirror implements CurrentMirror, Foldable
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    inst dp : DiffPair
+  fill {{
+    dp = new DiffPair {{
       .VDD--VDD
       .GND--GND
       .IN--IN
       .OUT--OUT
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -555,7 +591,7 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
@@ -563,16 +599,17 @@ circuit TestCircuit
   input IN_N : analog
   output OUT : analog
   input VTAIL : bias
-  fill:
-    inst dp : DiffPair
-      size InputPair = (W=2u, L=180n, M=1)
-      size Tail = (W=4u, L=180n, M=1)
+  fill {{
+    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {{
       .GND--GND
       .VDD--VDD
       .IN.P--IN_P
       .IN.N--IN_N
       .OUT.P--OUT
       .TAIL--VTAIL
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -596,12 +633,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
-    inst dp (.VDD--VDD, .GND--GND) : DiffPair
+  fill {{
+    dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -619,19 +658,21 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    inst dp : DiffPair
-      size InputPair = (W=2u, L=180n, M=1)
+  fill {{
+    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1)) {{
       .VDD--VDD
       .GND--GND
       .IN--IN
       .OUT--OUT
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");

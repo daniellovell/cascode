@@ -60,6 +60,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -67,9 +68,14 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -114,6 +120,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "pmos",
                         Id = "M1",
+                        Primitive = "Level1_PMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -121,9 +128,14 @@ public class EmissionValidatorTests
                             { "S", "VDD" },
                             // Missing B
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -168,6 +180,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -175,9 +188,14 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -225,6 +243,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -232,7 +251,6 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>(),
                     },
                 },
             },
@@ -290,6 +308,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -297,11 +316,27 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "size", "Small" } },
+                        SizeName = "Small",
                     },
                 },
             },
         };
+
+        var result = EmissionValidator.Validate(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-007" && e.Message.Contains("missing required W or L")
+        );
+    }
+
+    [Fact]
+    public void Validate_InlineSizePackWithUnsizedValue_ReturnsEMIT007()
+    {
+        var circuit = CreateValidCircuit();
+        var device = circuit.Fill!.Devices[0];
+        device.Size!.Entries["W"] = "??";
 
         var result = EmissionValidator.Validate(circuit);
 
@@ -345,7 +380,6 @@ public class EmissionValidatorTests
                         DeviceType = "unknown_device",
                         Id = "X1",
                         Bindings = new Dictionary<string, string> { { "A", "IN" }, { "B", "OUT" } },
-                        Params = new Dictionary<string, string>(),
                     },
                 },
             },
@@ -386,12 +420,16 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "resistor",
                         Id = "R1",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             // Missing N
                         },
-                        Params = new Dictionary<string, string> { { "R", "10k" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "10k" } },
+                        },
                     },
                 },
             },
@@ -429,19 +467,37 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "resistor",
                         Id = "R1",
+                        Primitive = "ResistorPrim",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "OUT" },
                         },
-                        Params = new Dictionary<string, string>(),
-                        // Missing R
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "10k" } },
+                        },
+                        // Primitive is missing R mapping.
                     },
                 },
             },
         };
+        var document = new ACIRDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "ResistorPrim",
+                    Kind = "resistor",
+                    Device = "resistor",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>(),
+                },
+            },
+        };
 
-        var result = EmissionValidator.Validate(circuit);
+        var result = EmissionValidator.Validate(circuit, document);
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Diagnostics, e => e.Code == "EMIT-003" && e.Message.Contains("'R'"));
@@ -473,18 +529,36 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "resistor",
                         Id = "R1",
+                        Primitive = "ResistorPrim",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "OUT" },
                         },
-                        Params = new Dictionary<string, string> { { "R", "10k" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "10k" } },
+                        },
                     },
                 },
             },
         };
+        var document = new ACIRDocument
+        {
+            Primitives = new List<PrimitiveDefinition>
+            {
+                new()
+                {
+                    Name = "ResistorPrim",
+                    Kind = "resistor",
+                    Device = "resistor",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string> { { "R", "primSize.R" } },
+                },
+            },
+        };
 
-        var result = EmissionValidator.Validate(circuit);
+        var result = EmissionValidator.Validate(circuit, document);
 
         Assert.True(result.IsValid);
     }
@@ -525,6 +599,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "internal_node" }, // Using internal net
@@ -532,9 +607,14 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -578,16 +658,13 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
                             // Missing G
                             { "S", "INVALID_NET" }, // Invalid reference
                             // Missing B
-                        },
-                        Params = new Dictionary<string, string>
-                        {
-                            // Missing W and L
                         },
                     },
                 },
@@ -639,6 +716,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -646,9 +724,14 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -706,6 +789,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -713,9 +797,14 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -757,6 +846,7 @@ public class EmissionValidatorTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -764,11 +854,15 @@ public class EmissionValidatorTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = "nmos",
                     },
                 },
             },

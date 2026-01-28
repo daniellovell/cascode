@@ -1,21 +1,26 @@
 ACIR 3.0
 
-bundle Diff:
+bundle Diff {
   N : analog
   P : analog
+}
 
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level ML
   supply VDD
   ground GND
   input IN : Diff
   output OUT : analog
   input VTAIL : bias
-  fill:
-    inst cm : CurrentMirror
-    inst dp : DiffPair
+  fill {
+    cm = new CurrentMirror {
+    }
+    dp = new DiffPair {
       .BASE--GND
       .BIAS--VTAIL
       .IN.N--IN_N
       .IN.P--IN_P
       .OUT.N--OUT
+    }
+  }
+}

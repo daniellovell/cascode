@@ -585,13 +585,25 @@ public static class ACIRBenchAdapter
     /// </summary>
     internal static bool UsesGenericModels(Circuit circuit, ACIRDocument? document = null)
     {
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitives = null;
+        if (document is not null)
+        {
+            primitives = document.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
+        }
+
         // Check direct devices
         var hasGenericDevices =
             circuit.Fill?.Devices?.Any(d =>
             {
-                var modelName = d.PdkDevice ?? d.DeviceType;
+                var modelName =
+                    primitives is not null && primitives.TryGetValue(d.Primitive, out var primitive)
+                        ? primitive.Device
+                        : d.DeviceType;
+
                 return modelName.Equals("nmos", StringComparison.OrdinalIgnoreCase)
-                    || modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase);
+                    || modelName.Equals("pmos", StringComparison.OrdinalIgnoreCase)
+                    || modelName.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
+                    || modelName.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase);
             })
             ?? false;
 

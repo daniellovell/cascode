@@ -114,8 +114,24 @@ internal sealed class EmitCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
+        var primitivesByName = doc.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
         var usesPdkDevices = elCircuits.Any(c =>
-            c.Fill?.Devices.Any(d => !string.IsNullOrWhiteSpace(d.PdkDevice)) == true
+            c.Fill?.Devices.Any(d =>
+            {
+                if (!primitivesByName.TryGetValue(d.Primitive, out var primitive))
+                {
+                    return false;
+                }
+
+                var deviceKey = primitive.Device;
+                if (string.IsNullOrWhiteSpace(deviceKey))
+                {
+                    return false;
+                }
+
+                return !deviceKey.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
+                    && !deviceKey.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase);
+            }) == true
         );
 
         ILoggerFactory? localFactory = null;

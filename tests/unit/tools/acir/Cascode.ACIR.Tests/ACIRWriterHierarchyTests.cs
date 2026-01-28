@@ -52,7 +52,7 @@ public class ACIRWriterHierarchyTests
         ACIRWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.Contains("trait CurrentMirror:", output);
+        Assert.Contains("interface CurrentMirror", output);
         Assert.Contains("input IN : analog", output);
         Assert.Contains("output OUT : analog", output);
     }
@@ -107,8 +107,8 @@ public class ACIRWriterHierarchyTests
         ACIRWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.Contains("connectors:", output);
-        Assert.Contains("to LoadBranch:", output);
+        Assert.Contains("connectors {", output);
+        Assert.Contains("to LoadBranch {", output);
         Assert.Contains("OUT--IN", output);
     }
 
@@ -204,8 +204,8 @@ public class ACIRWriterHierarchyTests
         ACIRWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.Contains("param ratio : real = 2", output);
-        Assert.Contains("param width : real", output);
+        Assert.Contains("real ratio = 2", output);
+        Assert.Contains("real width", output);
     }
 
     [Fact]
@@ -377,17 +377,21 @@ public class ACIRWriterHierarchyTests
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirror:
+interface CurrentMirror {{
   input IN : analog
   output OUT : analog
-  connectors:
-    to LoadBranch:
+  connectors {{
+    to LoadBranch {{
       OUT--IN
+    }}
+  }}
+}}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -409,12 +413,11 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit(real ratio = 2, real width) {{
   level EL
-  param ratio : real = 2
-  param width : real
   supply VDD
   ground GND
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -435,11 +438,12 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit CurrentMirror
+circuit CurrentMirror {{
   level EL
   inline
   supply VDD
   ground GND
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -460,12 +464,14 @@ circuit CurrentMirror
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch as bias_net
+  }}
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -490,14 +496,16 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm1 to load1 via CurrentMirror::LoadBranch {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -524,12 +532,14 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch
+  }}
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -552,14 +562,16 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach a to b to c via CurrentMirror::LoadBranch {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");
@@ -584,12 +596,14 @@ circuit TestCircuit
         var original =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level ML
   supply VDD
   ground GND
-  fill:
-    inst cm (.IN--inp, .OUT--outp) : CurrentMirror
+  fill {{
+    cm = new CurrentMirror {{ .IN--inp, .OUT--outp }}
+  }}
+}}
 ";
 
         var readResult = ACIRReader.TryParse(original, "test.cir");

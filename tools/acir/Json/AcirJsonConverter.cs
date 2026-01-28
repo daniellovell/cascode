@@ -191,6 +191,7 @@ public static class AcirJsonConverter
             VersionMajor = major,
             VersionMinor = minor,
             Traits = BuildTraits(jsonDoc.Traits, filePath, diagnostics) ?? [],
+            Primitives = BuildPrimitives(jsonDoc.Primitives),
             BenchDefinitions = BuildBenchDefinitions(jsonDoc.BenchDefinitions),
             Circuits = [circuit],
         };
@@ -221,6 +222,7 @@ public static class AcirJsonConverter
         {
             AcirVersion = $"{document.VersionMajor}.{document.VersionMinor}",
             Traits = ConvertTraits(document.Traits),
+            Primitives = ConvertPrimitives(document.Primitives),
             Circuit = new AcirJsonCircuitInfo
             {
                 Name = circuit.Name,
@@ -240,6 +242,7 @@ public static class AcirJsonConverter
                     Kind = p.Type,
                 })
                 .ToList(),
+            FillSizes = ConvertFillSizes(circuit.Fill),
             Nets = ConvertNets(circuit.Fill),
             Components = ConvertDevices(circuit.Fill),
             Instances = ConvertInstances(circuit.Fill),
@@ -277,6 +280,25 @@ public static class AcirJsonConverter
         return fill.Nets.Select(n => new AcirJsonNet { Name = n.Id, Kind = n.Domain }).ToList();
     }
 
+    private static List<AcirJsonSizeDeclaration>? ConvertFillSizes(FillBlock? fill)
+    {
+        if (fill?.Sizes.Count is null or 0)
+        {
+            return null;
+        }
+
+        return fill
+            .Sizes.OrderBy(s => s.Name, StringComparer.Ordinal)
+            .Select(s => new AcirJsonSizeDeclaration
+            {
+                Name = s.Name,
+                Default = s.Default is null
+                    ? null
+                    : new Dictionary<string, string>(s.Default.Entries),
+            })
+            .ToList();
+    }
+
     private static List<AcirJsonComponent> ConvertDevices(FillBlock? fill)
     {
         if (fill == null)
@@ -287,9 +309,32 @@ public static class AcirJsonConverter
             {
                 Kind = d.DeviceType,
                 Name = d.Id,
+                Primitive = d.Primitive,
                 Connections = d.Bindings,
-                Params = d.Params,
-                Process = d.PdkDevice,
+                SizeName = d.SizeName,
+                Size = d.Size?.Entries,
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AcirJsonPrimitive>? ConvertPrimitives(
+        IReadOnlyList<PrimitiveDefinition> primitives
+    )
+    {
+        if (primitives.Count == 0)
+        {
+            return null;
+        }
+
+        return primitives
+            .OrderBy(p => p.Name, StringComparer.Ordinal)
+            .Select(p => new AcirJsonPrimitive
+            {
+                Name = p.Name,
+                Kind = p.Kind,
+                Device = p.Device,
+                SizeParam = p.SizeParameter,
+                Params = new Dictionary<string, string>(p.Params),
             })
             .ToList();
     }
@@ -619,6 +664,7 @@ public static class AcirJsonConverter
     {
         return new FillBlock
         {
+            Sizes = BuildCircuitSizes(jsonDoc.FillSizes),
             Nets = jsonDoc
                 .Nets.Select(n => new NetDeclaration { Id = n.Name, Domain = n.Kind })
                 .ToList(),
@@ -627,9 +673,12 @@ public static class AcirJsonConverter
                 {
                     DeviceType = c.Kind,
                     Id = c.Name,
+                    Primitive = c.Primitive,
+                    SizeName = c.SizeName,
+                    Size = c.Size is null
+                        ? null
+                        : new SizePack { Entries = new Dictionary<string, string>(c.Size) },
                     Bindings = new Dictionary<string, string>(c.Connections),
-                    Params = new Dictionary<string, string>(c.Params),
-                    PdkDevice = c.Process,
                 })
                 .ToList(),
             Instances =
@@ -704,6 +753,27 @@ public static class AcirJsonConverter
                         })
                         .ToList()
                     ?? [],
+            })
+            .ToList();
+    }
+
+    private static List<PrimitiveDefinition> BuildPrimitives(
+        IReadOnlyList<AcirJsonPrimitive>? primitives
+    )
+    {
+        if (primitives is null || primitives.Count == 0)
+        {
+            return [];
+        }
+
+        return primitives
+            .Select(p => new PrimitiveDefinition
+            {
+                Name = p.Name,
+                Kind = p.Kind,
+                Device = p.Device,
+                SizeParameter = p.SizeParam,
+                Params = new Dictionary<string, string>(p.Params),
             })
             .ToList();
     }

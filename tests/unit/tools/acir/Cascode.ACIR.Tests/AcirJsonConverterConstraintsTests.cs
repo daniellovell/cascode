@@ -150,6 +150,22 @@ public class AcirJsonConverterConstraintsTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
             Circuits =
             [
                 new Circuit
@@ -181,6 +197,7 @@ public class AcirJsonConverterConstraintsTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["G"] = "IN",
@@ -188,12 +205,14 @@ public class AcirJsonConverterConstraintsTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "180n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "180n",
+                                    },
                                 },
-                                PdkDevice = "nmos",
                             },
                         ],
                     },

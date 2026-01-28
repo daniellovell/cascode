@@ -27,6 +27,22 @@ public static class ElectricalRuleChecker
     /// <returns>Validation result with any ERC violations found.</returns>
     public static ValidationResult Check(Circuit circuit, bool requirePdkDevice = false)
     {
+        return Check(circuit, null, requirePdkDevice);
+    }
+
+    /// <summary>
+    /// Performs electrical rule checking on a circuit with optional document context.
+    /// </summary>
+    /// <param name="circuit">The circuit to check (must be desugared).</param>
+    /// <param name="document">Optional document for resolving primitives.</param>
+    /// <param name="requirePdkDevice">If true, missing PDK device is an error; otherwise a warning.</param>
+    /// <returns>Validation result with any ERC violations found.</returns>
+    public static ValidationResult Check(
+        Circuit circuit,
+        ACIRDocument? document,
+        bool requirePdkDevice = false
+    )
+    {
         ArgumentNullException.ThrowIfNull(circuit);
 
         var result = new ValidationResult();
@@ -36,7 +52,7 @@ public static class ElectricalRuleChecker
         // to be emission-ready (topology is complete but sizing uses ?? placeholders).
         if (circuit.Level == ACIRLevel.EL)
         {
-            var emitResult = EmissionValidator.Validate(circuit);
+            var emitResult = EmissionValidator.Validate(circuit, document);
             if (!emitResult.IsValid)
             {
                 result.Merge(emitResult);
@@ -53,7 +69,7 @@ public static class ElectricalRuleChecker
         CheckPassiveShorts(circuit, analysis, result);
         CheckRailUniqueness(circuit, result);
         CheckDanglingNets(circuit, analysis, result);
-        CheckPdkDevice(circuit, result, requirePdkDevice);
+        CheckPdkDevice(circuit, document, result, requirePdkDevice);
 
         return result;
     }
@@ -277,6 +293,8 @@ public static class ElectricalRuleChecker
     {
         "nmos",
         "pmos",
+        "level1_nmos",
+        "level1_pmos",
     };
 
     /// <summary>
@@ -284,6 +302,7 @@ public static class ElectricalRuleChecker
     /// </summary>
     private static void CheckPdkDevice(
         Circuit circuit,
+        ACIRDocument? document,
         ValidationResult result,
         bool requirePdkDevice
     )
@@ -293,6 +312,12 @@ public static class ElectricalRuleChecker
         if (circuit.Fill?.Devices == null)
             return;
 
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitives = null;
+        if (document is not null)
+        {
+            primitives = document.Primitives.ToDictionary(p => p.Name, StringComparer.Ordinal);
+        }
+
         foreach (var device in circuit.Fill.Devices)
         {
             var deviceType = device.DeviceType.ToLowerInvariant();
@@ -300,16 +325,17 @@ public static class ElectricalRuleChecker
                 continue;
 
             // Device is missing PDK name or using generic name (nmos/pmos)
+            var modelName =
+                primitives is not null
+                && primitives.TryGetValue(device.Primitive, out var primitive)
+                    ? primitive.Device
+                    : device.DeviceType;
+
             var isGenericOrMissing =
-                string.IsNullOrEmpty(device.PdkDevice)
-                || GenericMosfetModels.Contains(device.PdkDevice);
+                string.IsNullOrEmpty(modelName) || GenericMosfetModels.Contains(modelName);
 
             if (isGenericOrMissing)
             {
-                var modelName = string.IsNullOrEmpty(device.PdkDevice)
-                    ? device.DeviceType
-                    : device.PdkDevice;
-
                 if (requirePdkDevice)
                 {
                     result.AddError(

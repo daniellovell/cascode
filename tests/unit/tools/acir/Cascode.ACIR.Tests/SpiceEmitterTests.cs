@@ -93,6 +93,7 @@ public class SpiceEmitterTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -100,24 +101,46 @@ public class SpiceEmitterTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "W", "1u" },
-                            { "L", "180n" },
-                            { "M", "1" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = "nmos",
                     },
                 },
             },
         };
 
+        var document = new ACIRDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
+        };
+
         using var writer = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, writer);
+        SpiceEmitter.EmitDesign(circuit, writer, document: document);
         var output = writer.ToString();
 
         // Verify MOSFET line has DGBS ordering: MM1 <D> <G> <S> <B> <model>
-        Assert.Contains("MM1 OUT IN GND GND nmos W=1u L=180n m=1", output);
+        Assert.Contains("MM1 OUT IN GND GND level1_nmos L=180n W=1u m=1", output);
     }
 
     [Fact]
@@ -303,7 +326,7 @@ public class SpiceEmitterTests
         Assert.Equal("R_load", resistor.Id);
         Assert.Equal("VDD", resistor.Bindings["P"]);
         Assert.Equal("OUT", resistor.Bindings["N"]);
-        Assert.Equal("10k", resistor.Params["R"]);
+        Assert.Equal("10k", resistor.Size?.Entries["R"]);
 
         // Harness without bias (simpler)
         Assert.NotNull(circuit.Harness);

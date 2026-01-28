@@ -38,6 +38,12 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitDocument([NotNull] ACIRParser.DocumentContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.topLevelDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitTopLevelDecl([NotNull] ACIRParser.TopLevelDeclContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.versionDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -56,25 +62,25 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBundleField([NotNull] ACIRParser.BundleFieldContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.traitDef"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.interfaceDef"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitTraitDef([NotNull] ACIRParser.TraitDefContext context);
+	Result VisitInterfaceDef([NotNull] ACIRParser.InterfaceDefContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>TraitPort</c>
-	/// labeled alternative in <see cref="ACIRParser.traitMember"/>.
+	/// Visit a parse tree produced by the <c>InterfacePort</c>
+	/// labeled alternative in <see cref="ACIRParser.interfaceMember"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitTraitPort([NotNull] ACIRParser.TraitPortContext context);
+	Result VisitInterfacePort([NotNull] ACIRParser.InterfacePortContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>TraitConnectors</c>
-	/// labeled alternative in <see cref="ACIRParser.traitMember"/>.
+	/// Visit a parse tree produced by the <c>InterfaceConnectors</c>
+	/// labeled alternative in <see cref="ACIRParser.interfaceMember"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitTraitConnectors([NotNull] ACIRParser.TraitConnectorsContext context);
+	Result VisitInterfaceConnectors([NotNull] ACIRParser.InterfaceConnectorsContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.connectorDef"/>.
 	/// </summary>
@@ -112,11 +118,65 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBenchOutput([NotNull] ACIRParser.BenchOutputContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.primitiveDef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPrimitiveDef([NotNull] ACIRParser.PrimitiveDefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.primitiveBody"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPrimitiveBody([NotNull] ACIRParser.PrimitiveBodyContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.deviceDirective"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitDeviceDirective([NotNull] ACIRParser.DeviceDirectiveContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamsBlock([NotNull] ACIRParser.ParamsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramMapping"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamMapping([NotNull] ACIRParser.ParamMappingContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamExpr([NotNull] ACIRParser.ParamExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeFieldAccess"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeFieldAccess([NotNull] ACIRParser.SizeFieldAccessContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.circuit"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitCircuit([NotNull] ACIRParser.CircuitContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramSignature"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamSignature([NotNull] ACIRParser.ParamSignatureContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.implementsClause"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitImplementsClause([NotNull] ACIRParser.ImplementsClauseContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.traitList"/>.
 	/// </summary>
@@ -166,19 +226,12 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPortDecl([NotNull] ACIRParser.PortDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>ParamDecl</c>
+	/// Visit a parse tree produced by the <c>SlotMember</c>
 	/// labeled alternative in <see cref="ACIRParser.circuitMember"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitParamDecl([NotNull] ACIRParser.ParamDeclContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>SizeDecl</c>
-	/// labeled alternative in <see cref="ACIRParser.circuitMember"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitSizeDecl([NotNull] ACIRParser.SizeDeclContext context);
+	Result VisitSlotMember([NotNull] ACIRParser.SlotMemberContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillSection</c>
 	/// labeled alternative in <see cref="ACIRParser.circuitMember"/>.
@@ -232,6 +285,18 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPortType([NotNull] ACIRParser.PortTypeContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamList([NotNull] ACIRParser.ParamListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.paramDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParamDecl([NotNull] ACIRParser.ParamDeclContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.paramType"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -244,76 +309,109 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParamValue([NotNull] ACIRParser.ParamValueContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.sizeLiteral"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.slotDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSizeLiteral([NotNull] ACIRParser.SizeLiteralContext context);
+	Result VisitSlotDecl([NotNull] ACIRParser.SlotDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.sizeEntry"/>.
+	/// Visit a parse tree produced by the <c>SlotParam</c>
+	/// labeled alternative in <see cref="ACIRParser.slotStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSizeEntry([NotNull] ACIRParser.SizeEntryContext context);
+	Result VisitSlotParam([NotNull] ACIRParser.SlotParamContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.qualifiedName"/>.
+	/// Visit a parse tree produced by the <c>SlotBinding</c>
+	/// labeled alternative in <see cref="ACIRParser.slotStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitQualifiedName([NotNull] ACIRParser.QualifiedNameContext context);
+	Result VisitSlotBinding([NotNull] ACIRParser.SlotBindingContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>NetDecl</c>
+	/// Visit a parse tree produced by the <c>FillNetDecl</c>
 	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitNetDecl([NotNull] ACIRParser.NetDeclContext context);
+	Result VisitFillNetDecl([NotNull] ACIRParser.FillNetDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>DeviceDecl</c>
+	/// Visit a parse tree produced by the <c>FillSizeDecl</c>
 	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitDeviceDecl([NotNull] ACIRParser.DeviceDeclContext context);
+	Result VisitFillSizeDecl([NotNull] ACIRParser.FillSizeDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>InstanceDecl</c>
+	/// Visit a parse tree produced by the <c>FillInstanceDecl</c>
 	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillInstanceDecl([NotNull] ACIRParser.FillInstanceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
+	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillDeviceDecl([NotNull] ACIRParser.FillDeviceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>FillAttachDecl</c>
+	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillAttachDecl([NotNull] ACIRParser.FillAttachDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>FillConnectDecl</c>
+	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillConnectDecl([NotNull] ACIRParser.FillConnectDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.instanceDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitInstanceDecl([NotNull] ACIRParser.InstanceDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>AttachDecl</c>
-	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.argList"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitAttachDecl([NotNull] ACIRParser.AttachDeclContext context);
+	Result VisitArgList([NotNull] ACIRParser.ArgListContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>ConnectDecl</c>
-	/// labeled alternative in <see cref="ACIRParser.fillStatement"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.arg"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitConnectDecl([NotNull] ACIRParser.ConnectDeclContext context);
+	Result VisitArg([NotNull] ACIRParser.ArgContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.pdkDeviceName"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.argValue"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitPdkDeviceName([NotNull] ACIRParser.PdkDeviceNameContext context);
+	Result VisitArgValue([NotNull] ACIRParser.ArgValueContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceId"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.deviceDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitDeviceId([NotNull] ACIRParser.DeviceIdContext context);
+	Result VisitDeviceDecl([NotNull] ACIRParser.DeviceDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.idPart"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeArg"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitIdPart([NotNull] ACIRParser.IdPartContext context);
+	Result VisitSizeArg([NotNull] ACIRParser.SizeArgContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.bindingBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBindingBlock([NotNull] ACIRParser.BindingBlockContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.bindingList"/>.
 	/// </summary>
@@ -327,71 +425,17 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBinding([NotNull] ACIRParser.BindingContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>DeviceSizeStmt</c>
-	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.deviceId"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitDeviceSizeStmt([NotNull] ACIRParser.DeviceSizeStmtContext context);
+	Result VisitDeviceId([NotNull] ACIRParser.DeviceIdContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>DeviceParamLine</c>
-	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
+	/// Visit a parse tree produced by <see cref="ACIRParser.idPart"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitDeviceParamLine([NotNull] ACIRParser.DeviceParamLineContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>DeviceBinding</c>
-	/// labeled alternative in <see cref="ACIRParser.deviceBodyItem"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitDeviceBinding([NotNull] ACIRParser.DeviceBindingContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParamAssign"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitDeviceParamAssign([NotNull] ACIRParser.DeviceParamAssignContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>InstanceParam</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitInstanceParam([NotNull] ACIRParser.InstanceParamContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>InstanceSize</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitInstanceSize([NotNull] ACIRParser.InstanceSizeContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>InstanceBinding</c>
-	/// labeled alternative in <see cref="ACIRParser.instanceBodyItem"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitInstanceBinding([NotNull] ACIRParser.InstanceBindingContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.deviceParamValue"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitDeviceParamValue([NotNull] ACIRParser.DeviceParamValueContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.attachTargetList"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitAttachTargetList([NotNull] ACIRParser.AttachTargetListContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.attachOverrides"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitAttachOverrides([NotNull] ACIRParser.AttachOverridesContext context);
+	Result VisitIdPart([NotNull] ACIRParser.IdPartContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.pinRef"/>.
 	/// </summary>
@@ -607,4 +651,76 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitProvenanceAlias([NotNull] ACIRParser.ProvenanceAliasContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeExpr([NotNull] ACIRParser.SizeExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeExprBody"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeExprBody([NotNull] ACIRParser.SizeExprBodyContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeKvList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeKvList([NotNull] ACIRParser.SizeKvListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeKvPair"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeKvPair([NotNull] ACIRParser.SizeKvPairContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.sizeExprList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSizeExprList([NotNull] ACIRParser.SizeExprListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.expr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitExpr([NotNull] ACIRParser.ExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.exprAtom"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitExprAtom([NotNull] ACIRParser.ExprAtomContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.op"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitOp([NotNull] ACIRParser.OpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.scalarExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitScalarExpr([NotNull] ACIRParser.ScalarExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.qualifiedName"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitQualifiedName([NotNull] ACIRParser.QualifiedNameContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.attachTargetList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAttachTargetList([NotNull] ACIRParser.AttachTargetListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.attachOverrides"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAttachOverrides([NotNull] ACIRParser.AttachOverridesContext context);
 }

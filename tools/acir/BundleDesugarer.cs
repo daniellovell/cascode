@@ -51,6 +51,7 @@ public static class BundleDesugarer
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
             BenchDefinitions = document.BenchDefinitions,
+            Primitives = document.Primitives,
             Circuits = document
                 .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
                 .ToList(),
@@ -331,6 +332,7 @@ public static class BundleDesugarer
         return new FillBlock
         {
             Nets = fill.Nets,
+            Sizes = fill.Sizes,
             Instances = desugaredInstances,
             Devices = fill.Devices.Select(d => DesugarDevice(d)).ToList(),
             Attaches = fill.Attaches,
@@ -427,8 +429,9 @@ public static class BundleDesugarer
             DeviceType = device.DeviceType,
             Id = device.Id,
             Bindings = normalizedBindings,
-            Params = device.Params,
-            PdkDevice = device.PdkDevice,
+            Primitive = device.Primitive,
+            SizeName = device.SizeName,
+            Size = device.Size,
         };
     }
 

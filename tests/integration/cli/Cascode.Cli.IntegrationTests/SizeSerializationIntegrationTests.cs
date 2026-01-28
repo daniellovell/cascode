@@ -64,19 +64,37 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit SizePackSmoke
+primitive nmos Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  size InputPair = (W=2u, L=180n, M=1)
-  fill:
+  fill {{
     net t : analog
-    nmos M1 (.B--GND, .D--OUT, .G--IN, .S--t) : nmos
-      size InputPair
-    nmos M2 (.B--GND, .D--t, .G--IN, .S--GND) : nmos
-      size (W=2u, L=180n, M=1)
+    nmos M1 = new Level1_NMOS(InputPair) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--t
+    }}
+    nmos M2 = new Level1_NMOS(size(W=2u, L=180n, M=1)) {{
+      .B--GND
+      .D--t
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
 ";
 
         var doc = ACIRReader.Parse(acir, "size-smoke.cir");

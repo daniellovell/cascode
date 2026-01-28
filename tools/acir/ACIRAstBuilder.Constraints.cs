@@ -256,9 +256,10 @@ internal sealed partial class ACIRAstBuilder
     /// <returns>Load element.</returns>
     private static LoadElement BuildLoadElement(ACIRParser.LoadElementContext ctx)
     {
-        var type = ctx.LOAD_TYPE().GetText();
+        var idents = ctx.IDENT();
+        var type = idents[0].GetText();
         var value = ctx.QUANTITY()?.GetText() ?? ctx.NUMBER()?.GetText() ?? string.Empty;
-        var unit = ctx.IDENT()?.GetText();
+        var unit = idents.Length > 1 ? idents[1].GetText() : null;
 
         // Normalize legacy format: combine value and unit (e.g., "1p" + "F" -> "1pF")
         if (unit != null)

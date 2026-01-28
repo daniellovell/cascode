@@ -412,7 +412,7 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         Assert.Equal(2, result.ExitCode);
         Assert.Contains("EMIT-007", result.Stdout);
-        Assert.Contains("missing required size", result.Stdout);
+        Assert.Contains("missing required W or L", result.Stdout);
     }
 
     [Fact]
