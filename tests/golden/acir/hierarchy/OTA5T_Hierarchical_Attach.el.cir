@@ -107,7 +107,7 @@ circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   }
 }
 
-circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), real ratio=1) implements CurrentMirrorLike {
+circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
   supply VDD
   ground GND

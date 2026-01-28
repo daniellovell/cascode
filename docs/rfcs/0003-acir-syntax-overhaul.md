@@ -47,7 +47,9 @@ Non-goals:
 
 1. Change ACIR's semantic model. These changes are syntactic; connectivity, elaboration levels, and bench semantics remain as specified in Chapter 3.
 2. Introduce significant new features beyond syntax. Computed size expressions are the only semantic addition.
-3. Maintain backward compatibility. This is a breaking change; migration tooling will be provided.
+3. Maintain backward compatibility at runtime. This is a breaking change: ACIR 3.0 readers reject prior syntax and there are no runtime compatibility shims. Migration tooling will be provided.
+4. Change the `attach` syntax or semantics. Attach remains unchanged in this RFC.
+5. Specify or implement automatic primitive generation from `pdk scan`. This remains future work.
 
 ---
 
@@ -74,7 +76,7 @@ Affected constructs:
 - `harness { body }`
 - `primitive kind Name(params) { body }`
 
-Circuit bodies use braces when parameters are declared in the signature (see §3.4); otherwise the existing indentation-based form is permitted for backward-compatible transition.
+Circuit bodies always use braces; indentation-delimited circuit bodies are removed in ACIR 3.0.
 
 #### 3.1.2 Examples
 
@@ -215,7 +217,7 @@ typeName    = "real" | "int" | "bool" ;
 #### 3.4.2 Example
 
 ```acir
-circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), real ratio=1)
+circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1)
   implements CurrentMirrorLike {
   level EL
   supply VDD
@@ -278,11 +280,15 @@ A primitive definition declares a named template for a device kind (e.g., `nmos`
 1. A `device` key (required) naming the concrete model/subckt/P-cell.
 2. A `params` block (required) that is a 1-1 map to the parameters of that concrete model/subckt/P-cell.
 
-The mapping from EL `size` tuples into PDK-specific model parameters happens *only here*, in EL primitives. No other phase (including `pdk scan`, include resolution, or SPICE emission) performs implicit parameter renaming (e.g., `M → nf`) or synthesis.
+Primitive definitions may only appear at the top level of the document (alongside `bundle`, `interface`, `bench`, and `circuit`). Nested primitive declarations are invalid.
+
+The mapping from EL `size` tuples into PDK-specific model parameters happens *only here*, in EL primitives. No other phase (including include resolution or SPICE emission) performs implicit parameter renaming (e.g., `M → nf`) or synthesis.
 
 It is not legal for a primitive to omit `device`. Primitives must always be fully-resolved at EL so emission never needs to guess.
 
-Cascode ships with always-available built-in device keys for simulation (e.g., `level1_nmos`, `level1_pmos`). For PDK-backed flows, `pdk scan` is responsible for generating legal primitive definitions in the EL document, including the correct `device` key and the correct, concrete `params` map for the chosen PDK model/subckt/P-cell.
+If a device declaration references a primitive name that is not defined (or is defined with the wrong `deviceKind`), the reader must raise an error. There is no fallback behavior.
+
+Cascode ships with always-available built-in device keys for simulation (e.g., `level1_nmos`, `level1_pmos`). Future work: `pdk scan` can generate legal primitive definitions for PDK-backed flows, including the correct `device` key and the correct, concrete `params` map for the chosen PDK model/subckt/P-cell.
 
 #### 3.5.3 Example
 
@@ -310,7 +316,7 @@ primitive nmos PdkBacked_NMOS(size primSize) {
   params {
     w = primSize.W
     l = primSize.L
-    nf = primSize.M
+    mult = primSize.M
   }
 }
 ```
@@ -325,7 +331,25 @@ Explicit primitives with size-to-parameter mapping provide three benefits:
 
 2. PDK binding is explicit when needed: the `device` key directly names the PDK device being targeted.
 
-3. Device emission becomes predictable: emitters can rely on a fixed set of ACIR parameter names per device kind (e.g., MOSFETs consume `W`, `L`, `M`), regardless of how users author their size packs.
+3. Device emission becomes predictable: emitters can treat devices uniformly and emit the resolved `device` key and `params` mappings verbatim, without implicit per-device-kind parameter rewriting.
+
+#### 3.5.5 Built-in Level-1 MOSFET Devices
+
+Cascode provides built-in, always-available device keys for simulation:
+
+- `device "level1_nmos"`
+- `device "level1_pmos"`
+
+These correspond to ngspice-compatible Level-1 MOSFET model definitions (model names as shown):
+
+```spice
+.model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+```
+
+Instance parameter expectations (and therefore the expected `params` keys when targeting these built-ins):
+
+- NMOS/PMOS: `W`, `L`, and `m` (multiplier).
 
 ---
 
@@ -358,15 +382,11 @@ fill {
 }
 ```
 
-#### 3.6.3 Legacy Syntax (Deprecated)
+#### 3.6.3 Semantics
 
-The existing syntax remains valid during the transition period but is deprecated:
+1. The `primitiveName` must resolve to a top-level `primitive` declaration in the same document. If the primitive cannot be resolved, or if the resolved primitive has a different `deviceKind` than the device declaration, the reader must raise an error.
 
-```acir
-// Deprecated - will be removed in a future version
-nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
-  size Tail
-```
+2. Emission uses the primitive's `device` key as the concrete model/subckt/P-cell name and emits the primitive's resolved `params` mappings verbatim as instance parameters. The emitter must not perform any implicit parameter renaming or synthesis.
 
 ---
 
@@ -422,7 +442,7 @@ expr     = IDENT "." IDENT          // field access
 #### 3.8.2 Example
 
 ```acir
-circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), real ratio=1)
+circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1)
   implements CurrentMirrorLike {
   // ...
   fill {
@@ -483,19 +503,17 @@ Comma separation is a convenience for compact single-line declarations, not a re
 
 ### 3.10 Explicit Circuit Closing Braces
 
-Circuits with signature parameters use explicit closing braces.
+All circuits use explicit closing braces.
 
 #### 3.10.1 Syntax
 
-When a circuit declares parameters in its signature, it must use brace-delimited syntax:
+Circuits must use brace-delimited syntax:
 
 ```acir
 circuit Name(params) implements Interfaces {
   // body
 }
 ```
-
-Circuits without signature parameters may continue to use indentation-based syntax during the transition period, but brace-delimited syntax is preferred.
 
 ---
 
@@ -609,9 +627,9 @@ The following transformations require manual review:
 
 1. Primitive selection: The migration tool cannot determine which PDK primitive to use; it will insert a placeholder `Level1_NMOS` or `Level1_PMOS` that must be replaced with the appropriate primitive name.
 
-   Note: `Level1_NMOS`/`Level1_PMOS` are intended to be always-legal defaults (bound to `device "level1_nmos"` / `device "level1_pmos"`). When targeting a PDK-backed flow, `pdk scan` is responsible for generating (or rewriting) the primitive definitions in the EL document to use PDK device keys (e.g., `device "nfet_01v8"`), so the migration tool alone cannot finalize this choice.
+   Note: `Level1_NMOS`/`Level1_PMOS` are intended to be always-legal defaults (bound to `device "level1_nmos"` / `device "level1_pmos"`). Future work: `pdk scan` can generate (or rewrite) the primitive definitions in the EL document to use PDK device keys (e.g., `device "nfet_01v8"`), so the migration tool alone cannot finalize this choice.
 
-2. Size expression extraction: Complex parameter expressions (e.g., `M = $ratio`) should be converted to computed size expressions, but the tool may not handle all cases.
+2. Size expression extraction: Complex parameter expressions (e.g., old per-device overrides like `M = ratio`) should be converted to computed size expressions, but the tool may not handle all cases.
 
 3. Parameter migration: Parameters previously declared in circuit bodies (using `param`) or passed via `param` in instance brace blocks must be moved to circuit signatures and constructor calls respectively.
 
@@ -641,9 +659,8 @@ Making primitive definitions optional (allowing the current implicit device synt
 
 1. Update the ACIR grammar (ANTLR) with the new syntax rules.
 2. Extend the lexer with the `interface` and `primitive` keywords.
-3. Update the parser to handle both old and new syntax during transition.
-4. Modify the ACIR writer to emit the new syntax.
-5. Create the migration script (`scripts/acir_migrate_syntax.py`).
+3. Update the parser to accept ACIR 3.0 syntax only (no runtime back-compat).
+4. Modify the ACIR writer to emit the ACIR 3.0 syntax.
+5. Create the migration script (`scripts/acir_migrate_syntax.py`) for offline conversion.
 6. Update all golden files in `tests/golden/acir/`.
 7. Update Chapter 3 of the specification with the new syntax.
-8. Remove support for the deprecated syntax after one release cycle.

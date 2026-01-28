@@ -1,35 +1,63 @@
 ACIR 3.0
 
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-trait DiffPairLike:
+interface DiffPairLike {
   output OUT : Diff
+}
 
-trait LoadPairLike:
+interface LoadPairLike {
   input BIAS : bias
   io DRAIN : Diff
   io SOURCE : Diff
-  connectors:
-    to DiffPairLike:
+  connectors {
+    to DiffPairLike {
       DRAIN--OUT
-    to LoadPairLike:
+    }
+    to LoadPairLike {
       DRAIN--SOURCE
+    }
+  }
+}
 
-bench ACBench for FullyDiffOpAmp
+bench ACBench for FullyDiffOpAmp {
   builtin FDOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for FullyDiffOpAmp
+bench DCBench for FullyDiffOpAmp {
   builtin FDOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp {
   level EL
   supply VDD
   ground GND
@@ -39,18 +67,15 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
   input VBP1 : bias
   input VBP2 : bias
   input VTAIL : bias
-  fill:
-    inst dp (.GND--GND, .VDD--VDD) : DiffPair
-      size InputPair = (W=4u, L=500n, M=1)
-      size Tail = (W=8u, L=500n, M=1)
-    inst nl (.GND--GND, .VDD--VDD) : LoadPair_N
-      size Cascode = (W=4u, L=500n, M=1)
-    inst pl1 (.GND--GND, .VDD--VDD) : LoadPair_P
-      size Cascode = (W=8u, L=500n, M=1)
-    inst pl2 (.GND--GND, .VDD--VDD) : LoadPair_P
-      size Cascode = (W=8u, L=500n, M=1)
+  fill {
+    dp = new DiffPair(InputPair=size(W=4u, L=500n, M=1), Tail=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    nl = new LoadPair_N(Cascode=size(W=4u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    pl1 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    pl2 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach pl2 to pl1 to nl via LoadPairLike::LoadPairLike as p_stack
+
     dp.IN--IN
     dp.TAIL--VTAIL
     nl.BIAS--VBN
@@ -58,67 +83,68 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp
     pl1.BIAS--VBP1
     pl2.BIAS--VBP2
     pl2.SOURCE--VDD
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth >= 500kHz
-      c_gain : ACBench::PassbandGain >= 2dB
-      c_pm : ACBench::PhaseMargin >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 1mW
-    tech:
-      t_lmin : L >= 500nm on *
-  harness:
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth >= 500kHz
+      c_gain = ACBench::PassbandGain >= 2dB
+      c_pm = ACBench::PhaseMargin >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 1mW
+    }
+    tech {
+      t_lmin = L >= 500nm on *
+    }
+  }
+  harness {
     supply VDD = 1.8V
     bias VBN = 0.75V
     bias VBP1 = 1.0V
     bias VBP2 = 1.1V
     bias VTAIL = 0.7V
     load OUT (C=1pF || R=1G)
+  }
+}
 
-circuit DiffPair implements DiffPairLike
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
-  size InputPair
-  size Tail
   supply VDD
   ground GND
   input IN : Diff
   output OUT : Diff
   input TAIL : bias
-  fill:
+  fill {
     net tnode : analog
-    nmos M_N (.B--GND, .D--OUT.P, .G--IN.P, .S--tnode) : nmos
-      size InputPair
-    nmos M_P (.B--GND, .D--OUT.N, .G--IN.N, .S--tnode) : nmos
-      size InputPair
-    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nmos
-      size Tail
+    nmos M_N = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.P, .S--tnode }
+    nmos M_P = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.N, .S--tnode }
+    nmos M_TAIL = new Level1_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
 
-circuit LoadPair_N implements LoadPairLike
+circuit LoadPair_N(size Cascode) implements LoadPairLike {
   level EL
   inline
-  size Cascode
   supply VDD
   ground GND
   input BIAS : bias
   io DRAIN : Diff
   io SOURCE : Diff
-  fill:
-    nmos M_P (.B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P) : nmos
-      size Cascode
-    nmos M_N (.B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N) : nmos
-      size Cascode
+  fill {
+    nmos M_P = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
+    nmos M_N = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
+  }
+}
 
-circuit LoadPair_P implements LoadPairLike
+circuit LoadPair_P(size Cascode) implements LoadPairLike {
   level EL
   inline
-  size Cascode
   supply VDD
   ground GND
   input BIAS : bias
   io DRAIN : Diff
   io SOURCE : Diff
-  fill:
-    pmos M_P (.B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P) : pmos
-      size Cascode
-    pmos M_N (.B--VDD, .D--DRAIN.N, .G--BIAS, .S--SOURCE.N) : pmos
-      size Cascode
+  fill {
+    pmos M_P = new Level1_PMOS(Cascode) { .B--VDD, .D--DRAIN.P, .G--BIAS, .S--SOURCE.P }
+    pmos M_N = new Level1_PMOS(Cascode) { .B--VDD, .D--DRAIN.N, .G--BIAS, .S--SOURCE.N }
+  }
+}

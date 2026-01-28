@@ -1,26 +1,42 @@
 ACIR 3.0
 
+interface LoadBranch {
+  input IN : analog
+}
+
 interface CurrentMirrorLike {
   input SENSE : analog
   output TAP[0] : analog
   connectors {
-    to LoadBranch:
+    to LoadBranch {
       TAP[0]--IN
+    }
   }
 }
-  
-circuit CurrentMirror(int ratio) implements CurrentMirrorLike
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
-  param ratio : real = 1
   supply VDD
   ground GND
   input SENSE : analog
   output TAP[0] : analog
-  fill:
-    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pmos
-      size (W=2u, L=180n, M=1)
-    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--VDD) : pmos
-      size (W=2u, L=180n, M=$ratio)
-  constraints:
-    tech:
-      t_lmin : L >= 180nm on *
+  fill {
+    pmos M_SENSE = new Level1_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    pmos M_TAP0 = new Level1_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+  }
+  constraints {
+    tech {
+      t_lmin = L >= 180nm on *
+    }
+  }
+}
