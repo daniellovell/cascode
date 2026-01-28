@@ -106,6 +106,7 @@ public sealed class CircuitGraph
                 continue;
             }
 
+            // Io is semantically bidirectional (ACIR §3.3.4) but treated as input-only for layout (left side).
             switch (port.Direction)
             {
                 case PortDirection.Output:
@@ -113,9 +114,6 @@ public sealed class CircuitGraph
                     break;
                 case PortDirection.Input:
                 case PortDirection.Io:
-                    inputPorts.Add(port.Name);
-                    break;
-                default:
                     inputPorts.Add(port.Name);
                     break;
             }

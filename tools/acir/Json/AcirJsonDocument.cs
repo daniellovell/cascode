@@ -83,7 +83,7 @@ public sealed record AcirJsonCircuitInfo
 }
 
 /// <summary>
-/// Port declaration with name and kind (domain).
+/// Port declaration with name, direction, and kind (domain).
 /// </summary>
 public sealed record AcirJsonPort
 {

@@ -212,4 +212,29 @@ public class CircuitGraphTests
         Assert.DoesNotContain("VDD", graph.InternalNets);
         Assert.DoesNotContain("IN", graph.InternalNets);
     }
+
+    [Fact]
+    public void Build_ClassifiesIoPortAsInputForLayout()
+    {
+        var circuit = new Circuit
+        {
+            Name = "test",
+            Level = ACIRLevel.EL,
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Io,
+                    Name = "BIDIR",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock { Devices = new List<DeviceDeclaration>() },
+        };
+
+        var graph = CircuitGraph.Build(circuit);
+
+        Assert.Contains("BIDIR", graph.InputPorts);
+        Assert.DoesNotContain("BIDIR", graph.OutputPorts);
+    }
 }
