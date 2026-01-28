@@ -595,16 +595,16 @@ circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  input IN_P : analog
-  input IN_N : analog
+  input IN.P : analog
+  input IN.N : analog
   output OUT : analog
   input VTAIL : bias
   fill {{
     dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {{
       .GND--GND
       .VDD--VDD
-      .IN.P--IN_P
-      .IN.N--IN_N
+      .IN.P--IN.P
+      .IN.N--IN.N
       .OUT.P--OUT
       .TAIL--VTAIL
     }}
@@ -621,8 +621,8 @@ circuit TestCircuit {{
             inst.Bindings.Count == 6,
             $"Expected 6 bindings, got {inst.Bindings.Count}: {string.Join(", ", inst.Bindings.Keys.OrderBy(k => k))}"
         );
-        Assert.Equal("IN_P", inst.Bindings["IN.P"]);
-        Assert.Equal("IN_N", inst.Bindings["IN.N"]);
+        Assert.Equal("IN.P", inst.Bindings["IN.P"]);
+        Assert.Equal("IN.N", inst.Bindings["IN.N"]);
         Assert.Equal("OUT", inst.Bindings["OUT.P"]);
         Assert.Equal("VTAIL", inst.Bindings["TAIL"]);
     }

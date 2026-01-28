@@ -1197,14 +1197,14 @@ public class SpiceEmitterHierarchyTests
         var connector = mirrorTrait.Connectors[0];
         Assert.Equal("DiffPairLike", connector.TargetTrait);
         Assert.Equal(2, connector.Mappings.Count);
-        // After desugaring, dot-separated names become underscore-separated
+        // After desugaring, dot-separated names are preserved
         Assert.Contains(
             connector.Mappings,
-            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT_N"
+            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT.N"
         );
         Assert.Contains(
             connector.Mappings,
-            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT_P"
+            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT.P"
         );
     }
 

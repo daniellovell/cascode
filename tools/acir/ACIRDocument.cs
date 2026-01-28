@@ -96,12 +96,6 @@ public static class BundleExpander
     }
 
     /// <summary>
-    /// Converts a terminal path to a net name by replacing dots with underscores.
-    /// For example, "IN.P" becomes "IN_P".
-    /// </summary>
-    public static string ToNetName(string terminalPath) => terminalPath.Replace('.', '_');
-
-    /// <summary>
     /// Builds a dictionary of bundle types by name from an ACIR document.
     /// Returns an empty dictionary if document is null.
     /// </summary>

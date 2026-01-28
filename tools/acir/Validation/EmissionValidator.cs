@@ -65,6 +65,7 @@ public static class EmissionValidator
         ArgumentNullException.ThrowIfNull(circuit);
 
         var result = new ValidationResult();
+        var bundleAliases = BuildBundleAliasMap(circuit);
 
         // EMIT-005: Level check
         if (circuit.Level != ACIRLevel.EL)
@@ -95,10 +96,11 @@ public static class EmissionValidator
             }
         }
 
-        ValidateHarnessIntent(circuit, result);
+        ValidateHarnessIntent(circuit, bundleAliases, result);
 
         // Build set of valid nets from all sources (ports are already desugared)
         var validNets = BuildValidNetSet(circuit);
+        ValidateInstanceBindings(circuit.Fill?.Instances, validNets, bundleAliases, result);
 
         // Build set of valid size pack names
         var validSizes = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
@@ -133,6 +135,7 @@ public static class EmissionValidator
                     validSizes,
                     sizeDefaults,
                     primitivesByName,
+                    bundleAliases,
                     result
                 );
             }
@@ -141,7 +144,11 @@ public static class EmissionValidator
         return result;
     }
 
-    private static void ValidateHarnessIntent(Circuit circuit, ValidationResult result)
+    private static void ValidateHarnessIntent(
+        Circuit circuit,
+        IReadOnlyDictionary<string, string> bundleAliases,
+        ValidationResult result
+    )
     {
         if (circuit.Harness == null)
         {
@@ -161,6 +168,17 @@ public static class EmissionValidator
         {
             if (!portsByName.TryGetValue(source.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(source.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-001",
+                        $"Harness source references '{source.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness source {source.Net}",
+                        $"Use '{dotted}' instead of '{source.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-001",
                     $"Harness source references unknown port '{source.Net}'",
@@ -185,6 +203,17 @@ public static class EmissionValidator
         {
             if (!portsByName.TryGetValue(load.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(load.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-002",
+                        $"Harness load references '{load.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness load {load.Net}",
+                        $"Use '{dotted}' instead of '{load.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-002",
                     $"Harness load references unknown port '{load.Net}'",
@@ -214,6 +243,17 @@ public static class EmissionValidator
 
             if (!portsByName.TryGetValue(bias.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(bias.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-003",
+                        $"Harness bias references '{bias.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness bias {bias.Net}",
+                        $"Use '{dotted}' instead of '{bias.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-003",
                     $"Harness bias references unknown terminal '{bias.Net}'",
@@ -253,7 +293,7 @@ public static class EmissionValidator
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
 
-        // Add ports (already desugared to underscore-normalized names)
+        // Add ports (already desugared with dot notation preserved)
         foreach (var port in circuit.Ports)
         {
             nets.Add(port.Name);
@@ -281,6 +321,64 @@ public static class EmissionValidator
         }
 
         return nets;
+    }
+
+    private static Dictionary<string, string> BuildBundleAliasMap(Circuit circuit)
+    {
+        var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var port in circuit.Ports)
+        {
+            if (!port.Name.Contains('.'))
+            {
+                continue;
+            }
+
+            var alias = port.Name.Replace('.', '_');
+            aliases.TryAdd(alias, port.Name);
+        }
+
+        return aliases;
+    }
+
+    private static void ValidateInstanceBindings(
+        IReadOnlyList<InstanceDeclaration>? instances,
+        HashSet<string> validNets,
+        IReadOnlyDictionary<string, string> bundleAliases,
+        ValidationResult result
+    )
+    {
+        if (instances is null)
+        {
+            return;
+        }
+
+        foreach (var instance in instances)
+        {
+            foreach (var (port, netName) in instance.Bindings)
+            {
+                if (bundleAliases.TryGetValue(netName, out var dotted))
+                {
+                    result.AddError(
+                        "EMIT-002",
+                        $"Instance '{instance.Id}' port '{port}' references '{netName}', but bundle field '{dotted}' must use dot notation",
+                        $"instance {instance.Id}.{port}--{netName}",
+                        $"Use '{dotted}' instead of '{netName}' for bundle field access"
+                    );
+                    continue;
+                }
+
+                if (!validNets.Contains(netName))
+                {
+                    result.AddError(
+                        "EMIT-002",
+                        $"Instance '{instance.Id}' port '{port}' references undefined net '{netName}'",
+                        $"instance {instance.Id}.{port}--{netName}",
+                        $"Declare '{netName}' as a port, supply, ground, or internal net"
+                    );
+                }
+            }
+        }
     }
 
     private static bool HasSizedEntry(SizePack pack, string key)
@@ -396,6 +494,7 @@ public static class EmissionValidator
         HashSet<string> validSizes,
         IReadOnlyDictionary<string, SizePack> sizeDefaults,
         IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
+        IReadOnlyDictionary<string, string> bundleAliases,
         ValidationResult result
     )
     {
@@ -467,7 +566,17 @@ public static class EmissionValidator
         // EMIT-002: Invalid net references
         foreach (var (terminal, netName) in device.Bindings)
         {
-            // Device bindings are already normalized by BundleDesugarer
+            if (bundleAliases.TryGetValue(netName, out var dotted))
+            {
+                result.AddError(
+                    "EMIT-002",
+                    $"Device '{device.Id}' terminal '{terminal}' references '{netName}', but bundle field '{dotted}' must use dot notation",
+                    $"device {device.Id}.{terminal}--{netName}",
+                    $"Use '{dotted}' instead of '{netName}' for bundle field access"
+                );
+                continue;
+            }
+
             if (!validNets.Contains(netName))
             {
                 var availableNets = validNets.Take(8).ToList();

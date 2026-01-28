@@ -22,6 +22,11 @@ public static class ACIRBenchAdapter
         double RloadOhms
     );
 
+    private static string SanitizeNetName(string netName)
+    {
+        return netName.Replace('.', '_');
+    }
+
     /// <summary>
     /// Converts an ACIR circuit and bench definition to a TestbenchContext.
     /// </summary>
@@ -170,12 +175,9 @@ public static class ACIRBenchAdapter
         {
             foreach (var supply in circuit.Harness.Supplies)
             {
+                var net = SanitizeNetName(supply.Net);
                 result.Add(
-                    new Dictionary<string, object>
-                    {
-                        ["net"] = supply.Net,
-                        ["value"] = supply.Value,
-                    }
+                    new Dictionary<string, object> { ["net"] = net, ["value"] = supply.Value }
                 );
             }
         }
@@ -184,8 +186,9 @@ public static class ACIRBenchAdapter
         {
             foreach (var bias in circuit.Harness.Biases)
             {
+                var net = SanitizeNetName(bias.Net);
                 result.Add(
-                    new Dictionary<string, object> { ["net"] = bias.Net, ["value"] = bias.Value }
+                    new Dictionary<string, object> { ["net"] = net, ["value"] = bias.Value }
                 );
             }
         }
@@ -208,7 +211,8 @@ public static class ACIRBenchAdapter
             if (load.Elements.Count == 0)
                 continue;
 
-            var data = new Dictionary<string, object> { ["net"] = load.Net };
+            var net = SanitizeNetName(load.Net);
+            var data = new Dictionary<string, object> { ["net"] = net };
 
             var cs = load.Elements.Where(e => e.Type == "C").Select(e => e.Value).ToList();
             var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
@@ -293,13 +297,14 @@ public static class ACIRBenchAdapter
             if (load.Elements.Count == 0)
                 continue;
 
+            var net = SanitizeNetName(load.Net);
             var cs = load.Elements.Where(e => e.Type == "C").Select(e => e.Value).ToList();
             var rs = load.Elements.Where(e => e.Type == "R").Select(e => e.Value).ToList();
 
             // Check if load is already split (ends with _P or _N)
             var isAlreadySplit =
-                load.Net.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
-                || load.Net.EndsWith("_N", StringComparison.OrdinalIgnoreCase);
+                net.EndsWith("_P", StringComparison.OrdinalIgnoreCase)
+                || net.EndsWith("_N", StringComparison.OrdinalIgnoreCase);
 
             if (differential && !isAlreadySplit)
             {
@@ -310,8 +315,8 @@ public static class ACIRBenchAdapter
                     {
                         var halfValue = FormatSIValueForBackend(cValue / 2.0, backend);
                         var suffix = cs.Count > 1 ? $"_{i}" : "";
-                        lines.Add($"C{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
-                        lines.Add($"C{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
+                        lines.Add($"C{net}_P_load{suffix} {net}_P 0 {halfValue}");
+                        lines.Add($"C{net}_N_load{suffix} {net}_N 0 {halfValue}");
                     }
                     else
                     {
@@ -329,8 +334,8 @@ public static class ACIRBenchAdapter
                     {
                         var halfValue = FormatSIValueForBackend(rValue / 2.0, backend);
                         var suffix = rs.Count > 1 ? $"_{i}" : "";
-                        lines.Add($"R{load.Net}_P_load{suffix} {load.Net}_P 0 {halfValue}");
-                        lines.Add($"R{load.Net}_N_load{suffix} {load.Net}_N 0 {halfValue}");
+                        lines.Add($"R{net}_P_load{suffix} {net}_P 0 {halfValue}");
+                        lines.Add($"R{net}_N_load{suffix} {net}_N 0 {halfValue}");
                     }
                     else
                     {
@@ -349,14 +354,14 @@ public static class ACIRBenchAdapter
                 {
                     var suffix = cs.Count > 1 ? $"_{i}" : "";
                     var val = TransformValueForBackend(cs[i], backend);
-                    lines.Add($"C{load.Net}_load{suffix} {load.Net} 0 {val}");
+                    lines.Add($"C{net}_load{suffix} {net} 0 {val}");
                 }
 
                 for (int i = 0; i < rs.Count; i++)
                 {
                     var suffix = rs.Count > 1 ? $"_{i}" : "";
                     var val = TransformValueForBackend(rs[i], backend);
-                    lines.Add($"R{load.Net}_load{suffix} {load.Net} 0 {val}");
+                    lines.Add($"R{net}_load{suffix} {net} 0 {val}");
                 }
             }
         }
@@ -381,7 +386,8 @@ public static class ACIRBenchAdapter
             foreach (var supply in circuit.Harness.Supplies)
             {
                 var val = TransformValueForBackend(supply.Value, backend);
-                lines.Add($"V{supply.Net} {supply.Net} 0 DC {val}");
+                var net = SanitizeNetName(supply.Net);
+                lines.Add($"V{net} {net} 0 DC {val}");
             }
         }
 
@@ -390,7 +396,8 @@ public static class ACIRBenchAdapter
             foreach (var bias in circuit.Harness.Biases)
             {
                 var val = TransformValueForBackend(bias.Value, backend);
-                lines.Add($"V{bias.Net} {bias.Net} 0 DC {val}");
+                var net = SanitizeNetName(bias.Net);
+                lines.Add($"V{net} {net} 0 DC {val}");
             }
         }
 
@@ -533,7 +540,7 @@ public static class ACIRBenchAdapter
 
         if (!string.IsNullOrEmpty(explicitOutput))
         {
-            return explicitOutput;
+            return SanitizeNetName(explicitOutput);
         }
 
         var explicitIo =
@@ -547,14 +554,17 @@ public static class ACIRBenchAdapter
 
         if (!string.IsNullOrEmpty(explicitIo))
         {
-            return explicitIo;
+            return SanitizeNetName(explicitIo);
         }
 
-        return circuit
+        var fallback =
+            circuit
                 .Ports.FirstOrDefault(p => p.Name.Equals("OUT", StringComparison.OrdinalIgnoreCase))
                 ?.Name
             ?? circuit.Ports.FirstOrDefault()?.Name
             ?? "OUT";
+
+        return SanitizeNetName(fallback);
     }
 
     /// <summary>
@@ -567,14 +577,14 @@ public static class ACIRBenchAdapter
 
         foreach (var port in circuit.Ports)
         {
-            result.Add(port.Name);
+            result.Add(SanitizeNetName(port.Name));
         }
 
         foreach (var supply in circuit.Supplies)
-            result.Add(supply);
+            result.Add(SanitizeNetName(supply));
 
         foreach (var ground in circuit.Grounds)
-            result.Add(ground);
+            result.Add(SanitizeNetName(ground));
 
         return result;
     }

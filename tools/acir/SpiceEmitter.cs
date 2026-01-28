@@ -47,6 +47,11 @@ public static class SpiceEmitter
         RegexOptions.Compiled
     );
 
+    private static string SanitizeNetName(string netName)
+    {
+        return netName.Replace('.', '_');
+    }
+
     /// <summary>
     /// Emits a SPICE subcircuit definition for an EL-level circuit.
     /// </summary>
@@ -94,15 +99,15 @@ public static class SpiceEmitter
         var portList = new List<string>();
         foreach (var port in circuit.Ports)
         {
-            portList.Add(port.Name);
+            portList.Add(SanitizeNetName(port.Name));
         }
         foreach (var supply in circuit.Supplies)
         {
-            portList.Add(supply);
+            portList.Add(SanitizeNetName(supply));
         }
         foreach (var ground in circuit.Grounds)
         {
-            portList.Add(ground);
+            portList.Add(SanitizeNetName(ground));
         }
 
         IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName = null;
@@ -143,7 +148,7 @@ public static class SpiceEmitter
         {
             var netNames = circuit
                 .Fill.Nets.OrderBy(n => n.Id, StringComparer.Ordinal)
-                .Select(n => n.Id);
+                .Select(n => SanitizeNetName(n.Id));
             writer.WriteLine($"* Internal nets: {string.Join(", ", netNames)}");
             writer.WriteLine();
         }
@@ -553,27 +558,27 @@ public static class SpiceEmitter
         {
             case "nmos":
             case "pmos":
-                sb.Append(GetBinding(device, "D"));
+                sb.Append(SanitizeNetName(GetBinding(device, "D")));
                 sb.Append(' ');
-                sb.Append(GetBinding(device, "G"));
+                sb.Append(SanitizeNetName(GetBinding(device, "G")));
                 sb.Append(' ');
-                sb.Append(GetBinding(device, "S"));
+                sb.Append(SanitizeNetName(GetBinding(device, "S")));
                 sb.Append(' ');
-                sb.Append(GetBinding(device, "B"));
+                sb.Append(SanitizeNetName(GetBinding(device, "B")));
                 sb.Append(' ');
                 break;
             case "resistor":
             case "capacitor":
             case "inductor":
-                sb.Append(GetBinding(device, "P"));
+                sb.Append(SanitizeNetName(GetBinding(device, "P")));
                 sb.Append(' ');
-                sb.Append(GetBinding(device, "N"));
+                sb.Append(SanitizeNetName(GetBinding(device, "N")));
                 sb.Append(' ');
                 break;
             case "diode":
-                sb.Append(GetBinding(device, "A"));
+                sb.Append(SanitizeNetName(GetBinding(device, "A")));
                 sb.Append(' ');
-                sb.Append(GetBinding(device, "K"));
+                sb.Append(SanitizeNetName(GetBinding(device, "K")));
                 sb.Append(' ');
                 break;
         }
@@ -659,7 +664,7 @@ public static class SpiceEmitter
                 // Port not bound - use the port name itself (may be auto-connected)
                 netName = portName;
             }
-            sb.Append(netName);
+            sb.Append(SanitizeNetName(netName));
             sb.Append(' ');
         }
 
@@ -985,7 +990,7 @@ public static class SpiceEmitter
                 internalNets,
                 resolution
             );
-            sb.Append(substitutedNet);
+            sb.Append(SanitizeNetName(substitutedNet));
             sb.Append(' ');
         }
 
@@ -1153,42 +1158,50 @@ public static class SpiceEmitter
             case "nmos":
             case "pmos":
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "D"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "D"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "G"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "G"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "S"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "S"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "B"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "B"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
@@ -1197,44 +1210,52 @@ public static class SpiceEmitter
             case "capacitor":
             case "inductor":
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "P"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "P"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "N"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "N"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 break;
             case "diode":
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "A"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "A"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
                 sb.Append(
-                    SubstituteNet(
-                        GetBinding(device, "K"),
-                        hierarchyPath,
-                        netSubstitutions,
-                        internalNets,
-                        resolution
+                    SanitizeNetName(
+                        SubstituteNet(
+                            GetBinding(device, "K"),
+                            hierarchyPath,
+                            netSubstitutions,
+                            internalNets,
+                            resolution
+                        )
                     )
                 );
                 sb.Append(' ');
@@ -1657,29 +1678,33 @@ public static class SpiceEmitter
         // Supply voltage sources
         foreach (var supply in harness.Supplies)
         {
-            writer.WriteLine($"V{supply.Net} {supply.Net} 0 DC {supply.Value}");
+            var net = SanitizeNetName(supply.Net);
+            writer.WriteLine($"V{net} {net} 0 DC {supply.Value}");
         }
 
         // Bias voltage sources (DC only, no AC)
         foreach (var bias in harness.Biases)
         {
-            writer.WriteLine($"V{bias.Net} {bias.Net} 0 DC {bias.Value}");
+            var net = SanitizeNetName(bias.Net);
+            writer.WriteLine($"V{net} {net} 0 DC {bias.Value}");
         }
 
         // Input sources - simplified: DC bias with AC stimulus
         foreach (var source in harness.Sources)
         {
             // Default to mid-supply bias with AC stimulus
-            writer.WriteLine($"V{source.Net} {source.Net} 0 DC 0.9 AC 1");
+            var net = SanitizeNetName(source.Net);
+            writer.WriteLine($"V{net} {net} 0 DC 0.9 AC 1");
             if (source.Z is not null)
             {
-                writer.WriteLine($"R{source.Net}_Z {source.Net}_int {source.Net} {source.Z}");
+                writer.WriteLine($"R{net}_Z {net}_int {net} {source.Z}");
             }
         }
 
         // Load elements
         foreach (var load in harness.Loads)
         {
+            var net = SanitizeNetName(load.Net);
             for (int i = 0; i < load.Elements.Count; i++)
             {
                 var element = load.Elements[i];
@@ -1687,11 +1712,11 @@ public static class SpiceEmitter
 
                 if (element.Type == "C")
                 {
-                    writer.WriteLine($"C{load.Net}_load{suffix} {load.Net} 0 {element.Value}");
+                    writer.WriteLine($"C{net}_load{suffix} {net} 0 {element.Value}");
                 }
                 else if (element.Type == "R")
                 {
-                    writer.WriteLine($"R{load.Net}_load{suffix} {load.Net} 0 {element.Value}");
+                    writer.WriteLine($"R{net}_load{suffix} {net} 0 {element.Value}");
                 }
             }
         }
@@ -1708,15 +1733,15 @@ public static class SpiceEmitter
         var portList = new List<string>();
         foreach (var port in circuit.Ports)
         {
-            portList.Add(port.Name);
+            portList.Add(SanitizeNetName(port.Name));
         }
         foreach (var supply in circuit.Supplies)
         {
-            portList.Add(supply);
+            portList.Add(SanitizeNetName(supply));
         }
         foreach (var ground in circuit.Grounds)
         {
-            portList.Add(ground);
+            portList.Add(SanitizeNetName(ground));
         }
 
         writer.WriteLine($"XDUT {string.Join(" ", portList)} {circuit.Name}");

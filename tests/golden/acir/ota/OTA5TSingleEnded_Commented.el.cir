@@ -39,8 +39,8 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
-  input IN_P : analog
-  input IN_N : analog
+  input IN.P : analog
+  input IN.N : analog
   output OUT : analog
   input VTAIL : bias
   fill {
@@ -49,13 +49,13 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
     nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--mirror_gate
-      .G--IN_P
+      .G--IN.P
       .S--tnode
     }
     nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .B--GND
       .D--OUT
-      .G--IN_N
+      .G--IN.N
       .S--tnode
     }
     nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {

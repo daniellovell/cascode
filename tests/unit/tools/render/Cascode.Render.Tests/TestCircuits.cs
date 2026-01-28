@@ -161,13 +161,13 @@ internal static class TestCircuits
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_P",
+                    Name = "IN.P",
                     Type = "signal",
                 },
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_N",
+                    Name = "IN.N",
                     Type = "signal",
                 },
                 new()
@@ -189,7 +189,7 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
-                            ["G"] = "IN_P",
+                            ["G"] = "IN.P",
                             ["S"] = "tail",
                         },
                         Size = new SizePack
@@ -209,7 +209,7 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
-                            ["G"] = "IN_N",
+                            ["G"] = "IN.N",
                             ["S"] = "tail",
                         },
                         Size = new SizePack
@@ -241,13 +241,13 @@ internal static class TestCircuits
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_P",
+                    Name = "IN.P",
                     Type = "signal",
                 },
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_N",
+                    Name = "IN.N",
                     Type = "signal",
                 },
                 new()
@@ -287,7 +287,7 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_p_int",
-                            ["G"] = "IN_P",
+                            ["G"] = "IN.P",
                             ["S"] = "tail",
                         },
                         Size = new SizePack
@@ -307,7 +307,7 @@ internal static class TestCircuits
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_n_int",
-                            ["G"] = "IN_N",
+                            ["G"] = "IN.N",
                             ["S"] = "tail",
                         },
                         Size = new SizePack

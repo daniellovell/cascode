@@ -209,8 +209,8 @@ circuit Top(size Input) {{
 
         // Ports
         Assert.Equal(4, circuit.Ports.Count);
-        Assert.Contains(circuit.Ports, p => p.Name == "IN_P");
-        Assert.Contains(circuit.Ports, p => p.Name == "IN_N");
+        Assert.Contains(circuit.Ports, p => p.Name == "IN.P");
+        Assert.Contains(circuit.Ports, p => p.Name == "IN.N");
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
         Assert.Contains(circuit.Ports, p => p.Name == "VTAIL");
 

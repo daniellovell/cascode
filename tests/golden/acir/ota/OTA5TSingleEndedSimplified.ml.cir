@@ -18,8 +18,8 @@ circuit OTA5TSingleEndedSimplified implements SingleEndedOpAmp {
     dp = new DiffPair {
       .BASE--GND
       .BIAS--VTAIL
-      .IN.N--IN_N
-      .IN.P--IN_P
+      .IN.N--IN.N
+      .IN.P--IN.P
       .OUT.N--OUT
     }
   }
