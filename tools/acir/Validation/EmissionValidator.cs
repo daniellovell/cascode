@@ -283,11 +283,6 @@ public static class EmissionValidator
         return nets;
     }
 
-    private static bool HasRequiredSizeEntries(SizePack pack)
-    {
-        return HasSizedEntry(pack, "W") && HasSizedEntry(pack, "L");
-    }
-
     private static bool HasSizedEntry(SizePack pack, string key)
     {
         return pack.Entries.TryGetValue(key, out var value) && !IsUnsizedExpression(value);
@@ -297,6 +292,99 @@ public static class EmissionValidator
     {
         return string.IsNullOrWhiteSpace(expression)
             || expression.Contains("??", StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyCollection<string> GetRequiredSizeFields(
+        string deviceType,
+        PrimitiveDefinition? primitive
+    )
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        if (deviceType is "nmos" or "pmos")
+        {
+            required.Add("W");
+            required.Add("L");
+        }
+
+        if (primitive is not null)
+        {
+            foreach (var field in PrimitiveResolver.GetSizeFields(primitive))
+            {
+                required.Add(field);
+            }
+        }
+
+        return required;
+    }
+
+    private static IReadOnlyList<string> GetMissingSizeFields(
+        SizePack pack,
+        IReadOnlyCollection<string> requiredFields
+    )
+    {
+        if (requiredFields.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var missing = new List<string>();
+        foreach (var field in requiredFields.OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (!HasSizedEntry(pack, field))
+            {
+                missing.Add(field);
+            }
+        }
+
+        return missing;
+    }
+
+    private static string BuildMissingSizeFieldMessage(
+        DeviceDeclaration device,
+        string? sizeName,
+        IReadOnlyList<string> missingFields,
+        bool isInline
+    )
+    {
+        var hasWOrL = missingFields.Contains("W") || missingFields.Contains("L");
+        if (hasWOrL)
+        {
+            var message = isInline
+                ? $"Device '{device.Id}' inline size literal missing required W or L"
+                : $"Device '{device.Id}' size pack '{sizeName}' missing required W or L";
+            var extras = missingFields
+                .Where(field => field is not "W" && field is not "L")
+                .ToList();
+            if (extras.Count > 0)
+            {
+                message += $" (also missing: {string.Join(", ", extras)})";
+            }
+
+            return message;
+        }
+
+        var sizeLabel = isInline ? "inline size literal" : $"size pack '{sizeName}'";
+        return $"Device '{device.Id}' {sizeLabel} missing required size fields: {string.Join(", ", missingFields)}";
+    }
+
+    private static string BuildMissingSizeFieldSuggestion(IReadOnlyList<string> missingFields)
+    {
+        if (missingFields.Contains("W") || missingFields.Contains("L"))
+        {
+            var extras = missingFields
+                .Where(field => field is not "W" && field is not "L")
+                .ToList();
+            var suggestion =
+                "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'";
+            if (extras.Count > 0)
+            {
+                suggestion += $" and include {string.Join(", ", extras)}";
+            }
+
+            return suggestion;
+        }
+
+        return $"Size pack must include {string.Join(", ", missingFields)}.";
     }
 
     /// <summary>
@@ -398,56 +486,59 @@ public static class EmissionValidator
         }
 
         // EMIT-007: MOSFETs must use size packs
-        if (deviceType is "nmos" or "pmos")
+        var sizeName = device.SizeName;
+        var sizePack = device.Size;
+        var requiredSizeFields = GetRequiredSizeFields(deviceType, primitive);
+
+        if (deviceType is "nmos" or "pmos" && sizeName is null && sizePack is null)
         {
-            var sizeName = device.SizeName;
-            var sizePack = device.Size;
-            if (sizeName is null && sizePack is null)
+            result.AddError(
+                "EMIT-007",
+                $"Device '{device.Id}' missing required size reference",
+                $"device {device.Id}",
+                "MOSFETs must provide a size argument: inline 'size(W=2u, L=180n, M=1)' or a named size pack reference"
+            );
+        }
+        else if (sizePack is not null)
+        {
+            var missingFields = GetMissingSizeFields(sizePack, requiredSizeFields);
+            if (missingFields.Count > 0)
             {
                 result.AddError(
                     "EMIT-007",
-                    $"Device '{device.Id}' missing required size reference",
+                    BuildMissingSizeFieldMessage(device, sizeName, missingFields, isInline: true),
                     $"device {device.Id}",
-                    "MOSFETs must provide a size argument: inline 'size(W=2u, L=180n, M=1)' or a named size pack reference"
+                    BuildMissingSizeFieldSuggestion(missingFields)
                 );
             }
-            else
+        }
+        else if (sizeName is not null && requiredSizeFields.Count > 0)
+        {
+            if (!validSizes.Contains(sizeName))
             {
-                if (sizePack is not null)
+                result.AddError(
+                    "EMIT-007",
+                    $"Device '{device.Id}' references undefined size pack '{sizeName}'",
+                    $"device {device.Id}",
+                    $"Declare size pack '{sizeName}' in the circuit signature or fill block"
+                );
+            }
+            else if (sizeDefaults.TryGetValue(sizeName, out var defaultPack))
+            {
+                var missingFields = GetMissingSizeFields(defaultPack, requiredSizeFields);
+                if (missingFields.Count > 0)
                 {
-                    if (!HasRequiredSizeEntries(sizePack))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' inline size literal missing required W or L",
-                            $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'"
-                        );
-                    }
-                }
-                else if (sizeName is not null)
-                {
-                    if (!validSizes.Contains(sizeName))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' references undefined size pack '{sizeName}'",
-                            $"device {device.Id}",
-                            $"Declare size pack '{sizeName}' in the circuit signature or fill block"
-                        );
-                    }
-                    else if (
-                        sizeDefaults.TryGetValue(sizeName, out var defaultPack)
-                        && !HasRequiredSizeEntries(defaultPack)
-                    )
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' size pack '{sizeName}' missing required W or L",
-                            $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'"
-                        );
-                    }
+                    result.AddError(
+                        "EMIT-007",
+                        BuildMissingSizeFieldMessage(
+                            device,
+                            sizeName,
+                            missingFields,
+                            isInline: false
+                        ),
+                        $"device {device.Id}",
+                        BuildMissingSizeFieldSuggestion(missingFields)
+                    );
                 }
             }
         }

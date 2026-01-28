@@ -348,6 +348,41 @@ public class EmissionValidatorTests
     }
 
     [Fact]
+    public void Validate_InlineSizePackMissingPrimitiveField_ReturnsEMIT007()
+    {
+        var circuit = CreateValidCircuit();
+        circuit.Fill!.Devices[0].Size!.Entries.Remove("M");
+
+        var document = new ACIRDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
+        };
+
+        var result = EmissionValidator.Validate(circuit, document);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-007" && e.Message.Contains("missing required size fields: M")
+        );
+    }
+
+    [Fact]
     public void Validate_UnknownDeviceType_ReturnsEMIT004()
     {
         var circuit = new Circuit

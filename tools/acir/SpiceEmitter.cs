@@ -1379,6 +1379,109 @@ public static class SpiceEmitter
         }
     }
 
+    private static IEnumerable<string> EnumerateSizeFieldExpressions(Circuit circuit)
+    {
+        foreach (var parameter in circuit.Parameters)
+        {
+            var expr = ParamValueToExpression(parameter.Default);
+            if (!string.IsNullOrWhiteSpace(expr))
+            {
+                yield return expr;
+            }
+        }
+
+        foreach (var size in circuit.Sizes)
+        {
+            if (size.Default is null)
+            {
+                continue;
+            }
+
+            foreach (var expr in size.Default.Entries.Values)
+            {
+                if (!string.IsNullOrWhiteSpace(expr))
+                {
+                    yield return expr;
+                }
+            }
+        }
+
+        if (circuit.Fill?.Sizes is not null)
+        {
+            foreach (var size in circuit.Fill.Sizes)
+            {
+                if (size.Default is null)
+                {
+                    continue;
+                }
+
+                foreach (var expr in size.Default.Entries.Values)
+                {
+                    if (!string.IsNullOrWhiteSpace(expr))
+                    {
+                        yield return expr;
+                    }
+                }
+            }
+        }
+
+        if (circuit.Fill?.Devices is not null)
+        {
+            foreach (var device in circuit.Fill.Devices)
+            {
+                if (device.Size is null)
+                {
+                    continue;
+                }
+
+                foreach (var expr in device.Size.Entries.Values)
+                {
+                    if (!string.IsNullOrWhiteSpace(expr))
+                    {
+                        yield return expr;
+                    }
+                }
+            }
+        }
+
+        if (circuit.Fill?.Instances is not null)
+        {
+            foreach (var instance in circuit.Fill.Instances)
+            {
+                foreach (var pack in instance.Sizes.Values)
+                {
+                    foreach (var expr in pack.Entries.Values)
+                    {
+                        if (!string.IsNullOrWhiteSpace(expr))
+                        {
+                            yield return expr;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void AddSizeFieldReferences(
+        Dictionary<string, HashSet<string>> fieldsBySize,
+        IEnumerable<string> expressions
+    )
+    {
+        foreach (var expression in expressions)
+        {
+            foreach (Match match in SizeFieldReferencePattern.Matches(expression))
+            {
+                var sizeName = match.Groups["size"].Value;
+                if (!fieldsBySize.TryGetValue(sizeName, out var fields))
+                {
+                    continue;
+                }
+
+                fields.Add(match.Groups["field"].Value);
+            }
+        }
+    }
+
     private static IReadOnlyDictionary<string, string> BuildSizeParamDefaults(
         Circuit circuit,
         IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
@@ -1402,6 +1505,8 @@ public static class SpiceEmitter
                 }
             }
         }
+
+        AddSizeFieldReferences(fieldsBySize, EnumerateSizeFieldExpressions(circuit));
 
         if (circuit.Fill?.Devices is not null)
         {

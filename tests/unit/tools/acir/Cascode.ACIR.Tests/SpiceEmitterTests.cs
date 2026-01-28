@@ -62,6 +62,52 @@ public class SpiceEmitterTests
     }
 
     [Fact]
+    public void EmitDesign_IncludesIndirectSizeParamFields()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+primitive nmos Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(size Input) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    size Tail = size(W=Input.W*2, L=Input.L, M=1)
+    nmos M1 = new Level1_NMOS(Tail) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var result = ACIRReader.TryParse(acir, "indirect-sizes.cir");
+        Assert.True(result.Success);
+        var doc = result.Document!;
+        var circuit = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(circuit, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.Contains("Input_W=0", output);
+        Assert.Contains("Input_L=0", output);
+    }
+
+    [Fact]
     public void EmitDesign_DeviceTerminalOrder_DGBS()
     {
         var circuit = new Circuit
