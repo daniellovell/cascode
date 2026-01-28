@@ -9,7 +9,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string>();
 
-        var result = ParameterEvaluator.Evaluate("100", bindings);
+        var result = EvaluateExpression("100", bindings);
 
         Assert.Equal("100", result);
     }
@@ -19,7 +19,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string>();
 
-        var result = ParameterEvaluator.Evaluate("2u", bindings);
+        var result = EvaluateExpression("2u", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -29,7 +29,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["width"] = "1u" };
 
-        var result = ParameterEvaluator.Evaluate("width", bindings);
+        var result = EvaluateExpression("width", bindings);
 
         Assert.Equal("1u", result);
     }
@@ -39,7 +39,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["W_input"] = "1u" };
 
-        var result = ParameterEvaluator.Evaluate("W_input*2", bindings);
+        var result = EvaluateExpression("W_input*2", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -49,7 +49,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["W_input"] = "4u" };
 
-        var result = ParameterEvaluator.Evaluate("W_input/2", bindings);
+        var result = EvaluateExpression("W_input/2", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -59,7 +59,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string>();
 
-        var result = ParameterEvaluator.Evaluate("1u+1u", bindings);
+        var result = EvaluateExpression("1u+1u", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -69,7 +69,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string>();
 
-        var result = ParameterEvaluator.Evaluate("3u-1u", bindings);
+        var result = EvaluateExpression("3u-1u", bindings);
 
         Assert.Equal("2u", result);
     }
@@ -83,20 +83,34 @@ public class ParameterEvaluatorTests
             ["W"] = "actual_width",
         };
 
-        var result = ParameterEvaluator.Evaluate("W", bindings);
+        var result = EvaluateExpression("W", bindings);
 
         Assert.Equal("1u", result);
     }
 
     [Fact]
-    public void Evaluate_MultipleOperations_EvaluatesLeftToRight()
+    public void Evaluate_MultipleOperations_RespectsOperatorPrecedence()
     {
         var bindings = new Dictionary<string, string> { ["ratio"] = "2" };
 
-        // ratio*2+1 = 2*2+1 = 5 (left-to-right, no precedence)
-        var result = ParameterEvaluator.Evaluate("ratio*2+1", bindings);
+        // ratio*2+1 = (2*2)+1 = 5 (multiplication before addition)
+        var result = EvaluateExpression("ratio*2+1", bindings);
 
         Assert.Equal("5", result);
+    }
+
+    [Theory]
+    [InlineData("1+2*3", "7")]
+    [InlineData("6-4/2", "4")]
+    [InlineData("(1+2)*3", "9")]
+    [InlineData("2+3*4-1", "13")]
+    [InlineData("-2*3", "-6")]
+    [InlineData("-(1+2)", "-3")]
+    public void Evaluate_OperatorPrecedence_CorrectResult(string expr, string expected)
+    {
+        var result = ExpressionEvaluator.Evaluate(expr, _ => null);
+
+        Assert.Equal(expected, result);
     }
 
     [Fact]
@@ -104,9 +118,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string>();
 
-        var ex = Assert.Throws<ArgumentException>(() =>
-            ParameterEvaluator.Evaluate("undefined", bindings)
-        );
+        var ex = Assert.Throws<ArgumentException>(() => EvaluateExpression("undefined", bindings));
 
         Assert.Contains("Undefined parameter reference", ex.Message);
     }
@@ -116,7 +128,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["A"] = "B", ["B"] = "A" };
 
-        var ex = Assert.Throws<ArgumentException>(() => ParameterEvaluator.Evaluate("A", bindings));
+        var ex = Assert.Throws<ArgumentException>(() => EvaluateExpression("A", bindings));
 
         Assert.Contains("Circular", ex.Message);
     }
@@ -200,7 +212,7 @@ public class ParameterEvaluatorTests
     {
         var bindings = new Dictionary<string, string> { ["W_input"] = "1u", ["tail_ratio"] = "4" };
 
-        var result = ParameterEvaluator.Evaluate("$W_input*$tail_ratio", bindings);
+        var result = EvaluateExpression("W_input*tail_ratio", bindings);
 
         Assert.Equal("4u", result);
     }
@@ -208,10 +220,52 @@ public class ParameterEvaluatorTests
     [Fact]
     public void Evaluate_EmptyExpression_ThrowsArgumentException()
     {
-        var bindings = new Dictionary<string, string>();
-
-        var ex = Assert.Throws<ArgumentException>(() => ParameterEvaluator.Evaluate("", bindings));
+        var ex = Assert.Throws<ArgumentException>(() =>
+            ExpressionEvaluator.Evaluate("", _ => null)
+        );
 
         Assert.Contains("Empty or invalid", ex.Message);
+    }
+
+    private static string EvaluateExpression(
+        string expression,
+        IReadOnlyDictionary<string, string> bindings
+    )
+    {
+        var resolver = CreateResolver(bindings);
+        return ExpressionEvaluator.Evaluate(expression, resolver);
+    }
+
+    private static Func<string, string?> CreateResolver(
+        IReadOnlyDictionary<string, string> bindings
+    )
+    {
+        var cache = new Dictionary<string, string>(StringComparer.Ordinal);
+        var resolving = new HashSet<string>(StringComparer.Ordinal);
+
+        string Resolve(string name)
+        {
+            if (cache.TryGetValue(name, out var cached))
+            {
+                return cached;
+            }
+
+            if (!resolving.Add(name))
+            {
+                throw new ArgumentException($"Circular parameter reference detected: {name}");
+            }
+
+            if (!bindings.TryGetValue(name, out var value) || value is null)
+            {
+                throw new ArgumentException($"Undefined parameter reference: {name}");
+            }
+
+            var resolved = ExpressionEvaluator.Evaluate(value, Resolve);
+            cache[name] = resolved;
+            resolving.Remove(name);
+            return resolved;
+        }
+
+        return Resolve;
     }
 }

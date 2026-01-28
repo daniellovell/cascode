@@ -688,17 +688,23 @@ public interface IACIRVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitExpr([NotNull] ACIRParser.ExprContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.mulExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMulExpr([NotNull] ACIRParser.MulExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="ACIRParser.unaryAtom"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUnaryAtom([NotNull] ACIRParser.UnaryAtomContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.exprAtom"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitExprAtom([NotNull] ACIRParser.ExprAtomContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="ACIRParser.op"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitOp([NotNull] ACIRParser.OpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="ACIRParser.scalarExpr"/>.
 	/// </summary>

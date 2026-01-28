@@ -1844,7 +1844,7 @@ public static class SpiceEmitter
 
         public string Evaluate(string expression)
         {
-            return ParameterEvaluator.Evaluate(expression, ResolveIdentifier);
+            return ExpressionEvaluator.Evaluate(expression, ResolveIdentifier);
         }
 
         private string ResolveIdentifier(string identifier)

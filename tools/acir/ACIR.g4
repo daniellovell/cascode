@@ -464,24 +464,28 @@ sizeExprList
     ;
 
 expr
-    : expr op expr
+    : expr (PLUS | MINUS) mulExpr
+    | mulExpr
+    ;
+
+mulExpr
+    : mulExpr (STAR | SLASH) unaryAtom
+    | unaryAtom
+    ;
+
+unaryAtom
+    : MINUS unaryAtom
     | exprAtom
     ;
 
 exprAtom
-    : sizeFieldAccess
+    : LPAREN expr RPAREN
+    | sizeFieldAccess
     | IDENT
     | NUMBER
     | QUANTITY
     | AUTO_KW
     | UNSIZED
-    ;
-
-op
-    : STAR
-    | SLASH
-    | PLUS
-    | MINUS
     ;
 
 scalarExpr

@@ -1348,6 +1348,30 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitExpr([NotNull] ACIRParser.ExprContext context) { }
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.mulExpr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterMulExpr([NotNull] ACIRParser.MulExprContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.mulExpr"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitMulExpr([NotNull] ACIRParser.MulExprContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.unaryAtom"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterUnaryAtom([NotNull] ACIRParser.UnaryAtomContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.unaryAtom"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitUnaryAtom([NotNull] ACIRParser.UnaryAtomContext context) { }
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.exprAtom"/>.
 	/// <para>The default implementation does nothing.</para>
 	/// </summary>
@@ -1359,18 +1383,6 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitExprAtom([NotNull] ACIRParser.ExprAtomContext context) { }
-	/// <summary>
-	/// Enter a parse tree produced by <see cref="ACIRParser.op"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void EnterOp([NotNull] ACIRParser.OpContext context) { }
-	/// <summary>
-	/// Exit a parse tree produced by <see cref="ACIRParser.op"/>.
-	/// <para>The default implementation does nothing.</para>
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	public virtual void ExitOp([NotNull] ACIRParser.OpContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.scalarExpr"/>.
 	/// <para>The default implementation does nothing.</para>

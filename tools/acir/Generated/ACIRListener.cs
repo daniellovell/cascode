@@ -1137,6 +1137,26 @@ public interface IACIRListener : IParseTreeListener {
 	/// <param name="context">The parse tree.</param>
 	void ExitExpr([NotNull] ACIRParser.ExprContext context);
 	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.mulExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterMulExpr([NotNull] ACIRParser.MulExprContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.mulExpr"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitMulExpr([NotNull] ACIRParser.MulExprContext context);
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="ACIRParser.unaryAtom"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void EnterUnaryAtom([NotNull] ACIRParser.UnaryAtomContext context);
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="ACIRParser.unaryAtom"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	void ExitUnaryAtom([NotNull] ACIRParser.UnaryAtomContext context);
+	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.exprAtom"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -1146,16 +1166,6 @@ public interface IACIRListener : IParseTreeListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	void ExitExprAtom([NotNull] ACIRParser.ExprAtomContext context);
-	/// <summary>
-	/// Enter a parse tree produced by <see cref="ACIRParser.op"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void EnterOp([NotNull] ACIRParser.OpContext context);
-	/// <summary>
-	/// Exit a parse tree produced by <see cref="ACIRParser.op"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	void ExitOp([NotNull] ACIRParser.OpContext context);
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="ACIRParser.scalarExpr"/>.
 	/// </summary>
