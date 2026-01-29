@@ -1,29 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace Cascode.ACIR;
 
 /// <summary>
-/// Evaluates parameter expressions in ACIR, supporting symbolic references
-/// and arithmetic operations with SI unit prefixes.
+/// Provides SI-prefixed numeric parsing and formatting helpers.
 /// </summary>
-/// <remarks>
-/// Expression grammar (per spec):
-/// <code>
-/// paramExpr = paramValue ((* | / | + | -) paramValue)*
-/// paramValue = NUMBER SIUNIT? | $ IDENT
-/// </code>
-/// Evaluation is left-to-right with no operator precedence.
-/// </remarks>
 public static class ParameterEvaluator
 {
-    private static readonly Regex TokenPattern = new(
-        @"(\$[A-Za-z_][A-Za-z0-9_]*)|([+\-*/])|([0-9]*\.?[0-9]+(?:[eE][+\-]?[0-9]+)?[fpnumkMGT]?)",
-        RegexOptions.Compiled
-    );
-
     private static readonly Dictionary<char, double> SIPrefixes = new()
     {
         ['f'] = 1e-15,
@@ -36,60 +21,6 @@ public static class ParameterEvaluator
         ['G'] = 1e9,
         ['T'] = 1e12,
     };
-
-    /// <summary>
-    /// Evaluates a parameter expression given bound parameter values.
-    /// </summary>
-    /// <param name="expression">Expression to evaluate (e.g., "$W_input*2", "1u").</param>
-    /// <param name="bindings">Map of parameter names to their values.</param>
-    /// <returns>Evaluated numeric value as a string with appropriate SI prefix.</returns>
-    /// <exception cref="ArgumentException">Thrown if expression is invalid or references undefined parameters.</exception>
-    public static string Evaluate(string expression, IReadOnlyDictionary<string, string> bindings)
-    {
-        ArgumentNullException.ThrowIfNull(expression);
-        bindings ??= new Dictionary<string, string>();
-
-        var tokens = Tokenize(expression);
-        if (tokens.Count == 0)
-        {
-            throw new ArgumentException($"Empty or invalid expression: '{expression}'");
-        }
-
-        // Single value - no operators
-        if (tokens.Count == 1)
-        {
-            return EvaluateSingleValue(tokens[0], bindings);
-        }
-
-        // Evaluate left-to-right
-        var result = ResolveValue(tokens[0], bindings);
-        int i = 1;
-        while (i < tokens.Count)
-        {
-            if (i + 1 >= tokens.Count)
-            {
-                throw new ArgumentException(
-                    $"Incomplete expression: operator without operand in '{expression}'"
-                );
-            }
-
-            var op = tokens[i];
-            var right = ResolveValue(tokens[i + 1], bindings);
-
-            result = op switch
-            {
-                "+" => result + right,
-                "-" => result - right,
-                "*" => result * right,
-                "/" => right != 0 ? result / right : throw new DivideByZeroException(),
-                _ => throw new ArgumentException($"Unknown operator: {op}"),
-            };
-
-            i += 2;
-        }
-
-        return FormatNumeric(result);
-    }
 
     /// <summary>
     /// Parses an SI-prefixed numeric value to double.
@@ -206,83 +137,5 @@ public static class ParameterEvaluator
         var scaled = value / divisor;
         var formatted = scaled.ToString("G6", CultureInfo.InvariantCulture);
         return formatted + prefix;
-    }
-
-    /// <summary>
-    /// Tokenizes an expression into values and operators.
-    /// </summary>
-    private static List<string> Tokenize(string expression)
-    {
-        var tokens = new List<string>();
-        var matches = TokenPattern.Matches(expression);
-
-        foreach (Match match in matches)
-        {
-            tokens.Add(match.Value);
-        }
-
-        return tokens;
-    }
-
-    /// <summary>
-    /// Evaluates a single value (no operators).
-    /// </summary>
-    private static string EvaluateSingleValue(
-        string token,
-        IReadOnlyDictionary<string, string> bindings
-    )
-    {
-        if (token.StartsWith('$'))
-        {
-            var paramName = token[1..];
-            return ResolveParameter(paramName, bindings);
-        }
-        return token;
-    }
-
-    /// <summary>
-    /// Resolves a token to its numeric value.
-    /// </summary>
-    private static double ResolveValue(string token, IReadOnlyDictionary<string, string> bindings)
-    {
-        if (token.StartsWith('$'))
-        {
-            var paramName = token[1..];
-            var resolved = ResolveParameter(paramName, bindings);
-            return ParseNumeric(resolved);
-        }
-        return ParseNumeric(token);
-    }
-
-    /// <summary>
-    /// Resolves a parameter reference, supporting recursive resolution for chained references.
-    /// </summary>
-    private static string ResolveParameter(
-        string paramName,
-        IReadOnlyDictionary<string, string> bindings,
-        HashSet<string>? visited = null
-    )
-    {
-        visited ??= new HashSet<string>(StringComparer.Ordinal);
-
-        if (!bindings.TryGetValue(paramName, out var value))
-        {
-            throw new ArgumentException($"Undefined parameter reference: ${paramName}");
-        }
-
-        // Check for circular reference
-        if (!visited.Add(paramName))
-        {
-            throw new ArgumentException($"Circular parameter reference detected: ${paramName}");
-        }
-
-        // If the value is another parameter reference, resolve recursively
-        if (value.StartsWith('$'))
-        {
-            var nestedParamName = value[1..];
-            return ResolveParameter(nestedParamName, bindings, visited);
-        }
-
-        return value;
     }
 }

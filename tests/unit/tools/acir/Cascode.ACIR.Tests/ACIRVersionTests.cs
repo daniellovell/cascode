@@ -39,7 +39,8 @@ public class ACIRVersionTests
     public void Reader_AcceptsSameMajorDifferentMinor()
     {
         var differentMinor = ACIRVersion.Minor + 4;
-        var content = $"ACIR {ACIRVersion.Major}.{differentMinor}\ncircuit Test\n  level EL";
+        var content =
+            $"ACIR {ACIRVersion.Major}.{differentMinor}\n" + "circuit Test {\n  level EL\n}\n";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success); // No error for minor mismatch
         Assert.Equal(ACIRVersion.Major, result.Document!.VersionMajor);
@@ -50,7 +51,7 @@ public class ACIRVersionTests
     public void Reader_RejectsDifferentMajor()
     {
         var differentMajor = ACIRVersion.Major + 1;
-        var content = $"ACIR {differentMajor}.0\ncircuit Test\n  level EL";
+        var content = $"ACIR {differentMajor}.0\n" + "circuit Test {\n  level EL\n}\n";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0007"));

@@ -12,15 +12,21 @@ public class ACIRReaderBasicTests
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    nmos M1 (.G--IN, .D--OUT, .S--GND, .B--GND) : nmos
-      size (W=1u, L=180n)
+  fill {{
+    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+      .G--IN
+      .D--OUT
+      .S--GND
+      .B--GND
+    }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -39,11 +45,12 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -58,8 +65,9 @@ circuit TestCircuit
         var acir =
             @"ACIR invalid
 
-circuit TestCircuit
+circuit TestCircuit {
   level EL
+}
 ";
 
         using var reader = new StringReader(acir);
@@ -78,13 +86,15 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
-  fill:
+  fill {{
     nmos M1 bad_syntax here
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -102,15 +112,22 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    nmos M1 (.G--IN, bad_binding, .D--OUT, .S--GND, .B--GND) : nmos
-      size (W=1u, L=180n)
+  fill {{
+    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+      .G--IN
+      bad_binding
+      .D--OUT
+      .S--GND
+      .B--GND
+    }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -129,15 +146,21 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    nmos M1 (.G->IN, .D--OUT, .S--GND, .B--GND) : nmos
-      size (W=1u, L=180n)
+  fill {{
+    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+      .G->IN
+      .D--OUT
+      .S--GND
+      .B--GND
+    }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -156,12 +179,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
-  fill:
+  fill {{
     net a : analog
     net b : analog
     connect a -> b
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -180,12 +205,14 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     nmos M1 invalid_syntax
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -232,10 +259,11 @@ circuit TestCircuit
     public void TryRead_MissingVersionDeclaration_ReturnsWarning()
     {
         var acir =
-            @"circuit TestCircuit
+            @"circuit TestCircuit {
   level EL
   supply VDD
   ground GND
+}
 ";
 
         using var reader = new StringReader(acir);
@@ -258,10 +286,11 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit Test
+circuit Test {{
   level XL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -280,11 +309,13 @@ circuit Test
         var acir =
             @"ACIR invalid
 
-circuit TestCircuit
+circuit TestCircuit {
   level EL
-  fill:
+  fill {
     nmos M1 bad
     nmos M2 also_bad
+  }
+}
 ";
 
         using var reader = new StringReader(acir);
@@ -299,12 +330,13 @@ circuit TestCircuit
     {
         // With ANTLR parser, missing version declaration produces a warning (ACIR0002)
         var acir =
-            @"circuit TestCircuit
+            @"circuit TestCircuit {
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
+}
 ";
 
         using var reader = new StringReader(acir);
@@ -326,24 +358,30 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {{
   io SENSE : analog
-  connectors:
-    to DiffPairLike:
+  connectors {{
+    to DiffPairLike {{
       SENSE--OUT.P
+    }}
+  }}
+}}
 
-trait DiffPairLike:
+interface DiffPairLike {{
   io OUT.P : analog
   io OUT.N : analog
+}}
 
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm to dp via CurrentMirrorLike::DiffPairLike {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -372,24 +410,30 @@ circuit Test
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {{
   io SENSE : analog
-  connectors:
-    to DiffPairLike:
+  connectors {{
+    to DiffPairLike {{
       SENSE--OUT.P
+    }}
+  }}
+}}
 
-trait DiffPairLike:
+interface DiffPairLike {{
   io OUT.P : analog
   io OUT.N : analog
+}}
 
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {{
       .SENSE--OUT.N
     }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -417,27 +461,33 @@ circuit Test
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {{
   io SENSE : analog
   io TAP : analog
-  connectors:
-    to DiffPairLike:
+  connectors {{
+    to DiffPairLike {{
       SENSE--OUT.P
       TAP--OUT.N
+    }}
+  }}
+}}
 
-trait DiffPairLike:
+interface DiffPairLike {{
   io OUT.P : analog
   io OUT.N : analog
+}}
 
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm to dp via CurrentMirrorLike::DiffPairLike {{
       .SENSE--OUT.N
       .TAP--OUT.P
     }}
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -462,21 +512,27 @@ circuit Test
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {{
   io SENSE : analog
-  connectors:
-    to DiffPairLike:
+  connectors {{
+    to DiffPairLike {{
       SENSE--OUT.P
+    }}
+  }}
+}}
 
-trait DiffPairLike:
+interface DiffPairLike {{
   io OUT.P : analog
+}}
 
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
-  fill:
+  fill {{
     attach cm to dp via CurrentMirrorLike::DiffPairLike
+  }}
+}}
 ";
 
         using var reader = new StringReader(acir);
@@ -510,15 +566,21 @@ circuit Test
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  fill:
-    nmos M1 ({gBinding}, {dBinding}, {sBinding}, {bBinding}) : nmos
-      size (W=1u, L=180n)
+  fill {{
+    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+      {gBinding}
+      {dBinding}
+      {sBinding}
+      {bBinding}
+    }}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -551,19 +613,24 @@ circuit TestCircuit
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {{
   io SENSE : analog
-  connectors:
-    to DiffPairLike:
+  connectors {{
+    to DiffPairLike {{
       {mapping}
+    }}
+  }}
+}}
 
-trait DiffPairLike:
+interface DiffPairLike {{
   io OUT.P : analog
+}}
 
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");
@@ -591,14 +658,16 @@ circuit Test
         var acir =
             $@"ACIR {ACIRVersion.Current}
 
-circuit TestCircuit
+circuit TestCircuit {{
   level EL
   supply VDD
   ground GND
   input IN : analog
-  fill:
-    inst dp (.VDD--VDD, .GND--GND) : DiffPair
+  fill {{
+    dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
     {connect}
+  }}
+}}
 ";
 
         var result = ACIRReader.TryParse(acir, "test.cir");

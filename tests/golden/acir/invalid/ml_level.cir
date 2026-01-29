@@ -3,7 +3,7 @@ ACIR 3.0
 // Circuit at ML level - EMIT-005 violation
 // Cannot emit SPICE from non-EL level circuit
 
-circuit MLLevelExample
+circuit MLLevelExample {
   level ML
 
   supply VDD
@@ -12,8 +12,13 @@ circuit MLLevelExample
   input IN : analog
   output OUT : analog
 
-  fill:
+  fill {
     net tnode : analog
 
-    inst dp (.IN--IN, .OUT--OUT, .BIAS--tnode) : DiffPair
-      param p = NMOS
+    dp = new DiffPair(p=NMOS) {
+      .IN--IN
+      .OUT--OUT
+      .BIAS--tnode
+    }
+  }
+}

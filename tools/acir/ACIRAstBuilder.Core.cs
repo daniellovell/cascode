@@ -55,7 +55,7 @@ internal sealed partial class ACIRAstBuilder
             minor = ACIRVersion.Minor;
 
             // Warn about missing version if document has content
-            if (ctx.circuit().Length > 0 || ctx.traitDef().Length > 0 || ctx.bundleDef().Length > 0)
+            if (ctx.topLevelDecl().Length > 0)
             {
                 AddDiagnostic(
                     1,
@@ -66,14 +66,53 @@ internal sealed partial class ACIRAstBuilder
             }
         }
 
+        var bundles = new List<BundleType>();
+        var traits = new List<TraitDefinition>();
+        var benches = new List<BenchDefinition>();
+        var primitives = new List<PrimitiveDefinition>();
+        var circuits = new List<Circuit>();
+
+        foreach (var decl in ctx.topLevelDecl())
+        {
+            if (decl.bundleDef() is not null)
+            {
+                bundles.Add(BuildBundle(decl.bundleDef()));
+                continue;
+            }
+
+            if (decl.interfaceDef() is not null)
+            {
+                traits.Add(BuildTrait(decl.interfaceDef()));
+                continue;
+            }
+
+            if (decl.benchDef() is not null)
+            {
+                benches.Add(BuildBenchDefinition(decl.benchDef()));
+                continue;
+            }
+
+            if (decl.primitiveDef() is not null)
+            {
+                primitives.Add(BuildPrimitive(decl.primitiveDef()));
+                continue;
+            }
+
+            if (decl.circuit() is not null)
+            {
+                circuits.Add(BuildCircuit(decl.circuit()));
+            }
+        }
+
         return new ACIRDocument
         {
             VersionMajor = major,
             VersionMinor = minor,
-            BundleTypes = ctx.bundleDef().Select(BuildBundle).ToList(),
-            Traits = ctx.traitDef().Select(BuildTrait).ToList(),
-            BenchDefinitions = ctx.benchDef().Select(BuildBenchDefinition).ToList(),
-            Circuits = ctx.circuit().Select(BuildCircuit).ToList(),
+            BundleTypes = bundles,
+            Traits = traits,
+            BenchDefinitions = benches,
+            Primitives = primitives,
+            Circuits = circuits,
         };
     }
 
@@ -90,21 +129,21 @@ internal sealed partial class ACIRAstBuilder
             fields[fieldName] = fieldType;
         }
 
-        return new BundleType { Name = ctx.IDENT().GetText(), Fields = fields };
+        return new BundleType { Name = ctx.name.Text, Fields = fields };
     }
 
-    /// <summary>Builds a trait definition including ports and connectors.</summary>
-    /// <param name="ctx">Trait definition context.</param>
+    /// <summary>Builds an interface definition including ports and connectors.</summary>
+    /// <param name="ctx">Interface definition context.</param>
     /// <returns>Trait definition.</returns>
-    private TraitDefinition BuildTrait(ACIRParser.TraitDefContext ctx)
+    private TraitDefinition BuildTrait(ACIRParser.InterfaceDefContext ctx)
     {
-        var trait = new TraitDefinition { Name = ctx.IDENT().GetText() };
+        var trait = new TraitDefinition { Name = ctx.name.Text };
 
-        foreach (var memberCtx in ctx.traitMember())
+        foreach (var memberCtx in ctx.interfaceMember())
         {
             switch (memberCtx)
             {
-                case ACIRParser.TraitPortContext portCtx:
+                case ACIRParser.InterfacePortContext portCtx:
                     trait.Ports.Add(
                         new PortDeclaration
                         {
@@ -115,7 +154,7 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.TraitConnectorsContext connectorsCtx:
+                case ACIRParser.InterfaceConnectorsContext connectorsCtx:
                     foreach (var connDefCtx in connectorsCtx.connectorDef())
                     {
                         var connector = new TraitConnector
@@ -145,8 +184,8 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a bench definition from its parse context.</summary>
     private BenchDefinition BuildBenchDefinition(ACIRParser.BenchDefContext ctx)
     {
-        var name = ctx.IDENT(0).GetText();
-        var trait = ctx.IDENT(1).GetText();
+        var name = ctx.name.Text;
+        var interfaceName = ctx.@interface.Text;
         string? builtin = null;
         var config = new Dictionary<string, string>();
         var outputs = new List<string>();
@@ -200,10 +239,84 @@ internal sealed partial class ACIRAstBuilder
         return new BenchDefinition
         {
             Name = name,
-            Trait = trait,
+            Trait = interfaceName,
             Builtin = builtin,
             Config = config,
             Outputs = outputs,
+        };
+    }
+
+    /// <summary>Builds a primitive definition from its parse context.</summary>
+    private PrimitiveDefinition BuildPrimitive(ACIRParser.PrimitiveDefContext ctx)
+    {
+        var kind = ctx.DEVICE_TYPE().GetText();
+        var name = ctx.name.Text;
+
+        var sizeParam = string.Empty;
+        if (ctx.paramList() != null)
+        {
+            foreach (var paramCtx in ctx.paramList().paramDecl())
+            {
+                if (paramCtx.SIZE_KW() is null)
+                {
+                    AddDiagnostic(
+                        paramCtx,
+                        DiagnosticSeverity.Error,
+                        $"Primitive '{name}' may only declare size parameters."
+                    );
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(sizeParam))
+                {
+                    AddDiagnostic(
+                        paramCtx,
+                        DiagnosticSeverity.Error,
+                        $"Primitive '{name}' must declare exactly one size parameter."
+                    );
+                }
+
+                sizeParam = paramCtx.sizeName.Text;
+            }
+        }
+
+        if (string.IsNullOrEmpty(sizeParam))
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"Primitive '{name}' must declare a size parameter."
+            );
+        }
+
+        var deviceDirective = ctx.primitiveBody().deviceDirective();
+        var deviceKey = Unquote(deviceDirective.STRING().GetText());
+
+        var mappings = new Dictionary<string, string>();
+        foreach (var mappingCtx in ctx.primitiveBody().paramsBlock().paramMapping())
+        {
+            var key = mappingCtx.IDENT().GetText();
+            var value = mappingCtx.paramExpr().GetText();
+            if (mappings.ContainsKey(key))
+            {
+                AddDiagnostic(
+                    mappingCtx,
+                    DiagnosticSeverity.Error,
+                    $"Duplicate primitive param mapping '{key}'"
+                );
+                continue;
+            }
+
+            mappings[key] = value;
+        }
+
+        return new PrimitiveDefinition
+        {
+            Kind = kind,
+            Name = name,
+            Device = deviceKey,
+            SizeParameter = sizeParam,
+            Params = mappings,
         };
     }
 

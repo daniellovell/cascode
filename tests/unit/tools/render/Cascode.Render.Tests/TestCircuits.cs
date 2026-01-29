@@ -37,13 +37,21 @@ internal static class TestCircuits
                     {
                         Id = "M1",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
                             ["G"] = "IN",
                             ["S"] = "GND",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "1u", ["L"] = "100n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "1u",
+                                ["L"] = "100n",
+                            },
+                        },
                     },
                 },
             },
@@ -73,13 +81,21 @@ internal static class TestCircuits
                     {
                         Id = "M_TAIL",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "tail_node",
                             ["G"] = "BIAS",
                             ["S"] = "GND",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "10u", ["L"] = "500n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "10u",
+                                ["L"] = "500n",
+                            },
+                        },
                     },
                 },
                 Nets = new List<NetDeclaration>
@@ -113,13 +129,21 @@ internal static class TestCircuits
                     {
                         Id = "M_LOAD",
                         DeviceType = "pmos",
+                        Primitive = "Level1_PMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
                             ["G"] = "OUT",
                             ["S"] = "VDD",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "5u", ["L"] = "200n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "5u",
+                                ["L"] = "200n",
+                            },
+                        },
                     },
                 },
             },
@@ -137,13 +161,13 @@ internal static class TestCircuits
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_P",
+                    Name = "IN.P",
                     Type = "signal",
                 },
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_N",
+                    Name = "IN.N",
                     Type = "signal",
                 },
                 new()
@@ -161,25 +185,41 @@ internal static class TestCircuits
                     {
                         Id = "M1",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
-                            ["G"] = "IN_P",
+                            ["G"] = "IN.P",
                             ["S"] = "tail",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "2u", ["L"] = "100n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "2u",
+                                ["L"] = "100n",
+                            },
+                        },
                     },
                     new()
                     {
                         Id = "M2",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "OUT",
-                            ["G"] = "IN_N",
+                            ["G"] = "IN.N",
                             ["S"] = "tail",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "2u", ["L"] = "100n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "2u",
+                                ["L"] = "100n",
+                            },
+                        },
                     },
                 },
                 Nets = new List<NetDeclaration>
@@ -201,13 +241,13 @@ internal static class TestCircuits
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_P",
+                    Name = "IN.P",
                     Type = "signal",
                 },
                 new()
                 {
                     Direction = PortDirection.Input,
-                    Name = "IN_N",
+                    Name = "IN.N",
                     Type = "signal",
                 },
                 new()
@@ -243,37 +283,61 @@ internal static class TestCircuits
                     {
                         Id = "M_INP",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_p_int",
-                            ["G"] = "IN_P",
+                            ["G"] = "IN.P",
                             ["S"] = "tail",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "2u", ["L"] = "180n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "2u",
+                                ["L"] = "180n",
+                            },
+                        },
                     },
                     new()
                     {
                         Id = "M_INN",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "out_n_int",
-                            ["G"] = "IN_N",
+                            ["G"] = "IN.N",
                             ["S"] = "tail",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "2u", ["L"] = "180n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "2u",
+                                ["L"] = "180n",
+                            },
+                        },
                     },
                     new()
                     {
                         Id = "M_TAIL",
                         DeviceType = "nmos",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             ["D"] = "tail",
                             ["G"] = "VBIAS2",
                             ["S"] = "GND",
                         },
-                        Params = new Dictionary<string, string> { ["W"] = "4u", ["L"] = "180n" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                ["W"] = "4u",
+                                ["L"] = "180n",
+                            },
+                        },
                     },
                 },
                 Nets = new List<NetDeclaration>
@@ -315,23 +379,31 @@ internal static class TestCircuits
                     {
                         Id = "R_CMFB_P",
                         DeviceType = "resistor",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             ["P"] = "OUT_P",
                             ["N"] = "vcm_sense",
                         },
-                        Params = new Dictionary<string, string> { ["R"] = "500k" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["R"] = "500k" },
+                        },
                     },
                     new()
                     {
                         Id = "R_CMFB_N",
                         DeviceType = "resistor",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             ["P"] = "OUT_N",
                             ["N"] = "vcm_sense",
                         },
-                        Params = new Dictionary<string, string> { ["R"] = "500k" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["R"] = "500k" },
+                        },
                     },
                 },
                 Nets = new List<NetDeclaration>

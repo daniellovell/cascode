@@ -118,8 +118,8 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             if (string.Equals(port.Kind, "Diff", StringComparison.OrdinalIgnoreCase))
             {
-                var pNet = port.Name + "_P";
-                var nNet = port.Name + "_N";
+                var pNet = port.Name + ".P";
+                var nNet = port.Name + ".N";
                 design.Nets[pNet] = new NetInfo { Id = pNet, Domain = "analog" };
                 design.Nets[nNet] = new NetInfo { Id = nNet, Domain = "analog" };
                 design.Bundles[port.Name] = new BundleInfo
@@ -249,7 +249,7 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
             return target;
         }
 
-        // Check for bundle field reference (e.g., IN.P -> IN_P)
+        // Check for bundle field reference (e.g., IN.P -> IN.P)
         var parts = target.Split('.');
         if (parts.Length == 2)
         {
@@ -456,8 +456,8 @@ public sealed class SimpleCascodeCompiler : ICascodeCompiler
         {
             if (string.Equals(port.Kind, "Diff", StringComparison.OrdinalIgnoreCase))
             {
-                portNets.Add(port.Name + "_P");
-                portNets.Add(port.Name + "_N");
+                portNets.Add(port.Name + ".P");
+                portNets.Add(port.Name + ".N");
             }
             else
             {

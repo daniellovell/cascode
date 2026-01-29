@@ -475,13 +475,28 @@ namespace Cascode.ACIR.Tests
                         {
                             Id = "M1",
                             DeviceType = "nmos",
-                            PdkDevice = "sky130_fd_pr__nfet_01v8",
+                            Primitive = "Sky130_NMOS",
                         },
                     },
                 },
             };
 
-            var result = ACIRBenchAdapter.UsesGenericModels(circuit);
+            var document = new ACIRDocument
+            {
+                Primitives =
+                [
+                    new PrimitiveDefinition
+                    {
+                        Name = "Sky130_NMOS",
+                        Kind = "nmos",
+                        Device = "sky130_fd_pr__nfet_01v8",
+                        SizeParameter = "primSize",
+                        Params = new Dictionary<string, string>(),
+                    },
+                ],
+            };
+
+            var result = ACIRBenchAdapter.UsesGenericModels(circuit, document);
 
             Assert.False(result);
         }

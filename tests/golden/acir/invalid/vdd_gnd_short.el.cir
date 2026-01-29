@@ -1,9 +1,19 @@
 ACIR 3.0
 
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
 // Circuit with VDD-GND short - ERC-002 violation
 // Device M_short has drain on VDD and source on GND
 
-circuit VddGndShortExample
+circuit VddGndShortExample {
   level EL
 
   supply VDD
@@ -11,6 +21,12 @@ circuit VddGndShortExample
 
   input IN : analog
 
-  fill:
-    nmos M_short (.G--IN, .D--VDD, .S--GND, .B--GND) : nmos
-      size (W=1u, L=180n, M=1)
+  fill {
+    nmos M_short = new Level1_NMOS(size(W=1u, L=180n, M=1)) {
+      .G--IN
+      .D--VDD
+      .S--GND
+      .B--GND
+    }
+  }
+}

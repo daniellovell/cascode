@@ -92,7 +92,7 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp {
       c_pwr = DCBench::QuiescentPower <= 1mW
     }
     tech {
-      t_lmin = L >= 500nm on *
+      t_lmin : L >= 500nm on *
     }
   }
   harness {

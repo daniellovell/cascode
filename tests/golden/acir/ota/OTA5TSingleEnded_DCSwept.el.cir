@@ -1,41 +1,88 @@
 ACIR 3.0
 
-bundle Diff:
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
+bundle Diff {
   P : analog
   N : analog
 
-bench DCBench for SingleEndedOpAmp
+}
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     OutputDCBias
     QuiescentPower
 
-circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp
+  }
+}
+circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
   input IN : Diff
   output OUT : analog
   input VTAIL : bias
-  fill:
+  fill {
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (.B--GND, .D--mirror_gate, .G--IN.P, .S--tnode) : nmos
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_P (.B--GND, .D--OUT, .G--IN.N, .S--tnode) : nmos
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_TAIL (.B--GND, .D--tnode, .G--VTAIL, .S--GND) : nmos
-      size (W=4u, L=180n, M=1)
-    pmos cm.M_SENSE (.B--VDD, .D--mirror_gate, .G--mirror_gate, .S--VDD) : pmos
-      size (W=2u, L=180n, M=1)
-    pmos cm.M_TAP0 (.B--VDD, .D--OUT, .G--mirror_gate, .S--VDD) : pmos
-      size (W=2u, L=180n, M=1)
-  constraints:
-    numeric:
-      c_out_bias : DCBench::OutputDCBias at net::OUT >= 0.4V
-      c_power : DCBench::QuiescentPower <= 500uW
-  harness:
+    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--mirror_gate
+      .G--IN.P
+      .S--tnode
+    }
+    nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT
+      .G--IN.N
+      .S--tnode
+    }
+    nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+    pmos cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--mirror_gate
+      .G--mirror_gate
+      .S--VDD
+    }
+    pmos cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT
+      .G--mirror_gate
+      .S--VDD
+    }
+  }
+  constraints {
+    numeric {
+      c_out_bias = DCBench::OutputDCBias at net::OUT >= 0.4V
+      c_power = DCBench::QuiescentPower <= 500uW
+    }
+  }
+  harness {
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     sweep InputDCCommonMode [0.4V:100mV:1.4V]
     load OUT C=1pF
+  }
+}

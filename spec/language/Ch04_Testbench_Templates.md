@@ -8,7 +8,7 @@
 
 The testbench template system bridges ACIR circuits to simulator execution through a three-part mechanism: bench definitions declare metrics and template references, Scriban-based templates generate simulator netlists from ACIR harness data, and the compliance checker validates simulation results against numeric constraints. This architecture separates circuit design concerns from test harness implementation, enabling backend portability without duplicating bench semantics.
 
-The flow proceeds deterministically: ACIR circuits at EL level contain `harness:` blocks specifying supply values, loads, and source impedances, plus document-level `bench` definitions and bench-qualified numeric constraints that select which benches to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
+The flow proceeds deterministically: ACIR circuits at EL level contain `harness` blocks specifying supply values, loads, and source impedances, plus document-level `bench` definitions and bench-qualified numeric constraints that select which benches to run. The `cascode emit` command discovers backend-specific templates, populates them with data extracted from ACIR (including constraint-derived AC sweep parameters), and writes simulator netlists. After simulation, `cascode verify` compares measurement results against numeric constraints using SI-prefix-aware value parsing and reports pass/fail status with exit codes suitable for CI integration.
 
 Builtin templates are embedded into the Cascode.Bench assembly at build time. `cascode emit` resolves templates by builtin bench name and backend from these embedded resources, with no filesystem discovery or project overrides. When a scanned PDK workspace is available, emit/bench still populate include lists so templates can pull model decks without extra command-line arguments.
 
@@ -167,8 +167,8 @@ Spectre templates receive additional environment parameters in the `env` object,
 
 | Variable | Type | Description | Derivation |
 |----------|------|-------------|------------|
-| `env.source_ohms` | double | Source impedance (Ω) | From `harness: source IN Z=50 ohm`, default 50Ω |
-| `env.cload_f` | double | Load capacitance (F) | From `harness: load OUT C=1p F` |
+| `env.source_ohms` | double | Source impedance (Ω) | From `harness { source IN Z=50ohm }`, default 50Ω |
+| `env.cload_f` | double | Load capacitance (F) | From `harness { load OUT C=1pF }` |
 | `env.rload_ohms` | double | Load resistance (Ω) | Default 1GΩ (high-Z) |
 
 **AC Sweep Parameters** (derived from constraints):
@@ -179,7 +179,7 @@ Spectre templates receive additional environment parameters in the `env` object,
 | `ac_stop_hz` | double | AC sweep stop frequency | Constraint-derived: max(GBW*10, 1G) |
 | `ac_mag` | double | AC stimulus magnitude | Default 1.0 |
 
-The AC sweep derivation examines ACIR `constraints: numeric:` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
+The AC sweep derivation examines ACIR `constraints { numeric { ... } }` for GainBandwidth, GBW, UnityGainFrequency, or Bandwidth constraints. For example, a constraint `c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz` yields `ac_start_hz = 100kHz` and `ac_stop_hz = 1GHz`, ensuring the sweep covers the expected circuit behavior without manual tuning.
 
 Passband Frequency Derivation:
 
@@ -389,20 +389,21 @@ Backend selection follows filename suffixes (`.ngspice.tpl` or `.spectre.tpl`) s
 
 ## 4.5 ACIR Integration
 
-The testbench system integrates with ACIR through three primary blocks: document-level `bench` definitions, `constraints:`, and `harness:`.
+The testbench system integrates with ACIR through three primary blocks: document-level `bench` definitions, `constraints`, and `harness`.
 
 ### 4.5.1 Harness Block
 
-The `harness:` block specifies test-only elements that do not appear in the synthesized design:
+The `harness` block specifies test-only elements that do not appear in the synthesized design:
 
 ```acir
-harness:
+harness {
   supply VDD = 1.8V
   bias VTAIL = 0.6V
   load OUT C=1pF
   source IN Z=50ohm
   icmr min=0.55V max=0.75V
   pvt TT@27C
+}
 ```
 
 Note the compact notation for values: no space between numeric value and unit (e.g., `1pF` not `1p F`, `50ohm` not `50 ohm`).
@@ -418,17 +419,20 @@ Template variables derived from harness entries:
 
 ### 4.5.2 Constraints Block
 
-The `constraints:` block defines pass/fail criteria tied to specific benches:
+The `constraints` block defines pass/fail criteria tied to specific benches:
 
 ```acir
-constraints:
-  numeric:
-    c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
-    c_gain : ACBench::PassbandGain at net::OUT >= 40dB
-    c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-    c_pwr : DCBench::QuiescentPower <= 500uW
-  tech:
+constraints {
+  numeric {
+    c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz
+    c_gain = ACBench::PassbandGain at net::OUT >= 40dB
+    c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+    c_pwr = DCBench::QuiescentPower <= 500uW
+  }
+  tech {
     t_lmin : L >= 180nm on *
+  }
+}
 ```
 
 **Numeric constraints** drive both AC sweep parameter derivation and post-simulation compliance checking. The `ACIRBenchAdapter` examines GainBandwidth constraints to set appropriate `ac_start_hz` and `ac_stop_hz` values, ensuring the frequency sweep captures the circuit's expected bandwidth.
@@ -438,12 +442,14 @@ constraints:
 Bench definitions live at document scope and bind a bench name to either a builtin bench definition or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the specified trait.
 
 ```acir
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 ```
 
 During `cascode emit`, each bench referenced by numeric constraints triggers builtin template resolution and netlist generation.
@@ -584,7 +590,7 @@ Values in constraints and results may use different prefixes; the parser normali
 Constraints specify which bench metric to check and optionally which node:
 
 ```acir
-c_gain : ACBench::PassbandGain at net::OUT >= 40dB
+c_gain = ACBench::PassbandGain at net::OUT >= 40dB
 ```
 
 The compliance checker matches this constraint to a measurement result by:
@@ -808,15 +814,19 @@ Create `{BenchName}.spectre.tpl` if Spectre support is required. Use the standar
 In your ACIR document, add a bench definition and reference it from constraints:
 
 ```acir
-bench MyCustomBench for SingleEndedOpAmp
+bench MyCustomBench for SingleEndedOpAmp {
   builtin MyCustomBench
-  outputs:
+  outputs {
     Metric1
     Metric2
+  }
+}
 
-constraints:
-  numeric:
-    c_metric1 : MyCustomBench::Metric1 at net::OUT >= 1.0V
+constraints {
+  numeric {
+    c_metric1 = MyCustomBench::Metric1 at net::OUT >= 1.0V
+  }
+}
 ```
 
 ### 4.9.5 Template Authoring Guidelines
@@ -846,19 +856,41 @@ For ngspice, use `echo` commands. For Spectre, use appropriate output directives
 ```acir
 ACIR 3.0
 
-bench ACBench for SingleEndedOpAmp
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
@@ -866,31 +898,60 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   input IN_N : analog
   output OUT : analog
   input VTAIL : bias
-  fill:
+
+  fill {
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N (.G--IN_P, .D--mirror_gate, .S--tnode, .B--GND) : nmos
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_P (.G--IN_N, .D--OUT, .S--tnode, .B--GND) : nmos
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_TAIL (.G--VTAIL, .D--tnode, .S--GND, .B--GND) : nmos
-      size (W=4u, L=180n, M=1)
-    pmos cm.M_SENSE (.G--mirror_gate, .D--mirror_gate, .S--VDD, .B--VDD) : pmos
-      size (W=2u, L=180n, M=1)
-    pmos cm.M_TAP0 (.G--mirror_gate, .D--OUT, .S--VDD, .B--VDD) : pmos
-      size (W=2u, L=180n, M=1)
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
-      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 500uW
-    tech:
+    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .G--IN_P
+      .D--mirror_gate
+      .S--tnode
+      .B--GND
+    }
+    nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .G--IN_N
+      .D--OUT
+      .S--tnode
+      .B--GND
+    }
+    nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+      .G--VTAIL
+      .D--tnode
+      .S--GND
+      .B--GND
+    }
+    pmos cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .G--mirror_gate
+      .D--mirror_gate
+      .S--VDD
+      .B--VDD
+    }
+    pmos cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .G--mirror_gate
+      .D--OUT
+      .S--VDD
+      .B--VDD
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+    tech {
       t_lmin : L >= 180nm on *
-  harness:
+    }
+  }
+
+  harness {
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
+  }
+}
 ```
 
 ### 4.10.2 Emit Command

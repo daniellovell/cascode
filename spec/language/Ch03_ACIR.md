@@ -48,7 +48,7 @@ Extension and dialect fields belong in dedicated extension blocks. Vendor-specif
 
 ### 3.2.1 Character Encoding and Line Structure
 
-ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line, with continuation indicated by indentation for nested content. Comments begin with `//` and extend to end of line.
+ACIR files use UTF-8 encoding with LF line endings. Each logical statement occupies one line. Blocks are delimited by braces; indentation is for readability only. Comments begin with `//` and extend to end of line.
 
 ```acir
 // This is a comment
@@ -57,33 +57,36 @@ ACIR 3.0  // Version declaration with inline comment
 
 ### 3.2.2 Document Structure
 
-An ACIR document begins with a version declaration, followed by optional bundle type definitions, optional trait definitions, optional bench definitions, then one or more circuit blocks.
+An ACIR document begins with a version declaration, followed by optional bundle type definitions, optional interface definitions, optional bench definitions, optional primitive definitions, then one or more circuit blocks.
 
 ```acir
 ACIR <major>.<minor>
 
 [bundle definitions]
 
-[trait definitions]
+[interface definitions]
 
 [bench definitions]
 
-circuit <name> implements <trait list> ...
+primitive <kind> <name>(size <param>) { ... }
+
+circuit <name>([params]) implements <interface list> {
   [level, package]
   [supply/ground/directional port declarations]
-  fill:
+  fill {
     [nets, instances/devices]
+  }
   [constraints, harness, provenance]
+}
 
-circuit <name> ...
-  [circuit body]
+circuit <name> { ... }
 ```
 
 A single ACIR file may contain multiple circuits, supporting compilation of related motifs together as a single unit. At EL level, circuits may instantiate other circuits defined in the same document, enabling hierarchical composition while maintaining a single-file representation.
 
 Circuit ordering: When a document contains multiple circuits with instantiation relationships, the top-level circuit (the one not instantiated by any other circuit in the document) appears FIRST in the file, followed by its child circuits. This top-first ordering ensures readers encounter the design's entry point immediately.
 
-The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill:` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
+The circuit body structure separates the declared interface (supplies, grounds, ports) from the synthesized implementation (contained in the `fill { ... }` block at ML and EL levels). At HL level, slots appear at the circuit body level since they represent requirements rather than implementations.
 
 ### 3.2.3 Version Semantics
 
@@ -93,7 +96,7 @@ Additions that affect circuit connectivity (for example, new ways to create or m
 
 Current version: `3.0`
 
-Legacy arrow syntax (`->` and `connect ... -> ...`) is not accepted by the ACIR reader. Use `scripts/acir_migrate_legacy_syntax.py` to migrate older files to the current syntax.
+Legacy arrow syntax (`->` and `connect ... -> ...`) is not accepted by the ACIR reader. Use `scripts/acir_migrate_syntax.py` to migrate older files to the current syntax.
 
 ### 3.2.4 Lexical Elements
 
@@ -132,10 +135,14 @@ Statements may optionally include source attribution in the form `@[file:line]` 
 
 ```acir
 output OUT : analog @[OTA.cas:7]
-nmos dp.M_N (.G--IN_P, .D--OUT_N, .S--tnode) : nfet_01v8 @[DiffPair.cas:12]
-  size (W=1u, L=100n, M=1)
-inst dp (.IN.P--IN_P) : DiffPair @[OTA.cas:9]
-  size Input = (W=2u, L=180n, M=1)
+nmos dp.M_N = new Level1_NMOS(size(W=1u, L=100n, M=1)) {
+  .G--IN_P
+  .D--OUT_N
+  .S--tnode
+}
+dp = new DiffPair(Input=size(W=2u, L=180n, M=1)) {
+  .IN.P--IN_P
+} @[OTA.cas:9]
 ```
 
 When present, source attribution enables error messages to reference original source locations. However, canonical ACIR output omits source attribution by default to improve readability and reduce noise.
@@ -173,7 +180,7 @@ The domain field specifies one of:
 Net placement:
 
 - Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `input IN : Diff`) are implicit and do not require explicit declaration.
-- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block at ML and EL levels.
+- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill { ... }` block at ML and EL levels.
 - At HL level, internal nets may appear at the circuit body level if needed for slot connectivity.
 
 Examples:
@@ -216,24 +223,27 @@ Supply declarations implicitly create nets with domain `supply`. Ground declarat
 Bundles group related nets for convenience, most commonly differential pairs. Bundle types are declared at the file level before circuits.
 
 ```acir
-bundle <TypeName>:
+bundle <TypeName> {
   <field> : <domain>
   <field> : <domain>
   ...
+}
 ```
 
 Example:
 
 ```acir
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-bundle QuadIQ:
+bundle QuadIQ {
   IP : analog
   IN : analog
   QP : analog
   QN : analog
+}
 ```
 
 Built-in bundle type: The `Diff` bundle is predefined with fields `P` and `N`, both of domain `analog`.
@@ -265,73 +275,93 @@ At HL (High Level), slots represent placeholders for circuit components that wil
 Syntax:
 
 ```acir
-slot <id> [(<connections>)] : <Trait>
+slot <id> implements <Trait> {
+  .<terminalPath>--<netPath>
   param <key> = <value>
   ...
+}
 
-slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
+slot <id> implements <Trait1>, <Trait2> {
+  .<terminalPath>--<netPath>
   param <key> = <value>
   ...
+}
 ```
-
-When a single trait is required, it appears directly after the colon. When multiple traits are required, they are enclosed in square brackets as a comma-separated list.
 
 Examples:
 
 ```acir
-slot load (.node--vout, .bias--vb1, .vref--VDD) : LoadDevice
+slot load implements LoadDevice {
+  .node--vout
+  .bias--vb1
+  .vref--VDD
+}
 
-slot amp (.IN--IN, .OUT--OUT, .VDD--VDD, .VSS--VSS) : SingleEndedOpAmp
+slot amp implements SingleEndedOpAmp {
+  .IN--IN
+  .OUT--OUT
+  .VDD--VDD
+  .VSS--VSS
   param maxPower = 1m
+}
 
-slot driver (.IN--sig, .OUT--pad) : [BufferLike, HighDrive]
+slot driver implements BufferLike, HighDrive {
+  .IN--sig
+  .OUT--pad
+}
 ```
 
 Slot-to-Instance Resolution:
 
-During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular `inst` declaration:
+During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular instance declaration using constructor syntax:
 
 ```acir
 // HL
-slot amp (.IN--IN, .OUT--OUT, .VDD--VDD, .VSS--VSS) : SingleEndedOpAmp
+slot amp implements SingleEndedOpAmp {
+  .IN--IN
+  .OUT--OUT
+  .VDD--VDD
+  .VSS--VSS
+}
 
 // ML (after synthesis resolves the slot)
-inst amp (.IN--IN, .OUT--OUT, .VDD--VDD, .VSS--VSS) : OTA5TSingleEnded
-  param p = NMOS
-  param W = $Auto
+amp = new OTA5TSingleEnded(p=NMOS, W=Auto) {
+  .IN--IN
+  .OUT--OUT
+  .VDD--VDD
+  .VSS--VSS
+}
 ```
 
 The identifier is preserved, maintaining traceability from the original slot to its concrete implementation.
 
 ### 3.3.6 Instance Declarations (ML and EL)
 
-Instances represent circuit or motif instantiations with type, parameters, and terminal bindings. Instance declarations appear within the `fill:` block.
+Instances represent circuit or motif instantiations with type, parameters, and terminal bindings. Instance declarations appear within the `fill { ... }` block.
 
 At ML level, instances reference motif types. At EL level, instances may reference other circuits defined in the same ACIR document, enabling hierarchical composition while maintaining explicit connectivity.
 
 Syntax:
 
 ```acir
-fill:
-  inst <id> [(<connections>)] : <CircuitOrMotifType>
-    param <key> = <value>
-    size <name> = (<key>=<expr>, <key>=<expr>, ...)
-    ...
+fill {
+  <id> = new <CircuitOrMotifType>(<arg>=<value>, <arg>=size(...), ...) {
     .<terminalPath>--<netPath>
     ...
+  }
+}
 ```
 
-Bindings are written as `.terminalPath--netPath`. The leading dot marks the terminal side owned by the instance being declared; the right-hand side names a net path in the enclosing scope. Connections may be specified inline in parentheses immediately following the instance identifier, or in the indented body, but not both within the same instance declaration.
+Bindings are written as `.terminalPath--netPath`. The leading dot marks the terminal side owned by the instance being declared; the right-hand side names a net path in the enclosing scope. Bindings live inside the brace block and may be separated by commas for compact one-line forms or placed on separate lines for readability.
 
 Inline Connections:
 
 When an instance has few connections or they fit naturally on one line, use inline syntax:
 
 ```acir
-fill:
-  inst cm (.RAIL--VDD, .SENSE--mirror_gate, .TAP[0]--OUT) : CurrentMirror
-    param p = PMOS
-    param taps = 1
+fill {
+  cm = new CurrentMirror(p=PMOS, taps=1) { .RAIL--VDD, .SENSE--mirror_gate, .TAP[0]--OUT }
+}
 ```
 
 Multiline Connections:
@@ -339,16 +369,16 @@ Multiline Connections:
 For readability with many connections or when combined with parameters, break across lines:
 
 ```acir
-fill:
-  inst dp : DiffPair
-    param p = NMOS
-    param hasTail = true
+fill {
+  dp = new DiffPair(p=NMOS, hasTail=true) {
     .IN.P--IN_P
     .IN.N--IN_N
     .OUT.P--mirror_gate
     .OUT.N--OUT
     .BASE--GND
     .BIAS--VTAIL
+  }
+}
 ```
 
 Bundle Connections:
@@ -356,13 +386,13 @@ Bundle Connections:
 When a terminal and a net both share the same bundle type, a single binding connects all constituent fields recursively:
 
 ```acir
-fill:
+fill {
   net sig_in : Diff
   net sig_out : Diff
 
   // Implicitly connects .IN.P--sig_in.P, .IN.N--sig_in.N
-  inst dp (.IN--sig_in, .OUT--sig_out) : DiffPair
-    param p = NMOS
+  dp = new DiffPair(p=NMOS) { .IN--sig_in, .OUT--sig_out }
+}
 ```
 
 Terminal path grammar:
@@ -384,7 +414,7 @@ Standalone connection statements (`A--B`) operate on paths in the enclosing scop
 At EL level, instances may reference other circuits defined in the same ACIR document. This enables hierarchical composition where a top-level circuit instantiates child circuits, each of which may contain primitive devices or further circuit instances.
 
 ```acir
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
 
   supply VDD
@@ -393,34 +423,36 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   output OUT : analog
   input VTAIL : bias
 
-  fill:
-    inst dp : DiffPair_hasTail_true_p_NMOS
-      param W_input = 2u
-      param L = 180n
+  fill {
+    dp = new DiffPair_hasTail_true_p_NMOS(W_input=2u, L=180n) {
       .RAIL--VDD
       .BASE--GND
       .IN.P--IN.P
       .IN.N--IN.N
       .BIAS--VTAIL
+    }
 
-    inst cm : CurrentMirror_taps_1_p_PMOS
-      param W_sense = 2u
-      param L = 180n
+    cm = new CurrentMirror_taps_1_p_PMOS(W_sense=2u, L=180n) {
       .RAIL--VDD
+    }
 
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
 
     dp.OUT.N--OUT
+  }
+}
 
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike {
   level EL
   inline
   ...
+}
 
-circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike {
   level EL
   inline
   ...
+}
 ```
 
 All referenced circuit types MUST be defined in the same document. Supplies and grounds MUST be explicitly bound at instantiation; there is no auto-wiring by name.
@@ -432,11 +464,11 @@ Circuits may declare parameters that affect device sizing within the circuit. Pa
 Syntax:
 
 ```acir
-circuit <name>
+circuit <name>(<type> <name> [= <default>], size <name> [= size(...)], ...)
+  implements <interfaces> {
   level EL
-
-  param <name> : <type> [= <default>]
   ...
+}
 ```
 
 Supported types are `real` and `int`. Parameters with defaults are optional at instantiation; parameters without defaults are required.
@@ -444,13 +476,10 @@ Supported types are `real` and `int`. Parameters with defaults are optional at i
 Example:
 
 ```acir
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS(real W_input=2u, real L=180n, real tail_ratio=2, size Input, size Tail)
+  implements DiffPairLike {
   level EL
   inline
-
-  param W_input : real = 2u
-  param L : real = 180n
-  param tail_ratio : real = 2
 
   supply RAIL
   input BASE : analog
@@ -458,20 +487,31 @@ circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   output OUT : Diff
   input BIAS : bias
 
-  size Input
-  size Tail
-
-  fill:
+  fill {
     net tnode : analog
-    nmos M_N (.G--IN.P, .D--OUT.N, .S--tnode, .B--BASE) : nfet_01v8
-      size Input
-    nmos M_P (.G--IN.N, .D--OUT.P, .S--tnode, .B--BASE) : nfet_01v8
-      size Input
-    nmos M_TAIL (.G--BIAS, .D--tnode, .S--BASE, .B--BASE) : nfet_01v8
-      size Tail
+    nmos M_N = new Level1_NMOS(Input) {
+      .G--IN.P
+      .D--OUT.N
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_P = new Level1_NMOS(Input) {
+      .G--IN.N
+      .D--OUT.P
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_TAIL = new Level1_NMOS(Tail) {
+      .G--BIAS
+      .D--tnode
+      .S--BASE
+      .B--BASE
+    }
+  }
+}
 ```
 
-Parameter references in device sizing use the `$` prefix for clarity: `W=$W_input`, `L=$L`, `W=$W_input*$tail_ratio`.
+Parameter references in device sizing use bare identifiers: `W_input`, `L`, `W_input*tail_ratio`.
 
 Rationale for sizing parameters in EL: Although EL represents sizing-complete circuits where device dimensions are finalized, some circuits have inherent structural ratios fundamental to their operation. For example, a current mirror may have a fixed 2:1 ratio between sense and tap transistors that is part of the circuit's topological identity, not a sizing decision. These ratio relationships are preserved as parameters even in EL because they represent architectural intent rather than optimization variables.
 
@@ -489,17 +529,17 @@ At ML level, sizing parameters are typically declared without defaults (required
 Example (ML):
 
 ```acir
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS(real W_input, real L, real tail_ratio=2)
+  implements DiffPairLike {
   level ML
-  param W_input : real           // required - caller must provide
-  param L : real                 // required - caller must provide
-  param tail_ratio : real = 2    // optional - architectural default
+}
 
 // At instantiation:
-inst dp : DiffPair_hasTail_true_p_NMOS
-  param W_input = ??     // auto-size
-  param L = ??           // auto-size
-  // tail_ratio omitted → uses default 2
+fill {
+  dp = new DiffPair_hasTail_true_p_NMOS(W_input=??, L=??) {
+    // tail_ratio omitted → uses default 2
+  }
+}
 ```
 
 ### 3.3.7.1 Size Declarations (First-class sizing packs)
@@ -508,52 +548,68 @@ Many ML and EL motifs repeatedly carry the same small set of sizing values (for 
 
 ACIR therefore supports a first-class **size** construct: a named, reusable key/value pack intended for sizing bundles. A `size` is not a typed scalar parameter; it is a structured map from keys to parameter expressions.
 
-Syntax (circuit body):
+Syntax (circuit signature):
 
 ```acir
 size <name>
-size <name> = (<key>=<expr>, <key>=<expr>, ...)
+size <name> = size(<key>=<expr>, <key>=<expr>, ...)
 ```
 
-Syntax (instance body):
+Syntax (instance constructor):
 
 ```acir
-size <name> = (<key>=<expr>, <key>=<expr>, ...)
+<name> = size(<key>=<expr>, <key>=<expr>, ...)
 ```
 
 Semantics:
 
-- A circuit-level `size <name>` declaration introduces a required size pack. If the declaration omits a default (`=` form), callers MUST provide the size at instantiation.
-- A circuit-level `size <name> = (...)` declaration introduces an optional size pack with a concrete default. Callers MAY omit it at instantiation.
-- An instance-level `size <name> = (...)` assignment provides a concrete pack for that specific instantiation.
+- A circuit signature `size <name>` declaration introduces a required size pack. Callers MUST provide the size at instantiation.
+- A circuit signature `size <name> = size(...)` declaration introduces an optional size pack with a concrete default. Callers MAY omit it at instantiation.
+- An instance constructor assignment `<name> = size(...)` provides a concrete pack for that specific instantiation.
 - Keys are identifiers. Values are parameter expressions (the same expression grammar used in device parameter lists).
 - For deterministic output, writers MUST serialize tuple keys in sorted order.
 
 Using sizes in device declarations:
 
-Device parameter lists MAY include a `size=<name>` entry. When present, the device’s parameter map is computed by:
-
-1. Copy all key/value pairs from the referenced size pack into the device parameter map.
-2. Apply explicit device parameters (e.g. `W=...`) as overrides (explicit keys win over size keys).
-3. The `size` pseudo-parameter is not emitted to downstream formats; it is an ACIR-level convenience only.
+Device declarations reference a named primitive. The primitive defines the concrete device key and parameter map, including how a size pack expands into device parameters. The device declaration passes a size argument either as a named size pack or an inline size expression.
 
 Example (EL, inline leaf):
 
 ```acir
-circuit DiffPair implements DiffPairLike
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
 
-  size InputPair
-  size Tail
-
-  fill:
-    nmos M_N (.G--IN.P, .D--OUT.N, .S--tnode, .B--BASE) : nfet_01v8
-      size InputPair
-    nmos M_P (.G--IN.N, .D--OUT.P, .S--tnode, .B--BASE) : nfet_01v8
-      size InputPair
-    nmos M_TAIL (.G--BIAS, .D--tnode, .S--BASE, .B--BASE) : nfet_01v8
-      size Tail
+  fill {
+    nmos M_N = new Level1_NMOS(InputPair) {
+      .G--IN.P
+      .D--OUT.N
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_P = new Level1_NMOS(InputPair) {
+      .G--IN.N
+      .D--OUT.P
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_TAIL = new Level1_NMOS(Tail) {
+      .G--BIAS
+      .D--tnode
+      .S--BASE
+      .B--BASE
+    }
+  }
+}
 ```
 
 This construct uses `=` for value assignment; in ACIR, `:` introduces a declaration’s type or domain (for example `output OUT : analog` or `param L : real`).
@@ -565,10 +621,11 @@ Circuits may be marked with the `inline` annotation to control SPICE emission be
 Syntax:
 
 ```acir
-circuit <name>
+circuit <name> {
   level EL
   inline
   ...
+}
 ```
 
 Semantics:
@@ -591,107 +648,139 @@ Top-level handling: If the top-level circuit is marked `inline`, the annotation 
 
 ### 3.3.9 Device Declarations (EL)
 
-At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections. Device declarations appear within the `fill:` block.
+At EL (Electrical Level), primitive devices replace motif instances. Device declarations specify the device type, sizing parameters, and terminal connections. Device declarations appear within the `fill { ... }` block.
 
 Transistors:
 
 ```acir
-fill:
-  nmos <id> [(<connections>)] : <pdk_device>
-    size <SizeName>|(<key>=<value>, ...)
+fill {
+  nmos <id> = new <PrimitiveName>(<sizeName>|size(...)) {
     .<terminalPath>--<netPath>
     ...
+  }
 
-  pmos <id> [(<connections>)] : <pdk_device>
-    size <SizeName>|(<key>=<value>, ...)
+  pmos <id> = new <PrimitiveName>(<sizeName>|size(...)) {
     .<terminalPath>--<netPath>
     ...
+  }
+}
 ```
 
-Transistor sizing uses size packs (§3.3.7.1), specified either inline or by reference. The PDK device name is required at EL.
-Within a single device declaration, bindings MUST be either entirely inline in the optional parenthesized list or entirely in the body; the two forms MUST NOT be mixed.
+Transistor sizing uses size packs (§3.3.7.1) passed to the primitive. The primitive resolves to a concrete device key and parameter map.
 
 Inline anonymous size (one-off sizing):
 
 ```acir
-fill:
-  nmos M_in (.G--IN, .D--OUT, .S--GND, .B--GND) : nfet_01v8
-    size (W=12u, L=180n, M=4)
-  pmos M_load (.G--OUT, .D--OUT, .S--VDD, .B--VDD) : pfet_01v8
-    size (W=2u, L=180n, M=2)
+fill {
+  nmos M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
+    .G--IN
+    .D--OUT
+    .S--GND
+    .B--GND
+  }
+  pmos M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
+    .G--OUT
+    .D--OUT
+    .S--VDD
+    .B--VDD
+  }
+}
 ```
 
 Named size reference (reuse or parametrization):
 
 ```acir
-circuit DiffPair
+circuit DiffPair(size Input, size Tail) {
   level EL
-  size Input
-  size Tail
 
-  fill:
-    nmos M_N (.G--IN.P, .D--OUT.N, .S--tnode, .B--GND) : nfet_01v8
-      size Input
-    nmos M_P (.G--IN.N, .D--OUT.P, .S--tnode, .B--GND) : nfet_01v8
-      size Input
-    nmos M_TAIL (.G--BIAS, .D--tnode, .S--GND, .B--GND) : nfet_01v8
-      size Tail
+  fill {
+    nmos M_N = new Level1_NMOS(Input) {
+      .G--IN.P
+      .D--OUT.N
+      .S--tnode
+      .B--GND
+    }
+    nmos M_P = new Level1_NMOS(Input) {
+      .G--IN.N
+      .D--OUT.P
+      .S--tnode
+      .B--GND
+    }
+    nmos M_TAIL = new Level1_NMOS(Tail) {
+      .G--BIAS
+      .D--tnode
+      .S--GND
+      .B--GND
+    }
+  }
+}
 ```
 
-Transistors MUST use `size Name` (named reference) or `size (...)` (inline literal). The size statement MUST appear in the device body; inline `size=` on the declaration line is not permitted.
+Device declarations MUST supply a size argument either as a named size pack or an inline `size(...)` expression.
 
 Passives:
 
 ```acir
-fill:
-  resistor <id> [(<connections>)] : <pdk_device>
-    R = <value>
+fill {
+  resistor <id> = new <PrimitiveName>(size(R=<value>)) {
     .P--<net>
     .N--<net>
+  }
 
-  capacitor <id> [(<connections>)] : <pdk_device>
-    C = <value>
+  capacitor <id> = new <PrimitiveName>(size(C=<value>)) {
     .P--<net>
     .N--<net>
+  }
 
-  inductor <id> [(<connections>)] : <pdk_device>
-    L = <value>
+  inductor <id> = new <PrimitiveName>(size(L=<value>)) {
     .P--<net>
     .N--<net>
+  }
+}
 ```
 
 Example:
 
 ```acir
-fill:
-  capacitor Cc (.P--comp_out, .N--stage2_in) : capacitor
-    C = 1p
-  resistor Rz (.P--comp_out, .N--stage2_in) : resistor
-    R = 10k
+fill {
+  capacitor Cc = new Ideal_Capacitor(size(C=1p)) {
+    .P--comp_out
+    .N--stage2_in
+  }
+  resistor Rz = new Ideal_Resistor(size(R=10k)) {
+    .P--comp_out
+    .N--stage2_in
+  }
+}
 ```
 
 Diodes:
 
 ```acir
-diode <id> [(<connections>)] : <pdk_device>
-  .A--<net>
-  .K--<net>
+fill {
+  diode <id> = new <PrimitiveName>(size(A=<value>)) {
+    .A--<net>
+    .K--<net>
+  }
+}
 ```
 
 ### 3.3.10 Connection Statements
 
-Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings. Connection statements appear within the `fill:` block.
+Explicit connection statements declare net-to-net or terminal-to-net connections that are not captured by instance bindings. Connection statements appear within the `fill { ... }` block.
 
 ```acir
-fill:
+fill {
   <source>--<dest>
+}
 ```
 
 Example:
 
 ```acir
-fill:
+fill {
   dp.OUT.N--OUT
+}
 ```
 
 ### 3.3.11 Attach Statements in ACIR-EL
@@ -739,9 +828,10 @@ Connectors are defined on interface traits in the Cascode language (Chapter 2). 
 Circuits implement traits by using the `implements` keyword:
 
 ```acir
-circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike {
   level EL
   ...
+}
 ```
 
 Attach resolution looks up the referenced connector in the document's trait definitions at validation/emission time.
@@ -753,22 +843,29 @@ If `via` were optional (as it might be in higher-level ADL), and multiple valid 
 Example:
 
 ```acir
-trait TraitA:
+interface TraitA {
   io X : analog
-  connectors:
-    to TraitC:
+  connectors {
+    to TraitC {
       X--Z
+    }
+  }
+}
 
-trait TraitB:
+interface TraitB {
   io Y : analog
-  connectors:
-    to TraitC:
+  connectors {
+    to TraitC {
       Y--Z
+    }
+  }
+}
 
 // Circuit implements both traits
-circuit Multi implements TraitA, TraitB
+circuit Multi implements TraitA, TraitB {
   level EL
   ...
+}
 
 // Attach must specify which connector
 attach m to c via TraitA::TraitC    // uses TraitA's connector (X--Z)
@@ -778,21 +875,24 @@ attach m to c via TraitB::TraitC    // uses TraitB's connector (Y--Z)
 
 Attach statements are resolved during SPICE emission using a union-find algorithm that computes equivalence classes over nets and terminal endpoints. See [§3.13.3](#3133-connectivity-resolution) for the detailed resolution algorithm and [§3.13.4](#3134-net-unification-semantics) for net unification semantics.
 
-#### 3.3.11.3 Trait Definitions (In-Document)
+#### 3.3.11.3 Interface Definitions (In-Document)
 
-Traits declare interface contracts and connectors. Trait definitions appear at the document level, after bundle definitions and before circuits.
+Interface definitions declare trait contracts and connectors. Interface definitions appear at the document level, after bundle definitions and before circuits.
 
 Syntax:
 
 ```acir
-trait <TraitName>:
+interface <TraitName> {
   <input|output|io> <name> : <domain|BundleType>
   ...
 
-  connectors:
-    to <TargetTrait>:
+  connectors {
+    to <TargetTrait> {
       <source_port>--<target_port>
       ...
+    }
+  }
+}
 ```
 
 Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `output TAP[*] : analog`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see [§3.3.12](#3312-topological-monomorphization)).
@@ -828,7 +928,7 @@ Two categories of parameters:
 2. **Sizing parameters** (resolved at ML→EL, remain as runtime parameters at ML):
    - Device dimensions (W, L, mult) — use `??` placeholder at ML
    - Architectural ratios (tail_ratio, mirror_ratio)
-   - Expression support: `W=$W_input*$tail_ratio`
+   - Expression support: `W=W_input*tail_ratio`
 
 Naming convention:
 
@@ -862,44 +962,45 @@ Instance references MUST use the specialized name:
 
 ```acir
 // Correct
-inst dp : DiffPair_hasTail_true_p_NMOS
-  param W_input = 4u
+dp = new DiffPair_hasTail_true_p_NMOS(W_input=4u) {
+  ...
+}
 
 // Error - DiffPair does not exist, only specialized variants
-inst dp : DiffPair
-  param hasTail = true   // INVALID
+dp = new DiffPair(hasTail=true) { ... }   // INVALID
 ```
 
-### 3.3.13 The `fill:` Block
+### 3.3.13 The `fill { ... }` Block
 
-The `fill:` block groups all synthesized and elaborated content, separating the circuit's **declared interface** (ports, supplies, grounds) from its **implementation** (instances, devices, internal nets).
+The `fill { ... }` block groups all synthesized and elaborated content, separating the circuit's **declared interface** (ports, supplies, grounds) from its **implementation** (instances, devices, internal nets).
 
 Syntax:
 
 ```acir
-fill:
+fill {
   <net declarations>
   <instance declarations>
   <device declarations>
   <attach statements>
   <connection statements>
+}
 ```
 
 Semantics:
 
-- At **ML level**, the `fill:` block contains internal `net` declarations and `inst` declarations resulting from slot resolution and elaboration.  
-- **EL level** uses the `fill:` block for internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).  
-- **HL level** does not use the `fill:` block; instead, slots remain at the circuit body level, representing requirements and contracts rather than synthesized implementations.
+- At **ML level**, the `fill { ... }` block contains internal `net` declarations and circuit instances resulting from slot resolution and elaboration.  
+- **EL level** uses the `fill { ... }` block for internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).  
+- **HL level** does not use the `fill { ... }` block; instead, slots remain at the circuit body level, representing requirements and contracts rather than synthesized implementations.
 
 Net placement:
 
-- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `input IN : Diff`) are implicit and do not appear in the `fill:` block.
-- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill:` block.
+- Nets created as part of port expansion (e.g., `IN_P`, `IN_N` from `input IN : Diff`) are implicit and do not appear in the `fill { ... }` block.
+- Internal nets created during elaboration (e.g., `tnode`, `mirror_gate`) are declared within the `fill { ... }` block.
 
 Example:
 
 ```acir
-circuit SimpleAmp
+circuit SimpleAmp {
   level EL
 
   supply VDD
@@ -907,15 +1008,25 @@ circuit SimpleAmp
   input IN : analog
   output OUT : analog
 
-  fill:
+  fill {
     net tnode : analog
-    nmos M_in (.G--IN, .D--OUT, .S--VSS, .B--VSS) : nfet_01v8
-      size (W=8u, L=180n, M=2)
-    pmos M_load (.G--OUT, .D--OUT, .S--VDD, .B--VDD) : pfet_01v8
-      size (W=2u, L=180n, M=2)
+    nmos M_in = new Level1_NMOS(size(W=8u, L=180n, M=2)) {
+      .G--IN
+      .D--OUT
+      .S--VSS
+      .B--VSS
+    }
+    pmos M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
+      .G--OUT
+      .D--OUT
+      .S--VDD
+      .B--VDD
+    }
+  }
+}
 ```
 
-The `fill:` block creates a clear structural separation between what the circuit promises (its interface) and how it is implemented (the synthesized content).
+The `fill { ... }` block creates a clear structural separation between what the circuit promises (its interface) and how it is implemented (the synthesized content).
 
 ---
 
@@ -924,13 +1035,14 @@ The `fill:` block creates a clear structural separation between what the circuit
 Tools routinely need fast graph queries. ACIR allows serializing derived views in an optional indices block. They are informative only and must match resolved connectivity exactly.
 
 ```acir
-indices:
+indices {
   hash sha256:abc123...
   pin_to_net dp.IN.P -> VINP
   pin_to_net dp.OUT.N -> N1
   net_to_pins VINP <- dp.IN.P
   net_to_pins N1 <- dp.OUT.N, cm.SENSE
   adjacent dp -> cm, tail
+}
 ```
 
 The hash is computed from a canonical serialization of the resolved terminal-to-net mapping. When `attach` statements and explicit connection statements (`A--B`) are present, tools must resolve them first, then hash the resulting concrete mapping. Readers must recompute and compare when indices are present. Writers should not serialize indices by default, reserving them for debugging scenarios or heavy-duty solvers that benefit from a warm cache.
@@ -942,31 +1054,39 @@ The hash is computed from a canonical serialization of the resolved terminal-to-
 Bench definitions declare which metrics a bench will produce for a given trait and how that bench is implemented. Constraints express required values for those metrics and bind them to a bench and optional measurement node.
 
 ```acir
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-constraints:
-  numeric:
-    c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz
-    c_gain : ACBench::PassbandGain at net::OUT >= 55dB
-    c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-    c_pwr : DCBench::QuiescentPower <= 2mW
+constraints {
+  numeric {
+    c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz
+    c_gain = ACBench::PassbandGain at net::OUT >= 55dB
+    c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+    c_pwr = DCBench::QuiescentPower <= 2mW
+  }
 
-  tech:
+  tech {
     t_lmin : L >= 180nm on *
+  }
 
-  graph:
+  graph {
     g_card_tail : cardinality type:CurrentMirror in [1, 1]
     g_path : path_exists IN.P -> OUT through CurrentMirror
+  }
+}
 ```
 
 ### 3.5.1 Bench Definitions
@@ -974,12 +1094,14 @@ constraints:
 Bench definitions are document-level blocks. Each bench is scoped to a trait and selects a builtin bench template. The `outputs` list declares which metrics the bench will emit for circuits that implement the trait. A `config` block may supply bench-specific parameters passed through to templates.
 
 ```acir
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 ```
 
 Bench names must be unique within a document. A circuit may reference only benches whose `for` trait appears in its `implements` list.
@@ -989,7 +1111,7 @@ Bench names must be unique within a document. A circuit may reference only bench
 Numeric constraints express inequalities over bench metrics with explicit units and scope.
 
 ```acir
-<id> : <bench>::<metric> [at <node>] <op> <value> <unit>
+<id> = <bench>::<metric> [at <node>] <op> <value> <unit>
 ```
 
 Operators: `>=`, `<=`, `==`, `>`, `<`
@@ -1025,7 +1147,7 @@ Guidance: Graph constraints operate on the derived incidence graph, leveraging t
 The harness holds bench-only elements derived from ADL env blocks: supply values, bias voltages, source impedances, loads, and PVT selections. Harness elements are not part of the design graph and should not affect layout or LVS.
 
 ```acir
-harness:
+harness {
   supply VDD = 1.8V
   supply VDDIO = 3.3V
   bias VBIAS = 0.7V
@@ -1034,6 +1156,7 @@ harness:
   load OUT C=1pF
   icmr min=0.55V max=0.75V
   pvt TT@27C, SS@-40C, FF@125C
+}
 ```
 
 Terminal reference validation (normative):
@@ -1080,14 +1203,16 @@ Example (underconstrained but explicit):
 
 ```acir
 // HL or ML: author requests that synthesis choose a sweep envelope
-harness:
+harness {
   sweep InputDCBias [Auto]
+}
 ```
 
 ```acir
 // EL: synthesis materializes the chosen envelope (example values)
-harness:
+harness {
   sweep InputDCBias [0.42V:50mV:1.07V]
+}
 ```
 
 ### 3.6.1 Bias Resolution
@@ -1101,18 +1226,21 @@ For example, a common-source amplifier with a PMOS active load requires a gate b
 Bench definitions live at document scope and are referenced by constraints. A bench declares its trait scope, builtin template, and the metrics it produces.
 
 ```acir
-bench StepToggle for DigitalBuffer
+bench StepToggle for DigitalBuffer {
   builtin StepToggleBench
-  config:
+  config {
     node = COMP_OUT
     freq = 50MHz
     duty = 0.5
     cycles = 3
-  outputs:
+  }
+  outputs {
     RiseTime
     FallTime
     VOH
     VOL
+  }
+}
 ```
 
 ---
@@ -1123,52 +1251,60 @@ ACIR files declare a level in the circuit header: HL, ML, or EL. Pin coverage an
 
 ### 3.7.1 HL - High Level
 
-Slots are declared using the `slot` keyword followed by an identifier, connections, and required traits. When a slot requires a single trait, the trait name appears directly after the colon. When multiple traits are required, they are enclosed in square brackets.
+Slots are declared using the `slot` keyword followed by an identifier, an `implements` clause, and a brace block containing bindings and optional parameters.
 
 All terminals are connected to nets, but many parameters and some values may remain symbolic or null while connectivity is complete.
 
 ```acir
-circuit OTA implements SingleEndedOpAmp
+circuit OTA implements SingleEndedOpAmp {
   level HL
   ...
-  slot load (.node--vout, .bias--vb1, .vref--VDD) : LoadDevice
-  slot amp (.IN--IN, .OUT--OUT, .VDD--VDD, .VSS--VSS) : [SingleEndedOpAmp, LowPower]
+  slot load implements LoadDevice {
+    .node--vout
+    .bias--vb1
+    .vref--VDD
+  }
+  slot amp implements SingleEndedOpAmp, LowPower {
+    .IN--IN
+    .OUT--OUT
+    .VDD--VDD
+    .VSS--VSS
+  }
+}
 ```
 
 Syntax:
 
 ```acir
-slot <id> [(<connections>)] : <Trait>
-slot <id> [(<connections>)] : [<Trait1>, <Trait2>, ...]
+slot <id> implements <Trait> { ... }
+slot <id> implements <Trait1>, <Trait2> { ... }
 ```
 
 The slot declaration captures the interface contract (connections) and the behavioral requirements (traits) that any concrete implementation must satisfy. During synthesis, slots are resolved to concrete motif types that implement the required traits.
 
 ### 3.7.2 ML - Mid Level
 
-Slots are resolved to concrete motif types and become regular `inst` declarations. Topological parameters (polarity, hasTail, taps) are resolved during HL→ML and baked into monomorphized circuit names. All terminals are connected to nets. Sizing parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill:` block.
+Slots are resolved to concrete motif types and become regular circuit instances. Topological parameters (polarity, hasTail, taps) are resolved during HL→ML and baked into monomorphized circuit names. All terminals are connected to nets. Sizing parameters may still be symbolic, and the representation remains PDK-agnostic. Instances and internal nets appear within the `fill { ... }` block.
 
 ```acir
-circuit OTA implements SingleEndedOpAmp
+circuit OTA implements SingleEndedOpAmp {
   level ML
   ...
-  fill:
-    inst load (.node--vout, .bias--vb1, .vref--VDD) : ActiveLoad_p_PMOS
-      param W = ??
-      param L = ??
+  fill {
+    load = new ActiveLoad_p_PMOS(W=??, L=??) { .node--vout, .bias--vb1, .vref--VDD }
 
-    inst dp : DiffPair_hasTail_true_p_NMOS
-      param W_input = ??
-      param L = ??
-      param tail_ratio = 2
+    dp = new DiffPair_hasTail_true_p_NMOS(W_input=??, L=??, tail_ratio=2) {
       ...
+    }
+  }
+}
 ```
 
-At ML, what was a `slot load : LoadDevice` at HL becomes `inst load : ActiveLoad_p_PMOS` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` trait.
+At ML, what was a `slot load implements LoadDevice { ... }` at HL becomes `load = new ActiveLoad_p_PMOS(...) { ... }` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` trait.
 
 Auto-sizing placeholder (`??`): At ML level, sizing parameters at **instantiation** may use the `??` placeholder to indicate values the sizing engine will determine during ML→EL elaboration. The `??` token appears only at instantiation sites, not in circuit parameter defaults. Circuit definitions declare parameter types and may provide concrete architectural defaults (e.g., `tail_ratio = 2`), but sizing parameters that need auto-determination are left without defaults and assigned `??` at instantiation. See [§3.3.7](#337-circuit-parameter-declarations) for the full parameter semantics.
 
-Symbolic parameters use the `$` prefix for named references: `$ratio`, `$W_input`. The `??` token is reserved and cannot be used as an identifier.
+Symbolic parameters use bare identifiers for named references: `ratio`, `W_input`. The `??` token is reserved and cannot be used as an identifier.
 
 ### 3.7.3 EL - Electrical Level
 
@@ -1182,32 +1318,38 @@ EL supports two forms:
 Flattened form:
 
 ```acir
-circuit OTA implements SingleEndedOpAmp
+circuit OTA implements SingleEndedOpAmp {
   level EL
   ...
-  fill:
-    nmos dp.M_N (.G--IN_P, .D--mirror_gate, .S--tnode, .B--GND) : nfet_01v8
-      size (W=2u, L=180n, M=1)
+  fill {
+    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .G--IN_P
+      .D--mirror_gate
+      .S--tnode
+      .B--GND
+    }
+  }
+}
 ```
 
 Hierarchical form:
 
 ```acir
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
   ...
-  fill:
-    inst dp : DiffPair_hasTail_true_p_NMOS
-      param W_input = 2u
-      ...
-    inst cm : CurrentMirror_taps_1_p_PMOS
-      ...
+  fill {
+    dp = new DiffPair_hasTail_true_p_NMOS(W_input=2u) { ... }
+    cm = new CurrentMirror_taps_1_p_PMOS { ... }
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
+  }
+}
 
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike {
   level EL
   inline
   ...
+}
 ```
 
 Hierarchical EL documents contain multiple circuits; the top-level circuit appears first. Child circuits marked `inline` are expanded during SPICE emission. See [§3.3.6](#336-instance-declarations-ml-and-el) for circuit instantiation and [§3.3.8](#338-the-inline-annotation) for the `inline` annotation.
@@ -1219,16 +1361,14 @@ Hierarchical EL documents contain multiple circuits; the top-level circuit appea
 Provenance links IR elements back to ADL source and records transformation steps. This enables precise diagnostics and reproducibility.
 
 ```acir
-provenance:
-  sources:
-    examples/OTA5T.cas [1:120]
-  transforms:
-    desugar.attach
-    slot.fill
-    sizing.geometric
-  aliases:
-    nN = dp.OUT.N
-    nP = dp.OUT.P
+provenance {
+  source "examples/OTA5T.cas" [1:120]
+  transform "desugar.attach"
+  transform "slot.fill"
+  transform "sizing.geometric"
+  alias nN = dp.OUT.N
+  alias nP = dp.OUT.P
+}
 ```
 
 ---
@@ -1338,11 +1478,12 @@ This example shows the ML representation of a five-transistor OTA with different
 ```acir
 ACIR 3.0
 
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level ML
   package analog.ota
 
@@ -1353,68 +1494,82 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   output OUT : analog
   input VTAIL : bias
 
-  fill:
+  fill {
     net mirror_gate : analog
     net tnode : analog
 
-    inst dp (.IN--IN, .OUT.N--OUT, .BASE--GND, .BIAS--VTAIL, .OUT.P--mirror_gate) : DiffPair_hasTail_true_p_NMOS
-      param W_input = ??
-      param L = ??
-      param tail_ratio = 2
+    dp = new DiffPair_hasTail_true_p_NMOS(W_input=??, L=??, tail_ratio=2) {
+      .IN--IN
+      .OUT.N--OUT
+      .BASE--GND
+      .BIAS--VTAIL
+      .OUT.P--mirror_gate
+    }
 
-    inst cm (.RAIL--VDD, .SENSE--mirror_gate, .TAP[0]--OUT) : CurrentMirror_taps_1_p_PMOS
-      param W_sense = ??
-      param L = ??
+    cm = new CurrentMirror_taps_1_p_PMOS(W_sense=??, L=??) {
+      .RAIL--VDD
+      .SENSE--mirror_gate
+      .TAP[0]--OUT
+    }
+  }
+}
 
-
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS(real W_input, real L, real tail_ratio=2)
+  implements DiffPairLike {
   level ML
   package lib.std.prim
-
-  param W_input : real
-  param L : real
-  param tail_ratio : real = 2
 
   input IN : Diff
   output OUT : Diff
   input BASE : analog
   input BIAS : bias
 
-  fill:
+  fill {
     net tnode : analog
 
-    inst M_N (.G--IN.P, .D--OUT.N, .S--tnode) : MOS_NMOS
-      param W = $W_input
-      param L = $L
+    M_N = new MOS_NMOS(W=W_input, L=L) {
+      .G--IN.P
+      .D--OUT.N
+      .S--tnode
+    }
 
-    inst M_P (.G--IN.N, .D--OUT.P, .S--tnode) : MOS_NMOS
-      param W = $W_input
-      param L = $L
+    M_P = new MOS_NMOS(W=W_input, L=L) {
+      .G--IN.N
+      .D--OUT.P
+      .S--tnode
+    }
 
-    inst M_TAIL (.G--BIAS, .D--tnode, .S--BASE) : MOS_NMOS
-      param W = $W_input * $tail_ratio
-      param L = $L
+    M_TAIL = new MOS_NMOS(W=W_input * tail_ratio, L=L) {
+      .G--BIAS
+      .D--tnode
+      .S--BASE
+    }
+  }
+}
 
-
-circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS(real W_sense, real L)
+  implements CurrentMirrorLike {
   level ML
   package lib.std.prim
-
-  param W_sense : real
-  param L : real
 
   supply RAIL
   input SENSE : analog
   output TAP[0] : analog
 
-  fill:
-    inst M_SENSE (.G--SENSE, .D--SENSE, .S--RAIL) : MOS_PMOS
-      param W = $W_sense
-      param L = $L
+  fill {
+    M_SENSE = new MOS_PMOS(W=W_sense, L=L) {
+      .G--SENSE
+      .D--SENSE
+      .S--RAIL
+    }
 
-    inst M_TAP0 (.G--SENSE, .D--TAP[0], .S--RAIL) : MOS_PMOS
-      param W = $W_sense
-      param L = $L
+    M_TAP0 = new MOS_PMOS(W=W_sense, L=L) {
+      .G--SENSE
+      .D--TAP[0]
+      .S--RAIL
+    }
+  }
+}
 ```
 
 ### 3.12.2 EL ACIR for OTA5TSingleEnded (Fully Flattened)
@@ -1424,19 +1579,41 @@ At EL, all motifs are expanded to primitive devices. The circuit is fully flatte
 ```acir
 ACIR 3.0
 
-bench ACBench for SingleEndedOpAmp
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
 
   supply VDD
@@ -1447,39 +1624,65 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   output OUT : analog
   input VTAIL : bias
 
-  fill:
+  fill {
     net tnode : analog        // from dp.tnode
     net mirror_gate : analog  // dp.OUT.P = cm.SENSE
 
     // DiffPair (dp) - NMOS differential pair with tail
-    nmos dp.M_N (.G--IN_P, .D--mirror_gate, .S--tnode, .B--GND) : nfet_01v8
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_P (.G--IN_N, .D--OUT, .S--tnode, .B--GND) : nfet_01v8
-      size (W=2u, L=180n, M=1)
-    nmos dp.M_TAIL (.G--VTAIL, .D--tnode, .S--GND, .B--GND) : nfet_01v8
-      size (W=4u, L=180n, M=1)
+    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .G--IN_P
+      .D--mirror_gate
+      .S--tnode
+      .B--GND
+    }
+    nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .G--IN_N
+      .D--OUT
+      .S--tnode
+      .B--GND
+    }
+    nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+      .G--VTAIL
+      .D--tnode
+      .S--GND
+      .B--GND
+    }
 
     // CurrentMirror (cm) - PMOS current mirror
-    pmos cm.M_SENSE (.G--mirror_gate, .D--mirror_gate, .S--VDD, .B--VDD) : pfet_01v8
-      size (W=2u, L=180n, M=1)
-    pmos cm.M_TAP0 (.G--mirror_gate, .D--OUT, .S--VDD, .B--VDD) : pfet_01v8
-      size (W=2u, L=180n, M=1)
+    pmos cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .G--mirror_gate
+      .D--mirror_gate
+      .S--VDD
+      .B--VDD
+    }
+    pmos cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .G--mirror_gate
+      .D--OUT
+      .S--VDD
+      .B--VDD
+    }
+  }
 
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz
-      c_gain : ACBench::PassbandGain at net::OUT >= 55dB
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 2mW
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 55dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 2mW
+    }
 
-    tech:
+    tech {
       t_lmin : L >= 180nm on *
+    }
+  }
 
-  harness:
+  harness {
     supply VDD = 1.8V
     load OUT C=1pF
     icmr min=0.55V max=0.75V
     pvt TT@27C
+  }
+}
 
 ```
 
@@ -1490,24 +1693,28 @@ This example demonstrates a stdcell inverter used as an output buffer, showing h
 ```acir
 ACIR 3.0
 
-trait DigitalBuffer:
+interface DigitalBuffer {
   input COMP_OUT : digital
   output PAD : digital
+}
 
-bench StepToggle for DigitalBuffer
+bench StepToggle for DigitalBuffer {
   builtin StepToggle
-  config:
+  config {
     node = COMP_OUT
     freq = 50MHz
     duty = 0.5
     cycles = 3
-  outputs:
+  }
+  outputs {
     RiseTime
     FallTime
     VOH
     VOL
+  }
+}
 
-circuit LatchPadBuffer implements DigitalBuffer
+circuit LatchPadBuffer implements DigitalBuffer {
   level ML
 
   supply VDD
@@ -1516,19 +1723,24 @@ circuit LatchPadBuffer implements DigitalBuffer
   input COMP_OUT : digital
   output PAD : digital
 
-  fill:
-    inst Buf (.IN--COMP_OUT, .OUT--PAD, .VDD--VDD, .GND--GND, .VPB--VDD, .VNB--GND) : sky130_fd_sc_hd__inv_4
+  fill {
+    Buf = new sky130_fd_sc_hd__inv_4 { .IN--COMP_OUT, .OUT--PAD, .VDD--VDD, .GND--GND, .VPB--VDD, .VNB--GND }
+  }
 
-  constraints:
-    numeric:
-      c_rise : StepToggle::RiseTime at net::PAD <= 1.2ns
-      c_fall : StepToggle::FallTime at net::PAD <= 1.2ns
-      c_voh : StepToggle::VOH at net::PAD >= 0.9 VDD
-      c_vol : StepToggle::VOL at net::PAD <= 0.1 VDD
+  constraints {
+    numeric {
+      c_rise = StepToggle::RiseTime at net::PAD <= 1.2ns
+      c_fall = StepToggle::FallTime at net::PAD <= 1.2ns
+      c_voh = StepToggle::VOH at net::PAD >= 0.9 VDD
+      c_vol = StepToggle::VOL at net::PAD <= 0.1 VDD
+    }
+  }
 
-  harness:
+  harness {
     supply VDD = 1.8V
     load PAD C=15pF
+  }
+}
 
 ```
 
@@ -1539,23 +1751,46 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 ```acir
 ACIR 3.0
 
-trait SingleEndedAmp:
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+interface SingleEndedAmp {
   input vin : analog
   output vout : analog
+}
 
-bench ACBench for SingleEndedAmp
+bench ACBench for SingleEndedAmp {
   builtin SEAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedAmp
+bench DCBench for SingleEndedAmp {
   builtin SEAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit CSAmplifier implements SingleEndedAmp
+circuit CSAmplifier implements SingleEndedAmp {
   level EL
 
   supply VDD
@@ -1565,29 +1800,43 @@ circuit CSAmplifier implements SingleEndedAmp
   output vout : analog
   input vb1 : bias
 
-  fill:
-    nmos M_in (.G--vin, .D--vout, .S--GND, .B--GND) : nfet_01v8
-      size (W=12u, L=180n, M=4)
+  fill {
+    nmos M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
+      .G--vin
+      .D--vout
+      .S--GND
+      .B--GND
+    }
 
-    pmos load.M1 (.G--vb1, .D--vout, .S--VDD, .B--VDD) : pfet_01v8
-      size (W=4u, L=180n, M=2)
+    pmos load.M1 = new Level1_PMOS(size(W=4u, L=180n, M=2)) {
+      .G--vb1
+      .D--vout
+      .S--VDD
+      .B--VDD
+    }
+  }
 
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::vout >= 50MHz
-      c_gain : ACBench::PassbandGain at net::vout >= 40dB
-      c_pm : ACBench::PhaseMargin at net::vout >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 5mW
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::vout >= 50MHz
+      c_gain = ACBench::PassbandGain at net::vout >= 40dB
+      c_pm = ACBench::PhaseMargin at net::vout >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 5mW
+    }
 
-    tech:
+    tech {
       t_lmin : L >= 180nm on *
+    }
+  }
 
-  harness:
+  harness {
     supply VDD = 1.8V
     bias vb1 = 0.7V
     load vout C=1pF
     source vin Z=50Ohm
     pvt TT@27C
+  }
+}
 
 ```
 
@@ -1600,36 +1849,62 @@ This example demonstrates hierarchical EL with circuit instantiation and attach 
 ```acir
 ACIR 3.0
 
-bundle Diff:
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+bundle Diff {
   P : analog
   N : analog
+}
 
-trait DiffPairLike:
+interface DiffPairLike {
   input IN : Diff
   output OUT : Diff
+}
 
-trait SingleEndedOpAmp:
+interface SingleEndedOpAmp {
   input IN : Diff
   output OUT : analog
+}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {
   input SENSE : analog
   output TAP[*] : analog
 
-  connectors:
-    to DiffPairLike:
+  connectors {
+    to DiffPairLike {
       SENSE--OUT.N
       TAP[0]--OUT.P
+    }
+  }
+}
 
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
 // Top-level circuit appears first
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
 
   supply VDD
@@ -1638,44 +1913,46 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
   output OUT : analog
   input VTAIL : bias
 
-  fill:
-    inst dp : DiffPair_hasTail_true_p_NMOS
-      param W_input = 2u
-      param L = 180n
-      param tail_ratio = 2
+  fill {
+    dp = new DiffPair_hasTail_true_p_NMOS(
+      Input=size(W=2u, L=180n, M=1),
+      Tail=size(W=4u, L=180n, M=1)
+    ) {
       .RAIL--VDD
       .BASE--GND
       .IN.P--IN.P
       .IN.N--IN.N
       .BIAS--VTAIL
+    }
 
-    inst cm : CurrentMirror_taps_1_p_PMOS
-      param W_sense = 2u
-      param L = 180n
+    cm = new CurrentMirror_taps_1_p_PMOS(Sense=size(W=2u, L=180n, M=1)) {
       .RAIL--VDD
+    }
 
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
 
     dp.OUT.N--OUT
+  }
 
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 50MHz
-      c_gain : ACBench::PassbandGain at net::OUT >= 55dB
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 55dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+    }
+  }
 
-  harness:
+  harness {
     supply VDD = 1.8V
     load OUT C=1pF
+  }
+}
 
 // Child circuits follow
-circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
+circuit DiffPair_hasTail_true_p_NMOS(size Input = size(W=2u, L=180n, M=1), size Tail = size(W=4u, L=180n, M=1))
+  implements DiffPairLike {
   level EL
   inline
-
-  param W_input : real = 2u
-  param L : real = 180n
-  param tail_ratio : real = 2
 
   supply RAIL
   input BASE : analog
@@ -1683,36 +1960,53 @@ circuit DiffPair_hasTail_true_p_NMOS implements DiffPairLike
   output OUT : Diff
   input BIAS : bias
 
-  size Input
-  size Tail
-
-  fill:
+  fill {
     net tnode : analog
-    nmos M_N (.G--IN.P, .D--OUT.N, .S--tnode, .B--BASE) : nfet_01v8
-      size Input
-    nmos M_P (.G--IN.N, .D--OUT.P, .S--tnode, .B--BASE) : nfet_01v8
-      size Input
-    nmos M_TAIL (.G--BIAS, .D--tnode, .S--BASE, .B--BASE) : nfet_01v8
-      size Tail
+    nmos M_N = new Level1_NMOS(Input) {
+      .G--IN.P
+      .D--OUT.N
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_P = new Level1_NMOS(Input) {
+      .G--IN.N
+      .D--OUT.P
+      .S--tnode
+      .B--BASE
+    }
+    nmos M_TAIL = new Level1_NMOS(Tail) {
+      .G--BIAS
+      .D--tnode
+      .S--BASE
+      .B--BASE
+    }
+  }
+}
 
-circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike
+circuit CurrentMirror_taps_1_p_PMOS(size Sense = size(W=2u, L=180n, M=1))
+  implements CurrentMirrorLike {
   level EL
   inline
-
-  param W_sense : real = 2u
-  param L : real = 180n
 
   supply RAIL
   input SENSE : analog
   output TAP[0] : analog
 
-  size Sense
-
-  fill:
-    pmos M_SENSE (.G--SENSE, .D--SENSE, .S--RAIL, .B--RAIL) : pfet_01v8
-      size Sense
-    pmos M_TAP0 (.G--SENSE, .D--TAP[0], .S--RAIL, .B--RAIL) : pfet_01v8
-      size Sense
+  fill {
+    pmos M_SENSE = new Level1_PMOS(Sense) {
+      .G--SENSE
+      .D--SENSE
+      .S--RAIL
+      .B--RAIL
+    }
+    pmos M_TAP0 = new Level1_PMOS(Sense) {
+      .G--SENSE
+      .D--TAP[0]
+      .S--RAIL
+      .B--RAIL
+    }
+  }
+}
 ```
 
 The attach statement `attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node` resolves using the referenced connector from the document’s trait definitions. The `as mirror_node` clause names the created nets `mirror_node_0` and `mirror_node_1`. Since both child circuits are marked `inline`, SPICE emission expands them into the top-level circuit with uniquified names.
@@ -1817,10 +2111,12 @@ Example:
 
 ```acir
 // Error: attach would merge net_a and net_b (both explicitly named)
-inst a : CircuitA
+a = new CircuitA {
   .PORT_X--net_a
-inst b : CircuitB
+}
+b = new CircuitB {
   .PORT_Y--net_b
+}
 attach a to b via TraitA::TraitB  // error if connector maps PORT_X to PORT_Y
 
 // Solution: use an explicit connection statement
@@ -1837,12 +2133,13 @@ Domain compatibility: All endpoints in an equivalence class must have identical 
 ACIR uses named binding; SPICE requires positional `.subckt` pin order. The canonical pin order follows declaration order in ACIR: supplies first (in declaration order), then grounds (in declaration order), then ports (in declaration order, with bundles expanded field-by-field).
 
 ```acir
-circuit OTA5TSingleEnded implements SingleEndedOpAmp
+circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   supply VDD
   ground GND
   input IN : Diff      // expands to IN_P, IN_N
   output OUT : analog
   input VTAIL : bias
+}
 
 // Emits as:
 .subckt OTA5TSingleEnded VDD GND IN_P IN_N OUT VTAIL
@@ -1850,7 +2147,7 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp
 
 ### 3.13.6 Parameter Substitution
 
-When emitting devices from parameterized circuits, sizing parameter references are substituted with their bound values. The expression `W=$W_input*$tail_ratio` with `W_input=2u` and `tail_ratio=2` emits as `W=4u`. Parameter expressions support multiplication, division, addition, and subtraction.
+When emitting devices from parameterized circuits, sizing parameter references are substituted with their bound values. The expression `W=W_input*tail_ratio` with `W_input=2u` and `tail_ratio=2` emits as `W=4u`. Parameter expressions support multiplication, division, addition, and subtraction.
 
 ### 3.13.7 Instance Naming
 
@@ -1868,7 +2165,7 @@ Value rendering: Each parameter type renders to a canonical string form:
 |------|-----------|---------|
 | bool | `true` or `false` | `_hasTail_true` |
 | int | Decimal without leading zeros | `_taps_2` |
-| real | Scientific notation, mantissa normalized to one digit before decimal | `_W_2e-6` |
+| real | SI-prefixed decimal using the canonical prefix set (`f`, `p`, `n`, `u`, `m`, `k`, `M`, `G`, `T`) | `_W_2u` |
 | polarity | `NMOS` or `PMOS` | `_p_NMOS` |
 
 Format: The subckt name follows the pattern:
@@ -1876,6 +2173,8 @@ Format: The subckt name follows the pattern:
 ```acir
 <CircuitName>_<param1>_<value1>_<param2>_<value2>...
 ```
+
+Size pack parameters declared in the circuit signature are flattened into individual fields. Each field uses the composite name `<SizeName>_<Field>` and participates in alphabetical ordering alongside scalar parameters.
 
 Length limit: SPICE subckt names must not exceed 64 characters. If the generated name exceeds this limit, use a hash fallback:
 
@@ -1903,7 +2202,7 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 
 - Order circuits with top-level first, then child circuits in dependency order.
 - Within a circuit, order sections: level, inline, param declarations, size declarations, package, supplies, grounds, ports, fill, constraints, harness, provenance.
-- Within the `fill:` block, order: nets, instances, devices, attach statements, connections. Sort each category by id lexicographically.
+- Within the `fill { ... }` block, order: nets, instances, devices, attach statements, connections. Sort each category by id lexicographically.
 - Sort terminal bindings within an instance alphabetically by terminal path (whether inline or indented).
 - Sort constraints by id within each category.
 - Use consistent indentation: two spaces per level.
@@ -1921,15 +2220,19 @@ To keep diffs and golden tests stable, the canonical writer follows these rules:
 Vendor or dialect additions live under extension blocks. Extensions must not redefine core keywords. If an extension affects connectivity semantics, it must include a versioned schema and a compatibility note.
 
 ```acir
-circuit MyCircuit
+circuit MyCircuit {
   level EL
   ...
-  extensions:
-    vendor.timing:
+  extensions {
+    vendor.timing {
       setup_time = 100ps
       hold_time = 50ps
-    vendor.layout:
+    }
+    vendor.layout {
       placement_hint = "top_left"
+    }
+  }
+}
 ```
 
 ---
@@ -2005,118 +2308,118 @@ The text-based format was chosen to maximize:
 The following EBNF-style grammar summarizes ACIR syntax:
 
 ```ebnf
-document     = "ACIR" MAJOR "." MINOR NL (bundleDef)* (traitDef)* (benchDef)* (circuit)+ ;
+document     = "ACIR" MAJOR "." MINOR NL (bundleDef)* (interfaceDef)* (benchDef)* (primitiveDef)* (circuit)+ ;
 MAJOR        = [0-9]+ ;
 MINOR        = [0-9]+ ;
 
-bundleDef    = "bundle" IDENT ":" NL (INDENT field NL)+ ;
+bundleDef    = "bundle" IDENT "{" field* "}" ;
 field        = IDENT ":" domain ;
 
-traitDef     = "trait" IDENT ":" NL (INDENT traitMember NL)+ ;
-traitMember  = traitPort | connectorsBlock ;
-direction    = "input" | "output" | "io" ;
-traitPort    = direction traitPortName ":" (domain | IDENT) ;
-traitPortName= IDENT | IDENT "[" "*" "]" ;
-connectorsBlock = "connectors:" NL (INDENT INDENT connectorDef NL)+ ;
-connectorDef = "to" IDENT ":" NL (INDENT INDENT INDENT connectorMapping NL)+ ;
-connectorMapping = terminalPath "--" terminalPath ;
+interfaceDef = "interface" IDENT "{" interfaceMember* "}" ;
+interfaceMember = direction portName ":" portType
+                | "connectors" "{" connectorDef* "}" ;
+connectorDef = "to" IDENT "{" connectorMapping* "}" ;
+connectorMapping = pinRef "--" pinRef ;
 
-benchDef     = "bench" IDENT "for" IDENT NL (INDENT benchMember NL)+ ;
-benchMember  = benchBuiltin | benchConfigBlock | benchOutputsBlock ;
-benchBuiltin = "builtin" IDENT ;
-benchConfigBlock = "config:" NL (INDENT INDENT benchConfigEntry NL)+ ;
-benchConfigEntry = IDENT "=" paramValue ;
-benchOutputsBlock = "outputs:" NL (INDENT INDENT IDENT NL)+ ;
+benchDef     = "bench" IDENT "for" IDENT "{" benchMember* "}" ;
+benchMember  = "builtin" IDENT
+             | "config" "{" benchConfigEntry* "}"
+             | "outputs" "{" benchOutput* "}" ;
+benchConfigEntry = IDENT "=" (IDENT | NUMBER | QUANTITY | STRING) ;
+benchOutput  = IDENT ;
 
-circuit      = "circuit" IDENT ("implements" traits)? source? NL circuitBody ;
-traits       = IDENT ("," IDENT)* ;
-circuitBody  = (INDENT statement NL)* ;
+primitiveDef = "primitive" deviceType IDENT "(" paramList? ")" "{" deviceDirective paramsBlock "}" ;
+deviceDirective = "device" STRING ;
+paramsBlock  = "params" "{" paramMapping+ "}" ;
+paramMapping = IDENT "=" paramExpr ;
 
-statement    = levelDecl | inlineDecl | packageDecl | circuitParamDecl
-             | sizeDecl
-             | supplyDecl | groundDecl | portDecl | slotDecl
-             | fillBlock | constraintsBlock | harnessBlock
-             | provenanceBlock | extensionsBlock ;
+circuit      = "circuit" IDENT paramSignature? implementsClause? "{" circuitMember* "}" ;
+paramSignature = "(" paramDecl ("," paramDecl)* ")" ;
+paramDecl    = "size" IDENT ("=" sizeExpr)?
+             | paramType IDENT ("=" paramValue)? ;
+paramType    = "real" | "int" | "bool" ;
+implementsClause = "implements" traitList ;
+traitList    = IDENT ("," IDENT)* ;
+
+circuitMember = levelDecl | inlineDecl | packageDecl
+              | supplyDecl | groundDecl | portDecl | slotDecl
+              | fillSection | constraintsSection | harnessSection | provenanceSection ;
 
 levelDecl    = "level" ("HL" | "ML" | "EL") ;
 inlineDecl   = "inline" ;
 packageDecl  = "package" qualifiedName ;
-circuitParamDecl = "param" IDENT ":" paramType ("=" paramValue)? ;
-sizeDecl     = "size" IDENT ("=" sizeLiteral)? ;
-paramType    = "real" | "int" ;
-supplyDecl   = "supply" IDENT source? ;
-groundDecl   = "ground" IDENT source? ;
-portDecl     = direction IDENT ":" (domain | IDENT) source? ;
+supplyDecl   = "supply" IDENT ;
+groundDecl   = "ground" IDENT ;
+portDecl     = direction portName ":" portType ;
 
-slotDecl     = "slot" IDENT connectionList? ":" (IDENT | traitList) source? NL (INDENT slotBody NL)* ;
-traitList    = "[" IDENT ("," IDENT)* "]" ;
-slotBody     = paramAssign ;
+slotDecl     = "slot" IDENT implementsClause? "{" slotStatement* "}" ;
+slotStatement = "param" IDENT "=" scalarExpr | binding ;
 
-fillBlock    = "fill:" NL (INDENT INDENT fillContent NL)* ;
-fillContent  = netDecl | instDecl | deviceDecl | attachStmt | connectStmt ;
+fillSection  = "fill" "{" fillStatement* "}" ;
+fillStatement = netDecl | sizeDecl | instanceDecl | deviceDecl | attachStmt | connectStmt ;
+netDecl      = "net" IDENT ":" portType ;
+sizeDecl     = "size" IDENT "=" sizeExpr ;
 
-symbol       = IDENT ("." IDENT)* ;  (* hierarchical name for nets, device ids *)
-netDecl      = "net" symbol ":" domain source? ;
+instanceDecl = IDENT "=" "new" IDENT ("(" argList? ")")? bindingBlock ;
+argList      = arg ("," arg)* ;
+arg          = IDENT "=" argValue ;
+argValue     = sizeExpr | scalarExpr ;
+bindingBlock = "{" bindingList? "}" ;
+bindingList  = binding (","? binding)* ;
+binding      = "." pinRef "--" pinRef ;
 
-instDecl     = "inst" IDENT connectionList? ":" IDENT traits? source? NL (INDENT instBody NL)* ;
-instBody     = paramAssign | sizeAssign | binding ;
-paramAssign  = "param" IDENT "=" paramValue ;
-sizeAssign   = "size" IDENT "=" sizeLiteral ;
-connectionList = "(" connection ("," connection)* ")" ;
-binding      = "." terminalPath "--" terminalPath ;
-connection   = "." terminalPath "--" terminalPath ;
-
-sizeLiteral  = "(" sizeEntry ("," sizeEntry)* ")" ;
-sizeEntry    = IDENT "=" paramExpr ;
-
-deviceDecl   = deviceType symbol connectionList? ":" deviceParams pdkDevice source? NL (INDENT binding NL)* ;
+deviceDecl   = deviceType deviceId "=" "new" IDENT "(" sizeArg ")" bindingBlock ;
+sizeArg      = IDENT | sizeExpr ;
 deviceType   = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;
-deviceParams = (IDENT "=" paramExpr)+ ;
+
+attachStmt   = "attach" IDENT ("to" IDENT)+ "via" IDENT "::" IDENT ("as" IDENT)? attachOverrides? ;
+attachOverrides = "{" binding* "}" ;
+
+connectStmt  = pinRef "--" pinRef ;
+
+constraintsSection = "constraints" "{" constraintSection* "}" ;
+constraintSection  = "numeric" "{" numericConstraint* "}"
+                   | "tech" "{" techConstraint* "}"
+                   | "graph" "{" graphConstraint* "}" ;
+numericConstraint = IDENT "=" IDENT "::" IDENT ("at" nodeRef)? COMPARISON_OP QUANTITY ;
+techConstraint = IDENT ":" IDENT COMPARISON_OP QUANTITY "on" techScope ;
+graphConstraint = IDENT ":" IDENT ("{" graphProp ("," graphProp)* "}")? ;
+
+harnessSection = "harness" "{" harnessStatement* "}" ;
+harnessStatement = "supply" IDENT "=" harnessValue
+                 | "bias" IDENT "=" harnessValue
+                 | "load" IDENT loadSpec
+                 | "source" IDENT sourceSpec
+                 | "sweep" IDENT sweepSpec
+                 | "icmr" "min=" value "max=" value
+                 | "pvt" pvtList ;
+
+provenanceSection = "provenance" "{" provenanceEntry* "}" ;
+provenanceEntry = "source" STRING ("[" NUMBER ":" NUMBER "]")?
+                | "transform" STRING
+                | "alias" IDENT "=" IDENT ;
+
+sizeExpr     = "size" "(" sizeEntry ("," sizeEntry)* ")" | "size" "(" expr ("," expr)* ")" ;
+sizeEntry    = IDENT "=" paramExpr ;
 paramExpr    = paramValue (("*" | "/" | "+" | "-") paramValue)* ;
-pdkDevice    = IDENT ;
+paramValue   = NUMBER | QUANTITY | IDENT | "Auto" | STRING | "??" ;
+scalarExpr   = paramValue ;
 
-attachStmt   = "attach" IDENT "to" IDENT ("to" IDENT)* "via" connectorRef ("as" IDENT)? attachOverrides? ;
-connectorRef = IDENT "::" IDENT ;
-attachOverrides = "{" NL (INDENT attachMapping NL)* "}" ;
-attachMapping = "." terminalPath "--" terminalPath ;
-
-connectStmt  = terminalPath "--" terminalPath source? ;
-
-harnessBlock = "harness:" NL (INDENT harnessEntry NL)* ;
-harnessEntry = supplyAssign | biasAssign | sweepDecl | loadDecl | sourceDecl | icmrDecl | pvtDecl ;
-supplyAssign = "supply" IDENT "=" value ;
-biasAssign   = "bias" IDENT "=" value ;
-sweepDecl    = "sweep" IDENT sweepRange ;
-sweepRange   = "[" value ":" value ":" value "]"    ; start:step:stop (explicit step)
-             | "[" value ":" value "]" ;             ; start:stop (auto step)
-             | "[" "Auto" "]" ;                      ; synthesis-chosen (HL/ML only)
-loadDecl     = "load" IDENT loadSpec ;
-loadSpec     = "C=" value
-             | "(" loadElement "||" loadElement ")" ;
-loadElement  = "C=" value | "R=" value ;
-sourceDecl   = "source" IDENT "Z=" value ;
-icmrDecl     = "icmr" "min=" value "max=" value ;
-pvtDecl      = "pvt" cornerList ;
-cornerList   = corner ("," corner)* ;
-corner       = IDENT "@" value ;
-
-terminalPath = IDENT ("." IDENT | "[" INT "]")* ;
+pinRef       = IDENT ("." IDENT | "[" INT "]")* ;
+portName     = IDENT ("." IDENT)* ("[" INT "]" | "[*]")? ;
 qualifiedName= IDENT ("." IDENT)* ;
 domain       = "supply" | "ground" | "analog" | "bias" | "digital" | "clock" | "rf" ;
 value        = NUMBER SIUNIT? ;
 SIUNIT       = SIPREFIX? BASEUNIT ;
 SIPREFIX     = "f" | "p" | "n" | "u" | "m" | "k" | "M" | "G" | "T" ;
 BASEUNIT     = "V" | "A" | "F" | "Ohm" | "H" | "Hz" | "W" | "s" | "dB" | "deg" ;
-paramValue   = value | "$" IDENT | "??" | IDENT ;
-source       = "@[" STRING "]" ;
 
 IDENT        = [A-Za-z_][A-Za-z0-9_]* ;
 NUMBER       = [0-9]+ ("." [0-9]*)? ([eE][+-]?[0-9]+)? ;
+QUANTITY     = NUMBER UNIT? ;
 UNIT         = [A-Za-z]+ ;
 INT          = [0-9]+ ;
-STRING       = [^\]]+ ;
-NL           = "\n" ;
-INDENT       = "  " ;
+STRING       = "\"" ... "\"" ;
 ```
 
 The `paramExpr` production supports only the four binary arithmetic operators (`*`, `/`, `+`, `-`). No unary operators are permitted; negation must be expressed as `0 - x`. The grammar is intentionally flat with no precedence hierarchy; evaluation proceeds left-to-right. Parameter expressions may include SI-suffixed values as operands (see [§3.2.4](#324-lexical-elements) for the prefix table).

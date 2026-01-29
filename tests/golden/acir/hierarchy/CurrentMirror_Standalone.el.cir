@@ -23,7 +23,7 @@ primitive pmos Level1_PMOS(size primSize) {
   }
 }
 
-circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
   supply VDD
   ground GND
@@ -36,7 +36,7 @@ circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1) implements Cu
   }
   constraints {
     tech {
-      t_lmin = L >= 180nm on *
+      t_lmin : L >= 180nm on *
     }
   }
 }

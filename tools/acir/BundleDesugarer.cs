@@ -9,10 +9,10 @@ namespace Cascode.ACIR;
 /// </summary>
 /// <remarks>
 /// After desugaring:
-/// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN_P", "IN_N")
-/// - All device bindings are normalized (e.g., "IN.P" → "IN_P")
-/// - All connections are expanded (e.g., "dp.IN--IN" -> "dp.IN_P--IN_P", "dp.IN_N--IN_N")
-/// - All trait connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN_P--OUT_P", "DRAIN_N--OUT_N")
+/// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN.P", "IN.N")
+/// - Device bindings preserve dot notation (e.g., "IN.P" stays "IN.P")
+/// - All connections are expanded (e.g., "dp.IN--IN" -> "dp.IN.P--IN.P", "dp.IN.N--IN.N")
+/// - All trait connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN.P--OUT.P", "DRAIN.N--OUT.N")
 ///
 /// Downstream code (validation, emission, resolution) operates on the desugared representation
 /// and never needs bundle context.
@@ -21,7 +21,7 @@ public static class BundleDesugarer
 {
     /// <summary>
     /// Desugars all bundle-typed constructs in the document.
-    /// Returns a new document with expanded ports, connections, and normalized net names.
+    /// Returns a new document with expanded ports, connections, and preserved dot notation.
     /// </summary>
     /// <param name="document">The ACIR document to desugar.</param>
     /// <returns>A new document with all bundle types expanded.</returns>
@@ -51,6 +51,7 @@ public static class BundleDesugarer
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
             BenchDefinitions = document.BenchDefinitions,
+            Primitives = document.Primitives,
             Circuits = document
                 .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
                 .ToList(),
@@ -148,7 +149,7 @@ public static class BundleDesugarer
         }
         else
         {
-            // Leaf mapping - normalize to underscore form
+            // Leaf mapping - preserve dot notation
             yield return new ConnectorMapping
             {
                 SourcePort = NormalizePath(sourcePath),
@@ -209,7 +210,7 @@ public static class BundleDesugarer
     }
 
     /// <summary>
-    /// Expands bundle-typed ports to individual ports with normalized names.
+    /// Expands bundle-typed ports to individual ports with dot notation preserved.
     /// </summary>
     private static List<PortDeclaration> ExpandPorts(
         List<PortDeclaration> ports,
@@ -331,6 +332,7 @@ public static class BundleDesugarer
         return new FillBlock
         {
             Nets = fill.Nets,
+            Sizes = fill.Sizes,
             Instances = desugaredInstances,
             Devices = fill.Devices.Select(d => DesugarDevice(d)).ToList(),
             Attaches = fill.Attaches,
@@ -394,7 +396,7 @@ public static class BundleDesugarer
             }
             else
             {
-                // Not a bundle - just normalize
+                // Not a bundle - preserve dot notation
                 expandedBindings[NormalizePath(port)] = NormalizePath(net);
             }
         }
@@ -415,20 +417,21 @@ public static class BundleDesugarer
     /// </summary>
     private static DeviceDeclaration DesugarDevice(DeviceDeclaration device)
     {
-        var normalizedBindings = new Dictionary<string, string>(StringComparer.Ordinal);
+        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
 
         foreach (var (terminal, net) in device.Bindings)
         {
-            normalizedBindings[terminal] = NormalizePath(net);
+            bindings[terminal] = NormalizePath(net);
         }
 
         return new DeviceDeclaration
         {
             DeviceType = device.DeviceType,
             Id = device.Id,
-            Bindings = normalizedBindings,
-            Params = device.Params,
-            PdkDevice = device.PdkDevice,
+            Bindings = bindings,
+            Primitive = device.Primitive,
+            SizeName = device.SizeName,
+            Size = device.Size,
         };
     }
 
@@ -646,7 +649,7 @@ public static class BundleDesugarer
         }
         else
         {
-            // Leaf connection - normalize paths, preserving instance.port structure
+            // Leaf connection - preserve dot notation while keeping instance.port structure
             yield return new ConnectionStatement
             {
                 From = NormalizeConnectionPath(fromPath, instanceTypes),
@@ -676,18 +679,18 @@ public static class BundleDesugarer
         // Check if first part is an instance name
         if (instanceTypes.ContainsKey(firstPart))
         {
-            // Instance.port reference: normalize only the port part
+            // Instance.port reference: preserve dot notation for the port portion
             return $"{firstPart}.{NormalizePath(rest)}";
         }
         else
         {
-            // Local port reference: normalize the whole thing
+            // Local port reference: preserve dot notation
             return NormalizePath(path);
         }
     }
 
     /// <summary>
-    /// Desugars harness block by normalizing port references in loads, sources, etc.
+    /// Desugars harness block while preserving dot notation in loads, sources, etc.
     /// </summary>
     private static HarnessBlock DesugarHarness(
         HarnessBlock harness,
@@ -752,7 +755,7 @@ public static class BundleDesugarer
             }
             else
             {
-                // Not a bundle - just normalize
+                // Not a bundle - preserve dot notation
                 expanded.Add(
                     new LoadValue { Net = NormalizePath(load.Net), Elements = load.Elements }
                 );
@@ -849,48 +852,7 @@ public static class BundleDesugarer
     }
 
     /// <summary>
-    /// Normalizes a path by replacing dots with underscores.
-    /// Used for local net names.
+    /// Normalizes a path while preserving dot notation.
     /// </summary>
-    private static string NormalizePath(string path) => BundleExpander.ToNetName(path);
-
-    /// <summary>
-    /// Normalizes a connection endpoint, preserving the instance.port structure.
-    /// E.g., "dp.IN.P" → "dp.IN_P" (keeps the first dot, normalizes the rest)
-    /// E.g., "IN.P" → "IN_P" (no instance prefix)
-    /// </summary>
-    private static string NormalizeConnectionEndpoint(string path)
-    {
-        var firstDot = path.IndexOf('.');
-        if (firstDot < 0)
-        {
-            // No dots - return as-is
-            return path;
-        }
-
-        // Check if this looks like an instance.port reference
-        // by seeing if there are more dots after the first one
-        var afterFirstDot = path[(firstDot + 1)..];
-        if (afterFirstDot.Contains('.'))
-        {
-            // Instance.port.field format: dp.IN.P
-            // Keep the first dot, normalize the rest
-            var instancePart = path[..firstDot];
-            var portPart = afterFirstDot.Replace('.', '_');
-            return $"{instancePart}.{portPart}";
-        }
-        else
-        {
-            // Could be instance.port (dp.TAIL) or port.field (IN.P)
-            // We need to determine which based on context, but for simplicity,
-            // if the first part looks like an instance ID (lowercase, short), keep the dot
-            // Actually, we can't reliably tell without context, so let's check if
-            // the first part is a known instance name... but we don't have that info here.
-
-            // Heuristic: if we're in the context of a connection from/to,
-            // assume the first part before a single dot is an instance name
-            // This is called from connection expansion, so treat as instance.port
-            return path; // Keep as-is for instance.port references
-        }
-    }
+    private static string NormalizePath(string path) => path;
 }

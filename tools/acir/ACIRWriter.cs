@@ -45,6 +45,13 @@ public static class ACIRWriter
             writer.WriteLine();
         }
 
+        // Primitive definitions
+        foreach (var primitive in document.Primitives.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            WritePrimitiveDefinition(primitive, writer);
+            writer.WriteLine();
+        }
+
         // Circuits
         foreach (var circuit in document.Circuits)
         {
@@ -55,16 +62,17 @@ public static class ACIRWriter
 
     private static void WriteBundleType(BundleType bundleType, TextWriter writer)
     {
-        writer.WriteLine($"bundle {bundleType.Name}:");
+        writer.WriteLine($"bundle {bundleType.Name} {{");
         foreach (var field in bundleType.Fields.OrderBy(f => f.Key, StringComparer.Ordinal))
         {
             writer.WriteLine($"  {field.Key} : {field.Value}");
         }
+        writer.WriteLine("}");
     }
 
     private static void WriteTrait(TraitDefinition trait, TextWriter writer)
     {
-        writer.WriteLine($"trait {trait.Name}:");
+        writer.WriteLine($"interface {trait.Name} {{");
 
         // Ports
         foreach (var port in trait.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
@@ -75,7 +83,7 @@ public static class ACIRWriter
         // Connectors
         if (trait.Connectors.Count > 0)
         {
-            writer.WriteLine("  connectors:");
+            writer.WriteLine("  connectors {");
             foreach (
                 var connector in trait.Connectors.OrderBy(
                     c => c.TargetTrait,
@@ -83,18 +91,22 @@ public static class ACIRWriter
                 )
             )
             {
-                writer.WriteLine($"    to {connector.TargetTrait}:");
+                writer.WriteLine($"    to {connector.TargetTrait} {{");
                 foreach (var mapping in connector.Mappings)
                 {
                     writer.WriteLine($"      {mapping.SourcePort}--{mapping.TargetPort}");
                 }
+                writer.WriteLine("    }");
             }
+            writer.WriteLine("  }");
         }
+
+        writer.WriteLine("}");
     }
 
     private static void WriteBenchDefinition(BenchDefinition bench, TextWriter writer)
     {
-        writer.WriteLine($"bench {bench.Name} for {bench.Trait}");
+        writer.WriteLine($"bench {bench.Name} for {bench.Trait} {{");
 
         if (!string.IsNullOrEmpty(bench.Builtin))
         {
@@ -103,32 +115,73 @@ public static class ACIRWriter
 
         if (bench.Config.Count > 0)
         {
-            writer.WriteLine("  config:");
+            writer.WriteLine("  config {");
             foreach (var entry in bench.Config.OrderBy(e => e.Key, StringComparer.Ordinal))
             {
                 writer.WriteLine($"    {entry.Key} = {entry.Value}");
             }
+            writer.WriteLine("  }");
         }
 
         if (bench.Outputs.Count > 0)
         {
-            writer.WriteLine("  outputs:");
+            writer.WriteLine("  outputs {");
             foreach (var output in bench.Outputs.OrderBy(o => o, StringComparer.Ordinal))
             {
                 writer.WriteLine($"    {output}");
             }
+            writer.WriteLine("  }");
         }
+
+        writer.WriteLine("}");
+    }
+
+    private static void WritePrimitiveDefinition(PrimitiveDefinition primitive, TextWriter writer)
+    {
+        var signature = string.IsNullOrWhiteSpace(primitive.SizeParameter)
+            ? string.Empty
+            : $"(size {primitive.SizeParameter})";
+        writer.WriteLine($"primitive {primitive.Kind} {primitive.Name}{signature} {{");
+        writer.WriteLine($"  device \"{primitive.Device}\"");
+        writer.WriteLine("  params {");
+        foreach (var entry in primitive.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    {entry.Key} = {entry.Value}");
+        }
+        writer.WriteLine("  }");
+        writer.WriteLine("}");
     }
 
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header
         var header = $"circuit {circuit.Name}";
+        var signatureParts = new List<string>();
+        foreach (var size in circuit.Sizes.OrderBy(s => s.Name, StringComparer.Ordinal))
+        {
+            var part = $"size {size.Name}";
+            if (size.Default is not null)
+            {
+                part += $" = {FormatSizeExpr(size.Default)}";
+            }
+            signatureParts.Add(part);
+        }
+        foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
+        {
+            var defaultPart = param.Default is not null
+                ? $" = {FormatParamValue(param.Default)}"
+                : "";
+            signatureParts.Add($"{param.Type} {param.Name}{defaultPart}");
+        }
+        if (signatureParts.Count > 0)
+        {
+            header += $"({string.Join(", ", signatureParts)})";
+        }
         if (circuit.Traits is { Count: > 0 })
         {
             header += $" implements {string.Join(", ", circuit.Traits)}";
         }
-        writer.WriteLine(header);
+        writer.WriteLine($"{header} {{");
 
         // Level
         writer.WriteLine($"  level {circuit.Level}");
@@ -137,27 +190,6 @@ public static class ACIRWriter
         if (circuit.Inline)
         {
             writer.WriteLine("  inline");
-        }
-
-        // Parameters
-        foreach (var param in circuit.Parameters.OrderBy(p => p.Name, StringComparer.Ordinal))
-        {
-            var defaultPart = param.Default is not null
-                ? $" = {FormatParamValue(param.Default)}"
-                : "";
-            writer.WriteLine($"  param {param.Name} : {param.Type}{defaultPart}");
-        }
-
-        // Sizes
-        foreach (var size in circuit.Sizes.OrderBy(s => s.Name, StringComparer.Ordinal))
-        {
-            if (size.Default is null)
-            {
-                writer.WriteLine($"  size {size.Name}");
-                continue;
-            }
-
-            writer.WriteLine($"  size {size.Name} = {FormatSizePack(size.Default)}");
         }
 
         // Package
@@ -196,8 +228,9 @@ public static class ACIRWriter
         // Fill block (ML and EL levels)
         if (circuit.Fill is not null)
         {
-            writer.WriteLine("  fill:");
+            writer.WriteLine("  fill {");
             WriteFillBlock(circuit.Fill, writer);
+            writer.WriteLine("  }");
         }
 
         // Constraints
@@ -217,35 +250,30 @@ public static class ACIRWriter
         {
             WriteProvenance(circuit.Provenance, writer);
         }
+
+        writer.WriteLine("}");
     }
 
     private static void WriteSlot(SlotDeclaration slot, TextWriter writer)
     {
         var header = $"  slot {slot.Id}";
-        if (slot.Bindings.Count > 0)
+        if (slot.Traits.Count > 0)
         {
-            var bindings = string.Join(
-                ", ",
-                slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $".{b.Key}--{b.Value}")
-            );
-            header += $" ({bindings})";
+            header += $" implements {string.Join(", ", slot.Traits)}";
         }
-        header += " : ";
-        if (slot.Traits.Count == 1)
+        writer.WriteLine($"{header} {{");
+
+        foreach (var binding in slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {
-            header += slot.Traits[0];
+            writer.WriteLine($"    .{binding.Key}--{binding.Value}");
         }
-        else if (slot.Traits.Count > 1)
-        {
-            header += $"[{string.Join(", ", slot.Traits)}]";
-        }
-        writer.WriteLine(header);
 
         foreach (var param in slot.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             writer.WriteLine($"    param {param.Key} = {FormatParamValue(param.Value)}");
         }
+
+        writer.WriteLine("  }");
     }
 
     private static void WriteFillBlock(FillBlock fill, TextWriter writer)
@@ -254,6 +282,17 @@ public static class ACIRWriter
         foreach (var net in fill.Nets.OrderBy(n => n.Id, StringComparer.Ordinal))
         {
             writer.WriteLine($"    net {net.Id} : {net.Domain}");
+        }
+
+        // Local sizes
+        foreach (var size in fill.Sizes.OrderBy(s => s.Name, StringComparer.Ordinal))
+        {
+            if (size.Default is null)
+            {
+                continue;
+            }
+
+            writer.WriteLine($"    size {size.Name} = {FormatSizeExpr(size.Default)}");
         }
 
         // Instances (ML)
@@ -268,7 +307,6 @@ public static class ACIRWriter
             WriteDevice(device, writer);
         }
 
-        // Connections
         // Attach statements (EL level)
         foreach (var attach in fill.Attaches.OrderBy(a => a.SourceInstance, StringComparer.Ordinal))
         {
@@ -316,124 +354,78 @@ public static class ACIRWriter
 
     private static void WriteInstance(InstanceDeclaration inst, TextWriter writer)
     {
-        var header = $"    inst {inst.Id}";
-        if (inst.Bindings.Count > 0 && inst.Bindings.Count <= 4)
-        {
-            // Use inline syntax for 4 or fewer simple connections
-            var bindings = string.Join(
-                ", ",
-                inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $".{b.Key}--{b.Value}")
-            );
-            header += $" ({bindings})";
-        }
-        header += $" : {inst.Type}";
-        writer.WriteLine(header);
-
-        // If bindings weren't inline, write them indented
-        if (inst.Bindings.Count > 4)
-        {
-            foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
-            {
-                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
-            }
-        }
-
-        // Parameters
-        foreach (var param in inst.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"      param {param.Key} = {FormatParamValue(param.Value)}");
-        }
-
-        // Sizes
+        var args = new List<string>();
         foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
         {
-            writer.WriteLine($"      size {size.Key} = {FormatSizePack(size.Value)}");
+            args.Add($"{size.Key}={FormatSizeExpr(size.Value)}");
         }
-    }
+        foreach (var param in inst.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            args.Add($"{param.Key}={FormatParamValue(param.Value)}");
+        }
 
-    private static string FormatSizePack(SizePack pack)
-    {
-        var entries = pack.Entries.OrderBy(e => e.Key, StringComparer.Ordinal).ToList();
-        var parts = entries.Select(e => $"{e.Key}={e.Value}");
-        return $"({string.Join(", ", parts)})";
+        var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
+        writer.WriteLine($"    {inst.Id} = new {inst.Type}{argList} {{");
+        foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"      .{binding.Key}--{binding.Value}");
+        }
+        writer.WriteLine("    }");
     }
 
     private static void WriteDevice(DeviceDeclaration device, TextWriter writer)
     {
-        var header = $"    {device.DeviceType} {device.Id}";
-        if (device.Bindings.Count > 0 && device.Bindings.Count <= 4)
+        var sizeArg =
+            device.SizeName ?? (device.Size is not null ? FormatSizeExpr(device.Size) : "");
+        writer.WriteLine(
+            $"    {device.DeviceType} {device.Id} = new {device.Primitive}({sizeArg}) {{"
+        );
+        foreach (var binding in device.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {
-            var bindings = string.Join(
-                ", ",
-                device
-                    .Bindings.OrderBy(b => b.Key, StringComparer.Ordinal)
-                    .Select(b => $".{b.Key}--{b.Value}")
-            );
-            header += $" ({bindings})";
+            writer.WriteLine($"      .{binding.Key}--{binding.Value}");
         }
-        header += $" : {device.PdkDevice}";
-        writer.WriteLine(header);
-
-        // Device parameters / sizing always live in the body.
-        if (device.Params.TryGetValue("size", out var sizeValue))
-        {
-            writer.WriteLine($"      size {sizeValue}");
-        }
-        foreach (
-            var (key, value) in device
-                .Params.OrderBy(p => p.Key, StringComparer.Ordinal)
-                .Where(p => !string.Equals(p.Key, "size", StringComparison.Ordinal))
-        )
-        {
-            writer.WriteLine($"      {key} = {value}");
-        }
-
-        // If bindings weren't inline, write them indented
-        if (device.Bindings.Count > 4)
-        {
-            foreach (var binding in device.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
-            {
-                writer.WriteLine($"      .{binding.Key}--{binding.Value}");
-            }
-        }
+        writer.WriteLine("    }");
     }
 
     private static void WriteConstraints(ConstraintsBlock constraints, TextWriter writer)
     {
-        writer.WriteLine("  constraints:");
+        writer.WriteLine("  constraints {");
         if (constraints.Numeric.Count > 0)
         {
-            writer.WriteLine("    numeric:");
+            writer.WriteLine("    numeric {");
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 var node = c.Node is not null ? $" at {c.Node}" : "";
                 writer.WriteLine(
-                    $"      {c.Id} : {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
+                    $"      {c.Id} = {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
                 );
             }
+            writer.WriteLine("    }");
         }
         if (constraints.Tech.Count > 0)
         {
-            writer.WriteLine("    tech:");
+            writer.WriteLine("    tech {");
             foreach (var c in constraints.Tech.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Param} {c.Op} {c.Value}{c.Unit} on {c.Scope}");
             }
+            writer.WriteLine("    }");
         }
         if (constraints.Graph.Count > 0)
         {
-            writer.WriteLine("    graph:");
+            writer.WriteLine("    graph {");
             foreach (var c in constraints.Graph.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 writer.WriteLine($"      {c.Id} : {c.Rule} ..."); // Simplified for now
             }
+            writer.WriteLine("    }");
         }
+        writer.WriteLine("  }");
     }
 
     private static void WriteHarness(HarnessBlock harness, TextWriter writer)
     {
-        writer.WriteLine("  harness:");
+        writer.WriteLine("  harness {");
         foreach (var supply in harness.Supplies.OrderBy(s => s.Net, StringComparer.Ordinal))
         {
             writer.WriteLine($"    supply {supply.Net} = {supply.Value}");
@@ -473,39 +465,45 @@ public static class ACIRWriter
         {
             writer.WriteLine($"    pvt {string.Join(", ", harness.Pvt)}");
         }
+        writer.WriteLine("  }");
     }
 
     private static void WriteProvenance(ProvenanceBlock provenance, TextWriter writer)
     {
-        writer.WriteLine("  provenance:");
+        writer.WriteLine("  provenance {");
         if (provenance.Sources.Count > 0)
         {
-            writer.WriteLine("    sources:");
             foreach (var source in provenance.Sources)
             {
                 var span =
                     source.FromLine.HasValue && source.ToLine.HasValue
                         ? $" [{source.FromLine}:{source.ToLine}]"
                         : "";
-                writer.WriteLine($"      {source.File}{span}");
+                writer.WriteLine($"    source \"{source.File}\"{span}");
             }
         }
         if (provenance.Transforms.Count > 0)
         {
-            writer.WriteLine("    transforms:");
             foreach (var transform in provenance.Transforms)
             {
-                writer.WriteLine($"      {transform}");
+                writer.WriteLine($"    transform \"{transform}\"");
             }
         }
         if (provenance.Aliases.Count > 0)
         {
-            writer.WriteLine("    aliases:");
             foreach (var alias in provenance.Aliases.OrderBy(a => a.Key, StringComparer.Ordinal))
             {
-                writer.WriteLine($"      {alias.Key} = {alias.Value}");
+                writer.WriteLine($"    alias {alias.Key} = {alias.Value}");
             }
         }
+        writer.WriteLine("  }");
+    }
+
+    private static string FormatSizeExpr(SizePack pack)
+    {
+        var entries = pack.Entries.OrderBy(e => e.Key, StringComparer.Ordinal).ToList();
+        var parts = entries.Select(e => $"{e.Key}={e.Value}");
+        return $"size({string.Join(", ", parts)})";
     }
 
     private static string FormatParamValue(ParamValue value)

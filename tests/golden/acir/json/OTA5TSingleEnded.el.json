@@ -1,5 +1,29 @@
 {
   "acirVersion": "3.0",
+  "primitives": [
+    {
+      "name": "Level1_NMOS",
+      "kind": "nmos",
+      "device": "level1_nmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    },
+    {
+      "name": "Level1_PMOS",
+      "kind": "pmos",
+      "device": "level1_pmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    }
+  ],
   "circuit": {
     "name": "OTA5TSingleEnded",
     "traits": [
@@ -49,82 +73,82 @@
     {
       "kind": "nmos",
       "name": "dp.M_N",
+      "primitive": "Level1_NMOS",
       "connections": {
         "B": "GND",
         "D": "mirror_gate",
         "G": "IN_P",
         "S": "tnode"
       },
-      "params": {
+      "size": {
+        "W": "2u",
         "L": "180n",
-        "M": "1",
-        "W": "2u"
-      },
-      "process": "nmos"
+        "M": "1"
+      }
     },
     {
       "kind": "nmos",
       "name": "dp.M_P",
+      "primitive": "Level1_NMOS",
       "connections": {
         "B": "GND",
         "D": "OUT",
         "G": "IN_N",
         "S": "tnode"
       },
-      "params": {
+      "size": {
+        "W": "2u",
         "L": "180n",
-        "M": "1",
-        "W": "2u"
-      },
-      "process": "nmos"
+        "M": "1"
+      }
     },
     {
       "kind": "nmos",
       "name": "dp.M_TAIL",
+      "primitive": "Level1_NMOS",
       "connections": {
         "B": "GND",
         "D": "tnode",
         "G": "VTAIL",
         "S": "GND"
       },
-      "params": {
+      "size": {
+        "W": "4u",
         "L": "180n",
-        "M": "1",
-        "W": "4u"
-      },
-      "process": "nmos"
+        "M": "1"
+      }
     },
     {
       "kind": "pmos",
       "name": "cm.M_SENSE",
+      "primitive": "Level1_PMOS",
       "connections": {
         "B": "VDD",
         "D": "mirror_gate",
         "G": "mirror_gate",
         "S": "VDD"
       },
-      "params": {
+      "size": {
+        "W": "2u",
         "L": "180n",
-        "M": "1",
-        "W": "2u"
-      },
-      "process": "pmos"
+        "M": "1"
+      }
     },
     {
       "kind": "pmos",
       "name": "cm.M_TAP0",
+      "primitive": "Level1_PMOS",
       "connections": {
         "B": "VDD",
         "D": "OUT",
         "G": "mirror_gate",
         "S": "VDD"
       },
-      "params": {
+      "size": {
+        "W": "2u",
         "L": "180n",
-        "M": "1",
-        "W": "2u"
-      },
-      "process": "pmos"
+        "M": "1"
+      }
     }
   ],
   "constraints": {
@@ -134,7 +158,7 @@
         "bench": "ACBench",
         "metric": "GainBandwidth",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 20000000,
         "unit": "Hz"
       },
@@ -143,7 +167,7 @@
         "bench": "ACBench",
         "metric": "PassbandGain",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 40,
         "unit": "dB"
       },
@@ -152,7 +176,7 @@
         "bench": "ACBench",
         "metric": "PhaseMargin",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 60,
         "unit": "deg"
       },
@@ -160,7 +184,7 @@
         "id": "c_pwr",
         "bench": "DCBench",
         "metric": "QuiescentPower",
-        "op": "<=",
+        "op": "\u003C=",
         "value": 0.0005,
         "unit": "W"
       },
@@ -169,7 +193,7 @@
         "bench": "TranBench",
         "metric": "SingleEndedOutputSwing",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 1.2,
         "unit": "Vpp"
       }
@@ -178,7 +202,7 @@
       {
         "id": "t_lmin",
         "metric": "L",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 1.8000000000000002E-07,
         "unit": "m",
         "scope": "*"
@@ -201,7 +225,8 @@
         "net": "OUT",
         "capacitances": [
           1E-12
-        ]
+        ],
+        "resistances": []
       }
     ],
     "sweeps": []
@@ -214,7 +239,10 @@
       "outputs": [
         "GainBandwidth",
         "PassbandGain",
-        "PhaseMargin"
+        "PhaseMargin",
+        "LowpassBandwidth",
+        "HighpassBandwidth",
+        "BandpassBandwidth"
       ]
     },
     {

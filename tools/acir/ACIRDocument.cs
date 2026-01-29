@@ -35,6 +35,11 @@ public sealed class ACIRDocument
     public List<BenchDefinition> BenchDefinitions { get; init; } = new();
 
     /// <summary>
+    /// Primitive device templates declared at the file level.
+    /// </summary>
+    public List<PrimitiveDefinition> Primitives { get; init; } = new();
+
+    /// <summary>
     /// Circuit definitions in this document.
     /// </summary>
     public List<Circuit> Circuits { get; init; } = new();
@@ -89,12 +94,6 @@ public static class BundleExpander
             }
         }
     }
-
-    /// <summary>
-    /// Converts a terminal path to a net name by replacing dots with underscores.
-    /// For example, "IN.P" becomes "IN_P".
-    /// </summary>
-    public static string ToNetName(string terminalPath) => terminalPath.Replace('.', '_');
 
     /// <summary>
     /// Builds a dictionary of bundle types by name from an ACIR document.
@@ -262,6 +261,9 @@ public sealed class FillBlock
     /// <summary>Net declarations.</summary>
     public List<NetDeclaration> Nets { get; init; } = new();
 
+    /// <summary>Local size declarations.</summary>
+    public List<SizeDeclaration> Sizes { get; init; } = new();
+
     /// <summary>Instance declarations (ML level).</summary>
     public List<InstanceDeclaration> Instances { get; init; } = new();
 
@@ -322,14 +324,38 @@ public sealed class DeviceDeclaration
     /// <summary>Device identifier.</summary>
     public string Id { get; init; } = string.Empty;
 
+    /// <summary>Primitive template name referenced by this device.</summary>
+    public string Primitive { get; init; } = string.Empty;
+
+    /// <summary>Optional named size pack reference.</summary>
+    public string? SizeName { get; init; }
+
+    /// <summary>Optional inline size expression for this device.</summary>
+    public SizePack? Size { get; init; }
+
     /// <summary>Terminal bindings.</summary>
     public Dictionary<string, string> Bindings { get; init; } = new();
+}
 
-    /// <summary>Device parameters (e.g., W=1u L=100n M=1).</summary>
+/// <summary>
+/// Primitive device template definition.
+/// </summary>
+public sealed class PrimitiveDefinition
+{
+    /// <summary>Device kind (nmos, pmos, resistor, capacitor, inductor, diode).</summary>
+    public string Kind { get; init; } = string.Empty;
+
+    /// <summary>Primitive template name.</summary>
+    public string Name { get; init; } = string.Empty;
+
+    /// <summary>Concrete device key (model/subckt/P-cell name).</summary>
+    public string Device { get; init; } = string.Empty;
+
+    /// <summary>Name of the size parameter in the primitive signature.</summary>
+    public string SizeParameter { get; init; } = string.Empty;
+
+    /// <summary>Parameter mapping expressions for the device key.</summary>
     public Dictionary<string, string> Params { get; init; } = new();
-
-    /// <summary>PDK device name (required at EL).</summary>
-    public string? PdkDevice { get; init; }
 }
 
 /// <summary>
@@ -349,7 +375,7 @@ public sealed class ConnectionStatement
 /// </summary>
 public sealed class ParamValue
 {
-    /// <summary>Symbolic expression (e.g., "$Auto", "$ratio").</summary>
+    /// <summary>Symbolic expression (e.g., "Auto", "ratio").</summary>
     public string? Symbolic { get; init; }
 
     /// <summary>Numeric value with optional unit (e.g., "1u", "100n", "1.8V").</summary>
@@ -588,7 +614,7 @@ public sealed class CircuitParameter
     /// <summary>Parameter name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Parameter type ("real" or "int").</summary>
+    /// <summary>Parameter type ("real", "int", or "bool").</summary>
     public required string Type { get; init; }
 
     /// <summary>Optional default value. If null, parameter is required at instantiation.</summary>

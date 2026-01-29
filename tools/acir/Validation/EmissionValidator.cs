@@ -16,7 +16,7 @@ namespace Cascode.ACIR.Validation;
 /// - EMIT-004: Unknown device type
 /// - EMIT-005: Non-EL level circuit
 /// - EMIT-006: Unresolved [Auto] sweep at EL level
-/// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size=...)
+/// - EMIT-007: Missing size reference for MOSFETs (nmos/pmos must use size(...))
 /// - HARN-001: Harness source direction mismatch or unknown port
 /// - HARN-002: Harness load direction mismatch or unknown port
 /// - HARN-003: Harness bias target mismatch or unknown terminal
@@ -58,12 +58,14 @@ public static class EmissionValidator
     /// Validates a circuit for emission-blocking issues.
     /// </summary>
     /// <param name="circuit">The circuit to validate (must be desugared).</param>
+    /// <param name="document">Optional document for resolving primitives.</param>
     /// <returns>Validation result with any errors found.</returns>
-    public static ValidationResult Validate(Circuit circuit)
+    public static ValidationResult Validate(Circuit circuit, ACIRDocument? document = null)
     {
         ArgumentNullException.ThrowIfNull(circuit);
 
         var result = new ValidationResult();
+        var bundleAliases = BuildBundleAliasMap(circuit);
 
         // EMIT-005: Level check
         if (circuit.Level != ACIRLevel.EL)
@@ -94,30 +96,59 @@ public static class EmissionValidator
             }
         }
 
-        ValidateHarnessIntent(circuit, result);
+        ValidateHarnessIntent(circuit, bundleAliases, result);
 
         // Build set of valid nets from all sources (ports are already desugared)
         var validNets = BuildValidNetSet(circuit);
+        ValidateInstanceBindings(circuit.Fill?.Instances, validNets, bundleAliases, result);
 
         // Build set of valid size pack names
         var validSizes = circuit.Sizes.Select(s => s.Name).ToHashSet(StringComparer.Ordinal);
         var sizeDefaults = circuit
             .Sizes.Where(s => s.Default is not null)
             .ToDictionary(s => s.Name, s => s.Default!, StringComparer.Ordinal);
+        if (circuit.Fill?.Sizes is { Count: > 0 })
+        {
+            foreach (var size in circuit.Fill.Sizes)
+            {
+                validSizes.Add(size.Name);
+                if (size.Default is not null)
+                {
+                    sizeDefaults[size.Name] = size.Default;
+                }
+            }
+        }
+
+        var primitivesByName = document?.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
 
         // Validate devices if present
         if (circuit.Fill?.Devices != null)
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                ValidateDevice(device, validNets, validSizes, sizeDefaults, result);
+                ValidateDevice(
+                    device,
+                    validNets,
+                    validSizes,
+                    sizeDefaults,
+                    primitivesByName,
+                    bundleAliases,
+                    result
+                );
             }
         }
 
         return result;
     }
 
-    private static void ValidateHarnessIntent(Circuit circuit, ValidationResult result)
+    private static void ValidateHarnessIntent(
+        Circuit circuit,
+        IReadOnlyDictionary<string, string> bundleAliases,
+        ValidationResult result
+    )
     {
         if (circuit.Harness == null)
         {
@@ -137,6 +168,17 @@ public static class EmissionValidator
         {
             if (!portsByName.TryGetValue(source.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(source.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-001",
+                        $"Harness source references '{source.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness source {source.Net}",
+                        $"Use '{dotted}' instead of '{source.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-001",
                     $"Harness source references unknown port '{source.Net}'",
@@ -161,6 +203,17 @@ public static class EmissionValidator
         {
             if (!portsByName.TryGetValue(load.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(load.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-002",
+                        $"Harness load references '{load.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness load {load.Net}",
+                        $"Use '{dotted}' instead of '{load.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-002",
                     $"Harness load references unknown port '{load.Net}'",
@@ -190,6 +243,17 @@ public static class EmissionValidator
 
             if (!portsByName.TryGetValue(bias.Net, out var port))
             {
+                if (bundleAliases.TryGetValue(bias.Net, out var dotted))
+                {
+                    result.AddError(
+                        "HARN-003",
+                        $"Harness bias references '{bias.Net}', but bundle field '{dotted}' must use dot notation",
+                        $"harness bias {bias.Net}",
+                        $"Use '{dotted}' instead of '{bias.Net}' for bundle field access"
+                    );
+                    continue;
+                }
+
                 result.AddError(
                     "HARN-003",
                     $"Harness bias references unknown terminal '{bias.Net}'",
@@ -229,7 +293,7 @@ public static class EmissionValidator
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
 
-        // Add ports (already desugared to underscore-normalized names)
+        // Add ports (already desugared with dot notation preserved)
         foreach (var port in circuit.Ports)
         {
             nets.Add(port.Name);
@@ -259,6 +323,168 @@ public static class EmissionValidator
         return nets;
     }
 
+    private static Dictionary<string, string> BuildBundleAliasMap(Circuit circuit)
+    {
+        var aliases = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var port in circuit.Ports)
+        {
+            if (!port.Name.Contains('.'))
+            {
+                continue;
+            }
+
+            var alias = port.Name.Replace('.', '_');
+            aliases.TryAdd(alias, port.Name);
+        }
+
+        return aliases;
+    }
+
+    private static void ValidateInstanceBindings(
+        IReadOnlyList<InstanceDeclaration>? instances,
+        HashSet<string> validNets,
+        IReadOnlyDictionary<string, string> bundleAliases,
+        ValidationResult result
+    )
+    {
+        if (instances is null)
+        {
+            return;
+        }
+
+        foreach (var instance in instances)
+        {
+            foreach (var (port, netName) in instance.Bindings)
+            {
+                if (bundleAliases.TryGetValue(netName, out var dotted))
+                {
+                    result.AddError(
+                        "EMIT-002",
+                        $"Instance '{instance.Id}' port '{port}' references '{netName}', but bundle field '{dotted}' must use dot notation",
+                        $"instance {instance.Id}.{port}--{netName}",
+                        $"Use '{dotted}' instead of '{netName}' for bundle field access"
+                    );
+                    continue;
+                }
+
+                if (!validNets.Contains(netName))
+                {
+                    result.AddError(
+                        "EMIT-002",
+                        $"Instance '{instance.Id}' port '{port}' references undefined net '{netName}'",
+                        $"instance {instance.Id}.{port}--{netName}",
+                        $"Declare '{netName}' as a port, supply, ground, or internal net"
+                    );
+                }
+            }
+        }
+    }
+
+    private static bool HasSizedEntry(SizePack pack, string key)
+    {
+        return pack.Entries.TryGetValue(key, out var value) && !IsUnsizedExpression(value);
+    }
+
+    private static bool IsUnsizedExpression(string? expression)
+    {
+        return string.IsNullOrWhiteSpace(expression)
+            || expression.Contains("??", StringComparison.Ordinal);
+    }
+
+    private static IReadOnlyCollection<string> GetRequiredSizeFields(
+        string deviceType,
+        PrimitiveDefinition? primitive
+    )
+    {
+        var required = new HashSet<string>(StringComparer.Ordinal);
+        if (deviceType is "nmos" or "pmos")
+        {
+            required.Add("W");
+            required.Add("L");
+        }
+
+        if (primitive is not null)
+        {
+            foreach (var field in PrimitiveResolver.GetSizeFields(primitive))
+            {
+                required.Add(field);
+            }
+        }
+
+        return required;
+    }
+
+    private static IReadOnlyList<string> GetMissingSizeFields(
+        SizePack pack,
+        IReadOnlyCollection<string> requiredFields
+    )
+    {
+        if (requiredFields.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var missing = new List<string>();
+        foreach (var field in requiredFields.OrderBy(f => f, StringComparer.Ordinal))
+        {
+            if (!HasSizedEntry(pack, field))
+            {
+                missing.Add(field);
+            }
+        }
+
+        return missing;
+    }
+
+    private static string BuildMissingSizeFieldMessage(
+        DeviceDeclaration device,
+        string? sizeName,
+        IReadOnlyList<string> missingFields,
+        bool isInline
+    )
+    {
+        var hasWOrL = missingFields.Contains("W") || missingFields.Contains("L");
+        if (hasWOrL)
+        {
+            var message = isInline
+                ? $"Device '{device.Id}' inline size literal missing required W or L"
+                : $"Device '{device.Id}' size pack '{sizeName}' missing required W or L";
+            var extras = missingFields
+                .Where(field => field is not "W" && field is not "L")
+                .ToList();
+            if (extras.Count > 0)
+            {
+                message += $" (also missing: {string.Join(", ", extras)})";
+            }
+
+            return message;
+        }
+
+        var sizeLabel = isInline ? "inline size literal" : $"size pack '{sizeName}'";
+        return $"Device '{device.Id}' {sizeLabel} missing required size fields: {string.Join(", ", missingFields)}";
+    }
+
+    private static string BuildMissingSizeFieldSuggestion(IReadOnlyList<string> missingFields)
+    {
+        if (missingFields.Contains("W") || missingFields.Contains("L"))
+        {
+            var extras = missingFields
+                .Where(field => field is not "W" && field is not "L")
+                .ToList();
+            var suggestion =
+                "Size pack must contain at minimum W and L, e.g., 'size(W=2u, L=180n)'";
+            if (extras.Count > 0)
+            {
+                suggestion += $" and include {string.Join(", ", extras)}";
+            }
+
+            return suggestion;
+        }
+
+        return $"Size pack must include {string.Join(", ", missingFields)}.";
+    }
+
     /// <summary>
     /// Validates a single device declaration.
     /// </summary>
@@ -267,10 +493,35 @@ public static class EmissionValidator
         HashSet<string> validNets,
         HashSet<string> validSizes,
         IReadOnlyDictionary<string, SizePack> sizeDefaults,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
+        IReadOnlyDictionary<string, string> bundleAliases,
         ValidationResult result
     )
     {
         var deviceType = device.DeviceType.ToLowerInvariant();
+
+        PrimitiveDefinition? primitive = null;
+        if (primitivesByName is not null)
+        {
+            if (!primitivesByName.TryGetValue(device.Primitive, out primitive))
+            {
+                result.AddError(
+                    "EMIT-008",
+                    $"Device '{device.Id}' references undefined primitive '{device.Primitive}'",
+                    $"device {device.Id}",
+                    "Define the primitive at document scope and ensure device kind matches."
+                );
+            }
+            else if (!primitive.Kind.Equals(deviceType, StringComparison.OrdinalIgnoreCase))
+            {
+                result.AddError(
+                    "EMIT-008",
+                    $"Device '{device.Id}' uses primitive '{device.Primitive}' with mismatched kind '{primitive.Kind}'",
+                    $"device {device.Id}",
+                    $"Primitive kind must be '{deviceType}' for this device."
+                );
+            }
+        }
 
         // EMIT-004: Unknown device type
         if (!KnownDeviceTypes.Contains(deviceType))
@@ -315,7 +566,17 @@ public static class EmissionValidator
         // EMIT-002: Invalid net references
         foreach (var (terminal, netName) in device.Bindings)
         {
-            // Device bindings are already normalized by BundleDesugarer
+            if (bundleAliases.TryGetValue(netName, out var dotted))
+            {
+                result.AddError(
+                    "EMIT-002",
+                    $"Device '{device.Id}' terminal '{terminal}' references '{netName}', but bundle field '{dotted}' must use dot notation",
+                    $"device {device.Id}.{terminal}--{netName}",
+                    $"Use '{dotted}' instead of '{netName}' for bundle field access"
+                );
+                continue;
+            }
+
             if (!validNets.Contains(netName))
             {
                 var availableNets = validNets.Take(8).ToList();
@@ -334,81 +595,69 @@ public static class EmissionValidator
         }
 
         // EMIT-007: MOSFETs must use size packs
-        if (deviceType is "nmos" or "pmos")
+        var sizeName = device.SizeName;
+        var sizePack = device.Size;
+        var requiredSizeFields = GetRequiredSizeFields(deviceType, primitive);
+
+        if (deviceType is "nmos" or "pmos" && sizeName is null && sizePack is null)
         {
-            if (!device.Params.TryGetValue("size", out var sizeValue))
+            result.AddError(
+                "EMIT-007",
+                $"Device '{device.Id}' missing required size reference",
+                $"device {device.Id}",
+                "MOSFETs must provide a size argument: inline 'size(W=2u, L=180n, M=1)' or a named size pack reference"
+            );
+        }
+        else if (sizePack is not null)
+        {
+            var missingFields = GetMissingSizeFields(sizePack, requiredSizeFields);
+            if (missingFields.Count > 0)
             {
                 result.AddError(
                     "EMIT-007",
-                    $"Device '{device.Id}' missing required size reference",
+                    BuildMissingSizeFieldMessage(device, sizeName, missingFields, isInline: true),
                     $"device {device.Id}",
-                    "MOSFETs must use size packs: inline 'size=(W=2u, L=180n, M=1)' or named 'size=PackName'"
+                    BuildMissingSizeFieldSuggestion(missingFields)
                 );
             }
-            else
+        }
+        else if (sizeName is not null && requiredSizeFields.Count > 0)
+        {
+            if (!validSizes.Contains(sizeName))
             {
-                var trimmed = sizeValue.Trim();
-                // Validate inline literal syntax
-                if (trimmed.StartsWith('(') && trimmed.EndsWith(')'))
+                result.AddError(
+                    "EMIT-007",
+                    $"Device '{device.Id}' references undefined size pack '{sizeName}'",
+                    $"device {device.Id}",
+                    $"Declare size pack '{sizeName}' in the circuit signature or fill block"
+                );
+            }
+            else if (sizeDefaults.TryGetValue(sizeName, out var defaultPack))
+            {
+                var missingFields = GetMissingSizeFields(defaultPack, requiredSizeFields);
+                if (missingFields.Count > 0)
                 {
-                    var literalContent = trimmed[1..^1];
-                    if (!SizePacks.TryParseSizeLiteral(literalContent, out var pack, out var error))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' has invalid inline size literal: {error}",
-                            $"device {device.Id}",
-                            "Use format 'size=(W=2u, L=180n, M=1)' with comma-separated key=value pairs"
-                        );
-                    }
-                    else if (!pack.Entries.ContainsKey("W") || !pack.Entries.ContainsKey("L"))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' inline size literal missing required W or L",
-                            $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
-                        );
-                    }
-                }
-                // Validate named reference
-                else
-                {
-                    var sizeName = trimmed.StartsWith('$') ? trimmed[1..] : trimmed;
-                    if (!validSizes.Contains(sizeName))
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' references undefined size pack '{sizeName}'",
-                            $"device {device.Id}",
-                            $"Add 'size {sizeName}' or 'size {sizeName} = (...)' declaration at circuit level"
-                        );
-                    }
-                    else if (
-                        sizeDefaults.TryGetValue(sizeName, out var defaultPack)
-                        && (
-                            !defaultPack.Entries.ContainsKey("W")
-                            || !defaultPack.Entries.ContainsKey("L")
-                        )
-                    )
-                    {
-                        result.AddError(
-                            "EMIT-007",
-                            $"Device '{device.Id}' size pack '{sizeName}' missing required W or L",
-                            $"device {device.Id}",
-                            "Size pack must contain at minimum W and L, e.g., 'size=(W=2u, L=180n)'"
-                        );
-                    }
+                    result.AddError(
+                        "EMIT-007",
+                        BuildMissingSizeFieldMessage(
+                            device,
+                            sizeName,
+                            missingFields,
+                            isInline: false
+                        ),
+                        $"device {device.Id}",
+                        BuildMissingSizeFieldSuggestion(missingFields)
+                    );
                 }
             }
         }
 
         // EMIT-003: Missing required parameters (passives only)
-        if (RequiredParams.TryGetValue(deviceType, out var requiredParams))
+        if (RequiredParams.TryGetValue(deviceType, out var requiredParams) && primitive is not null)
         {
             foreach (var param in requiredParams)
             {
-                if (!device.Params.ContainsKey(param))
+                if (!primitive.Params.ContainsKey(param))
                 {
                     var example = param switch
                     {
