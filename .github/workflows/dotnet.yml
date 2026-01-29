@@ -45,6 +45,12 @@ jobs:
       - name: Restore (locked)
         run: dotnet restore Cascode.sln --locked-mode
 
+      - name: Clean (Release)
+        run: dotnet clean Cascode.sln --configuration Release
+
+      - name: Build CLI (Release)
+        run: dotnet build tools/cli/Cascode.Cli.csproj --configuration Release --nologo --no-restore
+
       - name: Build (Release)
         run: dotnet build Cascode.sln --configuration Release --nologo --no-restore
 
