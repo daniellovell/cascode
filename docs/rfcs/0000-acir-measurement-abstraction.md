@@ -129,6 +129,7 @@ The unification adopts ACIR syntax as the baseline with the following feature de
 | `circuit` keyword | Keep (replaces `module`) |
 | `interface` keyword | Keep (replaces `trait`) |
 | `motif` keyword | Replace with `circuit inline` |
+| `port` keyword | Replace with `terminal` (language-wide rename) |
 | `fill {}` block | Keep |
 | `env {}` block | Keep (distinct from harness) |
 | `harness {}` block | Keep |
@@ -250,7 +251,7 @@ All declared analyses are in scope within `measurements {}`. If an analysis is d
 
 **A5. Harness Scope in Bench Bindings**
 
-`harness` is in scope inside bench bindings.
+`harness` is in scope inside bench bindings. The `harness` scope provides flattened key-value access to resolved environment values, mirroring the fields available in `env`: `harness.SupplyVoltage`, `harness.LoadImpedance`, `harness.SourceImpedance`, `harness.Temperature`, etc.
 
 **A6. Environment Scope**
 
@@ -333,22 +334,50 @@ Terminals are declared with stimulus (`stim`) or response (`resp`) roles:
 ```cascode
 stim IN : Diff       // Differential stimulus input
 resp OUT : analog    // Single-ended response output
+stim CLK : clock     // Clock stimulus for mixed-signal benches
+stim CTRL : digital  // Digital control input
 ```
 
-Terminal types and their valid roles:
+Terminal types follow the standard Cascode terminal type system. Any terminal type (domain or bundle) is valid for terminal declarations, including user-defined bundles. Role restrictions apply based on the terminal's underlying domain:
 
-| Type | Description | Valid for `stim` | Valid for `resp` |
-|------|-------------|------------------|------------------|
-| `Diff` | Differential signal pair with `.P` and `.N` sub-terminals | Yes | Yes |
-| `analog` | Single-ended analog signal | Yes | Yes |
-| `supply` | Power supply terminal | Yes | No |
-| `ground` | Reference ground terminal | No | No |
+| Role | Valid Domains | Notes |
+|------|---------------|-------|
+| `stim` | analog, digital, bias, mixed, clock, rf, supply | Stimulus inputs; supply valid for PSRR-style benches |
+| `resp` | analog, digital, bias, mixed, clock, rf | Response outputs; supply/ground not valid |
 
-The `supply` type is valid only for stimulus terminals (e.g., PSRR benches that inject signals on supply rails). The `ground` type is not valid for either role as grounds are handled implicitly through the test harness.
+Bundle types (including user-defined bundles like `Quad { A: analog; B: analog; C: analog; D: analog; }`) are valid for both roles. When a bundle is used, the role restrictions apply to each constituent field based on its domain.
+
+Examples with bundle types:
+
+```cascode
+stim INPUT : Quad    // User-defined 4-terminal bundle as stimulus
+resp OUTPUTS : Diff  // Standard differential bundle as response
+```
+
+The `ground` type is not valid for either role as grounds are handled implicitly through the test harness.
 
 ### 4.3 Fill Block
 
 The `fill {}` block constructs the test circuit using standard Cascode circuit-building operations. Users can instantiate test instruments, probes, impedances, and even complete circuits.
+
+#### 4.3.1 Fill Block Primitives
+
+The following primitives are language builtins available in fill blocks:
+
+| Primitive | Parameters | Terminals | Description |
+|-----------|------------|-----------|-------------|
+| `VDC(voltage)` | DC voltage value | `.P`, `.N` | DC voltage source |
+| `VAC(amplitude, phase=0deg)` | AC amplitude, optional phase | `.P`, `.N` | AC voltage source for small-signal analysis |
+| `GND()` | None | `.GND` | Ground reference node |
+| `Impedance(value)` | Impedance expression | `.P`, `.N` | Frequency-dependent impedance element |
+
+Examples:
+```cascode
+VDC bias = new VDC(0.9V) { .P--node; .N--gnd }
+VAC stim = new VAC(0.5, phase=180deg) { .P--inp; .N--vcm }
+GND _ = new GND() { .GND--gnd }
+Impedance load = new Impedance(1MOhm || 1pF) { .P--out; .N--gnd }
+```
 
 ```cascode
 fill {
@@ -409,10 +438,31 @@ analysis {
     samples=100,
     start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
     stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+  NoiseAnalysis noise_ac = new NoiseAnalysis(
+    space=Log,
+    samples=100,
+    start=1Hz,
+    stop=10GHz,
+    output=OUT)
 }
 ```
 
 Analysis parameters can include conditional expressions that reference constraint values for adaptive analysis configuration.
+
+Available analysis types:
+
+| Analysis Type | Required Parameters | Optional Parameters | Description |
+|---------------|---------------------|---------------------|-------------|
+| `ACAnalysis` | start, stop | space, samples | Small-signal AC frequency sweep |
+| `DCAnalysis` | sweep_var, start, stop | step | DC operating point sweep |
+| `TranAnalysis` | stop | start, step | Transient time-domain simulation |
+| `NoiseAnalysis` | output, start, stop | space, samples | Noise spectral density analysis |
+| `STBAnalysis` | probe_node | - | Stability (loop gain) analysis |
+
+The `NoiseAnalysis` type requires an `output` parameter specifying the node at which output noise is measured.
+
+The `STBAnalysis` type performs stability analysis by measuring loop gain and phase margin at the specified `probe_node`. This uses the STB (stability) analysis available in simulators like Spectre, which breaks the feedback loop at the probe node to measure the open-loop transfer function. Frequency sweep parameters (`start`, `stop`, `space`, `samples`) follow the same semantics as `ACAnalysis`.
 
 ### 4.6 Measurements Block
 
@@ -426,7 +476,7 @@ measurements {
 
     Frequency hp = infer_hp_corner(1Hz)
     Frequency lp = infer_lp_corner()
-    Frequency fpb = calc_passband_freq(hp, lp)
+    Frequency fpb = calc_passband_freq(ac, hp, lp)
 
     return eval(G, fpb)
   }
@@ -638,7 +688,9 @@ This enables benches to focus simulation resources on the frequency ranges relev
 `lib/std/BenchFunctions.cas`:
 ```cascode
 // File-level function available wherever this file is included
-function calc_passband_freq(Frequency hp, Frequency lp) : Frequency {
+// Note: Analysis must be passed as parameter since file-level functions
+// don't have implicit access to bench-scoped analysis instances
+function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
   Frequency f = sqrt(hp * lp)
 
   if f < ac.start { return ac.start }
@@ -721,7 +773,7 @@ bench DiffToSETransfer {
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
-      Frequency fpb = calc_passband_freq(hp, lp)
+      Frequency fpb = calc_passband_freq(ac, hp, lp)
 
       return eval(G, fpb)
     }
@@ -739,7 +791,7 @@ bench DiffToSETransfer {
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
-      Frequency fpb = calc_passband_freq(hp, lp)
+      Frequency fpb = calc_passband_freq(ac, hp, lp)
 
       VoltageRatio gpb = eval(G, fpb)
       VoltageRatio thr = gpb - 3dB
@@ -753,7 +805,7 @@ bench DiffToSETransfer {
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
-      Frequency fpb = calc_passband_freq(hp, lp)
+      Frequency fpb = calc_passband_freq(ac, hp, lp)
 
       VoltageRatio gpb = eval(G, fpb)
       VoltageRatio thr = gpb - 3dB
@@ -820,6 +872,81 @@ circuit My5TOTA implements SingleEndedOpAmp {
   }
 }
 ```
+
+### 8.5 Input-Referred Noise Bench
+
+`lib/std/DiffToSENoise.cas`:
+```cascode
+include BenchFunctions
+
+bench DiffToSENoise {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    VDC commonModeVDC = new VDC(env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Bias inputs at common mode for noise analysis (no AC stimulus)
+    IN.P--vcm
+    IN.N--vcm
+
+    Impedance load = new Impedance(env.LoadImpedance) {
+      OUT--.P
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // ACAnalysis required for input_referred_noise to compute transfer function
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+    NoiseAnalysis noise_ac = new NoiseAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      output=OUT)
+  }
+
+  measurements {
+    measurement InputReferredNoise : nV/rtHz {
+      // input_referred_noise uses paired ACAnalysis to compute transfer function
+      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return spot_noise(n_in, f_spot)
+    }
+
+    measurement IntegratedInputNoise : nVrms {
+      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_lo = (if constraints.HighpassBandwidth { constraints.HighpassBandwidth } else { 1Hz })
+      Frequency f_hi = (if constraints.GainBandwidth { constraints.GainBandwidth } else { 10MHz })
+      return integrate(n_in, f_lo, f_hi)
+    }
+
+    measurement OutputNoise : nV/rtHz {
+      NoiseFunction n_out = noise(noise_ac, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return spot_noise(n_out, f_spot)
+    }
+  }
+}
+```
+
+This bench demonstrates the noise measurement primitives. The `input_referred_noise` primitive divides the output noise spectral density by the transfer function magnitude to compute the equivalent input noise. The `integrate` primitive computes RMS noise over a specified bandwidth, useful for total integrated noise specifications.
 
 ---
 
@@ -994,6 +1121,17 @@ Note: `cascode syn` (the synthesis agent) is out of scope for this RFC. Only the
 
 Standard operators (`+`, `-`, `*`, `/`) and functions (`abs`, `sqrt`) are available for scalar values with appropriate unit propagation.
 
+### 11.4 Noise Primitives
+
+| Primitive | Signature | Semantics |
+|-----------|-----------|-----------|
+| `noise(analysis, node)` | `(NoiseAnalysis, Terminal) -> NoiseFunction` | Extract output noise spectral density at the specified node |
+| `input_referred_noise(noise, ac, stim, resp)` | `(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseFunction` | Compute input-referred noise from output noise and transfer function |
+| `integrate(F, f_lo, f_hi)` | `(NoiseFunction, Frequency, Frequency) -> IntegratedNoise` | Integrate spectral density over frequency range to get RMS noise |
+| `spot_noise(F, freq)` | `(NoiseFunction, Frequency) -> NoiseSpectralDensity` | Evaluate spectral density at a specific frequency |
+
+The `input_referred_noise` primitive computes the equivalent input noise by dividing the output noise spectral density by the magnitude of the transfer function from stimulus to response. This is the standard input-referred noise calculation used in amplifier characterization. The primitive requires both a `NoiseAnalysis` (for output noise spectral density) and an `ACAnalysis` (for the transfer function magnitude) to be declared in the analysis block.
+
 ---
 
 ## 12. Type System Specification
@@ -1009,12 +1147,18 @@ The measurement system uses semantic types representing physical quantities. All
 | `Frequency` | Hz | kHz, MHz, GHz, THz | Frequency values |
 | `VoltageRatio` | linear | dB, V/V | Voltage gain or attenuation |
 | `CurrentRatio` | linear | dB, A/A | Current gain or attenuation |
-| `Impedance` | Ω | kΩ, MΩ | Resistance/impedance values |
-| `Voltage` | V | mV, µV, nV | Voltage values |
-| `Current` | A | mA, µA, nA, pA | Current values |
-| `Time` | s | ms, µs, ns, ps | Time values |
+| `Impedance` | Ohm | kOhm, MOhm | Complex impedance; supports `\|\|` for parallel combinations |
+| `Capacitance` | F | pF, fF, nF, uF | Capacitance values |
+| `Inductance` | H | nH, uH, mH | Inductance values |
+| `Voltage` | V | mV, uV, nV | Voltage values |
+| `Current` | A | mA, uA, nA, pA | Current values |
+| `Time` | s | ms, us, ns, ps | Time values |
 | `Phase` | deg | rad | Phase angle |
 | `Scalar` | (unitless) | - | Dimensionless quantities |
+| `NoiseSpectralDensity` | V/rtHz | nV/rtHz, uV/rtHz, pV/rtHz, A/rtHz, pA/rtHz, nA/rtHz | Noise spectral density (voltage or current) |
+| `IntegratedNoise` | Vrms | nVrms, uVrms, mVrms, Arms, pArms, nArms | RMS noise integrated over bandwidth |
+
+The `rtHz` suffix represents "root Hz" (√Hz) for noise spectral density units. This avoids requiring special characters in source files while remaining unambiguous.
 
 ### 12.2 Function Types
 
@@ -1022,6 +1166,7 @@ The measurement system uses semantic types representing physical quantities. All
 |------|-------------|
 | `TransferFunction` | Complex-valued function of frequency |
 | `RealFunction` | Real-valued function of frequency or time |
+| `NoiseFunction` | Noise spectral density as a function of frequency |
 
 ### 12.3 Implicit Unit Conversion
 
@@ -1081,6 +1226,32 @@ abs(T) -> T where T is numeric
 sqrt(Scalar) -> Scalar
 sqrt(Frequency * Frequency) -> Frequency
 ```
+
+### 12.6 Impedance Expressions
+
+The `Impedance` type represents complex impedance (Z = R + jX) and supports the parallel combination operator `||` for expressing networks of resistive and reactive elements.
+
+Syntax:
+
+```
+impedance_expr := element (|| element)*
+element        := resistance | capacitance | inductance
+resistance     := NUMBER (Ohm | Ohm | kOhm | kOhm | MOhm | MOhm)
+capacitance    := NUMBER (F | pF | fF | nF | uF)
+inductance     := NUMBER (H | nH | uH | mH)
+```
+
+The `||` operator computes frequency-dependent parallel impedance using standard circuit analysis: Z_parallel = 1 / (1/Z₁ + 1/Z₂ + ...). For a capacitor, Z_C = 1/(jOhmC); for an inductor, Z_L = jOhmL; for a resistor, Z_R = R.
+
+Examples:
+
+```cascode
+Impedance z1 = 50Ohm                    // Pure resistance
+Impedance z2 = 1MOhm || 1pF             // RC parallel: high-impedance with parasitic cap
+Impedance z3 = 100kOhm || 10pF || 1nH   // RLC parallel network
+```
+
+The parallel combination notation matches the harness `load` syntax used elsewhere in ACIR, ensuring consistency across environment parameters and harness specifications.
 
 ---
 
@@ -1155,8 +1326,8 @@ Benches may reference the following standard environment parameters:
 |-----------|------|-------------|
 | `InputCommonModeRange` | Voltage | Nominal input common-mode voltage |
 | `OutputCommonModeRange` | Voltage | Nominal output common-mode voltage |
-| `SourceImpedance` | Impedance | Source impedance driving the input |
-| `LoadImpedance` | Impedance | Load impedance at output |
+| `SourceImpedance` | Impedance | Source impedance driving the input; accepts impedance expressions |
+| `LoadImpedance` | Impedance | Load impedance at output; accepts impedance expressions (e.g., `1MOhm \|\| 1pF`) |
 | `SupplyVoltage` | Voltage | Nominal supply voltage |
 | `Temperature` | Temperature | Operating temperature |
 
@@ -1169,8 +1340,8 @@ circuit MyAmplifier implements SingleEndedOpAmp {
   env {
     InputCommonModeRange = 0.9V
     OutputCommonModeRange = 0.9V
-    SourceImpedance = 50Ω
-    LoadImpedance = 1MΩ || 1pF    // Parallel combination
+    SourceImpedance = 50Ohm
+    LoadImpedance = 1MOhm || 1pF    // Parallel combination
     SupplyVoltage = 1.8V
     Temperature = 27C
   }
@@ -1259,22 +1430,12 @@ This section documents how existing builtin benches map to the declarative bench
 | `FDOpAmpStability` | `DiffToDiffStability` | `Diff` → `Diff` | STB analysis, differential |
 | `PSRRBench` | `SupplyRejection` | `supply` → `analog` | Configurable supply input |
 | `CMRRBench` | `CommonModeRejection` | `analog` → `analog` | CM input → output |
-| `NoiseBench` | `InputReferredNoise` | `Diff` → `analog` | Noise analysis |
+| `NoiseBench` | `DiffToSENoise` | `Diff` → `analog` | Noise analysis; Example in RFC Section 8.5 |
 | `TransientBench` | `StepResponse` | `Diff` → `analog` | Transient analysis |
 
 ### 16.2 Unification Opportunities
 
-Many builtin benches differ only in terminal topology. The declarative system unifies them through terminal type declarations:
-
-```cascode
-// Single bench definition handles both SE and FD by terminal type
-bench TransferCharacterization {
-  stim IN : Diff
-  resp OUT : analog | Diff    // Type determined at binding time
-
-  // ... same measurement logic for both cases
-}
-```
+Many builtin benches differ only in terminal topology. The declarative system enables reuse by creating separate bench definitions that share helper functions and measurement logic patterns. For example, `DiffToSETransfer` and `DiffToDiffTransfer` can share the same helper functions for frequency inference while differing only in their terminal declarations and output handling.
 
 ### 16.3 Migration Notes
 
@@ -1291,15 +1452,11 @@ Per the Big Picture Goals, there is no automated migration tooling. Documents us
 
 Extend the analysis and measurement system to support transient simulations with time-domain primitives.
 
-### 17.2 Noise Analysis Support
-
-Add noise analysis types and spectral density integration primitives.
-
-### 17.3 Monte Carlo and Statistical Constraints
+### 17.2 Monte Carlo and Statistical Constraints
 
 Support statistical constraint forms like `yield(Measurement >= value) >= percentage`.
 
-### 17.4 Multi-Corner Sweep Integration
+### 17.3 Multi-Corner Sweep Integration
 
 Integrate PVT corner sweeps into the constraint evaluation framework.
 
@@ -1343,17 +1500,23 @@ terminalRole
     ;
 
 terminalType
-    : DIFF_KW
-    | ANALOG_KW
+    : IDENT           // Any bundle or domain name (Diff, Quad, etc.)
+    | BIAS_KW
     | SUPPLY_KW
     | GROUND_KW
+    | ANALOG_KW
+    | DIGITAL_KW
+    | MIXED_KW
+    | CLOCK_KW
+    | RF_KW
     ;
 ```
 
-Terminal role restrictions:
-- `stim` (stimulus) accepts: `Diff`, `analog`, `supply`
-- `resp` (response) accepts: `Diff`, `analog`
+Terminal types accept any valid domain or bundle name. Role restrictions are enforced semantically based on the terminal's underlying domain:
+- `stim` (stimulus) accepts: analog, digital, bias, mixed, clock, rf, supply
+- `resp` (response) accepts: analog, digital, bias, mixed, clock, rf
 - `supply` and `ground` are not valid for `resp` terminals
+- Bundle types inherit restrictions from their constituent field domains
 
 ### A.3 Fill Block
 
@@ -1398,7 +1561,12 @@ physicalType
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
     | REAL_FUNCTION_TYPE
+    | NOISE_FUNCTION_TYPE
+    | NOISE_SPECTRAL_DENSITY_TYPE
+    | INTEGRATED_NOISE_TYPE
     | IMPEDANCE_TYPE
+    | CAPACITANCE_TYPE
+    | INDUCTANCE_TYPE
     | VOLTAGE_TYPE
     | CURRENT_TYPE
     | TIME_TYPE
@@ -1474,7 +1642,9 @@ measurementDecl
     ;
 
 unitType
-    : IDENT    // Hz, dB, V, A, s, deg, etc.
+    : IDENT              // Hz, dB, V, A, s, deg, etc.
+    | NOISE_DENSITY_UNIT // nV/rtHz, pA/rtHz, etc.
+    | INTEGRATED_RMS_UNIT // nVrms, uVrms, pArms, etc.
     ;
 
 measurementBody
@@ -1540,6 +1710,47 @@ terminalMapping
 dutConnection
     : DUT_KW DOT pinRef WIRE_OP pinRef
     ;
+
+pinRef
+    : IDENT (DOT IDENT)*
+    ;
+
+argList
+    : measurementExpr (COMMA measurementExpr)*
+    ;
+```
+
+### A.7.1 Constraint Reference Syntax
+
+Constraints reference bench measurements using the `binding_name::Metric` syntax:
+
+```antlr
+constraintDecl
+    : IDENT EQ benchMetricRef comparisonOp QUANTITY
+    ;
+
+benchMetricRef
+    : IDENT COLONCOLON IDENT
+    ;
+
+comparisonOp
+    : GTE | LTE | GT | LT | EQEQ
+    ;
+
+COLONCOLON : '::' ;
+GTE        : '>=' ;
+LTE        : '<=' ;
+GT         : '>' ;
+LT         : '<' ;
+EQEQ       : '==' ;
+```
+
+Example:
+```cascode
+constraints {
+  c_gbw = transfer_bench::GainBandwidth >= 100MHz
+  c_gain = transfer_bench::PassbandGain >= 50dB
+}
 ```
 
 ### A.8 Environment Block
@@ -1555,24 +1766,42 @@ envStatement
     ;
 
 envValue
-    : QUANTITY
-    | parallelCombination
+    : impedanceExpr
+    | QUANTITY
     | NUMBER IDENT?
     ;
 
-parallelCombination
-    : envValue PIPEPIPE envValue
+// Impedance expressions support chained parallel combinations: R || C || L
+impedanceExpr
+    : impedanceElement (PIPEPIPE impedanceElement)+
     ;
+
+impedanceElement
+    : RESISTANCE_QUANTITY    // e.g., 50Ohm, 1MOhm, 100kOhm
+    | CAPACITANCE_QUANTITY   // e.g., 1pF, 100fF, 10nF
+    | INDUCTANCE_QUANTITY    // e.g., 1nH, 10uH, 1mH
+    ;
+
+RESISTANCE_QUANTITY   : NUMBER WS? ('Ohm' | 'Ohm' | 'kOhm' | 'kOhm' | 'MOhm' | 'MOhm') ;
+CAPACITANCE_QUANTITY  : NUMBER WS? ('F' | 'pF' | 'fF' | 'nF' | 'uF' | 'uF') ;
+INDUCTANCE_QUANTITY   : NUMBER WS? ('H' | 'nH' | 'uH' | 'uH' | 'mH') ;
 ```
 
 ### A.9 New Lexer Tokens
 
 ```antlr
+// Operators
+WIRE_OP         : '--' ;
+
 // New keywords
 STIM_KW         : 'stim' ;
 RESP_KW         : 'resp' ;
 DIFF_KW         : 'Diff' ;
 ANALOG_KW       : 'analog' ;
+DIGITAL_KW      : 'digital' ;
+MIXED_KW        : 'mixed' ;
+CLOCK_KW        : 'clock' ;
+RF_KW           : 'rf' ;
 FUNCTION_KW     : 'function' ;
 ANALYSIS_KW     : 'analysis' ;
 MEASUREMENTS_KW : 'measurements' ;
@@ -1585,16 +1814,21 @@ ELSE_KW         : 'else' ;
 RETURN_KW       : 'return' ;
 
 // Type keywords
-FREQUENCY_TYPE          : 'Frequency' ;
-VOLTAGE_RATIO_TYPE      : 'VoltageRatio' ;
-TRANSFER_FUNCTION_TYPE  : 'TransferFunction' ;
-REAL_FUNCTION_TYPE      : 'RealFunction' ;
-IMPEDANCE_TYPE          : 'Impedance' ;
-VOLTAGE_TYPE            : 'Voltage' ;
-CURRENT_TYPE            : 'Current' ;
-TIME_TYPE               : 'Time' ;
-PHASE_TYPE              : 'Phase' ;
-SCALAR_TYPE             : 'Scalar' ;
+FREQUENCY_TYPE              : 'Frequency' ;
+VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
+TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
+REAL_FUNCTION_TYPE          : 'RealFunction' ;
+NOISE_FUNCTION_TYPE         : 'NoiseFunction' ;
+NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
+INTEGRATED_NOISE_TYPE       : 'IntegratedNoise' ;
+IMPEDANCE_TYPE              : 'Impedance' ;
+CAPACITANCE_TYPE            : 'Capacitance' ;
+INDUCTANCE_TYPE             : 'Inductance' ;
+VOLTAGE_TYPE                : 'Voltage' ;
+CURRENT_TYPE                : 'Current' ;
+TIME_TYPE                   : 'Time' ;
+PHASE_TYPE                  : 'Phase' ;
+SCALAR_TYPE                 : 'Scalar' ;
 
 // Analysis type keywords
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
@@ -1602,6 +1836,11 @@ DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
 TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
+
+// Noise unit patterns (rtHz = root Hz, √Hz)
+// These are compound units parsed as single tokens
+NOISE_DENSITY_UNIT  : ('V' | 'nV' | 'uV' | 'pV' | 'A' | 'nA' | 'pA' | 'uA') '/rtHz' ;
+INTEGRATED_RMS_UNIT : ('V' | 'nV' | 'uV' | 'mV' | 'A' | 'nA' | 'pA' | 'uA') 'rms' ;
 ```
 
 ### A.10 Removed Grammar Rules
