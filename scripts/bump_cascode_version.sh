@@ -31,9 +31,9 @@ while IFS= read -r -d '' file; do
     sed "${SED_INPLACE[@]}" -E "1s/^VERSION [0-9]+\.[0-9]+/VERSION $VERSION/" "$file"
 done < <(find "$GOLDEN_DIR" -name "*.cas" -print0)
 
-# Update .json files (acirVersion field)
+# Update .json files (cascodeVersion field)
 while IFS= read -r -d '' file; do
-    sed "${SED_INPLACE[@]}" -E "s/\"acirVersion\": \"[0-9]+\.[0-9]+\"/\"acirVersion\": \"$VERSION\"/" "$file"
+    sed "${SED_INPLACE[@]}" -E "s/\"cascodeVersion\": \"[0-9]+\.[0-9]+\"/\"cascodeVersion\": \"$VERSION\"/" "$file"
 done < <(find "$GOLDEN_DIR" -name "*.json" -print0)
 
 # Count actually modified files using git

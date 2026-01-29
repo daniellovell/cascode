@@ -233,7 +233,7 @@ public class CascodeJsonConverterEdgeCaseTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""Test"", ""level"": ""EL"" }},
             ""supplies"": [],
             ""grounds"": [],

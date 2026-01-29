@@ -221,7 +221,7 @@ internal sealed class ErcCommandModule : ICommandModule
 
     private void ShowUsage()
     {
-        _state.AddMessage("Usage: erc <acir_file> [--require-pdk] [--json]");
+        _state.AddMessage("Usage: erc <cascode_file> [--require-pdk] [--json]");
         _state.AddMessage("");
         _state.AddMessage("Runs electrical rule checking on an Cascode EL or ML document.");
         _state.AddMessage("ERC validates circuit topology and works on both sized (EL) and");

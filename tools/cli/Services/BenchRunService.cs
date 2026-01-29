@@ -106,7 +106,7 @@ public class BenchRunService
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--acir" && i + 1 < args.Length)
+            if (args[i] == "--cascode" && i + 1 < args.Length)
             {
                 cascodePath = args[++i];
             }

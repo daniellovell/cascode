@@ -1011,12 +1011,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_OTA5T_Hierarchical_ParsesCorrectly()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         Assert.Equal(CascodeVersion.Major, doc.VersionMajor);
@@ -1047,12 +1047,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_CurrentMirror_Standalone_ParsesCorrectly()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         Assert.Single(doc.Circuits);
@@ -1090,12 +1090,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_OTA5T_Hierarchical_EmitsSpiceWithInlineExpansion()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         var topLevel = doc.Circuits.First(c => c.Name == "OTA5T_Hierarchical");
@@ -1123,12 +1123,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_OTA5T_Hierarchical_ValidatesSuccessfully()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         var result = HierarchyValidator.Validate(doc);
@@ -1143,12 +1143,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_OTA5T_Hierarchical_EmitProducesValidSubckts()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         using var cascodeHome = CascodeHome.CreateInTemp("SpiceEmitterTest");
@@ -1189,12 +1189,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_OTA5T_Hierarchical_TraitConnectorsPreserved()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         // Verify trait connector was parsed correctly
@@ -1219,12 +1219,12 @@ public class SpiceEmitterHierarchyTests
     public void GoldenFile_RoundTrip_ParseWriteParseMatches()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(
+        var cascodePath = Path.Combine(
             repoRoot,
             "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc1 = CascodeReader.Read(reader);
 
         // Write to string

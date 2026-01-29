@@ -8,7 +8,7 @@ public class CascodeReaderBasicTests
     [Fact]
     public void TryRead_ValidDocument_ReturnsSuccess()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -28,7 +28,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.Success);
@@ -41,7 +41,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryParse_ValidDocument_ReturnsSuccess()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -52,7 +52,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -61,7 +61,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InvalidVersionDeclaration_ReturnsError()
     {
-        var acir =
+        var cascode =
             @"VERSION invalid
 
 circuit TestCircuit {
@@ -69,7 +69,7 @@ circuit TestCircuit {
 }
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.False(result.Success);
@@ -82,7 +82,7 @@ circuit TestCircuit {
     [Fact]
     public void TryRead_MalformedDeviceDeclaration_ReturnsError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -96,7 +96,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.Contains(
@@ -108,7 +108,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_MalformedBinding_ReturnsError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -129,7 +129,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         // With ANTLR, malformed bindings are syntax errors (CAS0001) rather than warnings
@@ -142,7 +142,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_LegacyArrowBinding_IsRejected()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -162,7 +162,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.False(result.Success);
@@ -175,7 +175,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_LegacyConnectKeyword_IsRejected()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -188,7 +188,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.False(result.Success);
@@ -201,7 +201,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_DiagnosticsIncludeLineNumbers()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -214,7 +214,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         var errorDiag = result.Diagnostics.FirstOrDefault(d =>
@@ -228,9 +228,9 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_EmptyDocument_ReturnsEmptyResult()
     {
-        var acir = @"";
+        var cascode = @"";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.Success);
@@ -241,12 +241,12 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_CommentsOnly_ReturnsEmptyResult()
     {
-        var acir =
+        var cascode =
             @"// This is a comment
 // Another comment
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.Success);
@@ -257,7 +257,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_MissingVersionDeclaration_ReturnsWarning()
     {
-        var acir =
+        var cascode =
             @"circuit TestCircuit {
   level EL
   supply VDD
@@ -265,7 +265,7 @@ circuit TestCircuit {{
 }
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         // Should still parse but with a warning
@@ -282,7 +282,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryParse_InvalidLevel_EmitsError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit Test {{
@@ -292,7 +292,7 @@ circuit Test {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.False(result.Success);
         // With ANTLR, invalid level is a syntax error (CAS0001)
@@ -305,7 +305,7 @@ circuit Test {{
     [Fact]
     public void CascodeReadResult_ErrorCount_ReflectsErrors()
     {
-        var acir =
+        var cascode =
             @"VERSION invalid
 
 circuit TestCircuit {
@@ -317,7 +317,7 @@ circuit TestCircuit {
 }
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.HasErrors);
@@ -328,7 +328,7 @@ circuit TestCircuit {
     public void CascodeReadResult_WarningCount_ReflectsWarnings()
     {
         // With ANTLR parser, missing version declaration produces a warning (CAS0002)
-        var acir =
+        var cascode =
             @"circuit TestCircuit {
   level EL
   supply VDD
@@ -338,7 +338,7 @@ circuit TestCircuit {
 }
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.HasWarnings);
@@ -354,7 +354,7 @@ circuit TestCircuit {
     [Fact]
     public void TryRead_AttachWithInlineOverrides_ParsesOverrides()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirrorLike {{
@@ -383,7 +383,7 @@ circuit Test {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(
@@ -406,7 +406,7 @@ circuit Test {{
     [Fact]
     public void TryRead_AttachWithAnchorAndOverrides_ParsesBoth()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirrorLike {{
@@ -435,7 +435,7 @@ circuit Test {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(
@@ -457,7 +457,7 @@ circuit Test {{
     [Fact]
     public void TryRead_AttachWithMultipleOverrides_ParsesAll()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirrorLike {{
@@ -489,7 +489,7 @@ circuit Test {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(
@@ -508,7 +508,7 @@ circuit Test {{
     [Fact]
     public void TryRead_AttachWithoutOverrides_HasNullOverrides()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirrorLike {{
@@ -534,7 +534,7 @@ circuit Test {{
 }}
 ";
 
-        using var reader = new StringReader(acir);
+        using var reader = new StringReader(cascode);
         var result = CascodeReader.TryRead(reader, "test.cas");
 
         Assert.True(result.Success);
@@ -562,7 +562,7 @@ circuit Test {{
         string bBinding
     )
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -582,7 +582,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(
             result.Success,
@@ -609,7 +609,7 @@ circuit TestCircuit {{
     [InlineData("SENSE  --OUT.P")] // leading space only
     public void TryRead_ConnectorMapping_ToleratesWhitespaceAroundWireOperator(string mapping)
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirrorLike {{
@@ -632,7 +632,7 @@ circuit Test {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(
             result.Success,
@@ -654,7 +654,7 @@ circuit Test {{
     [InlineData("dp.IN  --IN")] // leading space only
     public void TryRead_FillConnect_ToleratesWhitespaceAroundWireOperator(string connect)
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -669,7 +669,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(
             result.Success,

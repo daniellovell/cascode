@@ -31,7 +31,7 @@ public class CascodeJsonConverterConstraintsTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""Test"", ""level"": ""EL"" }},
             ""supplies"": [],
             ""grounds"": [],
@@ -92,7 +92,7 @@ public class CascodeJsonConverterConstraintsTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""Test"", ""level"": ""EL"" }},
             ""supplies"": [],
             ""grounds"": [],

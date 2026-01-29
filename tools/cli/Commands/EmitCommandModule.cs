@@ -49,7 +49,7 @@ internal sealed class EmitCommandModule : ICommandModule
     /// <summary>
     /// Executes the emit command to generate SPICE netlists.
     /// </summary>
-    /// <param name="args">Command arguments: [acir_file] [--out output_dir] [--backend ngspice|spectre] [--json].</param>
+    /// <param name="args">Command arguments: [cascode_file] [--out output_dir] [--backend ngspice|spectre] [--json].</param>
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult EmitCommand(string[] args)
     {
@@ -281,7 +281,7 @@ internal sealed class EmitCommandModule : ICommandModule
     private void ShowUsage()
     {
         _state.AddMessage(
-            "Usage: emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]"
+            "Usage: emit <cascode_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]"
         );
         _state.AddMessage("");
         _state.AddMessage("Emits SPICE netlists from an Cascode EL document.");

@@ -61,7 +61,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     public async Task Emit_FromJsonRoundTrip_PreservesSizePacks()
     {
         // JSON conversion only supports a single EL circuit, so keep this input single-circuit.
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
@@ -97,11 +97,11 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
 }}
 ";
 
-        var doc = CascodeReader.Parse(acir, "size-smoke.cas");
+        var doc = CascodeReader.Parse(cascode, "size-smoke.cas");
 
         var json = CascodeJsonConverter.ToJson(doc, "SizePackSmoke");
 
-        var jsonPath = Path.Combine(_outputDir, "roundtrip.acir.json");
+        var jsonPath = Path.Combine(_outputDir, "roundtrip.cascode.json");
         await File.WriteAllTextAsync(jsonPath, json);
 
         var readResult = CascodeJsonConverter.FromJson(

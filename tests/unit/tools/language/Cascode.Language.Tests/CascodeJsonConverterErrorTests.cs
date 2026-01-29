@@ -23,7 +23,7 @@ public class CascodeJsonConverterErrorTests
     [Fact]
     public void FromJson_MissingRequiredFields_ReturnsError()
     {
-        var json = $@"{{ ""acirVersion"": ""{CascodeVersion.Current}"" }}";
+        var json = $@"{{ ""cascodeVersion"": ""{CascodeVersion.Current}"" }}";
 
         var result = CascodeJsonConverter.FromJson(json);
 
@@ -39,7 +39,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             @"{
-            ""acirVersion"": ""invalid"",
+            ""cascodeVersion"": ""invalid"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
             ""supplies"": [],
             ""grounds"": [],
@@ -63,7 +63,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             @"{
-            ""acirVersion"": ""abc.1"",
+            ""cascodeVersion"": ""abc.1"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
             ""supplies"": [],
             ""grounds"": [],
@@ -90,7 +90,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             @"{
-            ""acirVersion"": ""1.xyz"",
+            ""cascodeVersion"": ""1.xyz"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
             ""supplies"": [],
             ""grounds"": [],
@@ -117,7 +117,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             @"{
-            ""acirVersion"": ""11"",
+            ""cascodeVersion"": ""11"",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
             ""supplies"": [],
             ""grounds"": [],
@@ -144,7 +144,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             @"{
-            ""acirVersion"": """",
+            ""cascodeVersion"": """",
             ""circuit"": { ""name"": ""Test"", ""level"": ""EL"" },
             ""supplies"": [],
             ""grounds"": [],
@@ -182,7 +182,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""level"": ""EL"" }},
             ""supplies"": [],
             ""grounds"": [],
@@ -206,7 +206,7 @@ public class CascodeJsonConverterErrorTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""Test"", ""level"": ""XL"" }},
             ""supplies"": [],
             ""grounds"": [],

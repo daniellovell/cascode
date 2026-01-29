@@ -12,10 +12,10 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
-    public void Route_AllNetsFullyConnected(string acirPath)
+    public void Route_AllNetsFullyConnected(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -379,10 +379,10 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
-    public void Route_NoOverlappingSegmentsWithinNet(string acirPath)
+    public void Route_NoOverlappingSegmentsWithinNet(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -464,10 +464,10 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    public void Route_JunctionsAtBranchPointsNotTerminals(string acirPath)
+    public void Route_JunctionsAtBranchPointsNotTerminals(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -547,10 +547,10 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    public void Route_DevicesOnSameAxisConnectedDirectly(string acirPath)
+    public void Route_DevicesOnSameAxisConnectedDirectly(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -635,10 +635,10 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
-    public void Route_PortTerminalPositionsConnectedToWires(string acirPath)
+    public void Route_PortTerminalPositionsConnectedToWires(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -705,7 +705,7 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    public void Route_SymmetricTerminalsMeetAtCenterDevice(string acirPath)
+    public void Route_SymmetricTerminalsMeetAtCenterDevice(string cascodePath)
     {
         // This test verifies that when a net has terminals on opposite sides of the
         // symmetry axis PLUS a center terminal, the routing goes through the center
@@ -718,7 +718,7 @@ public class MazeRouterTests
         // The expected routing is Y-shaped: both sources route DOWN to meet at tail drain.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -801,7 +801,7 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    public void Route_NoRedundantParallelPaths(string acirPath)
+    public void Route_NoRedundantParallelPaths(string cascodePath)
     {
         // This test verifies that there are no redundant parallel paths to the same destination.
         // A proper tree has exactly one path between any two points.
@@ -810,7 +810,7 @@ public class MazeRouterTests
         // parallel horizontal segments at different Y coordinates that converge at the port.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -881,7 +881,7 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas", "vcm_node")]
-    public void Route_GatesToGatesConnectDirectlyOnSameY(string acirPath, string targetNet)
+    public void Route_GatesToGatesConnectDirectlyOnSameY(string cascodePath, string targetNet)
     {
         // This test verifies that when a net has multiple gate terminals at the same Y level,
         // they are connected by a direct horizontal path rather than routing through other nodes.
@@ -892,7 +892,7 @@ public class MazeRouterTests
         // Expected routing: gates connect horizontally, then one vertical drops to resistors.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -970,7 +970,7 @@ public class MazeRouterTests
     [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
-    public void Route_NoUselessWireStubs(string acirPath)
+    public void Route_NoUselessWireStubs(string cascodePath)
     {
         // This test verifies that every wire segment endpoint either:
         // 1. Connects to a terminal (device or port)
@@ -978,7 +978,7 @@ public class MazeRouterTests
         // Dead-end wire stubs that lead nowhere are routing errors.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -1028,14 +1028,14 @@ public class MazeRouterTests
 
     [Theory]
     [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    public void Route_OccupiedSegmentsMatchRenderedSegments(string acirPath)
+    public void Route_OccupiedSegmentsMatchRenderedSegments(string cascodePath)
     {
         // This test verifies that the OccupiedSegments map only contains
         // segments that are actually in the final routing result.
         // Ghost segments from pruned paths should NOT be in the occupied map.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");
@@ -1089,11 +1089,11 @@ public class MazeRouterTests
     [Theory]
     [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
-        string acirPath
+        string cascodePath
     )
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
         var readResult = CascodeReader.TryRead(reader, fullPath);
         Assert.True(readResult.Success, "Failed to parse Cascode file");

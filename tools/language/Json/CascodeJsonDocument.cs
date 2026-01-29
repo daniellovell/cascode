@@ -8,7 +8,7 @@ namespace Cascode.Language.Json;
 /// </summary>
 public sealed record CascodeJsonDocument
 {
-    [JsonPropertyName("acirVersion")]
+    [JsonPropertyName("cascodeVersion")]
     public string Version { get; init; } = Language.CascodeVersion.Current;
 
     [JsonPropertyName("traits")]

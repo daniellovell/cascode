@@ -87,7 +87,7 @@ public class SizePacksTests
     [Fact]
     public void TryRead_SizeDeclarationsAndAssignments_ParseSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit Top {{
@@ -122,7 +122,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "sizes.cas");
+        var result = CascodeReader.TryParse(cascode, "sizes.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -151,7 +151,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
     [Fact]
     public void SpiceEmitter_ExpandsSizePack_WithExplicitOverrides()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
@@ -196,7 +196,7 @@ circuit Leaf(size InputPair) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "sizes.cas");
+        var result = CascodeReader.TryParse(cascode, "sizes.cas");
         Assert.True(result.Success);
         var doc = result.Document!;
         var top = doc.Circuits.Single(c => c.Name == "Top");
@@ -215,7 +215,7 @@ circuit Leaf(size InputPair) {{
     [Fact]
     public void CascodeReader_InstanceSizeDuplicateKey_ReturnsParseError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit Top {{
@@ -250,7 +250,7 @@ circuit Leaf(size InputPair) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "duplicate_size_key.cas");
+        var result = CascodeReader.TryParse(cascode, "duplicate_size_key.cas");
 
         Assert.False(result.Success);
         var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
@@ -260,7 +260,7 @@ circuit Leaf(size InputPair) {{
     [Fact]
     public void CascodeReader_SizeDeclarationDuplicateKey_ReturnsParseError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
@@ -279,7 +279,7 @@ circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "duplicate_size_key.cas");
+        var result = CascodeReader.TryParse(cascode, "duplicate_size_key.cas");
 
         Assert.False(result.Success);
         var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);

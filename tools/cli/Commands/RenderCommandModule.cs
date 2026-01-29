@@ -174,7 +174,7 @@ internal sealed class RenderCommandModule : ICommandModule
 
     private void ShowUsage()
     {
-        _state.AddMessage("Usage: render <acir_file> [options]");
+        _state.AddMessage("Usage: render <cascode_file> [options]");
         _state.AddMessage("");
         _state.AddMessage("Renders an SVG schematic from an Cascode EL-level circuit.");
         _state.AddMessage("");

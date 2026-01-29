@@ -129,7 +129,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             resultsPath
@@ -190,7 +190,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             failingResultsPath
@@ -215,7 +215,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             resultsPath
@@ -303,7 +303,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             resultsPath
@@ -328,7 +328,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             nonExistentPath,
             "--results",
             resultsPath
@@ -348,7 +348,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             nonExistentResults
@@ -854,7 +854,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             resultsPath
@@ -1006,11 +1006,11 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         var libPattern = Sky130LibIncludePattern();
 
-        foreach (var (acirRel, benchFile) in cases)
+        foreach (var (cascodeRel, benchFile) in cases)
         {
             var outputDir = Path.Combine(_outputDir, "pdk-" + Guid.NewGuid().ToString("N")[..8]);
             Directory.CreateDirectory(outputDir);
-            var cascodePath = Path.Combine(_repoRoot, acirRel);
+            var cascodePath = Path.Combine(_repoRoot, cascodeRel);
 
             var emitResult = await CliIntegrationTestHelper.RunCliAsync(
                 TimeSpan.FromSeconds(30),
@@ -1184,7 +1184,7 @@ public partial class EmitVerifyFlowTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "verify",
-            "--acir",
+            "--cascode",
             cascodePath,
             "--results",
             resultsPath

@@ -42,15 +42,15 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <summary>
     /// Executes the verify command to check constraint compliance.
     /// </summary>
-    /// <param name="args">Command arguments: --acir <file> --results <json>.</param>
+    /// <param name="args">Command arguments: --cascode <file> --results <json>.</param>
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult VerifyCommand(string[] args)
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: verify <acir_file> <results_json|trace_jsonl>");
+            _state.AddMessage("Usage: verify <cascode_file> <results_json|trace_jsonl>");
             _state.AddMessage(
-                "       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)"
+                "       verify --cascode <cascode_file> (--results <results_json> | --trace <trace_jsonl>)"
             );
             _state.AddMessage("");
             _state.AddMessage(
@@ -59,7 +59,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
+        if (!ParseArguments(args, out var cascodePath, out var resultsPath, out var tracePath))
         {
             _state.AddMessage(
                 "Error: provide an Cascode path plus either a results.json or trace.jsonl path."
@@ -67,9 +67,9 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        if (!File.Exists(acirPath))
+        if (!File.Exists(cascodePath))
         {
-            _state.AddMessage($"Cascode file '{acirPath}' not found.");
+            _state.AddMessage($"Cascode file '{cascodePath}' not found.");
             return CommandResult.Failure;
         }
 
@@ -87,9 +87,9 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         // Read Cascode document
         CascodeReadResult readResult;
-        using (var reader = File.OpenText(acirPath))
+        using (var reader = File.OpenText(cascodePath))
         {
-            readResult = CascodeReader.TryRead(reader, acirPath);
+            readResult = CascodeReader.TryRead(reader, cascodePath);
         }
 
         if (!readResult.Success)
@@ -159,26 +159,26 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// Parses command-line arguments to extract Cascode and results file paths.
     /// </summary>
     /// <param name="args">Command arguments array.</param>
-    /// <param name="acirPath">Output parameter for Cascode file path.</param>
+    /// <param name="cascodePath">Output parameter for Cascode file path.</param>
     /// <param name="resultsPath">Output parameter for results JSON file path.</param>
     /// <returns>True if both arguments were found, false otherwise.</returns>
     private static bool ParseArguments(
         string[] args,
-        out string? acirPath,
+        out string? cascodePath,
         out string? resultsPath,
         out string? tracePath
     )
     {
-        acirPath = null;
+        cascodePath = null;
         resultsPath = null;
         tracePath = null;
         var positionals = new System.Collections.Generic.List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--acir" && i + 1 < args.Length)
+            if (args[i] == "--cascode" && i + 1 < args.Length)
             {
-                acirPath = args[i + 1];
+                cascodePath = args[i + 1];
                 i++;
             }
             else if (args[i] == "--results" && i + 1 < args.Length)
@@ -197,9 +197,9 @@ internal sealed class VerifyCommandModule : ICommandModule
             }
         }
 
-        if (acirPath == null && positionals.Count >= 1)
+        if (cascodePath == null && positionals.Count >= 1)
         {
-            acirPath = positionals[0];
+            cascodePath = positionals[0];
         }
 
         if (resultsPath == null && tracePath == null && positionals.Count >= 2)
@@ -215,7 +215,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             }
         }
 
-        return acirPath != null && (resultsPath != null || tracePath != null);
+        return cascodePath != null && (resultsPath != null || tracePath != null);
     }
 
     private static BenchResult ReadResultsFromTrace(

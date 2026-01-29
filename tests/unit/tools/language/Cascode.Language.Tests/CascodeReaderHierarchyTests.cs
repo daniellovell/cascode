@@ -9,7 +9,7 @@ public class CascodeReaderHierarchyTests
     [Fact]
     public void TryRead_TraitDefinition_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirror {{
@@ -25,7 +25,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -41,7 +41,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_TraitWithConnectors_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirror {{
@@ -61,7 +61,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -78,7 +78,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_CircuitWithInline_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit CurrentMirror {{
@@ -91,7 +91,7 @@ circuit CurrentMirror {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -102,7 +102,7 @@ circuit CurrentMirror {{
     [Fact]
     public void TryRead_CircuitWithoutInline_DefaultsFalse()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -112,7 +112,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -122,7 +122,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_CircuitParameters_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit(real ratio=2, real width, int count=4) {{
@@ -132,7 +132,7 @@ circuit TestCircuit(real ratio=2, real width, int count=4) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -156,7 +156,7 @@ circuit TestCircuit(real ratio=2, real width, int count=4) {{
     [Fact]
     public void TryRead_CircuitParameterWithSymbolic_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit(real width=Auto) {{
@@ -166,7 +166,7 @@ circuit TestCircuit(real width=Auto) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -177,7 +177,7 @@ circuit TestCircuit(real width=Auto) {{
     [Fact]
     public void TryRead_InstanceDeclaration_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -192,7 +192,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -209,7 +209,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InstanceWithoutBindings_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -222,7 +222,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -235,7 +235,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachStatement_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -248,7 +248,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -264,7 +264,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachStatementWithAnchor_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -277,7 +277,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -288,7 +288,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachWithInlineOverrides_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -301,7 +301,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -314,7 +314,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachWithMultilineOverrides_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -330,7 +330,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -345,7 +345,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachChain_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -358,7 +358,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -369,7 +369,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachChainWithAnchor_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -382,7 +382,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -393,7 +393,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachChainWithOverrides_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -408,7 +408,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -420,7 +420,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_AttachCombined_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -435,7 +435,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -448,7 +448,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InvalidInstanceDeclaration_ReturnsError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -461,7 +461,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         // With ANTLR, invalid instance declaration is a syntax error (CAS0001)
         Assert.Contains(
@@ -473,7 +473,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InvalidAttachStatement_ReturnsError()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -486,7 +486,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         // With ANTLR, invalid attach statement is a syntax error (CAS0001)
         Assert.Contains(
@@ -498,7 +498,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_CircuitImplementsTrait_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 interface CurrentMirror {{
@@ -515,7 +515,7 @@ circuit CMirror implements CurrentMirror {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -528,7 +528,7 @@ circuit CMirror implements CurrentMirror {{
     [Fact]
     public void TryRead_CircuitImplementsMultipleTraits_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit CMirror implements CurrentMirror, Foldable {{
@@ -538,7 +538,7 @@ circuit CMirror implements CurrentMirror, Foldable {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -552,7 +552,7 @@ circuit CMirror implements CurrentMirror, Foldable {{
     [Fact]
     public void TryRead_InstanceWithBodyBindings_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -572,7 +572,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -587,7 +587,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InstanceWithSizeAndNestedBindings_ParsesAll()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -611,7 +611,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
@@ -629,7 +629,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InlineBindingWithoutInstancePrefix_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -642,7 +642,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
@@ -654,7 +654,7 @@ circuit TestCircuit {{
     [Fact]
     public void TryRead_InstanceWithSizeAndBindings_ParsesSuccessfully()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 circuit TestCircuit {{
@@ -674,7 +674,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "test.cas");
+        var result = CascodeReader.TryParse(cascode, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];

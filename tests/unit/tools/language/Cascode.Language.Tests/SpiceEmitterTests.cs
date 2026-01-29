@@ -64,7 +64,7 @@ public class SpiceEmitterTests
     [Fact]
     public void EmitVariant_FullyResolvesParameters()
     {
-        var acir =
+        var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
@@ -94,7 +94,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
 }}
 ";
 
-        var result = CascodeReader.TryParse(acir, "indirect-sizes.cas");
+        var result = CascodeReader.TryParse(cascode, "indirect-sizes.cas");
         Assert.True(result.Success);
         var doc = result.Document!;
         var circuit = doc.Circuits.Single(c => c.Name == "Top");
@@ -358,9 +358,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesELCircuit()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         Assert.Equal(CascodeVersion.Major, doc.VersionMajor);
@@ -473,9 +473,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCommonSourceAmpWithBias()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cas");
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         Assert.Single(doc.Circuits);
@@ -509,9 +509,9 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCSAmpResistiveWithResistor()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
 
-        using var reader = File.OpenText(acirPath);
+        using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
         Assert.Single(doc.Circuits);

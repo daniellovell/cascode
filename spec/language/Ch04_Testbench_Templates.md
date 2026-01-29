@@ -312,7 +312,7 @@ When multiple benches are executed in one run, it also writes `{Circuit}_results
 The intended CLI shape is concise:
 
 ```bash
-cascode bench run <acir_file> [<bench>] [-o <output_dir>] [-b <bench>] [--backend ngspice]
+cascode bench run <cascode_file> [<bench>] [-o <output_dir>] [-b <bench>] [--backend ngspice]
 ```
 
 If `<bench>` is omitted, `cascode bench run` executes all benches referenced by numeric constraints in the ACIR document. To run a single bench (for faster iteration and debugging), pass the bench name as either the second positional argument or `-b/--bench`.
@@ -463,17 +463,17 @@ During `cascode emit`, each bench referenced by numeric constraints triggers bui
 Generate simulator netlists from an ACIR circuit:
 
 ```bash
-cascode emit <acir_file> --out <output_dir> --backend {ngspice|spectre}
+cascode emit <cascode_file> --out <output_dir> --backend {ngspice|spectre}
 ```
 
 **Arguments:**
-- `<acir_file>`: Path to ACIR file (must be EL-level)
+- `<cascode_file>`: Path to Cascode file (must be EL-level)
 - `--out <output_dir>`: Output directory for generated files
 - `--backend {ngspice|spectre}`: Target simulator backend
 
 **Generated Artifacts:**
 
-For an ACIR file `OTA5TSingleEnded.el.cir` with bench `ACBench`:
+For a Cascode file `OTA5TSingleEnded.el.cir` with bench `ACBench`:
 
 ```bash
 <output_dir>/
@@ -498,7 +498,7 @@ Or with `--backend spectre`:
 Check simulation results against ACIR constraints:
 
 ```bash
-cascode verify <acir_file> <results_json|trace_jsonl>
+cascode verify <cascode_file> <results_json|trace_jsonl>
 ```
 
 `trace_jsonl` is the output produced by `cascode bench run`. When a trace is supplied, `verify` reads the `summary` record and evaluates constraints against the consolidated measurement values.

@@ -36,7 +36,7 @@ public class CascodeJsonConverterBasicTests
         var parsed = JsonDocument.Parse(json);
         Assert.Equal(
             CascodeVersion.Current,
-            parsed.RootElement.GetProperty("acirVersion").GetString()
+            parsed.RootElement.GetProperty("cascodeVersion").GetString()
         );
     }
 
@@ -100,7 +100,7 @@ public class CascodeJsonConverterBasicTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""TestCircuit"", ""level"": ""EL"" }},
             ""supplies"": [""VDD""],
             ""grounds"": [""GND""],
@@ -126,7 +126,7 @@ public class CascodeJsonConverterBasicTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""Test"", ""level"": ""EL"" }},
             ""supplies"": [""VDD""],
             ""grounds"": [],
@@ -159,7 +159,7 @@ public class CascodeJsonConverterBasicTests
     {
         var json =
             $@"{{
-            ""acirVersion"": ""{CascodeVersion.Current}"",
+            ""cascodeVersion"": ""{CascodeVersion.Current}"",
             ""circuit"": {{ ""name"": ""TestCircuit"", ""level"": ""EL"" }},
             ""supplies"": [""VDD"", ""VDDA"", ""VDDD""],
             ""grounds"": [""GND"", ""GNDA"", ""GNDD""],
