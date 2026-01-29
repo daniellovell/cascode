@@ -266,7 +266,7 @@ public class ComplianceCheckerTests
     public void Check_WithGoldenCascode_ParsesAndHas4Constraints()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         using var acirReader = File.OpenText(acirPath);
         var doc = CascodeReader.Read(acirReader);
@@ -682,7 +682,7 @@ public class ComplianceCheckerTests
     public void Check_WithGoldenCascode_BenchAwareFiltering_ACBenchReturns3of3()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
         var resultsPath = Path.Combine(
             repoRoot,
             "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"

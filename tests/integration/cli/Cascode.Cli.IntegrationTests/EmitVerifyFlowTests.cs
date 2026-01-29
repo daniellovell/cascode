@@ -51,10 +51,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_OTA_GeneratesDesignAndTestbench()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -93,7 +90,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_CS_GeneratesDesignAndTestbench()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -122,10 +119,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_WithPassingResults_ReturnsSuccess()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
@@ -151,10 +145,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_WithFailingResults_ReturnsFailure()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         // Create a failing results file
         var failingResultsPath = Path.Combine(_outputDir, "failing_results.json");
@@ -214,7 +205,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_CSAmp_WithPassingResults_ReturnsSuccess()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/cs/CSAmpResistive_ACBench_results.json"
@@ -238,10 +229,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task EmitVerifyFlow_EndToEnd_WorksCorrectly()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         // Step 1: Emit
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -353,10 +341,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_MissingResults_ReturnsError()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
         var nonExistentResults = Path.Combine(_outputDir, "nonexistent_results.json");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -378,7 +363,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/invalid/missing_terminal.el.cas"
+            "tests/golden/cas/invalid/missing_terminal.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -398,10 +383,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_UndefinedNet_ReturnsExitCode2()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/undefined_net.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/undefined_net.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -420,10 +402,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_MissingParam_ReturnsExitCode2()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/missing_param.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/missing_param.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -442,7 +421,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_MLLevel_ReturnsExitCode2()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/invalid/ml_level.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/ml_level.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -460,10 +439,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ValidCircuit_ReturnsSuccess()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -479,10 +455,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_FloatingGate_ReturnsExitCode1()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/floating_gate.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/floating_gate.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -499,10 +472,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_VddGndShort_ReturnsExitCode1()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/vdd_gnd_short.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/vdd_gnd_short.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -522,7 +492,7 @@ public partial class EmitVerifyFlowTests : IDisposable
         // ERC on a structurally invalid file (missing terminal) should return exit code 2
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/invalid/missing_terminal.el.cas"
+            "tests/golden/cas/invalid/missing_terminal.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -540,7 +510,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_RequirePdk_WarningBecomesError()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
 
         // Without --require-pdk, should pass with warning
         var resultWithoutFlag = await CliIntegrationTestHelper.RunCliAsync(
@@ -586,10 +556,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_JsonOutput_ReturnsValidJson()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -609,10 +576,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_JsonOutput_WithErrors_ReturnsValidJson()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/floating_gate.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/floating_gate.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -635,10 +599,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_PassiveShort_ReturnsERC007()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/passive_short.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/passive_short.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -659,7 +620,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_unsized.ml.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_unsized.ml.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -676,10 +637,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_FloatingGate_ReturnsExitCode1()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/floating_gate.ml.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/floating_gate.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -696,10 +654,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_MissingGateBinding_ReturnsExitCode1()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/missing_gate.ml.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/missing_gate.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -716,10 +671,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_VddGndShort_ReturnsExitCode1()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/vdd_gnd_short.ml.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/vdd_gnd_short.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -736,10 +688,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_PassiveShort_ReturnsERC007()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/passive_short.ml.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/passive_short.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -758,7 +707,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/TelescopicCascodeSingleEnded_Attach.ml.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeSingleEnded_Attach.ml.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -778,10 +727,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_JsonOutput_ReturnsValidJson()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -805,7 +751,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/invalid/missing_terminal.el.cas"
+            "tests/golden/cas/invalid/missing_terminal.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -829,7 +775,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/cs/CSAmpResistive_DCSwept.el.cas"
+            "tests/golden/cas/cs/CSAmpResistive_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -864,7 +810,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -897,7 +843,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/cs/CSAmpResistive_DCSwept.el.cas"
+            "tests/golden/cas/cs/CSAmpResistive_DCSwept.el.cas"
         );
         var resultsPath = Path.Combine(
             _repoRoot,
@@ -922,10 +868,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     public async Task Emit_InvalidAutoAtEL_ReturnsExitCode2()
     {
         // Test that [Auto] at EL level is rejected
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/invalid/auto_sweep_el.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/invalid/auto_sweep_el.el.cas");
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
@@ -945,7 +888,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/cs/CSAmpResistive_DCSwept.el.cas"
+            "tests/golden/cas/cs/CSAmpResistive_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -979,7 +922,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -1011,7 +954,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_CommonSourceAmp_SpiceSimulatesSuccessfully()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/cs/CommonSourceAmp.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cas");
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1053,16 +996,10 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         var cases = new (string CascodeRel, string BenchFile)[]
         {
+            ("tests/golden/cas/cs/CommonSourceAmp_Pdk.el.cas", "CommonSourceAmp_Pdk_ACBench.sp"),
+            ("tests/golden/cas/ota/OTA5TSingleEnded_Pdk.el.cas", "OTA5TSingleEnded_Pdk_ACBench.sp"),
             (
-                "tests/golden/cascode/cs/CommonSourceAmp_Pdk.el.cas",
-                "CommonSourceAmp_Pdk_ACBench.sp"
-            ),
-            (
-                "tests/golden/cascode/ota/OTA5TSingleEnded_Pdk.el.cas",
-                "OTA5TSingleEnded_Pdk_ACBench.sp"
-            ),
-            (
-                "tests/golden/cascode/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cas",
+                "tests/golden/cas/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cas",
                 "OTA5T_Hierarchical_Attach_Pdk_ACBench.sp"
             ),
         };
@@ -1108,10 +1045,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_OTA_ACBench_PrintsNumericResultValues()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1143,7 +1077,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_FD_OTA_GeneratesDesignAndTestbench()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1182,7 +1116,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_FD_OTA_DCBench_GeneratesSplitDifferentialLoads()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1213,7 +1147,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TFullyDiff_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1240,7 +1174,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_FD_OTA_WithPassingResults_ReturnsSuccess()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TFullyDiff.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/ota/OTA5TFullyDiff_ACBench_results.json"
@@ -1267,7 +1201,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_FD_OTA_ACBench_SpiceSimulatesSuccessfully()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TFullyDiff.el.cas");
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1305,7 +1239,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TFullyDiff_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -1338,7 +1272,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1393,7 +1327,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1428,7 +1362,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1483,7 +1417,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1518,7 +1452,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1576,7 +1510,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1611,7 +1545,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1669,7 +1603,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(

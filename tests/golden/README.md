@@ -10,12 +10,12 @@ Layout (intended)
 
 - `tests/golden/cas/…` — canonical Cascode source files used in regressions.
   - Example: `cas/ota/OTA5TSingleEndedSimplified.cas`.
-- `tests/golden/cascode/…` — Cascode text snapshots (`*.cas`) emitted by the
+- `tests/golden/cas/…` — Cascode text snapshots (`*.cas`) emitted by the
   compiler for those sources (HL/ML/EL where applicable).
   - Files are named `{circuit}.{level}.cas` (e.g., `OTA5TSingleEnded.ml.cas`).
 - `tests/golden/results/…` — simulation results (JSON) used to verify constraint compliance.
 
 For the v0 OTA slice the Cascode "golden" already lives under
-`tests/golden/cascode/ota/OTA5TSingleEndedSimplified.ml.cas`, and the compiler
+`tests/golden/cas/ota/OTA5TSingleEndedSimplified.ml.cas`, and the compiler
 unit test (`OtaCompilerTests`) loads it from disk. Additional motifs/modules
 can now be added following the same pattern.

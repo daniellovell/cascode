@@ -9,9 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Cli", "tools\cli\Ca
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Workspace", "tools\workspace\Cascode.Workspace.csproj", "{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Parser", "tools\parser\Cascode.Parser.csproj", "{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Language", "tools\acir\Cascode.Language.csproj", "{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Language", "tools\language\Cascode.Language.csproj", "{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{543814C0-D760-4D77-BED4-BBD5F254DA3E}"
 EndProject
@@ -37,9 +35,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "cli", "cli", "{8E44485B-C8B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Cli.IntegrationTests", "tests\integration\cli\Cascode.Cli.IntegrationTests\Cascode.Cli.IntegrationTests.csproj", "{9C85ADD8-6F5B-4C38-85E9-68C4AE854BCD}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "acir", "acir", "{FCED79FC-F8A2-45F4-8C21-536974D9978C}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "language", "language", "{FCED79FC-F8A2-45F4-8C21-536974D9978C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Language.Tests", "tests\unit\tools\acir\Cascode.ACIR.Tests\Cascode.Language.Tests.csproj", "{6F35EB34-A7AA-4C56-91DF-AF9906ECBA5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Language.Tests", "tests\unit\tools\language\Cascode.Language.Tests\Cascode.Language.Tests.csproj", "{6F35EB34-A7AA-4C56-91DF-AF9906ECBA5D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cascode.Render", "tools\render\Cascode.Render.csproj", "{7B9EB2A3-E025-4DAE-A2B4-CD6BA7FE6E1E}"
 EndProject
@@ -64,10 +62,6 @@ Global
 		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -104,7 +98,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{EB3B7AAC-2B41-4523-8257-A62DB8173151} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
 		{567EF88B-5ED8-4D77-B8FA-1F4CF6A286C6} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
-		{C3A8E27C-4E4D-4C71-8C24-0E2B7E9F9A51} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
 		{4F1B67A4-9A2F-4B11-B6D2-7F4D5CCF9B9C} = {9412C79B-34BD-41E5-826B-27CAB21E04E7}
 		{0B1C7326-9D6D-4F87-AFD9-6E4DA88CC87C} = {543814C0-D760-4D77-BED4-BBD5F254DA3E}
 		{F1C643B6-6750-4DDB-B222-DC1698FE6769} = {0B1C7326-9D6D-4F87-AFD9-6E4DA88CC87C}

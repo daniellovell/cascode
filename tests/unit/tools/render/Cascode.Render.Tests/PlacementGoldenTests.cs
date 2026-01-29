@@ -8,11 +8,11 @@ public class PlacementGoldenTests
 {
     [Theory]
     [InlineData(
-        "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas",
+        "tests/golden/cas/ota/OTA5TSingleEnded.el.cas",
         "tests/golden/render/OTA5TSingleEnded.placement.csv"
     )]
     [InlineData(
-        "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas",
+        "tests/golden/cas/ota/OTA5TFullyDiff.el.cas",
         "tests/golden/render/OTA5TFullyDiff.placement.csv"
     )]
     public void Placement_MatchesGolden(string cascodePath, string goldenPath)

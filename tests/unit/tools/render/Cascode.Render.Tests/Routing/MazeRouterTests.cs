@@ -8,10 +8,10 @@ using Cascode.Render.Routing;
 public class MazeRouterTests
 {
     [Theory]
-    [InlineData("tests/golden/cascode/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_AllNetsFullyConnected(string acirPath)
     {
         // Arrange
@@ -375,10 +375,10 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_NoOverlappingSegmentsWithinNet(string acirPath)
     {
         // Arrange
@@ -463,7 +463,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     public void Route_JunctionsAtBranchPointsNotTerminals(string acirPath)
     {
         // Arrange
@@ -546,7 +546,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     public void Route_DevicesOnSameAxisConnectedDirectly(string acirPath)
     {
         // Arrange
@@ -631,10 +631,10 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_PortTerminalPositionsConnectedToWires(string acirPath)
     {
         // Arrange
@@ -704,7 +704,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     public void Route_SymmetricTerminalsMeetAtCenterDevice(string acirPath)
     {
         // This test verifies that when a net has terminals on opposite sides of the
@@ -800,7 +800,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     public void Route_NoRedundantParallelPaths(string acirPath)
     {
         // This test verifies that there are no redundant parallel paths to the same destination.
@@ -880,7 +880,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas", "vcm_node")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas", "vcm_node")]
     public void Route_GatesToGatesConnectDirectlyOnSameY(string acirPath, string targetNet)
     {
         // This test verifies that when a net has multiple gate terminals at the same Y level,
@@ -966,10 +966,10 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_NoUselessWireStubs(string acirPath)
     {
         // This test verifies that every wire segment endpoint either:
@@ -1027,7 +1027,7 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
     public void Route_OccupiedSegmentsMatchRenderedSegments(string acirPath)
     {
         // This test verifies that the OccupiedSegments map only contains
@@ -1087,7 +1087,7 @@ public class MazeRouterTests
     /// but the input side (left) needs a connector to be added.
     /// </summary>
     [Theory]
-    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
     public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
         string acirPath
     )

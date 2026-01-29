@@ -1013,7 +1013,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1049,7 +1049,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/CurrentMirror_Standalone.el.cas"
+            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1092,7 +1092,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1125,7 +1125,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1145,7 +1145,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1191,7 +1191,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1221,7 +1221,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/cascode/hierarchy/CurrentMirror_Standalone.el.cas"
+            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);

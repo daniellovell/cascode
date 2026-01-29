@@ -358,7 +358,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesELCircuit()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = CascodeReader.Read(reader);
@@ -473,7 +473,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCommonSourceAmpWithBias()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cascode/cs/CommonSourceAmp.el.cas");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = CascodeReader.Read(reader);
@@ -509,7 +509,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCSAmpResistiveWithResistor()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/cascode/cs/CSAmpResistive.el.cas");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = CascodeReader.Read(reader);

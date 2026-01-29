@@ -27,7 +27,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     {
         var sourcePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         CascodeDocument doc;

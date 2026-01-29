@@ -53,7 +53,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -112,7 +112,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/cs/CommonSourceAmp_MultiBench.el.cas"
+            "tests/golden/cas/cs/CommonSourceAmp_MultiBench.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -179,7 +179,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TFullyDiff_DCSwept.el.cas"
+            "tests/golden/cas/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -239,7 +239,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_Pdk.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_Pdk.el.cas"
         );
         var outputDir = Path.Combine(_outputDir, "pdk-setdir-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(outputDir);
@@ -289,7 +289,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded_Pdk.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded_Pdk.el.cas"
         );
         var outputDir = Path.Combine(
             _outputDir,
@@ -333,7 +333,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_FD_OTA_ACBench_ProducesValidMeasurements()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cascode/ota/OTA5TFullyDiff.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
@@ -384,10 +384,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_SE_OTA_ACBench_ProducesValidMeasurements()
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
@@ -445,7 +442,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on flat OTA5TSingleEnded
         var flatCascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded.el.cas"
         );
         var flatOutputDir = Path.Combine(_outputDir, "flat");
         Directory.CreateDirectory(flatOutputDir);
@@ -465,7 +462,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on hierarchical OTA5T_Hierarchical
         var hierarchicalCascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
         );
         var hierarchicalOutputDir = Path.Combine(_outputDir, "hierarchical");
         Directory.CreateDirectory(hierarchicalOutputDir);
@@ -593,7 +590,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on flat OTA5TSingleEnded
         var flatCascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/ota/OTA5TSingleEnded.el.cas"
+            "tests/golden/cas/ota/OTA5TSingleEnded.el.cas"
         );
         var flatOutputDir = Path.Combine(_outputDir, "flat");
         Directory.CreateDirectory(flatOutputDir);
@@ -613,7 +610,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on hierarchical-attach OTA5T_Hierarchical_Attach
         var attachCascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
         var attachOutputDir = Path.Combine(_outputDir, "attach");
         Directory.CreateDirectory(attachOutputDir);

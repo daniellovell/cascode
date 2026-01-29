@@ -42,7 +42,7 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
     [Fact]
     public async Task AllGoldenJsonFiles_ConvertBidirectionally_Succeeds()
     {
-        var jsonDir = Path.Combine(_repoRoot, "tests", "golden", "cascode", "json");
+        var jsonDir = Path.Combine(_repoRoot, "tests", "golden", "cas", "json");
         Assert.True(Directory.Exists(jsonDir), $"Golden JSON directory not found: {jsonDir}");
 
         var jsonFiles = Directory.GetFiles(jsonDir, "*.json").OrderBy(Path.GetFileName).ToList();
@@ -119,7 +119,7 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
 
     private string? FindMatchingCasFile(string jsonFile, List<string> failures)
     {
-        var cascodeRoot = Path.Combine(_repoRoot, "tests", "golden", "cascode");
+        var cascodeRoot = Path.Combine(_repoRoot, "tests", "golden", "cas");
         var baseName = Path.GetFileNameWithoutExtension(jsonFile);
         var targetFileName = $"{baseName}.cas";
 

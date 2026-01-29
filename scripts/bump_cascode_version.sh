@@ -4,10 +4,10 @@ set -euo pipefail
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(dirname "$script_dir")"
 
-VERSION_FILE="$repo_root/tools/acir/ACIRVersion.cs"
-GOLDEN_DIR="$repo_root/tests/golden/acir"
+VERSION_FILE="$repo_root/tools/language/CascodeVersion.cs"
+GOLDEN_DIR="$repo_root/tests/golden/cas"
 
-# Extract Major and Minor from ACIRVersion.cs using portable awk
+# Extract Major and Minor from CascodeVersion.cs using portable awk
 MAJOR=$(awk -F'=' '/Major[[:space:]]*=/ { gsub(/[^0-9]/, "", $2); print $2 }' "$VERSION_FILE")
 MINOR=$(awk -F'=' '/Minor[[:space:]]*=/ { gsub(/[^0-9]/, "", $2); print $2 }' "$VERSION_FILE")
 
@@ -17,7 +17,7 @@ if [[ -z "$MAJOR" || -z "$MINOR" ]]; then
 fi
 
 VERSION="$MAJOR.$MINOR"
-echo "Updating golden files to ACIR $VERSION"
+echo "Updating golden files to Cascode $VERSION"
 
 # Detect platform for portable sed -i
 if [[ "$(uname)" == "Darwin" ]]; then
@@ -26,10 +26,10 @@ else
     SED_INPLACE=(-i)
 fi
 
-# Update .cir files (first line header)
+# Update .cas files (first line VERSION header)
 while IFS= read -r -d '' file; do
-    sed "${SED_INPLACE[@]}" -E "1s/^ACIR [0-9]+\.[0-9]+/ACIR $VERSION/" "$file"
-done < <(find "$GOLDEN_DIR" -name "*.cir" -print0)
+    sed "${SED_INPLACE[@]}" -E "1s/^VERSION [0-9]+\.[0-9]+/VERSION $VERSION/" "$file"
+done < <(find "$GOLDEN_DIR" -name "*.cas" -print0)
 
 # Update .json files (acirVersion field)
 while IFS= read -r -d '' file; do
