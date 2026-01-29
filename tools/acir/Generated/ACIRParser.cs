@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from tools/acir/ACIR.g4 by ANTLR 4.13.1
+// Generated from ACIR.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -19,6 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
+namespace Cascode.ACIR {
 using System;
 using System.IO;
 using System.Text;
@@ -866,7 +867,7 @@ public partial class ACIRParser : Parser {
 
 	public partial class BenchDefContext : ParserRuleContext {
 		public IToken name;
-		public IToken trait;
+		public IToken @interface;
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BENCH_KW() { return GetToken(ACIRParser.BENCH_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FOR_KW() { return GetToken(ACIRParser.FOR_KW, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LBRACE() { return GetToken(ACIRParser.LBRACE, 0); }
@@ -919,7 +920,7 @@ public partial class ACIRParser : Parser {
 			State = 242;
 			Match(FOR_KW);
 			State = 243;
-			_localctx.trait = Match(IDENT);
+			_localctx.@interface = Match(IDENT);
 			State = 244;
 			Match(LBRACE);
 			State = 248;
@@ -7643,3 +7644,4 @@ public partial class ACIRParser : Parser {
 
 
 }
+} // namespace Cascode.ACIR

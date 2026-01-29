@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from tools/acir/ACIR.g4 by ANTLR 4.13.1
+// Generated from ACIR.g4 by ANTLR 4.13.1
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -19,6 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
+namespace Cascode.ACIR {
 
 using Antlr4.Runtime.Misc;
 using IErrorNode = Antlr4.Runtime.Tree.IErrorNode;
@@ -1445,3 +1446,4 @@ public partial class ACIRBaseListener : IACIRListener {
 	/// <remarks>The default implementation does nothing.</remarks>
 	public virtual void VisitErrorNode([NotNull] IErrorNode node) { }
 }
+} // namespace Cascode.ACIR

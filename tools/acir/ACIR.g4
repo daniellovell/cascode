@@ -75,7 +75,7 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW name=IDENT FOR_KW trait=IDENT LBRACE benchMember* RBRACE
+    : BENCH_KW name=IDENT FOR_KW interface=IDENT LBRACE benchMember* RBRACE
     ;
 
 benchMember

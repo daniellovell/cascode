@@ -185,7 +185,7 @@ internal sealed partial class ACIRAstBuilder
     private BenchDefinition BuildBenchDefinition(ACIRParser.BenchDefContext ctx)
     {
         var name = ctx.name.Text;
-        var trait = ctx.trait.Text;
+        var interfaceName = ctx.@interface.Text;
         string? builtin = null;
         var config = new Dictionary<string, string>();
         var outputs = new List<string>();
@@ -239,7 +239,7 @@ internal sealed partial class ACIRAstBuilder
         return new BenchDefinition
         {
             Name = name,
-            Trait = trait,
+            Trait = interfaceName,
             Builtin = builtin,
             Config = config,
             Outputs = outputs,

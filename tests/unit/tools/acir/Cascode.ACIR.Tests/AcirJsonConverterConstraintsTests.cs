@@ -150,22 +150,7 @@ public class AcirJsonConverterConstraintsTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
-            Primitives =
-            [
-                new PrimitiveDefinition
-                {
-                    Name = "Level1_NMOS",
-                    Kind = "nmos",
-                    Device = "level1_nmos",
-                    SizeParameter = "primSize",
-                    Params = new Dictionary<string, string>
-                    {
-                        ["W"] = "primSize.W",
-                        ["L"] = "primSize.L",
-                        ["m"] = "primSize.M",
-                    },
-                },
-            ],
+            Primitives = [TestPrimitives.GetLevel1Nmos()],
             Circuits =
             [
                 new Circuit

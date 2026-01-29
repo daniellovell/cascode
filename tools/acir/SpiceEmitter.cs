@@ -980,7 +980,6 @@ public static class SpiceEmitter
     /// <param name="sizeBindings">Local size bindings for parameter expansion.</param>
     /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
     /// <exception cref="InvalidOperationException">Thrown if device type is unknown or required terminals are missing.</exception>
-    // Long method: device emission is kept in one flow to preserve terminal ordering clarity.
     private static void EmitDevice(
         DeviceDeclaration device,
         TextWriter writer,
@@ -991,105 +990,41 @@ public static class SpiceEmitter
         BenchBackendType backend
     )
     {
-        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
-        {
-            throw new InvalidOperationException(
-                $"Device '{device.Id}' references undefined primitive '{device.Primitive}'."
-            );
-        }
-
-        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
-        var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
-        var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
-        var useSubckt = resolvedModel?.IsSubckt ?? false;
-
-        var deviceKind = device.DeviceType.ToLowerInvariant();
-        var isBuiltinPassive =
-            !useSubckt
-            && (deviceKind is "resistor" or "capacitor" or "inductor")
-            && modelName.Equals(deviceKind, StringComparison.OrdinalIgnoreCase);
-        var paramExpressions = deviceParams;
-        string? passiveValue = null;
-        if (isBuiltinPassive)
-        {
-            var key = deviceKind switch
-            {
-                "resistor" => "R",
-                "capacitor" => "C",
-                "inductor" => "L",
-                _ => null,
-            };
-            if (key is not null && deviceParams.TryGetValue(key, out var expr))
-            {
-                passiveValue = RenderEvaluatedExpression(expressionContext, expr, backend);
-                paramExpressions = deviceParams
-                    .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
-            }
-        }
-        var spiceType = useSubckt
-            ? "X"
-            : deviceKind switch
-            {
-                "nmos" or "pmos" => "M",
-                "resistor" => "R",
-                "capacitor" => "C",
-                "inductor" => "L",
-                "diode" => "D",
-                _ => throw new InvalidOperationException(
-                    $"Unknown device type: {device.DeviceType}"
-                ),
-            };
+        var info = BuildSpiceDeviceInfo(
+            device,
+            primitivesByName,
+            deviceModelMap,
+            sizeBindings,
+            expressionContext,
+            backend
+        );
 
         var sb = new StringBuilder();
-        sb.Append(spiceType);
+        sb.Append(info.SpiceType);
         sb.Append(device.Id);
         sb.Append(' ');
 
-        switch (deviceKind)
+        foreach (var (_, net) in info.TerminalBindings)
         {
-            case "nmos":
-            case "pmos":
-                sb.Append(SanitizeNetName(GetBinding(device, "D")));
-                sb.Append(' ');
-                sb.Append(SanitizeNetName(GetBinding(device, "G")));
-                sb.Append(' ');
-                sb.Append(SanitizeNetName(GetBinding(device, "S")));
-                sb.Append(' ');
-                sb.Append(SanitizeNetName(GetBinding(device, "B")));
-                sb.Append(' ');
-                break;
-            case "resistor":
-            case "capacitor":
-            case "inductor":
-                sb.Append(SanitizeNetName(GetBinding(device, "P")));
-                sb.Append(' ');
-                sb.Append(SanitizeNetName(GetBinding(device, "N")));
-                sb.Append(' ');
-                break;
-            case "diode":
-                sb.Append(SanitizeNetName(GetBinding(device, "A")));
-                sb.Append(' ');
-                sb.Append(SanitizeNetName(GetBinding(device, "K")));
-                sb.Append(' ');
-                break;
+            sb.Append(SanitizeNetName(net));
+            sb.Append(' ');
         }
 
-        if (isBuiltinPassive)
+        if (info.IsBuiltinPassive)
         {
-            if (!string.IsNullOrWhiteSpace(passiveValue))
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
             {
-                sb.Append(passiveValue);
+                sb.Append(info.PassiveValue);
             }
         }
         else
         {
-            sb.Append(modelName);
+            sb.Append(info.ModelName);
         }
 
         AppendParamAssignments(
             sb,
-            paramExpressions,
+            info.ParamExpressions,
             expr => RenderEvaluatedExpression(expressionContext, expr, backend)
         );
 
@@ -1482,7 +1417,6 @@ public static class SpiceEmitter
     /// <summary>
     /// Emits a device from an inline circuit with hierarchical naming.
     /// </summary>
-    // Long method: inline device emission mirrors the non-inline path with substitutions.
     private static void EmitInlineDevice(
         DeviceDeclaration device,
         IReadOnlyList<string> hierarchyPath,
@@ -1497,187 +1431,50 @@ public static class SpiceEmitter
         BenchBackendType backend
     )
     {
-        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
-        {
-            throw new InvalidOperationException(
-                $"Device '{device.Id}' references undefined primitive '{device.Primitive}'."
-            );
-        }
-
-        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
-        var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
-        var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
-        var useSubckt = resolvedModel?.IsSubckt ?? false;
-
-        var deviceKind = device.DeviceType.ToLowerInvariant();
-        var isBuiltinPassive =
-            !useSubckt
-            && (deviceKind is "resistor" or "capacitor" or "inductor")
-            && modelName.Equals(deviceKind, StringComparison.OrdinalIgnoreCase);
-        var paramExpressions = deviceParams;
-        string? passiveValue = null;
-        if (isBuiltinPassive)
-        {
-            var key = deviceKind switch
-            {
-                "resistor" => "R",
-                "capacitor" => "C",
-                "inductor" => "L",
-                _ => null,
-            };
-            if (key is not null && deviceParams.TryGetValue(key, out var expr))
-            {
-                passiveValue = RenderEvaluatedExpression(expressionContext, expr, backend);
-                paramExpressions = deviceParams
-                    .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
-                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
-            }
-        }
-        var spiceType = useSubckt
-            ? "X"
-            : deviceKind switch
-            {
-                "nmos" or "pmos" => "M",
-                "resistor" => "R",
-                "capacitor" => "C",
-                "inductor" => "L",
-                "diode" => "D",
-                _ => throw new InvalidOperationException(
-                    $"Unknown device type: {device.DeviceType}"
-                ),
-            };
+        var info = BuildSpiceDeviceInfo(
+            device,
+            primitivesByName,
+            deviceModelMap,
+            sizeBindings,
+            expressionContext,
+            backend
+        );
 
         var sb = new StringBuilder();
-        sb.Append(spiceType);
+        sb.Append(info.SpiceType);
         sb.Append(BuildHierarchyPrefix(hierarchyPath));
         sb.Append("__");
         sb.Append(device.Id);
         sb.Append(' ');
 
-        switch (deviceKind)
+        foreach (var (_, net) in info.TerminalBindings)
         {
-            case "nmos":
-            case "pmos":
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "D"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "G"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "S"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "B"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                break;
-            case "resistor":
-            case "capacitor":
-            case "inductor":
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "P"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "N"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                break;
-            case "diode":
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "A"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                sb.Append(
-                    SanitizeNetName(
-                        SubstituteNet(
-                            GetBinding(device, "K"),
-                            hierarchyPath,
-                            netSubstitutions,
-                            internalNets,
-                            resolution
-                        )
-                    )
-                );
-                sb.Append(' ');
-                break;
+            var substitutedNet = SubstituteNet(
+                net,
+                hierarchyPath,
+                netSubstitutions,
+                internalNets,
+                resolution
+            );
+            sb.Append(SanitizeNetName(substitutedNet));
+            sb.Append(' ');
         }
 
-        if (isBuiltinPassive)
+        if (info.IsBuiltinPassive)
         {
-            if (!string.IsNullOrWhiteSpace(passiveValue))
+            if (!string.IsNullOrWhiteSpace(info.PassiveValue))
             {
-                sb.Append(passiveValue);
+                sb.Append(info.PassiveValue);
             }
         }
         else
         {
-            sb.Append(modelName);
+            sb.Append(info.ModelName);
         }
 
         AppendParamAssignments(
             sb,
-            paramExpressions,
+            info.ParamExpressions,
             expr => RenderEvaluatedExpression(expressionContext, expr, backend)
         );
 
@@ -1799,6 +1596,135 @@ public static class SpiceEmitter
         }
 
         return deviceKey;
+    }
+
+    /// <summary>
+    /// Information about a resolved device for SPICE emission.
+    /// </summary>
+    private readonly struct SpiceDeviceInfo
+    {
+        public required PrimitiveDefinition Primitive { get; init; }
+        public required DeviceModelResolution? ResolvedModel { get; init; }
+        public required string ModelName { get; init; }
+        public required bool UseSubckt { get; init; }
+        public required bool IsBuiltinPassive { get; init; }
+        public required string? PassiveValue { get; init; }
+        public required string SpiceType { get; init; }
+        public required IReadOnlyDictionary<string, string> TerminalBindings { get; init; }
+        public required IReadOnlyDictionary<string, string> ParamExpressions { get; init; }
+    }
+
+    /// <summary>
+    /// Builds SPICE device information from a device declaration.
+    /// </summary>
+    /// <param name="device">Device declaration (regular or inline).</param>
+    /// <param name="primitivesByName">Primitive definitions keyed by name.</param>
+    /// <param name="deviceModelMap">Optional map of PDK device names to resolved model definitions.</param>
+    /// <param name="sizeBindings">Local size bindings for parameter expansion.</param>
+    /// <param name="expressionContext">Expression context for evaluating passive values.</param>
+    /// <param name="backend">Target SPICE backend for SI prefix formatting.</param>
+    /// <returns>SpiceDeviceInfo containing resolved device information.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if device type is unknown or primitive is undefined.</exception>
+    private static SpiceDeviceInfo BuildSpiceDeviceInfo(
+        DeviceDeclaration device,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap,
+        IReadOnlyDictionary<string, SizePack> sizeBindings,
+        ExpressionContext expressionContext,
+        BenchBackendType backend
+    )
+    {
+        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+        {
+            throw new InvalidOperationException(
+                $"Device '{device.Id}' references undefined primitive '{device.Primitive}'."
+            );
+        }
+
+        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
+        var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
+        var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
+        var useSubckt = resolvedModel?.IsSubckt ?? false;
+
+        var deviceKind = device.DeviceType.ToLowerInvariant();
+        var isBuiltinPassive =
+            !useSubckt
+            && (deviceKind is "resistor" or "capacitor" or "inductor")
+            && modelName.Equals(deviceKind, StringComparison.OrdinalIgnoreCase);
+
+        var paramExpressions = deviceParams;
+        string? passiveValue = null;
+        if (isBuiltinPassive)
+        {
+            var key = deviceKind switch
+            {
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                _ => null,
+            };
+            if (key is not null && deviceParams.TryGetValue(key, out var expr))
+            {
+                passiveValue = RenderEvaluatedExpression(expressionContext, expr, backend);
+                paramExpressions = deviceParams
+                    .Where(kvp => !kvp.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+                    .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
+            }
+        }
+
+        var spiceType = useSubckt
+            ? "X"
+            : deviceKind switch
+            {
+                "nmos" or "pmos" => "M",
+                "resistor" => "R",
+                "capacitor" => "C",
+                "inductor" => "L",
+                "diode" => "D",
+                _ => throw new InvalidOperationException(
+                    $"Unknown device type: {device.DeviceType}"
+                ),
+            };
+
+        var terminalBindings = BuildTerminalBindings(device, deviceKind);
+
+        return new SpiceDeviceInfo
+        {
+            Primitive = primitive,
+            ResolvedModel = resolvedModel,
+            ModelName = modelName,
+            UseSubckt = useSubckt,
+            IsBuiltinPassive = isBuiltinPassive,
+            PassiveValue = passiveValue,
+            SpiceType = spiceType,
+            TerminalBindings = terminalBindings,
+            ParamExpressions = paramExpressions,
+        };
+    }
+
+    /// <summary>
+    /// Builds terminal bindings for a device based on its kind.
+    /// </summary>
+    private static Dictionary<string, string> BuildTerminalBindings(
+        DeviceDeclaration device,
+        string deviceKind
+    )
+    {
+        var terminals = deviceKind switch
+        {
+            "nmos" or "pmos" => new[] { "D", "G", "S", "B" },
+            "resistor" or "capacitor" or "inductor" => new[] { "P", "N" },
+            "diode" => new[] { "A", "K" },
+            _ => Array.Empty<string>(),
+        };
+
+        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var terminal in terminals)
+        {
+            bindings[terminal] = GetBinding(device, terminal);
+        }
+
+        return bindings;
     }
 
     /// <summary>
