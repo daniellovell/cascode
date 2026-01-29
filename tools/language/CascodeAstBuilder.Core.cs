@@ -68,11 +68,21 @@ internal sealed partial class CascodeAstBuilder
         var bundles = new List<BundleType>();
         var traits = new List<TraitDefinition>();
         var benches = new List<BenchDefinition>();
+        var includes = new List<IncludeDirective>();
+        var functions = new List<FunctionDefinition>();
         var primitives = new List<PrimitiveDefinition>();
         var circuits = new List<Circuit>();
 
         foreach (var decl in ctx.topLevelDecl())
         {
+            if (decl.includeDecl() is not null)
+            {
+                includes.Add(
+                    new IncludeDirective(BuildQualifiedName(decl.includeDecl().qualifiedName()))
+                );
+                continue;
+            }
+
             if (decl.bundleDef() is not null)
             {
                 bundles.Add(BuildBundle(decl.bundleDef()));
@@ -88,6 +98,22 @@ internal sealed partial class CascodeAstBuilder
             if (decl.benchDef() is not null)
             {
                 benches.Add(BuildBenchDefinition(decl.benchDef()));
+                continue;
+            }
+
+            if (decl.functionDef() is not null)
+            {
+                functions.Add(BuildFunctionDefinition(decl.functionDef()));
+                continue;
+            }
+
+            if (decl.wrapSpiceDef() is not null)
+            {
+                AddDiagnostic(
+                    decl.wrapSpiceDef(),
+                    DiagnosticSeverity.Error,
+                    "CAS2010: wrap spice is parsed but not yet supported by the toolchain."
+                );
                 continue;
             }
 
@@ -107,6 +133,8 @@ internal sealed partial class CascodeAstBuilder
         {
             VersionMajor = major,
             VersionMinor = minor,
+            Includes = includes,
+            Functions = functions,
             BundleTypes = bundles,
             Traits = traits,
             BenchDefinitions = benches,
@@ -123,9 +151,8 @@ internal sealed partial class CascodeAstBuilder
         var fields = new Dictionary<string, string>();
         foreach (var fieldCtx in ctx.bundleField())
         {
-            var fieldName = fieldCtx.IDENT(0).GetText();
-            var fieldType = fieldCtx.IDENT(1).GetText();
-            fields[fieldName] = fieldType;
+            var fieldName = fieldCtx.IDENT().GetText();
+            fields[fieldName] = BuildPortType(fieldCtx.portType());
         }
 
         return new BundleType { Name = ctx.name.Text, Fields = fields };
@@ -133,17 +160,17 @@ internal sealed partial class CascodeAstBuilder
 
     /// <summary>Builds an interface definition including ports and connectors.</summary>
     /// <param name="ctx">Interface definition context.</param>
-    /// <returns>Trait definition.</returns>
+    /// <returns>Interface definition.</returns>
     private TraitDefinition BuildTrait(CascodeParser.InterfaceDefContext ctx)
     {
-        var trait = new TraitDefinition { Name = ctx.name.Text };
+        var interfaceDef = new TraitDefinition { Name = ctx.name.Text };
 
         foreach (var memberCtx in ctx.interfaceMember())
         {
             switch (memberCtx)
             {
                 case CascodeParser.InterfacePortContext portCtx:
-                    trait.Ports.Add(
+                    interfaceDef.Ports.Add(
                         new PortDeclaration
                         {
                             Direction = BuildPortDirection(portCtx.direction()),
@@ -171,77 +198,61 @@ internal sealed partial class CascodeAstBuilder
                                 }
                             );
                         }
-                        trait.Connectors.Add(connector);
+                        interfaceDef.Connectors.Add(connector);
                     }
+                    break;
+
+                case CascodeParser.InterfaceBenchesContext benchesCtx:
+                    interfaceDef.BenchBindings.AddRange(
+                        BuildBenchesSection(benchesCtx.benchesSection())
+                    );
                     break;
             }
         }
 
-        return trait;
+        return interfaceDef;
     }
 
     /// <summary>Builds a bench definition from its parse context.</summary>
     private BenchDefinition BuildBenchDefinition(CascodeParser.BenchDefContext ctx)
     {
-        var name = ctx.name.Text;
-        var interfaceName = ctx.@interface.Text;
-        string? builtin = null;
-        var config = new Dictionary<string, string>();
-        var outputs = new List<string>();
-
-        foreach (var memberCtx in ctx.benchMember())
+        var body = ctx.benchBody();
+        var terminals = new List<BenchTerminal>();
+        foreach (var t in body.terminalDecl())
         {
-            if (memberCtx.BUILTIN_KW() != null)
-            {
-                builtin = memberCtx.IDENT().GetText();
-                continue;
-            }
-
-            if (memberCtx.CONFIG_KW() != null)
-            {
-                foreach (var entryCtx in memberCtx.benchConfigEntry())
-                {
-                    var key = entryCtx.IDENT(0).GetText();
-                    var value = BuildBenchConfigValue(entryCtx);
-                    if (config.ContainsKey(key))
-                    {
-                        AddDiagnostic(
-                            entryCtx,
-                            DiagnosticSeverity.Error,
-                            $"Duplicate bench config key '{key}'"
-                        );
-                        continue;
-                    }
-                    config[key] = value;
-                }
-                continue;
-            }
-
-            if (memberCtx.OUTPUTS_KW() != null)
-            {
-                foreach (var outputCtx in memberCtx.benchOutput())
-                {
-                    outputs.Add(outputCtx.IDENT().GetText());
-                }
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(builtin))
-        {
-            AddDiagnostic(
-                ctx,
-                DiagnosticSeverity.Error,
-                $"Bench '{name}' must declare a builtin template."
+            terminals.Add(
+                new BenchTerminal(
+                    t.terminalRole().STIM_KW() != null
+                        ? BenchTerminalRole.Stim
+                        : BenchTerminalRole.Resp,
+                    t.IDENT().GetText(),
+                    t.terminalType().GetText()
+                )
             );
         }
 
+        FillBlock? fill = null;
+        if (body.fillBlock() is not null)
+        {
+            fill = BuildFillBlock(body.fillBlock());
+        }
+
+        var functions = body.functionDef().Select(BuildFunctionDefinition).ToList();
+        var analyses = body.analysisBlock() is null
+            ? new List<AnalysisDeclaration>()
+            : BuildAnalysisBlock(body.analysisBlock());
+        var measurements = body.measurementsBlock() is null
+            ? new List<MeasurementDefinition>()
+            : BuildMeasurementsBlock(body.measurementsBlock());
+
         return new BenchDefinition
         {
-            Name = name,
-            Trait = interfaceName,
-            Builtin = builtin,
-            Config = config,
-            Outputs = outputs,
+            Name = ctx.name.Text,
+            Terminals = terminals,
+            Fill = fill,
+            Functions = functions,
+            Analyses = analyses,
+            Measurements = measurements,
         };
     }
 
@@ -317,22 +328,6 @@ internal sealed partial class CascodeAstBuilder
             SizeParameter = sizeParam,
             Params = mappings,
         };
-    }
-
-    private static string BuildBenchConfigValue(CascodeParser.BenchConfigEntryContext ctx)
-    {
-        if (ctx.STRING() != null)
-        {
-            return Unquote(ctx.STRING().GetText());
-        }
-
-        var identNodes = ctx.IDENT();
-        if (identNodes.Length > 1)
-        {
-            return identNodes[1].GetText();
-        }
-
-        return ctx.NUMBER()?.GetText() ?? ctx.QUANTITY()?.GetText() ?? string.Empty;
     }
 
     private static string Unquote(string value)

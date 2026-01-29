@@ -123,7 +123,7 @@ module AmpAuto implements SingleEndedOpAmp {
   }
 
   // Testbenches for this topology are inherited from
-  // the `SingleEndedOpAmp` trait, but they may 
+  // the `SingleEndedOpAmp` interface, but they may
   // be overriden, as shown below.
   bench { SEOpAmpACBench; UnityUGF; Step; }
 }
@@ -355,7 +355,7 @@ cascode/
 ### Component Responsibilities
 
 - `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
-- `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
+- `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, interface conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
 - `tools/acir`: ACIR object model, canonical text reader/writer, SPICE emission, and constraint compliance checking.
 - `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
 - `tools/bench`: Template discovery and rendering (Scriban-based), testbench generation, and SPICE backend adapters (Ngspice, Spectre).
@@ -447,7 +447,7 @@ Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `1
 
 * See `CONTRIBUTING.md` for coding standards, style, and the language conformance suite.
 * Library authors: include a `char { ... }` block with benches, PVT grid, sweeps, and fitted models.
-* Please add minimal, runnable examples with each new motif or trait.
+* Please add minimal, runnable examples with each new motif or interface.
 
 ---
 

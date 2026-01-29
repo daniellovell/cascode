@@ -42,7 +42,7 @@
         },
         {
           "name": "keyword.other.class.cascode",
-          "match": "\\b(module|motif|trait|implements|extend)\\b"
+          "match": "\\b(module|motif|interface|implements|extend)\\b"
         },
         {
           "name": "keyword.other.declaration.cascode",
@@ -274,7 +274,7 @@
     "types": {
       "patterns": [
         {
-          "name": "support.type.trait.cascode",
+          "name": "support.type.interface.cascode",
           "match": "\\b(Amplifier|SingleEndedOpAmp|SingleEndedAmp|FullyDiffOpAmp|AmplifierStage|DiffPairLike|CascodePairLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
         },
         {
@@ -282,7 +282,7 @@
           "match": "\\b(DiffPair|CascodePair|CurrentMirror|MillerRC|MillerRz|Ahuja|StrongArmLatch|PadDriver|Cap|Res|Ind)\\b"
         },
         {
-          "match": "\\b(module|motif|trait)\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "\\b(module|motif|interface)\\s+([A-Z][A-Za-z0-9_]*)",
           "captures": {
             "1": { "name": "keyword.other.class.cascode" },
             "2": { "name": "entity.name.type.class.cascode" }

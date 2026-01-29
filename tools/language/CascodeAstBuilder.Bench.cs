@@ -1,0 +1,530 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Cascode.Language;
+
+internal sealed partial class CascodeAstBuilder
+{
+    private FillBlock BuildFillBlock(CascodeParser.FillBlockContext ctx)
+    {
+        var fill = new FillBlock();
+
+        foreach (var stmtCtx in ctx.fillStatement())
+        {
+            switch (stmtCtx)
+            {
+                case CascodeParser.FillNetDeclContext netCtx:
+                    fill.Nets.Add(
+                        new NetDeclaration
+                        {
+                            Id = netCtx.IDENT().GetText(),
+                            Domain = BuildPortType(netCtx.portType()),
+                        }
+                    );
+                    break;
+
+                case CascodeParser.FillSizeDeclContext sizeCtx:
+                    fill.Sizes.Add(
+                        new SizeDeclaration
+                        {
+                            Name = sizeCtx.sizeName.Text,
+                            Default = BuildSizeExpression(sizeCtx.sizeExpr(), sizeCtx),
+                        }
+                    );
+                    break;
+
+                case CascodeParser.FillDeviceDeclContext deviceCtx:
+                    fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
+                    break;
+
+                case CascodeParser.FillInstanceDeclContext instanceCtx:
+                    fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                    break;
+
+                case CascodeParser.FillAttachDeclContext attachCtx:
+                    fill.Attaches.Add(BuildAttach(attachCtx));
+                    break;
+
+                case CascodeParser.FillConnectDeclContext connectCtx:
+                    var pins = connectCtx.pinRef();
+                    fill.Connections.Add(
+                        new ConnectionStatement
+                        {
+                            From = BuildPinRef(pins[0]),
+                            To = BuildPinRef(pins[1]),
+                        }
+                    );
+                    break;
+
+                default:
+                    AddDiagnostic(
+                        stmtCtx,
+                        DiagnosticSeverity.Error,
+                        $"CAS2011: Unsupported fill statement: '{stmtCtx.GetText()}'"
+                    );
+                    break;
+            }
+        }
+
+        return fill;
+    }
+
+    private IReadOnlyList<BenchBinding> BuildBenchesSection(CascodeParser.BenchesSectionContext ctx)
+    {
+        var bindings = new List<BenchBinding>();
+
+        foreach (var bindingCtx in ctx.benchBinding())
+        {
+            var binding = new BenchBinding
+            {
+                BenchName = bindingCtx.benchName.Text,
+                BindingName = bindingCtx.bindingName.Text,
+            };
+
+            foreach (var stmt in bindingCtx.bindingStatement())
+            {
+                if (stmt.terminalMapping() is not null)
+                {
+                    var t = stmt.terminalMapping();
+                    binding.Statements.Add(
+                        new BenchTerminalMapping(
+                            BenchTerminal: t.IDENT().GetText(),
+                            DutPinRef: BuildPinRef(t.pinRef())
+                        )
+                    );
+                    continue;
+                }
+
+                if (stmt.dutConnection() is not null)
+                {
+                    var c = stmt.dutConnection();
+                    binding.Statements.Add(
+                        new BenchDutConnection(
+                            DutPinRef: BuildPinRef(c.pinRef(0)),
+                            PinRef: BuildPinRef(c.pinRef(1))
+                        )
+                    );
+                    continue;
+                }
+
+                if (stmt.instanceDecl() is not null)
+                {
+                    binding.Statements.Add(
+                        new BenchBindingInstance(BuildInstance(stmt.instanceDecl()))
+                    );
+                }
+            }
+
+            bindings.Add(binding);
+        }
+
+        return bindings;
+    }
+
+    private EnvBlock BuildEnvBlock(CascodeParser.EnvSectionContext ctx)
+    {
+        var env = new EnvBlock();
+        foreach (var stmt in ctx.envStatement())
+        {
+            var key = stmt.IDENT().GetText();
+            var value = stmt.envValue().GetText();
+            env.Entries[key] = value;
+        }
+
+        return env;
+    }
+
+    private SynthBlock BuildSynthBlock(CascodeParser.SynthSectionContext ctx)
+    {
+        var synth = new SynthBlock();
+        foreach (var entry in ctx.synthEntry())
+        {
+            var key = entry.IDENT(0).GetText();
+            var value = entry.GetChild(2).GetText();
+            synth.Entries[key] = value;
+        }
+
+        return synth;
+    }
+
+    private FunctionDefinition BuildFunctionDefinition(CascodeParser.FunctionDefContext ctx)
+    {
+        var def = new FunctionDefinition
+        {
+            Name = ctx.name.Text,
+            ReturnType = ParseReturnType(ctx.returnType()),
+        };
+
+        if (ctx.typedParamList() is not null)
+        {
+            foreach (var p in ctx.typedParamList().typedParam())
+            {
+                def.Parameters.Add(
+                    new TypedParameter(ParseTypedParamType(p.typedParamType()), p.IDENT().GetText())
+                );
+            }
+        }
+
+        foreach (var stmt in ctx.functionBody().statement())
+        {
+            def.Body.Add(BuildBenchStatement(stmt));
+        }
+
+        return def;
+    }
+
+    private List<AnalysisDeclaration> BuildAnalysisBlock(CascodeParser.AnalysisBlockContext ctx)
+    {
+        var analyses = new List<AnalysisDeclaration>();
+
+        foreach (var decl in ctx.analysisDecl())
+        {
+            var analysis = new AnalysisDeclaration
+            {
+                Type = ParseAnalysisType(decl.analysisType(0)),
+                Name = decl.name.Text,
+            };
+
+            foreach (var p in decl.analysisParams().analysisParam())
+            {
+                analysis.Parameters[p.IDENT().GetText()] = BuildConditionalExpr(
+                    p.conditionalExpr()
+                );
+            }
+
+            analyses.Add(analysis);
+        }
+
+        return analyses;
+    }
+
+    private List<MeasurementDefinition> BuildMeasurementsBlock(
+        CascodeParser.MeasurementsBlockContext ctx
+    )
+    {
+        var measurements = new List<MeasurementDefinition>();
+
+        foreach (var decl in ctx.measurementDecl())
+        {
+            var measurement = new MeasurementDefinition
+            {
+                Name = decl.name.Text,
+                Unit = decl.unitType().GetText(),
+            };
+
+            foreach (var stmt in decl.measurementBody().statement())
+            {
+                measurement.Body.Add(BuildBenchStatement(stmt));
+            }
+
+            measurements.Add(measurement);
+        }
+
+        return measurements;
+    }
+
+    private BenchStatement BuildBenchStatement(CascodeParser.StatementContext ctx)
+    {
+        if (ctx.variableDecl() is not null)
+        {
+            var v = ctx.variableDecl();
+            return new BenchVarDecl(
+                Type: ParseTypedParamType(v.typedParamType()),
+                Name: v.IDENT().GetText(),
+                Expr: BuildMeasurementExpr(v.measurementExpr())
+            );
+        }
+
+        if (ctx.ifStatement() is not null)
+        {
+            var i = ctx.ifStatement();
+            var thenBody = i.statement().Select(BuildBenchStatement).ToList();
+
+            // The grammar flattens then/else statements; the first block is always then, optional second is else.
+            // We rely on token structure: IF <cond> { then* } (ELSE { else* })?
+            // Generated contexts expose nested statement lists as a single array; we rebuild using child ranges.
+            //
+            // Instead of fragile child-walking, split via braces by using the parse tree children.
+            // The builder below is conservative: if an else block exists, it is the last brace-delimited block.
+            IReadOnlyList<BenchStatement>? elseBody = null;
+            if (i.ELSE_KW() is not null)
+            {
+                // Parse-tree structure: IF cond { thenStmts... } ELSE { elseStmts... }
+                // In the generated context, statement() includes both then and else statements.
+                // We re-parse by scanning children for brace blocks.
+                var blocks = SplitBraceBlocks(i.children);
+                if (blocks.Count == 2)
+                {
+                    thenBody = blocks[0].Select(BuildBenchStatement).ToList();
+                    elseBody = blocks[1].Select(BuildBenchStatement).ToList();
+                }
+            }
+
+            return new BenchIf(BuildBoolExpr(i.boolExpr()), thenBody, elseBody);
+        }
+
+        if (ctx.returnStatement() is not null)
+        {
+            var r = ctx.returnStatement();
+            return new BenchReturn(BuildMeasurementExpr(r.measurementExpr()));
+        }
+
+        throw new InvalidOperationException($"Unhandled bench statement: {ctx.GetText()}");
+    }
+
+    private static List<List<CascodeParser.StatementContext>> SplitBraceBlocks(
+        IList<Antlr4.Runtime.Tree.IParseTree> children
+    )
+    {
+        // We want to pull out the lists of `statement` contexts that are directly contained in each
+        // brace-delimited block. This avoids relying on `statement()` flattening behavior.
+        var blocks = new List<List<CascodeParser.StatementContext>>();
+        List<CascodeParser.StatementContext>? current = null;
+        foreach (var child in children)
+        {
+            if (child is Antlr4.Runtime.Tree.ITerminalNode t)
+            {
+                var sym = t.Symbol.Type;
+                if (sym == CascodeParser.LBRACE)
+                {
+                    current = new List<CascodeParser.StatementContext>();
+                }
+                else if (sym == CascodeParser.RBRACE)
+                {
+                    if (current is not null)
+                    {
+                        blocks.Add(current);
+                        current = null;
+                    }
+                }
+                continue;
+            }
+
+            if (current is not null && child is CascodeParser.StatementContext s)
+            {
+                current.Add(s);
+            }
+        }
+
+        return blocks;
+    }
+
+    private MeasurementExpr BuildConditionalExpr(CascodeParser.ConditionalExprContext ctx)
+    {
+        if (ctx.IF_KW() is null)
+        {
+            return BuildMeasurementExpr(ctx.measurementExpr(0));
+        }
+
+        return new MeasurementConditional(
+            Condition: BuildBoolExpr(ctx.boolExpr()),
+            ThenExpr: BuildMeasurementExpr(ctx.measurementExpr(0)),
+            ElseExpr: BuildMeasurementExpr(ctx.measurementExpr(1))
+        );
+    }
+
+    private BoolExpr BuildBoolExpr(CascodeParser.BoolExprContext ctx)
+    {
+        if (ctx.scopedAccess() is not null)
+        {
+            return new BoolExists(BuildScopedValueRef(ctx.scopedAccess()));
+        }
+
+        var op = ParseComparisonOp(ctx.COMPARISON_OP().GetText());
+        return new BoolCompare(
+            op,
+            BuildMeasurementExpr(ctx.measurementExpr(0)),
+            BuildMeasurementExpr(ctx.measurementExpr(1))
+        );
+    }
+
+    private MeasurementExpr BuildMeasurementExpr(CascodeParser.MeasurementExprContext ctx)
+    {
+        if (ctx.measurementExpr() is null)
+        {
+            return BuildMulMeasurementExpr(ctx.mulMeasurementExpr());
+        }
+
+        var op = ctx.PLUS() is not null ? "+" : "-";
+        return new MeasurementBinary(
+            op,
+            BuildMeasurementExpr(ctx.measurementExpr()),
+            BuildMulMeasurementExpr(ctx.mulMeasurementExpr())
+        );
+    }
+
+    private MeasurementExpr BuildMulMeasurementExpr(CascodeParser.MulMeasurementExprContext ctx)
+    {
+        if (ctx.mulMeasurementExpr() is null)
+        {
+            return BuildUnaryMeasurementExpr(ctx.unaryMeasurementExpr());
+        }
+
+        var op = ctx.STAR() is not null ? "*" : "/";
+        return new MeasurementBinary(
+            op,
+            BuildMulMeasurementExpr(ctx.mulMeasurementExpr()),
+            BuildUnaryMeasurementExpr(ctx.unaryMeasurementExpr())
+        );
+    }
+
+    private MeasurementExpr BuildUnaryMeasurementExpr(CascodeParser.UnaryMeasurementExprContext ctx)
+    {
+        if (ctx.MINUS() is null)
+        {
+            return BuildMeasurementAtom(ctx.measurementAtom());
+        }
+
+        return new MeasurementUnary("-", BuildUnaryMeasurementExpr(ctx.unaryMeasurementExpr()));
+    }
+
+    private MeasurementExpr BuildMeasurementAtom(CascodeParser.MeasurementAtomContext ctx)
+    {
+        if (ctx.measurementExpr() is not null)
+        {
+            return BuildMeasurementExpr(ctx.measurementExpr());
+        }
+
+        if (ctx.measurementFunctionCall() is not null)
+        {
+            var call = ctx.measurementFunctionCall();
+            var args = new List<MeasurementCallArg>();
+            if (call.measurementArgList() is not null)
+            {
+                foreach (var arg in call.measurementArgList().measurementArg())
+                {
+                    if (arg.idPart() is not null)
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                arg.idPart().GetText(),
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                    else
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                null,
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                }
+            }
+
+            return new MeasurementCall(call.IDENT().GetText(), args);
+        }
+
+        if (ctx.scopedAccess() is not null)
+        {
+            return new MeasurementScopedAccess(BuildScopedValueRef(ctx.scopedAccess()));
+        }
+
+        if (ctx.dutAccess() is not null)
+        {
+            return new MeasurementDutAccess(BuildPinRef(ctx.dutAccess().pinRef()));
+        }
+
+        if (ctx.pathAccess() is not null)
+        {
+            return new MeasurementPath(ctx.pathAccess().GetText());
+        }
+
+        if (ctx.NUMBER() is not null)
+        {
+            return new MeasurementNumber(ctx.NUMBER().GetText());
+        }
+
+        if (ctx.QUANTITY() is not null)
+        {
+            return new MeasurementQuantity(ctx.QUANTITY().GetText());
+        }
+
+        throw new InvalidOperationException($"Unsupported measurement atom: {ctx.GetText()}");
+    }
+
+    private ScopedValueRef BuildScopedValueRef(CascodeParser.ScopedAccessContext ctx)
+    {
+        if (ctx.ENV_KW() is not null)
+        {
+            return new ScopedValueRef(MeasurementScope.Env, ctx.IDENT().GetText());
+        }
+
+        if (ctx.CONSTRAINTS_KW() is not null)
+        {
+            return new ScopedValueRef(MeasurementScope.Constraints, ctx.IDENT().GetText());
+        }
+
+        return new ScopedValueRef(MeasurementScope.Harness, ctx.IDENT().GetText());
+    }
+
+    private static ComparisonOp ParseComparisonOp(string raw) =>
+        raw switch
+        {
+            ">=" => ComparisonOp.Gte,
+            "<=" => ComparisonOp.Lte,
+            ">" => ComparisonOp.Gt,
+            "<" => ComparisonOp.Lt,
+            "==" => ComparisonOp.Eq,
+            _ => throw new InvalidOperationException($"Unknown comparison operator: {raw}"),
+        };
+
+    private static BenchValueType ParseReturnType(CascodeParser.ReturnTypeContext ctx)
+    {
+        if (ctx.BOOL_KW() is not null)
+        {
+            return BenchValueType.Bool;
+        }
+
+        return ParsePhysicalType(ctx.physicalType());
+    }
+
+    private static BenchValueType ParseTypedParamType(CascodeParser.TypedParamTypeContext ctx)
+    {
+        if (ctx.physicalType() is not null)
+        {
+            return ParsePhysicalType(ctx.physicalType());
+        }
+
+        return ParseAnalysisType(ctx.analysisType());
+    }
+
+    private static BenchValueType ParsePhysicalType(CascodeParser.PhysicalTypeContext ctx)
+    {
+        return ctx.GetText() switch
+        {
+            "Frequency" => BenchValueType.Frequency,
+            "VoltageRatio" => BenchValueType.VoltageRatio,
+            "TransferFunction" => BenchValueType.TransferFunction,
+            "RealFunction" => BenchValueType.RealFunction,
+            "NoiseFunction" => BenchValueType.NoiseFunction,
+            "NoiseSpectralDensity" => BenchValueType.NoiseSpectralDensity,
+            "IntegratedNoise" => BenchValueType.IntegratedNoise,
+            "Impedance" => BenchValueType.Impedance,
+            "Capacitance" => BenchValueType.Capacitance,
+            "Inductance" => BenchValueType.Inductance,
+            "Voltage" => BenchValueType.Voltage,
+            "Current" => BenchValueType.Current,
+            "Time" => BenchValueType.Time,
+            "Phase" => BenchValueType.Phase,
+            "Scalar" => BenchValueType.Scalar,
+            _ => throw new InvalidOperationException($"Unknown physical type: {ctx.GetText()}"),
+        };
+    }
+
+    private static BenchValueType ParseAnalysisType(CascodeParser.AnalysisTypeContext ctx)
+    {
+        return ctx.GetText() switch
+        {
+            "ACAnalysis" => BenchValueType.ACAnalysis,
+            "DCAnalysis" => BenchValueType.DCAnalysis,
+            "TranAnalysis" => BenchValueType.TranAnalysis,
+            "NoiseAnalysis" => BenchValueType.NoiseAnalysis,
+            "STBAnalysis" => BenchValueType.STBAnalysis,
+            _ => throw new InvalidOperationException($"Unknown analysis type: {ctx.GetText()}"),
+        };
+    }
+}

@@ -1,8 +1,8 @@
 package lib.std.amp;
 
-// Interface trait: Single-ended operational amplifier (differential input, single-ended output).
+// Interface: Single-ended operational amplifier (differential input, single-ended output).
 // Provides ports and bench metric mappings for Amplifier metrics.
-trait SingleEndedOpAmp extend Amplifier {
+interface SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]
   supply VDD; ground GND;
 
@@ -17,4 +17,3 @@ trait SingleEndedOpAmp extend Amplifier {
     // OutputSwing is handled by dedicated benches; left unspecified here.
   }
 }
-

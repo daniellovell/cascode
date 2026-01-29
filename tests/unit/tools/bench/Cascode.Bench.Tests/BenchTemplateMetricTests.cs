@@ -60,7 +60,7 @@ public partial class BenchTemplateMetricTests
         // Discover all .cas bench files
         var casFiles = Directory
             .GetFiles(benchesDir, "*.cas")
-            .Where(f => !f.EndsWith("Amplifier.cas")) // Skip trait files
+            .Where(f => !f.EndsWith("Amplifier.cas")) // Skip interface files
             .OrderBy(Path.GetFileName)
             .ToList();
 

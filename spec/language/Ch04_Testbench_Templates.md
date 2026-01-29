@@ -439,7 +439,7 @@ constraints {
 
 ### 4.5.3 Bench Definitions
 
-Bench definitions live at document scope and bind a bench name to either a builtin bench definition or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the specified trait.
+Bench definitions live at document scope and bind a bench name to either a builtin bench definition or an explicit template. The `outputs` list declares which metrics the bench will emit for circuits that implement the specified interface.
 
 ```acir
 bench ACBench for SingleEndedOpAmp {

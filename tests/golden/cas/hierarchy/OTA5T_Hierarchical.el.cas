@@ -23,21 +23,7 @@ interface DiffPairLike {
 }
   
 
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-  }
-}
 
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    QuiescentPower
-  }
-}
 
 circuit OTA5T_Hierarchical implements SingleEndedOpAmp {
   level EL 

@@ -42,21 +42,7 @@ interface CurrentMirrorLike {
   }
 }
 
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-  }
-}
 
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    QuiescentPower
-  }
-}
 
 primitive nmos Level1_NMOS(size primSize) {
   device "level1_nmos"

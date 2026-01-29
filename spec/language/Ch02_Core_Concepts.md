@@ -11,34 +11,34 @@ A **program** comprises one or more `.cas` files organized under a package names
 
 ---
 
-## 2.2 Modules, Motifs, Traits
+## 2.2 Modules, Motifs, Interfaces
 
-The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** is a synthesizable structural unit with defined **ports**, **params**, and **contracts**; it encapsulates internal structure and is eligible for topology selection when it **implements** a trait. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. A **trait** may be either:
+The cascode type system distinguishes three fundamental entities. A **module** represents a top-level design entity that encompasses **ports**, **parameters**, optional **use** blocks for instantiation, **connect** and **cascade** statements for wiring, **spec**, **env**, and **bench** blocks for behavioral specification, and optional **slot** and **synth** directives for synthesis. A **motif** is a synthesizable structural unit with defined **ports**, **params**, and **contracts**; it encapsulates internal structure and is eligible for topology selection when it **implements** an interface. Motifs may be authored natively within cascode or integrated via **`wrap spice`** constructs. An **interface** may be either:
 
-1) a **spec-only trait** that declares canonical metric names and contains no port definitions, or
-2) an **interface trait** that extends a spec-only trait, adding ports and mapping metrics to concrete bench outputs (see §2.11.3).
+1) a **spec-only interface** that declares canonical metric names and contains no port definitions, or
+2) an **interface** that extends a spec-only interface, adding ports and mapping metrics to concrete bench outputs (see §2.11.3).
 
 This separation enables substitution during synthesis - for instance, any entity implementing `SingleEndedOpAmp` becomes eligible to fill `slot Core: SingleEndedOpAmp` while sharing the same metric names as `Amplifier`.
 
 #### Normative Requirements
 
-* An entity implementing a trait **MUST** expose a **superset** of the trait's ports/bundles and satisfy its declared **contracts** (2.10).
+* An entity implementing an interface **MUST** expose a **superset** of the interface's ports/bundles and satisfy its declared **contracts** (2.10).
 * A module is **instantiable** only when all required ports are bound and all declared `slot`s are **filled** (structurally or via `synth`).
 * A motif **MUST NOT** contain `spec {}` or `bench {}` blocks.
-* A slot **MUST** be typed by a trait that declares ports (an interface trait). Typing a slot by a spec-only trait is an error.
+* A slot **MUST** be typed by an interface that declares ports. Typing a slot by a spec-only interface is an error.
 
-Motifs represent synthesizable circuit topologies and must remain pure structural definitions. Behavioral specifications and verification benches belong at the module level, where they guide synthesis decisions, or within enclosing harnesses that validate composed designs. Similarly, slots function as structural placeholders in the wiring graph and require interface traits that provide the port definitions necessary for establishing connections. Spec-only traits, which define behavioral contracts without physical port structure, cannot satisfy this requirement.
+Motifs represent synthesizable circuit topologies and must remain pure structural definitions. Behavioral specifications and verification benches belong at the module level, where they guide synthesis decisions, or within enclosing harnesses that validate composed designs. Similarly, slots function as structural placeholders in the wiring graph and require interfaces that provide the port definitions necessary for establishing connections. Spec-only interfaces, which define behavioral contracts without physical port structure, cannot satisfy this requirement.
 
 #### Library Placement
 
-The standard primitive interface traits used by connectors - such as `DiffPairLike`, `CascodePairLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interface traits co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
+The standard primitive interfaces used by connectors - such as `DiffPairLike`, `CascodePairLike`, and `CurrentMirrorLike` - reside in the primitive library namespace (`lib/std/prim`). Primitives and their interfaces co‑locate to maintain proximity between wiring semantics and the building blocks they compose.
 
 #### Trait Extension
 
-* Use `extend` to define an interface trait from a spec-only trait:
-  `trait SingleEndedOpAmp extend Amplifier { … }`.
-* Extension composes metric sets: the child inherits all canonical metric names from the parent. Child traits may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
-* Interface traits MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such a trait **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the trait's port family evaluated at the same parameter values.
+* Use `extend` to define an interface from a spec-only interface:
+  `interface SingleEndedOpAmp extend Amplifier { … }`.
+* Extension composes metric sets: the child inherits all canonical metric names from the parent. Child interfaces may add metric mappings and additional ports but MUST NOT remove or rename metrics inherited from the parent.
+* Interfaces MAY declare parameters that influence their port shape (for example, `taps:int` on `CurrentMirrorLike`). A motif that implements such an interface **MUST** declare parameters with the same names and compatible domains. The realized port set of the implementing motif **MUST** be a superset of the interface's port family evaluated at the same parameter values.
 
 ---
 
@@ -98,7 +98,7 @@ bundle AmpIO  { IN: Diff; OUT: analog; }
 
 The `Diff` bundle is normative and its fields **MUST** be named `P` and `N`. Bundles that wrap normative ports (such as `AmpIO`) adopt the ALL_CAPS naming used for external ports so that binding syntax aligns with Chapter 2.3.1. Custom bundles that introduce ad-hoc groupings may select their own field casing, but the chosen style **MUST** remain consistent wherever that bundle appears.
 
-Bundles serve two primary purposes: they **reduce verbosity** while making **binding explicit** without ambiguity. These constructs are valid within module ports, motif ports, `slot` trait definitions, and `bind` statements.
+Bundles serve two primary purposes: they **reduce verbosity** while making **binding explicit** without ambiguity. These constructs are valid within module ports, motif ports, `slot` interface definitions, and `bind` statements.
 
 #### Normative
 
@@ -165,21 +165,21 @@ Style convention (normative for repo sources): binds, connect statements, and at
 
 #### Attach and connectors (unified)
 
-Connectors are declared on interface traits and define how two instances that implement compatible traits wire together. There are two forms:
+Connectors are declared on interfaces and define how two instances that implement compatible interfaces wire together. There are two forms:
 
-1) Within‑trait connector (both sides implement the same trait):
+1) Within‑interface connector (both sides implement the same interface):
 
 ```cas
-trait AmplifierStage extend Amplifier {
+interface AmplifierStage extend Amplifier {
   ports [ IN: Diff, OUT: analog ]
   connector { OUT -> IN; }
 }
 ```
 
-2) Cross‑trait connector (left implements this trait; right implements the target trait):
+2) Cross‑interface connector (left implements this interface; right implements the target interface):
 
 ```cas
-trait CurrentMirrorLike {
+interface CurrentMirrorLike {
   params { taps: int = 1; }
   ports [ SENSE: analog ]
   ports { for i in [0:taps] { TAP[i]: analog; } }
@@ -192,8 +192,8 @@ trait CurrentMirrorLike {
 Semantics (normative):
 
 - Arrows map a source port/bundle field on the left to a sink on the right. Unnamed bundle arrows expand field‑wise by identical field names (PascalCase; Diff uses P/N).
-- Only interface traits may declare connectors; spec‑only traits MUST NOT. A trait declares at most one connector block per target trait (including the within‑trait case).
-- attach A to B resolves exactly one applicable connector from traits implemented by A and B. If none match, an explicit attach block is required. If more than one matches, the binding MUST be disambiguated using `attach using TraitName A to B` or by providing an explicit attach block.
+- Only interfaces may declare connectors; spec‑only interfaces MUST NOT. An interface declares at most one connector block per target interface (including the within‑interface case).
+- attach A to B resolves exactly one applicable connector from interfaces implemented by A and B. If none match, an explicit attach block is required. If more than one matches, the binding MUST be disambiguated using `attach using InterfaceName A to B` or by providing an explicit attach block.
 - `attach A to B to C` chains pairwise: (A,B), then (B,C). There is no transitive propagation.
 - Connectors expand to explicit `connect` statements; they never create new nets.
 
@@ -434,18 +434,18 @@ Bench inference from `spec` (normative)
 
 When a design declares a `spec {}` block, the toolchain infers the minimal set of benches required to determine each declared metric. This set is part of the compilation contract and is independent of any explicit `bench {}` block. Authors may add an explicit `bench {}` block to request extra benches (for example, characterization or debugging). In that case, the executed benches are the union of the spec‑implied set and the explicitly requested set. Explicit benches do not remove or replace benches inferred from `spec {}` unless the toolchain provides a documented override.
 
-### 2.11.3 Metrics From Benches (Trait‑Anchored Mapping)
+### 2.11.3 Metrics From Benches (Interface‑Anchored Mapping)
 
-Benches produce named metrics. Interface traits map canonical metric names from a spec‑only trait to concrete bench metrics for their wiring style. This allows a single set of metric names (for example, GainBandwidth, PassbandGain, PhaseMargin) to be realized via different benches for single‑ended versus fully differential interfaces.
+Benches produce named metrics. Interfaces map canonical metric names from a spec‑only interface to concrete bench metrics for their wiring style. This allows a single set of metric names (for example, GainBandwidth, PassbandGain, PhaseMargin) to be realized via different benches for single‑ended versus fully differential interfaces.
 
 Informal syntax:
 
 ```
-// Spec‑only trait (no ports): declares canonical metric names.
-trait Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swing; Power; NoiseIn; } }
+// Spec‑only interface (no ports): declares canonical metric names.
+interface Amplifier { metrics { GainBandwidth; PassbandGain; PhaseMargin; ICMR; Swing; Power; NoiseIn; } }
 
-// Interface traits refine Amplifier by adding ports and mapping metrics.
-trait SingleEndedOpAmp extend Amplifier {
+// Interfaces refine Amplifier by adding ports and mapping metrics.
+interface SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]; supply VDD; ground GND;
   metrics {
     GainBandwidth from SEOpAmpACBench.GainBandwidth;
@@ -460,7 +460,7 @@ bench SEOpAmpACBench {
 }
 ```
 
-Bench inference uses the active interface trait(s) on the design or candidate motif to determine which benches to run for each metric that appears in `spec {}`. A single bench may provide multiple metrics. Authors may override a specific mapping where supported by tooling.
+Bench inference uses the active interface(s) on the design or candidate motif to determine which benches to run for each metric that appears in `spec {}`. A single bench may provide multiple metrics. Authors may override a specific mapping where supported by tooling.
 
 #### Harness semantics (normative)
 
@@ -680,14 +680,14 @@ use {
 
 ## 2.13 Digital‑Style Motifs (Stdcell Integration)
 
-PDK digital standard cells are modeled as ordinary motifs with `digital` ports and explicit rails. Intent is conveyed via traits and contracts.
+PDK digital standard cells are modeled as ordinary motifs with `digital` ports and explicit rails. Intent is conveyed via interfaces and contracts.
 
 ### 2.13.1 Traits for Eligibility
 
 Traits express functional intent so slots can be filled by either single stdcells or composite drivers. For a complete usage example, see [Chapter 1 §1.10](Ch01_Introduction.md#110-digital-standard-cells-as-motifs-overview).
 
 ```cas
-trait InverterLike {
+interface InverterLike {
   port in  IN : digital;
   port out OUT: digital;
   supply VDD; ground GND;
@@ -705,7 +705,7 @@ motif PadDriver implements InverterLike {
 Normative
 
 * Motifs implementing `InverterLike` **MUST** expose at least the listed ports and satisfy its contracts within their `char{}` validity region.
-* Composite drivers (e.g., `PadDriver`) are eligible for the same slots as single‑cell inverters when they implement the trait.
+* Composite drivers (e.g., `PadDriver`) are eligible for the same slots as single‑cell inverters when they implement the interface.
 
 ### 2.13.2 PDK Wrappers and Rails
 
@@ -917,9 +917,9 @@ motif WideSwingPMOSMirror {
 ```
 
 > [!NOTE]
-> **Limitation: SPICE wraps and parameterized traits**
+> **Limitation: SPICE wraps and parameterized interfaces**
 >
-> This motif does not declare `implements CurrentMirrorLike` because the trait requires a parameterized `TAP[i]` port family. SPICE subcircuits have fixed port lists and cannot directly implement traits with parameterized ports. Future language versions may address this through constrained trait implementation (e.g., `implements CurrentMirrorLike where taps=1`) or parameterized `map { }` blocks that generate port bindings from loop expressions.
+> This motif does not declare `implements CurrentMirrorLike` because the interface requires a parameterized `TAP[i]` port family. SPICE subcircuits have fixed port lists and cannot directly implement interfaces with parameterized ports. Future language versions may address this through constrained interface implementation (e.g., `implements CurrentMirrorLike where taps=1`) or parameterized `map { }` blocks that generate port bindings from loop expressions.
 
 #### Normative
 

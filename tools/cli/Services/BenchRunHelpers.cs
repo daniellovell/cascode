@@ -17,9 +17,8 @@ internal static class BenchRunHelpers
             throw new InvalidOperationException("No EL-level circuits found in Cascode document.");
         }
 
-        return elCircuits.FirstOrDefault(c =>
-                BenchDefinitionResolver.ResolveForCircuit(doc, c).Count > 0
-            ) ?? elCircuits[0];
+        return elCircuits.FirstOrDefault(c => ResolveBenchBindings(doc, c).Count > 0)
+            ?? elCircuits[0];
     }
 
     /// <summary>
@@ -29,10 +28,7 @@ internal static class BenchRunHelpers
     {
         return SpiceEmitter
             .OrderByDependency(doc)
-            .Where(c =>
-                c.Level == CascodeLevel.EL
-                && BenchDefinitionResolver.ResolveForCircuit(doc, c).Count > 0
-            )
+            .Where(c => c.Level == CascodeLevel.EL && ResolveBenchBindings(doc, c).Count > 0)
             .ToList();
     }
 
@@ -83,14 +79,48 @@ internal static class BenchRunHelpers
 
     public static string[] GetAvailableBenchNames(CascodeDocument doc, Circuit circuit)
     {
-        return BenchDefinitionResolver
-                .ResolveForCircuit(doc, circuit)
-                .Select(b => b.Name)
-                .Where(b => !string.IsNullOrWhiteSpace(b))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)
-                .ToArray()
-            ?? Array.Empty<string>();
+        return ResolveBenchBindings(doc, circuit)
+            .Select(b => b.BindingName)
+            .Where(b => !string.IsNullOrWhiteSpace(b))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(b => b, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static IReadOnlyList<BenchBinding> ResolveBenchBindings(
+        CascodeDocument doc,
+        Circuit circuit
+    )
+    {
+        // Circuit bindings override inherited bindings by binding name.
+        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
+
+        if (circuit.Traits is { Count: > 0 })
+        {
+            var interfacesByName = doc.Traits.ToDictionary(
+                t => t.Name,
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var iface in circuit.Traits)
+            {
+                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
+                {
+                    continue;
+                }
+
+                foreach (var b in interfaceDef.BenchBindings)
+                {
+                    map.TryAdd(b.BindingName, b);
+                }
+            }
+        }
+
+        foreach (var b in circuit.BenchBindings)
+        {
+            map[b.BindingName] = b;
+        }
+
+        return map.Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     public static string? FindWorkspaceRoot(string inputPath)

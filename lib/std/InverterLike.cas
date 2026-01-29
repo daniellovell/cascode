@@ -1,6 +1,6 @@
 package lib.std;
 
-trait InverterLike {
+interface InverterLike {
   port in  IN  : digital;
   port out OUT : digital;
   supply VDD; ground GND;
@@ -9,4 +9,3 @@ trait InverterLike {
   ens voh(OUT) >= 0.9*VDD;
   ens vol(OUT) <= 0.1*VDD;
 }
-

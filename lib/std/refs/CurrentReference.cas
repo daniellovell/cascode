@@ -1,8 +1,7 @@
 package lib.std.refs;
 
-// Interface trait for current references.
-trait CurrentReference extend ReferenceCircuit {
+// Interface for current references.
+interface CurrentReference extend ReferenceCircuit {
   ports [ OUT: analog ]
   supply VDD; ground GND;
 }
-

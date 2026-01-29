@@ -26,7 +26,7 @@
   ],
   "circuit": {
     "name": "OTA5TSingleEnded",
-    "traits": [
+  "interfaces": [
       "SingleEndedOpAmp"
     ],
     "level": "EL"
@@ -234,7 +234,7 @@
   "benchDefinitions": [
     {
       "name": "ACBench",
-      "trait": "SingleEndedOpAmp",
+      "interface": "SingleEndedOpAmp",
       "builtin": "SEOpAmpACBench",
       "outputs": [
         "GainBandwidth",
@@ -247,7 +247,7 @@
     },
     {
       "name": "DCBench",
-      "trait": "SingleEndedOpAmp",
+      "interface": "SingleEndedOpAmp",
       "builtin": "SEOpAmpDCBench",
       "outputs": [
         "QuiescentPower"
@@ -255,7 +255,7 @@
     },
     {
       "name": "TranBench",
-      "trait": "SingleEndedOpAmp",
+      "interface": "SingleEndedOpAmp",
       "builtin": "SEOpAmpTranBench",
       "outputs": [
         "SingleEndedOutputSwing"

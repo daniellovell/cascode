@@ -14,7 +14,11 @@ internal sealed partial class CascodeAstBuilder
         return new Circuit
         {
             Name = ctx.name.Text,
-            Traits = ctx.implementsClause()?.traitList()?.IDENT().Select(i => i.GetText()).ToList(),
+            Traits = ctx.implementsClause()
+                ?.interfaceList()
+                ?.IDENT()
+                .Select(i => i.GetText())
+                .ToList(),
             Level = memberState.Level,
             Inline = memberState.IsInline,
             Package = memberState.Package,
@@ -27,6 +31,9 @@ internal sealed partial class CascodeAstBuilder
             Fill = memberState.Fill,
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
+            Env = memberState.Env,
+            BenchBindings = memberState.BenchBindings,
+            Synth = memberState.Synth,
             Provenance = memberState.Provenance,
         };
     }
@@ -85,6 +92,18 @@ internal sealed partial class CascodeAstBuilder
                     state.Harness = BuildHarnessBlock(harnessCtx);
                     break;
 
+                case CascodeParser.EnvSectionContext envCtx:
+                    state.Env = BuildEnvBlock(envCtx);
+                    break;
+
+                case CascodeParser.CircuitBenchesContext benchesCtx:
+                    state.BenchBindings.AddRange(BuildBenchesSection(benchesCtx.benchesSection()));
+                    break;
+
+                case CascodeParser.SynthSectionContext synthCtx:
+                    state.Synth = BuildSynthBlock(synthCtx);
+                    break;
+
                 case CascodeParser.ProvenanceSectionContext provCtx:
                     state.Provenance = BuildProvenanceBlock(provCtx);
                     break;
@@ -104,6 +123,9 @@ internal sealed partial class CascodeAstBuilder
         public FillBlock? Fill { get; set; }
         public ConstraintsBlock? Constraints { get; set; }
         public HarnessBlock? Harness { get; set; }
+        public EnvBlock? Env { get; set; }
+        public List<BenchBinding> BenchBindings { get; } = new();
+        public SynthBlock? Synth { get; set; }
         public ProvenanceBlock? Provenance { get; set; }
         public CascodeLevel Level { get; set; } = CascodeLevel.ML;
         public bool IsInline { get; set; }
@@ -233,9 +255,9 @@ internal sealed partial class CascodeAstBuilder
     private SlotDeclaration BuildSlot(CascodeParser.SlotDeclContext ctx)
     {
         var slot = new SlotDeclaration { Id = ctx.IDENT().GetText() };
-        if (ctx.implementsClause()?.traitList() is { } traitsCtx)
+        if (ctx.implementsClause()?.interfaceList() is { } interfacesCtx)
         {
-            slot.Traits.AddRange(traitsCtx.IDENT().Select(i => i.GetText()));
+            slot.Traits.AddRange(interfacesCtx.IDENT().Select(i => i.GetText()));
         }
 
         foreach (var stmtCtx in ctx.slotStatement())
@@ -312,6 +334,14 @@ internal sealed partial class CascodeAstBuilder
                         }
                     );
                     break;
+
+                default:
+                    AddDiagnostic(
+                        stmtCtx,
+                        DiagnosticSeverity.Error,
+                        $"CAS2011: Unsupported fill statement: '{stmtCtx.GetText()}'"
+                    );
+                    break;
             }
         }
 
@@ -376,7 +406,7 @@ internal sealed partial class CascodeAstBuilder
     private InstanceDeclaration BuildInstance(CascodeParser.InstanceDeclContext ctx)
     {
         var id = ctx.instanceId.Text;
-        var type = ctx.instanceType.Text;
+        var type = ctx.instanceTypeName().GetText();
 
         var bindings = BuildBindings(ctx.bindingBlock().bindingList());
         var prefix = $"{id}.";
@@ -400,10 +430,17 @@ internal sealed partial class CascodeAstBuilder
         {
             foreach (var argCtx in ctx.argList().arg())
             {
-                var name = argCtx.IDENT().GetText();
+                var name = argCtx.argName().GetText();
                 if (argCtx.argValue().sizeExpr() != null)
                 {
                     sizes[name] = BuildSizeExpression(argCtx.argValue().sizeExpr(), argCtx);
+                }
+                else if (argCtx.argValue().expr() is not null)
+                {
+                    instanceParams[name] = new ParamValue
+                    {
+                        Symbolic = argCtx.argValue().expr().GetText(),
+                    };
                 }
                 else
                 {
@@ -429,8 +466,8 @@ internal sealed partial class CascodeAstBuilder
         var sourceInstance = ctx.IDENT(0).GetText();
         var targetList = ctx.attachTargetList();
         var targetInstances = targetList.IDENT().Select(i => i.GetText()).ToList();
-        var sourceTrait = ctx.IDENT(1).GetText();
-        var targetTrait = ctx.IDENT(2).GetText();
+        var sourceInterface = ctx.IDENT(1).GetText();
+        var targetInterface = ctx.IDENT(2).GetText();
         string? anchor = ctx.IDENT().Length > 3 ? ctx.IDENT(3).GetText() : null;
 
         List<ConnectorMapping>? overrides = null;
@@ -454,7 +491,7 @@ internal sealed partial class CascodeAstBuilder
         {
             SourceInstance = sourceInstance,
             TargetInstances = targetInstances,
-            Via = $"{sourceTrait}::{targetTrait}",
+            Via = $"{sourceInterface}::{targetInterface}",
             Anchor = anchor,
             Overrides = overrides,
         };

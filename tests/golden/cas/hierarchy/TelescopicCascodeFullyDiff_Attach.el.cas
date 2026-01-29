@@ -23,21 +23,7 @@ interface LoadPairLike {
   }
 }
 
-bench ACBench for FullyDiffOpAmp {
-  builtin FDOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-  }
-}
 
-bench DCBench for FullyDiffOpAmp {
-  builtin FDOpAmpDCBench
-  outputs {
-    QuiescentPower
-  }
-}
 
 primitive nmos Level1_NMOS(size primSize) {
   device "level1_nmos"

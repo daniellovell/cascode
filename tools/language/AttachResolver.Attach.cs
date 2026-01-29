@@ -65,14 +65,14 @@ public sealed partial class AttachResolver
             return null;
         }
 
-        var sourceTraitName = viaParts[0];
-        var targetTraitName = viaParts[1];
+        var sourceInterfaceName = viaParts[0];
+        var targetInterfaceName = viaParts[1];
 
-        if (!_traitsByName.TryGetValue(sourceTraitName, out var sourceTrait))
+        if (!_traitsByName.TryGetValue(sourceInterfaceName, out var sourceInterface))
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"CAS0021: Undefined trait '{sourceTraitName}' in attach via clause",
+                    $"CAS0021: Undefined interface '{sourceInterfaceName}' in attach via clause",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -82,14 +82,14 @@ public sealed partial class AttachResolver
             return null;
         }
 
-        var connector = sourceTrait.Connectors.FirstOrDefault(c =>
-            c.TargetTrait.Equals(targetTraitName, StringComparison.Ordinal)
+        var connector = sourceInterface.Connectors.FirstOrDefault(c =>
+            c.TargetTrait.Equals(targetInterfaceName, StringComparison.Ordinal)
         );
         if (connector is null)
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"CAS0023: No connector from '{sourceTraitName}' to '{targetTraitName}'",
+                    $"CAS0023: No connector from '{sourceInterfaceName}' to '{targetInterfaceName}'",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -99,9 +99,9 @@ public sealed partial class AttachResolver
             return null;
         }
 
-        _traitsByName.TryGetValue(targetTraitName, out var targetTrait);
+        _traitsByName.TryGetValue(targetInterfaceName, out var targetInterface);
 
-        return new AttachResolutionInfo(connector, sourceTrait, targetTrait);
+        return new AttachResolutionInfo(connector, sourceInterface, targetInterface);
     }
 
     private void ProcessAttach(
@@ -115,8 +115,8 @@ public sealed partial class AttachResolver
     )
     {
         var connector = attachInfo.Connector;
-        var sourceTrait = attachInfo.SourceTrait;
-        var targetTrait = attachInfo.TargetTrait;
+        var sourceInterface = attachInfo.SourceTrait;
+        var targetInterface = attachInfo.TargetTrait;
 
         var createdAutoNets = new List<string>();
         var instanceChain = BuildInstanceChain(attach);
@@ -145,13 +145,15 @@ public sealed partial class AttachResolver
             }
         }
 
-        // Validate domain compatibility based on trait port definitions
+        // Validate domain compatibility based on interface port definitions
         foreach (var (sourcePort, targetPort) in EnumerateConnectorMappings(attach, connector))
         {
             var sourcePortDomain =
-                sourceTrait?.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type ?? DefaultDomain;
+                sourceInterface?.Ports.FirstOrDefault(p => p.Name == sourcePort)?.Type
+                ?? DefaultDomain;
             var targetPortDomain =
-                targetTrait?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type ?? DefaultDomain;
+                targetInterface?.Ports.FirstOrDefault(p => p.Name == targetPort)?.Type
+                ?? DefaultDomain;
 
             if (!string.Equals(sourcePortDomain, targetPortDomain, StringComparison.Ordinal))
             {

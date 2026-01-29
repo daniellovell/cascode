@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Antlr4.Runtime;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language;
 
@@ -52,6 +53,16 @@ public static class CascodeParserFacade
 
             // Apply bundle desugaring
             var desugared = BundleDesugarer.Desugar(document);
+
+            // Bench semantic checks (type checking for measurement expressions).
+            BenchSemanticChecker.Check(desugared, diagnostics);
+
+            // Bench binding checks require a complete document. For source files with includes,
+            // defer these checks until after linking produces an include-free document.
+            if (desugared.Includes.Count == 0)
+            {
+                BenchBindingChecker.Check(desugared, diagnostics);
+            }
 
             return new CascodeReadResult { Document = desugared, Diagnostics = diagnostics };
         }

@@ -19,22 +19,6 @@ primitive pmos Level1_PMOS(size primSize) {
 }
 
 
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-
-  }
-}
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    QuiescentPower
-
-  }
-}
 circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
   level EL
   supply VDD

@@ -30,12 +30,12 @@ circuit TestCircuit {{
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
         Assert.Single(result.Document!.Traits);
-        var trait = result.Document.Traits[0];
-        Assert.Equal("CurrentMirror", trait.Name);
-        Assert.Equal(3, trait.Ports.Count);
-        Assert.Contains(trait.Ports, p => p.Name == "IN" && p.Type == "analog");
-        Assert.Contains(trait.Ports, p => p.Name == "OUT" && p.Type == "analog");
-        Assert.Contains(trait.Ports, p => p.Name == "BIAS" && p.Type == "analog");
+        var interfaceDef = result.Document.Traits[0];
+        Assert.Equal("CurrentMirror", interfaceDef.Name);
+        Assert.Equal(3, interfaceDef.Ports.Count);
+        Assert.Contains(interfaceDef.Ports, p => p.Name == "IN" && p.Type == "analog");
+        Assert.Contains(interfaceDef.Ports, p => p.Name == "OUT" && p.Type == "analog");
+        Assert.Contains(interfaceDef.Ports, p => p.Name == "BIAS" && p.Type == "analog");
     }
 
     [Fact]
@@ -66,9 +66,9 @@ circuit TestCircuit {{
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
         Assert.Single(result.Document!.Traits);
-        var trait = result.Document.Traits[0];
-        Assert.Single(trait.Connectors);
-        var connector = trait.Connectors[0];
+        var interfaceDef = result.Document.Traits[0];
+        Assert.Single(interfaceDef.Connectors);
+        var connector = interfaceDef.Connectors[0];
         Assert.Equal("LoadBranch", connector.TargetTrait);
         Assert.Single(connector.Mappings);
         Assert.Equal("OUT", connector.Mappings[0].SourcePort);

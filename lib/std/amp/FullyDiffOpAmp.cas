@@ -1,7 +1,7 @@
 package lib.std.amp;
 
-// Interface trait: Fully differential operational amplifier.
-trait FullyDiffOpAmp extend Amplifier {
+// Interface: Fully differential operational amplifier.
+interface FullyDiffOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: Diff ]
   supply VDD; ground GND;
 

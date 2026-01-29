@@ -19,14 +19,6 @@ primitive pmos Sky130_PMOS(size primSize) {
 }
 
 
-bench ACBench for SingleEndedAmp {
-  builtin SEAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-
-  }
-}
 circuit CommonSourceAmp_Pdk implements SingleEndedAmp {
   level EL
   supply VDD

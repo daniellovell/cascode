@@ -25,7 +25,12 @@ public sealed partial class AttachResolver
     public AttachResolver(CascodeDocument document)
     {
         _document = document;
-        _traitsByName = BuildLookup(document.Traits, t => t.Name, "trait", _constructorDiagnostics);
+        _traitsByName = BuildLookup(
+            document.Traits,
+            t => t.Name,
+            "interface",
+            _constructorDiagnostics
+        );
         _circuitsByName = BuildLookup(
             document.Circuits,
             c => c.Name,

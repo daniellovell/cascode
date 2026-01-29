@@ -12,7 +12,7 @@ namespace Cascode.Language;
 /// - All bundle-typed ports are expanded to individual ports (e.g., "IN : Diff" → "IN.P", "IN.N")
 /// - Device bindings preserve dot notation (e.g., "IN.P" stays "IN.P")
 /// - All connections are expanded (e.g., "dp.IN--IN" -> "dp.IN.P--IN.P", "dp.IN.N--IN.N")
-/// - All trait connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN.P--OUT.P", "DRAIN.N--OUT.N")
+/// - All interface connectors are expanded (e.g., "DRAIN--OUT" -> "DRAIN.P--OUT.P", "DRAIN.N--OUT.N")
 ///
 /// Downstream code (validation, emission, resolution) operates on the desugared representation
 /// and never needs bundle context.
@@ -48,6 +48,8 @@ public static class BundleDesugarer
         {
             VersionMajor = document.VersionMajor,
             VersionMinor = document.VersionMinor,
+            Includes = document.Includes,
+            Functions = document.Functions,
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
             BenchDefinitions = document.BenchDefinitions,
@@ -59,23 +61,28 @@ public static class BundleDesugarer
     }
 
     /// <summary>
-    /// Desugars a trait definition by expanding bundle-typed ports and connector mappings.
+    /// Desugars an interface definition by expanding bundle-typed ports and connector mappings.
     /// </summary>
     private static TraitDefinition DesugarTrait(
-        TraitDefinition trait,
+        TraitDefinition interfaceDef,
         IReadOnlyDictionary<string, BundleType> bundlesByName
     )
     {
-        // Build a map of port name -> type for this trait
-        var portTypes = trait.Ports.ToDictionary(p => p.Name, p => p.Type, StringComparer.Ordinal);
+        // Build a map of port name -> type for this interface
+        var portTypes = interfaceDef.Ports.ToDictionary(
+            p => p.Name,
+            p => p.Type,
+            StringComparer.Ordinal
+        );
 
         return new TraitDefinition
         {
-            Name = trait.Name,
-            Ports = ExpandPorts(trait.Ports, bundlesByName),
-            Connectors = trait
+            Name = interfaceDef.Name,
+            Ports = ExpandPorts(interfaceDef.Ports, bundlesByName),
+            Connectors = interfaceDef
                 .Connectors.Select(c => DesugarConnector(c, portTypes, bundlesByName))
                 .ToList(),
+            BenchBindings = interfaceDef.BenchBindings,
         };
     }
 
@@ -205,6 +212,9 @@ public static class BundleDesugarer
             Harness = circuit.Harness is not null
                 ? DesugarHarness(circuit.Harness, portTypes, bundlesByName)
                 : null,
+            Env = circuit.Env,
+            BenchBindings = circuit.BenchBindings,
+            Synth = circuit.Synth,
             Provenance = circuit.Provenance,
         };
     }

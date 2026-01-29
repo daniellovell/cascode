@@ -31,30 +31,6 @@ bundle Diff {
   N : analog
 
 }
-bench ACBench for FullyDiffOpAmp {
-  builtin FDOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-
-  }
-}
-bench DCBench for FullyDiffOpAmp {
-  builtin FDOpAmpDCBench
-  outputs {
-    QuiescentPower
-
-  }
-}
-bench TranBench for FullyDiffOpAmp {
-  builtin FDOpAmpTranBench
-  outputs {
-    DifferentialOutputSwing
-    SingleEndedOutputSwing
-
-  }
-}
 circuit OTA5TFullyDiff implements FullyDiffOpAmp {
   level EL
   supply VDD

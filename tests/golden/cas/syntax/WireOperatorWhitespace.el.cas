@@ -36,13 +36,6 @@ interface LoadLike {
   output OUT : Diff
 
 }
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    PassbandGain
-
-  }
-}
 circuit WireOperatorWhitespace implements SingleEndedOpAmp {
   level EL
   supply VDD

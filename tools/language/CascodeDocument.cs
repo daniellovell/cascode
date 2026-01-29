@@ -20,6 +20,17 @@ public sealed class CascodeDocument
     public int VersionMinor { get; init; } = 0;
 
     /// <summary>
+    /// Include directives present in the parsed source document.
+    /// Linked documents must not contain any includes.
+    /// </summary>
+    public List<IncludeDirective> Includes { get; init; } = new();
+
+    /// <summary>
+    /// File-level helper functions (available to benches and other functions once linked).
+    /// </summary>
+    public List<FunctionDefinition> Functions { get; init; } = new();
+
+    /// <summary>
     /// Bundle type definitions declared at the file level.
     /// </summary>
     public List<BundleType> BundleTypes { get; init; } = new();
@@ -30,7 +41,7 @@ public sealed class CascodeDocument
     public List<TraitDefinition> Traits { get; init; } = new();
 
     /// <summary>
-    /// Bench definitions declared at the file level (after traits, before circuits).
+    /// Bench definitions declared at the file level.
     /// </summary>
     public List<BenchDefinition> BenchDefinitions { get; init; } = new();
 
@@ -114,7 +125,7 @@ public sealed class Circuit
     /// <summary>Circuit name.</summary>
     public string Name { get; init; } = string.Empty;
 
-    /// <summary>Optional traits this circuit implements.</summary>
+    /// <summary>Optional interfaces this circuit implements.</summary>
     public List<string>? Traits { get; init; }
 
     /// <summary>Elaboration level (HL, ML, or EL).</summary>
@@ -159,6 +170,15 @@ public sealed class Circuit
 
     /// <summary>Harness block.</summary>
     public HarnessBlock? Harness { get; init; }
+
+    /// <summary>Environment block describing operating intent (used by benches).</summary>
+    public EnvBlock? Env { get; init; }
+
+    /// <summary>Bench bindings declared on the circuit (override/extend interface benches).</summary>
+    public List<BenchBinding> BenchBindings { get; init; } = new();
+
+    /// <summary>Synthesis guidance (extracted to sidecar during linking).</summary>
+    public SynthBlock? Synth { get; init; }
 
     /// <summary>Provenance block.</summary>
     public ProvenanceBlock? Provenance { get; init; }
@@ -246,7 +266,7 @@ public sealed class SlotDeclaration
     /// <summary>Terminal bindings for this slot.</summary>
     public Dictionary<string, string> Bindings { get; init; } = new();
 
-    /// <summary>Required traits (single trait or list).</summary>
+    /// <summary>Required interfaces (single interface or list).</summary>
     public List<string> Traits { get; init; } = new();
 
     /// <summary>Parameter values.</summary>
@@ -270,7 +290,7 @@ public sealed class FillBlock
     /// <summary>Device declarations (EL level).</summary>
     public List<DeviceDeclaration> Devices { get; init; } = new();
 
-    /// <summary>Attach statements (EL level, for trait-based composition).</summary>
+    /// <summary>Attach statements (EL level, for interface-based composition).</summary>
     public List<AttachStatement> Attaches { get; init; } = new();
 
     /// <summary>Connection statements.</summary>
@@ -383,27 +403,6 @@ public sealed class ParamValue
 
     /// <summary>String literal value.</summary>
     public string? Literal { get; init; }
-}
-
-/// <summary>
-/// Bench definition declared at document scope.
-/// </summary>
-public sealed class BenchDefinition
-{
-    /// <summary>Bench alias name used in constraints (e.g., "ACBench").</summary>
-    public string Name { get; init; } = string.Empty;
-
-    /// <summary>Trait this bench applies to.</summary>
-    public string Trait { get; init; } = string.Empty;
-
-    /// <summary>Builtin bench template name.</summary>
-    public string? Builtin { get; init; }
-
-    /// <summary>Optional bench configuration values.</summary>
-    public Dictionary<string, string> Config { get; init; } = new();
-
-    /// <summary>Metric outputs produced by this bench.</summary>
-    public List<string> Outputs { get; init; } = new();
 }
 
 /// <summary>
@@ -622,29 +621,32 @@ public sealed class CircuitParameter
 }
 
 /// <summary>
-/// Trait definition declaring interface contract and connectors.
+/// Interface definition declaring interface contract and connectors.
 /// </summary>
 public sealed class TraitDefinition
 {
-    /// <summary>Trait name.</summary>
+    /// <summary>Interface name.</summary>
     public required string Name { get; init; }
 
-    /// <summary>Port declarations for this trait.</summary>
+    /// <summary>Port declarations for this interface.</summary>
     public List<PortDeclaration> Ports { get; init; } = new();
 
-    /// <summary>Connectors to other traits.</summary>
+    /// <summary>Connectors to other interfaces.</summary>
     public List<TraitConnector> Connectors { get; init; } = new();
+
+    /// <summary>Bench bindings declared on this interface.</summary>
+    public List<BenchBinding> BenchBindings { get; init; } = new();
 }
 
 /// <summary>
-/// Connector from one trait to another, defining port mappings.
+/// Connector from one interface to another, defining port mappings.
 /// </summary>
 public sealed class TraitConnector
 {
-    /// <summary>Target trait name (the trait being connected to).</summary>
+    /// <summary>Target interface name (the interface being connected to).</summary>
     public required string TargetTrait { get; init; }
 
-    /// <summary>Port mappings from source trait to target trait.</summary>
+    /// <summary>Port mappings from source interface to target interface.</summary>
     public List<ConnectorMapping> Mappings { get; init; } = new();
 }
 
@@ -653,15 +655,15 @@ public sealed class TraitConnector
 /// </summary>
 public sealed record ConnectorMapping
 {
-    /// <summary>Source port (on the trait defining the connector).</summary>
+    /// <summary>Source port (on the interface defining the connector).</summary>
     public required string SourcePort { get; init; }
 
-    /// <summary>Target port (on the target trait).</summary>
+    /// <summary>Target port (on the target interface).</summary>
     public required string TargetPort { get; init; }
 }
 
 /// <summary>
-/// Attach statement for trait-based composition at EL level.
+/// Attach statement for interface-based composition at EL level.
 /// </summary>
 public sealed record AttachStatement
 {
@@ -671,7 +673,7 @@ public sealed record AttachStatement
     /// <summary>Target instance identifiers (in chain order).</summary>
     public required IReadOnlyList<string> TargetInstances { get; init; }
 
-    /// <summary>Connector reference in "TraitName::TargetTrait" format.</summary>
+    /// <summary>Connector reference in "InterfaceName::TargetInterface" format.</summary>
     public required string Via { get; init; }
 
     /// <summary>Optional anchor name for created nets (from "as" clause).</summary>

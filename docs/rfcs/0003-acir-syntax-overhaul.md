@@ -14,7 +14,7 @@ This RFC proposes a comprehensive syntax overhaul for ACIR 3.0, introducing brac
 
 The changes fall into three categories: structural (brace delimiters, explicit closures), semantic (primitives, computed sizes), and notational (assignment operators, optional comma-separated bindings). Together, these ten changes address long-standing friction points in the current indentation-based syntax while preserving ACIR's core design as a line-oriented, diff-friendly intermediate representation.
 
-This RFC is orthogonal to RFC 0000 (measurement abstraction) but supersedes the terminology in that RFC where they overlap: specifically, this RFC adopts `interface` for connector-carrying contracts, leaving `trait` for capability markers as defined in RFC 0000.
+This RFC is orthogonal to RFC 0000 (measurement abstraction) but supersedes the terminology in that RFC where they overlap: specifically, this RFC adopts `interface` for connector-carrying contracts.
 
 ---
 
@@ -114,9 +114,9 @@ Explicit braces eliminate the "where does this block end?" question that arises 
 
 ---
 
-### 3.2 Keyword Rename: `trait` → `interface`
+### 3.2 Keyword: `interface`
 
-The `trait` keyword is renamed to `interface` for connector-carrying contracts.
+The connector-carrying contract keyword is `interface`.
 
 #### 3.2.1 Syntax
 
@@ -128,7 +128,7 @@ interfaceDecl = "interface" IDENT "{" interfaceBody "}" ;
 
 An `interface` defines a contract that circuits can implement. Interfaces may declare ports, parameters, and connector blocks. The `implements` clause on circuits references interface names.
 
-The term `trait` is reserved for capability markers as defined in RFC 0000 (e.g., `HasSupplyPort`, `BalancedInput`). This separation clarifies the distinction between connector contracts (interface) and capability flags (trait).
+This RFC does not define a separate capability-marker keyword; capability flags are out of scope here.
 
 #### 3.2.3 Example
 
@@ -207,7 +207,7 @@ Circuit parameters and size declarations move from the body to the signature.
 #### 3.4.1 Syntax
 
 ```ebnf
-circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" traitList "{" circuitBody "}" ; 
+circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" interfaceList "{" circuitBody "}" ;
 paramList   = paramDecl ("," paramDecl)* ;
 paramDecl   = "size" IDENT ["=" sizeDefault]
             | typeName IDENT ["=" defaultValue] ;
@@ -521,14 +521,14 @@ circuit Name(params) implements Interfaces {
 
 ### 4.1 RFC 0000 (Measurement Abstraction)
 
-RFC 0000 introduces a `class`/`trait` distinction where `class` defines taxonomy (single inheritance) and `trait` defines capabilities (composable markers). This RFC adopts `interface` for what RFC 0000 calls connector-carrying contracts, preserving `trait` for capability markers.
+RFC 0000 introduces a taxonomy distinction alongside capability markers; this RFC adopts `interface` for connector-carrying contracts and does not define capability-marker syntax.
 
 Alignment:
 - `class` (RFC 0000): Taxonomy with port bindings
-- `trait` (RFC 0000): Capability marker (e.g., `HasSupplyPort`)
+- Capability markers (RFC 0000): out of scope for this RFC
 - `interface` (this RFC): Connector-carrying contract that circuits implement
 
-If RFC 0000 is adopted, the `interface` keyword from this RFC would coexist with `class` and `trait`, each serving a distinct purpose.
+If RFC 0000 is adopted, the `interface` keyword from this RFC would coexist with the class taxonomy and any future capability-marker syntax.
 
 ### 4.2 RFC 0002 (Terminal Directionality)
 
@@ -608,7 +608,7 @@ This RFC introduces breaking syntax changes. A migration script (`scripts/acir_m
 | Before | After |
 |--------|-------|
 | `bundle Name:` | `bundle Name {` |
-| `trait Name:` | `interface Name {` |
+| `interface Name:` | `interface Name {` |
 | `outputs:` | `outputs {` |
 | `fill:` | `fill {` |
 | `connectors:` | `connectors {` |
@@ -645,9 +645,9 @@ Maintaining the existing colon-based, indentation-delimited syntax would avoid m
 
 Some languages use parentheses for block delimiters. Braces were chosen because they are more commonly associated with block structure in C-family languages and are visually distinct from function call parentheses.
 
-### 7.3 Make `interface` and `trait` Synonyms
+### 7.3 Single `interface` Keyword
 
-Treating `interface` and `trait` as synonyms would simplify the keyword set but would obscure the semantic distinction introduced in RFC 0000 between connector contracts and capability markers.
+The language uses a single `interface` keyword for connector contracts. Capability markers, if introduced later, will use a distinct syntax.
 
 ### 7.4 Optional Primitives
 

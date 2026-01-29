@@ -17,14 +17,6 @@ primitive nmos Level1_NMOS(size primSize) {
 }
 
 
-bench DCBench for SingleEndedAmp {
-  builtin SEAmpDCBench
-  outputs {
-    OutputDCBias
-    QuiescentPower
-
-  }
-}
 circuit CSAmpResistive_DCSwept implements SingleEndedAmp {
   level EL
   supply VDD

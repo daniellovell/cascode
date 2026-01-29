@@ -136,28 +136,28 @@ internal sealed class PortCoverageAnalysis
             StringComparer.Ordinal
         );
 
-        // Parse the via clause: "TraitName::TargetTrait"
+        // Parse the via clause: "InterfaceName::TargetInterface"
         var viaParts = attach.Via.Split("::");
         if (viaParts.Length != 2)
         {
             return coveredPorts; // Invalid via clause, validation handles this elsewhere
         }
 
-        var sourceTraitName = viaParts[0];
-        var targetTraitName = viaParts[1];
+        var sourceInterfaceName = viaParts[0];
+        var targetInterfaceName = viaParts[1];
 
-        // Find the trait with the connector
-        var sourceTrait = _traits.FirstOrDefault(t =>
-            t.Name.Equals(sourceTraitName, StringComparison.Ordinal)
+        // Find the interface with the connector
+        var sourceInterface = _traits.FirstOrDefault(t =>
+            t.Name.Equals(sourceInterfaceName, StringComparison.Ordinal)
         );
-        if (sourceTrait is null)
+        if (sourceInterface is null)
         {
             return coveredPorts;
         }
 
-        // Find the connector to the target trait
-        var connector = sourceTrait.Connectors.FirstOrDefault(c =>
-            c.TargetTrait.Equals(targetTraitName, StringComparison.Ordinal)
+        // Find the connector to the target interface
+        var connector = sourceInterface.Connectors.FirstOrDefault(c =>
+            c.TargetTrait.Equals(targetInterfaceName, StringComparison.Ordinal)
         );
         if (connector is null)
         {

@@ -640,11 +640,11 @@ circuit Test {{
         );
         Assert.NotNull(result.Document);
 
-        var trait = result.Document!.Traits.First(t => t.Name == "CurrentMirrorLike");
-        Assert.Single(trait.Connectors);
-        Assert.Single(trait.Connectors[0].Mappings);
-        Assert.Equal("SENSE", trait.Connectors[0].Mappings[0].SourcePort);
-        Assert.Equal("OUT.P", trait.Connectors[0].Mappings[0].TargetPort);
+        var interfaceDef = result.Document!.Traits.First(t => t.Name == "CurrentMirrorLike");
+        Assert.Single(interfaceDef.Connectors);
+        Assert.Single(interfaceDef.Connectors[0].Mappings);
+        Assert.Equal("SENSE", interfaceDef.Connectors[0].Mappings[0].SourcePort);
+        Assert.Equal("OUT.P", interfaceDef.Connectors[0].Mappings[0].TargetPort);
     }
 
     [Theory]

@@ -9,23 +9,7 @@ public class CascodeReaderConstraintsTests
     {
         var content =
             $@"VERSION {CascodeVersion.Current}
-bench ACBench for SingleEndedOpAmp {{
-  builtin SEOpAmpACBench
-  outputs {{
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-  }}
-}}
-
-bench DCBench for SingleEndedOpAmp {{
-  builtin SEOpAmpDCBench
-  outputs {{
-    QuiescentPower
-  }}
-}}
-
-circuit Test implements SingleEndedOpAmp {{
+circuit Test {{
   level EL
   supply VDD
   ground GND

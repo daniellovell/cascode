@@ -270,7 +270,7 @@ Bundle port expansion: A port declared with a bundle type expands to multiple un
 
 ### 3.3.5 Slot Declarations (HL)
 
-At HL (High Level), slots represent placeholders for circuit components that will be resolved during synthesis. A slot declares the interface contract (terminal connections) and the behavioral requirements (traits) without specifying a concrete implementation.
+At HL (High Level), slots represent placeholders for circuit components that will be resolved during synthesis. A slot declares the interface contract (terminal connections) and the behavioral requirements (interfaces) without specifying a concrete implementation.
 
 Syntax:
 
@@ -313,7 +313,7 @@ slot driver implements BufferLike, HighDrive {
 
 Slot-to-Instance Resolution:
 
-During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required traits. The slot becomes a regular instance declaration using constructor syntax:
+During the HL->ML transition, the synthesis engine resolves each slot to a concrete motif type that satisfies all required interfaces. The slot becomes a regular instance declaration using constructor syntax:
 
 ```acir
 // HL
@@ -785,11 +785,11 @@ fill {
 
 ### 3.3.11 Attach Statements in ACIR-EL
 
-At EL level, ACIR supports explicit `attach` statements that provide higher-level composition while remaining SPICE-ready. Attach statements express bulk connectivity between circuit instances using trait-scoped connectors defined in the document's trait declarations.
+At EL level, ACIR supports explicit `attach` statements that provide higher-level composition while remaining SPICE-ready. Attach statements express bulk connectivity between circuit instances using interface-scoped connectors defined in the document's interface declarations.
 
 #### 3.3.11.1 Attach Syntax
 
-The `via` clause is **required** in ACIR-EL, ensuring deterministic resolution independent of trait inheritance changes.
+The `via` clause is **required** in ACIR-EL, ensuring deterministic resolution independent of interface inheritance changes.
 
 Basic syntax:
 
@@ -823,9 +823,9 @@ attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node {
 
 #### 3.3.11.2 Trait-Scoped Connectors
 
-Connectors are defined on interface traits in the Cascode language (Chapter 2). For multi-module ACIR documents that use `attach`, all referenced traits and their connectors MUST be present in the same ACIR document so that attach resolution is deterministic and environment-independent.
+Connectors are defined on interfaces in the Cascode language (Chapter 2). For multi-module ACIR documents that use `attach`, all referenced interfaces and their connectors MUST be present in the same ACIR document so that attach resolution is deterministic and environment-independent.
 
-Circuits implement traits by using the `implements` keyword:
+Circuits implement interfaces by using the `implements` keyword:
 
 ```acir
 circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike {
@@ -834,9 +834,9 @@ circuit CurrentMirror_taps_1_p_PMOS implements CurrentMirrorLike {
 }
 ```
 
-Attach resolution looks up the referenced connector in the document's trait definitions at validation/emission time.
+Attach resolution looks up the referenced connector in the document's interface definitions at validation/emission time.
 
-Connector disambiguation: A circuit may implement multiple traits, and different traits may define connectors to the same target trait. The `via` clause explicitly selects which connector to use, eliminating ambiguity. In ACIR-EL, the `via` clause is required precisely to ensure deterministic connector selection.
+Connector disambiguation: A circuit may implement multiple interfaces, and different interfaces may define connectors to the same target interface. The `via` clause explicitly selects which connector to use, eliminating ambiguity. In ACIR-EL, the `via` clause is required precisely to ensure deterministic connector selection.
 
 If `via` were optional (as it might be in higher-level ADL), and multiple valid connectors existed for a given attach, the result would be ambiguous. ACIR-EL's required `via` clause prevents this situation entirely.
 
@@ -861,7 +861,7 @@ interface TraitB {
   }
 }
 
-// Circuit implements both traits
+// Circuit implements both interfaces
 circuit Multi implements TraitA, TraitB {
   level EL
   ...
@@ -877,7 +877,7 @@ Attach statements are resolved during SPICE emission using a union-find algorith
 
 #### 3.3.11.3 Interface Definitions (In-Document)
 
-Interface definitions declare trait contracts and connectors. Interface definitions appear at the document level, after bundle definitions and before circuits.
+Interface definitions declare interface contracts and connectors. Interface definitions appear at the document level, after bundle definitions and before circuits.
 
 Syntax:
 
@@ -897,7 +897,7 @@ interface <TraitName> {
 
 Trait port declarations may use the family wildcard form `NAME[*]` to indicate an indexed port family (for example, `output TAP[*] : analog`). This notation is descriptive and does not create ports on circuits by itself; circuits must still declare their concrete ports (for example, `TAP[0]`, `TAP[1]`) and monomorphize any port-count parameters (see [§3.3.12](#3312-topological-monomorphization)).
 
-Connectors define how instances of one trait connect to instances of another. The connector `to DiffPairLike` on `CurrentMirrorLike` is referenced as `CurrentMirrorLike::DiffPairLike` in attach statements.
+Connectors define how instances of one interface connect to instances of another. The connector `to DiffPairLike` on `CurrentMirrorLike` is referenced as `CurrentMirrorLike::DiffPairLike` in attach statements.
 
 #### 3.3.11.4 Error Conditions
 
@@ -1051,7 +1051,7 @@ The hash is computed from a canonical serialization of the resolved terminal-to-
 
 ## 3.5 Bench Definitions and Constraints
 
-Bench definitions declare which metrics a bench will produce for a given trait and how that bench is implemented. Constraints express required values for those metrics and bind them to a bench and optional measurement node.
+Bench definitions declare which metrics a bench will produce for a given interface and how that bench is implemented. Constraints express required values for those metrics and bind them to a bench and optional measurement node.
 
 ```acir
 bench ACBench for SingleEndedOpAmp {
@@ -1091,7 +1091,7 @@ constraints {
 
 ### 3.5.1 Bench Definitions
 
-Bench definitions are document-level blocks. Each bench is scoped to a trait and selects a builtin bench template. The `outputs` list declares which metrics the bench will emit for circuits that implement the trait. A `config` block may supply bench-specific parameters passed through to templates.
+Bench definitions are document-level blocks. Each bench is scoped to an interface and selects a builtin bench template. The `outputs` list declares which metrics the bench will emit for circuits that implement the interface. A `config` block may supply bench-specific parameters passed through to templates.
 
 ```acir
 bench ACBench for SingleEndedOpAmp {
@@ -1104,7 +1104,7 @@ bench ACBench for SingleEndedOpAmp {
 }
 ```
 
-Bench names must be unique within a document. A circuit may reference only benches whose `for` trait appears in its `implements` list.
+Bench names must be unique within a document. A circuit may reference only benches whose `for` interface appears in its `implements` list.
 
 ### 3.5.2 Numeric Constraints
 
@@ -1223,7 +1223,7 @@ For example, a common-source amplifier with a PMOS active load requires a gate b
 
 ### 3.6.2 Bench Definitions
 
-Bench definitions live at document scope and are referenced by constraints. A bench declares its trait scope, builtin template, and the metrics it produces.
+Bench definitions live at document scope and are referenced by constraints. A bench declares its interface scope, builtin template, and the metrics it produces.
 
 ```acir
 bench StepToggle for DigitalBuffer {
@@ -1280,7 +1280,7 @@ slot <id> implements <Trait> { ... }
 slot <id> implements <Trait1>, <Trait2> { ... }
 ```
 
-The slot declaration captures the interface contract (connections) and the behavioral requirements (traits) that any concrete implementation must satisfy. During synthesis, slots are resolved to concrete motif types that implement the required traits.
+The slot declaration captures the interface contract (connections) and the behavioral requirements (interfaces) that any concrete implementation must satisfy. During synthesis, slots are resolved to concrete motif types that implement the required interfaces.
 
 ### 3.7.2 ML - Mid Level
 
@@ -1300,7 +1300,7 @@ circuit OTA implements SingleEndedOpAmp {
 }
 ```
 
-At ML, what was a `slot load implements LoadDevice { ... }` at HL becomes `load = new ActiveLoad_p_PMOS(...) { ... }` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` trait.
+At ML, what was a `slot load implements LoadDevice { ... }` at HL becomes `load = new ActiveLoad_p_PMOS(...) { ... }` once the synthesis engine selects a concrete motif and topology that satisfies the `LoadDevice` interface.
 
 Auto-sizing placeholder (`??`): At ML level, sizing parameters at **instantiation** may use the `??` placeholder to indicate values the sizing engine will determine during ML→EL elaboration. The `??` token appears only at instantiation sites, not in circuit parameter defaults. Circuit definitions declare parameter types and may provide concrete architectural defaults (e.g., `tail_ratio = 2`), but sizing parameters that need auto-determination are left without defaults and assigned `??` at instantiation. See [§3.3.7](#337-circuit-parameter-declarations) for the full parameter semantics.
 
@@ -1387,7 +1387,7 @@ ACIR validation executes after build completion and before consumption by downst
 - **Allowed loops:** cycles are allowed unless explicitly forbidden by rule or library schema. Algebraic loops of ideal passives without controlled sources may be rejected.
 - **Circuit reference resolution:** at EL, all circuit types referenced by instance declarations MUST be defined in the same document. No external circuit references are permitted.
 - **Parameter validation:** required parameters (those without defaults) MUST be provided at instantiation. Parameter types must match declarations.
-- **Attach resolution:** attach statements require the `via` clause. The referenced connector MUST exist in the trait definition. Attach must not create conflicting bindings (both sides already bound to different nets).
+- **Attach resolution:** attach statements require the `via` clause. The referenced connector MUST exist in the interface definition. Attach must not create conflicting bindings (both sides already bound to different nets).
 - **No circular instantiation:** circuits must not directly or indirectly instantiate themselves.
 
 Diagnostics leverage source attribution via `@[file:line]` annotations, ensuring error messages point to the specific ADL construct that introduced the problematic edge or parameter.
@@ -1431,8 +1431,8 @@ The following codes apply during semantic analysis, particularly attach resoluti
 | ACIR0023 | Error | Conflicting binding; cannot unify nets already bound to different named nets |
 | ACIR0024 | Error | Domain mismatch between terminals being connected |
 | ACIR0025 | Error | Cannot auto-create supply/ground net; bind rails explicitly |
-| ACIR0026 | Warning | Source trait not found in trait registry; using default domain for port domain resolution |
-| ACIR0027 | Warning | Target trait not found in trait registry; using default domain for port domain resolution |
+| ACIR0026 | Warning | Source interface not found in interface registry; using default domain for port domain resolution |
+| ACIR0027 | Warning | Target interface not found in interface registry; using default domain for port domain resolution |
 
 ### Programmatic Access
 
@@ -1844,7 +1844,7 @@ The `bias vb1 = 0.7V` entry specifies the DC voltage for the PMOS load's gate bi
 
 ### 3.12.5 Hierarchical EL ACIR for OTA5TSingleEnded
 
-This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via trait-scoped connectors.
+This example demonstrates hierarchical EL with circuit instantiation and attach statements resolved via interface-scoped connectors.
 
 ```acir
 ACIR 3.0
@@ -2009,7 +2009,7 @@ circuit CurrentMirror_taps_1_p_PMOS(size Sense = size(W=2u, L=180n, M=1))
 }
 ```
 
-The attach statement `attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node` resolves using the referenced connector from the document’s trait definitions. The `as mirror_node` clause names the created nets `mirror_node_0` and `mirror_node_1`. Since both child circuits are marked `inline`, SPICE emission expands them into the top-level circuit with uniquified names.
+The attach statement `attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node` resolves using the referenced connector from the document’s interface definitions. The `as mirror_node` clause names the created nets `mirror_node_0` and `mirror_node_1`. Since both child circuits are marked `inline`, SPICE emission expands them into the top-level circuit with uniquified names.
 
 ---
 
@@ -2081,7 +2081,7 @@ Resolution algorithm:
 2. For each explicit binding, union the terminal with its bound net
 3. For each connection statement, union the two endpoints
 4. For each attach statement:
-   - Look up connector from trait
+   - Look up connector from interface
    - For each mapping in connector, union source endpoint with target endpoint
 5. Compute equivalence classes
 6. Assign representative net to each class
@@ -2338,8 +2338,8 @@ paramSignature = "(" paramDecl ("," paramDecl)* ")" ;
 paramDecl    = "size" IDENT ("=" sizeExpr)?
              | paramType IDENT ("=" paramValue)? ;
 paramType    = "real" | "int" | "bool" ;
-implementsClause = "implements" traitList ;
-traitList    = IDENT ("," IDENT)* ;
+implementsClause = "implements" interfaceList ;
+interfaceList    = IDENT ("," IDENT)* ;
 
 circuitMember = levelDecl | inlineDecl | packageDecl
               | supplyDecl | groundDecl | portDecl | slotDecl

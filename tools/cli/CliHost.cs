@@ -48,6 +48,7 @@ internal sealed class CliHost
         ).Register(_commands);
         new Commands.CharacterizationCommandModule(_state).Register(_commands);
         new Commands.BenchCommandModule(_state).Register(_commands);
+        new Commands.LinkCommandModule(_state).Register(_commands);
         new Commands.EmitCommandModule(_state).Register(_commands);
         new Commands.ErcCommandModule(_state).Register(_commands);
         new Commands.VerifyCommandModule(_state).Register(_commands);

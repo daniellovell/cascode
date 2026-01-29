@@ -12,7 +12,7 @@ Target Version: Cascode 1.0
 
 This RFC proposes the unification of ACIR and Cascode into a single language called Cascode, along with a declarative bench system for measurement abstraction. The motivation remains the same as earlier proposals: avoid topology-driven bench duplication (single-ended vs fully-differential, presence/absence of supply ports, etc.). However, the solution takes a fundamentally different approach.
 
-Rather than introducing network-port theory with `Port(a,b)` abstractions and trait/class taxonomy systems, this RFC introduces a declarative `bench` construct. Benches define terminals with stimulus/response roles, a `fill {}` block for test circuit construction, an `analysis {}` block for typed analysis instantiation, and a `measurements {}` block with typed measurement expressions. Circuits and interfaces bind benches to their terminals and inherit bench definitions through interface implementation.
+Rather than introducing network-port theory with `Port(a,b)` abstractions and interface/class taxonomy systems, this RFC introduces a declarative `bench` construct. Benches define terminals with stimulus/response roles, a `fill {}` block for test circuit construction, an `analysis {}` block for typed analysis instantiation, and a `measurements {}` block with typed measurement expressions. Circuits and interfaces bind benches to their terminals and inherit bench definitions through interface implementation.
 
 The key insight is that benches should provide total freedom and flexibility: users can instantiate test instruments, probes, and even complete circuits within a bench. The measurement logic executes as runtime post-processing after simulation, allowing rich expression evaluation over simulation results.
 
@@ -127,7 +127,7 @@ The unification adopts ACIR syntax as the baseline with the following feature de
 | Feature | Disposition |
 |---------|-------------|
 | `circuit` keyword | Keep (replaces `module`) |
-| `interface` keyword | Keep (replaces `trait`) |
+| `interface` keyword | Keep |
 | `motif` keyword | Replace with `circuit inline` |
 | `port` keyword | Replace with `terminal` (language-wide rename) |
 | `fill {}` block | Keep |
@@ -1859,7 +1859,7 @@ benchConfigEntry  // REMOVED
 benchOutput       // REMOVED
 ```
 
-The `FOR_KW` token usage in `benchDef` is also removed (benches no longer specify `for trait`).
+The `FOR_KW` token usage in `benchDef` is also removed (benches no longer specify `for interface`).
 
 ---
 

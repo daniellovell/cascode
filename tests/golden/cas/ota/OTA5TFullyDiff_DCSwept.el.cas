@@ -31,15 +31,6 @@ bundle Diff {
   N : analog
 
 }
-bench DCBench for FullyDiffOpAmp {
-  builtin FDOpAmpDCBench
-  outputs {
-    OutputDCCommonMode_min
-    OutputDCCommonMode_max
-    QuiescentPower
-
-  }
-}
 circuit OTA5TFullyDiff_DCSwept implements FullyDiffOpAmp {
   level EL
   supply VDD

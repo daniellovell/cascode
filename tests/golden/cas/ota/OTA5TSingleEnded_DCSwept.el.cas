@@ -24,14 +24,6 @@ bundle Diff {
   N : analog
 
 }
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    OutputDCBias
-    QuiescentPower
-
-  }
-}
 circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp {
   level EL
   supply VDD

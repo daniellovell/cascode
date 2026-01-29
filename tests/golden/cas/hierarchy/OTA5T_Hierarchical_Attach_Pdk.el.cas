@@ -20,21 +20,7 @@ interface DiffPairLike {
   output OUT : Diff
 }
 
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-  }
-}
 
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    QuiescentPower
-  }
-}
 
 primitive nmos Sky130_NMOS(size primSize) {
   device "sky130_fd_pr__nfet_01v8"

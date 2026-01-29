@@ -17,14 +17,6 @@ primitive nmos Level1_NMOS(size primSize) {
 }
 
 
-bench ACBench for SingleEndedAmp {
-  builtin SEAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-
-  }
-}
 circuit CSAmpResistive implements SingleEndedAmp {
   level EL
   supply VDD

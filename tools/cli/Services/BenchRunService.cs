@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Bench;
 using Cascode.Language;
+using Cascode.Language.BenchRuntime;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Services;
@@ -249,14 +250,13 @@ public class BenchRunService
             return validationResult;
         }
 
-        var sweepNames = BenchRunHelpers.GetSweepNames(circuit);
         var allMeasurements = new Dictionary<string, MeasurementResult>(
             StringComparer.OrdinalIgnoreCase
         );
         var benchSummaries = RunBenches(
+            doc,
             circuit,
             args,
-            sweepNames,
             emit.Emit.TestbenchPaths,
             benchesToRun,
             allMeasurements
@@ -400,8 +400,6 @@ public class BenchRunService
             availableBenches,
             circuit.Name
         );
-        var sweepNames = BenchRunHelpers.GetSweepNames(circuit);
-
         var circuitMeasurements = new Dictionary<string, MeasurementResult>(
             StringComparer.OrdinalIgnoreCase
         );
@@ -410,9 +408,9 @@ public class BenchRunService
         foreach (var benchName in benchesToRun)
         {
             var summary = TryRunBench(
+                doc,
                 circuit,
                 args,
-                sweepNames,
                 testbenchPaths,
                 benchName,
                 circuitMeasurements
@@ -730,7 +728,7 @@ public class BenchRunService
         if (availableBenches.Length == 0)
         {
             const string msg =
-                "No benches declared for the circuit traits in the Cascode document.";
+                "No benches declared for the circuit interfaces in the Cascode document.";
             _logger.LogError(msg);
             error = msg;
             return null;
@@ -755,9 +753,9 @@ public class BenchRunService
     }
 
     private List<BenchRunBenchSummary> RunBenches(
+        CascodeDocument doc,
         Circuit circuit,
         BenchRunArgs args,
-        HashSet<string> sweepNames,
         IReadOnlyList<string> testbenchPaths,
         IReadOnlyList<string> benchesToRun,
         Dictionary<string, MeasurementResult> allMeasurements
@@ -768,7 +766,7 @@ public class BenchRunService
         foreach (var benchName in benchesToRun)
         {
             summaries.Add(
-                TryRunBench(circuit, args, sweepNames, testbenchPaths, benchName, allMeasurements)
+                TryRunBench(doc, circuit, args, testbenchPaths, benchName, allMeasurements)
             );
         }
 
@@ -776,9 +774,9 @@ public class BenchRunService
     }
 
     private BenchRunBenchSummary TryRunBench(
+        CascodeDocument doc,
         Circuit circuit,
         BenchRunArgs args,
-        HashSet<string> sweepNames,
         IReadOnlyList<string> testbenchPaths,
         string benchName,
         Dictionary<string, MeasurementResult> allMeasurements
@@ -835,9 +833,100 @@ public class BenchRunService
             );
         }
 
-        var points = BenchResultParser.ParsePoints(run.Stdout, sweepNames);
-        var results = BenchResultParser.ParseResults(run.Stdout, circuit, benchName);
-        BenchResultParser.MergeMeasurements(allMeasurements, results.Measurements.Values);
+        BenchResult results;
+        try
+        {
+            var binding = ResolveBenchBindingOrThrow(doc, circuit, benchName);
+            var plan = BenchPlanBuilder.Build(doc, circuit, binding);
+
+            var analyses = new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var a in plan.Analyses)
+            {
+                if (a.Type == BenchValueType.ACAnalysis)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetAcWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.BindingName,
+                        a.Name
+                    );
+
+                    var ac = NgspiceWrdataAcParser.Parse(wrdataPath, plan.AcNodeKeys);
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        a.StartHz,
+                        a.StopHz,
+                        ac
+                    );
+                }
+                else if (a.Type == BenchValueType.NoiseAnalysis)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetNoiseWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.BindingName,
+                        a.Name
+                    );
+
+                    var noise = NgspiceWrdataNoiseParser.Parse(wrdataPath);
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        a.StartHz,
+                        a.StopHz,
+                        Ac: null,
+                        Noise: noise
+                    );
+                }
+            }
+
+            var runner = new BenchMeasurementRunner(
+                plan.Bench,
+                plan.Functions,
+                analyses,
+                plan.Terminals,
+                plan.Env,
+                plan.Harness,
+                plan.Constraints
+            );
+
+            var values = runner.RunAll();
+            var nodeByMetric = BuildNodeByMetric(circuit, benchName);
+            results = new BenchResult { Circuit = circuit.Name, Bench = benchName };
+            foreach (var (metric, v) in values)
+            {
+                var node = nodeByMetric.TryGetValue(metric, out var n) ? n : null;
+                var key = node == null ? metric : $"{metric}@{node}";
+                results.Measurements[key] = new MeasurementResult
+                {
+                    Metric = metric,
+                    Value = v.Value,
+                    Unit = v.Unit,
+                    Node = node,
+                };
+            }
+
+            MergeMeasurements(allMeasurements, results.Measurements.Values);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to evaluate bench measurements for '{BenchName}'.",
+                benchName
+            );
+            return new BenchRunBenchSummary(
+                Name: benchName,
+                Succeeded: false,
+                ExitCode: 1,
+                Error: $"Failed to evaluate measurements: {ex.Message}",
+                Stderr: run.Stderr,
+                TestbenchPath: testbenchPath,
+                TracePath: null,
+                ResultsPath: null
+            );
+        }
 
         var resultsPath = Path.Combine(
             Path.GetDirectoryName(testbenchPath)!,
@@ -857,7 +946,7 @@ public class BenchRunService
             },
             circuit,
             testbenchPath,
-            points,
+            new List<BenchResultParser.TracePoint>(),
             results
         );
 
@@ -871,5 +960,133 @@ public class BenchRunService
             TracePath: tracePath,
             ResultsPath: resultsPath
         );
+    }
+
+    private static void MergeMeasurements(
+        Dictionary<string, MeasurementResult> target,
+        IEnumerable<MeasurementResult> source
+    )
+    {
+        foreach (var measurement in source)
+        {
+            var key =
+                measurement.Node == null
+                    ? measurement.Metric
+                    : $"{measurement.Metric}@{measurement.Node}";
+            target[key] = measurement;
+        }
+    }
+
+    private static BenchBinding ResolveBenchBindingOrThrow(
+        CascodeDocument doc,
+        Circuit circuit,
+        string bindingName
+    )
+    {
+        var interfacesByName = doc.Traits.ToDictionary(
+            t => t.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
+        if (circuit.Traits is { Count: > 0 })
+        {
+            foreach (var iface in circuit.Traits)
+            {
+                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
+                {
+                    continue;
+                }
+
+                foreach (var b in interfaceDef.BenchBindings)
+                {
+                    map.TryAdd(b.BindingName, b);
+                }
+            }
+        }
+
+        foreach (var b in circuit.BenchBindings)
+        {
+            map[b.BindingName] = b;
+        }
+
+        if (!map.TryGetValue(bindingName, out var binding))
+        {
+            throw new InvalidOperationException(
+                $"Bench binding '{bindingName}' not found on circuit '{circuit.Name}'."
+            );
+        }
+
+        return binding;
+    }
+
+    private static Dictionary<string, string?> BuildNodeByMetric(Circuit circuit, string benchName)
+    {
+        var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (circuit.Constraints?.Numeric == null)
+        {
+            return nodeByMetric;
+        }
+
+        foreach (
+            var group in circuit
+                .Constraints.Numeric.Where(c =>
+                    string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
+                )
+                .GroupBy(c => c.Metric, StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            var nodes = group
+                .Select(c => c.Node)
+                .Where(n => n != null && IsValidConstraintNode(circuit, n))
+                .Select(n => n!.ToString())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            nodeByMetric[group.Key] = nodes.Count == 1 ? nodes[0] : null;
+        }
+
+        return nodeByMetric;
+    }
+
+    private static bool IsValidConstraintNode(Circuit circuit, NodeRef node)
+    {
+        if (string.IsNullOrWhiteSpace(node.Path))
+        {
+            return false;
+        }
+
+        if (node.Scope.Equals("net", StringComparison.OrdinalIgnoreCase))
+        {
+            return HasCircuitNet(circuit, node.Path);
+        }
+
+        if (node.Scope.Equals("port", StringComparison.OrdinalIgnoreCase))
+        {
+            return circuit.Ports.Any(p =>
+                p.Name.Equals(node.Path, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+
+        return true;
+    }
+
+    private static bool HasCircuitNet(Circuit circuit, string path)
+    {
+        if (circuit.Ports.Any(p => p.Name.Equals(path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (circuit.Supplies.Any(s => s.Equals(path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        if (circuit.Grounds.Any(g => g.Equals(path, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

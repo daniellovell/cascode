@@ -1,10 +1,10 @@
 package lib.std.amp;
 
-// Trait: Amplifier (spec-only)
+// Interface: Amplifier (spec-only)
 // Declares canonical metric names; no ports are defined here.
-// Interface traits (e.g., SingleEndedOpAmp, SingleEndedAmp, FullyDiffOpAmp)
-// refine this trait by adding ports and mapping metrics to benches.
-trait Amplifier {
+// Interface definitions (e.g., SingleEndedOpAmp, SingleEndedAmp, FullyDiffOpAmp)
+// refine this interface by adding ports and mapping metrics to benches.
+interface Amplifier {
   metrics { 
     GainBandwidth; 
     PassbandGain; 

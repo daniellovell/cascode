@@ -1,8 +1,8 @@
 package lib.std.amp;
 
-// Interface trait: Single-ended amplifier (single-ended input, single-ended output).
+// Interface: Single-ended amplifier (single-ended input, single-ended output).
 // Provides ports and bench metric mappings for Amplifier metrics.
-trait SingleEndedAmp extend Amplifier {
+interface SingleEndedAmp extend Amplifier {
   ports [ IN: analog, OUT: analog ]
   supply VDD; ground GND;
 
@@ -17,4 +17,3 @@ trait SingleEndedAmp extend Amplifier {
     // OutputSwing is handled by dedicated benches; left unspecified here.
   }
 }
-

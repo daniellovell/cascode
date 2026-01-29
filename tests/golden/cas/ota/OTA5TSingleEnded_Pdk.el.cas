@@ -24,15 +24,6 @@ bundle Diff {
   N : analog
 
 }
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-
-  }
-}
 circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
   level EL
   supply VDD

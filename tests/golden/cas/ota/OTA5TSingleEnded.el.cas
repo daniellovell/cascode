@@ -24,32 +24,6 @@ bundle Diff {
   N : analog
 
 }
-bench ACBench for SingleEndedOpAmp {
-  builtin SEOpAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-    PhaseMargin
-    LowpassBandwidth
-    HighpassBandwidth
-    BandpassBandwidth
-
-  }
-}
-bench DCBench for SingleEndedOpAmp {
-  builtin SEOpAmpDCBench
-  outputs {
-    QuiescentPower
-
-  }
-}
-bench TranBench for SingleEndedOpAmp {
-  builtin SEOpAmpTranBench
-  outputs {
-    SingleEndedOutputSwing
-
-  }
-}
 circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   level EL
   supply VDD

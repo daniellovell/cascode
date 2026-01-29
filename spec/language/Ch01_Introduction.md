@@ -322,4 +322,4 @@ In this flow, the heavy pad load (15 pF) appears via `env{}` and the synthesis
 engine chooses an implementation of `InverterLike` that meets `RiseTime` /
 `FallTime` constraints at `PAD` while respecting power objectives. The choice
 may be a single strong INV or a composite `PadDriver` that implements the same
-trait.
+interface.

@@ -19,14 +19,6 @@ primitive pmos Level1_PMOS(size primSize) {
 }
 
 
-bench ACBench for SingleEndedAmp {
-  builtin SEAmpACBench
-  outputs {
-    GainBandwidth
-    PassbandGain
-
-  }
-}
 circuit CommonSourceAmp implements SingleEndedAmp {
   level EL
   supply VDD

@@ -25,11 +25,18 @@ document
     ;
 
 topLevelDecl
-    : bundleDef
+    : includeDecl
+    | bundleDef
     | interfaceDef
     | benchDef
+    | functionDef
+    | wrapSpiceDef
     | primitiveDef
     | circuit
+    ;
+
+includeDecl
+    : INCLUDE_KW qualifiedName
     ;
 
 // Version declaration like "VERSION 3.0"
@@ -46,7 +53,7 @@ bundleDef
     ;
 
 bundleField
-    : IDENT COLON IDENT
+    : IDENT COLON portType
     ;
 
 // ----------------------------------------------------------------------------
@@ -60,6 +67,7 @@ interfaceDef
 interfaceMember
     : direction portName COLON portType                             # InterfacePort
     | CONNECTORS_KW LBRACE connectorDef* RBRACE                      # InterfaceConnectors
+    | benchesSection                                                 # InterfaceBenches
     ;
 
 connectorDef
@@ -75,21 +83,32 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW name=IDENT FOR_KW interface=IDENT LBRACE benchMember* RBRACE
+    : BENCH_KW name=IDENT LBRACE benchBody RBRACE
     ;
 
-benchMember
-    : BUILTIN_KW IDENT
-    | CONFIG_KW LBRACE benchConfigEntry* RBRACE
-    | OUTPUTS_KW LBRACE benchOutput* RBRACE
+benchBody
+    : terminalDecl* fillBlock? functionDef* analysisBlock? measurementsBlock?
     ;
 
-benchConfigEntry
-    : IDENT EQ (IDENT | NUMBER | QUANTITY | STRING)
+terminalDecl
+    : terminalRole IDENT COLON terminalType
     ;
 
-benchOutput
+terminalRole
+    : STIM_KW
+    | RESP_KW
+    ;
+
+terminalType
     : IDENT
+    | BIAS_KW
+    | SUPPLY_KW
+    | GROUND_KW
+    | ANALOG_KW
+    | DIGITAL_KW
+    | MIXED_KW
+    | CLOCK_KW
+    | RF_KW
     ;
 
 // ----------------------------------------------------------------------------
@@ -138,10 +157,10 @@ paramSignature
     ;
 
 implementsClause
-    : IMPLEMENTS_KW traitList
+    : IMPLEMENTS_KW interfaceList
     ;
 
-traitList
+interfaceList
     : IDENT (COMMA IDENT)*
     ;
 
@@ -156,6 +175,9 @@ circuitMember
     | FILL_KW LBRACE fillStatement* RBRACE                          # FillSection
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
+    | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
+    | benchesSection                                                # CircuitBenches
+    | SYNTH_KW LBRACE synthEntry* RBRACE                            # SynthSection
     | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
     ;
 
@@ -181,6 +203,11 @@ portType
     | BIAS_KW
     | SUPPLY_KW
     | GROUND_KW
+    | ANALOG_KW
+    | DIGITAL_KW
+    | MIXED_KW
+    | CLOCK_KW
+    | RF_KW
     ;
 
 paramList
@@ -226,10 +253,46 @@ fillStatement
     | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
+    | repeatStatement                                               # FillRepeat
+    | matchStatement                                                # FillMatch
+    | pairStatement                                                 # FillPair
+    ;
+
+repeatStatement
+    : REPEAT_KW IDENT IN_KW LBRACK scalarExpr COLON scalarExpr RBRACK LBRACE fillStatement* RBRACE
+    ;
+
+matchStatement
+    : MATCH_KW IDENT LBRACE caseStatement+ RBRACE
+    ;
+
+caseStatement
+    : CASE_KW IDENT COLON LBRACE fillStatement* RBRACE
+    ;
+
+pairStatement
+    : PAIR_KW IDENT LBRACE fillStatement* RBRACE
+    ;
+
+wrapSpiceDef
+    : WRAP_KW SPICE_KW TRIPLE_STRING MAP_KW LBRACE wrapMapEntry* RBRACE
+    ;
+
+wrapMapEntry
+    : IDENT EQ IDENT SEMI?
+    ;
+
+fillBlock
+    : FILL_KW LBRACE fillStatement* RBRACE
     ;
 
 instanceDecl
-    : instanceId=IDENT EQ NEW_KW instanceType=IDENT (LPAREN argList? RPAREN)? bindingBlock
+    : instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock
+    ;
+
+instanceTypeName
+    : IDENT
+    | physicalType
     ;
 
 argList
@@ -237,11 +300,17 @@ argList
     ;
 
 arg
-    : IDENT EQ argValue
+    : argName EQ argValue
+    ;
+
+argName
+    : IDENT
+    | Z_KW
     ;
 
 argValue
     : sizeExpr
+    | expr
     | scalarExpr
     ;
 
@@ -314,6 +383,54 @@ idPart
     | NUMERIC_KW
     | TECH_KW
     | GRAPH_KW
+    | ENV_KW
+    | INCLUDE_KW
+    | SYNTH_KW
+    | BENCHES_KW
+    | BIND_KW
+    | FUNCTION_KW
+    | ANALYSIS_KW
+    | MEASUREMENTS_KW
+    | MEASUREMENT_KW
+    | DUT_KW
+    | STIM_KW
+    | RESP_KW
+    | ANALOG_KW
+    | DIGITAL_KW
+    | MIXED_KW
+    | CLOCK_KW
+    | RF_KW
+    | IF_KW
+    | ELSE_KW
+    | RETURN_KW
+    | WRAP_KW
+    | SPICE_KW
+    | MAP_KW
+    | MATCH_KW
+    | CASE_KW
+    | REPEAT_KW
+    | IN_KW
+    | PAIR_KW
+    | AC_ANALYSIS_TYPE
+    | DC_ANALYSIS_TYPE
+    | TRAN_ANALYSIS_TYPE
+    | NOISE_ANALYSIS_TYPE
+    | STB_ANALYSIS_TYPE
+    | FREQUENCY_TYPE
+    | VOLTAGE_RATIO_TYPE
+    | TRANSFER_FUNCTION_TYPE
+    | REAL_FUNCTION_TYPE
+    | NOISE_FUNCTION_TYPE
+    | NOISE_SPECTRAL_DENSITY_TYPE
+    | INTEGRATED_NOISE_TYPE
+    | IMPEDANCE_TYPE
+    | CAPACITANCE_TYPE
+    | INDUCTANCE_TYPE
+    | VOLTAGE_TYPE
+    | CURRENT_TYPE
+    | TIME_TYPE
+    | PHASE_TYPE
+    | SCALAR_TYPE
     ;
 
 // Pin references can contain keywords as parts (e.g., load.D).
@@ -329,6 +446,7 @@ constraintSection
     : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
     | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
     | GRAPH_KW LBRACE graphConstraint* RBRACE                       # GraphSection
+    | numericConstraint                                             # NumericConstraintDirect
     ;
 
 // id = Bench::Metric at Node >= ValueUnit
@@ -481,6 +599,7 @@ unaryAtom
 exprAtom
     : LPAREN expr RPAREN
     | sizeFieldAccess
+    | scopedAccess
     | IDENT
     | NUMBER
     | QUANTITY
@@ -501,6 +620,232 @@ qualifiedName
     : IDENT (DOT IDENT)*
     ;
 
+// ----------------------------------------------------------------------------
+// Env block content
+// ----------------------------------------------------------------------------
+
+envStatement
+    : IDENT EQ envValue
+    ;
+
+envValue
+    : impedanceExpr
+    | QUANTITY
+    | NUMBER IDENT?
+    ;
+
+impedanceExpr
+    : impedanceElement (PIPEPIPE impedanceElement)+
+    ;
+
+impedanceElement
+    : QUANTITY
+    ;
+
+// ----------------------------------------------------------------------------
+// Benches section (in interfaces and circuits)
+// ----------------------------------------------------------------------------
+
+benchesSection
+    : BENCHES_KW LBRACE benchBinding* RBRACE
+    ;
+
+benchBinding
+    : BIND_KW benchName=IDENT AS_KW bindingName=IDENT LBRACE bindingStatement* RBRACE
+    ;
+
+bindingStatement
+    : terminalMapping
+    | instanceDecl
+    | dutConnection
+    ;
+
+terminalMapping
+    : BENCH_KW DOT IDENT WIRE_OP DUT_KW DOT pinRef
+    ;
+
+dutConnection
+    : DUT_KW DOT pinRef WIRE_OP pinRef
+    ;
+
+// ----------------------------------------------------------------------------
+// Synth blocks (extracted during linking)
+// ----------------------------------------------------------------------------
+
+synthEntry
+    : IDENT EQ (IDENT | NUMBER | QUANTITY | STRING)
+    ;
+
+// ----------------------------------------------------------------------------
+// Bench helper functions, analysis, and measurement expressions
+// ----------------------------------------------------------------------------
+
+functionDef
+    : FUNCTION_KW name=IDENT LPAREN typedParamList? RPAREN COLON returnType LBRACE functionBody RBRACE
+    ;
+
+typedParamList
+    : typedParam (COMMA typedParam)*
+    ;
+
+typedParam
+    : typedParamType IDENT
+    ;
+
+typedParamType
+    : physicalType
+    | analysisType
+    ;
+
+returnType
+    : physicalType
+    | BOOL_KW
+    ;
+
+physicalType
+    : FREQUENCY_TYPE
+    | VOLTAGE_RATIO_TYPE
+    | TRANSFER_FUNCTION_TYPE
+    | REAL_FUNCTION_TYPE
+    | NOISE_FUNCTION_TYPE
+    | NOISE_SPECTRAL_DENSITY_TYPE
+    | INTEGRATED_NOISE_TYPE
+    | IMPEDANCE_TYPE
+    | CAPACITANCE_TYPE
+    | INDUCTANCE_TYPE
+    | VOLTAGE_TYPE
+    | CURRENT_TYPE
+    | TIME_TYPE
+    | PHASE_TYPE
+    | SCALAR_TYPE
+    ;
+
+analysisType
+    : AC_ANALYSIS_TYPE
+    | DC_ANALYSIS_TYPE
+    | TRAN_ANALYSIS_TYPE
+    | NOISE_ANALYSIS_TYPE
+    | STB_ANALYSIS_TYPE
+    ;
+
+functionBody
+    : statement*
+    ;
+
+statement
+    : variableDecl
+    | ifStatement
+    | returnStatement
+    ;
+
+variableDecl
+    : typedParamType IDENT EQ measurementExpr
+    ;
+
+ifStatement
+    : IF_KW boolExpr LBRACE statement* RBRACE (ELSE_KW LBRACE statement* RBRACE)?
+    ;
+
+returnStatement
+    : RETURN_KW measurementExpr
+    ;
+
+analysisBlock
+    : ANALYSIS_KW LBRACE analysisDecl* RBRACE
+    ;
+
+analysisDecl
+    : analysisType name=IDENT EQ NEW_KW analysisType LPAREN analysisParams RPAREN
+    ;
+
+analysisParams
+    : analysisParam (COMMA analysisParam)*
+    ;
+
+analysisParam
+    : IDENT EQ conditionalExpr
+    ;
+
+conditionalExpr
+    : LPAREN IF_KW boolExpr LBRACE measurementExpr RBRACE ELSE_KW LBRACE measurementExpr RBRACE RPAREN
+    | measurementExpr
+    ;
+
+measurementsBlock
+    : MEASUREMENTS_KW LBRACE measurementDecl* RBRACE
+    ;
+
+measurementDecl
+    : MEASUREMENT_KW name=IDENT COLON unitType LBRACE measurementBody RBRACE
+    ;
+
+unitType
+    : IDENT
+    | NOISE_DENSITY_UNIT
+    | INTEGRATED_RMS_UNIT
+    ;
+
+measurementBody
+    : statement*
+    ;
+
+boolExpr
+    : scopedAccess
+    | measurementExpr COMPARISON_OP measurementExpr
+    ;
+
+measurementExpr
+    : measurementExpr (PLUS | MINUS) mulMeasurementExpr
+    | mulMeasurementExpr
+    ;
+
+mulMeasurementExpr
+    : mulMeasurementExpr (STAR | SLASH) unaryMeasurementExpr
+    | unaryMeasurementExpr
+    ;
+
+unaryMeasurementExpr
+    : MINUS unaryMeasurementExpr
+    | measurementAtom
+    ;
+
+measurementAtom
+    : LPAREN measurementExpr RPAREN
+    | measurementFunctionCall
+    | scopedAccess
+    | dutAccess
+    | pathAccess
+    | QUANTITY
+    | NUMBER
+    ;
+
+measurementFunctionCall
+    : IDENT LPAREN measurementArgList? RPAREN
+    ;
+
+measurementArgList
+    : measurementArg (COMMA measurementArg)*
+    ;
+
+measurementArg
+    : idPart EQ measurementExpr
+    | measurementExpr
+    ;
+
+pathAccess
+    : IDENT (DOT IDENT)*
+    ;
+
+scopedAccess
+    : ENV_KW DOT IDENT
+    | CONSTRAINTS_KW DOT IDENT
+    | HARNESS_KW DOT IDENT
+    ;
+
+dutAccess
+    : DUT_KW DOT pinRef
+    ;
+
 attachTargetList
     : (TO_KW IDENT)+
     ;
@@ -519,13 +864,24 @@ attachOverrides
 VERSION_KW      : 'VERSION' ;
 BUNDLE_KW       : 'bundle' ;
 INTERFACE_KW    : 'interface' ;
-TRAIT_KW        : 'trait' ;
 BENCH_KW        : 'bench' ;
+BENCHES_KW      : 'benches' ;
+BIND_KW         : 'bind' ;
 CIRCUIT_KW      : 'circuit' ;
 PRIMITIVE_KW    : 'primitive' ;
 DEVICE_KW       : 'device' ;
 PARAMS_KW       : 'params' ;
 NEW_KW          : 'new' ;
+INCLUDE_KW      : 'include' ;
+SYNTH_KW        : 'synth' ;
+WRAP_KW         : 'wrap' ;
+SPICE_KW        : 'spice' ;
+MAP_KW          : 'map' ;
+MATCH_KW        : 'match' ;
+CASE_KW         : 'case' ;
+REPEAT_KW       : 'repeat' ;
+IN_KW           : 'in' ;
+PAIR_KW         : 'pair' ;
 
 PORT_KW         : 'port' ;
 INPUT_KW        : 'input' ;
@@ -543,6 +899,7 @@ SIZE_KW         : 'size' ;
 FILL_KW         : 'fill' ;
 CONSTRAINTS_KW  : 'constraints' ;
 HARNESS_KW      : 'harness' ;
+ENV_KW          : 'env' ;
 PROVENANCE_KW   : 'provenance' ;
 NET_KW          : 'net' ;
 ATTACH_KW       : 'attach' ;
@@ -576,6 +933,44 @@ HL_KW           : 'HL' ;
 ML_KW           : 'ML' ;
 EL_KW           : 'EL' ;
 
+STIM_KW         : 'stim' ;
+RESP_KW         : 'resp' ;
+ANALOG_KW       : 'analog' ;
+DIGITAL_KW      : 'digital' ;
+MIXED_KW        : 'mixed' ;
+CLOCK_KW        : 'clock' ;
+RF_KW           : 'rf' ;
+FUNCTION_KW     : 'function' ;
+ANALYSIS_KW     : 'analysis' ;
+MEASUREMENTS_KW : 'measurements' ;
+MEASUREMENT_KW  : 'measurement' ;
+DUT_KW          : 'dut' ;
+IF_KW           : 'if' ;
+ELSE_KW         : 'else' ;
+RETURN_KW       : 'return' ;
+
+FREQUENCY_TYPE              : 'Frequency' ;
+VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
+TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
+REAL_FUNCTION_TYPE          : 'RealFunction' ;
+NOISE_FUNCTION_TYPE         : 'NoiseFunction' ;
+NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
+INTEGRATED_NOISE_TYPE       : 'IntegratedNoise' ;
+IMPEDANCE_TYPE              : 'Impedance' ;
+CAPACITANCE_TYPE            : 'Capacitance' ;
+INDUCTANCE_TYPE             : 'Inductance' ;
+VOLTAGE_TYPE                : 'Voltage' ;
+CURRENT_TYPE                : 'Current' ;
+TIME_TYPE                   : 'Time' ;
+PHASE_TYPE                  : 'Phase' ;
+SCALAR_TYPE                 : 'Scalar' ;
+
+AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
+DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
+TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
+NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
+STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
+
 DEVICE_TYPE
     : 'nmos'
     | 'pmos'
@@ -594,6 +989,7 @@ COLONCOLON      : '::' ;
 PIPEPIPE        : '||' ;
 COLON           : ':' ;
 COMMA           : ',' ;
+SEMI            : ';' ;
 BIND_DOT        : '.' { _atLineStart }? ;
 DOT             : '.' ;
 EQ              : '=' ;
@@ -609,9 +1005,13 @@ PLUS            : '+' ;
 MINUS           : '-' ;
 AT              : '@' ;
 
+NOISE_DENSITY_UNIT  : ('V' | 'nV' | 'uV' | 'pV' | 'A' | 'nA' | 'pA' | 'uA') '/rtHz' ;
+INTEGRATED_RMS_UNIT : ('V' | 'nV' | 'uV' | 'mV' | 'A' | 'nA' | 'pA' | 'uA') 'rms' ;
+
 QUANTITY        : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? [fpnumkMGT]? [A-Za-z]+ ;
 NUMBER          : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? ;
 IDENT           : [A-Za-z_][A-Za-z0-9_]* ;
+TRIPLE_STRING   : '"""' ( . | '\r' | '\n' )*? '"""' ;
 STRING          : '"' (~["\\] | '\\' .)* '"' ;
 UNSIZED         : '??' ;
 

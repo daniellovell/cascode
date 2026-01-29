@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cascode.Language;
@@ -358,7 +360,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesELCircuit()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
 
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
@@ -368,106 +370,57 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Single(doc.Circuits);
 
         var circuit = doc.Circuits[0];
-        Assert.Equal("OTA5TSingleEnded", circuit.Name);
+        Assert.Equal("RcLowpass", circuit.Name);
         Assert.Equal(CascodeLevel.EL, circuit.Level);
-        Assert.Contains("SingleEndedOpAmp", circuit.Traits ?? new List<string>());
 
         // Ports
-        Assert.Equal(4, circuit.Ports.Count);
+        Assert.Equal(3, circuit.Ports.Count);
         Assert.Contains(circuit.Ports, p => p.Name == "IN.P");
         Assert.Contains(circuit.Ports, p => p.Name == "IN.N");
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
-        Assert.Contains(circuit.Ports, p => p.Name == "VTAIL");
 
         // Supplies and grounds
-        Assert.Single(circuit.Supplies);
-        Assert.Contains("VDD", circuit.Supplies);
         Assert.Single(circuit.Grounds);
         Assert.Contains("GND", circuit.Grounds);
 
         // Fill block
         Assert.NotNull(circuit.Fill);
-        Assert.Equal(2, circuit.Fill.Nets.Count);
-        Assert.Equal(5, circuit.Fill.Devices.Count);
-
-        // Harness
-        Assert.NotNull(circuit.Harness);
-        Assert.Single(circuit.Harness.Supplies);
-        Assert.Single(circuit.Harness.Loads);
+        Assert.Equal(2, circuit.Fill.Devices.Count);
 
         // Bench definitions
-        Assert.Equal(3, doc.BenchDefinitions.Count);
-        Assert.Contains(doc.BenchDefinitions, b => b.Name == "ACBench");
-        Assert.Contains(doc.BenchDefinitions, b => b.Name == "DCBench");
-        Assert.Contains(doc.BenchDefinitions, b => b.Name == "TranBench");
+        Assert.Single(doc.BenchDefinitions);
+        Assert.Equal("DiffToSELowpass", doc.BenchDefinitions[0].Name);
+
+        // Bench binding
+        Assert.Single(circuit.BenchBindings);
+        Assert.Equal("lp", circuit.BenchBindings[0].BindingName);
     }
 
     [Fact]
-    public void EmitTestbench_IncludesHarnessAndDUT()
+    public void SpiceEmitter_Emit_EmitsTestbenchForDeclarativeBenchBinding()
     {
-#pragma warning disable CS0618 // Type or member is obsolete
-        var circuit = new Circuit
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+
+        CascodeDocument doc;
+        using (var reader = File.OpenText(cascodePath))
         {
-            Name = "TestAmp",
-            Level = CascodeLevel.EL,
-            Ports = new List<PortDeclaration>
-            {
-                new()
-                {
-                    Direction = PortDirection.Input,
-                    Name = "IN",
-                    Type = "analog",
-                },
-                new()
-                {
-                    Direction = PortDirection.Output,
-                    Name = "OUT",
-                    Type = "analog",
-                },
-            },
-            Supplies = new List<string> { "VDD" },
-            Grounds = new List<string> { "GND" },
-            Fill = new FillBlock(),
-            Harness = new HarnessBlock
-            {
-                Supplies = new List<SupplyValue>
-                {
-                    new() { Net = "VDD", Value = "1.8V" },
-                },
-                Loads = new List<LoadValue>
-                {
-                    new()
-                    {
-                        Net = "OUT",
-                        Elements = new List<LoadElement> { new LoadElement("C", "1pF") },
-                    },
-                },
-            },
-        };
+            doc = CascodeReader.Read(reader);
+        }
 
-        var bench = new BenchDefinition
-        {
-            Name = "ACBench",
-            Trait = "SingleEndedOpAmp",
-            Builtin = "SEOpAmpACBench",
-            Outputs = new List<string> { "GainBandwidth" },
-        };
+        var outDir = Path.Combine(Path.GetTempPath(), "cascode-test", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outDir);
 
-        using var writer = new StringWriter();
-        SpiceEmitter.EmitTestbench(circuit, bench, "TestAmp.sp", writer);
-        var output = writer.ToString();
+        var result = SpiceEmitter.ValidateAndEmit(doc, outDir);
+        Assert.True(result.Validation.IsValid);
+        Assert.Single(result.Emit.DesignPaths);
+        Assert.Single(result.Emit.TestbenchPaths);
 
-        // Verify testbench structure
-        Assert.Contains(".title TestAmp_ACBench", output);
-        Assert.Contains(".include \"TestAmp.sp\"", output);
-        Assert.Contains("VVDD VDD 0 DC 1.8V", output);
-        Assert.Contains("COUT_load OUT 0 1pF", output);
-        Assert.Contains("XDUT IN OUT VDD GND TestAmp", output);
-        Assert.Contains(".control", output);
-        Assert.Contains("ac dec 100 1 10G", output);
-        Assert.Contains(".end", output);
+        var tb = File.ReadAllText(result.Emit.TestbenchPaths[0]);
+        Assert.Contains(".include \"RcLowpass.sp\"", tb);
+        Assert.Contains(".control", tb);
+        Assert.Contains("ac dec", tb);
     }
-#pragma warning restore CS0618 // Type or member is obsolete
 
     [Fact]
     public void CascodeReader_ParsesCommonSourceAmpWithBias()
@@ -500,9 +453,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Equal("VBIAS", circuit.Harness.Biases[0].Net);
         Assert.Equal("0.7V", circuit.Harness.Biases[0].Value);
 
-        // Bench definitions
-        Assert.Single(doc.BenchDefinitions);
-        Assert.Equal("SEAmpACBench", doc.BenchDefinitions[0].Builtin);
+        Assert.Empty(doc.BenchDefinitions);
     }
 
     [Fact]
@@ -544,8 +495,6 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Single(circuit.Harness.Supplies);
         Assert.Empty(circuit.Harness.Biases);
 
-        // Bench definitions
-        Assert.Single(doc.BenchDefinitions);
-        Assert.Equal("SEAmpACBench", doc.BenchDefinitions[0].Builtin);
+        Assert.Empty(doc.BenchDefinitions);
     }
 }

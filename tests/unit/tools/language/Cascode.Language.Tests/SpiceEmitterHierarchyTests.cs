@@ -1025,7 +1025,7 @@ public class SpiceEmitterHierarchyTests
         // Should have 3 circuits: DiffPair, OTA5T_Hierarchical, CurrentMirror
         Assert.Equal(3, doc.Circuits.Count);
 
-        // Verify traits
+        // Verify interfaces
         Assert.Equal(2, doc.Traits.Count);
         Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorLike");
         Assert.Contains(doc.Traits, t => t.Name == "DiffPairLike");
@@ -1197,7 +1197,7 @@ public class SpiceEmitterHierarchyTests
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
-        // Verify trait connector was parsed correctly
+        // Verify interface connector was parsed correctly
         var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorLike");
         Assert.Single(mirrorTrait.Connectors);
 

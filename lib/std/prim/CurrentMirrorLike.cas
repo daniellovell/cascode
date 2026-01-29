@@ -1,13 +1,13 @@
 package lib.std.prim;
 
-// Interface trait: current mirror with sense and tap.
-trait CurrentMirrorLike {
+// Interface: current mirror with sense and tap.
+interface CurrentMirrorLike {
   params { taps: int = 1; }
   ports [ SENSE: analog ]
   ports { for i in [0:taps] { TAP[i]: analog; } }
 
   // Attach connectors (unified connector model):
-  // - Within-trait chaining (mirror to mirror) defaults to the primary tap.
+  // - Within-interface chaining (mirror to mirror) defaults to the primary tap.
   connector { SENSE -> TAP[0]; }
 
   // - Mirror onto a DiffPairLike (e.g., DiffPair OUT) uses the primary tap.
