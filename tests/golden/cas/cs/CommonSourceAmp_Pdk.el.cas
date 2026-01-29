@@ -1,6 +1,6 @@
 VERSION 3.0
 
-primitive nmos Sky130_NMOS(size primSize) {
+primitive nmos nfet_01v8(size primSize) {
   device "sky130_fd_pr__nfet_01v8"
   params {
     w = primSize.W
@@ -9,7 +9,7 @@ primitive nmos Sky130_NMOS(size primSize) {
   }
 }
 
-primitive pmos Sky130_PMOS(size primSize) {
+primitive pmos pfet_01v8(size primSize) {
   device "sky130_fd_pr__pfet_01v8"
   params {
     w = primSize.W
@@ -27,13 +27,13 @@ circuit CommonSourceAmp_Pdk implements SingleEndedAmp {
   output OUT : analog
   input VBIAS : bias
   fill {
-    nmos M_in = new Sky130_NMOS(size(W=10u, L=180n, M=1)) {
+    nmos M_in = new nfet_01v8(size(W=10u, L=180n, M=1)) {
       .D--OUT
       .G--IN
       .S--GND
       .B--GND
     }
-    pmos load.M = new Sky130_PMOS(size(W=20u, L=180n, M=1)) {
+    pmos load.M = new pfet_01v8(size(W=20u, L=180n, M=1)) {
       .D--OUT
       .G--VBIAS
       .S--VDD
