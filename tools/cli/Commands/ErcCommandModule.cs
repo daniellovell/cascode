@@ -1,8 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
-using Cascode.ACIR.Validation;
+using Cascode.Language;
+using Cascode.Language.Validation;
 using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;

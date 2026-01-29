@@ -1,8 +1,8 @@
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ACIRReaderHarnessTests
 {
@@ -10,7 +10,7 @@ public class ACIRReaderHarnessTests
     public void TryParse_HarnessWithSweep_ParsesSweepCondition()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
@@ -41,7 +41,7 @@ circuit Test implements SingleEndedAmp {{
     public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   harness {{
@@ -67,7 +67,7 @@ circuit Test {{
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
@@ -91,7 +91,7 @@ circuit Test implements SingleEndedAmp {{
     public void TryParse_HarnessWithAutoStepSweep_ParsesWithoutStep()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
@@ -117,7 +117,7 @@ circuit Test implements SingleEndedAmp {{
     public void TryParse_HarnessWithParallelLoad_ParsesBothComponents()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   harness {{
@@ -139,7 +139,7 @@ circuit Test {{
     public void TryParse_HarnessWithParallelLoadReverseOrder_ParsesBothComponents()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   harness {{
@@ -161,7 +161,7 @@ circuit Test {{
     public void TryParse_HarnessWithMultipleSameTypeElements_ParsesAll()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   harness {{
@@ -185,7 +185,7 @@ circuit Test {{
     public void TryParse_MalformedParallelLoad_EmitsDiagnostics()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   harness {{
@@ -199,12 +199,12 @@ circuit Test {{
 ";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
-        // With ANTLR, malformed load syntax produces ACIR0001 errors
+        // With ANTLR, malformed load syntax produces CAS0001 errors
         Assert.True(
             result.Diagnostics.Count(d =>
-                d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+                d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
             ) >= 1,
-            "Expected at least one ACIR0001 error for malformed load syntax"
+            "Expected at least one CAS0001 error for malformed load syntax"
         );
     }
 
@@ -212,7 +212,7 @@ circuit Test {{
     public void TryParse_HarnessWithInvalidSweepRange_EmitsDiagnosticError()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test implements SingleEndedAmp {{
   level EL
   supply VDD
@@ -224,12 +224,12 @@ circuit Test implements SingleEndedAmp {{
   }}
 }}
 ";
-        var result = ACIRReader.TryParse(content, "test.cir");
+        var result = ACIRReader.TryParse(content, "test.cas");
 
         Assert.False(result.Success);
-        // With ANTLR, empty sweep range produces a syntax error (ACIR0001)
+        // With ANTLR, empty sweep range produces a syntax error (CAS0001)
         var errorDiag = result.Diagnostics.FirstOrDefault(d =>
-            d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+            d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
         );
         Assert.NotNull(errorDiag);
         Assert.True(errorDiag.Line >= 9, "Error should be on or after line 9 (sweep line)");
@@ -239,7 +239,7 @@ circuit Test implements SingleEndedAmp {{
     public void TryParse_HarnessWithMultipleSweeps_ParsesAll()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   supply VDD

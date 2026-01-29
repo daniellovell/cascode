@@ -1,9 +1,9 @@
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class SizePacksTests
 {
@@ -89,7 +89,7 @@ public class SizePacksTests
     public void TryRead_SizeDeclarationsAndAssignments_ParseSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit Top {{
   level EL
@@ -123,7 +123,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "sizes.cir");
+        var result = ACIRReader.TryParse(acir, "sizes.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -153,7 +153,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
     public void SpiceEmitter_ExpandsSizePack_WithExplicitOverrides()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
   device ""level1_nmos""
@@ -197,7 +197,7 @@ circuit Leaf(size InputPair) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "sizes.cir");
+        var result = ACIRReader.TryParse(acir, "sizes.cas");
         Assert.True(result.Success);
         var doc = result.Document!;
         var top = doc.Circuits.Single(c => c.Name == "Top");
@@ -217,7 +217,7 @@ circuit Leaf(size InputPair) {{
     public void ACIRReader_InstanceSizeDuplicateKey_ReturnsParseError()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit Top {{
   level EL
@@ -251,7 +251,7 @@ circuit Leaf(size InputPair) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
+        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cas");
 
         Assert.False(result.Success);
         var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);
@@ -262,7 +262,7 @@ circuit Leaf(size InputPair) {{
     public void ACIRReader_SizeDeclarationDuplicateKey_ReturnsParseError()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
   level EL
@@ -280,7 +280,7 @@ circuit Top(size Params = size(W=2u, L=180n, W=3u)) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cir");
+        var result = ACIRReader.TryParse(acir, "duplicate_size_key.cas");
 
         Assert.False(result.Success);
         var error = Assert.Single(result.Diagnostics, d => d.Severity == DiagnosticSeverity.Error);

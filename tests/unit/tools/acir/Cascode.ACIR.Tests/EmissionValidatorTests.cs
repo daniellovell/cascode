@@ -1,7 +1,7 @@
-using Cascode.ACIR;
-using Cascode.ACIR.Validation;
+using Cascode.Language;
+using Cascode.Language.Validation;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class EmissionValidatorTests
 {

@@ -3,7 +3,7 @@ using System.Linq;
 using Antlr4.Runtime;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Transforms ANTLR parse tree into an ACIRDocument AST.
@@ -25,7 +25,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds an ACIR document from the parsed root context.</summary>
     /// <param name="ctx">Root document context.</param>
     /// <returns>The constructed ACIR document.</returns>
-    public ACIRDocument Build(ACIRParser.DocumentContext ctx)
+    public ACIRDocument Build(CascodeParser.DocumentContext ctx)
     {
         var versionCtx = ctx.versionDecl();
         int major,
@@ -44,7 +44,7 @@ internal sealed partial class ACIRAstBuilder
                 AddDiagnostic(
                     versionCtx,
                     DiagnosticSeverity.Error,
-                    $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}."
+                    $"CAS0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}."
                 );
             }
         }
@@ -61,7 +61,7 @@ internal sealed partial class ACIRAstBuilder
                     1,
                     1,
                     DiagnosticSeverity.Warning,
-                    "ACIR0002: Missing version declaration; assuming current version"
+                    "CAS0002: Missing version declaration; assuming current version"
                 );
             }
         }
@@ -119,7 +119,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a bundle type definition.</summary>
     /// <param name="ctx">Bundle definition context.</param>
     /// <returns>Bundle type definition.</returns>
-    private BundleType BuildBundle(ACIRParser.BundleDefContext ctx)
+    private BundleType BuildBundle(CascodeParser.BundleDefContext ctx)
     {
         var fields = new Dictionary<string, string>();
         foreach (var fieldCtx in ctx.bundleField())
@@ -135,7 +135,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds an interface definition including ports and connectors.</summary>
     /// <param name="ctx">Interface definition context.</param>
     /// <returns>Trait definition.</returns>
-    private TraitDefinition BuildTrait(ACIRParser.InterfaceDefContext ctx)
+    private TraitDefinition BuildTrait(CascodeParser.InterfaceDefContext ctx)
     {
         var trait = new TraitDefinition { Name = ctx.name.Text };
 
@@ -143,7 +143,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (memberCtx)
             {
-                case ACIRParser.InterfacePortContext portCtx:
+                case CascodeParser.InterfacePortContext portCtx:
                     trait.Ports.Add(
                         new PortDeclaration
                         {
@@ -154,7 +154,7 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.InterfaceConnectorsContext connectorsCtx:
+                case CascodeParser.InterfaceConnectorsContext connectorsCtx:
                     foreach (var connDefCtx in connectorsCtx.connectorDef())
                     {
                         var connector = new TraitConnector
@@ -182,7 +182,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a bench definition from its parse context.</summary>
-    private BenchDefinition BuildBenchDefinition(ACIRParser.BenchDefContext ctx)
+    private BenchDefinition BuildBenchDefinition(CascodeParser.BenchDefContext ctx)
     {
         var name = ctx.name.Text;
         var interfaceName = ctx.@interface.Text;
@@ -247,7 +247,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a primitive definition from its parse context.</summary>
-    private PrimitiveDefinition BuildPrimitive(ACIRParser.PrimitiveDefContext ctx)
+    private PrimitiveDefinition BuildPrimitive(CascodeParser.PrimitiveDefContext ctx)
     {
         var kind = ctx.DEVICE_TYPE().GetText();
         var name = ctx.name.Text;
@@ -320,7 +320,7 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    private static string BuildBenchConfigValue(ACIRParser.BenchConfigEntryContext ctx)
+    private static string BuildBenchConfigValue(CascodeParser.BenchConfigEntryContext ctx)
     {
         if (ctx.STRING() != null)
         {
@@ -349,7 +349,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Parses a level keyword into the ACIR level enum.</summary>
     /// <param name="ctx">Level value context.</param>
     /// <returns>Parsed ACIR level.</returns>
-    private static ACIRLevel ParseLevel(ACIRParser.LevelValueContext ctx)
+    private static ACIRLevel ParseLevel(CascodeParser.LevelValueContext ctx)
     {
         if (ctx.HL_KW() != null)
             return ACIRLevel.HL;
@@ -361,7 +361,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a port name, including dotted and indexed forms.</summary>
     /// <param name="ctx">Port name context.</param>
     /// <returns>Normalized port name.</returns>
-    private static string BuildPortName(ACIRParser.PortNameContext ctx)
+    private static string BuildPortName(CascodeParser.PortNameContext ctx)
     {
         // Port names can be dotted (e.g., OUT.P)
         var name = string.Join(".", ctx.IDENT().Select(i => i.GetText()));
@@ -376,7 +376,7 @@ internal sealed partial class ACIRAstBuilder
         return name;
     }
 
-    private static PortDirection BuildPortDirection(ACIRParser.DirectionContext ctx)
+    private static PortDirection BuildPortDirection(CascodeParser.DirectionContext ctx)
     {
         if (ctx.INPUT_KW() != null)
         {
@@ -394,7 +394,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Resolves the port type token into its textual form.</summary>
     /// <param name="ctx">Port type context.</param>
     /// <returns>Port type name.</returns>
-    private static string BuildPortType(ACIRParser.PortTypeContext ctx)
+    private static string BuildPortType(CascodeParser.PortTypeContext ctx)
     {
         // portType can be IDENT or a keyword (BIAS_KW, SUPPLY_KW, GROUND_KW)
         if (ctx.IDENT() != null)
@@ -408,7 +408,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a pin reference string from identifiers and indexers.</summary>
     /// <param name="ctx">Pin reference context.</param>
     /// <returns>Normalized pin reference.</returns>
-    private static string BuildPinRef(ACIRParser.PinRefContext ctx)
+    private static string BuildPinRef(CascodeParser.PinRefContext ctx)
     {
         return ctx.GetText();
     }

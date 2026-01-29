@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cascode.Bench;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public sealed record DeviceModelResolution(string ModelName, bool IsSubckt);
 

@@ -1,8 +1,8 @@
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class AttachResolverTests
 {
@@ -637,7 +637,7 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0021")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0021")
         );
     }
 
@@ -694,7 +694,7 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0023")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0023")
         );
     }
 
@@ -730,7 +730,7 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0024")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0024")
         );
     }
 
@@ -775,19 +775,19 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0022")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0022")
         );
     }
 
     #region Domain Compatibility Checks
 
     [Fact]
-    public void Resolve_AttachWithMismatchedDomains_ReturnsACIR0024()
+    public void Resolve_AttachWithMismatchedDomains_ReturnsCAS0024()
     {
         // Trait A: port SENSE : analog
         // Trait B: port OUT : bias
         // Connector: SENSE -> OUT
-        // Expect: ACIR0024 (analog != bias)
+        // Expect: CAS0024 (analog != bias)
         var doc = new ACIRDocument
         {
             VersionMajor = ACIRVersion.Major,
@@ -862,7 +862,7 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0024")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0024")
         );
     }
 
@@ -947,10 +947,10 @@ public class AttachResolverTests
     }
 
     [Fact]
-    public void Resolve_AttachAnalogToBias_ReturnsACIR0024()
+    public void Resolve_AttachAnalogToBias_ReturnsCAS0024()
     {
         // Source: analog, Target: bias
-        // Expect: ACIR0024 (exact matching required)
+        // Expect: CAS0024 (exact matching required)
         var doc = new ACIRDocument
         {
             VersionMajor = ACIRVersion.Major,
@@ -1025,12 +1025,12 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0024")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0024")
         );
     }
 
     [Fact]
-    public void Resolve_ConnectAnalogToBias_ReturnsACIR0024()
+    public void Resolve_ConnectAnalogToBias_ReturnsCAS0024()
     {
         // Verify exact domain matching also applies to connect statements
         var doc = new ACIRDocument
@@ -1067,7 +1067,7 @@ public class AttachResolverTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0024")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0024")
         );
     }
 
@@ -1328,7 +1328,7 @@ public class AttachResolverTests
         Assert.True(result.Success);
         var warning = Assert.Single(
             result.Diagnostics,
-            d => d.Code == "ACIR0026" && d.Message.Contains("trait")
+            d => d.Code == "CAS0026" && d.Message.Contains("trait")
         );
         Assert.Contains("DuplicateTrait", warning.Message);
         Assert.Contains("keeping first definition", warning.Message);
@@ -1381,7 +1381,7 @@ public class AttachResolverTests
         Assert.True(result.Success);
         var warning = Assert.Single(
             result.Diagnostics,
-            d => d.Code == "ACIR0026" && d.Message.Contains("circuit")
+            d => d.Code == "CAS0026" && d.Message.Contains("circuit")
         );
         Assert.Contains("DuplicateCircuit", warning.Message);
         Assert.Contains("keeping first definition", warning.Message);
@@ -1435,7 +1435,7 @@ public class AttachResolverTests
         Assert.True(result.Success);
         var warning = Assert.Single(
             result.Diagnostics,
-            d => d.Code == "ACIR0026" && d.Message.Contains("bundle type")
+            d => d.Code == "CAS0026" && d.Message.Contains("bundle type")
         );
         Assert.Contains("DuplicateBundle", warning.Message);
         Assert.Contains("keeping first definition", warning.Message);

@@ -1,6 +1,6 @@
 namespace Cascode.Render.Tests;
 
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 
@@ -8,11 +8,11 @@ public class PlacementGoldenTests
 {
     [Theory]
     [InlineData(
-        "tests/golden/acir/ota/OTA5TSingleEnded.el.cir",
+        "tests/golden/acir/ota/OTA5TSingleEnded.el.cas",
         "tests/golden/render/OTA5TSingleEnded.placement.csv"
     )]
     [InlineData(
-        "tests/golden/acir/ota/OTA5TFullyDiff.el.cir",
+        "tests/golden/acir/ota/OTA5TFullyDiff.el.cas",
         "tests/golden/render/OTA5TFullyDiff.placement.csv"
     )]
     public void Placement_MatchesGolden(string acirPath, string goldenPath)

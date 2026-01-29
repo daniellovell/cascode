@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Resolves attach statements to determine net connectivity using union-find.
@@ -112,7 +112,7 @@ public sealed partial class AttachResolver
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"ACIR0026: Duplicate {itemKind} name '{name}'; keeping first definition",
+                        $"CAS0026: Duplicate {itemKind} name '{name}'; keeping first definition",
                         DiagnosticSeverity.Warning,
                         "<document>",
                         1,

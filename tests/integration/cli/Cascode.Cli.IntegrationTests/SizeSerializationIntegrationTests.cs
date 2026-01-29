@@ -1,9 +1,9 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Cascode.ACIR;
-using Cascode.ACIR.Json;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Language;
+using Cascode.Language.Json;
 using Cascode.TestSupport;
 using Xunit;
 
@@ -27,7 +27,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     {
         var sourcePath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         ACIRDocument doc;
@@ -36,7 +36,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
             doc = ACIRReader.Read(reader, sourcePath);
         }
 
-        var roundTripPath = Path.Combine(_outputDir, "writer-roundtrip.acir.cir");
+        var roundTripPath = Path.Combine(_outputDir, "writer-roundtrip.cas");
         await using (var writer = File.CreateText(roundTripPath))
         {
             ACIRWriter.Write(doc, writer);
@@ -62,7 +62,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     {
         // JSON conversion only supports a single EL circuit, so keep this input single-circuit.
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
   device ""level1_nmos""
@@ -97,7 +97,7 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
 }}
 ";
 
-        var doc = ACIRReader.Parse(acir, "size-smoke.cir");
+        var doc = ACIRReader.Parse(acir, "size-smoke.cas");
 
         var json = AcirJsonConverter.ToJson(doc, "SizePackSmoke");
 
@@ -111,7 +111,7 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
         Assert.True(readResult.Success, string.Join(Environment.NewLine, readResult.Diagnostics));
         var roundTripped = readResult.Document!;
 
-        var roundTripPath = Path.Combine(_outputDir, "json-roundtrip.acir.cir");
+        var roundTripPath = Path.Combine(_outputDir, "json-roundtrip.cas");
         await using (var writer = File.CreateText(roundTripPath))
         {
             ACIRWriter.Write(roundTripped, writer);

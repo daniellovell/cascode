@@ -1,9 +1,9 @@
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ACIRWriterHierarchyTests
 {
@@ -375,7 +375,7 @@ public class ACIRWriterHierarchyTests
     public void RoundTrip_TraitDefinition_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 interface CurrentMirror {{
   input IN : analog
@@ -394,14 +394,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         Assert.Single(reReadResult.Document!.Traits);
         Assert.Equal("CurrentMirror", reReadResult.Document.Traits[0].Name);
@@ -411,7 +411,7 @@ circuit TestCircuit {{
     public void RoundTrip_CircuitWithParameters_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit(real ratio = 2, real width) {{
   level EL
@@ -420,14 +420,14 @@ circuit TestCircuit(real ratio = 2, real width) {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         Assert.Equal(2, reReadResult.Document!.Circuits[0].Parameters.Count);
     }
@@ -436,7 +436,7 @@ circuit TestCircuit(real ratio = 2, real width) {{
     public void RoundTrip_CircuitWithInline_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit CurrentMirror {{
   level EL
@@ -446,14 +446,14 @@ circuit CurrentMirror {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         Assert.True(reReadResult.Document!.Circuits[0].Inline);
     }
@@ -462,7 +462,7 @@ circuit CurrentMirror {{
     public void RoundTrip_AttachStatement_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -474,14 +474,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("cm1", attach.SourceInstance);
@@ -494,7 +494,7 @@ circuit TestCircuit {{
     public void RoundTrip_AttachWithOverrides_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -508,14 +508,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("cm1", attach.SourceInstance);
@@ -530,7 +530,7 @@ circuit TestCircuit {{
     public void RoundTrip_AttachChain_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -542,14 +542,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("a", attach.SourceInstance);
@@ -560,7 +560,7 @@ circuit TestCircuit {{
     public void RoundTrip_AttachChainWithOverrides_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -574,14 +574,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         var attach = reReadResult.Document!.Circuits[0].Fill!.Attaches[0];
         Assert.Equal("a", attach.SourceInstance);
@@ -594,7 +594,7 @@ circuit TestCircuit {{
     public void RoundTrip_InstanceDeclaration_PreservesData()
     {
         var original =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level ML
@@ -606,14 +606,14 @@ circuit TestCircuit {{
 }}
 ";
 
-        var readResult = ACIRReader.TryParse(original, "test.cir");
+        var readResult = ACIRReader.TryParse(original, "test.cas");
         Assert.True(readResult.Success);
 
         using var writer = new StringWriter();
         ACIRWriter.Write(readResult.Document!, writer);
         var output = writer.ToString();
 
-        var reReadResult = ACIRReader.TryParse(output, "test.cir");
+        var reReadResult = ACIRReader.TryParse(output, "test.cas");
         Assert.True(reReadResult.Success);
         var inst = reReadResult.Document!.Circuits[0].Fill!.Instances[0];
         Assert.Equal("cm", inst.Id);

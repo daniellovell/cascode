@@ -4,7 +4,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 internal static class VariantNaming
 {

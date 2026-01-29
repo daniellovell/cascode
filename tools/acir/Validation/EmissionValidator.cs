@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Validates ACIR circuits for emission-blocking issues that prevent SPICE generation.

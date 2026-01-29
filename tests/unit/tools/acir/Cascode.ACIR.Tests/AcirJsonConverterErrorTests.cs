@@ -1,9 +1,9 @@
 using System;
 using System.Text.Json;
-using Cascode.ACIR.Json;
+using Cascode.Language.Json;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class AcirJsonConverterErrorTests
 {
@@ -17,7 +17,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0009")
         );
     }
 
@@ -31,7 +31,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0009")
         );
     }
 
@@ -55,7 +55,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0002")
         );
     }
 
@@ -81,7 +81,7 @@ public class AcirJsonConverterErrorTests
             result.Diagnostics,
             d =>
                 d.Severity == DiagnosticSeverity.Error
-                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("CAS0002")
                 && d.Message.Contains("abc")
         );
     }
@@ -108,7 +108,7 @@ public class AcirJsonConverterErrorTests
             result.Diagnostics,
             d =>
                 d.Severity == DiagnosticSeverity.Error
-                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("CAS0002")
                 && d.Message.Contains("xyz")
         );
     }
@@ -135,7 +135,7 @@ public class AcirJsonConverterErrorTests
             result.Diagnostics,
             d =>
                 d.Severity == DiagnosticSeverity.Error
-                && d.Message.Contains("ACIR0002")
+                && d.Message.Contains("CAS0002")
                 && d.Message.Contains("11")
         );
     }
@@ -160,7 +160,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0002")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0002")
         );
     }
 
@@ -174,7 +174,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0009")
         );
     }
 
@@ -198,7 +198,7 @@ public class AcirJsonConverterErrorTests
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0009")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0009")
         );
     }
 
@@ -224,7 +224,7 @@ public class AcirJsonConverterErrorTests
             result.Diagnostics,
             d =>
                 d.Severity == DiagnosticSeverity.Error
-                && d.Message.Contains("ACIR0008")
+                && d.Message.Contains("CAS0008")
                 && d.Message.Contains("XL")
         );
     }

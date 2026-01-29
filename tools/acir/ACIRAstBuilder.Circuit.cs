@@ -2,12 +2,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 internal sealed partial class ACIRAstBuilder
 {
     /// <summary>Builds a circuit block from its parse context.</summary>
-    private Circuit BuildCircuit(ACIRParser.CircuitContext ctx)
+    private Circuit BuildCircuit(CascodeParser.CircuitContext ctx)
     {
         var memberState = ProcessCircuitMembers(ctx);
         var signature = BuildCircuitSignature(ctx.paramSignature());
@@ -32,34 +32,34 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    private CircuitMemberState ProcessCircuitMembers(ACIRParser.CircuitContext ctx)
+    private CircuitMemberState ProcessCircuitMembers(CascodeParser.CircuitContext ctx)
     {
         var state = new CircuitMemberState();
         foreach (var memberCtx in ctx.circuitMember())
         {
             switch (memberCtx)
             {
-                case ACIRParser.LevelDeclContext levelCtx:
+                case CascodeParser.LevelDeclContext levelCtx:
                     state.Level = ParseLevel(levelCtx.levelValue());
                     break;
 
-                case ACIRParser.InlineDeclContext:
+                case CascodeParser.InlineDeclContext:
                     state.IsInline = true;
                     break;
 
-                case ACIRParser.PackageDeclContext pkgCtx:
+                case CascodeParser.PackageDeclContext pkgCtx:
                     state.Package = BuildQualifiedName(pkgCtx.qualifiedName());
                     break;
 
-                case ACIRParser.SupplyDeclContext supplyCtx:
+                case CascodeParser.SupplyDeclContext supplyCtx:
                     state.Supplies.Add(supplyCtx.IDENT().GetText());
                     break;
 
-                case ACIRParser.GroundDeclContext groundCtx:
+                case CascodeParser.GroundDeclContext groundCtx:
                     state.Grounds.Add(groundCtx.IDENT().GetText());
                     break;
 
-                case ACIRParser.PortDeclContext portCtx:
+                case CascodeParser.PortDeclContext portCtx:
                     state.Ports.Add(
                         new PortDeclaration
                         {
@@ -70,23 +70,23 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.SlotMemberContext slotCtx:
+                case CascodeParser.SlotMemberContext slotCtx:
                     state.Slots.Add(BuildSlot(slotCtx.slotDecl()));
                     break;
 
-                case ACIRParser.FillSectionContext fillCtx:
+                case CascodeParser.FillSectionContext fillCtx:
                     state.Fill = BuildFillBlock(fillCtx);
                     break;
 
-                case ACIRParser.ConstraintsSectionContext constraintsCtx:
+                case CascodeParser.ConstraintsSectionContext constraintsCtx:
                     state.Constraints = BuildConstraintsBlock(constraintsCtx);
                     break;
 
-                case ACIRParser.HarnessSectionContext harnessCtx:
+                case CascodeParser.HarnessSectionContext harnessCtx:
                     state.Harness = BuildHarnessBlock(harnessCtx);
                     break;
 
-                case ACIRParser.ProvenanceSectionContext provCtx:
+                case CascodeParser.ProvenanceSectionContext provCtx:
                     state.Provenance = BuildProvenanceBlock(provCtx);
                     break;
             }
@@ -95,7 +95,7 @@ internal sealed partial class ACIRAstBuilder
         return state;
     }
 
-    private static string BuildQualifiedName(ACIRParser.QualifiedNameContext ctx)
+    private static string BuildQualifiedName(CascodeParser.QualifiedNameContext ctx)
     {
         return string.Join(".", ctx.IDENT().Select(i => i.GetText()));
     }
@@ -120,7 +120,7 @@ internal sealed partial class ACIRAstBuilder
         List<SizeDeclaration> Sizes
     );
 
-    private CircuitSignature BuildCircuitSignature(ACIRParser.ParamSignatureContext? ctx)
+    private CircuitSignature BuildCircuitSignature(CascodeParser.ParamSignatureContext? ctx)
     {
         var parameters = new List<CircuitParameter>();
         var sizes = new List<SizeDeclaration>();
@@ -145,7 +145,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a circuit parameter declaration.</summary>
-    private CircuitParameter BuildCircuitParameter(ACIRParser.ParamDeclContext ctx)
+    private CircuitParameter BuildCircuitParameter(CascodeParser.ParamDeclContext ctx)
     {
         ParamValue? defaultValue = null;
         if (ctx.paramValue() != null)
@@ -162,7 +162,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a named size declaration.</summary>
-    private SizeDeclaration BuildSizeDeclaration(ACIRParser.ParamDeclContext ctx)
+    private SizeDeclaration BuildSizeDeclaration(CascodeParser.ParamDeclContext ctx)
     {
         SizePack? defaultPack = null;
         if (ctx.sizeExpr() != null)
@@ -175,7 +175,7 @@ internal sealed partial class ACIRAstBuilder
 
     /// <summary>Builds a size pack and reports duplicate keys.</summary>
     private SizePack BuildSizeExpression(
-        ACIRParser.SizeExprContext ctx,
+        CascodeParser.SizeExprContext ctx,
         Antlr4.Runtime.ParserRuleContext? diagnosticCtx = null
     )
     {
@@ -226,12 +226,12 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a parameter value from a literal, numeric, or symbolic token.</summary>
-    private static ParamValue BuildParamValue(ACIRParser.ParamValueContext ctx)
+    private static ParamValue BuildParamValue(CascodeParser.ParamValueContext ctx)
     {
         return BuildScalarValue(ctx.scalarExpr());
     }
 
-    private SlotDeclaration BuildSlot(ACIRParser.SlotDeclContext ctx)
+    private SlotDeclaration BuildSlot(CascodeParser.SlotDeclContext ctx)
     {
         var slot = new SlotDeclaration { Id = ctx.IDENT().GetText() };
         if (ctx.implementsClause()?.traitList() is { } traitsCtx)
@@ -243,7 +243,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (stmtCtx)
             {
-                case ACIRParser.SlotBindingContext bindingCtx:
+                case CascodeParser.SlotBindingContext bindingCtx:
                     var binding = bindingCtx.binding();
                     var pins = binding.pinRef();
                     var source = BuildPinRef(pins[0]);
@@ -251,7 +251,7 @@ internal sealed partial class ACIRAstBuilder
                     slot.Bindings[source] = target;
                     break;
 
-                case ACIRParser.SlotParamContext paramCtx:
+                case CascodeParser.SlotParamContext paramCtx:
                     var name = paramCtx.IDENT().GetText();
                     var value = BuildScalarValue(paramCtx.scalarExpr());
                     slot.Params[name] = value;
@@ -263,7 +263,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds the fill block containing nets, devices, instances, and connects.</summary>
-    private FillBlock BuildFillBlock(ACIRParser.FillSectionContext ctx)
+    private FillBlock BuildFillBlock(CascodeParser.FillSectionContext ctx)
     {
         var fill = new FillBlock();
 
@@ -271,7 +271,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (stmtCtx)
             {
-                case ACIRParser.FillNetDeclContext netCtx:
+                case CascodeParser.FillNetDeclContext netCtx:
                     fill.Nets.Add(
                         new NetDeclaration
                         {
@@ -281,7 +281,7 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.FillSizeDeclContext sizeCtx:
+                case CascodeParser.FillSizeDeclContext sizeCtx:
                     fill.Sizes.Add(
                         new SizeDeclaration
                         {
@@ -291,19 +291,19 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.FillDeviceDeclContext deviceCtx:
+                case CascodeParser.FillDeviceDeclContext deviceCtx:
                     fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
                     break;
 
-                case ACIRParser.FillInstanceDeclContext instanceCtx:
+                case CascodeParser.FillInstanceDeclContext instanceCtx:
                     fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
                     break;
 
-                case ACIRParser.FillAttachDeclContext attachCtx:
+                case CascodeParser.FillAttachDeclContext attachCtx:
                     fill.Attaches.Add(BuildAttach(attachCtx));
                     break;
 
-                case ACIRParser.FillConnectDeclContext connectCtx:
+                case CascodeParser.FillConnectDeclContext connectCtx:
                     var pins = connectCtx.pinRef();
                     fill.Connections.Add(
                         new ConnectionStatement
@@ -320,7 +320,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds a device declaration from its parse context.</summary>
-    private DeviceDeclaration BuildDevice(ACIRParser.DeviceDeclContext ctx)
+    private DeviceDeclaration BuildDevice(CascodeParser.DeviceDeclContext ctx)
     {
         var deviceType = ctx.DEVICE_TYPE().GetText();
         var deviceId = BuildDeviceId(ctx.deviceId());
@@ -350,12 +350,12 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    private static string BuildDeviceId(ACIRParser.DeviceIdContext ctx)
+    private static string BuildDeviceId(CascodeParser.DeviceIdContext ctx)
     {
         return string.Join(".", ctx.idPart().Select(p => p.GetText()));
     }
 
-    private static Dictionary<string, string> BuildBindings(ACIRParser.BindingListContext ctx)
+    private static Dictionary<string, string> BuildBindings(CascodeParser.BindingListContext ctx)
     {
         var bindings = new Dictionary<string, string>();
         if (ctx == null)
@@ -374,7 +374,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds an instance declaration with parameters and bindings.</summary>
-    private InstanceDeclaration BuildInstance(ACIRParser.InstanceDeclContext ctx)
+    private InstanceDeclaration BuildInstance(CascodeParser.InstanceDeclContext ctx)
     {
         var id = ctx.instanceId.Text;
         var type = ctx.instanceType.Text;
@@ -390,7 +390,7 @@ internal sealed partial class ACIRAstBuilder
             AddDiagnostic(
                 ctx.bindingBlock(),
                 DiagnosticSeverity.Error,
-                $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
+                $"CAS0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
             );
         }
 
@@ -425,7 +425,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds an attach statement and any connector overrides.</summary>
-    private AttachStatement BuildAttach(ACIRParser.FillAttachDeclContext ctx)
+    private AttachStatement BuildAttach(CascodeParser.FillAttachDeclContext ctx)
     {
         var sourceInstance = ctx.IDENT(0).GetText();
         var targetList = ctx.attachTargetList();
@@ -461,7 +461,7 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    private static ParamValue BuildScalarValue(ACIRParser.ScalarExprContext ctx)
+    private static ParamValue BuildScalarValue(CascodeParser.ScalarExprContext ctx)
     {
         if (ctx.UNSIZED() != null)
         {

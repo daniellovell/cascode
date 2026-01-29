@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public sealed partial class AttachResolver
 {
@@ -96,7 +96,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0024: Incompatible domain merge '{nodeA}' ({domainA}) -> '{nodeB}' ({domainB})",
+                    $"CAS0024: Incompatible domain merge '{nodeA}' ({domainA}) -> '{nodeB}' ({domainB})",
                     DiagnosticSeverity.Error,
                     circuitName,
                     1,

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Antlr4.Runtime;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Evaluates arithmetic expressions using the ANTLR-generated parser.
@@ -44,16 +44,16 @@ public static class ExpressionEvaluator
         return ParameterEvaluator.FormatNumeric(result);
     }
 
-    private static ACIRParser CreateParser(
+    private static CascodeParser CreateParser(
         string expression,
         List<string> errors,
         out CommonTokenStream tokenStream
     )
     {
         var inputStream = CharStreams.fromString(expression);
-        var lexer = new ACIRLexer(inputStream);
+        var lexer = new CascodeLexer(inputStream);
         tokenStream = new CommonTokenStream(lexer);
-        var parser = new ACIRParser(tokenStream);
+        var parser = new CascodeParser(tokenStream);
 
         lexer.RemoveErrorListeners();
         parser.RemoveErrorListeners();
@@ -103,7 +103,7 @@ public static class ExpressionEvaluator
         }
     }
 
-    private sealed class EvaluatingVisitor : ACIRBaseVisitor<double>
+    private sealed class EvaluatingVisitor : CascodeBaseVisitor<double>
     {
         private readonly Func<string, string?> _resolveIdentifier;
 
@@ -112,7 +112,7 @@ public static class ExpressionEvaluator
             _resolveIdentifier = resolveIdentifier;
         }
 
-        public override double VisitExpr(ACIRParser.ExprContext ctx)
+        public override double VisitExpr(CascodeParser.ExprContext ctx)
         {
             if (ctx.expr() is null)
             {
@@ -124,7 +124,7 @@ public static class ExpressionEvaluator
             return ctx.PLUS() is not null ? left + right : left - right;
         }
 
-        public override double VisitMulExpr(ACIRParser.MulExprContext ctx)
+        public override double VisitMulExpr(CascodeParser.MulExprContext ctx)
         {
             if (ctx.mulExpr() is null)
             {
@@ -138,7 +138,7 @@ public static class ExpressionEvaluator
                 : throw new DivideByZeroException();
         }
 
-        public override double VisitUnaryAtom(ACIRParser.UnaryAtomContext ctx)
+        public override double VisitUnaryAtom(CascodeParser.UnaryAtomContext ctx)
         {
             if (ctx.MINUS() is not null)
             {
@@ -148,7 +148,7 @@ public static class ExpressionEvaluator
             return Visit(ctx.exprAtom());
         }
 
-        public override double VisitExprAtom(ACIRParser.ExprAtomContext ctx)
+        public override double VisitExprAtom(CascodeParser.ExprAtomContext ctx)
         {
             if (ctx.expr() is not null)
             {

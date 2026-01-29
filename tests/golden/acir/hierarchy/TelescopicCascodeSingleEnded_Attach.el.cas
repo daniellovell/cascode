@@ -1,0 +1,162 @@
+VERSION 3.0
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+interface DiffPairLike {
+  output OUT : Diff
+}
+
+interface LoadPairLike {
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
+  connectors {
+    to DiffPairLike {
+      DRAIN--OUT
+    }
+    to LoadPairLike {
+      DRAIN--SOURCE
+    }
+  }
+}
+
+interface CurrentMirrorLike {
+  input RAIL : Diff
+  input SENSE : analog
+  output TAP[0] : analog
+  connectors {
+    to LoadPairLike {
+      SENSE--SOURCE.N
+      TAP[0]--SOURCE.P
+    }
+    to CurrentMirrorLike {
+      SENSE--RAIL.N
+      TAP[0]--RAIL.P
+    }
+  }
+}
+
+bench ACBench for SingleEndedOpAmp {
+  builtin SEOpAmpACBench
+  outputs {
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+  }
+}
+
+bench DCBench for SingleEndedOpAmp {
+  builtin SEOpAmpDCBench
+  outputs {
+    QuiescentPower
+  }
+}
+
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VBN : bias
+  input VTAIL : bias
+  fill {
+    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    nl = new LoadPair_N(Cascode=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    cm_lo = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    cm_hi = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+
+    attach nl to dp via LoadPairLike::DiffPairLike as n_stack
+    attach cm_lo to nl via CurrentMirrorLike::LoadPairLike as mirror_lo
+    attach cm_hi to cm_lo via CurrentMirrorLike::CurrentMirrorLike as mirror_hi
+
+    dp.IN--IN
+    dp.TAIL--VTAIL
+    nl.BIAS--VBN
+    cm_lo.TAP[0]--OUT
+    cm_hi.RAIL--VDD
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth >= 40MHz
+      c_gain = ACBench::PassbandGain >= 30dB
+      c_pm = ACBench::PhaseMargin >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 1mW
+    }
+    tech {
+      t_lmin : L >= 180nm on *
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VBN = 0.9V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  }
+}
+
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
+  fill {
+    net tnode : analog
+    nmos M_N = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    nmos M_P = new Level1_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    nmos M_TAIL = new Level1_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
+
+circuit LoadPair_N(size Cascode) implements LoadPairLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input BIAS : bias
+  io DRAIN : Diff
+  io SOURCE : Diff
+  fill {
+    nmos M_P = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.P, .G--BIAS, .S--DRAIN.P }
+    nmos M_N = new Level1_NMOS(Cascode) { .B--GND, .D--SOURCE.N, .G--BIAS, .S--DRAIN.N }
+  }
+}
+
+circuit CurrentMirror_P(size Mirror, int ratio=1) implements CurrentMirrorLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input RAIL : Diff
+  input SENSE : analog
+  output TAP[0] : analog
+  fill {
+    pmos M_SENSE = new Level1_PMOS(Mirror) { .B--VDD, .D--SENSE, .G--SENSE, .S--RAIL.N }
+    size MirrorMultiplied = size(Mirror.W, Mirror.L, Mirror.M*ratio)
+    pmos M_TAP0 = new Level1_PMOS(MirrorMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--RAIL.P }
+  }
+}

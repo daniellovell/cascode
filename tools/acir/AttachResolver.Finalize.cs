@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public sealed partial class AttachResolver
 {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Json;
+namespace Cascode.Language.Json;
 
 /// <summary>
 /// Converts between ACIRDocument and AcirJsonDocument representations.
@@ -72,7 +72,7 @@ public static class AcirJsonConverter
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0009: JSON parse error: {ex.Message}",
+                    $"CAS0009: JSON parse error: {ex.Message}",
                     DiagnosticSeverity.Error,
                     filePath,
                     1,
@@ -86,7 +86,7 @@ public static class AcirJsonConverter
         {
             diagnostics.Add(
                 new Diagnostic(
-                    "ACIR0009: Failed to parse JSON document (null result)",
+                    "CAS0009: Failed to parse JSON document (null result)",
                     DiagnosticSeverity.Error,
                     filePath,
                     1,
@@ -124,7 +124,7 @@ public static class AcirJsonConverter
         catch (FormatException ex)
         {
             diagnostics.Add(
-                new Diagnostic($"ACIR0002: {ex.Message}", DiagnosticSeverity.Error, filePath, 1, 1)
+                new Diagnostic($"CAS0002: {ex.Message}", DiagnosticSeverity.Error, filePath, 1, 1)
             );
             return new ACIRReadResult { Document = null, Diagnostics = diagnostics };
         }
@@ -134,7 +134,7 @@ public static class AcirJsonConverter
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
+                    $"CAS0007: ACIR major version {major} not supported. Expected major version {ACIRVersion.Major}.",
                     DiagnosticSeverity.Error,
                     filePath,
                     1,
@@ -149,7 +149,7 @@ public static class AcirJsonConverter
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0008: Invalid level '{jsonDoc.Circuit.Level}' - expected HL, ML, or EL",
+                    $"CAS0008: Invalid level '{jsonDoc.Circuit.Level}' - expected HL, ML, or EL",
                     DiagnosticSeverity.Error,
                     filePath,
                     1,
@@ -793,7 +793,7 @@ public static class AcirJsonConverter
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"ACIR0017: Invalid port direction '{port.Direction ?? "<missing>"}' for {owner} port '{port.Name}' - expected input, output, or io",
+                        $"CAS0017: Invalid port direction '{port.Direction ?? "<missing>"}' for {owner} port '{port.Name}' - expected input, output, or io",
                         DiagnosticSeverity.Error,
                         filePath,
                         1,

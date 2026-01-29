@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Parses string values into ParamValue instances with correct type classification.

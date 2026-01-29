@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Desugars bundle-typed constructs in an ACIR document into their canonical expanded form.

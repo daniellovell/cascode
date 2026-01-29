@@ -1,10 +1,10 @@
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class SpiceEmitterTests
 {
@@ -65,7 +65,7 @@ public class SpiceEmitterTests
     public void EmitVariant_FullyResolvesParameters()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
   device ""level1_nmos""
@@ -94,7 +94,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "indirect-sizes.cir");
+        var result = ACIRReader.TryParse(acir, "indirect-sizes.cas");
         Assert.True(result.Success);
         var doc = result.Document!;
         var circuit = doc.Circuits.Single(c => c.Name == "Top");
@@ -358,7 +358,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void ACIRReader_ParsesELCircuit()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);
@@ -473,7 +473,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void ACIRReader_ParsesCommonSourceAmpWithBias()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);
@@ -509,7 +509,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void ACIRReader_ParsesCSAmpResistiveWithResistor()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cas");
 
         using var reader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(reader);

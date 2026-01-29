@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Cascode.ACIR.Validation;
 using Cascode.Bench;
+using Cascode.Language.Validation;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Emits SPICE netlists from ACIR EL documents.

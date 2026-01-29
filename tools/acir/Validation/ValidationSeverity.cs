@@ -1,4 +1,4 @@
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Severity level for validation diagnostics.

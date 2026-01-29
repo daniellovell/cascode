@@ -53,7 +53,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -112,7 +112,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/cs/CommonSourceAmp_MultiBench.el.cir"
+            "tests/golden/acir/cs/CommonSourceAmp_MultiBench.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -179,7 +179,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -237,7 +237,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     public async Task BenchRun_PdkSetDir_UsesPdkIncludesAndSimulates()
     {
         var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cas");
         var outputDir = Path.Combine(_outputDir, "pdk-setdir-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(outputDir);
 
@@ -284,7 +284,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     public async Task BenchRun_PdkWorkspaceFlag_UsesPdkIncludesAndSimulates()
     {
         var pdkRoot = Path.Combine(_repoRoot, "tests/fixtures/pdk/sky130");
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cas");
         var outputDir = Path.Combine(
             _outputDir,
             "pdk-workspace-" + Guid.NewGuid().ToString("N")[..8]
@@ -327,7 +327,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_FD_OTA_ACBench_ProducesValidMeasurements()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
@@ -378,7 +378,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_SE_OTA_ACBench_ProducesValidMeasurements()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(60),
@@ -434,7 +434,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     public async Task BenchRun_OTA5T_Hierarchical_MatchesFlatVersion()
     {
         // Run bench on flat OTA5TSingleEnded
-        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
         var flatOutputDir = Path.Combine(_outputDir, "flat");
         Directory.CreateDirectory(flatOutputDir);
 
@@ -453,7 +453,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on hierarchical OTA5T_Hierarchical
         var hierarchicalAcirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
         var hierarchicalOutputDir = Path.Combine(_outputDir, "hierarchical");
         Directory.CreateDirectory(hierarchicalOutputDir);
@@ -579,7 +579,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
     public async Task BenchRun_OTA5T_Hierarchical_Attach_MatchesFlatVersion()
     {
         // Run bench on flat OTA5TSingleEnded
-        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var flatAcirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
         var flatOutputDir = Path.Combine(_outputDir, "flat");
         Directory.CreateDirectory(flatOutputDir);
 
@@ -598,7 +598,7 @@ public sealed partial class BenchRunIntegrationTests : IDisposable
         // Run bench on hierarchical-attach OTA5T_Hierarchical_Attach
         var attachAcirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
         var attachOutputDir = Path.Combine(_outputDir, "attach");
         Directory.CreateDirectory(attachOutputDir);

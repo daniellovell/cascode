@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using Xunit;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ACIRVersionTests
 {
@@ -19,14 +19,14 @@ public class ACIRVersionTests
             return;
         }
 
-        var cirFiles = Directory.GetFiles(goldenDir, "*.cir", SearchOption.AllDirectories);
+        var casFiles = Directory.GetFiles(goldenDir, "*.cas", SearchOption.AllDirectories);
 
-        foreach (var file in cirFiles)
+        foreach (var file in casFiles)
         {
             var firstLine = File.ReadLines(file).FirstOrDefault();
             Assert.NotNull(firstLine);
 
-            var expected = $"ACIR {ACIRVersion.Current}";
+            var expected = $"VERSION {ACIRVersion.Current}";
             Assert.True(
                 firstLine.StartsWith(expected),
                 $"File {Path.GetRelativePath(repoRoot, file)} has version header '{firstLine}' but expected '{expected}'. "
@@ -40,7 +40,7 @@ public class ACIRVersionTests
     {
         var differentMinor = ACIRVersion.Minor + 4;
         var content =
-            $"ACIR {ACIRVersion.Major}.{differentMinor}\n" + "circuit Test {\n  level EL\n}\n";
+            $"VERSION {ACIRVersion.Major}.{differentMinor}\n" + "circuit Test {\n  level EL\n}\n";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success); // No error for minor mismatch
         Assert.Equal(ACIRVersion.Major, result.Document!.VersionMajor);
@@ -51,10 +51,10 @@ public class ACIRVersionTests
     public void Reader_RejectsDifferentMajor()
     {
         var differentMajor = ACIRVersion.Major + 1;
-        var content = $"ACIR {differentMajor}.0\n" + "circuit Test {\n  level EL\n}\n";
+        var content = $"VERSION {differentMajor}.0\n" + "circuit Test {\n  level EL\n}\n";
         var result = ACIRReader.TryParse(content);
         Assert.False(result.Success);
-        Assert.Contains(result.Diagnostics, d => d.Message.Contains("ACIR0007"));
+        Assert.Contains(result.Diagnostics, d => d.Message.Contains("CAS0007"));
     }
 
     private static string FindRepoRoot()

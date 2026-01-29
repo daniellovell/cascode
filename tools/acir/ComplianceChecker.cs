@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Cascode.Bench;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Checks circuit constraints against bench measurement results.

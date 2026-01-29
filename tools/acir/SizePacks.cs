@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Declares a named size pack on a circuit with an optional default.

@@ -1,4 +1,4 @@
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// ACIR format version constants.

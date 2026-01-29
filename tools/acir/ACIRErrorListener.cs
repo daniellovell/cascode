@@ -3,7 +3,7 @@ using System.IO;
 using Antlr4.Runtime;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// ANTLR error listener that collects lexer and parser errors into the ACIR diagnostic list.
@@ -28,7 +28,7 @@ internal sealed class ACIRErrorListener : IAntlrErrorListener<IToken>, IAntlrErr
     {
         _diagnostics.Add(
             new Diagnostic(
-                $"ACIR0001: {message}",
+                $"CAS0001: {message}",
                 DiagnosticSeverity.Error,
                 _filePath,
                 line,

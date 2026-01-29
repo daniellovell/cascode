@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using Cascode.ACIR;
+using Cascode.Language;
 using Xunit;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class VariantNamingTests
 {

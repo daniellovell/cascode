@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Validates hierarchical ACIR documents for circuit references, parameters, and port coverage.

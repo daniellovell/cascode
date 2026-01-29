@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Result of validating an ACIR circuit, containing validation diagnostics.

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Performs electrical rule checking (ERC) on ACIR circuits to detect invalid circuit topologies.

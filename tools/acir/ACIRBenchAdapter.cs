@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using Cascode.Bench;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Adapter that converts ACIR circuits and bench definitions to TestbenchContext.

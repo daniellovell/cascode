@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public sealed partial class AttachResolver
 {

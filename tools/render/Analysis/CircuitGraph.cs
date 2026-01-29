@@ -1,6 +1,6 @@
 namespace Cascode.Render.Analysis;
 
-using Cascode.ACIR;
+using Cascode.Language;
 
 /// <summary>
 /// Represents a connection from a device terminal to a net.

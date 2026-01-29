@@ -127,13 +127,6 @@
         "resolved": "13.7.1",
         "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
       },
-      "cascode.acir": {
-        "type": "Project",
-        "dependencies": {
-          "Cascode.Bench": "[0.4.0, )",
-          "Cascode.Parser": "[0.4.0, )"
-        }
-      },
       "cascode.bench": {
         "type": "Project",
         "dependencies": {
@@ -142,11 +135,16 @@
           "YamlDotNet": "[13.7.1, )"
         }
       },
-      "cascode.parser": {
+      "cascode.language": {
         "type": "Project",
         "dependencies": {
-          "Antlr4.Runtime.Standard": "[4.13.1, )"
+          "Antlr4.Runtime.Standard": "[4.13.1, )",
+          "Cascode.Bench": "[0.4.0, )",
+          "Cascode.Parser": "[0.4.0, )"
         }
+      },
+      "cascode.parser": {
+        "type": "Project"
       }
     }
   }

@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using Cascode.ACIR;
-using Cascode.ACIR.Json;
+using Cascode.Language;
+using Cascode.Language.Json;
 using Cascode.TestSupport;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class AcirJsonConverterRoundTripTests
 {
@@ -169,7 +169,7 @@ public class AcirJsonConverterRoundTripTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
         );
 
         ACIRDocument doc;

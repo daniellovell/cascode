@@ -1,4 +1,4 @@
-namespace Cascode.ACIR.Json;
+namespace Cascode.Language.Json;
 
 /// <summary>
 /// JSON schema constants for ACIR JSON serialization.

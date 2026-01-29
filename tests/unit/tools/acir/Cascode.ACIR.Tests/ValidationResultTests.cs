@@ -1,7 +1,7 @@
 using System.Text.Json;
-using Cascode.ACIR.Validation;
+using Cascode.Language.Validation;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ValidationResultTests
 {

@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Result of attach resolution for the entire document.

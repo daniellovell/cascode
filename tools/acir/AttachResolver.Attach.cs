@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public sealed partial class AttachResolver
 {
@@ -56,7 +56,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0022: Malformed via clause '{attach.Via}'",
+                    $"CAS0022: Malformed via clause '{attach.Via}'",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -73,7 +73,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0021: Undefined trait '{sourceTraitName}' in attach via clause",
+                    $"CAS0021: Undefined trait '{sourceTraitName}' in attach via clause",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -90,7 +90,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0023: No connector from '{sourceTraitName}' to '{targetTraitName}'",
+                    $"CAS0023: No connector from '{sourceTraitName}' to '{targetTraitName}'",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -158,7 +158,7 @@ public sealed partial class AttachResolver
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"ACIR0024: Domain mismatch in attach: {sourcePort} ({sourcePortDomain}) vs {targetPort} ({targetPortDomain})",
+                        $"CAS0024: Domain mismatch in attach: {sourcePort} ({sourcePortDomain}) vs {targetPort} ({targetPortDomain})",
                         DiagnosticSeverity.Error,
                         circuit.Name,
                         1,
@@ -213,7 +213,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0020: Attach would merge distinct named nets '{conflict.FromNet}' and '{conflict.ToNet}'; use explicit 'connect' to unify",
+                    $"CAS0020: Attach would merge distinct named nets '{conflict.FromNet}' and '{conflict.ToNet}'; use explicit 'connect' to unify",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -260,7 +260,7 @@ public sealed partial class AttachResolver
         {
             diagnostics.Add(
                 new Diagnostic(
-                    "ACIR0025: Cannot auto-create supply/ground net; bind rails explicitly",
+                    "CAS0025: Cannot auto-create supply/ground net; bind rails explicitly",
                     DiagnosticSeverity.Error,
                     circuit.Name,
                     1,
@@ -293,7 +293,7 @@ public sealed partial class AttachResolver
 
         diagnostics.Add(
             new Diagnostic(
-                $"ACIR0024: Incompatible domain merge '{expectedDomain}' -> '{nodeDomain}'",
+                $"CAS0024: Incompatible domain merge '{expectedDomain}' -> '{nodeDomain}'",
                 DiagnosticSeverity.Error,
                 circuitName,
                 1,

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Union-find data structure for net connectivity.

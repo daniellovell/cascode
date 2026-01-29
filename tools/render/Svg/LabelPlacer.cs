@@ -590,7 +590,7 @@ public sealed class LabelPlacer
         return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
     }
 
-    private static string FormatParams(ACIR.DeviceDeclaration device)
+    private static string FormatParams(Language.DeviceDeclaration device)
     {
         var parts = new List<string>();
         var type = device.DeviceType.ToLowerInvariant();

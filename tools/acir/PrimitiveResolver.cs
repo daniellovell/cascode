@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public static class PrimitiveResolver
 {

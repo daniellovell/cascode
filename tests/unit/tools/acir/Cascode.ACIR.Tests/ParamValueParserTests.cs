@@ -1,6 +1,6 @@
-using Cascode.ACIR;
+using Cascode.Language;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ParamValueParserTests
 {

@@ -1,4 +1,4 @@
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Defines the elaboration level of an ACIR document.

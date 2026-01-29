@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Cascode.ACIR.Json;
+namespace Cascode.Language.Json;
 
 /// <summary>
 /// Root JSON document representing an ACIR-EL circuit.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Bench;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Harness for ACIR-based testbenches that uses embedded templates.

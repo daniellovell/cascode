@@ -3,14 +3,14 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 internal sealed partial class ACIRAstBuilder
 {
     /// <summary>Builds the constraints block from its section context.</summary>
     /// <param name="ctx">Constraints section context.</param>
     /// <returns>Constraints block.</returns>
-    private ConstraintsBlock BuildConstraintsBlock(ACIRParser.ConstraintsSectionContext ctx)
+    private ConstraintsBlock BuildConstraintsBlock(CascodeParser.ConstraintsSectionContext ctx)
     {
         var constraints = new ConstraintsBlock();
 
@@ -18,21 +18,21 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (sectionCtx)
             {
-                case ACIRParser.NumericSectionContext numericCtx:
+                case CascodeParser.NumericSectionContext numericCtx:
                     foreach (var constraintCtx in numericCtx.numericConstraint())
                     {
                         constraints.Numeric.Add(BuildNumericConstraint(constraintCtx));
                     }
                     break;
 
-                case ACIRParser.TechSectionContext techCtx:
+                case CascodeParser.TechSectionContext techCtx:
                     foreach (var constraintCtx in techCtx.techConstraint())
                     {
                         constraints.Tech.Add(BuildTechConstraint(constraintCtx));
                     }
                     break;
 
-                case ACIRParser.GraphSectionContext graphCtx:
+                case CascodeParser.GraphSectionContext graphCtx:
                     foreach (var constraintCtx in graphCtx.graphConstraint())
                     {
                         constraints.Graph.Add(BuildGraphConstraint(constraintCtx));
@@ -47,7 +47,9 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a numeric constraint from its parse context.</summary>
     /// <param name="ctx">Numeric constraint context.</param>
     /// <returns>Numeric constraint.</returns>
-    private static NumericConstraint BuildNumericConstraint(ACIRParser.NumericConstraintContext ctx)
+    private static NumericConstraint BuildNumericConstraint(
+        CascodeParser.NumericConstraintContext ctx
+    )
     {
         var id = ctx.IDENT().GetText();
         var benchRef = ctx.benchMetricRef();
@@ -73,7 +75,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a technology constraint from its parse context.</summary>
     /// <param name="ctx">Tech constraint context.</param>
     /// <returns>Technology constraint.</returns>
-    private static TechConstraint BuildTechConstraint(ACIRParser.TechConstraintContext ctx)
+    private static TechConstraint BuildTechConstraint(CascodeParser.TechConstraintContext ctx)
     {
         var id = ctx.IDENT(0).GetText();
         var param = ctx.IDENT(1).GetText();
@@ -96,7 +98,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a graph constraint with optional properties.</summary>
     /// <param name="ctx">Graph constraint context.</param>
     /// <returns>Graph constraint.</returns>
-    private static GraphConstraint BuildGraphConstraint(ACIRParser.GraphConstraintContext ctx)
+    private static GraphConstraint BuildGraphConstraint(CascodeParser.GraphConstraintContext ctx)
     {
         var id = ctx.IDENT(0).GetText();
         var rule = ctx.IDENT(1).GetText();
@@ -126,7 +128,7 @@ internal sealed partial class ACIRAstBuilder
         };
     }
 
-    private static NodeRef BuildNodeRef(ACIRParser.NodeRefContext ctx)
+    private static NodeRef BuildNodeRef(CascodeParser.NodeRefContext ctx)
     {
         var scopeToken = ctx.nodeScope();
         var scope =
@@ -140,7 +142,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds the harness block for supplies, biases, loads, and sweeps.</summary>
     /// <param name="ctx">Harness section context.</param>
     /// <returns>Harness block.</returns>
-    private HarnessBlock BuildHarnessBlock(ACIRParser.HarnessSectionContext ctx)
+    private HarnessBlock BuildHarnessBlock(CascodeParser.HarnessSectionContext ctx)
     {
         var supplies = new List<SupplyValue>();
         var biases = new List<BiasValue>();
@@ -154,7 +156,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (stmtCtx)
             {
-                case ACIRParser.HarnessSupplyContext supplyCtx:
+                case CascodeParser.HarnessSupplyContext supplyCtx:
                     supplies.Add(
                         new SupplyValue
                         {
@@ -164,7 +166,7 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.HarnessBiasContext biasCtx:
+                case CascodeParser.HarnessBiasContext biasCtx:
                     biases.Add(
                         new BiasValue
                         {
@@ -174,11 +176,11 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.HarnessLoadContext loadCtx:
+                case CascodeParser.HarnessLoadContext loadCtx:
                     loads.Add(BuildLoad(loadCtx));
                     break;
 
-                case ACIRParser.HarnessSourceContext sourceCtx:
+                case CascodeParser.HarnessSourceContext sourceCtx:
                     var sourceSpec = sourceCtx.sourceSpec();
                     var zValue =
                         sourceSpec.QUANTITY()?.GetText()
@@ -192,11 +194,11 @@ internal sealed partial class ACIRAstBuilder
                     sources.Add(new SourceValue { Net = sourceCtx.IDENT().GetText(), Z = zValue });
                     break;
 
-                case ACIRParser.HarnessSweepContext sweepCtx:
+                case CascodeParser.HarnessSweepContext sweepCtx:
                     sweeps.Add(BuildSweep(sweepCtx));
                     break;
 
-                case ACIRParser.HarnessIcmrContext icmrCtx:
+                case CascodeParser.HarnessIcmrContext icmrCtx:
                     icmr = new IcmrRange
                     {
                         Min = icmrCtx.QUANTITY(0).GetText(),
@@ -204,7 +206,7 @@ internal sealed partial class ACIRAstBuilder
                     };
                     break;
 
-                case ACIRParser.HarnessPvtContext pvtCtx:
+                case CascodeParser.HarnessPvtContext pvtCtx:
                     pvt.AddRange(pvtCtx.pvtList().IDENT().Select(i => i.GetText()));
                     break;
             }
@@ -225,7 +227,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a load value with one or more load elements.</summary>
     /// <param name="ctx">Harness load context.</param>
     /// <returns>Load value.</returns>
-    private static LoadValue BuildLoad(ACIRParser.HarnessLoadContext ctx)
+    private static LoadValue BuildLoad(CascodeParser.HarnessLoadContext ctx)
     {
         var net = ctx.IDENT().GetText();
         var elements = new List<LoadElement>();
@@ -233,14 +235,14 @@ internal sealed partial class ACIRAstBuilder
         var loadSpec = ctx.loadSpec();
         switch (loadSpec)
         {
-            case ACIRParser.SimpleLoadSpecContext simpleCtx:
+            case CascodeParser.SimpleLoadSpecContext simpleCtx:
                 foreach (var elemCtx in simpleCtx.loadElement())
                 {
                     elements.Add(BuildLoadElement(elemCtx));
                 }
                 break;
 
-            case ACIRParser.ParenLoadSpecContext parenCtx:
+            case CascodeParser.ParenLoadSpecContext parenCtx:
                 foreach (var elemCtx in parenCtx.loadElement())
                 {
                     elements.Add(BuildLoadElement(elemCtx));
@@ -254,7 +256,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a single load element from its parse context.</summary>
     /// <param name="ctx">Load element context.</param>
     /// <returns>Load element.</returns>
-    private static LoadElement BuildLoadElement(ACIRParser.LoadElementContext ctx)
+    private static LoadElement BuildLoadElement(CascodeParser.LoadElementContext ctx)
     {
         var idents = ctx.IDENT();
         var type = idents[0].GetText();
@@ -273,7 +275,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a sweep condition from its parse context.</summary>
     /// <param name="ctx">Harness sweep context.</param>
     /// <returns>Sweep condition.</returns>
-    private static SweepCondition BuildSweep(ACIRParser.HarnessSweepContext ctx)
+    private static SweepCondition BuildSweep(CascodeParser.HarnessSweepContext ctx)
     {
         var name = ctx.IDENT().GetText();
         var sweepSpec = ctx.sweepSpec();
@@ -292,7 +294,7 @@ internal sealed partial class ACIRAstBuilder
         var rangeCtx = sweepSpec.sweepRange();
         switch (rangeCtx)
         {
-            case ACIRParser.ExplicitSweepContext explicitCtx:
+            case CascodeParser.ExplicitSweepContext explicitCtx:
                 return new SweepCondition
                 {
                     Name = name,
@@ -302,7 +304,7 @@ internal sealed partial class ACIRAstBuilder
                     IsAuto = false,
                 };
 
-            case ACIRParser.AutoStepSweepContext autoCtx:
+            case CascodeParser.AutoStepSweepContext autoCtx:
                 return new SweepCondition
                 {
                     Name = name,
@@ -319,7 +321,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a sweep value string, normalizing units when needed.</summary>
     /// <param name="ctx">Sweep value context.</param>
     /// <returns>Normalized sweep value.</returns>
-    private static string BuildSweepValue(ACIRParser.SweepValueContext ctx)
+    private static string BuildSweepValue(CascodeParser.SweepValueContext ctx)
     {
         if (ctx.QUANTITY() != null)
         {
@@ -338,7 +340,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds a harness value string, normalizing units when needed.</summary>
     /// <param name="ctx">Harness value context.</param>
     /// <returns>Normalized harness value.</returns>
-    private static string BuildHarnessValue(ACIRParser.HarnessValueContext ctx)
+    private static string BuildHarnessValue(CascodeParser.HarnessValueContext ctx)
     {
         if (ctx.QUANTITY() != null)
         {
@@ -357,7 +359,7 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds the provenance block with sources, transforms, and aliases.</summary>
     /// <param name="ctx">Provenance section context.</param>
     /// <returns>Provenance block.</returns>
-    private static ProvenanceBlock BuildProvenanceBlock(ACIRParser.ProvenanceSectionContext ctx)
+    private static ProvenanceBlock BuildProvenanceBlock(CascodeParser.ProvenanceSectionContext ctx)
     {
         var provenance = new ProvenanceBlock();
 
@@ -365,7 +367,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (entryCtx)
             {
-                case ACIRParser.ProvenanceSourceContext sourceCtx:
+                case CascodeParser.ProvenanceSourceContext sourceCtx:
                     var file = sourceCtx.STRING().GetText()[1..^1]; // Remove quotes
                     int? fromLine = null;
                     int? toLine = null;
@@ -384,11 +386,11 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.ProvenanceTransformContext transformCtx:
+                case CascodeParser.ProvenanceTransformContext transformCtx:
                     provenance.Transforms.Add(transformCtx.STRING().GetText()[1..^1]);
                     break;
 
-                case ACIRParser.ProvenanceAliasContext aliasCtx:
+                case CascodeParser.ProvenanceAliasContext aliasCtx:
                     provenance.Aliases[aliasCtx.IDENT(0).GetText()] = aliasCtx.IDENT(1).GetText();
                     break;
             }

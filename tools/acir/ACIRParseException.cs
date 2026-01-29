@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Exception thrown when ACIR parsing fails.

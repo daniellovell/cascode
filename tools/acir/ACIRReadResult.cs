@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Result of reading an ACIR document, containing the parsed document and any diagnostics.

@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using Cascode.ACIR;
 using Cascode.Bench;
+using Cascode.Language;
 using Cascode.TestSupport;
 using Xunit;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ComplianceCheckerTests
 {
@@ -266,7 +266,7 @@ public class ComplianceCheckerTests
     public void Check_WithGoldenACIR_ParsesAndHas4Constraints()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         using var acirReader = File.OpenText(acirPath);
         var doc = ACIRReader.Read(acirReader);
@@ -682,7 +682,7 @@ public class ComplianceCheckerTests
     public void Check_WithGoldenACIR_BenchAwareFiltering_ACBenchReturns3of3()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
         var resultsPath = Path.Combine(
             repoRoot,
             "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"

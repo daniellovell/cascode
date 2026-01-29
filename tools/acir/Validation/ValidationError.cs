@@ -1,4 +1,4 @@
-namespace Cascode.ACIR.Validation;
+namespace Cascode.Language.Validation;
 
 /// <summary>
 /// Represents a single validation error or warning with location and suggestion.

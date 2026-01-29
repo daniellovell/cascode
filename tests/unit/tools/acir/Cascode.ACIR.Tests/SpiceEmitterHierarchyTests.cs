@@ -1,9 +1,9 @@
 using System.IO;
-using Cascode.ACIR;
-using Cascode.ACIR.Validation;
+using Cascode.Language;
+using Cascode.Language.Validation;
 using Cascode.TestSupport;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class SpiceEmitterHierarchyTests
 {
@@ -1013,7 +1013,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1049,7 +1049,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/CurrentMirror_Standalone.el.cir"
+            "tests/golden/acir/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1092,7 +1092,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1125,7 +1125,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1145,7 +1145,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1191,7 +1191,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);
@@ -1221,7 +1221,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var acirPath = Path.Combine(
             repoRoot,
-            "tests/golden/acir/hierarchy/CurrentMirror_Standalone.el.cir"
+            "tests/golden/acir/hierarchy/CurrentMirror_Standalone.el.cas"
         );
 
         using var reader = File.OpenText(acirPath);

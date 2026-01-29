@@ -52,7 +52,7 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
 
         foreach (var jsonFile in jsonFiles)
         {
-            var match = FindMatchingCirFile(jsonFile, failures);
+            var match = FindMatchingCasFile(jsonFile, failures);
             if (match == null)
             {
                 continue;
@@ -60,14 +60,14 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
 
             var jsonToAcirOutput = Path.Combine(
                 _outputDir,
-                $"{Path.GetFileNameWithoutExtension(jsonFile)}.roundtrip.el.cir"
+                $"{Path.GetFileNameWithoutExtension(jsonFile)}.roundtrip.el.cas"
             );
             var jsonToAcir = await CliIntegrationTestHelper.RunCliAsync(
                 TimeSpan.FromSeconds(30),
                 _cascodeHome,
                 "convert",
                 jsonFile,
-                "--acir",
+                "--cascode",
                 "-o",
                 jsonToAcirOutput
             );
@@ -117,11 +117,11 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
         }
     }
 
-    private string? FindMatchingCirFile(string jsonFile, List<string> failures)
+    private string? FindMatchingCasFile(string jsonFile, List<string> failures)
     {
         var acirRoot = Path.Combine(_repoRoot, "tests", "golden", "acir");
         var baseName = Path.GetFileNameWithoutExtension(jsonFile);
-        var targetFileName = $"{baseName}.cir";
+        var targetFileName = $"{baseName}.cas";
 
         var matches = Directory
             .GetFiles(acirRoot, targetFileName, SearchOption.AllDirectories)
@@ -136,14 +136,14 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
 
         if (matches.Count == 0)
         {
-            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cir found");
+            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cas found");
             return null;
         }
 
         if (matches.Count > 1)
         {
             failures.Add(
-                $"{Path.GetFileName(jsonFile)}: Multiple .el.cir matches: {string.Join(", ", matches)}"
+                $"{Path.GetFileName(jsonFile)}: Multiple .el.cas matches: {string.Join(", ", matches)}"
             );
             return null;
         }

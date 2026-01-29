@@ -4,8 +4,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>CS3021</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
-  </ItemGroup>
 </Project>

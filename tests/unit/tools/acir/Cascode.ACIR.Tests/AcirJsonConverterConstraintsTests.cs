@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Text.Json;
-using Cascode.ACIR;
-using Cascode.ACIR.Json;
+using Cascode.Language;
+using Cascode.Language.Json;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class AcirJsonConverterConstraintsTests
 {

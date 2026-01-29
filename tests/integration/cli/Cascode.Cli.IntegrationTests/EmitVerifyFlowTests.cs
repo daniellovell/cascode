@@ -51,7 +51,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_OTA_GeneratesDesignAndTestbench()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -90,7 +90,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_CS_GeneratesDesignAndTestbench()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -119,7 +119,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_WithPassingResults_ReturnsSuccess()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
@@ -145,7 +145,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_WithFailingResults_ReturnsFailure()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         // Create a failing results file
         var failingResultsPath = Path.Combine(_outputDir, "failing_results.json");
@@ -205,7 +205,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_CSAmp_WithPassingResults_ReturnsSuccess()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/cs/CSAmpResistive_ACBench_results.json"
@@ -229,7 +229,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task EmitVerifyFlow_EndToEnd_WorksCorrectly()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         // Step 1: Emit
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -318,7 +318,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_MissingACIR_ReturnsError()
     {
-        var nonExistentPath = Path.Combine(_outputDir, "nonexistent.cir");
+        var nonExistentPath = Path.Combine(_outputDir, "nonexistent.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
@@ -341,7 +341,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_MissingResults_ReturnsError()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
         var nonExistentResults = Path.Combine(_outputDir, "nonexistent_results.json");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -361,7 +361,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_MissingTerminal_ReturnsExitCode2()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -380,7 +380,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_UndefinedNet_ReturnsExitCode2()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/undefined_net.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/undefined_net.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -399,7 +399,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_MissingParam_ReturnsExitCode2()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_param.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_param.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -418,7 +418,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_InvalidCircuit_MLLevel_ReturnsExitCode2()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/ml_level.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/ml_level.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -436,7 +436,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ValidCircuit_ReturnsSuccess()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -452,7 +452,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_FloatingGate_ReturnsExitCode1()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -469,7 +469,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_VddGndShort_ReturnsExitCode1()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -487,7 +487,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     public async Task Erc_StructurallyInvalid_ReturnsExitCode2()
     {
         // ERC on a structurally invalid file (missing terminal) should return exit code 2
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -504,7 +504,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_RequirePdk_WarningBecomesError()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CSAmpResistive.el.cas");
 
         // Without --require-pdk, should pass with warning
         var resultWithoutFlag = await CliIntegrationTestHelper.RunCliAsync(
@@ -550,7 +550,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_JsonOutput_ReturnsValidJson()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -570,7 +570,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_JsonOutput_WithErrors_ReturnsValidJson()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -593,7 +593,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_PassiveShort_ReturnsERC007()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -614,7 +614,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TSingleEnded_unsized.ml.cir"
+            "tests/golden/acir/ota/OTA5TSingleEnded_unsized.ml.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -631,7 +631,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_FloatingGate_ReturnsExitCode1()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.ml.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/floating_gate.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -648,7 +648,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_MissingGateBinding_ReturnsExitCode1()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_gate.ml.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_gate.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -665,7 +665,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_VddGndShort_ReturnsExitCode1()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.ml.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/vdd_gnd_short.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -682,7 +682,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Erc_ML_PassiveShort_ReturnsERC007()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.ml.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/passive_short.ml.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -701,7 +701,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.ml.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.ml.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -721,7 +721,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_JsonOutput_ReturnsValidJson()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -743,7 +743,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_JsonOutput_WithErrors_ReturnsValidJson()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/missing_terminal.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -766,7 +766,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -801,7 +801,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -834,7 +834,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cas"
         );
         var resultsPath = Path.Combine(
             _repoRoot,
@@ -859,7 +859,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     public async Task Emit_InvalidAutoAtEL_ReturnsExitCode2()
     {
         // Test that [Auto] at EL level is rejected
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/auto_sweep_el.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/invalid/auto_sweep_el.el.cas");
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
             _cascodeHome,
@@ -879,7 +879,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cir"
+            "tests/golden/acir/cs/CSAmpResistive_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -913,7 +913,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TSingleEnded_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -945,7 +945,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_CommonSourceAmp_SpiceSimulatesSuccessfully()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/cs/CommonSourceAmp.el.cas");
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -987,13 +987,13 @@ public partial class EmitVerifyFlowTests : IDisposable
 
         var cases = new (string AcirRel, string BenchFile)[]
         {
-            ("tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cir", "CommonSourceAmp_Pdk_ACBench.sp"),
+            ("tests/golden/acir/cs/CommonSourceAmp_Pdk.el.cas", "CommonSourceAmp_Pdk_ACBench.sp"),
             (
-                "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cir",
+                "tests/golden/acir/ota/OTA5TSingleEnded_Pdk.el.cas",
                 "OTA5TSingleEnded_Pdk_ACBench.sp"
             ),
             (
-                "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cir",
+                "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach_Pdk.el.cas",
                 "OTA5T_Hierarchical_Attach_Pdk_ACBench.sp"
             ),
         };
@@ -1039,7 +1039,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_OTA_ACBench_PrintsNumericResultValues()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TSingleEnded.el.cas");
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1071,7 +1071,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_FD_OTA_GeneratesDesignAndTestbench()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1110,7 +1110,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_FD_OTA_DCBench_GeneratesSplitDifferentialLoads()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cas");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1141,7 +1141,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -1168,7 +1168,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Verify_FD_OTA_WithPassingResults_ReturnsSuccess()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cas");
         var resultsPath = Path.Combine(
             _repoRoot,
             "tests/golden/results/ota/OTA5TFullyDiff_ACBench_results.json"
@@ -1195,7 +1195,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Emit_FD_OTA_ACBench_SpiceSimulatesSuccessfully()
     {
-        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cir");
+        var acirPath = Path.Combine(_repoRoot, "tests/golden/acir/ota/OTA5TFullyDiff.el.cas");
 
         // Emit SPICE files
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1233,7 +1233,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cir"
+            "tests/golden/acir/ota/OTA5TFullyDiff_DCSwept.el.cas"
         );
 
         // Emit SPICE files
@@ -1266,7 +1266,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1321,7 +1321,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1356,7 +1356,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1411,7 +1411,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cir"
+            "tests/golden/acir/hierarchy/OTA5T_Hierarchical_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1446,7 +1446,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1504,7 +1504,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(
@@ -1539,7 +1539,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
         );
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -1597,7 +1597,7 @@ public partial class EmitVerifyFlowTests : IDisposable
     {
         var acirPath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cir"
+            "tests/golden/acir/hierarchy/TelescopicCascodeSingleEnded_Attach.el.cas"
         );
 
         var emitResult = await CliIntegrationTestHelper.RunCliAsync(

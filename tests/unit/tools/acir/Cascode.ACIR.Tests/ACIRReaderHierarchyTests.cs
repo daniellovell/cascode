@@ -1,9 +1,9 @@
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Parser;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ACIRReaderHierarchyTests
 {
@@ -11,7 +11,7 @@ public class ACIRReaderHierarchyTests
     public void TryRead_TraitDefinition_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 interface CurrentMirror {{
   input IN : analog
@@ -26,7 +26,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -43,7 +43,7 @@ circuit TestCircuit {{
     public void TryRead_TraitWithConnectors_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 interface CurrentMirror {{
   input IN : analog
@@ -62,7 +62,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -80,7 +80,7 @@ circuit TestCircuit {{
     public void TryRead_CircuitWithInline_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit CurrentMirror {{
   level EL
@@ -92,7 +92,7 @@ circuit CurrentMirror {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -104,7 +104,7 @@ circuit CurrentMirror {{
     public void TryRead_CircuitWithoutInline_DefaultsFalse()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -113,7 +113,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -124,7 +124,7 @@ circuit TestCircuit {{
     public void TryRead_CircuitParameters_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit(real ratio=2, real width, int count=4) {{
   level EL
@@ -133,7 +133,7 @@ circuit TestCircuit(real ratio=2, real width, int count=4) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -158,7 +158,7 @@ circuit TestCircuit(real ratio=2, real width, int count=4) {{
     public void TryRead_CircuitParameterWithSymbolic_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit(real width=Auto) {{
   level EL
@@ -167,7 +167,7 @@ circuit TestCircuit(real width=Auto) {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -179,7 +179,7 @@ circuit TestCircuit(real width=Auto) {{
     public void TryRead_InstanceDeclaration_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level ML
@@ -193,7 +193,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -211,7 +211,7 @@ circuit TestCircuit {{
     public void TryRead_InstanceWithoutBindings_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level ML
@@ -223,7 +223,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -237,7 +237,7 @@ circuit TestCircuit {{
     public void TryRead_AttachStatement_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -249,7 +249,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -266,7 +266,7 @@ circuit TestCircuit {{
     public void TryRead_AttachStatementWithAnchor_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -278,7 +278,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -290,7 +290,7 @@ circuit TestCircuit {{
     public void TryRead_AttachWithInlineOverrides_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -302,7 +302,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -316,7 +316,7 @@ circuit TestCircuit {{
     public void TryRead_AttachWithMultilineOverrides_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -331,7 +331,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -347,7 +347,7 @@ circuit TestCircuit {{
     public void TryRead_AttachChain_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -359,7 +359,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -371,7 +371,7 @@ circuit TestCircuit {{
     public void TryRead_AttachChainWithAnchor_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -383,7 +383,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -395,7 +395,7 @@ circuit TestCircuit {{
     public void TryRead_AttachChainWithOverrides_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -409,7 +409,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -422,7 +422,7 @@ circuit TestCircuit {{
     public void TryRead_AttachCombined_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -436,7 +436,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var attach = result.Document!.Circuits[0].Fill!.Attaches[0];
@@ -450,7 +450,7 @@ circuit TestCircuit {{
     public void TryRead_InvalidInstanceDeclaration_ReturnsError()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level ML
@@ -462,12 +462,12 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
-        // With ANTLR, invalid instance declaration is a syntax error (ACIR0001)
+        // With ANTLR, invalid instance declaration is a syntax error (CAS0001)
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
         );
     }
 
@@ -475,7 +475,7 @@ circuit TestCircuit {{
     public void TryRead_InvalidAttachStatement_ReturnsError()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -487,12 +487,12 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
-        // With ANTLR, invalid attach statement is a syntax error (ACIR0001)
+        // With ANTLR, invalid attach statement is a syntax error (CAS0001)
         Assert.Contains(
             result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("ACIR0001")
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
         );
     }
 
@@ -500,7 +500,7 @@ circuit TestCircuit {{
     public void TryRead_CircuitImplementsTrait_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 interface CurrentMirror {{
   input IN : analog
@@ -516,7 +516,7 @@ circuit CMirror implements CurrentMirror {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -530,7 +530,7 @@ circuit CMirror implements CurrentMirror {{
     public void TryRead_CircuitImplementsMultipleTraits_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit CMirror implements CurrentMirror, Foldable {{
   level EL
@@ -539,7 +539,7 @@ circuit CMirror implements CurrentMirror, Foldable {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -554,7 +554,7 @@ circuit CMirror implements CurrentMirror, Foldable {{
     public void TryRead_InstanceWithBodyBindings_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -573,7 +573,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
@@ -589,7 +589,7 @@ circuit TestCircuit {{
     public void TryRead_InstanceWithSizeAndNestedBindings_ParsesAll()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -612,7 +612,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
@@ -631,7 +631,7 @@ circuit TestCircuit {{
     public void TryRead_InlineBindingWithoutInstancePrefix_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -643,7 +643,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];
@@ -656,7 +656,7 @@ circuit TestCircuit {{
     public void TryRead_InstanceWithSizeAndBindings_ParsesSuccessfully()
     {
         var acir =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 
 circuit TestCircuit {{
   level EL
@@ -675,7 +675,7 @@ circuit TestCircuit {{
 }}
 ";
 
-        var result = ACIRReader.TryParse(acir, "test.cir");
+        var result = ACIRReader.TryParse(acir, "test.cas");
 
         Assert.True(result.Success);
         var inst = result.Document!.Circuits[0].Fill!.Instances[0];

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 public static class BenchDefinitionResolver
 {

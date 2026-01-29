@@ -1,6 +1,6 @@
-using Cascode.ACIR;
+using Cascode.Language;
 
-namespace Cascode.ACIR.Tests;
+namespace Cascode.Language.Tests;
 
 public class ACIRReaderConstraintsTests
 {
@@ -8,7 +8,7 @@ public class ACIRReaderConstraintsTests
     public void TryParse_ConstraintsWithInlineComments_ParsesCorrectly()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 bench ACBench for SingleEndedOpAmp {{
   builtin SEOpAmpACBench
   outputs {{
@@ -69,7 +69,7 @@ circuit Test implements SingleEndedOpAmp {{
     public void TryParse_FullLineComments_AreIgnored()
     {
         var content =
-            $@"ACIR {ACIRVersion.Current}
+            $@"VERSION {ACIRVersion.Current}
 circuit Test {{
   level EL
   supply VDD

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Writes ACIR documents to text format following canonical writer rules.
@@ -17,7 +17,7 @@ public static class ACIRWriter
     public static void Write(ACIRDocument document, TextWriter writer)
     {
         // Version declaration
-        writer.WriteLine($"ACIR {ACIRVersion.Current}");
+        writer.WriteLine($"VERSION {ACIRVersion.Current}");
         writer.WriteLine();
 
         // Bundle type definitions

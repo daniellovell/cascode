@@ -1,0 +1,92 @@
+VERSION 3.0
+
+primitive nmos Sky130_NMOS(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+primitive pmos Sky130_PMOS(size primSize) {
+  device "sky130_fd_pr__pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+
+bundle Diff {
+  P : analog
+  N : analog
+
+}
+bench ACBench for SingleEndedOpAmp {
+  builtin SEOpAmpACBench
+  outputs {
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+
+  }
+}
+circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    net mirror_gate : analog
+    net tnode : analog
+    nmos dp.M_N = new Sky130_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--mirror_gate
+      .G--IN.P
+      .S--tnode
+    }
+    nmos dp.M_P = new Sky130_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT
+      .G--IN.N
+      .S--tnode
+    }
+    nmos dp.M_TAIL = new Sky130_NMOS(size(W=4u, L=180n, M=1)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+    pmos cm.M_SENSE = new Sky130_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--mirror_gate
+      .G--mirror_gate
+      .S--VDD
+    }
+    pmos cm.M_TAP0 = new Sky130_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT
+      .G--mirror_gate
+      .S--VDD
+    }
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 1MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 20dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+    }
+    tech {
+      t_lmin : L >= 180nm on *
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  }
+}

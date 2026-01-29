@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using Antlr4.Runtime;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Entry point for parsing ACIR source text into an ACIRDocument using ANTLR.
 /// </summary>
-public static class ACIRParserFacade
+public static class CascodeParserFacade
 {
     /// <summary>
     /// Parses the provided ACIR source text using the ANTLR-generated lexer and parser.
@@ -26,9 +26,9 @@ public static class ACIRParserFacade
         try
         {
             var inputStream = CharStreams.fromString(text);
-            var lexer = new ACIRLexer(inputStream);
+            var lexer = new CascodeLexer(inputStream);
             var tokens = new CommonTokenStream(lexer);
-            var parser = new ACIRParser(tokens);
+            var parser = new CascodeParser(tokens);
 
             lexer.RemoveErrorListeners();
             parser.RemoveErrorListeners();
@@ -60,7 +60,7 @@ public static class ACIRParserFacade
         {
             diagnostics.Add(
                 new Diagnostic(
-                    $"ACIR0001: Failed to parse ACIR: {ex.Message}",
+                    $"CAS0001: Failed to parse ACIR: {ex.Message}",
                     DiagnosticSeverity.Error,
                     path,
                     1,

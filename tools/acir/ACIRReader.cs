@@ -2,7 +2,7 @@ using System.IO;
 using System.Linq;
 using Cascode.Parser;
 
-namespace Cascode.ACIR;
+namespace Cascode.Language;
 
 /// <summary>
 /// Parses ACIR text format into ACIRDocument objects.
@@ -74,7 +74,7 @@ public static class ACIRReader
     /// </remarks>
     public static ACIRReadResult TryRead(TextReader reader, string filePath = "<unknown>")
     {
-        return ACIRParserFacade.Parse(filePath, reader.ReadToEnd());
+        return CascodeParserFacade.Parse(filePath, reader.ReadToEnd());
     }
 
     /// <summary>
@@ -85,6 +85,6 @@ public static class ACIRReader
     /// <returns>Read result containing the document and any diagnostics.</returns>
     public static ACIRReadResult TryParse(string content, string filePath = "<unknown>")
     {
-        return ACIRParserFacade.Parse(filePath, content);
+        return CascodeParserFacade.Parse(filePath, content);
     }
 }

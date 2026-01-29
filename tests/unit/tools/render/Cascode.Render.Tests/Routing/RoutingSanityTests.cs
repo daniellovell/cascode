@@ -1,5 +1,5 @@
 using System.IO;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -10,10 +10,10 @@ namespace Cascode.Render.Tests.Routing;
 public class RoutingSanityTests
 {
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
+    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cas")]
     public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeAcirPath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
