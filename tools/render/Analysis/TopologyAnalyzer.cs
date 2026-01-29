@@ -1,6 +1,6 @@
 namespace Cascode.Render.Analysis;
 
-using Cascode.ACIR;
+using Cascode.Language;
 
 /// <summary>
 /// Orientation of a passive element in the circuit topology.

@@ -1,5 +1,5 @@
 using System.IO;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -10,24 +10,24 @@ namespace Cascode.Render.Tests.Routing;
 public class RoutingSanityTests
 {
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
-    public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeAcirPath)
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
+    public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeCascodePath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var inputPath = Path.Combine(repoRoot, relativeAcirPath);
+        var inputPath = Path.Combine(repoRoot, relativeCascodePath);
 
-        ACIRReadResult readResult;
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         Assert.True(readResult.Success);
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.Single(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.Single(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);

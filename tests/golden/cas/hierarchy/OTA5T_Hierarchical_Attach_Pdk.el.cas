@@ -1,0 +1,121 @@
+VERSION 3.0
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+interface CurrentMirrorLike {
+  input SENSE : analog
+  output TAP[0] : analog
+  connectors {
+    to DiffPairLike {
+      SENSE--OUT.N
+      TAP[0]--OUT.P
+    }
+  }
+}
+
+interface DiffPairLike {
+  output OUT : Diff
+}
+
+bench ACBench for SingleEndedOpAmp {
+  builtin SEOpAmpACBench
+  outputs {
+    GainBandwidth
+    PassbandGain
+    PhaseMargin
+  }
+}
+
+bench DCBench for SingleEndedOpAmp {
+  builtin SEOpAmpDCBench
+  outputs {
+    QuiescentPower
+  }
+}
+
+primitive nmos Sky130_NMOS(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+primitive pmos Sky130_PMOS(size primSize) {
+  device "sky130_fd_pr__pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+      .GND--GND
+      .VDD--VDD
+      .IN--IN
+      .OUT.P--OUT
+      .TAIL--VTAIL
+    }
+    cm = new CurrentMirror_Pdk(ratio=1) {
+      .GND--GND
+      .VDD--VDD
+      // TAP[0]--OUT intentionally omitted - covered by attach statement below
+    }
+    attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  }
+}
+
+circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
+  fill {
+    net tnode : analog
+    nmos M_N = new Sky130_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    nmos M_P = new Sky130_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    nmos M_TAIL = new Sky130_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
+
+circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+  level EL
+  supply VDD
+  ground GND
+  input SENSE : analog
+  output TAP[0] : analog
+  fill {
+    pmos M_SENSE = new Sky130_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    pmos M_TAP0 = new Sky130_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+  }
+}

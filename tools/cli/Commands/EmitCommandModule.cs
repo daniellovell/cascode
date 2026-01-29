@@ -4,22 +4,21 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Cascode.ACIR;
-using Cascode.ACIR.Validation;
 using Cascode.Bench;
 using Cascode.Cli.Services;
-using Cascode.Parser;
+using Cascode.Language;
+using Cascode.Language.Validation;
 using Cascode.Workspace;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
 
 /// <summary>
-/// Command module for emitting SPICE netlists from ACIR EL documents.
+/// Command module for emitting SPICE netlists from Cascode EL documents.
 /// </summary>
 /// <remarks>
 /// The emit command generates both design subcircuits and testbench files from
-/// ACIR EL-level circuits. It reads the harness and benches sections to generate
+/// Cascode EL-level circuits. It reads the harness and benches sections to generate
 /// complete simulation-ready SPICE files targeting ngspice or spectre backends.
 /// The default backend is ngspice.
 /// </remarks>
@@ -43,14 +42,14 @@ internal sealed class EmitCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("emit", "Emit SPICE netlist from ACIR EL", EmitCommand)
+            new DelegateCliCommand("emit", "Emit SPICE netlist from Cascode EL", EmitCommand)
         );
     }
 
     /// <summary>
     /// Executes the emit command to generate SPICE netlists.
     /// </summary>
-    /// <param name="args">Command arguments: [acir_file] [--out output_dir] [--backend ngspice|spectre] [--json].</param>
+    /// <param name="args">Command arguments: [cascode_file] [--out output_dir] [--backend ngspice|spectre] [--json].</param>
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult EmitCommand(string[] args)
     {
@@ -85,13 +84,13 @@ internal sealed class EmitCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        var doc = TryReadAcirDocument(inputPath, jsonOutput);
+        var doc = TryReadCascodeDocument(inputPath, jsonOutput);
         if (doc == null)
         {
             return new CommandResult(2, false); // Parse error
         }
 
-        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
             if (jsonOutput)
@@ -102,13 +101,13 @@ internal sealed class EmitCommandModule : ICommandModule
                     new ValidationResult(),
                     new List<string>(),
                     new List<string>(),
-                    "No EL-level circuits found. SPICE emission requires EL-level ACIR."
+                    "No EL-level circuits found. SPICE emission requires EL-level Cascode."
                 );
             }
             else
             {
                 _state.AddMessage(
-                    "No EL-level circuits found. SPICE emission requires EL-level ACIR."
+                    "No EL-level circuits found. SPICE emission requires EL-level Cascode."
                 );
             }
             return new CommandResult(2, false);
@@ -282,10 +281,10 @@ internal sealed class EmitCommandModule : ICommandModule
     private void ShowUsage()
     {
         _state.AddMessage(
-            "Usage: emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]"
+            "Usage: emit <cascode_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]"
         );
         _state.AddMessage("");
-        _state.AddMessage("Emits SPICE netlists from an ACIR EL document.");
+        _state.AddMessage("Emits SPICE netlists from an Cascode EL document.");
         _state.AddMessage("Generates both design subcircuit and testbench files.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
@@ -333,12 +332,12 @@ internal sealed class EmitCommandModule : ICommandModule
         return (outputDir, backend, jsonOutput);
     }
 
-    private ACIRDocument? TryReadAcirDocument(string inputPath, bool jsonOutput = false)
+    private CascodeDocument? TryReadCascodeDocument(string inputPath, bool jsonOutput = false)
     {
-        ACIRReadResult readResult;
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         if (!readResult.Success)

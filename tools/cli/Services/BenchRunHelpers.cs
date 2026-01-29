@@ -2,20 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
-using Cascode.Parser;
+using Cascode.Language;
 
 namespace Cascode.Cli.Services;
 
 internal static class BenchRunHelpers
 {
-    public static Circuit GetSingleElCircuit(ACIRDocument doc)
+    public static Circuit GetSingleElCircuit(CascodeDocument doc)
     {
         // Prefer EL-level circuit with applicable benches (for hierarchical files with multiple circuits)
-        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
-            throw new InvalidOperationException("No EL-level circuits found in ACIR document.");
+            throw new InvalidOperationException("No EL-level circuits found in Cascode document.");
         }
 
         return elCircuits.FirstOrDefault(c =>
@@ -26,12 +25,12 @@ internal static class BenchRunHelpers
     /// <summary>
     /// Returns all EL-level circuits that have benches, ordered by dependency (leaves first).
     /// </summary>
-    public static IReadOnlyList<Circuit> GetElCircuitsWithBenches(ACIRDocument doc)
+    public static IReadOnlyList<Circuit> GetElCircuitsWithBenches(CascodeDocument doc)
     {
         return SpiceEmitter
             .OrderByDependency(doc)
             .Where(c =>
-                c.Level == ACIRLevel.EL
+                c.Level == CascodeLevel.EL
                 && BenchDefinitionResolver.ResolveForCircuit(doc, c).Count > 0
             )
             .ToList();
@@ -52,9 +51,9 @@ internal static class BenchRunHelpers
         return Path.Combine(Directory.GetCurrentDirectory(), "build", "bench", leaf);
     }
 
-    public static string ResolveWorkspaceRoot(string acirPath, string workspaceRoot)
+    public static string ResolveWorkspaceRoot(string cascodePath, string workspaceRoot)
     {
-        var resolved = FindWorkspaceRoot(acirPath) ?? workspaceRoot;
+        var resolved = FindWorkspaceRoot(cascodePath) ?? workspaceRoot;
         return string.IsNullOrWhiteSpace(resolved) ? Directory.GetCurrentDirectory() : resolved;
     }
 
@@ -82,7 +81,7 @@ internal static class BenchRunHelpers
         return availableBenches;
     }
 
-    public static string[] GetAvailableBenchNames(ACIRDocument doc, Circuit circuit)
+    public static string[] GetAvailableBenchNames(CascodeDocument doc, Circuit circuit)
     {
         return BenchDefinitionResolver
                 .ResolveForCircuit(doc, circuit)
@@ -111,12 +110,12 @@ internal static class BenchRunHelpers
         return null;
     }
 
-    public static ACIRDocument ReadAcir(string acirPath)
+    public static CascodeDocument ReadCascode(string cascodePath)
     {
-        ACIRReadResult readResult;
-        using (var reader = File.OpenText(acirPath))
+        CascodeReadResult readResult;
+        using (var reader = File.OpenText(cascodePath))
         {
-            readResult = ACIRReader.TryRead(reader, acirPath);
+            readResult = CascodeReader.TryRead(reader, cascodePath);
         }
 
         if (!readResult.Success)
@@ -124,7 +123,7 @@ internal static class BenchRunHelpers
             var first = readResult.Diagnostics.FirstOrDefault(d =>
                 d.Severity == DiagnosticSeverity.Error
             );
-            throw new InvalidOperationException(first?.Message ?? "Failed to parse ACIR.");
+            throw new InvalidOperationException(first?.Message ?? "Failed to parse Cascode.");
         }
 
         return readResult.Document!;

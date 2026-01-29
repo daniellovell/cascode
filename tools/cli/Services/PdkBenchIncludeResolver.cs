@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
 using Cascode.Bench;
+using Cascode.Language;
 using Cascode.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +39,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     public BenchIncludeResolution Resolve(
         Circuit circuit,
         BenchBackendType backend,
-        ACIRDocument? document = null
+        CascodeDocument? document = null
     )
     {
         var pdkDevices = CollectPdkDevicesRecursively(circuit, document);
@@ -152,7 +152,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     /// <summary>
     /// Recursively collects PDK device names from a circuit and its inline dependencies.
     /// </summary>
-    private static string[] CollectPdkDevicesRecursively(Circuit circuit, ACIRDocument? document)
+    private static string[] CollectPdkDevicesRecursively(Circuit circuit, CascodeDocument? document)
     {
         var pdkDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

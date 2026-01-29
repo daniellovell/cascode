@@ -1,17 +1,16 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
-using Cascode.ACIR.Validation;
-using Cascode.Parser;
+using Cascode.Language;
+using Cascode.Language.Validation;
 
 namespace Cascode.Cli.Commands;
 
 /// <summary>
-/// Command module for electrical rule checking (ERC) on ACIR documents.
+/// Command module for electrical rule checking (ERC) on Cascode documents.
 /// </summary>
 /// <remarks>
-/// The ERC command validates that an ACIR EL or ML document represents a legal circuit
+/// The ERC command validates that an Cascode EL or ML document represents a legal circuit
 /// that can be simulated. It checks for electrical issues such as floating gates,
 /// VDD-GND shorts, and dangling nets. ERC operates on topology (connectivity) and
 /// does not require concrete sizing values, so both EL (sized) and ML (unsized with ??)
@@ -34,7 +33,7 @@ internal sealed class ErcCommandModule : ICommandModule
     public void Register(CommandRegistry registry)
     {
         registry.Register(
-            new DelegateCliCommand("erc", "Run electrical rule check on ACIR file", ErcCommand)
+            new DelegateCliCommand("erc", "Run electrical rule check on Cascode file", ErcCommand)
         );
     }
 
@@ -60,7 +59,9 @@ internal sealed class ErcCommandModule : ICommandModule
         }
 
         // Run ERC on all EL and ML circuits (topology-based checks work on both)
-        var circuits = doc!.Circuits.Where(c => c.Level is ACIRLevel.EL or ACIRLevel.ML).ToList();
+        var circuits = doc!
+            .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
+            .ToList();
         var combinedResult = new ValidationResult();
         foreach (var circuit in circuits)
         {
@@ -84,7 +85,7 @@ internal sealed class ErcCommandModule : ICommandModule
 
     private bool ValidateAndReadInput(
         string[] args,
-        out ACIRDocument? doc,
+        out CascodeDocument? doc,
         [NotNullWhen(false)] out CommandResult? earlyResult,
         out bool requirePdk,
         out bool jsonOutput
@@ -115,11 +116,11 @@ internal sealed class ErcCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse ACIR document
-        ACIRReadResult readResult;
+        // Parse Cascode document
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         if (!readResult.Success)
@@ -155,7 +156,9 @@ internal sealed class ErcCommandModule : ICommandModule
         doc = readResult.Document!;
 
         // Find EL or ML circuits (topology-based ERC works on both)
-        var circuits = doc.Circuits.Where(c => c.Level is ACIRLevel.EL or ACIRLevel.ML).ToList();
+        var circuits = doc
+            .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
+            .ToList();
         if (circuits.Count == 0)
         {
             if (jsonOutput)
@@ -163,14 +166,14 @@ internal sealed class ErcCommandModule : ICommandModule
                 var errorResult = new ValidationResult();
                 errorResult.AddError(
                     "ERC-PARSE",
-                    "No EL or ML level circuits found. ERC requires EL or ML level ACIR."
+                    "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
                 );
                 _state.AddMessage(errorResult.ToJson(2));
             }
             else
             {
                 _state.AddMessage(
-                    "No EL or ML level circuits found. ERC requires EL or ML level ACIR."
+                    "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
                 );
             }
             earlyResult = new CommandResult(2, false);
@@ -218,9 +221,9 @@ internal sealed class ErcCommandModule : ICommandModule
 
     private void ShowUsage()
     {
-        _state.AddMessage("Usage: erc <acir_file> [--require-pdk] [--json]");
+        _state.AddMessage("Usage: erc <cascode_file> [--require-pdk] [--json]");
         _state.AddMessage("");
-        _state.AddMessage("Runs electrical rule checking on an ACIR EL or ML document.");
+        _state.AddMessage("Runs electrical rule checking on an Cascode EL or ML document.");
         _state.AddMessage("ERC validates circuit topology and works on both sized (EL) and");
         _state.AddMessage("unsized (ML with ??) circuits.");
         _state.AddMessage("");

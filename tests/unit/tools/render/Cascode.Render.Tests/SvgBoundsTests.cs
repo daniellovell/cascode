@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -16,7 +16,7 @@ public class SvgBoundsTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -91,7 +91,7 @@ public class SvgBoundsTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>

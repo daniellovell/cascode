@@ -1,8 +1,8 @@
 using System;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
 using Cascode.Cli.Services;
+using Cascode.Language;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
@@ -65,7 +65,7 @@ internal sealed class BenchCommandModule : ICommandModule
         {
             _state.AddMessage(error);
             _state.AddMessage(
-                "Usage: bench run <acir_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
+                "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
             );
             _state.AddMessage(
                 "Runs all benches for all circuits with benches (in dependency order)."

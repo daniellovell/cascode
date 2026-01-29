@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Cascode.ACIR;
 using Cascode.Bench;
+using Cascode.Language;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Services;
@@ -26,7 +26,7 @@ public class BenchRunService
     }
 
     public sealed record BenchRunArgs(
-        string AcirPath,
+        string CascodePath,
         string? BenchName,
         string? OutputDir,
         BenchBackendType Backend,
@@ -96,7 +96,7 @@ public class BenchRunService
         parsed = new BenchRunArgs(string.Empty, null, null, BenchBackendType.Ngspice, false);
         error = string.Empty;
 
-        string? acirPath = null;
+        string? cascodePath = null;
         string? benchName = null;
         string? outputDir = null;
         var backend = BenchBackendType.Ngspice;
@@ -106,9 +106,9 @@ public class BenchRunService
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--acir" && i + 1 < args.Length)
+            if (args[i] == "--cascode" && i + 1 < args.Length)
             {
-                acirPath = args[++i];
+                cascodePath = args[++i];
             }
             else if ((args[i] == "--bench" || args[i] == "-b") && i + 1 < args.Length)
             {
@@ -148,9 +148,9 @@ public class BenchRunService
             }
         }
 
-        if (string.IsNullOrWhiteSpace(acirPath) && positionals.Count >= 1)
+        if (string.IsNullOrWhiteSpace(cascodePath) && positionals.Count >= 1)
         {
-            acirPath = positionals[0];
+            cascodePath = positionals[0];
         }
 
         if (string.IsNullOrWhiteSpace(benchName) && positionals.Count >= 2)
@@ -158,20 +158,20 @@ public class BenchRunService
             benchName = positionals[1];
         }
 
-        if (string.IsNullOrWhiteSpace(acirPath))
+        if (string.IsNullOrWhiteSpace(cascodePath))
         {
-            error = "Error: ACIR file path is required.";
+            error = "Error: Cascode file path is required.";
             return false;
         }
 
-        if (!File.Exists(acirPath))
+        if (!File.Exists(cascodePath))
         {
-            error = $"Error: ACIR file '{acirPath}' not found.";
+            error = $"Error: Cascode file '{cascodePath}' not found.";
             return false;
         }
 
         parsed = new BenchRunArgs(
-            Path.GetFullPath(acirPath),
+            Path.GetFullPath(cascodePath),
             string.IsNullOrWhiteSpace(benchName) ? null : benchName,
             outputDir,
             backend,
@@ -183,7 +183,7 @@ public class BenchRunService
 
     public BenchRunResult Run(string workspaceRoot, string? pdkRoot, BenchRunArgs args)
     {
-        var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
+        var doc = BenchRunHelpers.ReadCascode(args.CascodePath);
         var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
 
         var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
@@ -231,7 +231,7 @@ public class BenchRunService
         Directory.CreateDirectory(outputDir);
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            args.AcirPath,
+            args.CascodePath,
             workspaceRoot
         );
         var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
@@ -315,13 +315,13 @@ public class BenchRunService
         BenchRunArgs args
     )
     {
-        var doc = BenchRunHelpers.ReadAcir(args.AcirPath);
+        var doc = BenchRunHelpers.ReadCascode(args.CascodePath);
         var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
 
         // Early exit: no circuits with benches
         if (allCircuitsWithBenches.Count == 0)
         {
-            _logger.LogError("No EL-level circuits with benches found in ACIR document.");
+            _logger.LogError("No EL-level circuits with benches found in Cascode document.");
             return new MultiCircuitBenchRunResult(
                 2,
                 new MultiCircuitBenchRunSummary(
@@ -388,7 +388,7 @@ public class BenchRunService
 
     private CircuitBenchRunSummary RunCircuitBenches(
         Circuit circuit,
-        ACIRDocument doc,
+        CascodeDocument doc,
         BenchRunArgs args,
         string outputDir,
         IReadOnlyList<string> testbenchPaths
@@ -573,7 +573,7 @@ public class BenchRunService
     /// Returns null if emission succeeds; otherwise returns error result.
     /// </summary>
     private MultiCircuitBenchRunResult? EmitAllDesignsOrReturnError(
-        ACIRDocument doc,
+        CascodeDocument doc,
         string outputDir,
         string workspaceRoot,
         string? pdkRoot,
@@ -584,7 +584,7 @@ public class BenchRunService
         emit = null!;
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            args.AcirPath,
+            args.CascodePath,
             workspaceRoot
         );
         var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
@@ -602,7 +602,7 @@ public class BenchRunService
         {
             var first =
                 emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
-            _logger.LogError("ACIR emission validation failed: {Error}", first);
+            _logger.LogError("Cascode emission validation failed: {Error}", first);
             return new MultiCircuitBenchRunResult(
                 2,
                 new MultiCircuitBenchRunSummary(
@@ -655,7 +655,7 @@ public class BenchRunService
         {
             var first =
                 emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
-            _logger.LogError("ACIR emission validation failed: {Error}", first);
+            _logger.LogError("Cascode emission validation failed: {Error}", first);
             var summary = new BenchRunSummary(
                 circuitName,
                 args.Backend,
@@ -729,7 +729,8 @@ public class BenchRunService
         error = null;
         if (availableBenches.Length == 0)
         {
-            const string msg = "No benches declared for the circuit traits in the ACIR document.";
+            const string msg =
+                "No benches declared for the circuit traits in the Cascode document.";
             _logger.LogError(msg);
             error = msg;
             return null;
@@ -740,9 +741,9 @@ public class BenchRunService
         {
             var list = string.Join(", ", availableBenches);
             var msg =
-                $"Bench '{explicitBench}' not declared in ACIR bench definitions. Available: {list}";
+                $"Bench '{explicitBench}' not declared in Cascode bench definitions. Available: {list}";
             _logger.LogError(
-                "Bench '{BenchName}' not declared in ACIR bench definitions. Available: {Available}",
+                "Bench '{BenchName}' not declared in Cascode bench definitions. Available: {Available}",
                 explicitBench,
                 list
             );

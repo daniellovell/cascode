@@ -80,8 +80,6 @@ Bold formatting should be reserved for technical terms being defined, critical w
 ## Required Local Checks
 - Build: `dotnet build tools/cli/Cascode.Cli.csproj`.
 - Test: `dotnet test Cascode.sln --configuration Release`.
-- Run: `dotnet run --project tools/cli/Cascode.Cli.csproj -- pdk scan tests/fixtures/pdk/sky130`.
-- Verify: `... -- pdk devices --workspace tests/fixtures/pdk/sky130` and `... -- pdk set-dir tests/fixtures/pdk/sky130`.
 
 ## PR Checklist
 - Short plan of steps (final state).
@@ -96,12 +94,12 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - Document the move in the PR body (“Replaces X with Y”).
 - Ban "temporary transition code"; if present, it must fail fast outside that window
 
-## ACIR Versioning
+## Cascode Versioning
 
-- Canonical version: `tools/acir/ACIRVersion.cs` (MAJOR.MINOR format)
+- Canonical version: `tools/language/CascodeVersion.cs` (MAJOR.MINOR format)
 - **Major bump**: breaking changes - reader rejects different majors
 - **Minor bump**: additive-only changes - reader accepts any minor within same major
-- On bump: run `scripts/bump_acir_version.sh` to sync golden file headers
+- On bump: run `scripts/bump_cascode_version.sh` to sync golden file headers
 - On bump: inspect and update all ACIR versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
 

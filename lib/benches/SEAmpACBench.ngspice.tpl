@@ -1,4 +1,4 @@
-* {{ circuit_name }}_{{ bench_name }} - Generated from ACIR EL
+* {{ circuit_name }}_{{ bench_name }} - Generated from Cascode EL
 .title {{ circuit_name }}_{{ bench_name }}
 
 {{ if generic_models }}

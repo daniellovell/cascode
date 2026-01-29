@@ -1,6 +1,6 @@
 namespace Cascode.Render.Tests;
 
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 
@@ -8,26 +8,26 @@ public class PlacementGoldenTests
 {
     [Theory]
     [InlineData(
-        "tests/golden/acir/ota/OTA5TSingleEnded.el.cir",
+        "tests/golden/cas/ota/OTA5TSingleEnded.el.cas",
         "tests/golden/render/OTA5TSingleEnded.placement.csv"
     )]
     [InlineData(
-        "tests/golden/acir/ota/OTA5TFullyDiff.el.cir",
+        "tests/golden/cas/ota/OTA5TFullyDiff.el.cas",
         "tests/golden/render/OTA5TFullyDiff.placement.csv"
     )]
-    public void Placement_MatchesGolden(string acirPath, string goldenPath)
+    public void Placement_MatchesGolden(string cascodePath, string goldenPath)
     {
         // Arrange
         var repoRoot = GetRepoRoot();
-        var fullAcirPath = Path.Combine(repoRoot, acirPath);
+        var fullCascodePath = Path.Combine(repoRoot, cascodePath);
         var fullGoldenPath = Path.Combine(repoRoot, goldenPath);
 
-        using var reader = File.OpenText(fullAcirPath);
-        var readResult = ACIRReader.TryRead(reader, fullAcirPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        using var reader = File.OpenText(fullCascodePath);
+        var readResult = CascodeReader.TryRead(reader, fullCascodePath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);

@@ -592,7 +592,7 @@ def migrate_text(text: str) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("path", type=Path, nargs="?", help="ACIR file to migrate")
+    parser.add_argument("path", type=Path, nargs="?", help="Cascode file to migrate")
     parser.add_argument("--out", type=Path, help="Output file (defaults to in-place)")
     args = parser.parse_args()
 
