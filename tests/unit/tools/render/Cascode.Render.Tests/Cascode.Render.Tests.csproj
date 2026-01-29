@@ -22,6 +22,6 @@
   <ItemGroup>
     <Compile Include="..\..\..\..\shared\**\*.cs" />
     <ProjectReference Include="..\..\..\..\..\tools\render\Cascode.Render.csproj" />
-    <ProjectReference Include="..\..\..\..\..\tools\acir\Cascode.Language.csproj" />
+    <ProjectReference Include="..\..\..\..\..\tools\language\Cascode.Language.csproj" />
   </ItemGroup>
 </Project>

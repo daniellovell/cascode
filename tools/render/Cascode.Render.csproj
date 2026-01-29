@@ -9,7 +9,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../acir/Cascode.Language.csproj" />
+    <ProjectReference Include="../language/Cascode.Language.csproj" />
   </ItemGroup>
 
   <ItemGroup>

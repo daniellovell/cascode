@@ -3,7 +3,6 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Language;
-using Cascode.Parser;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -12,7 +11,7 @@ using Cascode.Render.Svg;
 namespace Cascode.Cli.Commands;
 
 /// <summary>
-/// Command module for rendering SVG schematics from ACIR EL circuits.
+/// Command module for rendering SVG schematics from Cascode EL circuits.
 /// </summary>
 internal sealed class RenderCommandModule : ICommandModule
 {
@@ -28,7 +27,7 @@ internal sealed class RenderCommandModule : ICommandModule
         registry.Register(
             new DelegateCliCommand(
                 "render",
-                "Render SVG schematic from ACIR EL circuit",
+                "Render SVG schematic from Cascode EL circuit",
                 RenderCommand
             )
         );
@@ -60,11 +59,11 @@ internal sealed class RenderCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse ACIR document
-        ACIRReadResult readResult;
+        // Parse Cascode document
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         if (!readResult.Success)
@@ -94,10 +93,10 @@ internal sealed class RenderCommandModule : ICommandModule
         var doc = readResult.Document!;
 
         // Find EL-level circuit
-        var elCircuit = doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.FirstOrDefault(c => c.Level == CascodeLevel.EL);
         if (elCircuit == null)
         {
-            var msg = "No EL-level circuit found. Schematic rendering requires EL-level ACIR.";
+            var msg = "No EL-level circuit found. Schematic rendering requires EL-level Cascode.";
             if (options.JsonOutput)
             {
                 OutputJson(false, 2, null, msg);
@@ -177,7 +176,7 @@ internal sealed class RenderCommandModule : ICommandModule
     {
         _state.AddMessage("Usage: render <acir_file> [options]");
         _state.AddMessage("");
-        _state.AddMessage("Renders an SVG schematic from an ACIR EL-level circuit.");
+        _state.AddMessage("Renders an SVG schematic from an Cascode EL-level circuit.");
         _state.AddMessage("");
         _state.AddMessage("Options:");
         _state.AddMessage("  -o, --output <path>   Output file path (default: <input>.svg)");

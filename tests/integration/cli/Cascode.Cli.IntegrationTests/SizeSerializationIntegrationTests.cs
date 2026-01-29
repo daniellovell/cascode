@@ -23,23 +23,23 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     }
 
     [Fact]
-    public async Task Emit_FromACIRWriterRoundTrip_PreservesSizePacks()
+    public async Task Emit_FromCascodeWriterRoundTrip_PreservesSizePacks()
     {
         var sourcePath = Path.Combine(
             _repoRoot,
-            "tests/golden/acir/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cascode/hierarchy/OTA5T_Hierarchical.el.cas"
         );
 
-        ACIRDocument doc;
+        CascodeDocument doc;
         using (var reader = File.OpenText(sourcePath))
         {
-            doc = ACIRReader.Read(reader, sourcePath);
+            doc = CascodeReader.Read(reader, sourcePath);
         }
 
         var roundTripPath = Path.Combine(_outputDir, "writer-roundtrip.cas");
         await using (var writer = File.CreateText(roundTripPath))
         {
-            ACIRWriter.Write(doc, writer);
+            CascodeWriter.Write(doc, writer);
         }
 
         var emit = await CliIntegrationTestHelper.RunCliAsync(
@@ -53,7 +53,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
             "ngspice"
         );
 
-        CliIntegrationTestHelper.AssertSuccess(emit, "emit failed after ACIRWriter round-trip");
+        CliIntegrationTestHelper.AssertSuccess(emit, "emit failed after CascodeWriter round-trip");
         Assert.Contains("OTA5T_Hierarchical.sp", emit.Stdout);
     }
 
@@ -62,7 +62,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     {
         // JSON conversion only supports a single EL circuit, so keep this input single-circuit.
         var acir =
-            $@"VERSION {ACIRVersion.Current}
+            $@"VERSION {CascodeVersion.Current}
 
 primitive nmos Level1_NMOS(size primSize) {{
   device ""level1_nmos""
@@ -97,14 +97,14 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
 }}
 ";
 
-        var doc = ACIRReader.Parse(acir, "size-smoke.cas");
+        var doc = CascodeReader.Parse(acir, "size-smoke.cas");
 
-        var json = AcirJsonConverter.ToJson(doc, "SizePackSmoke");
+        var json = CascodeJsonConverter.ToJson(doc, "SizePackSmoke");
 
         var jsonPath = Path.Combine(_outputDir, "roundtrip.acir.json");
         await File.WriteAllTextAsync(jsonPath, json);
 
-        var readResult = AcirJsonConverter.FromJson(
+        var readResult = CascodeJsonConverter.FromJson(
             await File.ReadAllTextAsync(jsonPath),
             jsonPath
         );
@@ -114,7 +114,7 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
         var roundTripPath = Path.Combine(_outputDir, "json-roundtrip.cas");
         await using (var writer = File.CreateText(roundTripPath))
         {
-            ACIRWriter.Write(roundTripped, writer);
+            CascodeWriter.Write(roundTripped, writer);
         }
 
         var emit = await CliIntegrationTestHelper.RunCliAsync(

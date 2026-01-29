@@ -15,7 +15,7 @@ public class BenchTemplateLibraryTests
 
         Assert.True(found);
         Assert.False(string.IsNullOrWhiteSpace(templateText));
-        Assert.Contains("Generated from ACIR", templateText);
+        Assert.Contains("Generated from Cascode", templateText);
     }
 
     [Fact]

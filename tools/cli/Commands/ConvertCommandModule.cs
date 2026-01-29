@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using Cascode.Language;
 using Cascode.Language.Json;
-using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;
 
@@ -98,10 +97,10 @@ internal sealed class ConvertCommandModule : ICommandModule
 
     private CommandResult ConvertToJson(string inputPath, string? outputPath, bool toStdout)
     {
-        ACIRReadResult readResult;
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         if (!readResult.Success)
@@ -117,7 +116,9 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
-        var elCircuits = readResult.Document!.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var elCircuits = readResult
+            .Document!.Circuits.Where(c => c.Level == CascodeLevel.EL)
+            .ToList();
         if (elCircuits.Count == 0)
         {
             _state.AddMessage(
@@ -126,7 +127,7 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
-        var json = AcirJsonConverter.ToJson(readResult.Document);
+        var json = CascodeJsonConverter.ToJson(readResult.Document);
 
         if (toStdout)
         {
@@ -155,7 +156,7 @@ internal sealed class ConvertCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
-        var result = AcirJsonConverter.FromJson(json, inputPath);
+        var result = CascodeJsonConverter.FromJson(json, inputPath);
 
         if (!result.Success)
         {
@@ -171,7 +172,7 @@ internal sealed class ConvertCommandModule : ICommandModule
         var doc = result.Document!;
 
         using var writer = new StringWriter();
-        ACIRWriter.Write(doc, writer);
+        CascodeWriter.Write(doc, writer);
         var cascodeText = writer.ToString();
 
         if (toStdout)

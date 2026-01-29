@@ -11,7 +11,7 @@ internal static class TestCircuits
         new()
         {
             Name = "simple",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -61,7 +61,7 @@ internal static class TestCircuits
         new()
         {
             Name = "bottom_device",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -109,7 +109,7 @@ internal static class TestCircuits
         new()
         {
             Name = "top_device",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -153,7 +153,7 @@ internal static class TestCircuits
         new()
         {
             Name = "two_devices",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -233,7 +233,7 @@ internal static class TestCircuits
         new()
         {
             Name = "fully_diff_ota",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -353,7 +353,7 @@ internal static class TestCircuits
         new()
         {
             Name = "cmfb_resistors",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>

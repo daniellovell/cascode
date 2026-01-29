@@ -8,7 +8,7 @@ using Cascode.Language;
 public readonly record struct TerminalRef(string DeviceId, string Terminal);
 
 /// <summary>
-/// Connectivity graph built from an ACIR circuit for layout analysis.
+/// Connectivity graph built from an Cascode circuit for layout analysis.
 /// </summary>
 public sealed class CircuitGraph
 {
@@ -83,7 +83,7 @@ public sealed class CircuitGraph
     public IReadOnlySet<string> InternalNets => _internalNets;
 
     /// <summary>
-    /// Builds a circuit graph from an ACIR circuit.
+    /// Builds a circuit graph from an Cascode circuit.
     /// </summary>
     public static CircuitGraph Build(Circuit circuit)
     {
@@ -106,7 +106,7 @@ public sealed class CircuitGraph
                 continue;
             }
 
-            // Io is semantically bidirectional (ACIR §3.3.4) but treated as input-only for layout (left side).
+            // Io is semantically bidirectional (Cascode §3.3.4) but treated as input-only for layout (left side).
             switch (port.Direction)
             {
                 case PortDirection.Output:

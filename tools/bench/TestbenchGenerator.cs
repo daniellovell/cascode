@@ -125,7 +125,7 @@ public sealed class TestbenchGenerator
         string templateText
     )
     {
-        // Use template_model from plan if available (ACIR templates), otherwise build default model
+        // Use template_model from plan if available (Cascode templates), otherwise build default model
         object model;
         if (plan.Data.TryGetValue("template_model", out var templateModel))
         {

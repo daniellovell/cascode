@@ -12,7 +12,7 @@ public class CircuitGraphTests
         var circuit = new Circuit
         {
             Name = "inverter",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
@@ -79,7 +79,7 @@ public class CircuitGraphTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Ports = new List<PortDeclaration>(),
             Fill = new FillBlock
             {
@@ -116,7 +116,7 @@ public class CircuitGraphTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Ports = new List<PortDeclaration>(),
             Fill = new FillBlock
             {
@@ -170,7 +170,7 @@ public class CircuitGraphTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Ports = new List<PortDeclaration>
             {
@@ -219,7 +219,7 @@ public class CircuitGraphTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Ports = new List<PortDeclaration>
             {
                 new()

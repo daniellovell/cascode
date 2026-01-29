@@ -10,24 +10,24 @@ namespace Cascode.Render.Tests.Routing;
 public class RoutingSanityTests
 {
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cas")]
-    public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeAcirPath)
+    [InlineData("tests/golden/cascode/cs/CSAmpResistive.el.cas")]
+    [InlineData("tests/golden/cascode/ota/OTA5TSingleEnded.el.cas")]
+    [InlineData("tests/golden/cascode/ota/OTA5TFullyDiff.el.cas")]
+    [InlineData("tests/golden/cascode/filters/DiffRCFilter.el.cas")]
+    public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeCascodePath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var inputPath = Path.Combine(repoRoot, relativeAcirPath);
+        var inputPath = Path.Combine(repoRoot, relativeCascodePath);
 
-        ACIRReadResult readResult;
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         Assert.True(readResult.Success);
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.Single(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.Single(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);

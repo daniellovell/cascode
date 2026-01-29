@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Bench;
 using Cascode.Language;
-using Cascode.Parser;
 
 namespace Cascode.Cli.Commands;
 
@@ -55,7 +54,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             );
             _state.AddMessage("");
             _state.AddMessage(
-                "Verifies numeric constraints from ACIR against bench measurement results."
+                "Verifies numeric constraints from Cascode against bench measurement results."
             );
             return CommandResult.Success;
         }
@@ -63,14 +62,14 @@ internal sealed class VerifyCommandModule : ICommandModule
         if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
         {
             _state.AddMessage(
-                "Error: provide an ACIR path plus either a results.json or trace.jsonl path."
+                "Error: provide an Cascode path plus either a results.json or trace.jsonl path."
             );
             return CommandResult.Failure;
         }
 
         if (!File.Exists(acirPath))
         {
-            _state.AddMessage($"ACIR file '{acirPath}' not found.");
+            _state.AddMessage($"Cascode file '{acirPath}' not found.");
             return CommandResult.Failure;
         }
 
@@ -86,11 +85,11 @@ internal sealed class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        // Read ACIR document
-        ACIRReadResult readResult;
+        // Read Cascode document
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(acirPath))
         {
-            readResult = ACIRReader.TryRead(reader, acirPath);
+            readResult = CascodeReader.TryRead(reader, acirPath);
         }
 
         if (!readResult.Success)
@@ -109,10 +108,10 @@ internal sealed class VerifyCommandModule : ICommandModule
         var doc = readResult.Document!;
 
         // Find EL-level circuit (use first one, or match by name from results)
-        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
-            _state.AddMessage("No EL-level circuits found in ACIR document.");
+            _state.AddMessage("No EL-level circuits found in Cascode document.");
             return CommandResult.Failure;
         }
 
@@ -157,10 +156,10 @@ internal sealed class VerifyCommandModule : ICommandModule
     }
 
     /// <summary>
-    /// Parses command-line arguments to extract ACIR and results file paths.
+    /// Parses command-line arguments to extract Cascode and results file paths.
     /// </summary>
     /// <param name="args">Command arguments array.</param>
-    /// <param name="acirPath">Output parameter for ACIR file path.</param>
+    /// <param name="acirPath">Output parameter for Cascode file path.</param>
     /// <param name="resultsPath">Output parameter for results JSON file path.</param>
     /// <returns>True if both arguments were found, false otherwise.</returns>
     private static bool ParseArguments(
