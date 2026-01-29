@@ -139,12 +139,8 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.4.0, )",
-          "Cascode.Parser": "[0.4.0, )"
+          "Cascode.Bench": "[0.4.0, )"
         }
-      },
-      "cascode.parser": {
-        "type": "Project"
       }
     }
   }
