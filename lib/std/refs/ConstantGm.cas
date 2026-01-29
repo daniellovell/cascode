@@ -1,4 +1,4 @@
-package lib.std.refs; import lib.std.amp.*; import lib.std.prim.*;
+library lib.std.refs; import lib.std.amp.*; import lib.std.prim.*;
 
 // Constant-gm current reference built from two mirrors and a degeneration resistor.
 // gm = 1/RB via feedback from the selected mirror tap to the rail.

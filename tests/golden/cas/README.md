@@ -2,7 +2,7 @@ Cascode golden snapshots
 ========================
 
 This directory holds canonical Cascode text snapshots (`*.cas`) for
-selected Cascode sources. Each subdirectory mirrors a logical package or
+selected Cascode sources. Each subdirectory mirrors a logical library or
 domain, for example:
 
 - `ota/OTA5TSingleEnded.ml.cas`

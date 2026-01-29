@@ -890,7 +890,7 @@ IO_KW           : 'io' ;
 CONNECTORS_KW   : 'connectors' ;
 LEVEL_KW        : 'level' ;
 INLINE_KW       : 'inline' ;
-PACKAGE_KW      : 'package' ;
+PACKAGE_KW      : 'library' ;
 SUPPLY_KW       : 'supply' ;
 GROUND_KW       : 'ground' ;
 PARAM_KW        : 'param' ;

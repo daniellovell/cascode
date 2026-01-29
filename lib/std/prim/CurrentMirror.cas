@@ -1,4 +1,4 @@
-package lib.std.prim;
+library lib.std.prim;
 
 // General current mirror motif with explicit SENSE port and per-tap outputs.
 // Rails are inferred from polarity unless an override is provided.

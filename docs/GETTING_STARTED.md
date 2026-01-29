@@ -31,7 +31,7 @@ Let's examine how a 5-transistor OTA would be structurally constructed in Cascod
 The `Amplifier` interface contributes the canonical performance metrics:
 
 ```java
-package lib.std.amp;
+library lib.std.amp;
 
 interface Amplifier {
   metrics { 
@@ -49,7 +49,7 @@ interface Amplifier {
 The `SingleEndedOpAmp` interface extends that surface with the differential input, single-ended output port definitions and bench bindings:
 
 ```java
-package lib.std.amp;
+library lib.std.amp;
 
 interface SingleEndedOpAmp extend Amplifier {
   ports [ IN: Diff, OUT: analog ]
@@ -66,7 +66,7 @@ interface SingleEndedOpAmp extend Amplifier {
 This binding establishes how abstract performance requirements translate to concrete measurements. The bench itself defines what those measurements return:
 
 ```java
-package lib.benches;
+library lib.benches;
 
 bench SEOpAmpACBench {
   spectre_template = "SEOpAmpACBench.tpl";
@@ -84,7 +84,7 @@ bench SEOpAmpACBench {
 Now the motif `OTA5TSingleEnded` can implement the contract while specifying only the topology:
 
 ```java
-package analog.ota; 
+library analog.ota; 
 import lib.std.amp.*; 
 import lib.std.prim.*;
 

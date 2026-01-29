@@ -1,4 +1,4 @@
-package lib.std;
+library lib.std;
 
 interface InverterLike {
   port in  IN  : digital;

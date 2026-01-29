@@ -7,7 +7,7 @@
 
 ## 2.1 Programs, Packages, and Imports
 
-A **program** comprises one or more `.cas` files organized under a package namespace. The `package` declaration establishes the namespace, while `import` statements bring external names into the current scope. Name resolution follows **lexical scoping** principles with package-qualified fallback, and shadowing rules mirror Java and C# conventions unless explicitly stated otherwise.
+A **program** comprises one or more `.cas` files organized under a library namespace. The `library` declaration establishes the namespace, while `import` statements bring external names into the current scope. Name resolution follows **lexical scoping** principles with library-qualified fallback, and shadowing rules mirror Java and C# conventions unless explicitly stated otherwise.
 
 ---
 

@@ -1,4 +1,4 @@
-package lib.std.prim;
+library lib.std.prim;
 
 // Interface: cascode pair with differential nodes.
 interface CascodePairLike {

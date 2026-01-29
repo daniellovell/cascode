@@ -59,7 +59,7 @@ The TextMate grammar recognizes:
 
 ### Keywords
 
-- **Package/Import**: `package`, `import`
+- **Package/Import**: `library`, `import`
 - **Declarations**: `module`, `motif`, `interface`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`

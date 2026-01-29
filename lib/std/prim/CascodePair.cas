@@ -1,4 +1,4 @@
-package lib.std.prim;
+library lib.std.prim;
 
 // Cascode pair motif with Diff bundle ports for source and drain.
 // A single BIAS port drives both gates. Polarity selects NMOS/PMOS devices.

@@ -1,6 +1,24 @@
 VERSION 3.0
 
-include BenchFunctions
+library lib.std.benches
+
+function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
+  Frequency f = sqrt(hp * lp)
+
+  if f < ac.start { return ac.start }
+  if f > ac.stop { return ac.stop }
+  return f
+}
+
+function infer_hp_corner(Frequency fallback) : Frequency {
+  if constraints.HighpassBandwidth { return constraints.HighpassBandwidth }
+  return fallback
+}
+
+function infer_lp_corner(ACAnalysis ac, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+  if lpConstraint { return lpConstraint }
+  return ac.stop
+}
 
 bundle Diff {
   P : analog
@@ -15,24 +33,24 @@ bench DiffToSETransfer {
     net vcm : analog
     net gnd : ground
 
-    g = new GND() {
+    GND g = new GND() {
       .GND--gnd
     }
 
-    commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm
       .N--gnd
     }
 
-    acP = new VAC(A=0.5, phase=0deg) {
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
       .N--vcm
     }
-    acN = new VAC(A=0.5, phase=180deg) {
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
       .N--vcm
     }
 
-    sourceP = new Impedance(Z=(env.SourceImpedance / 2)) { }
-    sourceN = new Impedance(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P
@@ -40,22 +58,12 @@ bench DiffToSETransfer {
     acN.P--sourceN.P
     sourceN.N--IN.N
 
-    loadZ = new Impedance(Z=env.LoadImpedance) {
+    Impedance loadZ = new Impedance(Z=env.LoadImpedance) {
       .P--OUT
       .N--gnd
     }
   }
 
-  function infer_hp_corner(Frequency fallback) : Frequency {
-    if constraints.HighpassBandwidth { return constraints.HighpassBandwidth }
-    return fallback
-  }
-
-  function infer_lp_corner() : Frequency {
-    if constraints.LowpassBandwidth { return constraints.LowpassBandwidth }
-    if constraints.GainBandwidth { return constraints.GainBandwidth / 100 }
-    return ac.stop
-  }
 
   analysis {
     ACAnalysis ac = new ACAnalysis(
@@ -89,7 +97,7 @@ bench DiffToSETransfer {
       RealFunction G = db20(mag(H))
 
       Frequency hp = infer_hp_corner(1Hz)
-      Frequency lp = infer_lp_corner()
+      Frequency lp = infer_lp_corner(ac, constraints.LowpassBandwidth, constraints.GainBandwidth)
       Frequency fpb = calc_passband_freq(ac, hp, lp)
 
       VoltageRatio gpb = eval(G, fpb)

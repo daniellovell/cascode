@@ -1,4 +1,4 @@
-package lib.std.refs;
+library lib.std.refs;
 
 // Interface for current references.
 interface CurrentReference extend ReferenceCircuit {

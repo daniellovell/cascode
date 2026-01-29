@@ -138,7 +138,7 @@ public partial class CascodeParser : Parser {
 		"'bind'", "'circuit'", "'primitive'", "'device'", "'params'", "'new'", 
 		"'include'", "'synth'", "'wrap'", "'spice'", "'map'", "'match'", "'case'", 
 		"'repeat'", "'in'", "'pair'", "'port'", "'input'", "'output'", "'io'", 
-		"'connectors'", "'level'", "'inline'", "'package'", "'supply'", "'ground'", 
+		"'connectors'", "'level'", "'inline'", "'library'", "'supply'", "'ground'", 
 		"'param'", "'slot'", "'size'", "'fill'", "'constraints'", "'harness'", 
 		"'env'", "'provenance'", "'net'", "'attach'", "'to'", "'for'", "'via'", 
 		"'as'", "'builtin'", "'outputs'", "'config'", "'implements'", "'numeric'", 

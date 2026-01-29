@@ -17,13 +17,11 @@ primitive pmos pfet_01v8(size primSize) {
     mult = primSize.M
   }
 }
-
-
 bundle Diff {
   P : analog
   N : analog
-
 }
+
 circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
   level EL
   supply VDD

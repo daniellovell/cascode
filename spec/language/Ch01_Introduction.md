@@ -53,7 +53,7 @@ All examples follow the repository style convention for connectivity: binds and 
 #### Spec-only definition of an amplifier (engine picks topology)
 
 ```java
-package analog.amp; import lib.ota.*;
+library analog.amp; import lib.ota.*;
 
 bundle Diff { P: analog; N: analog; }
 
@@ -94,7 +94,7 @@ module AmpAuto implements SingleEndedOpAmp {
 #### Structural definition of a 5T OTA
 
 ```java
-package analog.ota; import lib.motifs.*;
+library analog.ota; import lib.motifs.*;
 
 bundle Diff { P: analog; N: analog; }
 
@@ -122,7 +122,7 @@ module OTA5T implements SingleEndedOpAmp {
 #### Structural single-ended CS amplifier with primitive transistor
 
 ```java
-package analog.ota; import lib.motifs.*;
+library analog.ota; import lib.motifs.*;
 
 module CommonSourceAmp implements SingleEndedAmp {
   supply VDD=1.8V; ground GND;
@@ -284,7 +284,7 @@ The integration follows three key architectural principles. Stdcells function as
 Example: Strong‑arm latch to pad with a selectable output inverter:
 
 ```cas
-package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
+library analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
 
 module LatchToPad {
   supply VDD=1.8V; ground GND;

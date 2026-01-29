@@ -28,7 +28,7 @@ null
 'connectors'
 'level'
 'inline'
-'package'
+'library'
 'supply'
 'ground'
 'param'

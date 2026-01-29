@@ -232,7 +232,7 @@ public static class CascodeWriter
         // Package
         if (!string.IsNullOrEmpty(circuit.Package))
         {
-            writer.WriteLine($"  package {circuit.Package}");
+            writer.WriteLine($"  library {circuit.Package}");
         }
 
         // Supplies

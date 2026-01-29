@@ -90,7 +90,7 @@ In this example, the amplifier is defined by the specification and the **synthes
 
 
 ```java
-package analog.amp; import lib.ota.*;
+library analog.amp; import lib.ota.*;
 
 module AmpAuto implements SingleEndedOpAmp {
   supply VDD; ground GND;
@@ -164,7 +164,7 @@ module AmpGuided implements SingleEndedOpAmp {
 Here the topology is manually defined using reusable building blocks, called "motifs" from Cascode's standard library.
 
 ```java
-package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
+library analog.ota; import lib.std.amp.*; import lib.std.prim.*;
 
 module OTA5T implements SingleEndedOpAmp {
   supply VDD; ground GND;
@@ -388,7 +388,7 @@ scripts/install-dev-tool.sh
 ```
 
 This script will:
-1. Pack the CLI project into a NuGet package
+1. Pack the CLI project into a NuGet library
 2. Uninstall any existing global installation of `Cascode.Cli`
 3. Install the newly built version as a global .NET tool
 

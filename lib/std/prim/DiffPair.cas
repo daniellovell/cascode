@@ -1,4 +1,4 @@
-package lib.std.prim;
+library lib.std.prim;
 
 // Parametric differential pair motif with optional internal tail and polarity.
 motif DiffPair implements DiffPairLike {

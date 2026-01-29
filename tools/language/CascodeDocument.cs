@@ -137,7 +137,7 @@ public sealed class Circuit
     /// </summary>
     public bool Inline { get; init; }
 
-    /// <summary>Optional package path.</summary>
+    /// <summary>Optional library path.</summary>
     public string? Package { get; init; }
 
     /// <summary>

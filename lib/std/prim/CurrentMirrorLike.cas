@@ -1,4 +1,4 @@
-package lib.std.prim;
+library lib.std.prim;
 
 // Interface: current mirror with sense and tap.
 interface CurrentMirrorLike {

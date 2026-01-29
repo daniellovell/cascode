@@ -2,80 +2,1343 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Cascode",
   "scopeName": "source.cascode",
+  "fileTypes": ["cas"],
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#keywords" },
-    { "include": "#blocks" },
-    { "include": "#storage-types" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#units" },
-    { "include": "#operators" },
-    { "include": "#functions" },
-    { "include": "#types" },
-    { "include": "#identifiers" },
-    { "include": "#constants" }
+    { "include": "#comment" },
+    { "include": "#version-directive" },
+    { "include": "#library-directive" },
+    { "include": "#import-directive" },
+    { "include": "#declarations" }
   ],
   "repository": {
-    "comments": {
+    "comment": {
       "patterns": [
         {
           "name": "comment.line.double-slash.cascode",
-          "match": "//.*$"
+          "begin": "//",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.comment.cascode" }
+          },
+          "end": "$"
         },
         {
           "name": "comment.block.cascode",
           "begin": "/\\*",
-          "end": "\\*/"
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.comment.cascode" }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.comment.cascode" }
+          }
         }
       ]
     },
-    "keywords": {
+
+    "version-directive": {
+      "match": "^\\s*(VERSION)\\s+([0-9]+\\.[0-9]+)",
+      "captures": {
+        "1": { "name": "keyword.control.directive.version.cascode" },
+        "2": { "name": "constant.numeric.version.cascode" }
+      }
+    },
+
+    "library-directive": {
+      "match": "\\b(library)\\s+(@?[a-zA-Z_][a-zA-Z0-9_.]*)",
+      "captures": {
+        "1": { "name": "keyword.control.directive.library.cascode" },
+        "2": { "name": "entity.name.namespace.cascode" }
+      }
+    },
+
+    "import-directive": {
+      "match": "\\b(include|import)\\s+(@?[a-zA-Z_][a-zA-Z0-9_.]*)(\\s*\\.\\s*\\*)?",
+      "captures": {
+        "1": { "name": "keyword.control.directive.import.cascode" },
+        "2": { "name": "entity.name.namespace.cascode" },
+        "3": { "name": "keyword.operator.wildcard.cascode" }
+      }
+    },
+
+    "declarations": {
       "patterns": [
+        { "include": "#interface-declaration" },
+        { "include": "#module-declaration" },
+        { "include": "#motif-declaration" },
+        { "include": "#bench-declaration" },
+        { "include": "#bundle-declaration" },
+        { "include": "#circuit-declaration" },
+        { "include": "#primitive-declaration" },
+        { "include": "#function-declaration" }
+      ]
+    },
+
+    "interface-declaration": {
+      "begin": "(interface)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(extend)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.interface.cascode" },
+        "2": { "name": "entity.name.type.interface.cascode" },
+        "3": { "name": "storage.modifier.extend.cascode" },
+        "4": { "name": "entity.name.type.interface.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
         {
-          "name": "keyword.control.cascode",
-          "match": "\\b(if|else|for|while|return|break|continue|switch|case|default)\\b"
-        },
-        {
-          "name": "keyword.other.package.cascode",
-          "match": "\\b(package|import)\\b"
-        },
-        {
-          "name": "keyword.other.class.cascode",
-          "match": "\\b(module|motif|interface|implements|extend)\\b"
-        },
-        {
-          "name": "keyword.other.declaration.cascode",
-          "match": "\\b(supply|ground|port|ports|net|param|params|env|use|spec|bench|synth|slot|phase|wrap|spice|fill|bind|with|map|bundle|char|req|ens|connect|alias|comp|taps|fixtures|validity|benches|pvt|sweep|fit|polarity|kind|value|vdd|load|source|temp|icmr|duty|cycles|slew|node|freq|sense|vref|out|on)\\b"
-        },
-        {
-          "name": "keyword.other.directive.cascode",
-          "match": "\\b(from|allow|prefer|forbid|objective|minimize|maximize|attach|using|fb|pair|new|in|out|diff|clock|bias)\\b"
-        },
-        {
-          "name": "keyword.other.type.cascode",
-          "match": "\\b(signal|analog|digital|mixed|supply|ground|bias|rf|clock|thermal)\\b"
-        },
-        {
-          "name": "storage.modifier.cascode",
-          "match": "\\b(public|private|protected|static|final|const)\\b"
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#interface-members" }
+          ]
         }
       ]
     },
-    "storage-types": {
+
+    "interface-members": {
       "patterns": [
+        { "include": "#comment" },
+        { "include": "#supply-declaration" },
+        { "include": "#ground-declaration" },
+        { "include": "#port-declaration" },
+        { "include": "#ports-block" },
+        { "include": "#connector-block" },
+        { "include": "#metrics-block" },
+        { "include": "#benches-block" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "module-declaration": {
+      "begin": "(module)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.module.cascode" },
+        "2": { "name": "entity.name.type.module.cascode" },
+        "3": { "name": "storage.modifier.implements.cascode" },
+        "4": { "name": "entity.name.type.interface.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
         {
-          "name": "storage.type.primitive.cascode",
-          "match": "\\b(int|float|double|real|bool|string|void|enum|capacitance|resistance|inductance)\\b"
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#module-members" }
+          ]
         }
       ]
     },
-    "strings": {
+
+    "module-members": {
       "patterns": [
+        { "include": "#comment" },
+        { "include": "#supply-declaration" },
+        { "include": "#ground-declaration" },
+        { "include": "#port-declaration" },
+        { "include": "#param-declaration" },
+        { "include": "#env-block" },
+        { "include": "#spec-block" },
+        { "include": "#bench-ref-block" },
+        { "include": "#use-block" },
+        { "include": "#slot-declaration" },
+        { "include": "#synth-block" },
+        { "include": "#char-block" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "motif-declaration": {
+      "begin": "(motif)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.motif.cascode" },
+        "2": { "name": "entity.name.type.motif.cascode" },
+        "3": { "name": "storage.modifier.implements.cascode" },
+        "4": { "name": "entity.name.type.interface.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#motif-members" }
+          ]
+        }
+      ]
+    },
+
+    "motif-members": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#level-declaration" },
+        { "include": "#params-block" },
+        { "include": "#ports-block" },
+        { "include": "#ports-array" },
+        { "include": "#use-block" },
+        { "include": "#wrap-spice" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "circuit-declaration": {
+      "begin": "(circuit)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.circuit.cascode" },
+        "2": { "name": "entity.name.type.circuit.cascode" },
+        "3": { "name": "storage.modifier.implements.cascode" },
+        "4": { "name": "entity.name.type.interface.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#circuit-members" }
+          ]
+        }
+      ]
+    },
+
+    "circuit-members": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#level-declaration" },
+        { "include": "#port-declaration" },
+        { "include": "#instance-declaration" },
+        { "include": "#device-declaration" },
+        { "include": "#attach-statement" },
+        { "include": "#connect-statement" },
+        { "include": "#binding-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "primitive-declaration": {
+      "begin": "(primitive)\\s+(nmos|pmos)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.primitive.cascode" },
+        "2": { "name": "storage.type.device.cascode" },
+        "3": { "name": "entity.name.function.primitive.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#primitive-parameter-list" },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#primitive-members" }
+          ]
+        }
+      ]
+    },
+
+    "primitive-parameter-list": {
+      "begin": "\\(",
+      "beginCaptures": {
+        "0": { "name": "punctuation.paren.open.cascode" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.paren.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        {
+          "match": "\\b(size)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.size.cascode" },
+            "2": { "name": "variable.parameter.cascode" }
+          }
+        },
+        { "include": "#punctuation-comma" }
+      ]
+    },
+
+    "primitive-members": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#device-directive" },
+        { "include": "#primitive-params-block" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "device-directive": {
+      "match": "(device)\\s+(\"[^\"]*\")",
+      "captures": {
+        "1": { "name": "keyword.other.device.cascode" },
+        "2": { "name": "string.quoted.double.cascode" }
+      }
+    },
+
+    "primitive-params-block": {
+      "begin": "(params)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.params.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#primitive-param-assignment" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "primitive-param-assignment": {
+      "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)?)",
+      "captures": {
+        "1": { "name": "variable.other.property.cascode" },
+        "2": { "name": "keyword.operator.assignment.cascode" },
+        "3": { "name": "variable.other.cascode" }
+      }
+    },
+
+    "bench-declaration": {
+      "begin": "(bench)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.bench.cascode" },
+        "2": { "name": "entity.name.type.bench.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#bench-members" }
+          ]
+        }
+      ]
+    },
+
+    "bench-members": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#terminal-declaration" },
+        { "include": "#fill-block" },
+        { "include": "#analysis-block" },
+        { "include": "#measurements-block" },
+        { "include": "#function-declaration" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "bundle-declaration": {
+      "begin": "(bundle)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.bundle.cascode" },
+        "2": { "name": "entity.name.type.bundle.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comment" },
+        {
+          "begin": "\\{",
+          "beginCaptures": {
+            "0": { "name": "punctuation.curlybrace.open.cascode" }
+          },
+          "end": "\\}",
+          "endCaptures": {
+            "0": { "name": "punctuation.curlybrace.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#bundle-members" }
+          ]
+        }
+      ]
+    },
+
+    "bundle-members": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#bundle-field-declaration" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "bundle-field-declaration": {
+      "match": "([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*(analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+      "captures": {
+        "1": { "name": "entity.name.variable.field.cascode" },
+        "2": { "name": "punctuation.separator.colon.cascode" },
+        "3": { "name": "storage.type.domain.cascode" }
+      }
+    },
+
+    "supply-declaration": {
+      "match": "\\b(supply)\\s+([A-Z_][a-zA-Z0-9_]*)(?:\\s*(=)\\s*([^;]+))?",
+      "captures": {
+        "1": { "name": "keyword.other.supply.cascode" },
+        "2": { "name": "entity.name.variable.supply.cascode" },
+        "3": { "name": "keyword.operator.assignment.cascode" },
+        "4": {
+          "patterns": [
+            { "include": "#expression" }
+          ]
+        }
+      }
+    },
+
+    "ground-declaration": {
+      "match": "\\b(ground)\\s+([A-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.other.ground.cascode" },
+        "2": { "name": "entity.name.variable.ground.cascode" }
+      }
+    },
+
+    "port-declaration": {
+      "patterns": [
+        {
+          "match": "\\b(port)\\s+(in|out|io)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+          "captures": {
+            "1": { "name": "keyword.other.port.cascode" },
+            "2": { "name": "storage.modifier.direction.cascode" },
+            "3": { "name": "entity.name.variable.port.cascode" },
+            "4": { "name": "punctuation.separator.colon.cascode" },
+            "5": { "name": "storage.type.cascode" }
+          }
+        },
+        {
+          "match": "\\b(input|output|io)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+          "captures": {
+            "1": { "name": "storage.modifier.direction.cascode" },
+            "2": { "name": "entity.name.variable.port.cascode" },
+            "3": { "name": "punctuation.separator.colon.cascode" },
+            "4": { "name": "storage.type.cascode" }
+          }
+        },
+        {
+          "match": "\\b(input|output|alias)\\s+([A-Z_][a-zA-Z0-9_]*)(?:\\s*(=)\\s*([A-Z_][a-zA-Z0-9_]*))?",
+          "captures": {
+            "1": { "name": "storage.modifier.direction.cascode" },
+            "2": { "name": "entity.name.variable.port.cascode" },
+            "3": { "name": "keyword.operator.assignment.cascode" },
+            "4": { "name": "variable.other.port.reference.cascode" }
+          }
+        }
+      ]
+    },
+
+    "param-declaration": {
+      "match": "\\b(param)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*([^;]+)",
+      "captures": {
+        "1": { "name": "keyword.other.param.cascode" },
+        "2": { "name": "entity.name.variable.parameter.cascode" },
+        "3": { "name": "keyword.operator.assignment.cascode" },
+        "4": {
+          "patterns": [
+            { "include": "#expression" }
+          ]
+        }
+      }
+    },
+
+    "level-declaration": {
+      "match": "\\b(level)\\s+(HL|ML|EL)\\b",
+      "captures": {
+        "1": { "name": "keyword.other.level.cascode" },
+        "2": { "name": "constant.language.level.cascode" }
+      }
+    },
+
+    "terminal-declaration": {
+      "match": "\\b(stim|resp)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+      "captures": {
+        "1": { "name": "keyword.other.terminal.cascode" },
+        "2": { "name": "entity.name.variable.terminal.cascode" },
+        "3": { "name": "punctuation.separator.colon.cascode" },
+        "4": { "name": "storage.type.cascode" }
+      }
+    },
+
+    "slot-declaration": {
+      "begin": "\\b(slot)\\s+([A-Z][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*)\\s*(bind)\\s*",
+      "beginCaptures": {
+        "1": { "name": "keyword.other.slot.cascode" },
+        "2": { "name": "entity.name.variable.slot.cascode" },
+        "3": { "name": "punctuation.separator.colon.cascode" },
+        "4": { "name": "entity.name.type.interface.cascode" },
+        "5": { "name": "keyword.control.bind.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#binding-block" }
+      ]
+    },
+
+    "instance-declaration": {
+      "begin": "([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
+      "beginCaptures": {
+        "1": { "name": "entity.name.variable.instance.cascode" },
+        "2": { "name": "keyword.operator.assignment.cascode" },
+        "3": { "name": "keyword.operator.new.cascode" },
+        "4": { "name": "entity.name.type.cascode" }
+      },
+      "end": "(?<=\\})|(?=;)",
+      "patterns": [
+        { "include": "#argument-list" },
+        { "include": "#binding-block" }
+      ]
+    },
+
+    "device-declaration": {
+      "begin": "\\b(NMOS|PMOS|MOS|Cap|Res|Ind|R|C|L)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+(NMOS|PMOS|MOS|Cap|Res|Ind|R|C|L)\\s*",
+      "beginCaptures": {
+        "1": { "name": "storage.type.device.cascode" },
+        "2": { "name": "entity.name.variable.device.cascode" },
+        "3": { "name": "keyword.operator.assignment.cascode" },
+        "4": { "name": "keyword.operator.new.cascode" },
+        "5": { "name": "entity.name.type.device.cascode" }
+      },
+      "end": "(?<=\\})|(?=;)",
+      "patterns": [
+        { "include": "#argument-list" },
+        { "include": "#binding-block" }
+      ]
+    },
+
+    "attach-statement": {
+      "match": "\\b(attach)\\s+([a-z_][a-zA-Z0-9_]*)\\s+(to)\\s+([a-z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.attach.cascode" },
+        "2": { "name": "variable.other.instance.cascode" },
+        "3": { "name": "keyword.control.to.cascode" },
+        "4": { "name": "variable.other.instance.cascode" }
+      }
+    },
+
+    "connect-statement": {
+      "match": "\\b(connect)\\s+([a-zA-Z_][a-zA-Z0-9_.]*)\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_.]*)",
+      "captures": {
+        "1": { "name": "keyword.control.connect.cascode" },
+        "2": { "name": "variable.other.net.cascode" },
+        "3": { "name": "keyword.operator.arrow.cascode" },
+        "4": { "name": "variable.other.net.cascode" }
+      }
+    },
+
+    "binding-statement": {
+      "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--|->)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
+      "captures": {
+        "1": { "name": "punctuation.accessor.cascode" },
+        "2": { "name": "variable.other.pin.cascode" },
+        "3": { "name": "punctuation.squarebracket.open.cascode" },
+        "4": { "name": "constant.numeric.index.cascode" },
+        "5": { "name": "punctuation.squarebracket.close.cascode" },
+        "6": { "name": "keyword.operator.binding.cascode" },
+        "7": { "name": "punctuation.accessor.cascode" },
+        "8": { "name": "variable.other.net.cascode" },
+        "9": { "name": "punctuation.squarebracket.open.cascode" },
+        "10": { "name": "constant.numeric.index.cascode" },
+        "11": { "name": "punctuation.squarebracket.close.cascode" }
+      }
+    },
+
+    "binding-block": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.curlybrace.open.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#binding-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "params-block": {
+      "begin": "(params)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.params.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#param-field-declaration" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "param-field-declaration": {
+      "match": "([a-z_][a-zA-Z0-9_]*)\\s*(:)\\s*(bool|int|real|polarity|resistance|enum\\s*\\{[^}]+\\})\\s*(=)\\s*([^;,}]+)",
+      "captures": {
+        "1": { "name": "entity.name.variable.parameter.cascode" },
+        "2": { "name": "punctuation.separator.colon.cascode" },
+        "3": { "name": "storage.type.primitive.cascode" },
+        "4": { "name": "keyword.operator.assignment.cascode" },
+        "5": {
+          "patterns": [
+            { "include": "#expression" }
+          ]
+        }
+      }
+    },
+
+    "ports-block": {
+      "begin": "(ports)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.ports.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#control-flow" },
+        { "include": "#port-field-declaration" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "ports-array": {
+      "begin": "(ports)\\s*\\[",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.ports.cascode" }
+      },
+      "end": "\\]",
+      "endCaptures": {
+        "0": { "name": "punctuation.squarebracket.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#port-field-declaration" },
+        { "include": "#punctuation-comma" }
+      ]
+    },
+
+    "port-field-declaration": {
+      "match": "([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+      "captures": {
+        "1": { "name": "entity.name.variable.port.cascode" },
+        "2": { "name": "punctuation.separator.colon.cascode" },
+        "3": { "name": "storage.type.cascode" }
+      }
+    },
+
+    "connector-block": {
+      "begin": "(connector)(?:\\s+(to)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.connector.cascode" },
+        "2": { "name": "keyword.control.to.cascode" },
+        "3": { "name": "entity.name.type.interface.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#binding-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "metrics-block": {
+      "begin": "(metrics)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.metrics.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#metric-declaration" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "metric-declaration": {
+      "match": "([A-Z][a-zA-Z0-9_]*)(?:\\s+(from)\\s+([a-zA-Z_][a-zA-Z0-9_.]+))?",
+      "captures": {
+        "1": { "name": "entity.name.variable.metric.cascode" },
+        "2": { "name": "keyword.control.from.cascode" },
+        "3": { "name": "variable.other.metric-source.cascode" }
+      }
+    },
+
+    "benches-block": {
+      "begin": "(benches)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.benches.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#bind-statement" },
+        { "include": "#type-reference" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "bind-statement": {
+      "match": "\\b(bind)\\s+([A-Z][a-zA-Z0-9_]*)\\s+(as)\\s+([a-z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "keyword.control.bind.cascode" },
+        "2": { "name": "entity.name.type.bench.cascode" },
+        "3": { "name": "keyword.control.as.cascode" },
+        "4": { "name": "entity.name.variable.binding.cascode" }
+      }
+    },
+
+    "env-block": {
+      "begin": "(env)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.env.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#env-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "env-statement": {
+      "patterns": [
+        {
+          "match": "\\b(vdd|icmr|load|source|temperature|sweep)\\b",
+          "name": "keyword.other.env.cascode"
+        },
+        { "include": "#range-expression" },
+        { "include": "#expression" }
+      ]
+    },
+
+    "spec-block": {
+      "begin": "(spec)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.spec.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#spec-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "spec-statement": {
+      "patterns": [
+        {
+          "match": "([A-Z][a-zA-Z0-9_]*)(?:\\s*\\(\\s*([A-Z_][a-zA-Z0-9_]*)\\s*\\))?\\s*(>=|<=|==|>|<|in)\\s*",
+          "captures": {
+            "1": { "name": "entity.name.variable.metric.cascode" },
+            "2": { "name": "variable.other.node.cascode" },
+            "3": { "name": "keyword.operator.comparison.cascode" }
+          }
+        },
+        { "include": "#range-expression" },
+        { "include": "#expression" }
+      ]
+    },
+
+    "bench-ref-block": {
+      "begin": "(bench)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.bench.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#type-reference" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "use-block": {
+      "begin": "(use|fill)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.use.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#use-body" }
+      ]
+    },
+
+    "use-body": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#net-declaration" },
+        { "include": "#instance-declaration" },
+        { "include": "#device-declaration" },
+        { "include": "#control-flow" },
+        { "include": "#attach-statement" },
+        { "include": "#connect-statement" },
+        { "include": "#binding-statement" },
+        { "include": "#expression" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "net-declaration": {
+      "match": "\\b(net)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(:)\\s*(analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+      "captures": {
+        "1": { "name": "keyword.other.net.cascode" },
+        "2": { "name": "entity.name.variable.net.cascode" },
+        "3": { "name": "punctuation.separator.colon.cascode" },
+        "4": { "name": "storage.type.domain.cascode" }
+      }
+    },
+
+    "synth-block": {
+      "begin": "(synth)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.synth.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#synth-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "synth-statement": {
+      "patterns": [
+        {
+          "match": "\\b(from|fill|allow|forbid|prefer|objective|minimize|maximize)\\b",
+          "name": "keyword.control.synth.cascode"
+        },
+        { "include": "#expression" }
+      ]
+    },
+
+    "char-block": {
+      "begin": "(char)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.char.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#char-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "char-statement": {
+      "patterns": [
+        {
+          "match": "\\b(benches|pvt|sweep|fit|validity)\\b",
+          "name": "keyword.control.char.cascode"
+        },
+        { "include": "#expression" }
+      ]
+    },
+
+    "fill-block": {
+      "begin": "(fill)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.fill.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#use-body" }
+      ]
+    },
+
+    "analysis-block": {
+      "begin": "(analysis)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.analysis.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#analysis-declaration" },
+        { "include": "#block" },
+        { "include": "#expression" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "analysis-declaration": {
+      "match": "(ACAnalysis|DCAnalysis|TranAnalysis|NoiseAnalysis|STBAnalysis)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+(ACAnalysis|DCAnalysis|TranAnalysis|NoiseAnalysis|STBAnalysis)",
+      "captures": {
+        "1": { "name": "storage.type.analysis.cascode" },
+        "2": { "name": "entity.name.variable.analysis.cascode" },
+        "3": { "name": "keyword.operator.assignment.cascode" },
+        "4": { "name": "keyword.operator.new.cascode" },
+        "5": { "name": "entity.name.type.analysis.cascode" }
+      }
+    },
+
+    "measurements-block": {
+      "begin": "(measurements)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.measurements.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#measurement-declaration" },
+        { "include": "#variable-declaration" },
+        { "include": "#control-flow" },
+        { "include": "#expression" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "measurement-declaration": {
+      "begin": "\\b(measurement)\\s+([A-Z][a-zA-Z0-9_]*)\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.measurement.cascode" },
+        "2": { "name": "entity.name.function.measurement.cascode" },
+        "3": { "name": "punctuation.separator.colon.cascode" },
+        "4": { "name": "storage.type.unit.cascode" },
+        "5": { "name": "punctuation.curlybrace.open.cascode" }
+      },
+      "end": "(\\})",
+      "endCaptures": {
+        "1": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#variable-declaration" },
+        { "include": "#control-flow" },
+        { "include": "#expression" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "variable-declaration": {
+      "match": "(Frequency|VoltageRatio|CurrentRatio|TransferFunction|RealFunction|NoiseFunction|Impedance|Voltage|Current|Time|Phase|Scalar|NoiseSpectralDensity|IntegratedNoise|Capacitance|Inductance)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)",
+      "captures": {
+        "1": { "name": "storage.type.physical.cascode" },
+        "2": { "name": "entity.name.variable.local.cascode" },
+        "3": { "name": "keyword.operator.assignment.cascode" }
+      }
+    },
+
+    "function-declaration": {
+      "begin": "(function)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.function.cascode" },
+        "2": { "name": "entity.name.function.cascode" },
+        "3": { "name": "punctuation.parenthesis.open.cascode" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#function-parameters" },
+        { "include": "#return-type" },
+        { "include": "#block" }
+      ]
+    },
+
+    "function-parameters": {
+      "begin": "(?<=\\()",
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "punctuation.parenthesis.close.cascode" }
+      },
+      "patterns": [
+        {
+          "match": "([A-Z][a-zA-Z0-9_]*)\\s+([a-z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.cascode" },
+            "2": { "name": "entity.name.variable.parameter.cascode" }
+          }
+        },
+        { "include": "#punctuation-comma" }
+      ]
+    },
+
+    "return-type": {
+      "match": "(:)\\s*([A-Z][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.separator.colon.cascode" },
+        "2": { "name": "storage.type.return.cascode" }
+      }
+    },
+
+    "wrap-spice": {
+      "begin": "(wrap)\\s+(spice)\\s*(\"\"\")",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.wrap.cascode" },
+        "2": { "name": "keyword.other.spice.cascode" },
+        "3": { "name": "punctuation.definition.string.begin.cascode" }
+      },
+      "end": "(\"\"\")",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.string.end.cascode" }
+      },
+      "contentName": "meta.embedded.block.spice",
+      "patterns": [
+        {
+          "name": "string.quoted.triple.cascode",
+          "match": "."
+        }
+      ]
+    },
+
+    "control-flow": {
+      "patterns": [
+        {
+          "begin": "\\b(if)\\s*(\\()",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.conditional.if.cascode" },
+            "2": { "name": "punctuation.parenthesis.open.cascode" }
+          },
+          "end": "(\\))",
+          "endCaptures": {
+            "1": { "name": "punctuation.parenthesis.close.cascode" }
+          },
+          "patterns": [
+            { "include": "#expression" }
+          ]
+        },
+        {
+          "match": "\\b(else)\\b",
+          "name": "keyword.control.conditional.else.cascode"
+        },
+        {
+          "begin": "\\b(for|repeat)\\s+([a-z_][a-zA-Z0-9_]*)\\s+(in)\\s*",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.loop.for.cascode" },
+            "2": { "name": "entity.name.variable.iterator.cascode" },
+            "3": { "name": "keyword.operator.in.cascode" }
+          },
+          "end": "(?=\\{)",
+          "patterns": [
+            { "include": "#range-expression" },
+            { "include": "#expression" }
+          ]
+        },
+        {
+          "match": "\\b(match)\\b",
+          "name": "keyword.control.conditional.match.cascode"
+        },
+        {
+          "match": "\\b(case)\\b",
+          "name": "keyword.control.conditional.case.cascode"
+        },
+        {
+          "match": "\\b(return)\\b",
+          "name": "keyword.control.flow.return.cascode"
+        }
+      ]
+    },
+
+    "block": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.curlybrace.open.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#statement" }
+      ]
+    },
+
+    "statement": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#variable-declaration" },
+        { "include": "#control-flow" },
+        { "include": "#block" },
+        { "include": "#expression" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "argument-list": {
+      "begin": "(\\()",
+      "beginCaptures": {
+        "1": { "name": "punctuation.parenthesis.open.cascode" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "punctuation.parenthesis.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#named-argument" },
+        { "include": "#expression" },
+        { "include": "#punctuation-comma" }
+      ]
+    },
+
+    "named-argument": {
+      "match": "([a-z_][a-zA-Z0-9_]*)\\s*(=)(?!=)",
+      "captures": {
+        "1": { "name": "entity.name.variable.parameter.cascode" },
+        "2": { "name": "keyword.operator.assignment.cascode" }
+      }
+    },
+
+    "range-expression": {
+      "match": "(\\[)\\s*([^\\]]+?)\\s*(\\.\\.)\\s*([^\\]]+?)\\s*(\\])",
+      "captures": {
+        "1": { "name": "punctuation.squarebracket.open.cascode" },
+        "2": {
+          "patterns": [
+            { "include": "#literal" }
+          ]
+        },
+        "3": { "name": "keyword.operator.range.cascode" },
+        "4": {
+          "patterns": [
+            { "include": "#literal" }
+          ]
+        },
+        "5": { "name": "punctuation.squarebracket.close.cascode" }
+      }
+    },
+
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#parenthesized-expression" },
+        { "include": "#function-call" },
+        { "include": "#member-access" },
+        { "include": "#operators" },
+        { "include": "#literal" },
+        { "include": "#type-reference" },
+        { "include": "#identifier" }
+      ]
+    },
+
+    "parenthesized-expression": {
+      "begin": "(\\()",
+      "beginCaptures": {
+        "1": { "name": "punctuation.parenthesis.open.cascode" }
+      },
+      "end": "(\\))",
+      "endCaptures": {
+        "1": { "name": "punctuation.parenthesis.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#expression" },
+        { "include": "#punctuation-comma" }
+      ]
+    },
+
+    "function-call": {
+      "patterns": [
+        {
+          "match": "\\b(transfer|mag|phase|db20|db10|eval|find_crossing|sqrt|abs|spot_noise|integrate|input_referred_noise|noise|calc_passband_freq|infer_hp_corner|infer_lp_corner|log|exp|sin|cos|tan|min|max)\\b(?=\\s*\\()",
+          "name": "support.function.builtin.cascode"
+        },
+        {
+          "match": "\\b([a-z_][a-zA-Z0-9_]*)\\b(?=\\s*\\()",
+          "name": "entity.name.function.call.cascode"
+        }
+      ]
+    },
+
+    "member-access": {
+      "match": "(\\.)\\s*(@?[a-zA-Z_][a-zA-Z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.accessor.cascode" },
+        "2": { "name": "variable.other.member.cascode" }
+      }
+    },
+
+    "operators": {
+      "patterns": [
+        {
+          "match": "--|->",
+          "name": "keyword.operator.binding.cascode"
+        },
+        {
+          "match": "::",
+          "name": "keyword.operator.scope.cascode"
+        },
+        {
+          "match": "\\|\\|",
+          "name": "keyword.operator.parallel.cascode"
+        },
+        {
+          "match": "&&",
+          "name": "keyword.operator.logical.and.cascode"
+        },
+        {
+          "match": "\\|(?!\\|)",
+          "name": "keyword.operator.bitwise.or.cascode"
+        },
+        {
+          "match": ">=|<=|==|!=|>|<",
+          "name": "keyword.operator.comparison.cascode"
+        },
+        {
+          "match": "=(?!=)",
+          "name": "keyword.operator.assignment.cascode"
+        },
+        {
+          "match": "\\+|-(?!>)|\\*|/|%",
+          "name": "keyword.operator.arithmetic.cascode"
+        },
+        {
+          "match": "!",
+          "name": "keyword.operator.logical.not.cascode"
+        },
+        {
+          "match": "\\?\\.?",
+          "name": "keyword.operator.null-conditional.cascode"
+        }
+      ]
+    },
+
+    "literal": {
+      "patterns": [
+        { "include": "#boolean-literal" },
+        { "include": "#polarity-literal" },
+        { "include": "#level-literal" },
+        { "include": "#special-literal" },
+        { "include": "#string-literal" },
+        { "include": "#unit-literal" },
+        { "include": "#numeric-literal" }
+      ]
+    },
+
+    "boolean-literal": {
+      "match": "\\b(true|false)\\b",
+      "name": "constant.language.boolean.cascode"
+    },
+
+    "polarity-literal": {
+      "match": "\\b(NMOS|PMOS)\\b",
+      "name": "constant.language.polarity.cascode"
+    },
+
+    "level-literal": {
+      "match": "\\b(HL|ML|EL)\\b",
+      "name": "constant.language.level.cascode"
+    },
+
+    "special-literal": {
+      "patterns": [
+        {
+          "match": "\\b(Auto|None)\\b",
+          "name": "constant.language.special.cascode"
+        },
+        {
+          "match": "\\?\\?",
+          "name": "constant.language.placeholder.cascode"
+        },
+        {
+          "match": "\\b(Log|Lin|Linear)\\b",
+          "name": "constant.language.sweep.cascode"
+        },
+        {
+          "match": "\\b(falling|rising)\\b",
+          "name": "constant.language.direction.cascode"
+        }
+      ]
+    },
+
+    "string-literal": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.cascode",
+          "begin": "\"\"\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.cascode" }
+          },
+          "end": "\"\"\"",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.cascode" }
+          }
+        },
         {
           "name": "string.quoted.double.cascode",
           "begin": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.cascode" }
+          },
           "end": "\"",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.cascode" }
+          },
           "patterns": [
             {
               "name": "constant.character.escape.cascode",
@@ -86,18 +1349,13 @@
         {
           "name": "string.quoted.single.cascode",
           "begin": "'",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.cascode" }
+          },
           "end": "'",
-          "patterns": [
-            {
-              "name": "constant.character.escape.cascode",
-              "match": "\\\\."
-            }
-          ]
-        },
-        {
-          "name": "string.quoted.triple.cascode",
-          "begin": "\"\"\"",
-          "end": "\"\"\"",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.cascode" }
+          },
           "patterns": [
             {
               "name": "constant.character.escape.cascode",
@@ -107,265 +1365,164 @@
         }
       ]
     },
-    "numbers": {
+
+    "unit-literal": {
       "patterns": [
         {
-          "name": "constant.numeric.cascode",
-          "match": "\\b([0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?)\\b"
-        },
-        {
-          "name": "constant.numeric.hex.cascode",
-          "match": "\\b0[xX][0-9a-fA-F]+\\b"
-        }
-      ]
-    },
-    "units": {
-      "patterns": [
-        {
-          "name": "constant.numeric.unit.voltage.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?V\\b"
-        },
-        {
-          "name": "constant.numeric.unit.current.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?A\\b"
-        },
-        {
-          "name": "constant.numeric.unit.frequency.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[kMG]?Hz\\b"
-        },
-        {
-          "name": "constant.numeric.unit.capacitance.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?F\\b"
-        },
-        {
-          "name": "constant.numeric.unit.resistance.ascii.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?([kMG]?Ohm|[kMG])\\b"
-        },
-        {
-          "name": "constant.numeric.unit.inductance.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?H\\b"
-        },
-        {
-          "name": "constant.numeric.unit.noise.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?V/√Hz\\b"
-        },
-        {
-          "name": "constant.numeric.unit.time.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?s\\b"
-        },
-        {
-          "name": "constant.numeric.unit.temperature.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[KC]\\b"
-        },
-        {
-          "name": "constant.numeric.unit.power.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?[mkuµnpf]?W\\b"
-        },
-        {
-          "name": "constant.numeric.unit.angle.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?deg\\b"
-        },
-        {
-          "name": "constant.numeric.unit.db.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*([eE][+-]?[0-9]+)?dB\\b"
-        },
-        {
-          "name": "constant.numeric.unit.percentage.cascode",
-          "match": "\\b[0-9]+\\.?[0-9]*%\\b"
-        }
-      ]
-    },
-    "operators": {
-      "patterns": [
-        {
-          "name": "keyword.operator.comparison.cascode",
-          "match": "(==|!=|<=|>=|<|>)"
-        },
-        {
-          "name": "keyword.operator.assignment.cascode",
-          "match": "(=|\\+=|-=|\\*=|/=)"
-        },
-        {
-          "name": "keyword.operator.arithmetic.cascode",
-          "match": "(\\+|-|\\*|/|%)"
-        },
-        {
-          "name": "keyword.operator.logical.cascode",
-          "match": "(&&|\\|\\||!)"
-        },
-        {
-          "name": "keyword.operator.connection.cascode",
-          "match": "(->|<-|<->)"
-        },
-        {
-          "name": "keyword.operator.range.cascode",
-          "match": "\\.\\."
-        }
-      ]
-    },
-    "blocks": {
-      "patterns": [
-        {
-          "name": "meta.block.env.cascode",
-          "begin": "\\b(env)\\b(\\s*\\{)",
-          "beginCaptures": {
-            "1": { "name": "keyword.other.declaration.cascode" },
-            "2": { "name": "punctuation.section.block.begin.cascode" }
-          },
-          "end": "(\\})",
-          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
-          "patterns": []
-        },
-        {
-          "name": "meta.block.use.cascode",
-          "begin": "\\b(use)\\b(\\s*\\{)",
-          "beginCaptures": {
-            "1": { "name": "keyword.other.declaration.cascode" },
-            "2": { "name": "punctuation.section.block.begin.cascode" }
-          },
-          "end": "(\\})",
-          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
-          "patterns": []
-        },
-        {
-          "name": "meta.block.spec.cascode",
-          "begin": "\\b(spec)\\b(\\s*\\{)",
-          "beginCaptures": {
-            "1": { "name": "keyword.other.declaration.cascode" },
-            "2": { "name": "punctuation.section.block.begin.cascode" }
-          },
-          "end": "(\\})",
-          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
-          "patterns": []
-        },
-        {
-          "name": "meta.block.bench.cascode",
-          "begin": "\\b(bench)\\b(\\s*\\{)",
-          "beginCaptures": {
-            "1": { "name": "keyword.other.declaration.cascode" },
-            "2": { "name": "punctuation.section.block.begin.cascode" }
-          },
-          "end": "(\\})",
-          "endCaptures": { "1": { "name": "punctuation.section.block.end.cascode" } },
-          "patterns": []
-        }
-      ]
-    },
-    "functions": {
-      "patterns": [
-        {
-          "name": "support.function.spec.cascode",
-          "match": "\\b(GainBandwidth|PassbandGain|PhaseMargin|OutputSwing|NoiseIn|SlewRate|Settle|ZeroTau|Power|DynamicPower|TogglePower|Headroom|ICMR|RiseTime|FallTime|VOH|VOL|Area)\\b"
-        },
-        {
-          "name": "support.function.bench.cascode",
-          "match": "\\b(SEOpAmpACBench|SEAmpACBench|FDOpAmpACBench|UnityUGF|Step|NoiseIn|StepToggle)\\b"
-        },
-        {
-          "name": "support.function.component.cascode",
-          "match": "\\b[CRL]\\s*\\("
-        },
-        {
-          "name": "support.function.builtin.cascode",
-          "match": "\\b(step|posedge|negedge|GP|PWL|affine)\\b"
-        }
-      ]
-    },
-    "types": {
-      "patterns": [
-        {
-          "name": "support.type.interface.cascode",
-          "match": "\\b(Amplifier|SingleEndedOpAmp|SingleEndedAmp|FullyDiffOpAmp|AmplifierStage|DiffPairLike|CascodePairLike|CurrentMirrorLike|ReferenceCircuit|VoltageReference|CurrentReference|Compensator|CurrentMirror|InverterLike|Comparator|FrontEndBlock|BasebandFilter|VariableGainAmp|OutputDriver)\\b"
-        },
-        {
-          "name": "support.type.motif.cascode",
-          "match": "\\b(DiffPair|CascodePair|CurrentMirror|MillerRC|MillerRz|Ahuja|StrongArmLatch|PadDriver|Cap|Res|Ind)\\b"
-        },
-        {
-          "match": "\\b(module|motif|interface)\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(THz|GHz|MHz|kHz|Hz)",
           "captures": {
-            "1": { "name": "keyword.other.class.cascode" },
-            "2": { "name": "entity.name.type.class.cascode" }
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.frequency.cascode" }
           }
         },
         {
-          "match": "(:)\\s*([A-Z][A-Za-z0-9_]*)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mV|uV|nV|pV|V)",
           "captures": {
-            "1": { "name": "punctuation.separator.type.cascode" },
-            "2": { "name": "support.type.cascode" }
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.voltage.cascode" }
           }
         },
         {
-          "match": "\\b(with|new)\\b\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mA|uA|nA|pA|A)",
           "captures": {
-            "1": { "name": "keyword.other.cascode" },
-            "2": { "name": "support.class.motif.cascode" }
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.current.cascode" }
           }
         },
         {
-          "match": "\\bfill\\s+([A-Za-z_][\\w]*)\\s+with\\s+([A-Z][A-Za-z0-9_]*)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(MΩ|kΩ|Ω|MOhm|kOhm|Ohm)",
           "captures": {
-            "1": { "name": "variable.other.instance.cascode" },
-            "2": { "name": "support.class.motif.cascode" }
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.resistance.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(uF|nF|pF|fF|F)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.capacitance.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mH|uH|nH|pH|H)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.inductance.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(ms|us|ns|ps|fs|s)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.time.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(deg|rad)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.angle.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(dB|W)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.power.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(nV|uV|pV|V|nA|pA|uA|A)(/√Hz|/rtHz|rms)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.noise.cascode" },
+            "3": { "name": "constant.numeric.unit.noise.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(C|K)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.temperature.cascode" }
+          }
+        },
+        {
+          "match": "([0-9]+\\.?[0-9]*)(T|G|M|k|m|u|n|p|f)(?=[^a-zA-Z]|$)",
+          "captures": {
+            "1": { "name": "constant.numeric.decimal.cascode" },
+            "2": { "name": "constant.numeric.unit.prefix.cascode" }
           }
         }
       ]
     },
-    "identifiers": {
+
+    "numeric-literal": {
       "patterns": [
         {
-          "match": "\\b(port|ports)\\b\\s*(in|out)?\\s*([A-Za-z_][\\w]*)",
-          "captures": {
-            "1": { "name": "keyword.other.declaration.cascode" },
-            "2": { "name": "storage.modifier.direction.cascode" },
-            "3": { "name": "entity.name.variable.port.cascode" }
-          }
+          "match": "\\b0x[0-9a-fA-F]+\\b",
+          "name": "constant.numeric.hex.cascode"
         },
         {
-          "match": "\\bnet\\b\\s+([A-Za-z_][\\w]*)",
-          "captures": { "1": { "name": "entity.name.variable.net.cascode" } }
+          "match": "\\b0b[01]+\\b",
+          "name": "constant.numeric.binary.cascode"
         },
         {
-          "match": "\\b([A-Za-z_][\\w]*)\\b\\s*=\\s*new\\b",
-          "captures": { "1": { "name": "variable.other.instance.cascode" } }
+          "match": "\\b[0-9]+\\.[0-9]+(?:[eE][+-]?[0-9]+)?\\b",
+          "name": "constant.numeric.float.cascode"
+        },
+        {
+          "match": "\\b[0-9]+(?:[eE][+-]?[0-9]+)?\\b",
+          "name": "constant.numeric.integer.cascode"
         }
       ]
     },
-    "constants": {
+
+    "type-reference": {
       "patterns": [
         {
-          "name": "constant.language.boolean.cascode",
-          "match": "\\b(true|false)\\b"
+          "match": "\\b(Frequency|VoltageRatio|CurrentRatio|TransferFunction|RealFunction|NoiseFunction|Impedance|Capacitance|Inductance|Voltage|Current|Time|Phase|Scalar|NoiseSpectralDensity|IntegratedNoise)\\b",
+          "name": "storage.type.physical.cascode"
         },
         {
-          "name": "constant.language.null.cascode",
-          "match": "\\b(null|nil|None)\\b"
+          "match": "\\b(ACAnalysis|DCAnalysis|TranAnalysis|NoiseAnalysis|STBAnalysis)\\b",
+          "name": "storage.type.analysis.cascode"
         },
         {
-          "name": "support.constant.rail.cascode",
-          "match": "\\b(VDD|GND)\\b"
+          "match": "\\b(bool|int|real|polarity|resistance)\\b",
+          "name": "storage.type.primitive.cascode"
         },
         {
-          "name": "support.constant.process.cascode",
-          "match": "\\b(TT|SS|FF)\\b"
+          "match": "\\b(analog|digital|bias|supply|ground|mixed|clock|rf|signal)\\b",
+          "name": "storage.type.domain.cascode"
         },
         {
-          "name": "support.constant.device.cascode",
-          "match": "\\b(NMOS|PMOS|pch|nch)\\b"
+          "match": "\\b(Diff|Quad)\\b",
+          "name": "storage.type.bundle.cascode"
         },
         {
-          "name": "support.constant.passive_kind.cascode",
-          "match": "\\b(MIM|MOM|MFC|TFR|Poly|Metal|Pseudo|Spiral|MIMStack)\\b"
+          "match": "\\b(VDC|VAC|GND|Impedance|MOS|NMOS|PMOS|R|C|L|Cap|Res|Ind)\\b",
+          "name": "support.class.builtin.cascode"
         },
         {
-          "name": "constant.other.hint.cascode",
-          "match": "\\b(Auto|X[0-9]+)\\b"
-        },
-        {
-          "name": "variable.language.compensation.cascode",
-          "match": "\\b(MillerRC|MillerRz|Ahuja)\\b"
+          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b",
+          "name": "entity.name.type.cascode"
         }
       ]
+    },
+
+    "identifier": {
+      "match": "@?[a-z_][a-zA-Z0-9_]*",
+      "name": "variable.other.cascode"
+    },
+
+    "punctuation-comma": {
+      "match": ",",
+      "name": "punctuation.separator.comma.cascode"
+    },
+
+    "punctuation-semicolon": {
+      "match": ";",
+      "name": "punctuation.terminator.statement.cascode"
     }
   }
 }

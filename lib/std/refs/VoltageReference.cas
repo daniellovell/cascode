@@ -1,4 +1,4 @@
-package lib.std.refs;
+library lib.std.refs;
 
 // Interface for voltage references.
 interface VoltageReference extend ReferenceCircuit {

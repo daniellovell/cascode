@@ -27,7 +27,7 @@ Bench definitions reside in `.cas` files under `lib/benches` alongside their tem
 ### 4.2.1 Syntax
 
 ```cascode
-package lib.benches;
+library lib.benches;
 
 bench SEOpAmpACBench {
   spectre_template = "SEOpAmpACBench.spectre.tpl";
@@ -745,7 +745,7 @@ ACIR presently resolves only builtin benches. To add a new builtin bench, place 
 Create `{BenchName}.cas` in `lib/benches`:
 
 ```cascode
-package lib.benches;
+library lib.benches;
 
 bench MyCustomBench {
   ngspice_template = "MyCustomBench.ngspice.tpl";
