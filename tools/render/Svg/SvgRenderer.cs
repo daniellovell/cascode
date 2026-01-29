@@ -276,7 +276,7 @@ public sealed class SvgRenderer
                 );
             }
 
-            if (options.ShowParamLabels && device.Params.Count > 0)
+            if (options.ShowParamLabels)
             {
                 var paramText = FormatParams(device);
                 if (!string.IsNullOrEmpty(paramText))
@@ -434,30 +434,58 @@ public sealed class SvgRenderer
 
         if (type is "nmos" or "pmos" or "nfet" or "pfet")
         {
-            if (device.Params.TryGetValue("W", out var w))
+            if (device.Size is not null)
             {
-                parts.Add($"W={w}");
+                if (device.Size.Entries.TryGetValue("W", out var w))
+                {
+                    parts.Add($"W={w}");
+                }
+                if (device.Size.Entries.TryGetValue("L", out var l))
+                {
+                    parts.Add($"L={l}");
+                }
+                if (device.Size.Entries.TryGetValue("M", out var m) && m != "1")
+                {
+                    parts.Add($"M={m}");
+                }
             }
-            if (device.Params.TryGetValue("L", out var l))
+            else if (!string.IsNullOrWhiteSpace(device.SizeName))
             {
-                parts.Add($"L={l}");
-            }
-            if (device.Params.TryGetValue("M", out var m) && m != "1")
-            {
-                parts.Add($"M={m}");
+                parts.Add($"size={device.SizeName}");
             }
         }
-        else if (type == "resistor" && device.Params.TryGetValue("R", out var r))
+        else if (type == "resistor")
         {
-            parts.Add($"R={r}");
+            if (device.Size?.Entries.TryGetValue("R", out var r) == true)
+            {
+                parts.Add($"R={r}");
+            }
+            else if (!string.IsNullOrWhiteSpace(device.SizeName))
+            {
+                parts.Add($"size={device.SizeName}");
+            }
         }
-        else if (type == "capacitor" && device.Params.TryGetValue("C", out var c))
+        else if (type == "capacitor")
         {
-            parts.Add($"C={c}");
+            if (device.Size?.Entries.TryGetValue("C", out var c) == true)
+            {
+                parts.Add($"C={c}");
+            }
+            else if (!string.IsNullOrWhiteSpace(device.SizeName))
+            {
+                parts.Add($"size={device.SizeName}");
+            }
         }
-        else if (type == "inductor" && device.Params.TryGetValue("L", out var ind))
+        else if (type == "inductor")
         {
-            parts.Add($"L={ind}");
+            if (device.Size?.Entries.TryGetValue("L", out var ind) == true)
+            {
+                parts.Add($"L={ind}");
+            }
+            else if (!string.IsNullOrWhiteSpace(device.SizeName))
+            {
+                parts.Add($"size={device.SizeName}");
+            }
         }
 
         return string.Join(" ", parts);

@@ -1,5 +1,29 @@
 {
   "acirVersion": "3.0",
+  "primitives": [
+    {
+      "name": "Level1_NMOS",
+      "kind": "nmos",
+      "device": "level1_nmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    },
+    {
+      "name": "Level1_PMOS",
+      "kind": "pmos",
+      "device": "level1_pmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    }
+  ],
   "circuit": {
     "name": "CommonSourceAmp",
     "traits": [
@@ -35,34 +59,34 @@
     {
       "kind": "nmos",
       "name": "M_in",
+      "primitive": "Level1_NMOS",
       "connections": {
         "D": "OUT",
         "G": "IN",
         "S": "GND",
         "B": "GND"
       },
-      "params": {
+      "size": {
         "W": "10u",
         "L": "180n",
         "M": "1"
-      },
-      "process": "nmos"
+      }
     },
     {
       "kind": "pmos",
       "name": "load.M",
+      "primitive": "Level1_PMOS",
       "connections": {
         "D": "OUT",
         "G": "VBIAS",
         "S": "VDD",
         "B": "VDD"
       },
-      "params": {
+      "size": {
         "W": "20u",
         "L": "180n",
         "M": "1"
-      },
-      "process": "pmos"
+      }
     }
   ],
   "constraints": {
@@ -72,7 +96,7 @@
         "bench": "ACBench",
         "metric": "GainBandwidth",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 50000000,
         "unit": "Hz"
       },
@@ -81,7 +105,7 @@
         "bench": "ACBench",
         "metric": "PassbandGain",
         "node": "net::OUT",
-        "op": ">=",
+        "op": "\u003E=",
         "value": 30,
         "unit": "dB"
       }
@@ -104,7 +128,8 @@
         "net": "OUT",
         "capacitances": [
           1E-12
-        ]
+        ],
+        "resistances": []
       }
     ],
     "sweeps": []

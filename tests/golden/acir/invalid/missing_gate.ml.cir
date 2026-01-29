@@ -1,9 +1,19 @@
 ACIR 3.0
 
+primitive pmos Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
 // ML-level circuit with a missing gate binding - ERC-001 violation
 // The M_SENSE device has no G-- binding at all
 
-circuit MissingGateExample
+circuit MissingGateExample {
   level ML
 
   supply VDD
@@ -11,6 +21,11 @@ circuit MissingGateExample
 
   output OUT : analog
 
-  fill:
-    pmos M_SENSE (.B--VDD, .D--OUT, .S--VDD) : pmos
-      size (W=??, L=??, M=??)
+  fill {
+    pmos M_SENSE = new Level1_PMOS(size(W=??, L=??, M=??)) {
+      .B--VDD
+      .D--OUT
+      .S--VDD
+    }
+  }
+}

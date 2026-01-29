@@ -160,8 +160,18 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
             c => c.Name,
             StringComparer.OrdinalIgnoreCase
         );
+        var primitivesByName = document?.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
 
-        CollectPdkDevicesFromCircuit(circuit, circuitsByName, pdkDevices, visited);
+        CollectPdkDevicesFromCircuit(
+            circuit,
+            circuitsByName,
+            primitivesByName,
+            pdkDevices,
+            visited
+        );
 
         return pdkDevices.ToArray();
     }
@@ -169,6 +179,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     private static void CollectPdkDevicesFromCircuit(
         Circuit circuit,
         IReadOnlyDictionary<string, Circuit>? circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
         HashSet<string> pdkDevices,
         HashSet<string> visited
     )
@@ -183,9 +194,13 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                if (!string.IsNullOrWhiteSpace(device.PdkDevice))
+                if (
+                    primitivesByName is not null
+                    && primitivesByName.TryGetValue(device.Primitive, out var primitive)
+                    && !string.IsNullOrWhiteSpace(primitive.Device)
+                )
                 {
-                    pdkDevices.Add(device.PdkDevice);
+                    pdkDevices.Add(primitive.Device);
                 }
             }
         }
@@ -203,6 +218,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
                     CollectPdkDevicesFromCircuit(
                         targetCircuit,
                         circuitsByName,
+                        primitivesByName,
                         pdkDevices,
                         visited
                     );

@@ -115,7 +115,7 @@ internal sealed class PortCoverageAnalysis
             _result.AddError(
                 "HIER-003",
                 $"Instance '{instance.Id}' port '{port}' is not bound",
-                $"circuit {_parentCircuit.Name}, inst {instance.Id} : {instance.Type}",
+                $"circuit {_parentCircuit.Name}, instance {instance.Id} : {instance.Type}",
                 $"Add '.{port}--<net>' binding or cover via attach statement"
             );
         }

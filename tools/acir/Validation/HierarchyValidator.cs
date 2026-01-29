@@ -110,7 +110,7 @@ public static class HierarchyValidator
                 result.AddError(
                     "HIER-001",
                     $"Instance '{instance.Id}' references undefined circuit type '{instance.Type}'",
-                    $"circuit {circuit.Name}, inst {instance.Id}",
+                    $"circuit {circuit.Name}, instance {instance.Id}",
                     $"Define circuit '{instance.Type}' in this document or check for typos"
                 );
                 continue; // Cannot validate further without target circuit
@@ -152,8 +152,8 @@ public static class HierarchyValidator
                 result.AddError(
                     "HIER-002",
                     $"Instance '{instance.Id}' missing required parameter '{param.Name}'",
-                    $"circuit {parentCircuitName}, inst {instance.Id} : {instance.Type}",
-                    $"Add 'param {param.Name} = <value>' to the instance declaration"
+                    $"circuit {parentCircuitName}, instance {instance.Id} : {instance.Type}",
+                    $"Add '{param.Name}=<value>' to the instance constructor arguments"
                 );
             }
         }
@@ -182,8 +182,8 @@ public static class HierarchyValidator
                 result.AddError(
                     "HIER-007",
                     $"Instance '{instance.Id}' missing required size pack '{size.Name}'",
-                    $"circuit {parentCircuitName}, inst {instance.Id} : {instance.Type}",
-                    $"Add 'size {size.Name} = (k=v, ...)' to the instance declaration"
+                    $"circuit {parentCircuitName}, instance {instance.Id} : {instance.Type}",
+                    $"Add '{size.Name}=size(k=v, ...)' to the instance constructor arguments"
                 );
             }
         }
@@ -213,7 +213,7 @@ public static class HierarchyValidator
                     "HIER-006",
                     $"Attach references unknown instance '{attach.SourceInstance}'",
                     $"circuit {circuit.Name}, attach {attachChain}",
-                    $"Check instance name or add 'inst {attach.SourceInstance} : <type>' declaration"
+                    $"Check instance name or add '{attach.SourceInstance} = new <type>(...) {{ ... }}' declaration"
                 );
             }
 
@@ -226,7 +226,7 @@ public static class HierarchyValidator
                         "HIER-006",
                         $"Attach references unknown instance '{targetInstance}'",
                         $"circuit {circuit.Name}, attach {attachChain}",
-                        $"Check instance name or add 'inst {targetInstance} : <type>' declaration"
+                        $"Check instance name or add '{targetInstance} = new <type>(...) {{ ... }}' declaration"
                     );
                 }
             }

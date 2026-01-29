@@ -46,8 +46,8 @@ public class RenderIntegrationTests
         Assert.Contains("M_TAIL", svgContent);
 
         // Verify expected ports are present
-        Assert.Contains("IN_P", svgContent);
-        Assert.Contains("IN_N", svgContent);
+        Assert.Contains("IN.P", svgContent);
+        Assert.Contains("IN.N", svgContent);
         Assert.Contains("OUT", svgContent);
         Assert.Contains("VTAIL", svgContent);
     }

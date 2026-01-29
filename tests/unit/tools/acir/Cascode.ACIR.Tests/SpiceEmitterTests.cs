@@ -62,6 +62,217 @@ public class SpiceEmitterTests
     }
 
     [Fact]
+    public void EmitVariant_FullyResolvesParameters()
+    {
+        var acir =
+            $@"ACIR {ACIRVersion.Current}
+
+primitive nmos Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  fill {{
+    size Tail = size(W=Input.W*2, L=Input.L, M=1)
+    nmos M1 = new Level1_NMOS(Tail) {{
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }}
+  }}
+}}
+";
+
+        var result = ACIRReader.TryParse(acir, "indirect-sizes.cir");
+        Assert.True(result.Success);
+        var doc = result.Document!;
+        var circuit = doc.Circuits.Single(c => c.Name == "Top");
+
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(circuit, writer, document: doc);
+        var output = writer.ToString();
+
+        Assert.DoesNotContain("params:", output);
+        Assert.DoesNotContain("{", output);
+        Assert.Contains("W=2u", output);
+        Assert.Contains("L=180n", output);
+        Assert.Contains("m=1", output);
+    }
+
+    [Fact]
+    public void EmitVariant_ReferencesCorrectVariantName()
+    {
+        var doc = new ACIRDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
+            Circuits =
+            [
+                new Circuit
+                {
+                    Name = "Child",
+                    Level = ACIRLevel.EL,
+                    Parameters =
+                    [
+                        new CircuitParameter
+                        {
+                            Name = "ratio",
+                            Type = "int",
+                            Default = new ParamValue { Numeric = "1" },
+                        },
+                    ],
+                    Sizes =
+                    [
+                        new SizeDeclaration
+                        {
+                            Name = "Sense",
+                            Default = new SizePack
+                            {
+                                Entries = new Dictionary<string, string>
+                                {
+                                    ["W"] = "2u",
+                                    ["L"] = "180n",
+                                    ["M"] = "1",
+                                },
+                            },
+                        },
+                    ],
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Devices = new List<DeviceDeclaration>
+                        {
+                            new DeviceDeclaration
+                            {
+                                DeviceType = "nmos",
+                                Id = "M1",
+                                Primitive = "Level1_NMOS",
+                                SizeName = "Sense",
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["D"] = "OUT",
+                                    ["G"] = "IN",
+                                    ["S"] = "GND",
+                                    ["B"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+                new Circuit
+                {
+                    Name = "Top",
+                    Level = ACIRLevel.EL,
+                    Supplies = new List<string> { "VDD" },
+                    Grounds = new List<string> { "GND" },
+                    Ports = new List<PortDeclaration>
+                    {
+                        new()
+                        {
+                            Direction = PortDirection.Input,
+                            Name = "IN",
+                            Type = "analog",
+                        },
+                        new()
+                        {
+                            Direction = PortDirection.Output,
+                            Name = "OUT",
+                            Type = "analog",
+                        },
+                    },
+                    Fill = new FillBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "u1",
+                                Type = "Child",
+                                Params = new Dictionary<string, ParamValue>
+                                {
+                                    ["ratio"] = new ParamValue { Numeric = "2" },
+                                },
+                                Bindings = new Dictionary<string, string>
+                                {
+                                    ["IN"] = "IN",
+                                    ["OUT"] = "OUT",
+                                    ["VDD"] = "VDD",
+                                    ["GND"] = "GND",
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        };
+
+        var top = doc.Circuits.Single(c => c.Name == "Top");
+        using var writer = new StringWriter();
+        SpiceEmitter.EmitDesign(top, writer, document: doc);
+        var output = writer.ToString();
+
+        var variantName = VariantNaming.BuildCanonicalName(
+            "Child",
+            new Dictionary<string, string> { ["ratio"] = "2" },
+            new Dictionary<string, SizePack>
+            {
+                ["Sense"] = new SizePack
+                {
+                    Entries = new Dictionary<string, string>
+                    {
+                        ["W"] = "2u",
+                        ["L"] = "180n",
+                        ["M"] = "1",
+                    },
+                },
+            }
+        );
+
+        Assert.Contains(variantName, output);
+    }
+
+    [Fact]
     public void EmitDesign_DeviceTerminalOrder_DGBS()
     {
         var circuit = new Circuit
@@ -93,6 +304,7 @@ public class SpiceEmitterTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -100,24 +312,46 @@ public class SpiceEmitterTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "W", "1u" },
-                            { "L", "180n" },
-                            { "M", "1" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = "nmos",
                     },
                 },
             },
         };
 
+        var document = new ACIRDocument
+        {
+            Primitives =
+            [
+                new PrimitiveDefinition
+                {
+                    Name = "Level1_NMOS",
+                    Kind = "nmos",
+                    Device = "level1_nmos",
+                    SizeParameter = "primSize",
+                    Params = new Dictionary<string, string>
+                    {
+                        ["W"] = "primSize.W",
+                        ["L"] = "primSize.L",
+                        ["m"] = "primSize.M",
+                    },
+                },
+            ],
+        };
+
         using var writer = new StringWriter();
-        SpiceEmitter.EmitDesign(circuit, writer);
+        SpiceEmitter.EmitDesign(circuit, writer, document: document);
         var output = writer.ToString();
 
         // Verify MOSFET line has DGBS ordering: MM1 <D> <G> <S> <B> <model>
-        Assert.Contains("MM1 OUT IN GND GND nmos W=1u L=180n m=1", output);
+        Assert.Contains("MM1 OUT IN GND GND level1_nmos L=180n W=1u m=1", output);
     }
 
     [Fact]
@@ -140,8 +374,8 @@ public class SpiceEmitterTests
 
         // Ports
         Assert.Equal(4, circuit.Ports.Count);
-        Assert.Contains(circuit.Ports, p => p.Name == "IN_P");
-        Assert.Contains(circuit.Ports, p => p.Name == "IN_N");
+        Assert.Contains(circuit.Ports, p => p.Name == "IN.P");
+        Assert.Contains(circuit.Ports, p => p.Name == "IN.N");
         Assert.Contains(circuit.Ports, p => p.Name == "OUT");
         Assert.Contains(circuit.Ports, p => p.Name == "VTAIL");
 
@@ -303,7 +537,7 @@ public class SpiceEmitterTests
         Assert.Equal("R_load", resistor.Id);
         Assert.Equal("VDD", resistor.Bindings["P"]);
         Assert.Equal("OUT", resistor.Bindings["N"]);
-        Assert.Equal("10k", resistor.Params["R"]);
+        Assert.Equal("10k", resistor.Size?.Entries["R"]);
 
         // Harness without bias (simpler)
         Assert.NotNull(circuit.Harness);

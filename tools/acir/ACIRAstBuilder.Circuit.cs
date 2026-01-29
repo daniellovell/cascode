@@ -10,19 +10,21 @@ internal sealed partial class ACIRAstBuilder
     private Circuit BuildCircuit(ACIRParser.CircuitContext ctx)
     {
         var memberState = ProcessCircuitMembers(ctx);
+        var signature = BuildCircuitSignature(ctx.paramSignature());
 
         return new Circuit
         {
-            Name = ctx.IDENT().GetText(),
-            Traits = ctx.traitList()?.IDENT().Select(i => i.GetText()).ToList(),
+            Name = ctx.name.Text,
+            Traits = ctx.implementsClause()?.traitList()?.IDENT().Select(i => i.GetText()).ToList(),
             Level = memberState.Level,
             Inline = memberState.IsInline,
             Package = memberState.Package,
             Supplies = memberState.Supplies,
             Grounds = memberState.Grounds,
             Ports = memberState.Ports,
-            Parameters = memberState.Parameters,
-            Sizes = memberState.Sizes,
+            Parameters = signature.Parameters,
+            Sizes = signature.Sizes,
+            Slots = memberState.Slots,
             Fill = memberState.Fill,
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
@@ -68,12 +70,8 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.ParamDeclContext paramCtx:
-                    state.Parameters.Add(BuildCircuitParameter(paramCtx));
-                    break;
-
-                case ACIRParser.SizeDeclContext sizeCtx:
-                    state.Sizes.Add(BuildSizeDeclaration(sizeCtx));
+                case ACIRParser.SlotMemberContext slotCtx:
+                    state.Slots.Add(BuildSlot(slotCtx.slotDecl()));
                     break;
 
                 case ACIRParser.FillSectionContext fillCtx:
@@ -114,8 +112,36 @@ internal sealed partial class ACIRAstBuilder
         public List<string> Supplies { get; } = new();
         public List<string> Grounds { get; } = new();
         public List<PortDeclaration> Ports { get; } = new();
-        public List<CircuitParameter> Parameters { get; } = new();
-        public List<SizeDeclaration> Sizes { get; } = new();
+        public List<SlotDeclaration> Slots { get; } = new();
+    }
+
+    private sealed record CircuitSignature(
+        List<CircuitParameter> Parameters,
+        List<SizeDeclaration> Sizes
+    );
+
+    private CircuitSignature BuildCircuitSignature(ACIRParser.ParamSignatureContext? ctx)
+    {
+        var parameters = new List<CircuitParameter>();
+        var sizes = new List<SizeDeclaration>();
+
+        if (ctx?.paramList() == null)
+        {
+            return new CircuitSignature(parameters, sizes);
+        }
+
+        foreach (var paramCtx in ctx.paramList().paramDecl())
+        {
+            if (paramCtx.SIZE_KW() != null)
+            {
+                sizes.Add(BuildSizeDeclaration(paramCtx));
+                continue;
+            }
+
+            parameters.Add(BuildCircuitParameter(paramCtx));
+        }
+
+        return new CircuitSignature(parameters, sizes);
     }
 
     /// <summary>Builds a circuit parameter declaration.</summary>
@@ -129,102 +155,111 @@ internal sealed partial class ACIRAstBuilder
 
         return new CircuitParameter
         {
-            Name = ctx.IDENT().GetText(),
+            Name = ctx.paramName.Text,
             Type = ctx.paramType().GetText(),
             Default = defaultValue,
         };
     }
 
     /// <summary>Builds a named size declaration.</summary>
-    private SizeDeclaration BuildSizeDeclaration(ACIRParser.SizeDeclContext ctx)
+    private SizeDeclaration BuildSizeDeclaration(ACIRParser.ParamDeclContext ctx)
     {
         SizePack? defaultPack = null;
-        if (ctx.sizeLiteral() != null)
+        if (ctx.sizeExpr() != null)
         {
-            defaultPack = BuildSizeLiteral(ctx.sizeLiteral(), ctx);
+            defaultPack = BuildSizeExpression(ctx.sizeExpr(), ctx);
         }
 
-        return new SizeDeclaration { Name = ctx.IDENT().GetText(), Default = defaultPack };
-    }
-
-    /// <summary>Extracts the value from a size entry context using the NUMBER/QUANTITY/SYMBOLIC/UNSIZED chain.</summary>
-    private static string GetSizeEntryValue(ACIRParser.SizeEntryContext entryCtx)
-    {
-        return entryCtx.NUMBER()?.GetText()
-            ?? entryCtx.QUANTITY()?.GetText()
-            ?? entryCtx.SYMBOLIC()?.GetText()
-            ?? entryCtx.UNSIZED()?.GetText()
-            ?? string.Empty;
+        return new SizeDeclaration { Name = ctx.sizeName.Text, Default = defaultPack };
     }
 
     /// <summary>Builds a size pack and reports duplicate keys.</summary>
-    private SizePack BuildSizeLiteral(
-        ACIRParser.SizeLiteralContext ctx,
+    private SizePack BuildSizeExpression(
+        ACIRParser.SizeExprContext ctx,
         Antlr4.Runtime.ParserRuleContext? diagnosticCtx = null
     )
     {
         var entries = new Dictionary<string, string>();
-        foreach (var entryCtx in ctx.sizeEntry())
-        {
-            var key = entryCtx.IDENT().GetText();
-            var value = GetSizeEntryValue(entryCtx);
+        var body = ctx.sizeExprBody();
 
-            if (entries.ContainsKey(key))
+        if (body.sizeKvList() != null)
+        {
+            foreach (var pairCtx in body.sizeKvList().sizeKvPair())
             {
-                // Use the provided context for diagnostic location, or fall back to the entry context.
-                AddDiagnostic(
-                    diagnosticCtx ?? entryCtx,
-                    DiagnosticSeverity.Error,
-                    $"Duplicate size key '{key}'"
-                );
-            }
-            else
-            {
-                entries[key] = value;
+                var key = pairCtx.sizeKey.Text;
+                var value = pairCtx.expr().GetText();
+
+                if (entries.ContainsKey(key))
+                {
+                    AddDiagnostic(
+                        diagnosticCtx ?? pairCtx,
+                        DiagnosticSeverity.Error,
+                        $"Duplicate size key '{key}'"
+                    );
+                }
+                else
+                {
+                    entries[key] = value;
+                }
             }
         }
-        return new SizePack { Entries = entries };
-    }
-
-    /// <summary>Renders a size literal like "(W=10u, L=180n, M=1)".</summary>
-    private static string RenderSizeLiteral(ACIRParser.SizeLiteralContext ctx)
-    {
-        var entries = ctx.sizeEntry()
-            .Select(e =>
+        else if (body.sizeExprList() != null)
+        {
+            var exprs = body.sizeExprList().expr();
+            var keys = new[] { "W", "L", "M" };
+            if (exprs.Length > keys.Length)
             {
-                var key = e.IDENT().GetText();
-                var value = GetSizeEntryValue(e);
-                return $"{key}={value}";
-            });
-        return $"({string.Join(", ", entries)})";
+                AddDiagnostic(
+                    diagnosticCtx ?? body,
+                    DiagnosticSeverity.Error,
+                    "Size expression list supports at most three entries (W, L, M)."
+                );
+            }
+
+            for (var i = 0; i < exprs.Length && i < keys.Length; i++)
+            {
+                entries[keys[i]] = exprs[i].GetText();
+            }
+        }
+
+        return new SizePack { Entries = entries };
     }
 
     /// <summary>Builds a parameter value from a literal, numeric, or symbolic token.</summary>
     private static ParamValue BuildParamValue(ACIRParser.ParamValueContext ctx)
     {
-        if (ctx.SYMBOLIC() != null)
+        return BuildScalarValue(ctx.scalarExpr());
+    }
+
+    private SlotDeclaration BuildSlot(ACIRParser.SlotDeclContext ctx)
+    {
+        var slot = new SlotDeclaration { Id = ctx.IDENT().GetText() };
+        if (ctx.implementsClause()?.traitList() is { } traitsCtx)
         {
-            return new ParamValue { Symbolic = ctx.SYMBOLIC().GetText() };
+            slot.Traits.AddRange(traitsCtx.IDENT().Select(i => i.GetText()));
         }
-        if (ctx.QUANTITY() != null)
+
+        foreach (var stmtCtx in ctx.slotStatement())
         {
-            return new ParamValue { Numeric = ctx.QUANTITY().GetText() };
+            switch (stmtCtx)
+            {
+                case ACIRParser.SlotBindingContext bindingCtx:
+                    var binding = bindingCtx.binding();
+                    var pins = binding.pinRef();
+                    var source = BuildPinRef(pins[0]);
+                    var target = BuildPinRef(pins[1]);
+                    slot.Bindings[source] = target;
+                    break;
+
+                case ACIRParser.SlotParamContext paramCtx:
+                    var name = paramCtx.IDENT().GetText();
+                    var value = BuildScalarValue(paramCtx.scalarExpr());
+                    slot.Params[name] = value;
+                    break;
+            }
         }
-        if (ctx.NUMBER() != null)
-        {
-            return new ParamValue { Numeric = ctx.NUMBER().GetText() };
-        }
-        if (ctx.STRING() != null)
-        {
-            // Remove quotes.
-            var str = ctx.STRING().GetText();
-            return new ParamValue { Literal = str[1..^1] };
-        }
-        if (ctx.IDENT() != null)
-        {
-            return new ParamValue { Symbolic = ctx.IDENT().GetText() };
-        }
-        return new ParamValue();
+
+        return slot;
     }
 
     /// <summary>Builds the fill block containing nets, devices, instances, and connects.</summary>
@@ -236,7 +271,7 @@ internal sealed partial class ACIRAstBuilder
         {
             switch (stmtCtx)
             {
-                case ACIRParser.NetDeclContext netCtx:
+                case ACIRParser.FillNetDeclContext netCtx:
                     fill.Nets.Add(
                         new NetDeclaration
                         {
@@ -246,19 +281,29 @@ internal sealed partial class ACIRAstBuilder
                     );
                     break;
 
-                case ACIRParser.DeviceDeclContext deviceCtx:
-                    fill.Devices.Add(BuildDevice(deviceCtx));
+                case ACIRParser.FillSizeDeclContext sizeCtx:
+                    fill.Sizes.Add(
+                        new SizeDeclaration
+                        {
+                            Name = sizeCtx.sizeName.Text,
+                            Default = BuildSizeExpression(sizeCtx.sizeExpr(), sizeCtx),
+                        }
+                    );
                     break;
 
-                case ACIRParser.InstanceDeclContext instanceCtx:
-                    fill.Instances.Add(BuildInstance(instanceCtx));
+                case ACIRParser.FillDeviceDeclContext deviceCtx:
+                    fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
                     break;
 
-                case ACIRParser.AttachDeclContext attachCtx:
+                case ACIRParser.FillInstanceDeclContext instanceCtx:
+                    fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                    break;
+
+                case ACIRParser.FillAttachDeclContext attachCtx:
                     fill.Attaches.Add(BuildAttach(attachCtx));
                     break;
 
-                case ACIRParser.ConnectDeclContext connectCtx:
+                case ACIRParser.FillConnectDeclContext connectCtx:
                     var pins = connectCtx.pinRef();
                     fill.Connections.Add(
                         new ConnectionStatement
@@ -279,106 +324,30 @@ internal sealed partial class ACIRAstBuilder
     {
         var deviceType = ctx.DEVICE_TYPE().GetText();
         var deviceId = BuildDeviceId(ctx.deviceId());
+        var primitiveName = ctx.primitiveName.Text;
 
-        var bindings =
-            ctx.bindingList() != null
-                ? BuildBindings(ctx.bindingList())
-                : new Dictionary<string, string>();
-
-        var deviceParams = new Dictionary<string, string>();
-
-        var hasBodyBindings = false;
-        foreach (var itemCtx in ctx.deviceBodyItem())
+        string? sizeName = null;
+        SizePack? sizePack = null;
+        if (ctx.sizeArg().IDENT() != null)
         {
-            switch (itemCtx)
-            {
-                case ACIRParser.DeviceSizeStmtContext sizeCtx:
-                    if (deviceType is "resistor" or "capacitor" or "inductor" or "diode")
-                    {
-                        AddDiagnostic(
-                            sizeCtx,
-                            DiagnosticSeverity.Error,
-                            $"ACIR0034: '{deviceType}' devices do not support size statements"
-                        );
-                        break;
-                    }
-
-                    if (deviceParams.ContainsKey("size"))
-                    {
-                        AddDiagnostic(
-                            sizeCtx,
-                            DiagnosticSeverity.Error,
-                            "ACIR0031: Duplicate device size statement"
-                        );
-                        break;
-                    }
-
-                    if (sizeCtx.sizeLiteral() != null)
-                    {
-                        BuildSizeLiteral(sizeCtx.sizeLiteral(), sizeCtx);
-                        deviceParams["size"] = RenderSizeLiteral(sizeCtx.sizeLiteral());
-                    }
-                    else if (sizeCtx.IDENT() != null)
-                    {
-                        deviceParams["size"] = sizeCtx.IDENT().GetText();
-                    }
-                    break;
-
-                case ACIRParser.DeviceParamLineContext paramLineCtx:
-                    var (key, value) = BuildDeviceParamAssign(paramLineCtx.deviceParamAssign());
-                    if (deviceParams.ContainsKey(key))
-                    {
-                        AddDiagnostic(
-                            paramLineCtx,
-                            DiagnosticSeverity.Error,
-                            $"ACIR0032: Duplicate device parameter '{key}'"
-                        );
-                        break;
-                    }
-
-                    deviceParams[key] = value;
-                    break;
-
-                case ACIRParser.DeviceBindingContext bindingCtx:
-                    hasBodyBindings = true;
-                    var pins = bindingCtx.binding().pinRef();
-                    bindings[BuildPinRef(pins[0])] = BuildPinRef(pins[1]);
-                    break;
-            }
+            sizeName = ctx.sizeArg().IDENT().GetText();
+        }
+        else if (ctx.sizeArg().sizeExpr() != null)
+        {
+            sizePack = BuildSizeExpression(ctx.sizeArg().sizeExpr(), ctx.sizeArg());
         }
 
-        if (ctx.bindingList() != null && hasBodyBindings)
-        {
-            AddDiagnostic(
-                ctx,
-                DiagnosticSeverity.Error,
-                "ACIR0030: Cannot mix inline and body bindings in a single declaration."
-            );
-        }
+        var bindings = BuildBindings(ctx.bindingBlock().bindingList());
 
         return new DeviceDeclaration
         {
             DeviceType = deviceType,
             Id = deviceId,
             Bindings = bindings,
-            Params = deviceParams,
-            PdkDevice = ctx.pdkDeviceName().GetText(),
+            Primitive = primitiveName,
+            SizeName = sizeName,
+            Size = sizePack,
         };
-    }
-
-    private static (string Key, string Value) BuildDeviceParamAssign(
-        ACIRParser.DeviceParamAssignContext ctx
-    )
-    {
-        var key = ctx.IDENT()?.GetText() ?? ctx.LOAD_TYPE()?.GetText() ?? string.Empty;
-        var valueCtx = ctx.deviceParamValue();
-        var value =
-            valueCtx.NUMBER()?.GetText()
-            ?? valueCtx.QUANTITY()?.GetText()
-            ?? valueCtx.SYMBOLIC()?.GetText()
-            ?? string.Empty;
-
-        return (key, value);
     }
 
     private static string BuildDeviceId(ACIRParser.DeviceIdContext ctx)
@@ -389,6 +358,11 @@ internal sealed partial class ACIRAstBuilder
     private static Dictionary<string, string> BuildBindings(ACIRParser.BindingListContext ctx)
     {
         var bindings = new Dictionary<string, string>();
+        if (ctx == null)
+        {
+            return bindings;
+        }
+
         foreach (var bindingCtx in ctx.binding())
         {
             var pins = bindingCtx.pinRef();
@@ -402,77 +376,41 @@ internal sealed partial class ACIRAstBuilder
     /// <summary>Builds an instance declaration with parameters and bindings.</summary>
     private InstanceDeclaration BuildInstance(ACIRParser.InstanceDeclContext ctx)
     {
-        var id = ctx.IDENT(0).GetText();
-        var type = ctx.IDENT(1).GetText();
+        var id = ctx.instanceId.Text;
+        var type = ctx.instanceType.Text;
 
-        var bindings =
-            ctx.bindingList() != null
-                ? BuildBindings(ctx.bindingList())
-                : new Dictionary<string, string>();
-        if (ctx.bindingList() != null)
+        var bindings = BuildBindings(ctx.bindingBlock().bindingList());
+        var prefix = $"{id}.";
+        var invalidKeys = bindings
+            .Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
+            .ToList();
+        foreach (var key in invalidKeys)
         {
-            var prefix = $"{id}.";
-            var invalidKeys = bindings
-                .Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
-                .ToList();
-            foreach (var key in invalidKeys)
-            {
-                bindings.Remove(key);
-                AddDiagnostic(
-                    ctx.bindingList(),
-                    DiagnosticSeverity.Error,
-                    $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
-                );
-            }
+            bindings.Remove(key);
+            AddDiagnostic(
+                ctx.bindingBlock(),
+                DiagnosticSeverity.Error,
+                $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
+            );
         }
 
-        var hasBodyBindings = false;
         var instanceParams = new Dictionary<string, ParamValue>();
         var sizes = new Dictionary<string, SizePack>();
 
-        foreach (var memberCtx in ctx.instanceBodyItem())
+        if (ctx.argList() != null)
         {
-            switch (memberCtx)
+            foreach (var argCtx in ctx.argList().arg())
             {
-                case ACIRParser.InstanceParamContext paramCtx:
-                    instanceParams[paramCtx.IDENT().GetText()] = BuildParamValue(
-                        paramCtx.paramValue()
-                    );
-                    break;
-
-                case ACIRParser.InstanceSizeContext sizeCtx:
-                    sizes[sizeCtx.IDENT().GetText()] = BuildSizeLiteral(
-                        sizeCtx.sizeLiteral(),
-                        sizeCtx
-                    );
-                    break;
-
-                case ACIRParser.InstanceBindingContext bindingCtx:
-                    hasBodyBindings = true;
-                    var pins = bindingCtx.binding().pinRef();
-                    var from = BuildPinRef(pins[0]);
-                    if (from.StartsWith($"{id}.", StringComparison.Ordinal))
-                    {
-                        AddDiagnostic(
-                            bindingCtx,
-                            DiagnosticSeverity.Error,
-                            $"ACIR0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
-                        );
-                        break;
-                    }
-
-                    bindings[from] = BuildPinRef(pins[1]);
-                    break;
+                var name = argCtx.IDENT().GetText();
+                if (argCtx.argValue().sizeExpr() != null)
+                {
+                    sizes[name] = BuildSizeExpression(argCtx.argValue().sizeExpr(), argCtx);
+                }
+                else
+                {
+                    instanceParams[name] = BuildScalarValue(argCtx.argValue().scalarExpr());
+                }
             }
-        }
-
-        if (ctx.bindingList() != null && hasBodyBindings)
-        {
-            AddDiagnostic(
-                ctx,
-                DiagnosticSeverity.Error,
-                "ACIR0030: Cannot mix inline and body bindings in a single declaration."
-            );
         }
 
         return new InstanceDeclaration
@@ -487,7 +425,7 @@ internal sealed partial class ACIRAstBuilder
     }
 
     /// <summary>Builds an attach statement and any connector overrides.</summary>
-    private AttachStatement BuildAttach(ACIRParser.AttachDeclContext ctx)
+    private AttachStatement BuildAttach(ACIRParser.FillAttachDeclContext ctx)
     {
         var sourceInstance = ctx.IDENT(0).GetText();
         var targetList = ctx.attachTargetList();
@@ -521,5 +459,36 @@ internal sealed partial class ACIRAstBuilder
             Anchor = anchor,
             Overrides = overrides,
         };
+    }
+
+    private static ParamValue BuildScalarValue(ACIRParser.ScalarExprContext ctx)
+    {
+        if (ctx.UNSIZED() != null)
+        {
+            return new ParamValue { Symbolic = ctx.UNSIZED().GetText() };
+        }
+        if (ctx.AUTO_KW() != null)
+        {
+            return new ParamValue { Symbolic = ctx.AUTO_KW().GetText() };
+        }
+        if (ctx.QUANTITY() != null)
+        {
+            return new ParamValue { Numeric = ctx.QUANTITY().GetText() };
+        }
+        if (ctx.NUMBER() != null)
+        {
+            return new ParamValue { Numeric = ctx.NUMBER().GetText() };
+        }
+        if (ctx.STRING() != null)
+        {
+            var str = ctx.STRING().GetText();
+            return new ParamValue { Literal = str[1..^1] };
+        }
+        if (ctx.IDENT() != null)
+        {
+            return new ParamValue { Symbolic = ctx.IDENT().GetText() };
+        }
+
+        return new ParamValue();
     }
 }

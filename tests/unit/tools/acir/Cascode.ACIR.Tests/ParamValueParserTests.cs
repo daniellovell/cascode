@@ -7,10 +7,10 @@ public class ParamValueParserTests
     [Fact]
     public void Parse_SymbolicValue_ReturnsSymbolic()
     {
-        var result = ParamValueParser.Parse("$ratio");
+        var result = ParamValueParser.Parse("ratio");
 
         Assert.NotNull(result.Symbolic);
-        Assert.Equal("$ratio", result.Symbolic);
+        Assert.Equal("ratio", result.Symbolic);
         Assert.Null(result.Numeric);
         Assert.Null(result.Literal);
     }
@@ -18,10 +18,10 @@ public class ParamValueParserTests
     [Fact]
     public void Parse_SymbolicWithUnderscore_ReturnsSymbolic()
     {
-        var result = ParamValueParser.Parse("$my_param");
+        var result = ParamValueParser.Parse("my_param");
 
         Assert.NotNull(result.Symbolic);
-        Assert.Equal("$my_param", result.Symbolic);
+        Assert.Equal("my_param", result.Symbolic);
         Assert.Null(result.Numeric);
         Assert.Null(result.Literal);
     }
@@ -49,12 +49,12 @@ public class ParamValueParserTests
     }
 
     [Theory]
-    [InlineData("res1stor")]
-    [InlineData("nmos2")]
-    [InlineData("high_z")]
-    [InlineData("sky130_fd_pr__nfet_01v8")]
-    [InlineData("auto")]
-    [InlineData("MyDevice")]
+    [InlineData("res-1")]
+    [InlineData("high z")]
+    [InlineData("sky130/fd")]
+    [InlineData("device:1")]
+    [InlineData("My.Device.Extra")]
+    [InlineData("vdd!")]
     public void Parse_LiteralValues_ReturnsLiteral(string value)
     {
         var result = ParamValueParser.Parse(value);
@@ -79,9 +79,9 @@ public class ParamValueParserTests
     [Theory]
     [InlineData("10k", true)]
     [InlineData("-1.5M", true)]
-    [InlineData("res1stor", false)]
-    [InlineData("nmos2", false)]
-    [InlineData("device1", false)]
+    [InlineData("res-1", false)]
+    [InlineData("device:1", false)]
+    [InlineData("high z", false)]
     public void Parse_CorrectlyDistinguishesNumericFromLiteral(string value, bool shouldBeNumeric)
     {
         var result = ParamValueParser.Parse(value);

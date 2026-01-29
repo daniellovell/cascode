@@ -68,7 +68,8 @@ public class AcirJsonConverterBasicTests
         Assert.Equal("nmos", component.GetProperty("kind").GetString());
         Assert.Equal("M1", component.GetProperty("name").GetString());
         Assert.Equal("IN", component.GetProperty("connections").GetProperty("G").GetString());
-        Assert.Equal("1u", component.GetProperty("params").GetProperty("W").GetString());
+        Assert.Equal("Level1_NMOS", component.GetProperty("primitive").GetString());
+        Assert.Equal("1u", component.GetProperty("size").GetProperty("W").GetString());
     }
 
     [Fact]
@@ -134,9 +135,9 @@ public class AcirJsonConverterBasicTests
             ""components"": [{{
                 ""kind"": ""nmos"",
                 ""name"": ""M1"",
+                ""primitive"": ""Level1_NMOS"",
                 ""connections"": {{ ""G"": ""IN"", ""D"": ""OUT"", ""S"": ""GND"", ""B"": ""GND"" }},
-                ""params"": {{ ""W"": ""1u"", ""L"": ""180n"" }},
-                ""process"": ""nfet_01v8""
+                ""size"": {{ ""W"": ""1u"", ""L"": ""180n"" }}
             }}],
             ""benches"": []
         }}";
@@ -149,8 +150,8 @@ public class AcirJsonConverterBasicTests
         Assert.Equal("nmos", device.DeviceType);
         Assert.Equal("M1", device.Id);
         Assert.Equal("IN", device.Bindings["G"]);
-        Assert.Equal("1u", device.Params["W"]);
-        Assert.Equal("nfet_01v8", device.PdkDevice);
+        Assert.Equal("Level1_NMOS", device.Primitive);
+        Assert.Equal("1u", device.Size?.Entries["W"]);
     }
 
     [Fact]
@@ -182,61 +183,5 @@ public class AcirJsonConverterBasicTests
         Assert.Equal("GNDD", doc.Circuits[0].Grounds[2]);
     }
 
-    private static ACIRDocument CreateSimpleElCircuit()
-    {
-        return new ACIRDocument
-        {
-            VersionMajor = ACIRVersion.Major,
-            VersionMinor = ACIRVersion.Minor,
-            Circuits =
-            [
-                new Circuit
-                {
-                    Name = "OTA5T",
-                    Level = ACIRLevel.EL,
-                    Supplies = ["VDD"],
-                    Grounds = ["GND"],
-                    Ports =
-                    [
-                        new PortDeclaration
-                        {
-                            Direction = PortDirection.Input,
-                            Name = "IN",
-                            Type = "analog",
-                        },
-                        new PortDeclaration
-                        {
-                            Direction = PortDirection.Output,
-                            Name = "OUT",
-                            Type = "analog",
-                        },
-                    ],
-                    Fill = new FillBlock
-                    {
-                        Devices =
-                        [
-                            new DeviceDeclaration
-                            {
-                                DeviceType = "nmos",
-                                Id = "M1",
-                                Bindings = new Dictionary<string, string>
-                                {
-                                    ["G"] = "IN",
-                                    ["D"] = "OUT",
-                                    ["S"] = "GND",
-                                    ["B"] = "GND",
-                                },
-                                Params = new Dictionary<string, string>
-                                {
-                                    ["W"] = "1u",
-                                    ["L"] = "180n",
-                                },
-                                PdkDevice = "nmos",
-                            },
-                        ],
-                    },
-                },
-            ],
-        };
-    }
+    private static ACIRDocument CreateSimpleElCircuit() => TestFixtures.CreateSimpleElCircuit();
 }

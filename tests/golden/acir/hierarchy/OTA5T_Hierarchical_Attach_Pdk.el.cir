@@ -1,95 +1,121 @@
 ACIR 3.0
 
-bundle Diff:
+bundle Diff {
   P : analog
   N : analog
+}
 
-trait CurrentMirrorLike:
+interface CurrentMirrorLike {
   input SENSE : analog
   output TAP[0] : analog
-  connectors:
-    to DiffPairLike:
+  connectors {
+    to DiffPairLike {
       SENSE--OUT.N
       TAP[0]--OUT.P
+    }
+  }
+}
 
-trait DiffPairLike:
+interface DiffPairLike {
   output OUT : Diff
+}
 
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {
   builtin SEOpAmpACBench
-  outputs:
+  outputs {
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }
+}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {
     QuiescentPower
+  }
+}
 
-circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp
+primitive nmos Sky130_NMOS(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+primitive pmos Sky130_PMOS(size primSize) {
+  device "sky130_fd_pr__pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
   input IN : Diff
   output OUT : analog
   input VTAIL : bias
-  fill:
-    inst dp : DiffPair_Pdk
-      size InputPair = (W=2u, L=180n, M=1)
-      size Tail = (W=4u, L=180n, M=1)
+  fill {
+    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
       .OUT.P--OUT
       .TAIL--VTAIL
-    inst cm : CurrentMirror_Pdk
-      param ratio = 1
+    }
+    cm = new CurrentMirror_Pdk(ratio=1) {
       .GND--GND
       .VDD--VDD
       // TAP[0]--OUT intentionally omitted - covered by attach statement below
+    }
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 20MHz
-      c_gain : ACBench::PassbandGain at net::OUT >= 40dB
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg
-      c_pwr : DCBench::QuiescentPower <= 500uW
-  harness:
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 20MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+  }
+  harness {
     supply VDD = 1.8V
     bias VTAIL = 0.6V
     load OUT C=1pF
+  }
+}
 
-circuit DiffPair_Pdk implements DiffPairLike
+circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
-  size InputPair
-  size Tail
   supply VDD
   ground GND
   input IN : Diff
   output OUT : Diff
   input TAIL : bias
-  fill:
+  fill {
     net tnode : analog
-    nmos M_N (.B--GND, .D--OUT.N, .G--IN.P, .S--tnode) : nfet_01v8
-      size InputPair
-    nmos M_P (.B--GND, .D--OUT.P, .G--IN.N, .S--tnode) : nfet_01v8
-      size InputPair
-    nmos M_TAIL (.B--GND, .D--tnode, .G--TAIL, .S--GND) : nfet_01v8
-      size Tail
+    nmos M_N = new Sky130_NMOS(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    nmos M_P = new Sky130_NMOS(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    nmos M_TAIL = new Sky130_NMOS(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
 
-circuit CurrentMirror_Pdk implements CurrentMirrorLike
+circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
-  param ratio : real = 1
-  size Sense = (W=2u, L=180n, M=1)
   supply VDD
   ground GND
   input SENSE : analog
   output TAP[0] : analog
-  fill:
-    pmos M_SENSE (.B--VDD, .D--SENSE, .G--SENSE, .S--VDD) : pfet_01v8
-      size Sense
-    pmos M_TAP0 (.B--VDD, .D--TAP[0], .G--SENSE, .S--VDD) : pfet_01v8
-      size Sense
-      M = $ratio
+  fill {
+    pmos M_SENSE = new Sky130_PMOS(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    pmos M_TAP0 = new Sky130_PMOS(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+  }
+}

@@ -145,10 +145,10 @@ motif Test {
 
         // Bindings should be expanded to terminal connections
         Assert.True(dp.Bindings.TryGetValue("IN.P", out var inP));
-        Assert.Equal("IN_P", inP); // IN.P maps to bundle net IN_P
+        Assert.Equal("IN.P", inP); // IN.P maps to bundle net IN.P
 
         Assert.True(dp.Bindings.TryGetValue("IN.N", out var inN));
-        Assert.Equal("IN_N", inN); // IN.N maps to bundle net IN_N
+        Assert.Equal("IN.N", inN); // IN.N maps to bundle net IN.N
 
         Assert.True(dp.Bindings.TryGetValue("BASE", out var baseNet));
         Assert.Equal("GND", baseNet);

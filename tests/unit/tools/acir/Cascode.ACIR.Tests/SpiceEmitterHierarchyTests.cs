@@ -14,6 +14,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -98,6 +99,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -175,6 +177,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -343,6 +346,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -478,6 +482,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -510,6 +515,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "pmos",
                                 Id = "MP",
+                                Primitive = "Level1_PMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -517,16 +523,21 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "VDD",
                                     ["B"] = "VDD",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "2u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "2u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                             new DeviceDeclaration
                             {
                                 DeviceType = "nmos",
                                 Id = "MN",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -534,10 +545,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -610,6 +625,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -646,6 +662,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "mid",
@@ -653,16 +670,21 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                             new DeviceDeclaration
                             {
                                 DeviceType = "nmos",
                                 Id = "M2",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "OUT",
@@ -670,10 +692,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -739,6 +765,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -771,12 +798,16 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "resistor",
                                 Id = "R1",
+                                Primitive = "Ideal_Resistor",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["P"] = "P",
                                     ["N"] = "N",
                                 },
-                                Params = new Dictionary<string, string> { ["R"] = "1k" },
+                                Size = new SizePack
+                                {
+                                    Entries = new Dictionary<string, string> { ["R"] = "1k" },
+                                },
                             },
                         },
                     },
@@ -833,6 +864,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -872,6 +904,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 // Defined in reverse order (top-level first)
@@ -934,6 +967,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -1022,16 +1056,30 @@ public class SpiceEmitterHierarchyTests
         var doc = ACIRReader.Read(reader);
 
         Assert.Single(doc.Circuits);
-        Assert.Single(doc.Traits);
+        Assert.Equal(2, doc.Traits.Count);
+        Assert.Contains(doc.Traits, t => t.Name == "LoadBranch");
+        Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorLike");
 
         var circuit = doc.Circuits[0];
         Assert.Equal("CurrentMirror", circuit.Name);
         Assert.Contains("CurrentMirrorLike", circuit.Traits!);
 
-        // Verify parameters (no circuit-level sizes; uses inline anonymous sizes)
+        // Verify parameters and size packs
         Assert.Single(circuit.Parameters);
         Assert.Contains(circuit.Parameters, p => p.Name == "ratio" && p.Default?.Numeric == "1");
-        Assert.Empty(circuit.Sizes);
+        Assert.Single(circuit.Sizes);
+        Assert.Contains(
+            circuit.Sizes,
+            s =>
+                s.Name == "Sense"
+                && s.Default is not null
+                && s.Default.Entries.TryGetValue("W", out var w)
+                && s.Default.Entries.TryGetValue("L", out var l)
+                && s.Default.Entries.TryGetValue("M", out var m)
+                && w == "2u"
+                && l == "180n"
+                && m == "1"
+        );
 
         // Verify devices
         Assert.NotNull(circuit.Fill);
@@ -1131,7 +1179,10 @@ public class SpiceEmitterHierarchyTests
 
         // Should reference CurrentMirror as X-element
         Assert.Contains("Xcm", spiceContent);
-        Assert.Contains("CurrentMirror", spiceContent);
+
+        var mirror = doc.Circuits.First(c => c.Name == "CurrentMirror");
+        var mirrorVariant = SpiceEmitter.GetDefaultVariantName(mirror);
+        Assert.Contains(mirrorVariant, spiceContent);
     }
 
     [Fact]
@@ -1153,14 +1204,14 @@ public class SpiceEmitterHierarchyTests
         var connector = mirrorTrait.Connectors[0];
         Assert.Equal("DiffPairLike", connector.TargetTrait);
         Assert.Equal(2, connector.Mappings.Count);
-        // After desugaring, dot-separated names become underscore-separated
+        // After desugaring, dot-separated names are preserved
         Assert.Contains(
             connector.Mappings,
-            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT_N"
+            m => m.SourcePort == "SENSE" && m.TargetPort == "OUT.N"
         );
         Assert.Contains(
             connector.Mappings,
-            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT_P"
+            m => m.SourcePort == "TAP[0]" && m.TargetPort == "OUT.P"
         );
     }
 
@@ -1206,6 +1257,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -1242,6 +1294,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M_INNER",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "Z",
@@ -1249,10 +1302,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "inner_net",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -1292,6 +1349,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "pmos",
                                 Id = "M_OUTER",
+                                Primitive = "Level1_PMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "outer_mid",
@@ -1299,10 +1357,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "VDD",
                                     ["B"] = "VDD",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "2u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "2u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -1401,6 +1463,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -1460,6 +1523,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M1",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "wrapper_net",
@@ -1467,10 +1531,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -1561,6 +1629,7 @@ public class SpiceEmitterHierarchyTests
         {
             VersionMajor = ACIRVersion.Major,
             VersionMinor = ACIRVersion.Minor,
+            Primitives = BuildDefaultPrimitives(),
             Circuits = new List<Circuit>
             {
                 new Circuit
@@ -1587,6 +1656,7 @@ public class SpiceEmitterHierarchyTests
                             {
                                 DeviceType = "nmos",
                                 Id = "M3",
+                                Primitive = "Level1_NMOS",
                                 Bindings = new Dictionary<string, string>
                                 {
                                     ["D"] = "X",
@@ -1594,10 +1664,14 @@ public class SpiceEmitterHierarchyTests
                                     ["S"] = "GND",
                                     ["B"] = "GND",
                                 },
-                                Params = new Dictionary<string, string>
+                                Size = new SizePack
                                 {
-                                    ["W"] = "1u",
-                                    ["L"] = "100n",
+                                    Entries = new Dictionary<string, string>
+                                    {
+                                        ["W"] = "1u",
+                                        ["L"] = "100n",
+                                        ["M"] = "1",
+                                    },
                                 },
                             },
                         },
@@ -1719,5 +1793,62 @@ public class SpiceEmitterHierarchyTests
         // The deepest device should connect to the top-level port through port composition
         // Level3.X -> Level2.Y -> Level1.Z -> TopLevel.SIG
         Assert.Contains("SIG", output);
+    }
+
+    private static List<PrimitiveDefinition> BuildDefaultPrimitives()
+    {
+        return
+        [
+            new PrimitiveDefinition
+            {
+                Name = "Level1_NMOS",
+                Kind = "nmos",
+                Device = "level1_nmos",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string>
+                {
+                    ["W"] = "primSize.W",
+                    ["L"] = "primSize.L",
+                    ["m"] = "primSize.M",
+                },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Level1_PMOS",
+                Kind = "pmos",
+                Device = "level1_pmos",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string>
+                {
+                    ["W"] = "primSize.W",
+                    ["L"] = "primSize.L",
+                    ["m"] = "primSize.M",
+                },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Ideal_Resistor",
+                Kind = "resistor",
+                Device = "resistor",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string> { ["R"] = "primSize.R" },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Ideal_Capacitor",
+                Kind = "capacitor",
+                Device = "capacitor",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string> { ["C"] = "primSize.C" },
+            },
+            new PrimitiveDefinition
+            {
+                Name = "Ideal_Inductor",
+                Kind = "inductor",
+                Device = "inductor",
+                SizeParameter = "primSize",
+                Params = new Dictionary<string, string> { ["L"] = "primSize.L" },
+            },
+        ];
     }
 }

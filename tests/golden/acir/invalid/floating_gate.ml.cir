@@ -1,9 +1,19 @@
 ACIR 3.0
 
+primitive nmos Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
 // ML-level circuit with a floating gate - ERC-001 violation
 // The gate of M1 connects to 'floating_net' which has no driver
 
-circuit FloatingGateExample
+circuit FloatingGateExample {
   level ML
 
   supply VDD
@@ -11,8 +21,14 @@ circuit FloatingGateExample
 
   output OUT : analog
 
-  fill:
+  fill {
     net floating_net : analog
 
-    nmos M1 (.G--floating_net, .D--OUT, .S--GND, .B--GND) : nmos
-      size (W=??, L=??, M=??)
+    nmos M1 = new Level1_NMOS(size(W=??, L=??, M=??)) {
+      .G--floating_net
+      .D--OUT
+      .S--GND
+      .B--GND
+    }
+  }
+}

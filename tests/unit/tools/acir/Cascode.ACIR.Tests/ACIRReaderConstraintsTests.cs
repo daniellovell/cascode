@@ -9,32 +9,40 @@ public class ACIRReaderConstraintsTests
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-bench ACBench for SingleEndedOpAmp
+bench ACBench for SingleEndedOpAmp {{
   builtin SEOpAmpACBench
-  outputs:
+  outputs {{
     GainBandwidth
     PassbandGain
     PhaseMargin
+  }}
+}}
 
-bench DCBench for SingleEndedOpAmp
+bench DCBench for SingleEndedOpAmp {{
   builtin SEOpAmpDCBench
-  outputs:
+  outputs {{
     QuiescentPower
+  }}
+}}
 
-circuit Test implements SingleEndedOpAmp
+circuit Test implements SingleEndedOpAmp {{
   level EL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  constraints:
-    numeric:
-      c_gbw : ACBench::GainBandwidth at net::OUT >= 100MHz  // target gain-bandwidth product
-      c_gain : ACBench::PassbandGain at net::OUT >= 40dB  // minimum gain requirement
-      c_pm : ACBench::PhaseMargin at net::OUT >= 60deg  // phase margin for stability
-      c_pwr : DCBench::QuiescentPower <= 500uW
-    tech:
+  constraints {{
+    numeric {{
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz  // target gain-bandwidth product
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB  // minimum gain requirement
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg  // phase margin for stability
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }}
+    tech {{
       t_lmin : L >= 180nm on *  // minimum length per tech rules
+    }}
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);
@@ -62,16 +70,19 @@ circuit Test implements SingleEndedOpAmp
     {
         var content =
             $@"ACIR {ACIRVersion.Current}
-circuit Test
+circuit Test {{
   level EL
   supply VDD
   ground GND
   output OUT : analog
-  constraints:
-    numeric:
+  constraints {{
+    numeric {{
       // This is a full line comment
       // This is another full line comment
-      c_test : ACBench::Metric at net::OUT >= 100MHz
+      c_test = ACBench::Metric at net::OUT >= 100MHz
+    }}
+  }}
+}}
 ";
         var result = ACIRReader.TryParse(content);
         Assert.True(result.Success);

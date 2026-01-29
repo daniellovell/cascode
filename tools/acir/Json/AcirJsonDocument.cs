@@ -15,6 +15,10 @@ public sealed record AcirJsonDocument
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<AcirJsonTrait>? Traits { get; init; }
 
+    [JsonPropertyName("primitives")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonPrimitive>? Primitives { get; init; }
+
     [JsonPropertyName("circuit")]
     public required AcirJsonCircuitInfo Circuit { get; init; }
 
@@ -26,6 +30,10 @@ public sealed record AcirJsonDocument
 
     [JsonPropertyName("ports")]
     public IReadOnlyList<AcirJsonPort> Ports { get; init; } = [];
+
+    [JsonPropertyName("fillSizes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<AcirJsonSizeDeclaration>? FillSizes { get; init; }
 
     [JsonPropertyName("nets")]
     public IReadOnlyList<AcirJsonNet> Nets { get; init; } = [];
@@ -120,15 +128,41 @@ public sealed record AcirJsonComponent
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
+    [JsonPropertyName("primitive")]
+    public required string Primitive { get; init; }
+
     [JsonPropertyName("connections")]
     public required IReadOnlyDictionary<string, string> Connections { get; init; }
 
-    [JsonPropertyName("params")]
-    public required IReadOnlyDictionary<string, string> Params { get; init; }
-
-    [JsonPropertyName("process")]
+    [JsonPropertyName("sizeName")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? Process { get; init; }
+    public string? SizeName { get; init; }
+
+    [JsonPropertyName("size")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyDictionary<string, string>? Size { get; init; }
+}
+
+/// <summary>
+/// Primitive definition in JSON format.
+/// </summary>
+public sealed record AcirJsonPrimitive
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; init; }
+
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+
+    [JsonPropertyName("device")]
+    public required string Device { get; init; }
+
+    [JsonPropertyName("sizeParam")]
+    public required string SizeParam { get; init; }
+
+    [JsonPropertyName("params")]
+    public IReadOnlyDictionary<string, string> Params { get; init; } =
+        new Dictionary<string, string>();
 }
 
 /// <summary>

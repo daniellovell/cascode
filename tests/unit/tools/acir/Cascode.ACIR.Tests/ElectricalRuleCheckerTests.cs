@@ -44,6 +44,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -51,9 +52,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -98,6 +104,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -105,9 +112,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -150,6 +162,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "diode_node" },
@@ -157,15 +170,21 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                     new()
                     {
                         DeviceType = "pmos",
                         Id = "M2",
+                        Primitive = "Level1_PMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -173,9 +192,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "VDD" },
                             { "B", "VDD" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=2u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "2u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -213,6 +237,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M_short",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "VDD" }, // Drain to VDD
@@ -220,9 +245,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" }, // Source to GND - SHORT!
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -265,6 +295,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "pmos",
                         Id = "M_short",
+                        Primitive = "Level1_PMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "GND" }, // Drain to GND
@@ -272,9 +303,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "VDD" }, // Source to VDD - SHORT!
                             { "B", "VDD" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -502,6 +538,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -509,11 +546,15 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = null, // Missing PDK device
                     },
                 },
             },
@@ -557,6 +598,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -564,11 +606,15 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = null, // Missing PDK device
                     },
                 },
             },
@@ -613,14 +659,20 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
                             // Missing G, S, B
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
                     },
                 },
@@ -659,12 +711,16 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_short",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "R", "1k" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "1k" } },
+                        },
                     },
                 },
             },
@@ -705,12 +761,16 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "capacitor",
                         Id = "C_short",
+                        Primitive = "Ideal_Capacitor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "GND" },
                             { "N", "VDD" }, // Reversed order, still a short
                         },
-                        Params = new Dictionary<string, string> { { "C", "1p" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "C", "1p" } },
+                        },
                     },
                 },
             },
@@ -751,12 +811,16 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "inductor",
                         Id = "L_short",
+                        Primitive = "Ideal_Inductor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "L", "1n" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "L", "1n" } },
+                        },
                     },
                 },
             },
@@ -803,12 +867,16 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_load",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "OUT" }, // Not GND, so not a short
                         },
-                        Params = new Dictionary<string, string> { { "R", "10k" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "10k" } },
+                        },
                     },
                     CreateValidNmos("M1", "OUT", "IN", "GND", "GND"),
                 },
@@ -861,6 +929,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -868,9 +937,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=??, L=??, M=??)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "??" },
+                                { "L", "??" },
+                                { "M", "??" },
+                            },
                         },
                     },
                 },
@@ -909,6 +983,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "pmos",
                         Id = "M_SENSE",
+                        Primitive = "Level1_PMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -916,9 +991,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "VDD" },
                             { "B", "VDD" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=??, L=??, M=??)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "??" },
+                                { "L", "??" },
+                                { "M", "??" },
+                            },
                         },
                     },
                 },
@@ -961,6 +1041,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M_short",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "VDD" },
@@ -968,9 +1049,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=??, L=??, M=??)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "??" },
+                                { "L", "??" },
+                                { "M", "??" },
+                            },
                         },
                     },
                 },
@@ -1012,12 +1098,16 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "resistor",
                         Id = "R_short",
+                        Primitive = "Ideal_Resistor",
                         Bindings = new Dictionary<string, string>
                         {
                             { "P", "VDD" },
                             { "N", "GND" },
                         },
-                        Params = new Dictionary<string, string> { { "R", "1k" } },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { { "R", "1k" } },
+                        },
                     },
                 },
             },
@@ -1074,6 +1164,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1081,11 +1172,15 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=1u, L=180n, M=1)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
                         },
-                        PdkDevice = "nmos",
                     },
                 },
             },
@@ -1123,6 +1218,7 @@ public class ElectricalRuleCheckerTests
                     {
                         DeviceType = "nmos",
                         Id = "M1",
+                        Primitive = "Level1_NMOS",
                         Bindings = new Dictionary<string, string>
                         {
                             { "D", "OUT" },
@@ -1130,9 +1226,14 @@ public class ElectricalRuleCheckerTests
                             { "S", "GND" },
                             { "B", "GND" },
                         },
-                        Params = new Dictionary<string, string>
+                        Size = new SizePack
                         {
-                            { "size", "(W=??, L=??, M=??)" },
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "??" },
+                                { "L", "??" },
+                                { "M", "??" },
+                            },
                         },
                     },
                 },
@@ -1152,6 +1253,7 @@ public class ElectricalRuleCheckerTests
         {
             DeviceType = "nmos",
             Id = id,
+            Primitive = "Level1_NMOS",
             Bindings = new Dictionary<string, string>
             {
                 { "D", drain },
@@ -1159,8 +1261,15 @@ public class ElectricalRuleCheckerTests
                 { "S", source },
                 { "B", bulk },
             },
-            Params = new Dictionary<string, string> { { "size", "(W=1u, L=180n, M=1)" } },
-            PdkDevice = "nmos",
+            Size = new SizePack
+            {
+                Entries = new Dictionary<string, string>
+                {
+                    { "W", "1u" },
+                    { "L", "180n" },
+                    { "M", "1" },
+                },
+            },
         };
     }
 }

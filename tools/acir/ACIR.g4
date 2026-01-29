@@ -18,10 +18,18 @@ grammar ACIR;
 // Parser Rules
 // ============================================================================
 
-// Document: optional version followed by bundles, traits, benches, and circuits
-// Empty documents (no version) are allowed for compatibility
+// Document: optional version followed by top-level declarations.
+// Empty documents (no version) are allowed for compatibility.
 document
-    : versionDecl? bundleDef* traitDef* benchDef* circuit* EOF
+    : versionDecl? topLevelDecl* EOF
+    ;
+
+topLevelDecl
+    : bundleDef
+    | interfaceDef
+    | benchDef
+    | primitiveDef
+    | circuit
     ;
 
 // Version is a decimal number like 3.0
@@ -34,7 +42,7 @@ versionDecl
 // ----------------------------------------------------------------------------
 
 bundleDef
-    : BUNDLE_KW IDENT COLON bundleField+
+    : BUNDLE_KW name=IDENT LBRACE bundleField* RBRACE
     ;
 
 bundleField
@@ -42,20 +50,20 @@ bundleField
     ;
 
 // ----------------------------------------------------------------------------
-// Trait definitions
+// Interface definitions
 // ----------------------------------------------------------------------------
 
-traitDef
-    : TRAIT_KW IDENT COLON traitMember+
+interfaceDef
+    : INTERFACE_KW name=IDENT LBRACE interfaceMember* RBRACE
     ;
 
-traitMember
-    : direction portName COLON portType                             # TraitPort
-    | CONNECTORS_KW connectorDef+                                   # TraitConnectors
+interfaceMember
+    : direction portName COLON portType                             # InterfacePort
+    | CONNECTORS_KW LBRACE connectorDef* RBRACE                      # InterfaceConnectors
     ;
 
 connectorDef
-    : TO_KW IDENT COLON connectorMapping+
+    : TO_KW IDENT LBRACE connectorMapping* RBRACE
     ;
 
 connectorMapping
@@ -67,13 +75,13 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW IDENT FOR_KW IDENT benchMember*
+    : BENCH_KW name=IDENT FOR_KW interface=IDENT LBRACE benchMember* RBRACE
     ;
 
 benchMember
     : BUILTIN_KW IDENT
-    | CONFIG_KW benchConfigEntry*
-    | OUTPUTS_KW benchOutput*
+    | CONFIG_KW LBRACE benchConfigEntry* RBRACE
+    | OUTPUTS_KW LBRACE benchOutput* RBRACE
     ;
 
 benchConfigEntry
@@ -85,11 +93,52 @@ benchOutput
     ;
 
 // ----------------------------------------------------------------------------
+// Primitive definitions
+// ----------------------------------------------------------------------------
+
+primitiveDef
+    : PRIMITIVE_KW DEVICE_TYPE name=IDENT LPAREN paramList? RPAREN LBRACE primitiveBody RBRACE
+    ;
+
+primitiveBody
+    : deviceDirective paramsBlock
+    ;
+
+deviceDirective
+    : DEVICE_KW STRING
+    ;
+
+paramsBlock
+    : PARAMS_KW LBRACE paramMapping+ RBRACE
+    ;
+
+paramMapping
+    : IDENT EQ paramExpr
+    ;
+
+paramExpr
+    : sizeFieldAccess
+    | expr
+    ;
+
+sizeFieldAccess
+    : IDENT DOT IDENT
+    ;
+
+// ----------------------------------------------------------------------------
 // Circuit definitions
 // ----------------------------------------------------------------------------
 
 circuit
-    : CIRCUIT_KW IDENT (IMPLEMENTS_KW traitList)? circuitMember*
+    : CIRCUIT_KW name=IDENT paramSignature? implementsClause? LBRACE circuitMember* RBRACE
+    ;
+
+paramSignature
+    : LPAREN paramList RPAREN
+    ;
+
+implementsClause
+    : IMPLEMENTS_KW traitList
     ;
 
 traitList
@@ -103,12 +152,11 @@ circuitMember
     | SUPPLY_KW IDENT                                               # SupplyDecl
     | GROUND_KW IDENT                                               # GroundDecl
     | direction portName COLON portType                             # PortDecl
-    | PARAM_KW IDENT COLON paramType (EQ paramValue)?               # ParamDecl
-    | SIZE_KW IDENT (EQ sizeLiteral)?                               # SizeDecl
-    | FILL_KW fillStatement*                                        # FillSection
-    | CONSTRAINTS_KW constraintSection*                             # ConstraintsSection
-    | HARNESS_KW harnessStatement*                                  # HarnessSection
-    | PROVENANCE_KW provenanceEntry*                                # ProvenanceSection
+    | slotDecl                                                      # SlotMember
+    | FILL_KW LBRACE fillStatement* RBRACE                          # FillSection
+    | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
+    | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
+    | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
     ;
 
 levelValue
@@ -121,13 +169,13 @@ direction
     | IO_KW
     ;
 
-// Port names can have dots (e.g., OUT.P) and optional array indices
+// Port names can have dots (e.g., OUT.P) and optional array indices.
 portName
     : IDENT (DOT IDENT)* (LBRACK NUMBER RBRACK)?
     | IDENT (DOT IDENT)* LBRACK STAR RBRACK
     ;
 
-// Port type can be an identifier or certain keywords used as type names
+// Port type can be an identifier or certain keywords used as type names.
 portType
     : IDENT
     | BIAS_KW
@@ -135,29 +183,36 @@ portType
     | GROUND_KW
     ;
 
+paramList
+    : paramDecl (COMMA paramDecl)*
+    ;
+
+paramDecl
+    : SIZE_KW sizeName=IDENT (EQ sizeExpr)?
+    | paramType paramName=IDENT (EQ paramValue)?
+    ;
+
 paramType
     : REAL_KW
     | INT_KW
+    | BOOL_KW
     ;
 
 paramValue
-    : NUMBER
-    | QUANTITY
-    | SYMBOLIC
-    | STRING
-    | IDENT
+    : scalarExpr
     ;
 
-sizeLiteral
-    : LPAREN sizeEntry (COMMA sizeEntry)* RPAREN
+// ----------------------------------------------------------------------------
+// Slot declarations (HL)
+// ----------------------------------------------------------------------------
+
+slotDecl
+    : SLOT_KW IDENT implementsClause? LBRACE slotStatement* RBRACE
     ;
 
-sizeEntry
-    : IDENT EQ (NUMBER | QUANTITY | SYMBOLIC | UNSIZED)
-    ;
-
-qualifiedName
-    : IDENT (DOT IDENT)*
+slotStatement
+    : PARAM_KW IDENT EQ scalarExpr                                  # SlotParam
+    | binding                                                      # SlotBinding
     ;
 
 // ----------------------------------------------------------------------------
@@ -165,26 +220,58 @@ qualifiedName
 // ----------------------------------------------------------------------------
 
 fillStatement
-    : NET_KW IDENT COLON portType                                   # NetDecl
-    | DEVICE_TYPE deviceId bindingList? COLON pdkDeviceName deviceBodyItem*  # DeviceDecl
-    | INST_KW IDENT bindingList? COLON IDENT instanceBodyItem*       # InstanceDecl
-    | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # AttachDecl
-    | pinRef WIRE_OP pinRef                                         # ConnectDecl
+    : NET_KW IDENT COLON portType                                   # FillNetDecl
+    | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
+    | instanceDecl                                                  # FillInstanceDecl
+    | deviceDecl                                                    # FillDeviceDecl
+    | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
+    | pinRef WIRE_OP pinRef                                         # FillConnectDecl
     ;
 
-// PDK device name can be IDENT or a device type keyword (nmos, pmos, etc.)
-pdkDeviceName
+instanceDecl
+    : instanceId=IDENT EQ NEW_KW instanceType=IDENT (LPAREN argList? RPAREN)? bindingBlock
+    ;
+
+argList
+    : arg (COMMA arg)*
+    ;
+
+arg
+    : IDENT EQ argValue
+    ;
+
+argValue
+    : sizeExpr
+    | scalarExpr
+    ;
+
+deviceDecl
+    : DEVICE_TYPE deviceId EQ NEW_KW primitiveName=IDENT LPAREN sizeArg RPAREN bindingBlock
+    ;
+
+sizeArg
     : IDENT
-    | DEVICE_TYPE
+    | sizeExpr
     ;
 
-// Device ID can contain keywords as parts (e.g., load.M where "load" is a keyword)
+bindingBlock
+    : LBRACE bindingList? RBRACE
+    ;
+
+bindingList
+    : binding (COMMA? binding)*
+    ;
+
+binding
+    : (DOT | BIND_DOT) pinRef WIRE_OP pinRef
+    ;
+
+// Device ID can contain keywords as parts (e.g., load.M where "load" is a keyword).
 deviceId
     : idPart (DOT idPart)*
     ;
 
-// Rule for identifiers that may also be keywords
-// Some keywords (like load, bias, etc.) can appear as part of device/net names
+// Rule for identifiers that may also be keywords.
 idPart
     : IDENT
     | INPUT_KW
@@ -214,52 +301,22 @@ idPart
     | IMPLEMENTS_KW
     | REAL_KW
     | INT_KW
+    | BOOL_KW
     | AUTO_KW
     | Z_KW
     | ICMR_KW
     | PVT_KW
+    | DEVICE_KW
+    | PRIMITIVE_KW
+    | NEW_KW
+    | INTERFACE_KW
+    | CONNECTORS_KW
+    | NUMERIC_KW
+    | TECH_KW
+    | GRAPH_KW
     ;
 
-bindingList
-    : LPAREN binding (COMMA binding)* RPAREN
-    ;
-
-binding
-    : (DOT | BIND_DOT) pinRef WIRE_OP pinRef
-    ;
-
-deviceBodyItem
-    : SIZE_KW (IDENT | sizeLiteral)                                 # DeviceSizeStmt
-    | deviceParamAssign                                             # DeviceParamLine
-    | binding                                                       # DeviceBinding
-    ;
-
-deviceParamAssign
-    : (IDENT | LOAD_TYPE) EQ deviceParamValue
-    ;
-
-instanceBodyItem
-    : PARAM_KW IDENT EQ paramValue                                  # InstanceParam
-    | SIZE_KW IDENT EQ sizeLiteral                                  # InstanceSize
-    | binding                                                       # InstanceBinding
-    ;
-
-deviceParamValue
-    : NUMBER
-    | QUANTITY
-    | SYMBOLIC
-    ;
-
-attachTargetList
-    : (TO_KW IDENT)+
-    ;
-
-// Attach overrides can have bindings separated by whitespace or commas
-attachOverrides
-    : LBRACE binding* RBRACE
-    ;
-
-// Pin references can contain keywords as parts (e.g., load.D)
+// Pin references can contain keywords as parts (e.g., load.D).
 pinRef
     : idPart ((DOT idPart) | (LBRACK NUMBER RBRACK))*
     ;
@@ -269,14 +326,14 @@ pinRef
 // ----------------------------------------------------------------------------
 
 constraintSection
-    : NUMERIC_KW numericConstraint*                                 # NumericSection
-    | TECH_KW techConstraint*                                       # TechSection
-    | GRAPH_KW graphConstraint*                                     # GraphSection
+    : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
+    | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
+    | GRAPH_KW LBRACE graphConstraint* RBRACE                       # GraphSection
     ;
 
-// id : Bench::Metric at Node >= ValueUnit
+// id = Bench::Metric at Node >= ValueUnit
 numericConstraint
-    : IDENT COLON benchMetricRef (AT_KW nodeRef)? COMPARISON_OP QUANTITY
+    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP QUANTITY
     ;
 
 benchMetricRef
@@ -330,10 +387,10 @@ harnessStatement
     | PVT_KW pvtList                                                # HarnessPvt
     ;
 
-// Harness value allows legacy format with space between number and unit (e.g., 1.8 V)
+// Harness value allows legacy format with space between number and unit (e.g., 1.8 V).
 harnessValue
     : QUANTITY
-    | NUMBER IDENT?                                                 // Allow "1.8 V" with space
+    | NUMBER IDENT?                                                 // Allow "1.8 V" with space.
     ;
 
 loadSpec
@@ -341,12 +398,12 @@ loadSpec
     | LPAREN loadElement ((COMMA | PIPEPIPE) loadElement)* RPAREN   # ParenLoadSpec
     ;
 
-// Load element allows legacy format with split value and unit (e.g., C=1p F)
+// Load element allows legacy format with split value and unit (e.g., C=1p F).
 loadElement
-    : LOAD_TYPE EQ (QUANTITY | NUMBER) IDENT?
+    : IDENT EQ (QUANTITY | NUMBER) IDENT?
     ;
 
-// Source spec allows legacy format without unit (e.g., Z=50)
+// Source spec allows legacy format without unit (e.g., Z=50).
 sourceSpec
     : Z_KW EQ (QUANTITY | NUMBER)
     ;
@@ -361,7 +418,7 @@ sweepRange
     | sweepValue COLON sweepValue                                   # AutoStepSweep
     ;
 
-// Sweep value allows legacy format with space between number and unit (e.g., 0.3 V)
+// Sweep value allows legacy format with space between number and unit (e.g., 0.3 V).
 sweepValue
     : QUANTITY
     | NUMBER IDENT?
@@ -376,9 +433,81 @@ pvtList
 // ----------------------------------------------------------------------------
 
 provenanceEntry
-    : SOURCE_PROV_KW STRING (LBRACK NUMBER COLON NUMBER RBRACK)?    # ProvenanceSource
+    : SOURCE_KW STRING (LBRACK NUMBER COLON NUMBER RBRACK)?         # ProvenanceSource
     | TRANSFORM_KW STRING                                           # ProvenanceTransform
     | ALIAS_KW IDENT EQ IDENT                                       # ProvenanceAlias
+    ;
+
+// ----------------------------------------------------------------------------
+// Sizes and expressions
+// ----------------------------------------------------------------------------
+
+sizeExpr
+    : SIZE_KW LPAREN sizeExprBody RPAREN
+    ;
+
+sizeExprBody
+    : sizeKvList
+    | sizeExprList
+    ;
+
+sizeKvList
+    : sizeKvPair (COMMA sizeKvPair)*
+    ;
+
+sizeKvPair
+    : sizeKey=IDENT EQ expr
+    ;
+
+sizeExprList
+    : expr (COMMA expr)*
+    ;
+
+expr
+    : expr (PLUS | MINUS) mulExpr
+    | mulExpr
+    ;
+
+mulExpr
+    : mulExpr (STAR | SLASH) unaryAtom
+    | unaryAtom
+    ;
+
+unaryAtom
+    : MINUS unaryAtom
+    | exprAtom
+    ;
+
+exprAtom
+    : LPAREN expr RPAREN
+    | sizeFieldAccess
+    | IDENT
+    | NUMBER
+    | QUANTITY
+    | AUTO_KW
+    | UNSIZED
+    ;
+
+scalarExpr
+    : NUMBER
+    | QUANTITY
+    | IDENT
+    | AUTO_KW
+    | STRING
+    | UNSIZED
+    ;
+
+qualifiedName
+    : IDENT (DOT IDENT)*
+    ;
+
+attachTargetList
+    : (TO_KW IDENT)+
+    ;
+
+// Attach overrides can have bindings separated by whitespace or commas.
+attachOverrides
+    : LBRACE binding* RBRACE
     ;
 
 // ============================================================================
@@ -389,39 +518,45 @@ provenanceEntry
 ACIR_KW         : 'ACIR' ;
 
 BUNDLE_KW       : 'bundle' ;
+INTERFACE_KW    : 'interface' ;
 TRAIT_KW        : 'trait' ;
 BENCH_KW        : 'bench' ;
 CIRCUIT_KW      : 'circuit' ;
+PRIMITIVE_KW    : 'primitive' ;
+DEVICE_KW       : 'device' ;
+PARAMS_KW       : 'params' ;
+NEW_KW          : 'new' ;
+
 PORT_KW         : 'port' ;
 INPUT_KW        : 'input' ;
 OUTPUT_KW       : 'output' ;
 IO_KW           : 'io' ;
-CONNECTORS_KW   : 'connectors:' ;
+CONNECTORS_KW   : 'connectors' ;
 LEVEL_KW        : 'level' ;
 INLINE_KW       : 'inline' ;
 PACKAGE_KW      : 'package' ;
 SUPPLY_KW       : 'supply' ;
 GROUND_KW       : 'ground' ;
 PARAM_KW        : 'param' ;
+SLOT_KW         : 'slot' ;
 SIZE_KW         : 'size' ;
-FILL_KW         : 'fill:' ;
-CONSTRAINTS_KW  : 'constraints:' ;
-HARNESS_KW      : 'harness:' ;
-PROVENANCE_KW   : 'provenance:' ;
+FILL_KW         : 'fill' ;
+CONSTRAINTS_KW  : 'constraints' ;
+HARNESS_KW      : 'harness' ;
+PROVENANCE_KW   : 'provenance' ;
 NET_KW          : 'net' ;
-INST_KW         : 'inst' ;
 ATTACH_KW       : 'attach' ;
 TO_KW           : 'to' ;
 FOR_KW          : 'for' ;
 VIA_KW          : 'via' ;
 AS_KW           : 'as' ;
 BUILTIN_KW      : 'builtin' ;
-OUTPUTS_KW      : 'outputs:' ;
-CONFIG_KW       : 'config:' ;
+OUTPUTS_KW      : 'outputs' ;
+CONFIG_KW       : 'config' ;
 IMPLEMENTS_KW   : 'implements' ;
-NUMERIC_KW      : 'numeric:' ;
-TECH_KW         : 'tech:' ;
-GRAPH_KW        : 'graph:' ;
+NUMERIC_KW      : 'numeric' ;
+TECH_KW         : 'tech' ;
+GRAPH_KW        : 'graph' ;
 BIAS_KW         : 'bias' ;
 LOAD_KW         : 'load' ;
 SOURCE_KW       : 'source' ;
@@ -434,28 +569,29 @@ Z_KW            : 'Z' ;
 ON_KW           : 'on' ;
 REAL_KW         : 'real' ;
 INT_KW          : 'int' ;
-SOURCE_PROV_KW  : 'source:' ;
-TRANSFORM_KW    : 'transform:' ;
-ALIAS_KW        : 'alias:' ;
-
-// Level values
+BOOL_KW         : 'bool' ;
+TRANSFORM_KW    : 'transform' ;
+ALIAS_KW        : 'alias' ;
 HL_KW           : 'HL' ;
 ML_KW           : 'ML' ;
 EL_KW           : 'EL' ;
 
-// Device types
-DEVICE_TYPE     : 'nmos' | 'pmos' | 'resistor' | 'capacitor' | 'inductor' | 'diode' ;
+DEVICE_TYPE
+    : 'nmos'
+    | 'pmos'
+    | 'resistor'
+    | 'capacitor'
+    | 'inductor'
+    | 'diode'
+    ;
 
-// Load types
-LOAD_TYPE       : 'C' | 'R' ;
+COMPARISON_OP
+    : '>=' | '<=' | '==' | '>' | '<'
+    ;
 
-// Operators
-COMPARISON_OP   : '>=' | '<=' | '==' | '>' | '<' ;
 WIRE_OP         : '--' ;
 COLONCOLON      : '::' ;
 PIPEPIPE        : '||' ;
-
-// Punctuation
 COLON           : ':' ;
 COMMA           : ',' ;
 BIND_DOT        : '.' { _atLineStart }? ;
@@ -468,32 +604,17 @@ RBRACK          : ']' ;
 LBRACE          : '{' ;
 RBRACE          : '}' ;
 STAR            : '*' ;
+SLASH           : '/' ;
+PLUS            : '+' ;
+MINUS           : '-' ;
 AT              : '@' ;
 
-// Symbolic values like $Auto, $ratio
-SYMBOLIC        : '$' [A-Za-z_][A-Za-z0-9_]* ;
-
-// Unsized placeholder (ML level circuits may have unresolved sizes)
+QUANTITY        : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? [fpnumkMGT]? [A-Za-z]+ ;
+NUMBER          : [0-9]* '.'? [0-9]+ ([eE] [+\-]? [0-9]+)? ;
+IDENT           : [A-Za-z_][A-Za-z0-9_]* ;
+STRING          : '"' (~["\\] | '\\' .)* '"' ;
 UNSIZED         : '??' ;
 
-// Quantity: numeric value with SI prefix and/or unit (e.g., 1.8V, 100MHz, 10u, 180n)
-// Must come before NUMBER to match longer token
-QUANTITY        : '-'? [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)? [fpnumkMGT] [A-Za-z]*
-                | '-'? [0-9]+ ('.' [0-9]+)? ([eE] [+-]? [0-9]+)? [A-Za-z]+
-                ;
-
-// Plain numbers (integer or decimal)
-NUMBER          : [0-9]+ ('.' [0-9]+)? ;
-
-// Identifiers
-IDENT           : [A-Za-z_][A-Za-z0-9_]* ;
-
-// String literals
-STRING          : '"' (~["\\] | '\\' .)* '"' ;
-
-// Line comments
 LINE_COMMENT    : '//' ~[\r\n]* -> skip ;
-
-// Whitespace (skip spaces/tabs; handle newlines separately so we can detect line starts)
 WS              : [ \t\r]+ -> skip ;
 NEWLINE         : ('\r'? '\n')+ { _atLineStart = true; } -> skip ;

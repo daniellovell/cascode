@@ -1,19 +1,43 @@
 ACIR 3.0
 
-circuit DiffRCFilter implements DifferentialFilter
+primitive capacitor Ideal_Capacitor(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+primitive resistor Ideal_Resistor(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+
+circuit DiffRCFilter implements DifferentialFilter {
   level EL
   supply VDD
   ground GND
   input IN_P : analog
   input IN_N : analog
-  output OUT_P : analog
-  output OUT_N : analog
-  fill:
-    resistor R_P (.P--IN_P, .N--OUT_P) : resistor
-      R = 10k
-    resistor R_N (.P--IN_N, .N--OUT_N) : resistor
-      R = 10k
-    capacitor C_DIFF (.P--OUT_P, .N--OUT_N) : capacitor
-      C = 1p
-  harness:
+  output OUT.P : analog
+  output OUT.N : analog
+  fill {
+    resistor R_P = new Ideal_Resistor(size(R=10k)) {
+      .P--IN_P
+      .N--OUT.P
+    }
+    resistor R_N = new Ideal_Resistor(size(R=10k)) {
+      .P--IN_N
+      .N--OUT.N
+    }
+    capacitor C_DIFF = new Ideal_Capacitor(size(C=1p)) {
+      .P--OUT.P
+      .N--OUT.N
+    }
+  }
+  harness {
     supply VDD = 1.8V
+  }
+}

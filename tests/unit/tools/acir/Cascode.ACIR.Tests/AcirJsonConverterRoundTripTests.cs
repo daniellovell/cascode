@@ -213,63 +213,7 @@ public class AcirJsonConverterRoundTripTests
         Assert.Equal("analog", nets[1].GetProperty("kind").GetString());
     }
 
-    private static ACIRDocument CreateSimpleElCircuit()
-    {
-        return new ACIRDocument
-        {
-            VersionMajor = ACIRVersion.Major,
-            VersionMinor = ACIRVersion.Minor,
-            Circuits =
-            [
-                new Circuit
-                {
-                    Name = "OTA5T",
-                    Level = ACIRLevel.EL,
-                    Supplies = ["VDD"],
-                    Grounds = ["GND"],
-                    Ports =
-                    [
-                        new PortDeclaration
-                        {
-                            Direction = PortDirection.Input,
-                            Name = "IN",
-                            Type = "analog",
-                        },
-                        new PortDeclaration
-                        {
-                            Direction = PortDirection.Output,
-                            Name = "OUT",
-                            Type = "analog",
-                        },
-                    ],
-                    Fill = new FillBlock
-                    {
-                        Devices =
-                        [
-                            new DeviceDeclaration
-                            {
-                                DeviceType = "nmos",
-                                Id = "M1",
-                                Bindings = new Dictionary<string, string>
-                                {
-                                    ["G"] = "IN",
-                                    ["D"] = "OUT",
-                                    ["S"] = "GND",
-                                    ["B"] = "GND",
-                                },
-                                Params = new Dictionary<string, string>
-                                {
-                                    ["W"] = "1u",
-                                    ["L"] = "180n",
-                                },
-                                PdkDevice = "nmos",
-                            },
-                        ],
-                    },
-                },
-            ],
-        };
-    }
+    private static ACIRDocument CreateSimpleElCircuit() => TestFixtures.CreateSimpleElCircuit();
 
     private static ACIRDocument CreateCircuitWithConstraints()
     {
