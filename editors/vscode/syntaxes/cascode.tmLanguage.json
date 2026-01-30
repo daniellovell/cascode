@@ -238,7 +238,6 @@
         { "include": "#benches-block" },
         { "include": "#constraints-block" },
         { "include": "#attach-statement" },
-        { "include": "#connect-statement" },
         { "include": "#binding-statement" },
         { "include": "#punctuation-semicolon" }
       ]
@@ -557,25 +556,15 @@
       }
     },
 
-    "connect-statement": {
-      "match": "\\b(connect)\\s+([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_\\.]*)",
-      "captures": {
-        "1": { "name": "keyword.control.connect.cascode" },
-        "2": { "name": "variable.other.net.cascode" },
-        "3": { "name": "keyword.operator.arrow.cascode" },
-        "4": { "name": "variable.other.net.cascode" }
-      }
-    },
-
     "binding-statement": {
-      "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--|->)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
+      "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
       "captures": {
         "1": { "name": "punctuation.accessor.cascode" },
         "2": { "name": "variable.other.pin.cascode" },
         "3": { "name": "punctuation.squarebracket.open.cascode" },
         "4": { "name": "constant.numeric.index.cascode" },
         "5": { "name": "punctuation.squarebracket.close.cascode" },
-        "6": { "name": "keyword.operator.binding.cascode" },
+        "6": { "name": "punctuation.separator.wire.cascode" },
         "7": { "name": "punctuation.accessor.cascode" },
         "8": { "name": "variable.other.net.cascode" },
         "9": { "name": "punctuation.squarebracket.open.cascode" },
@@ -859,7 +848,6 @@
         { "include": "#control-flow" },
         { "include": "#block" },
         { "include": "#attach-statement" },
-        { "include": "#connect-statement" },
         { "include": "#binding-statement" },
         { "include": "#expression" },
         { "include": "#punctuation-semicolon" }
@@ -1298,8 +1286,8 @@
     "operators": {
       "patterns": [
         {
-          "match": "--|->",
-          "name": "keyword.operator.binding.cascode"
+          "match": "--",
+          "name": "punctuation.separator.wire.cascode"
         },
         {
           "match": "::",

@@ -240,7 +240,7 @@ bench SEToSETransfer {
     ac.P--source.P
     source.N--IN
 
-    Impedor loadZ = new Impedance(Z=env.LoadImpedance) {
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
       .P--OUT
       .N--gnd
     }
