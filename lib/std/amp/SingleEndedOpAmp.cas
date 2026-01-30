@@ -22,5 +22,17 @@ interface SingleEndedOpAmp {
       }
       dut.VSS--localGround
     }
+
+    bind DiffToSENoise as noise_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+
+      GND localGround = new GND()
+      VDC dcSource = new VDC(harness.VDD) {
+        .P--dut.VDD
+        .N--localGround
+      }
+      dut.VSS--localGround
+    }
   }
 }

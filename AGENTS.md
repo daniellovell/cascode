@@ -10,7 +10,7 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
 ## Purpose & Map
 
 - Purpose: bootstrap the Cascode toolchain while keeping the root lean.
-- Structure: docs live in `docs/`; language references in `spec/`; canonical motif libraries and benches in `lib/` (bench templates live in `lib/benches`); runnable examples in `examples/`; implementation code in `tools/cli`, `tools/parser`, `tools/workspace`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
+- Structure: docs live in `docs/`; language references in `spec/`; standard library lives in `lib/std/` (bundles, interfaces, circuits, benches, primitives); runnable examples in `examples/`; implementation code in `tools/cli`, `tools/language`, `tools/workspace`, `tools/bench`, `tools/render`; regression assets in `tests/`; build artifacts go to `build/` (ignored).
 - Where to read first: `docs/architecture/README.md` plus relevant component docs, e.g. `docs/architecture/cli-architecture.md` and `docs/architecture/pdk-scan-architecture.md`.
 
 ## Jump Table (start here by task)
@@ -24,14 +24,19 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
   - Code: `tools/workspace/**` (scanner, matcher, DB)
   - Fixture: `tests/fixtures/pdk/sky130`
   - Quick verify: `dotnet run --project tools/cli/Cascode.Cli.csproj -- pdk scan tests/fixtures/pdk/sky130`
-- Parser & Cas IR
-  - Read: `spec/**`, `docs/architecture/README.md` (parser notes)
-  - Code: `tools/parser/**`
-  - Verify: use examples under `examples/**`; if parser changes affect CLI, add/adjust a CLI command.
-- Examples, motifs, and specs
+- Language & Cascode IR
+  - Read: `spec/**`, `docs/architecture/README.md` (language notes)
+  - Code: `tools/language/**` (grammar, reader/writer, linker, validation, emission)
+  - Verify: use examples under `examples/**`; if language changes affect CLI, add/adjust a CLI command.
+- Standard library & examples
   - Read: `spec/**`
-  - Code/data: `lib/**`, `examples/**`
+  - Code/data: `lib/std/**`, `examples/**`
   - Verify: minimal runnable examples; keep outputs under `build/`
+- Bench system (harnesses + execution)
+  - Code: `tools/bench/**` (harness discovery, testbench generation, simulator backends)
+  - Code: `tools/language/BenchRuntime/**` (bench planning + measurement evaluation)
+- Render (schematic/layout)
+  - Code: `tools/render/**`
 - Tests
   - Read: `tests/README.md`
   - Unit tests: `tests/unit/tools/<area>/Cascode.<Area>.Tests/` (add or update alongside `tools/<area>/` code)
@@ -46,9 +51,11 @@ Use professional prose and use precisely the level of verbosity that is required
 Bold formatting should be reserved for technical terms being defined, critical warnings, or table headers requiring emphasis. Do not bold every subsection label, list lead-in, or organizational marker.
 
 ## Boundaries
-- `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/parser`. Nothing depends on CLI.
+- `tools/cli`: CLI only; may depend on `tools/workspace`, `tools/language`, `tools/bench`, `tools/render`. Nothing depends on CLI.
 - `tools/workspace`: orchestration + persistence to `pdk.db`. No UI.
-- `tools/parser`: pure; no file/DB/network IO.
+- `tools/language`: language implementation (grammar, AST, validation, linking, emission, bench semantics). Keep parsing/validation pure; no DB/network IO.
+- `tools/bench`: harness discovery + testbench generation + simulator backends; no workspace DB.
+- `tools/render`: rendering; depends on `tools/language`.
 - No cycles or cross‑layer shortcuts.
 
 ## Hard Rules
@@ -100,11 +107,11 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - **Major bump**: breaking changes - reader rejects different majors
 - **Minor bump**: additive-only changes - reader accepts any minor within same major
 - On bump: run `scripts/bump_cascode_version.sh` to sync golden file headers
-- On bump: inspect and update all ACIR versioning in unit/integration tests to be up to date with the latest features.
+- On bump: inspect and update all Cascode versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
 
 ## Anti‑Patterns
-- Cross‑layer deps; IO in parser; UI outside CLI.
+- Cross‑layer deps; IO in language core; UI outside CLI.
 - God files/classes; silent behavior changes; “temporary” duplication.
 - Flags that preserve old/new paths indefinitely.
 
