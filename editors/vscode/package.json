@@ -23,7 +23,7 @@
       {
         "id": "cascode",
         "aliases": ["Cascode", "cascode", "cas"],
-        "extensions": [".cas"],
+        "extensions": [".cas", ".cai"],
         "configuration": "./language-configuration.json"
       }
     ],

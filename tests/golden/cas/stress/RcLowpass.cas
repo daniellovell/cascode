@@ -1,0 +1,46 @@
+VERSION 3.0
+
+// Diff bundle is included from lib.std
+// Ideal_Resistor and Ideal_Capacitor come from lib.std.prim
+// DiffToSETransfer coems from lib.std.bench
+
+include lib.std // Should recursively include all 
+
+
+circuit RcLowpass {
+  level EL
+
+  input IN : Diff
+  output OUT : analog
+  ground GND
+
+  fill {
+    Resistor R1 = new Ideal_Resistor(size(R=1k)) {
+      .P--IN.P
+      .N--OUT
+    }
+
+    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+      .P--OUT
+      .N--GND
+    }
+
+  }
+
+  benches {
+    bind DiffToSETransfer as transfer {
+      GND g0 = new GND()
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+      dut.GND--g0.GND
+    }
+  }
+
+  constraints {
+    numeric {
+      // 1k || 1p -> fc ~ 159 MHz
+      c_fc = transfer::LowpassBandwidth >= 50MHz
+      c_gain = transfer::PassbandGain >= 0dB
+    }
+  }
+}

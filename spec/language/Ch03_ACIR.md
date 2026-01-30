@@ -135,7 +135,7 @@ Statements may optionally include source attribution in the form `@[file:line]` 
 
 ```acir
 output OUT : analog @[OTA.cas:7]
-nmos dp.M_N = new Level1_NMOS(size(W=1u, L=100n, M=1)) {
+NMOS dp.M_N = new Level1_NMOS(size(W=1u, L=100n, M=1)) {
   .G--IN_P
   .D--OUT_N
   .S--tnode
@@ -489,19 +489,19 @@ circuit DiffPair_hasTail_true_p_NMOS(real W_input=2u, real L=180n, real tail_rat
 
   fill {
     net tnode : analog
-    nmos M_N = new Level1_NMOS(Input) {
+    NMOS M_N = new Level1_NMOS(Input) {
       .G--IN.P
       .D--OUT.N
       .S--tnode
       .B--BASE
     }
-    nmos M_P = new Level1_NMOS(Input) {
+    NMOS M_P = new Level1_NMOS(Input) {
       .G--IN.N
       .D--OUT.P
       .S--tnode
       .B--BASE
     }
-    nmos M_TAIL = new Level1_NMOS(Tail) {
+    NMOS M_TAIL = new Level1_NMOS(Tail) {
       .G--BIAS
       .D--tnode
       .S--BASE
@@ -576,7 +576,7 @@ Device declarations reference a named primitive. The primitive defines the concr
 Example (EL, inline leaf):
 
 ```acir
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -590,19 +590,19 @@ circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   inline
 
   fill {
-    nmos M_N = new Level1_NMOS(InputPair) {
+    NMOS M_N = new Level1_NMOS(InputPair) {
       .G--IN.P
       .D--OUT.N
       .S--tnode
       .B--BASE
     }
-    nmos M_P = new Level1_NMOS(InputPair) {
+    NMOS M_P = new Level1_NMOS(InputPair) {
       .G--IN.N
       .D--OUT.P
       .S--tnode
       .B--BASE
     }
-    nmos M_TAIL = new Level1_NMOS(Tail) {
+    NMOS M_TAIL = new Level1_NMOS(Tail) {
       .G--BIAS
       .D--tnode
       .S--BASE
@@ -654,12 +654,12 @@ Transistors:
 
 ```acir
 fill {
-  nmos <id> = new <PrimitiveName>(<sizeName>|size(...)) {
+  NMOS <id> = new <PrimitiveName>(<sizeName>|size(...)) {
     .<terminalPath>--<netPath>
     ...
   }
 
-  pmos <id> = new <PrimitiveName>(<sizeName>|size(...)) {
+  PMOS <id> = new <PrimitiveName>(<sizeName>|size(...)) {
     .<terminalPath>--<netPath>
     ...
   }
@@ -672,13 +672,13 @@ Inline anonymous size (one-off sizing):
 
 ```acir
 fill {
-  nmos M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
+  NMOS M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
     .G--IN
     .D--OUT
     .S--GND
     .B--GND
   }
-  pmos M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
+  PMOS M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
     .G--OUT
     .D--OUT
     .S--VDD
@@ -694,19 +694,19 @@ circuit DiffPair(size Input, size Tail) {
   level EL
 
   fill {
-    nmos M_N = new Level1_NMOS(Input) {
+    NMOS M_N = new Level1_NMOS(Input) {
       .G--IN.P
       .D--OUT.N
       .S--tnode
       .B--GND
     }
-    nmos M_P = new Level1_NMOS(Input) {
+    NMOS M_P = new Level1_NMOS(Input) {
       .G--IN.N
       .D--OUT.P
       .S--tnode
       .B--GND
     }
-    nmos M_TAIL = new Level1_NMOS(Tail) {
+    NMOS M_TAIL = new Level1_NMOS(Tail) {
       .G--BIAS
       .D--tnode
       .S--GND
@@ -722,17 +722,17 @@ Passives:
 
 ```acir
 fill {
-  resistor <id> = new <PrimitiveName>(size(R=<value>)) {
+  Resistor <id> = new <PrimitiveName>(size(R=<value>)) {
     .P--<net>
     .N--<net>
   }
 
-  capacitor <id> = new <PrimitiveName>(size(C=<value>)) {
+  Capacitor <id> = new <PrimitiveName>(size(C=<value>)) {
     .P--<net>
     .N--<net>
   }
 
-  inductor <id> = new <PrimitiveName>(size(L=<value>)) {
+  Inductor <id> = new <PrimitiveName>(size(L=<value>)) {
     .P--<net>
     .N--<net>
   }
@@ -743,11 +743,11 @@ Example:
 
 ```acir
 fill {
-  capacitor Cc = new Ideal_Capacitor(size(C=1p)) {
+  Capacitor Cc = new Ideal_Capacitor(size(C=1p)) {
     .P--comp_out
     .N--stage2_in
   }
-  resistor Rz = new Ideal_Resistor(size(R=10k)) {
+  Resistor Rz = new Ideal_Resistor(size(R=10k)) {
     .P--comp_out
     .N--stage2_in
   }
@@ -758,7 +758,7 @@ Diodes:
 
 ```acir
 fill {
-  diode <id> = new <PrimitiveName>(size(A=<value>)) {
+  Diode <id> = new <PrimitiveName>(size(A=<value>)) {
     .A--<net>
     .K--<net>
   }
@@ -989,7 +989,7 @@ fill {
 Semantics:
 
 - At **ML level**, the `fill { ... }` block contains internal `net` declarations and circuit instances resulting from slot resolution and elaboration.  
-- **EL level** uses the `fill { ... }` block for internal `net` declarations and primitive device declarations (`nmos`, `pmos`, `resistor`, `capacitor`, `inductor`, `diode`).  
+- **EL level** uses the `fill { ... }` block for internal `net` declarations and primitive device declarations (`NMOS`, `PMOS`, `Resistor`, `Capacitor`, `Inductor`, `Diode`).  
 - **HL level** does not use the `fill { ... }` block; instead, slots remain at the circuit body level, representing requirements and contracts rather than synthesized implementations.
 
 Net placement:
@@ -1010,13 +1010,13 @@ circuit SimpleAmp {
 
   fill {
     net tnode : analog
-    nmos M_in = new Level1_NMOS(size(W=8u, L=180n, M=2)) {
+    NMOS M_in = new Level1_NMOS(size(W=8u, L=180n, M=2)) {
       .G--IN
       .D--OUT
       .S--VSS
       .B--VSS
     }
-    pmos M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
+    PMOS M_load = new Level1_PMOS(size(W=2u, L=180n, M=2)) {
       .G--OUT
       .D--OUT
       .S--VDD
@@ -1322,7 +1322,7 @@ circuit OTA implements SingleEndedOpAmp {
   level EL
   ...
   fill {
-    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .G--IN_P
       .D--mirror_gate
       .S--tnode
@@ -1579,7 +1579,7 @@ At EL, all motifs are expanded to primitive devices. The circuit is fully flatte
 ```acir
 ACIR 3.0
 
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -1588,7 +1588,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -1629,19 +1629,19 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
     net mirror_gate : analog  // dp.OUT.P = cm.SENSE
 
     // DiffPair (dp) - NMOS differential pair with tail
-    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .G--IN_P
       .D--mirror_gate
       .S--tnode
       .B--GND
     }
-    nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .G--IN_N
       .D--OUT
       .S--tnode
       .B--GND
     }
-    nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+    NMOS dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
       .G--VTAIL
       .D--tnode
       .S--GND
@@ -1649,13 +1649,13 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
     }
 
     // CurrentMirror (cm) - PMOS current mirror
-    pmos cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
       .G--mirror_gate
       .D--mirror_gate
       .S--VDD
       .B--VDD
     }
-    pmos cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
       .G--mirror_gate
       .D--OUT
       .S--VDD
@@ -1751,7 +1751,7 @@ This example demonstrates a single-ended common-source amplifier using a primiti
 ```acir
 ACIR 3.0
 
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -1760,7 +1760,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -1801,14 +1801,14 @@ circuit CSAmplifier implements SingleEndedAmp {
   input vb1 : bias
 
   fill {
-    nmos M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
+    NMOS M_in = new Level1_NMOS(size(W=12u, L=180n, M=4)) {
       .G--vin
       .D--vout
       .S--GND
       .B--GND
     }
 
-    pmos load.M1 = new Level1_PMOS(size(W=4u, L=180n, M=2)) {
+    PMOS load.M1 = new Level1_PMOS(size(W=4u, L=180n, M=2)) {
       .G--vb1
       .D--vout
       .S--VDD
@@ -1849,7 +1849,7 @@ This example demonstrates hierarchical EL with circuit instantiation and attach 
 ```acir
 ACIR 3.0
 
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -1858,7 +1858,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -1962,19 +1962,19 @@ circuit DiffPair_hasTail_true_p_NMOS(size Input = size(W=2u, L=180n, M=1), size 
 
   fill {
     net tnode : analog
-    nmos M_N = new Level1_NMOS(Input) {
+    NMOS M_N = new Level1_NMOS(Input) {
       .G--IN.P
       .D--OUT.N
       .S--tnode
       .B--BASE
     }
-    nmos M_P = new Level1_NMOS(Input) {
+    NMOS M_P = new Level1_NMOS(Input) {
       .G--IN.N
       .D--OUT.P
       .S--tnode
       .B--BASE
     }
-    nmos M_TAIL = new Level1_NMOS(Tail) {
+    NMOS M_TAIL = new Level1_NMOS(Tail) {
       .G--BIAS
       .D--tnode
       .S--BASE
@@ -1993,13 +1993,13 @@ circuit CurrentMirror_taps_1_p_PMOS(size Sense = size(W=2u, L=180n, M=1))
   output TAP[0] : analog
 
   fill {
-    pmos M_SENSE = new Level1_PMOS(Sense) {
+    PMOS M_SENSE = new Level1_PMOS(Sense) {
       .G--SENSE
       .D--SENSE
       .S--RAIL
       .B--RAIL
     }
-    pmos M_TAP0 = new Level1_PMOS(Sense) {
+    PMOS M_TAP0 = new Level1_PMOS(Sense) {
       .G--SENSE
       .D--TAP[0]
       .S--RAIL
@@ -2370,7 +2370,7 @@ binding      = "." pinRef "--" pinRef ;
 
 deviceDecl   = deviceType deviceId "=" "new" IDENT "(" sizeArg ")" bindingBlock ;
 sizeArg      = IDENT | sizeExpr ;
-deviceType   = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;
+deviceType   = "NMOS" | "PMOS" | "Resistor" | "Capacitor" | "Inductor" | "Diode" ;
 
 attachStmt   = "attach" IDENT ("to" IDENT)+ "via" IDENT "::" IDENT ("as" IDENT)? attachOverrides? ;
 attachOverrides = "{" binding* "}" ;

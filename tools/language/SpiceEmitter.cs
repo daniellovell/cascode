@@ -641,12 +641,12 @@ public static class SpiceEmitter
 
         if (type == "polarity")
         {
-            if (trimmed.Equals("nmos", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.Equals("NMOS", StringComparison.OrdinalIgnoreCase))
             {
                 return "NMOS";
             }
 
-            if (trimmed.Equals("pmos", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.Equals("PMOS", StringComparison.OrdinalIgnoreCase))
             {
                 return "PMOS";
             }

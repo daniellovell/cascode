@@ -1,6 +1,0 @@
-library lib.std.prim;
-
-// Interface: modules exposing a differential output bundle.
-interface DiffPairLike {
-  ports [ OUT: Diff ]
-}

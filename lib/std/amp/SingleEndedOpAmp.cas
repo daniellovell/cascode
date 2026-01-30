@@ -16,7 +16,7 @@ interface SingleEndedOpAmp {
       bench.OUT--dut.OUT
 
       GND localGround = new GND()
-      VDC dcSource = new VDC(0V) {
+      VDC dcSource = new VDC(harness.VDD) {
         .P--dut.VDD
         .N--localGround
       }

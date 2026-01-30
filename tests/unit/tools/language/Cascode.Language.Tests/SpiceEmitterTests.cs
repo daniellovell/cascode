@@ -69,7 +69,7 @@ public class SpiceEmitterTests
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive nmos Level1_NMOS(size primSize) {{
+primitive NMOS Level1_NMOS(size primSize) {{
   device ""level1_nmos""
   params {{
     W = primSize.W
@@ -86,7 +86,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
   output OUT : analog
   fill {{
     size Tail = size(W=Input.W*2, L=Input.L, M=1)
-    nmos M1 = new Level1_NMOS(Tail) {{
+    NMOS M1 = new Level1_NMOS(Tail) {{
       .B--GND
       .D--OUT
       .G--IN
@@ -360,7 +360,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesELCircuit()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
@@ -400,7 +400,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void SpiceEmitter_Emit_EmitsTestbenchForDeclarativeBenchBinding()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         CascodeDocument doc;
         using (var reader = File.OpenText(cascodePath))
@@ -426,7 +426,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCommonSourceAmpWithBias()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CommonSourceAmp.el.cai");
 
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
@@ -460,7 +460,7 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
     public void CascodeReader_ParsesCSAmpResistiveWithResistor()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
-        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cai");
 
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
@@ -480,11 +480,11 @@ circuit Top(size Input=size(W=1u, L=180n, M=1)) {{
         Assert.Equal(2, circuit.Fill.Devices.Count);
 
         // Verify we have both device types
-        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "nmos");
-        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "resistor");
+        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "NMOS");
+        Assert.Contains(circuit.Fill.Devices, d => d.DeviceType == "Resistor");
 
         // Verify resistor parameters
-        var resistor = circuit.Fill.Devices.First(d => d.DeviceType == "resistor");
+        var resistor = circuit.Fill.Devices.First(d => d.DeviceType == "Resistor");
         Assert.Equal("R_load", resistor.Id);
         Assert.Equal("VDD", resistor.Bindings["P"]);
         Assert.Equal("OUT", resistor.Bindings["N"]);

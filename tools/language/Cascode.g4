@@ -972,12 +972,12 @@ NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
 
 DEVICE_TYPE
-    : 'nmos'
-    | 'pmos'
-    | 'resistor'
-    | 'capacitor'
-    | 'inductor'
-    | 'diode'
+    : 'NMOS'
+    | 'PMOS'
+    | 'Resistor'
+    | 'Capacitor'
+    | 'Inductor'
+    | 'Diode'
     ;
 
 COMPARISON_OP

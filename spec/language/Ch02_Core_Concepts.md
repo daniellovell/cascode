@@ -466,7 +466,7 @@ Bench inference uses the active interface(s) on the design or candidate motif to
 
 * `env` **MUST** synthesize a **bench harness**:
 
-  * `load C = …` → shunt capacitor(s) on designated output node(s).
+  * `load C = …` → shunt Capacitor(s) on designated output node(s).
   * `source Z = …` → source resistance on the designated input(s).
   * `vdd`, `icmr`, temperature, corners → bench operating conditions.
 * Harness elements **do not** enter layout/LVS; they are bench-only by definition.
@@ -909,7 +909,7 @@ motif WideSwingPMOSMirror {
   wrap spice """
     .subckt WS_PMOS_MIRROR sense out vref m=1 Wp=2u Lp=0.18u
     M1 out  sense vref vref pch W={Wp*m} L={Lp}
-    M2 sense sense vref vref pch W={Wp}   L={Lp}   ; diode
+    M2 sense sense vref vref pch W={Wp}   L={Lp}   ; Diode
     .ends
   """ map { SENSE=sense; OUT=out; VREF=vref; }
   // char { ... } // required to be Synthesizable

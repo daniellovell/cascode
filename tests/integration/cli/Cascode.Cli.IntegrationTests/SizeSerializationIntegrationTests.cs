@@ -27,7 +27,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
     {
         var sourcePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         CascodeDocument doc;
@@ -64,7 +64,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive nmos Level1_NMOS(size primSize) {{
+primitive NMOS Level1_NMOS(size primSize) {{
   device ""level1_nmos""
   params {{
     W = primSize.W
@@ -81,13 +81,13 @@ circuit SizePackSmoke(size InputPair = size(W=2u, L=180n, M=1)) {{
   output OUT : analog
   fill {{
     net t : analog
-    nmos M1 = new Level1_NMOS(InputPair) {{
+    NMOS M1 = new Level1_NMOS(InputPair) {{
       .B--GND
       .D--OUT
       .G--IN
       .S--t
     }}
-    nmos M2 = new Level1_NMOS(size(W=2u, L=180n, M=1)) {{
+    NMOS M2 = new Level1_NMOS(size(W=2u, L=180n, M=1)) {{
       .B--GND
       .D--t
       .G--IN

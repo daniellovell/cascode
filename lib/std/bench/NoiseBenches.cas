@@ -1,0 +1,65 @@
+library lib.std.benches
+
+bench DiffToSENoise {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Bias inputs at common mode for noise analysis (no AC stimulus)
+    IN.P--vcm
+    IN.N--vcm
+
+    Impedor load = new Impedor(Z=env.LoadImpedance) {
+      OUT--.P
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // ACAnalysis required for input_referred_noise to compute transfer function
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+    NoiseAnalysis noise_ac = new NoiseAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      output=OUT)
+  }
+
+  measurements {
+    measurement InputReferredNoise : nV/rtHz {
+      // input_referred_noise uses paired ACAnalysis to compute transfer function
+      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return spot_noise(n_in, f_spot)
+    }
+
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
+      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return integrate(n_in, from, to)
+    }
+
+    measurement OutputNoise : nV/rtHz {
+      NoiseFunction n_out = noise(noise_ac, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return spot_noise(n_out, f_spot)
+    }
+  }
+}

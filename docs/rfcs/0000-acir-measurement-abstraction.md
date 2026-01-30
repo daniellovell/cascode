@@ -24,7 +24,9 @@ This section captures the architectural decisions that must be realized througho
 
 ### Unified Language
 
-ACIR and Cascode merge into a single language called Cascode, using the `.cas` file extension exclusively. The separate `.cir` format is eliminated. When the two languages conflict, ACIR features take precedence as the more mature specification. The elaboration level (HL, ML, EL) becomes a property of the content, not a separate format.
+ACIR and Cascode merge into a single language called Cascode.
+
+Human-authored Cascode source files use the `.cas` extension. Tool-generated, self-contained intermediate artifacts use the `.cai` extension (**Cascode Intermediate**). The separate `.cir` format is eliminated. When the two languages conflict, ACIR features take precedence as the more mature specification. The elaboration level (HL, ML, EL) becomes a property of the content, not a separate format.
 
 ### Explicit Elaboration Levels
 
@@ -37,10 +39,16 @@ The toolchain enforces a three-stage pipeline with clear input/output contracts:
 ```
 mycircuit.cas                        # source (may have includes)
     ↓ [cascode link]
-build/mycircuit.hl.cas               # linked (complete dependency graph)
+build/mycircuit.hl.cai               # linked (complete dependency graph; self-contained)
 build/mycircuit.synth.yaml           # extracted synthesis guidance
     ↓ [cascode syn]
-build/mycircuit.el.cas               # synthesized (all circuits at EL)
+build/mycircuit.el.cai               # synthesized (all circuits at EL; self-contained)
+    ↓ [cascode emit]
+build/mycircuit.sp + benches         # SPICE output
+
+mycircuit.el.cas                     # source (already EL; may have includes)
+    ↓ [cascode link]
+build/mycircuit.el.cai               # linked (self-contained)
     ↓ [cascode emit]
 build/mycircuit.sp + benches         # SPICE output
 ```
@@ -51,29 +59,39 @@ build/mycircuit.sp + benches         # SPICE output
 - Gathers all referenced interfaces, benches, circuits, functions
 - Extracts `synth {}` blocks into a sidecar `.synth.yaml` file
 - Output directory: `build/` by default, override with `--out <dir>`
-- Output: `.hl.cas`, `.ml.cas`, or `.el.cas` (suffix based on highest level found)
+- Output: `.hl.cai`, `.ml.cai`, or `.el.cai` (suffix based on highest level found)
 - Guarantee: no unresolved includes, all references satisfied, synth guidance extracted
+- Guarantee: `.cai` outputs contain no `include` statements (self-contained by construction)
+- Note: A source file may already be “effectively emittable” if it contains only `level EL` circuits and primitives. Such a file is still source (it ends in `.cas`), and it may be named `*.el.cas` by convention for readability (not required). In this case, `cascode link` can produce an `.el.cai` without changing the content beyond normalization/validation; the resulting `.el.cai` is directly emittable by definition.
 
 **`cascode syn`** performs topology selection and sizing:
-- Input: `.hl.cas` or `.ml.cas` only (rejects plain `.cas` by suffix)
+- Input: `.hl.cai` or `.ml.cai` only (rejects plain `.cas` by suffix)
 - Validation: errors if any `include` statements remain
-- Output: `.el.cas`
+- Output: `.el.cai`
 - Guarantee: all circuits at level EL, all sizing resolved
 - Note: `cascode syn` is out of scope for this RFC; only the interface contract is defined
 
 **`cascode emit`** generates simulator-ready output:
-- Input: `.el.cas` only
+- Input: `.el.cai` or `.el.cas`
+- If the input is `.el.cas`, `cascode emit` MUST perform linking (equivalent to running `cascode link` first) to produce an `.el.cai` before emission.
 - Validation: errors if any circuit is not level EL
 - Output: `.sp` subcircuit files and bench testbenches
+- Guarantee: `.el.cai` is directly emittable to SPICE (no further linking or lowering steps required)
 
 ### Linked File Conventions
 
 Linked files follow strict conventions that enable fast validation:
 
-1. **Suffix convention**: `.hl.cas`, `.ml.cas`, `.el.cas` indicate linked files; plain `.cas` indicates source
-2. **No includes**: A linked file must not contain any `include` statements (validation error if found)
+1. **Suffix convention**: `.hl.cai`, `.ml.cai`, `.el.cai` indicate linked files; plain `.cas` indicates source
+2. **No includes**: A `.cai` file MUST not contain any `include` statements (validation error if found)
 3. **Preserved hierarchy**: Linked files contain multiple circuit/interface/bench declarations as separate blocks, not inlined into a single circuit
 4. **Self-contained**: The linked file contains everything needed to process the design with no external references
+
+### Why `.cai`
+
+Linked output is intentionally Cascode-shaped (same syntax, same semantics) but it has a different role: it is generated, self-contained, and not intended for manual editing. A distinct extension makes that boundary obvious and gives tooling a reliable way to apply stricter validation rules (e.g., "no includes").
+
+We choose `.cai` (Cascode Intermediate) to keep filenames short and readable (`RcLowpass.el.cai`), avoid multi-suffix naming like `RcLowpass.el.link.cas`, and avoid collisions with established EDA expectations. In particular, `.cir` is widely interpreted as a SPICE circuit file; using it for Cascode-shaped content would be misleading. This also keeps `.cal` available for Cascode layout files.
 
 ### Three Distinct Specification Concepts
 
@@ -98,8 +116,8 @@ The language maintains clear separation between three related but distinct conce
 ### Synthesis Agent Interface
 
 The synthesis agent is treated as a black box. This RFC defines only its input/output contract:
-- Input: a linked `.hl.cas` or `.ml.cas` file
-- Output: a linked `.el.cas` file
+- Input: a linked `.hl.cai` or `.ml.cai` file
+- Output: a linked `.el.cai` file
 
 The internal workings of the synthesis agent (topology selection algorithms, sizing optimization, etc.) are out of scope for this specification.
 
@@ -110,7 +128,7 @@ The `synth {}` block remains part of the Cascode language, allowing authors to e
 ```
 mycircuit.cas                        # source (contains synth {} block)
     ↓ [cascode link]
-build/mycircuit.hl.cas               # linked (synth block removed)
+build/mycircuit.hl.cai               # linked (synth block removed)
 build/mycircuit.synth.yaml           # extracted synthesis guidance
 ```
 
@@ -164,7 +182,21 @@ This unification supersedes both the Cascode Language Spec and the ACIR Language
 
 ### 1.3 File Extension
 
-The unified language uses the `.cas` file extension.
+Human-authored Cascode source files use the `.cas` file extension. Tool-generated, self-contained intermediate artifacts use the `.cai` file extension.
+
+### 1.3.1 Version Header
+
+Cascode files may include a version header as the first line:
+
+```cascode
+VERSION 3.0
+```
+
+Version header requirements:
+- **Linked files** (`.hl.cai`, `.ml.cai`, `.el.cai`) **MUST** include a VERSION header
+- **Source files** (`.cas`) **MAY** include a VERSION header (strongly encouraged)
+- The canonical version source is `tools/language/CascodeVersion.cs`
+- Version format is `MAJOR.MINOR` where major version changes indicate breaking changes
 
 ### 1.4 Implementation Impact
 
@@ -193,9 +225,9 @@ The ACIR grammar serves as the base. The following features must be added after 
 - Declarative bench grammar (see Appendix A)
 
 **CLI Updates:**
-- `cascode emit`: Change input from `.cir` to `.el.cas`
-- `cascode verify`: Change input from `.cir` to `.el.cas`
-- `cascode bench`: Change input from `.cir` to `.el.cas`
+- `cascode emit`: Change input from `.cir` to `.el.cai`
+- `cascode verify`: Change input from `.cir` to `.el.cai`
+- `cascode bench`: Change input from `.cir` to `.el.cai`
 - `cascode link`: New command (see Big Picture Goals)
 
 **Test Migration:**
@@ -360,23 +392,32 @@ The `ground` type is not valid for either role as grounds are handled implicitly
 
 The `fill {}` block constructs the test circuit using standard Cascode circuit-building operations. Users can instantiate test instruments, probes, impedances, and even complete circuits.
 
-#### 4.3.1 Fill Block Primitives
+#### 4.3.1 Fill Block Elements
 
-The following primitives are language builtins available in fill blocks:
+The following circuit elements are language builtins available in fill blocks. All elements require named parameters for clarity and self-documentation.
 
-| Primitive | Parameters | Terminals | Description |
-|-----------|------------|-----------|-------------|
-| `VDC(voltage)` | DC voltage value | `.P`, `.N` | DC voltage source |
-| `VAC(amplitude, phase=0deg)` | AC amplitude, optional phase | `.P`, `.N` | AC voltage source for small-signal analysis |
+| Element | Parameters | Terminals | Description |
+|---------|------------|-----------|-------------|
+| `VDC(V=Voltage)` | V: DC voltage value | `.P`, `.N` | DC voltage source |
+| `VAC(A=Voltage, phase=Phase)` | A: AC amplitude, phase: angle (default 0deg) | `.P`, `.N` | AC voltage source for small-signal analysis |
+| `IDC(I=Current)` | I: DC current value | `.P`, `.N` | DC current source |
+| `IAC(A=Current, phase=Phase)` | A: AC amplitude, phase: angle (default 0deg) | `.P`, `.N` | AC current source for small-signal analysis |
 | `GND()` | None | `.GND` | Ground reference node |
-| `Impedance(value)` | Impedance expression | `.P`, `.N` | Frequency-dependent impedance element |
+| `Impedor(Z=Impedance)` | Z: impedance value or expression | `.P`, `.N` | Frequency-dependent impedance element |
+| `Resistor(R=Resistance)` | R: resistance value | `.P`, `.N` | Pure resistance element |
+| `Capacitor(C=Capacitance)` | C: capacitance value | `.P`, `.N` | Pure capacitance element |
+| `Inductor(L=Inductance)` | L: inductance value | `.P`, `.N` | Pure inductance element |
+| `VProbe()` | None | `.P`, `.N` | Voltage probe (measures V(P) - V(N)) |
+| `IProbe()` | None | `.P`, `.N` | Current probe (zero-impedance ammeter) |
+
+Note the distinction between circuit elements and types: `Impedor` is a circuit element that accepts an `Impedance` type as its constructor parameter, just as `Capacitor` accepts `Capacitance` and `Resistor` accepts `Resistance`. See Section 12.7 for the complete element-type mapping.
 
 Examples:
 ```cascode
-VDC bias = new VDC(0.9V) { .P--node; .N--gnd }
-VAC stim = new VAC(0.5, phase=180deg) { .P--inp; .N--vcm }
+VDC bias = new VDC(V=0.9V) { .P--node; .N--gnd }
+VAC stim = new VAC(A=0.5V, phase=180deg) { .P--inp; .N--vcm }
 GND _ = new GND() { .GND--gnd }
-Impedance load = new Impedance(1MOhm || 1pF) { .P--out; .N--gnd }
+Impedor load = new Impedor(Z=1MOhm || 1pF) { .P--out; .N--gnd }
 ```
 
 ```cascode
@@ -388,16 +429,16 @@ fill {
     .GND--gnd
   }
 
-  VDC commonModeVDC = new VDC(env.InputCommonModeRange) {
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
     .P--vcm
     .N--gnd
   }
 
-  VAC acP = new VAC(0.5, phase=0deg) {
+  VAC acP = new VAC(A=0.5V, phase=0deg) {
     .N--vcm
   }
 
-  Impedance sourceP = new Impedance(env.SourceImpedance / 2)
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance / 2) { }
 
   acP.P--sourceP.P, sourceP.N--IN.P
 }
@@ -411,21 +452,48 @@ Key features:
 
 ### 4.4 Helper Functions
 
-Benches can declare helper functions with file-level or bench-local scope:
+Helper functions can be declared at two scopes:
+
+**File-level functions** are declared outside bench blocks and can be shared across multiple benches in the same file:
 
 ```cascode
-function infer_hp_corner(Frequency fallback) : Frequency {
-  if constraints.HighpassBandwidth {
-    return constraints.HighpassBandwidth
+library lib.std.benches
+
+// File-level function - shared across all benches in this file
+function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
+  Frequency f = sqrt(hp * lp)
+  if f < ac.start { return ac.start }
+  if f > ac.stop { return ac.stop }
+  return f
+}
+
+bench DiffToSETransfer {
+  // Can call calc_passband_freq here
+}
+
+bench DiffToDiffTransfer {
+  // Can also call calc_passband_freq here
+}
+```
+
+**Bench-local functions** are declared inside a bench block and are scoped to that bench only:
+
+```cascode
+bench DiffToSETransfer {
+  // Bench-local function - only visible within this bench
+  function infer_hp_corner(Frequency fallback) : Frequency {
+    if constraints.HighpassBandwidth {
+      return constraints.HighpassBandwidth
+    }
+    return fallback
   }
-  return fallback
 }
 ```
 
 Functions have access to:
 - `constraints` - the bound circuit's constraint values
 - `env` - the bound circuit's environment values
-- `ac`, `dc`, etc. - declared analyses (within measurements scope)
+- Analysis instances must be passed as parameters to file-level functions (they don't have implicit access to bench-scoped analysis instances)
 
 ### 4.5 Analysis Block
 
@@ -498,11 +566,53 @@ Measurement bodies have access to:
 
 ### 4.7 Cross-Measurement References
 
-Measurements can reference other measurements in the same bench:
+Measurements can reference other measurements in the same bench using explicit call syntax:
 
 ```cascode
 measurement BandpassBandwidth : Hz {
-  return abs(LowpassBandwidth - HighpassBandwidth)
+  return abs(LowpassBandwidth() - HighpassBandwidth())
+}
+```
+
+Cross-measurement references always use function call syntax (with parentheses) to distinguish them from variable references and to make the dependency explicit.
+
+### 4.8 Parameterized Measurements
+
+Measurements can accept parameters to enable flexible, reusable measurement definitions:
+
+**Declaration syntax:**
+```cascode
+measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
+  NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+  return integrate(n_in, from, to)
+}
+```
+
+**Key semantics:**
+- Parameter names and types are required in declarations
+- Supported parameter types: Physical quantity types (`Frequency`, `Voltage`, etc.), `Scalar`, `Boolean`
+- Default values are supported: `measurement Foo(Frequency f = 1kHz) : dB { ... }`
+- Memoization: Same arguments return cached result; different arguments trigger new evaluation
+
+**Invocation syntax (explicit call syntax always):**
+- Non-parameterized: `LowpassBandwidth()` (parentheses required)
+- Parameterized: `IntegratedInputNoise(from=1Hz, to=10MHz)` (named arguments)
+
+**In constraints:**
+```cascode
+constraints {
+  numeric {
+    c_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100nVrms
+  }
+}
+```
+
+**Cross-measurement references:**
+Measurements can call other measurements, constructing a dependency tree. The runtime ensures no duplicate simulations—results are shared via dependency resolution.
+
+```cascode
+measurement BandpassBandwidth : Hz {
+  return abs(LowpassBandwidth() - HighpassBandwidth())
 }
 ```
 
@@ -561,8 +671,10 @@ circuit My5TOTA implements SingleEndedOpAmp {
   }
 
   constraints {
-    c_psrr_a = psrr_avdd::PSRR >= 70dB
-    c_psrr_d = psrr_dvdd::PSRR >= 60dB
+    numeric {
+      c_psrr_a = psrr_avdd::PSRR >= 70dB
+      c_psrr_d = psrr_dvdd::PSRR >= 60dB
+    }
   }
 
   benches {
@@ -600,8 +712,10 @@ circuit MultiSupplyOTA implements SingleEndedOpAmp {
   ground VSS
 
   constraints {
-    c_psrr_a = psrr_avdd::PSRR >= 70dB
-    c_psrr_d = psrr_dvdd::PSRR >= 60dB
+    numeric {
+      c_psrr_a = psrr_avdd::PSRR >= 70dB
+      c_psrr_d = psrr_dvdd::PSRR >= 60dB
+    }
   }
 
   benches {
@@ -619,34 +733,60 @@ circuit MultiSupplyOTA implements SingleEndedOpAmp {
 
 ---
 
-## 6. Include System
+## 6. Library and Include System
 
-### 6.1 Include Syntax
+### 6.1 Library Declarations
+
+Every Cascode source file declares its namespace using the `library` keyword:
 
 ```cascode
-include lib.std           // Includes all files in lib/std/
-include lib.std.amp       // Includes all files in lib/std/amp/
-include BenchFunctions    // Includes BenchFunctions.cas from same directory
+library lib.std.benches
 ```
 
-### 6.2 Include Resolution
+The library declaration:
+- Declares which namespace this file's symbols belong to
+- Must appear at file level, before any definitions (after optional VERSION header)
+- Uses dot-separated namespace paths
 
-- `lib.X` resolves to the `lib/X/` directory, recursively including all `.cas` files
-- Relative names resolve to the same directory as the including file
-- Include statements must appear at file level, before any definitions
+### 6.2 Namespace Inheritance
 
-### 6.3 Standard Library Structure
+Namespaces form a hierarchy. Files automatically inherit all symbols from ancestor namespaces without explicit includes:
+
+- A file in `lib.std.benches` automatically sees symbols from `lib.std` and `lib`
+- A file in `lib.std.amp` automatically sees symbols from `lib.std` and `lib`
+
+This enables modular organization while minimizing boilerplate. For example, the `Diff` bundle defined in `lib.std` is automatically available to all files in `lib.std.benches` without explicit import.
+
+### 6.3 Include Syntax
+
+Explicit includes are required only for namespaces that are not ancestors of the current namespace:
+
+```cascode
+include lib.std.amp       // Include all files declaring library lib.std.amp
+include lib.pdk.sky130    // Include PDK-specific definitions
+```
+
+### 6.4 Include Resolution
+
+- `include lib.std.amp` includes all files with `library lib.std.amp` declaration
+- Transitive: included files' dependencies are also included
+- Include statements must appear at file level, after library declaration
+- Circular includes are resolved by the linker (each file included once)
+
+### 6.5 Standard Library Structure
 
 ```
 lib/
-├── std/
-│   ├── BenchFunctions.cas    // Common helper functions
-│   ├── DiffToSE.cas          // Differential-to-single-ended benches
-│   └── amp/
-│       ├── SingleEndedOpAmp.cas
-│       └── FullyDifferentialOpAmp.cas
-└── benches/
-    └── ...
+└── std/
+    ├── Bundles.cas              // Common bundles (Diff, Quad) - library lib.std
+    ├── benches/
+    │   ├── TransferBenches.cas  // Transfer function benches - library lib.std.benches
+    │   └── NoiseBenches.cas     // Noise analysis benches - library lib.std.benches
+    ├── amp/
+    │   ├── SingleEndedOpAmp.cas // SE op-amp interface - library lib.std.amp
+    │   └── FullyDifferentialOpAmp.cas
+    └── prim/
+        └── Devices.cas          // Built-in NMOS/PMOS primitives - library lib.std.prim
 ```
 
 ---
@@ -701,9 +841,9 @@ function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequen
 
 ### 8.2 Differential-to-Single-Ended Transfer Bench
 
-`lib/std/DiffToSE.cas`:
+`lib/std/benches/TransferBenches.cas`:
 ```cascode
-include BenchFunctions
+library lib.std.benches
 
 bench DiffToSETransfer {
   stim IN : Diff
@@ -717,26 +857,26 @@ bench DiffToSETransfer {
       .GND--gnd
     }
 
-    VDC commonModeVDC = new VDC(env.InputCommonModeRange) {
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm
       .N--gnd
     }
 
-    VAC acP = new VAC(0.5, phase=0deg) {
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
       .N--vcm
     }
-    VAC acN = new VAC(0.5, phase=180deg) {
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
       .N--vcm
     }
 
-    Impedance sourceP = new Impedance(env.SourceImpedance / 2)
-    Impedance sourceN = new Impedance(env.SourceImpedance / 2)
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance / 2) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance / 2) { }
 
     acP.P--sourceP.P, sourceP.N--IN.P
     acN.P--sourceN.P, sourceN.N--IN.N
 
-    Impedance load = new Impedance(env.LoadImpedance) {
-      OUT--.P
+    Impedor load = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
       .N--gnd
     }
   }
@@ -814,7 +954,7 @@ bench DiffToSETransfer {
     }
 
     measurement BandpassBandwidth : Hz {
-      return abs(LowpassBandwidth - HighpassBandwidth)
+      return abs(LowpassBandwidth() - HighpassBandwidth())
     }
   }
 }
@@ -824,7 +964,7 @@ bench DiffToSETransfer {
 
 `lib/std/amp/SingleEndedOpAmp.cas`:
 ```cascode
-include lib.std
+library lib.std.amp
 
 interface SingleEndedOpAmp {
   supply VDD
@@ -838,7 +978,7 @@ interface SingleEndedOpAmp {
       bench.OUT--dut.OUT
 
       GND localGround = new GND()
-      VDC dcSource = new VDC(0V) {
+      VDC dcSource = new VDC(V=harness.VDD) {
         .P--dut.VDD
         .N--localGround
       }
@@ -852,7 +992,7 @@ interface SingleEndedOpAmp {
 
 `MyOTA.cas`:
 ```cascode
-include lib.std
+library my.designs
 
 circuit My5TOTA implements SingleEndedOpAmp {
   level EL
@@ -867,17 +1007,19 @@ circuit My5TOTA implements SingleEndedOpAmp {
   }
 
   constraints {
-    c_gbw = transfer_bench::GainBandwidth >= 100MHz
-    c_gain = transfer_bench::PassbandGain >= 50dB
+    numeric {
+      c_gbw = transfer_bench::GainBandwidth >= 100MHz
+      c_gain = transfer_bench::PassbandGain >= 50dB
+    }
   }
 }
 ```
 
 ### 8.5 Input-Referred Noise Bench
 
-`lib/std/DiffToSENoise.cas`:
+`lib/std/benches/NoiseBenches.cas`:
 ```cascode
-include BenchFunctions
+library lib.std.benches
 
 bench DiffToSENoise {
   stim IN : Diff
@@ -891,7 +1033,7 @@ bench DiffToSENoise {
       .GND--gnd
     }
 
-    VDC commonModeVDC = new VDC(env.InputCommonModeRange) {
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
       .P--vcm
       .N--gnd
     }
@@ -900,8 +1042,8 @@ bench DiffToSENoise {
     IN.P--vcm
     IN.N--vcm
 
-    Impedance load = new Impedance(env.LoadImpedance) {
-      OUT--.P
+    Impedor load = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
       .N--gnd
     }
   }
@@ -930,11 +1072,10 @@ bench DiffToSENoise {
       return spot_noise(n_in, f_spot)
     }
 
-    measurement IntegratedInputNoise : nVrms {
+    // Parameterized measurement - integration bounds specified at invocation
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
       NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      Frequency f_lo = (if constraints.HighpassBandwidth { constraints.HighpassBandwidth } else { 1Hz })
-      Frequency f_hi = (if constraints.GainBandwidth { constraints.GainBandwidth } else { 10MHz })
-      return integrate(n_in, f_lo, f_hi)
+      return integrate(n_in, from, to)
     }
 
     measurement OutputNoise : nV/rtHz {
@@ -961,6 +1102,7 @@ This bench demonstrates the noise measurement primitives. The `input_referred_no
 | Bench inheritance | Circuits inherit interface benches with override | Reduces duplication while allowing customization |
 | Include system | Directory-based with recursive resolution | Supports modular library organization |
 | Backward compatibility | None - `builtin` removed entirely | Clean break enables simpler implementation |
+| Linked artifact extension | `.cai` | Distinguishes generated, self-contained artifacts from source `.cas` without EDA ambiguity (e.g., `.cir`) |
 
 ### 9.2 Removed Features
 
@@ -972,21 +1114,37 @@ The `builtin` keyword and all builtin bench references are removed. All benches 
 
 Note: `cascode syn` (the synthesis agent) is out of scope for this RFC. Only the interface contract is defined; implementation is separate.
 
-### 10.1 Phase 0: Language Unification (~150 LOC deleted, ~200 LOC renamed)
+### 10.0 Implementation Status
 
-**PR 0.1: Delete Redundant Compiler**
+The following phases have been completed or are in progress:
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 0: Language Unification | **Complete** | Grammar renamed, tests migrated to `.cas` |
+| Phase 1.1-1.3: Include/Link System | Partial | Grammar added, link command not yet implemented |
+| Phase 1.4: Bench Definition Grammar | **Complete** | `bench`, `stim`/`resp`, `fill`, `analysis`, `measurements` |
+| Phase 1.5: Helper Function Grammar | **Complete** | File-level and bench-local functions |
+| Phase 1.6: Bench Binding Grammar | **Complete** | `benches {}`, `bind ... as ...` |
+| Phase 2: Semantic Type System | In Progress | Types defined, validation partial |
+| Phase 3: Bench Binding/Scoping | Not Started | |
+| Phase 4: Runtime Execution | Not Started | |
+| Phase 5: Migration/Documentation | In Progress | Standard library created |
+
+### 10.1 Phase 0: Language Unification ✓
+
+**PR 0.1: Delete Redundant Compiler** ✓
 - Delete `tools/compiler/SimpleCascodeCompiler.cs`
 - Delete `tools/parser/Cascode.g4`
 - Update any references
 
-**PR 0.2: Rename ACIR to Cascode**
-- Rename `tools/acir/ACIR.g4` → `tools/parser/Cascode.g4`
+**PR 0.2: Rename ACIR to Cascode** ✓
+- Rename `tools/acir/ACIR.g4` → `tools/language/Cascode.g4`
 - Rename all `ACIR*` classes to `Cascode*`
 - Update namespace from `Cascode.ACIR` to `Cascode.Language`
 - Rename diagnostic codes `ACIR0xxx` → `CAS0xxx`
 - Update imports and references throughout
 
-**PR 0.3: Migrate Golden Tests and CLI**
+**PR 0.3: Migrate Golden Tests and CLI** ✓
 - Rename `tests/golden/acir/**/*.cir` → `tests/golden/**/*.cas`
 - Update test infrastructure to use `.cas` extension
 - Update `cascode emit`, `cascode verify`, `cascode bench` to accept `.cas` instead of `.cir`
@@ -994,39 +1152,41 @@ Note: `cascode syn` (the synthesis agent) is out of scope for this RFC. Only the
 
 ### 10.2 Phase 1: Grammar Extensions (~300 LOC)
 
-**PR 1.1: Include Directive and Link Command**
-- Add `include` directive grammar
-- Implement `cascode link` command
-- Implement include resolution (recursive)
-- Implement linked file output to `build/` directory
+**PR 1.1: Include Directive and Link Command** (Partial)
+- ✓ Add `include` directive grammar
+- ✓ Add `library` declaration grammar
+- ☐ Implement `cascode link` command
+- ☐ Implement include resolution (recursive)
+- ☐ Implement namespace inheritance semantics
+- ☐ Implement linked file output to `build/` directory
 
 **PR 1.2: Synth Block and Sidecar Extraction**
-- Add `synth {}` block grammar
-- Implement extraction to `.synth.yaml` sidecar during link
-- Implement `--guidance` flag for `cascode syn` interface
+- ✓ Add `synth {}` block grammar
+- ☐ Implement extraction to `.synth.yaml` sidecar during link
+- ☐ Implement `--guidance` flag for `cascode syn` interface
 
-**PR 1.3: Sugar Constructs**
-- Add `pair` construct grammar
-- Add `repeat idx in [start:end]` grammar
-- Add `match` / `case` grammar
-- Add `wrap spice` grammar
+**PR 1.3: Sugar Constructs** ✓
+- ✓ Add `pair` construct grammar
+- ✓ Add `repeat idx in [start:end]` grammar
+- ✓ Add `match` / `case` grammar
+- ✓ Add `wrap spice` grammar
 
-**PR 1.4: Bench Definition Grammar**
-- Add `bench` keyword and block structure
-- Add `stim`/`resp` terminal declarations
-- Add `fill {}` block parsing
-- Add `analysis {}` block parsing
-- Add `measurements {}` block parsing
+**PR 1.4: Bench Definition Grammar** ✓
+- ✓ Add `bench` keyword and block structure
+- ✓ Add `stim`/`resp` terminal declarations
+- ✓ Add `fill {}` block parsing
+- ✓ Add `analysis {}` block parsing
+- ✓ Add `measurements {}` block parsing
 
-**PR 1.5: Helper Function Grammar**
-- Add function declaration syntax with typed parameters
-- Add function body parsing with control flow
-- Add return type declarations
+**PR 1.5: Helper Function Grammar** ✓
+- ✓ Add function declaration syntax with typed parameters
+- ✓ Add function body parsing with control flow
+- ✓ Add return type declarations
 
-**PR 1.6: Bench Binding Grammar**
-- Add `benches {}` block in interfaces and circuits
-- Add `bind ... as ...` syntax
-- Add bench-to-DUT connection syntax
+**PR 1.6: Bench Binding Grammar** ✓
+- ✓ Add `benches {}` block in interfaces and circuits
+- ✓ Add `bind ... as ...` syntax
+- ✓ Add bench-to-DUT connection syntax
 
 ### 10.3 Phase 2: Semantic Type System (~400 LOC)
 
@@ -1110,6 +1270,22 @@ Note: `cascode syn` (the synthesis agent) is out of scope for this RFC. Only the
 | `db20(F)` | `RealFunction -> RealFunction` | 20*log10 conversion |
 | `phase(H)` | `TransferFunction -> RealFunction` | Phase in degrees |
 
+#### Terminal Voltage Computation
+
+Measurement primitives compute terminal voltages based on the structure of the terminal bundle:
+
+| Terminal Type | Leaf Nodes | Voltage Computed |
+|---------------|------------|------------------|
+| Single-ended (e.g., `analog`) | 1 | `V(node)` relative to ground |
+| Differential (e.g., `Diff`) | 2 | `V(P) - V(N)` differential |
+
+This behavior applies to the `stim` and `resp` arguments of `transfer()`, `noise()`, and `input_referred_noise()`. A single-ended terminal measures the voltage at that node relative to the simulator's ground reference. A differential terminal (with two leaf nodes) computes the voltage difference between the positive and negative nodes.
+
+This allows measurement primitives to work uniformly across single-ended and differential topologies. For example, `transfer(ac, IN, OUT)` correctly computes:
+- Single-ended to single-ended: `V(OUT) / V(IN)`
+- Differential to single-ended: `V(OUT) / (V(IN.P) - V(IN.N))`
+- Differential to differential: `(V(OUT.P) - V(OUT.N)) / (V(IN.P) - V(IN.N))`
+
 ### 11.2 Evaluation Primitives
 
 | Primitive | Signature | Semantics |
@@ -1148,6 +1324,8 @@ The measurement system uses semantic types representing physical quantities. All
 | `VoltageRatio` | linear | dB, V/V | Voltage gain or attenuation |
 | `CurrentRatio` | linear | dB, A/A | Current gain or attenuation |
 | `Impedance` | Ohm | kOhm, MOhm | Complex impedance; supports `\|\|` for parallel combinations |
+| `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
+| `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
 | `Capacitance` | F | pF, fF, nF, uF | Capacitance values |
 | `Inductance` | H | nH, uH, mH | Inductance values |
 | `Voltage` | V | mV, uV, nV | Voltage values |
@@ -1241,7 +1419,7 @@ capacitance    := NUMBER (F | pF | fF | nF | uF)
 inductance     := NUMBER (H | nH | uH | mH)
 ```
 
-The `||` operator computes frequency-dependent parallel impedance using standard circuit analysis: Z_parallel = 1 / (1/Z₁ + 1/Z₂ + ...). For a capacitor, Z_C = 1/(jOhmC); for an inductor, Z_L = jOhmL; for a resistor, Z_R = R.
+The `||` operator computes frequency-dependent parallel impedance using standard circuit analysis: Z_parallel = 1 / (1/Z₁ + 1/Z₂ + ...). For a Capacitor, Z_C = 1/(jOhmC); for an Inductor, Z_L = jOhmL; for a Resistor, Z_R = R.
 
 Examples:
 
@@ -1252,6 +1430,36 @@ Impedance z3 = 100kOhm || 10pF || 1nH   // RLC parallel network
 ```
 
 The parallel combination notation matches the harness `load` syntax used elsewhere in ACIR, ensuring consistency across environment parameters and harness specifications.
+
+### 12.7 Circuit Elements
+
+Circuit elements are distinct from types. An element is a circuit component that can be instantiated in a fill block; a type is a value category used in expressions and parameters. Elements accept types as constructor arguments.
+
+| Element | Parameter Type | Description |
+|---------|---------------|-------------|
+| `VDC` | `Voltage` | DC voltage source |
+| `VAC` | `Voltage`, `Phase` | AC voltage source |
+| `IDC` | `Current` | DC current source |
+| `IAC` | `Current`, `Phase` | AC current source |
+| `GND` | (none) | Ground reference |
+| `Impedor` | `Impedance` | Frequency-dependent impedance element |
+| `Resistor` | `Resistance` | Pure resistance element |
+| `Capacitor` | `Capacitance` | Pure capacitance element |
+| `Inductor` | `Inductance` | Pure inductance element |
+| `VProbe` | (none) | Voltage measurement probe |
+| `IProbe` | (none) | Current measurement probe |
+
+The element-type relationship parallels physical reality: a `Capacitor` is a physical component that has a `Capacitance` value, just as an `Impedor` is a component with an `Impedance` value. This distinction prevents confusion between instantiating components and working with values in expressions.
+
+Element instantiation requires named parameters:
+
+```cascode
+VDC supply = new VDC(V=1.8V) { .P--vdd; .N--gnd }
+VAC stimulus = new VAC(A=1V, phase=0deg) { .P--in; .N--gnd }
+Impedor source = new Impedor(Z=50Ohm) { .P--sig; .N--in }
+Resistor load = new Resistor(R=10kOhm) { .P--out; .N--gnd }
+Capacitor decap = new Capacitor(C=100pF) { .P--vdd; .N--gnd }
+```
 
 ---
 
@@ -1356,14 +1564,16 @@ Within bench `fill {}` blocks, environment values are accessed via the `env.` pr
 
 ```cascode
 fill {
-  VDC commonModeVDC = new VDC(env.InputCommonModeRange) {
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
     .P--vcm
     .N--gnd
   }
 
-  Impedance sourceP = new Impedance(env.SourceImpedance / 2)
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance / 2)
 }
 ```
+
+Note that named parameters are required for all element instantiation.
 
 ---
 
@@ -1638,7 +1848,24 @@ measurementsBlock
     ;
 
 measurementDecl
-    : MEASUREMENT_KW name=IDENT COLON unitType LBRACE measurementBody RBRACE
+    : MEASUREMENT_KW name=IDENT measurementParams? COLON unitType LBRACE measurementBody RBRACE
+    ;
+
+measurementParams
+    : LPAREN measurementParamList RPAREN
+    ;
+
+measurementParamList
+    : measurementParam (COMMA measurementParam)*
+    ;
+
+measurementParam
+    : physicalType IDENT (EQ defaultValue)?
+    ;
+
+defaultValue
+    : QUANTITY
+    | NUMBER
     ;
 
 unitType
@@ -1668,12 +1895,26 @@ unaryMeasurementExpr
 
 measurementAtom
     : LPAREN measurementExpr RPAREN
+    | measurementCall
     | functionCall
     | scopedAccess
     | dutAccess
     | IDENT
     | QUANTITY
     | NUMBER
+    ;
+
+// Measurement call - cross-measurement reference with optional named arguments
+measurementCall
+    : IDENT LPAREN measurementArgList? RPAREN
+    ;
+
+measurementArgList
+    : measurementArg (COMMA measurementArg)*
+    ;
+
+measurementArg
+    : IDENT EQ measurementExpr
     ;
 
 functionCall
@@ -1887,3 +2128,63 @@ The following identifiers are reserved keywords in the bench system and cannot b
 | `return` | Return statement |
 
 Type names (`Frequency`, `VoltageRatio`, etc.) are reserved in type position but may be used as identifiers in other contexts.
+
+---
+
+## Appendix C: Standard Library Structure
+
+The standard library (`lib/std/`) provides common definitions for the Cascode language. This appendix documents its organization and the relationship between stdlib-provided primitives and PDK-provided device models.
+
+### C.1 Directory Structure
+
+```
+lib/
+└── std/
+    ├── Bundles.cas              // Common bundles (Diff, Quad)
+    │                            // library lib.std
+    ├── benches/
+    │   ├── TransferBenches.cas  // Transfer function benches (DiffToSETransfer, etc.)
+    │   └── NoiseBenches.cas     // Noise analysis benches (DiffToSENoise)
+    │                            // library lib.std.benches
+    ├── amp/
+    │   ├── SingleEndedOpAmp.cas // Single-ended op-amp interface
+    │   └── FullyDifferentialOpAmp.cas
+    │                            // library lib.std.amp
+    └── prim/
+        └── Devices.cas          // Built-in NMOS/PMOS primitive definitions
+                                 // library lib.std.prim
+```
+
+### C.2 Namespace Hierarchy
+
+Files in child namespaces automatically inherit symbols from parent namespaces:
+
+- `lib.std.benches` sees all symbols from `lib.std` (including the `Diff` bundle)
+- `lib.std.amp` sees all symbols from `lib.std`
+- User designs that include `lib.std.amp` also get `lib.std` transitively
+
+### C.3 Standard Library vs PDK
+
+The standard library provides language-level primitives and interfaces. PDKs provide technology-specific device models.
+
+| Provided By | Contents | Examples |
+|-------------|----------|----------|
+| **Standard Library** | Bundles, interfaces, benches, built-in primitives | `Diff`, `SingleEndedOpAmp`, `DiffToSETransfer`, `Level1_NMOS` |
+| **PDK** | Device models, process-specific primitives | `sky130_fd_pr__nfet_01v8`, `gpdk045_nmos` |
+
+The stdlib `Devices.cas` provides ideal `Level1_NMOS` and `Level1_PMOS` primitives for simulation without a PDK. Real designs should use PDK-provided primitives for accurate modeling.
+
+### C.4 Common Bundles
+
+The `lib/std/Bundles.cas` file defines commonly-used bundles:
+
+```cascode
+library lib.std
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+```
+
+These bundles are automatically available to all files in `lib.std.*` namespaces due to namespace inheritance.

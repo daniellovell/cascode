@@ -157,7 +157,7 @@ cat <<'EON'
 
 📝 Next steps:
    1. Restart your editor
-   2. Open any .cas file
+   2. Open any .cas or .cai file
    3. Syntax highlighting should work automatically
 
    If colors don't appear, try:

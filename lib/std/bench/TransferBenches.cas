@@ -1,0 +1,278 @@
+VERSION 3.0
+
+library lib.std.benches
+
+function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
+  Frequency f = sqrt(hp * lp)
+
+  if f < ac.start { return ac.start }
+  if f > ac.stop { return ac.stop }
+  return f
+}
+
+function infer_hp_corner(Frequency fallback) : Frequency {
+  if constraints.HighpassBandwidth { return constraints.HighpassBandwidth }
+  return fallback
+}
+
+function infer_lp_corner(ACAnalysis ac, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+  if lpConstraint { return lpConstraint }
+  return ac.stop
+}
+
+function calc_passband_gain(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : VoltageRatio {
+  TransferFunction H = transfer(ac, IN, OUT)
+  RealFunction G = db20(mag(H))
+
+  Frequency hp = infer_hp_corner(1Hz)
+  Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
+  Frequency fpb = calc_passband_freq(ac, hp, lp)
+
+  return eval(G, fpb)
+}
+
+function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
+  TransferFunction H = transfer(ac, IN, OUT)
+  RealFunction G = db20(mag(H))
+
+  return find_crossing(G, 0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+}
+
+function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+  TransferFunction H = transfer(ac, IN, OUT)
+  RealFunction G = db20(mag(H))
+
+  Frequency hp = infer_hp_corner(1Hz)
+  Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
+  Frequency fpb = calc_passband_freq(ac, hp, lp)
+
+  VoltageRatio gpb = eval(G, fpb)
+  VoltageRatio thr = gpb - 3dB
+
+  return find_crossing(G, thr, dir=falling, cross=1, from=fpb, to=ac.stop)
+}
+
+function calc_highpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+  TransferFunction H = transfer(ac, IN, OUT)
+  RealFunction G = db20(mag(H))
+
+  Frequency hp = infer_hp_corner(1Hz)
+  Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
+  Frequency fpb = calc_passband_freq(ac, hp, lp)
+
+  VoltageRatio gpb = eval(G, fpb)
+  VoltageRatio thr = gpb - 3dB
+
+  return find_crossing(G, thr, dir=rising, cross=1, from=ac.start, to=fpb)
+}
+
+// TODO: We should support bench templates/abstract benches in the future
+bench DiffToSETransfer {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND g = new GND() {
+      .GND--gnd
+    }
+
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
+      .N--vcm
+    }
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
+      .N--vcm
+    }
+
+    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
+
+    acP.P--sourceP.P
+    sourceP.N--IN.P
+
+    acN.P--sourceN.P
+    sourceN.N--IN.N
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement PassbandGain : dB {
+      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement GainBandwidth : Hz {
+      calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement LowpassBandwidth : Hz {
+      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement HighpassBandwidth : Hz {
+      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement BandpassBandwidth : Hz {
+      return abs(LowpassBandwidth() - HighpassBandwidth())
+    }
+  }
+}
+
+
+bench DiffToDiffTransfer {
+  stim IN : Diff
+  resp OUT : Diff
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND g = new GND() {
+      .GND--gnd
+    }
+
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
+      .N--vcm
+    }
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
+      .N--vcm
+    }
+
+    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
+
+    acP.P--sourceP.P
+    sourceP.N--IN.P
+
+    acN.P--sourceN.P
+    sourceN.N--IN.N
+
+    Impedor loadP = new Impedor(Z=(env.LoadImpedance / 2)) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=(env.LoadImpedance / 2)) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement PassbandGain : dB {
+      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement GainBandwidth : Hz {
+      calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement LowpassBandwidth : Hz {
+      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement HighpassBandwidth : Hz {
+      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement BandpassBandwidth : Hz {
+      return abs(LowpassBandwidth() - HighpassBandwidth())
+    }
+  }
+}
+
+
+bench SEToSETransfer {
+  stim IN : analog
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND g = new GND() {
+      .GND--gnd
+    }
+
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VAC ac = new VAC(A=1V, phase=0deg) {
+      .N--vcm
+    }
+
+    Impedor source = new Impedor(Z=env.SourceImpedance) { }
+
+    ac.P--source.P
+    source.N--IN
+
+    Impedor loadZ = new Impedance(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement PassbandGain : dB {
+      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement GainBandwidth : Hz {
+      calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement LowpassBandwidth : Hz {
+      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement HighpassBandwidth : Hz {
+      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement BandpassBandwidth : Hz {
+      return abs(LowpassBandwidth() - HighpassBandwidth())
+    }
+  }
+}

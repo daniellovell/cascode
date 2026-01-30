@@ -48,7 +48,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_RcLowpass_EmitsDesignAndTestbench()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -69,7 +69,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_DesignOnlyCircuit_EmitsNoTestbenches()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/cs/CSAmpResistive.el.cai");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -91,7 +91,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
     [Fact]
     public async Task Emit_JsonOutput_ReturnsValidJson()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         var result = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(10),
@@ -117,7 +117,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task Verify_WithFailingResults_ReturnsFailure()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),

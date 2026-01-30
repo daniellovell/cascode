@@ -96,7 +96,7 @@ All templates receive these base variables from `ACIRTemplateHarness`:
 | `design_file` | string | Design netlist filename | `"OTA5TSingleEnded.sp"` |
 | `port_list` | string | Space-separated port/supply/ground names | `"IN_P IN_N OUT VTAIL VDD GND"` |
 | `out_node` | string | Primary output node (first OUT port) | `"OUT"` |
-| `generic_models` | boolean | True if circuit uses generic nmos/pmos | `true` |
+| `generic_models` | boolean | True if circuit uses generic NMOS/PMOS | `true` |
 | `vcm` | double | Common-mode voltage (mid-supply) | `0.9` |
 | `bias_v` | double | Input bias voltage (defaults to vcm) | `0.9` |
 | `supply_elements` | string | Pre-rendered SPICE netlist for supplies and biases | `"VVDD VDD 0 DC 1.8V\nVVTAIL VTAIL 0 DC 0.6V"` |
@@ -250,8 +250,8 @@ Include lists are provided for all backends; see the common template variables f
 
 {{ if generic_models }}
 * Generic MOSFET models for simulation
-.model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
-.model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+.model NMOS NMOS level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model PMOS PMOS level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 {{ end }}
 
 {{ for inc in includes_with_section }}
@@ -364,13 +364,13 @@ The `summary.results` object is the canonical bridge to `verify`; it matches the
 
 ```spectre
 // Source impedance split across each leg
-RINP (IN_P in_p_drv) resistor r={{ env.source_ohms/2 }}
-RINN (IN_N in_n_drv) resistor r={{ env.source_ohms/2 }}
+RINP (IN_P in_p_drv) Resistor r={{ env.source_ohms/2 }}
+RINN (IN_N in_n_drv) Resistor r={{ env.source_ohms/2 }}
 
 // Output load on single-ended OUT
-CLOAD (OUT vss) capacitor c={{ env.cload_f }}
+CLOAD (OUT vss) Capacitor c={{ env.cload_f }}
 {{ if env.rload_ohms && env.rload_ohms > 0 }}
-RLOAD (OUT vss) resistor r={{ env.rload_ohms }}
+RLOAD (OUT vss) Resistor r={{ env.rload_ohms }}
 {{ end }}
 
 // Small-signal AC sweep (ranges inferred upstream from spec)
@@ -767,8 +767,8 @@ Create `{BenchName}.ngspice.tpl` in the same directory:
 
 {{ if generic_models }}
 * Generic MOSFET models
-.model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
-.model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+.model NMOS NMOS level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model PMOS PMOS level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 {{ end }}
 
 {{ for inc in includes_with_section }}
@@ -856,7 +856,7 @@ For ngspice, use `echo` commands. For Spectre, use appropriate output directives
 ```acir
 ACIR 3.0
 
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -865,7 +865,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -902,31 +902,31 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   fill {
     net mirror_gate : analog
     net tnode : analog
-    nmos dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .G--IN_P
       .D--mirror_gate
       .S--tnode
       .B--GND
     }
-    nmos dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+    NMOS dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
       .G--IN_N
       .D--OUT
       .S--tnode
       .B--GND
     }
-    nmos dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+    NMOS dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
       .G--VTAIL
       .D--tnode
       .S--GND
       .B--GND
     }
-    pmos cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
       .G--mirror_gate
       .D--mirror_gate
       .S--VDD
       .B--VDD
     }
-    pmos cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+    PMOS cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
       .G--mirror_gate
       .D--OUT
       .S--VDD
@@ -972,8 +972,8 @@ Emitted 1 design(s) and 1 testbench(es).
 .title OTA5TSingleEnded_ACBench
 
 * Generic MOSFET models for simulation
-.model nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
-.model pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+.model NMOS NMOS level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model PMOS PMOS level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 
 .include "OTA5TSingleEnded.sp"
 

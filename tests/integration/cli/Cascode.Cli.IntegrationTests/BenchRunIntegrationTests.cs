@@ -49,7 +49,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     [Trait("Category", "Simulation")]
     public async Task BenchRun_RcLowpass_WritesResultsAndTrace_AndVerifyPasses()
     {
-        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cas");
+        var cascodePath = Path.Combine(_repoRoot, "tests/golden/cas/bench/RcLowpass.el.cai");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
             TimeSpan.FromSeconds(30),
@@ -94,7 +94,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cas"
+            "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
         );
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
@@ -118,7 +118,7 @@ public sealed class BenchRunIntegrationTests : IDisposable
     {
         var cascodePath = Path.Combine(
             _repoRoot,
-            "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cas"
+            "tests/golden/cas/bench/RcLowpassMultiCircuit.el.cai"
         );
 
         var run = await CliIntegrationTestHelper.RunCliAsync(

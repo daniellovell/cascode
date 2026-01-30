@@ -1,0 +1,81 @@
+VERSION 3.0
+
+primitive NMOS Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive PMOS Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
+circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN.P : analog
+  input IN.N : analog
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    net mirror_gate : analog
+    net tnode : analog
+    NMOS dp.M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--mirror_gate
+      .G--IN.P
+      .S--tnode
+    }
+    NMOS dp.M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT
+      .G--IN.N
+      .S--tnode
+    }
+    NMOS dp.M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+    PMOS cm.M_SENSE = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--mirror_gate
+      .G--mirror_gate
+      .S--VDD
+    }
+    PMOS cm.M_TAP0 = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT
+      .G--mirror_gate
+      .S--VDD
+    }
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz  // assumed target metric for the gain response
+      c_gain = ACBench::PassbandGain at net::OUT >= 40dB  // assumed target metric for the gain response
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg  // assumed target metric for the phase response
+      c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+    tech {
+      t_lmin : L >= 180nm on *  // tech rule for minimum length
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+
+  }
+}

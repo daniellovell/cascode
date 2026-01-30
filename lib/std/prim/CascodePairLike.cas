@@ -1,9 +1,0 @@
-library lib.std.prim;
-
-// Interface: cascode pair with differential nodes.
-interface CascodePairLike {
-  ports [ DRAIN: Diff, SOURCE: Diff ]
-
-  // Within-interface connector: stack cascodes (upper DRAIN to lower SOURCE).
-  connector { DRAIN -> SOURCE; }
-}

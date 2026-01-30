@@ -1,0 +1,95 @@
+VERSION 3.0
+
+// This file is intentionally names .cas 
+// During e2e tests, `cascode emit OTA5T_Sky130.cas` should function
+// `cascode bench run OTA5T_Sky130.cas` should function as well
+
+// SingleEndedOpAmp, CurrentMirrorLike, and DiffPairLike all come from lib.std.amp
+// The Diff bundle comes from lib.std
+include lib.std
+
+// TODO: Cascode should append these during linking
+// We shouldn't have to
+primitive NMOS nfet_01v8(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+primitive PMOS pfet_01v8(size primSize) {
+  device "sky130_fd_pr__pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+      .GND--GND
+      .VDD--VDD
+      .IN--IN
+      .OUT.P--OUT
+      .TAIL--VTAIL
+    }
+    cm = new CurrentMirror_Pdk(ratio=1) {
+      .GND--GND
+      .VDD--VDD
+      // TAP[0]--OUT intentionally omitted - covered by attach statement below
+    }
+    attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
+  }
+  constraints {
+    numeric {
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
+      // c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
+      // c_pwr = DCBench::QuiescentPower <= 500uW
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  }
+}
+
+circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input TAIL : bias
+  fill {
+    net tnode : analog
+    NMOS M_N = new nfet_01v8(InputPair) { .B--GND, .D--OUT.N, .G--IN.P, .S--tnode }
+    NMOS M_P = new nfet_01v8(InputPair) { .B--GND, .D--OUT.P, .G--IN.N, .S--tnode }
+    NMOS M_TAIL = new nfet_01v8(Tail) { .B--GND, .D--tnode, .G--TAIL, .S--GND }
+  }
+}
+
+circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+  level EL
+  supply VDD
+  ground GND
+  input SENSE : analog
+  output TAP[0] : analog
+  fill {
+    PMOS M_SENSE = new pfet_01v8(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
+    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    PMOS M_TAP0 = new pfet_01v8(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
+  }
+}

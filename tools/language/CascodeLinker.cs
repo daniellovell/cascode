@@ -114,7 +114,7 @@ public static class CascodeLinker
 
         var suffix = DetermineHighestLevelSuffix(merged);
         var baseName = GetLinkBaseName(entryPath);
-        var linkedPath = Path.Combine(outputDir, $"{baseName}.{suffix}.cas");
+        var linkedPath = Path.Combine(outputDir, $"{baseName}.{suffix}.cai");
 
         // Extract synth blocks into sidecar and remove from the linked output.
         var (linkedWithoutSynth, synthYaml) = ExtractSynthToYaml(merged);
@@ -336,6 +336,18 @@ public static class CascodeLinker
     private static string GetLinkBaseName(string entryPath)
     {
         var name = Path.GetFileName(entryPath);
+        if (name.EndsWith(".hl.cai", StringComparison.OrdinalIgnoreCase))
+        {
+            return name[..^".hl.cai".Length];
+        }
+        if (name.EndsWith(".ml.cai", StringComparison.OrdinalIgnoreCase))
+        {
+            return name[..^".ml.cai".Length];
+        }
+        if (name.EndsWith(".el.cai", StringComparison.OrdinalIgnoreCase))
+        {
+            return name[..^".el.cai".Length];
+        }
         if (name.EndsWith(".hl.cas", StringComparison.OrdinalIgnoreCase))
         {
             return name[..^".hl.cas".Length];

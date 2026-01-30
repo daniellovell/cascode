@@ -1,0 +1,20 @@
+library lib.std.prim
+
+primitive NMOS Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+      W = primSize.W
+      L = primSize.L
+      m = primSize.M
+  }
+}
+  
+primitive PMOS Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+      W = primSize.W
+      L = primSize.L
+      m = primSize.M
+  }
+}
+  

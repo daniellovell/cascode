@@ -169,7 +169,7 @@ public class CascodeJsonConverterRoundTripTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cai"
         );
 
         CascodeDocument doc;

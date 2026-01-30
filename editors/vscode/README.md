@@ -1,6 +1,6 @@
 # Cascode Language Support for VS Code / Cursor
 
-Provides syntax highlighting for Cascode (`.cas`) files.
+Provides syntax highlighting for Cascode (`.cas`, `.cai`) files.
 
 ## Install (dev mode)
 

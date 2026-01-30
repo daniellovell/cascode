@@ -3,7 +3,7 @@
   "primitives": [
     {
       "name": "Level1_NMOS",
-      "kind": "nmos",
+      "kind": "NMOS",
       "device": "level1_nmos",
       "sizeParam": "primSize",
       "params": {
@@ -14,7 +14,7 @@
     },
     {
       "name": "Level1_PMOS",
-      "kind": "pmos",
+      "kind": "PMOS",
       "device": "level1_pmos",
       "sizeParam": "primSize",
       "params": {
@@ -57,7 +57,7 @@
   "nets": [],
   "components": [
     {
-      "kind": "nmos",
+      "kind": "NMOS",
       "name": "M_in",
       "primitive": "Level1_NMOS",
       "connections": {
@@ -73,7 +73,7 @@
       }
     },
     {
-      "kind": "pmos",
+      "kind": "PMOS",
       "name": "load.M",
       "primitive": "Level1_PMOS",
       "connections": {

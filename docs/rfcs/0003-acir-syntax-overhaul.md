@@ -24,9 +24,9 @@ The current ACIR syntax (version 2.x and early 3.0 drafts) uses a Python-inspire
 
 1. Ambiguous block boundaries. Without explicit closing delimiters, tools and humans must infer where a block ends based on indentation changes. This complicates copy-paste operations, automated refactoring, and diff interpretation.
 
-2. Inconsistent declaration forms. Instance declarations (`inst dp : DiffPair`), device declarations (`nmos M_N (...) : nmos`), and constraint bindings (`c_gbw : ACBench::...`) all use the colon character for different purposes, creating parsing ambiguity and reader confusion.
+2. Inconsistent declaration forms. Instance declarations (`inst dp : DiffPair`), device declarations (`NMOS M_N (...) : NMOS`), and constraint bindings (`c_gbw : ACBench::...`) all use the colon character for different purposes, creating parsing ambiguity and reader confusion.
 
-3. Implicit device types. At EL level, device declarations reference implicit types (`nmos`, `pmos`) without explicit PDK binding. This conflates the device category with the concrete primitive, making PDK abstraction awkward.
+3. Implicit device types. At EL level, device declarations reference implicit types (`NMOS`, `PMOS`) without explicit PDK binding. This conflates the device category with the concrete primitive, making PDK abstraction awkward.
 
 4. Scattered parameter declarations. Circuit parameters and size packs are declared in the body rather than the signature, obscuring the circuit's interface contract at a glance.
 
@@ -264,7 +264,7 @@ Primitive definitions introduce named, parameterized device templates. They serv
 
 ```ebnf
 primitiveDecl   = "primitive" deviceKind IDENT "(" paramList ")" "{" primitiveBody "}" ;
-deviceKind      = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;
+deviceKind      = "NMOS" | "PMOS" | "Resistor" | "Capacitor" | "Inductor" | "Diode" ;
 primitiveBody   = deviceDirective paramsBlock ;
 deviceDirective = "device" STRING ;
 paramsBlock     = "params" "{" paramMapping+ "}" ;
@@ -275,7 +275,7 @@ sizeFieldAccess = IDENT "." IDENT ;
 
 #### 3.5.2 Semantics
 
-A primitive definition declares a named template for a device kind (e.g., `nmos`) and specifies:
+A primitive definition declares a named template for a device kind (e.g., `NMOS`) and specifies:
 
 1. A `device` key (required) naming the concrete model/subckt/P-cell.
 2. A `params` block (required) that is a 1-1 map to the parameters of that concrete model/subckt/P-cell.
@@ -293,7 +293,7 @@ Cascode ships with always-available built-in device keys for simulation (e.g., `
 #### 3.5.3 Example
 
 ```acir
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -302,7 +302,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -311,7 +311,7 @@ primitive pmos Level1_PMOS(size primSize) {
   }
 }
 
-primitive nmos PdkBacked_NMOS(size primSize) {
+primitive NMOS PdkBacked_NMOS(size primSize) {
   device "nfet_01v8"
   params {
     w = primSize.W
@@ -343,8 +343,8 @@ Cascode provides built-in, always-available device keys for simulation:
 These correspond to ngspice-compatible Level-1 MOSFET model definitions (model names as shown):
 
 ```spice
-.model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
-.model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+.model level1_nmos NMOS level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model level1_pmos PMOS level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 ```
 
 Instance parameter expectations (and therefore the expected `params` keys when targeting these built-ins):
@@ -368,15 +368,15 @@ sizeArg    = IDENT | sizeExpr ;
 
 ```acir
 fill {
-  nmos M_N = new Level1_NMOS(InputPair) {
+  NMOS M_N = new Level1_NMOS(InputPair) {
     .B--GND, .D--OUT.N, .G--IN.P, .S--tnode
   }
 
-  nmos M_P = new Level1_NMOS(InputPair) {
+  NMOS M_P = new Level1_NMOS(InputPair) {
     .B--GND, .D--OUT.P, .G--IN.N, .S--tnode
   }
 
-  nmos M_TAIL = new Level1_NMOS(Tail) {
+  NMOS M_TAIL = new Level1_NMOS(Tail) {
     .B--GND, .D--tnode, .G--TAIL, .S--GND
   }
 }
@@ -448,7 +448,7 @@ circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1)
   fill {
     size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
 
-    pmos M_TAP0 = new Level1_PMOS(SenseMultiplied) {
+    PMOS M_TAP0 = new Level1_PMOS(SenseMultiplied) {
       .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD
     }
   }
@@ -619,7 +619,7 @@ This RFC introduces breaking syntax changes. A migration script (`scripts/acir_m
 | `inst id : Type` | `id = new Type(...) { ... }` |
 | `param name = value` (in inst body) | `name=value` (in constructor call) |
 | `c_gbw : Bench::Metric ...` | `c_gbw = Bench::Metric ...` |
-| `nmos M (...) : nmos` | `nmos M = new PrimName(...) { ... }` |
+| `NMOS M (...) : NMOS` | `NMOS M = new PrimName(...) { ... }` |
 
 ### 6.2 Manual Review Required
 

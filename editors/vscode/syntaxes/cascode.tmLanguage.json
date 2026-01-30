@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Cascode",
   "scopeName": "source.cascode",
-  "fileTypes": ["cas"],
+  "fileTypes": ["cas", "cai"],
   "patterns": [
     { "include": "#comment" },
     { "include": "#version-directive" },
@@ -231,8 +231,12 @@
         { "include": "#comment" },
         { "include": "#level-declaration" },
         { "include": "#port-declaration" },
+        { "include": "#ground-declaration" },
         { "include": "#instance-declaration" },
         { "include": "#device-declaration" },
+        { "include": "#fill-block" },
+        { "include": "#benches-block" },
+        { "include": "#constraints-block" },
         { "include": "#attach-statement" },
         { "include": "#connect-statement" },
         { "include": "#binding-statement" },
@@ -241,7 +245,7 @@
     },
 
     "primitive-declaration": {
-      "begin": "(primitive)\\s+(nmos|pmos)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*",
+      "begin": "(primitive)\\s+([A-Z][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*",
       "beginCaptures": {
         "1": { "name": "keyword.declaration.primitive.cascode" },
         "2": { "name": "storage.type.device.cascode" },
@@ -528,7 +532,7 @@
     },
 
     "device-declaration": {
-      "begin": "\\b(NMOS|PMOS|MOS|Cap|Res|Ind|R|C|L)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+(NMOS|PMOS|MOS|Cap|Res|Ind|R|C|L)\\s*",
+      "begin": "\\b([A-Z][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*(=)\\s*(new)\\s+(@?[a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*",
       "beginCaptures": {
         "1": { "name": "storage.type.device.cascode" },
         "2": { "name": "entity.name.variable.device.cascode" },
@@ -554,7 +558,7 @@
     },
 
     "connect-statement": {
-      "match": "\\b(connect)\\s+([a-zA-Z_][a-zA-Z0-9_.]*)\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_.]*)",
+      "match": "\\b(connect)\\s+([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*(->)\\s*([a-zA-Z_][a-zA-Z0-9_\\.]*)",
       "captures": {
         "1": { "name": "keyword.control.connect.cascode" },
         "2": { "name": "variable.other.net.cascode" },
@@ -564,7 +568,7 @@
     },
 
     "binding-statement": {
-      "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--|->)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
+      "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--|->)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
       "captures": {
         "1": { "name": "punctuation.accessor.cascode" },
         "2": { "name": "variable.other.pin.cascode" },
@@ -723,9 +727,28 @@
       },
       "patterns": [
         { "include": "#comment" },
+        { "include": "#bind-block" },
         { "include": "#bind-statement" },
         { "include": "#type-reference" },
         { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "bind-block": {
+      "begin": "\\b(bind)\\s+([A-Z][a-zA-Z0-9_]*)\\s+(as)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.bind.cascode" },
+        "2": { "name": "entity.name.type.bench.cascode" },
+        "3": { "name": "keyword.control.as.cascode" },
+        "4": { "name": "entity.name.variable.binding.cascode" },
+        "5": { "name": "punctuation.curlybrace.open.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#use-body" }
       ]
     },
 
@@ -834,6 +857,7 @@
         { "include": "#instance-declaration" },
         { "include": "#device-declaration" },
         { "include": "#control-flow" },
+        { "include": "#block" },
         { "include": "#attach-statement" },
         { "include": "#connect-statement" },
         { "include": "#binding-statement" },
@@ -904,6 +928,51 @@
       ]
     },
 
+    "constraints-block": {
+      "begin": "(constraints)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.constraints.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#constraints-inner-block" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "constraints-inner-block": {
+      "begin": "(numeric|timing|area|power)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.constraint-type.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#constraint-assignment" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "constraint-assignment": {
+      "match": "([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(.+)",
+      "captures": {
+        "1": { "name": "entity.name.variable.constraint.cascode" },
+        "2": { "name": "keyword.operator.assignment.cascode" },
+        "3": {
+          "patterns": [
+            { "include": "#expression" }
+          ]
+        }
+      }
+    },
+
     "fill-block": {
       "begin": "(fill)\\s*\\{",
       "beginCaptures": {
@@ -967,13 +1036,14 @@
     },
 
     "measurement-declaration": {
-      "begin": "\\b(measurement)\\s+([A-Z][a-zA-Z0-9_]*)\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
+      "begin": "\\b(measurement)\\s+([A-Z][a-zA-Z0-9_]*)(\\s*\\([^)]*\\))?\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
       "beginCaptures": {
         "1": { "name": "keyword.declaration.measurement.cascode" },
         "2": { "name": "entity.name.function.measurement.cascode" },
-        "3": { "name": "punctuation.separator.colon.cascode" },
-        "4": { "name": "storage.type.unit.cascode" },
-        "5": { "name": "punctuation.curlybrace.open.cascode" }
+        "3": { "name": "meta.parameters.cascode" },
+        "4": { "name": "punctuation.separator.colon.cascode" },
+        "5": { "name": "storage.type.unit.cascode" },
+        "6": { "name": "punctuation.curlybrace.open.cascode" }
       },
       "end": "(\\})",
       "endCaptures": {
@@ -981,6 +1051,7 @@
       },
       "patterns": [
         { "include": "#comment" },
+        { "include": "#block" },
         { "include": "#variable-declaration" },
         { "include": "#control-flow" },
         { "include": "#expression" },
@@ -1177,6 +1248,7 @@
     "expression": {
       "patterns": [
         { "include": "#comment" },
+        { "include": "#block" },
         { "include": "#parenthesized-expression" },
         { "include": "#function-call" },
         { "include": "#member-access" },

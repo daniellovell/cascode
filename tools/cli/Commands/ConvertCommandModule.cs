@@ -181,7 +181,7 @@ internal sealed class ConvertCommandModule : ICommandModule
         }
         else
         {
-            outputPath ??= Path.ChangeExtension(inputPath, ".el.cas");
+            outputPath ??= Path.ChangeExtension(inputPath, ".el.cai");
             File.WriteAllText(outputPath, cascodeText);
             _state.AddMessage($"Wrote Cascode: {outputPath}");
         }
