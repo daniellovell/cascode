@@ -904,6 +904,7 @@ public class BenchRunService
                     Value = v.Value,
                     Unit = v.Unit,
                     Node = node,
+                    Bench = benchName,
                 };
             }
 
@@ -969,10 +970,13 @@ public class BenchRunService
     {
         foreach (var measurement in source)
         {
-            var key =
+            var metricKey =
                 measurement.Node == null
                     ? measurement.Metric
                     : $"{measurement.Metric}@{measurement.Node}";
+            var key = string.IsNullOrEmpty(measurement.Bench)
+                ? metricKey
+                : $"{measurement.Bench}/{metricKey}";
             target[key] = measurement;
         }
     }

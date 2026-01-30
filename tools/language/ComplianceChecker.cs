@@ -141,6 +141,20 @@ public static class ComplianceChecker
                 continue;
             }
 
+            // Match by bench if constraint specifies one
+            if (
+                !string.IsNullOrEmpty(constraint.Bench)
+                && !string.IsNullOrEmpty(measurement.Bench)
+                && !string.Equals(
+                    measurement.Bench,
+                    constraint.Bench,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            )
+            {
+                continue;
+            }
+
             // If constraint specifies a node, measurement must match (or be null/empty)
             if (constraint.Node != null && !MatchesNode(constraint.Node, measurement.Node))
             {

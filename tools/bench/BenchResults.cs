@@ -41,4 +41,8 @@ public sealed class MeasurementResult
     /// <summary>Optional node where measurement was taken (e.g., "OUT").</summary>
     [JsonPropertyName("node")]
     public string? Node { get; init; }
+
+    /// <summary>Source bench that produced this measurement.</summary>
+    [JsonPropertyName("bench")]
+    public string? Bench { get; init; }
 }
