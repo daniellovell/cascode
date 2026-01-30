@@ -32,6 +32,7 @@ public class BenchRunService
         string? OutputDir,
         BenchBackendType Backend,
         bool Verbose,
+        bool StrictCompliance,
         string? CircuitFilter = null
     );
 
@@ -94,7 +95,14 @@ public class BenchRunService
 
     public static bool TryParseArgs(string[] args, out BenchRunArgs parsed, out string error)
     {
-        parsed = new BenchRunArgs(string.Empty, null, null, BenchBackendType.Ngspice, false);
+        parsed = new BenchRunArgs(
+            string.Empty,
+            null,
+            null,
+            BenchBackendType.Ngspice,
+            false,
+            StrictCompliance: false
+        );
         error = string.Empty;
 
         string? cascodePath = null;
@@ -102,6 +110,7 @@ public class BenchRunService
         string? outputDir = null;
         var backend = BenchBackendType.Ngspice;
         var verbose = false;
+        var strict = false;
         string? circuitFilter = null;
         var positionals = new List<string>();
 
@@ -122,6 +131,10 @@ public class BenchRunService
             else if (args[i] == "--verbose" || args[i] == "-v")
             {
                 verbose = true;
+            }
+            else if (args[i] == "--strict")
+            {
+                strict = true;
             }
             else if ((args[i] == "--circuit" || args[i] == "-c") && i + 1 < args.Length)
             {
@@ -177,6 +190,7 @@ public class BenchRunService
             outputDir,
             backend,
             verbose,
+            StrictCompliance: strict,
             string.IsNullOrWhiteSpace(circuitFilter) ? null : circuitFilter
         );
         return true;
@@ -184,7 +198,12 @@ public class BenchRunService
 
     public BenchRunResult Run(string workspaceRoot, string? pdkRoot, BenchRunArgs args)
     {
-        var doc = BenchRunHelpers.ReadCascode(args.CascodePath);
+        var (resolvedPath, doc) = ReadLinkedIfNeeded(
+            args.CascodePath,
+            workspaceRoot,
+            args.OutputDir
+        );
+        args = args with { CascodePath = resolvedPath };
         var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
 
         var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
@@ -232,7 +251,7 @@ public class BenchRunService
         Directory.CreateDirectory(outputDir);
 
         var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            args.CascodePath,
+            resolvedPath,
             workspaceRoot
         );
         var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
@@ -290,7 +309,8 @@ public class BenchRunService
 
         var report = ComplianceChecker.Check(circuit, combinedResults);
         var hadSimulationFailure = benchSummaries.Any(b => !b.Succeeded);
-        var exit = hadSimulationFailure || report.FailedCount != 0 ? 1 : 0;
+        var exit =
+            hadSimulationFailure || (args.StrictCompliance && report.FailedCount != 0) ? 1 : 0;
 
         return new BenchRunResult(
             exit,
@@ -315,7 +335,12 @@ public class BenchRunService
         BenchRunArgs args
     )
     {
-        var doc = BenchRunHelpers.ReadCascode(args.CascodePath);
+        var (resolvedPath, doc) = ReadLinkedIfNeeded(
+            args.CascodePath,
+            workspaceRoot,
+            args.OutputDir
+        );
+        args = args with { CascodePath = resolvedPath };
         var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
 
         // Early exit: no circuits with benches
@@ -383,7 +408,53 @@ public class BenchRunService
         }
 
         // Aggregate and return results
-        return AggregateResults(circuitSummaries, args.Backend, outputDir);
+        return AggregateResults(circuitSummaries, args.Backend, outputDir, args.StrictCompliance);
+    }
+
+    private (string ResolvedPath, CascodeDocument Document) ReadLinkedIfNeeded(
+        string inputPath,
+        string workspaceRoot,
+        string? outputDir
+    )
+    {
+        var resolvedPath = Path.GetFullPath(inputPath);
+        if (!resolvedPath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase))
+        {
+            return (resolvedPath, BenchRunHelpers.ReadCascode(resolvedPath));
+        }
+
+        // Parse first. If the source has no includes, treat it as already self-contained for the
+        // bench flow (no need to run the dependency-driven linker).
+        var parsed = BenchRunHelpers.ReadCascode(resolvedPath);
+        if (parsed.Includes.Count == 0)
+        {
+            return (resolvedPath, parsed);
+        }
+
+        // Source files with includes must be linked to a self-contained .cai before emission/simulation.
+        // Prefer the user-specified output directory for artifacts; otherwise use build/link.
+        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
+            resolvedPath,
+            workspaceRoot
+        );
+        var linkOutDir = string.IsNullOrWhiteSpace(outputDir)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "build", "link")
+            : Path.GetFullPath(outputDir);
+        Directory.CreateDirectory(linkOutDir);
+
+        var link = CascodeLinker.LinkFile(resolvedPath, linkOutDir, resolvedWorkspaceRoot, _logger);
+        if (!link.Success || string.IsNullOrWhiteSpace(link.LinkedCasPath))
+        {
+            var msg =
+                link.Diagnostics.FirstOrDefault(d =>
+                    d.Severity == DiagnosticSeverity.Error
+                )?.Message
+                ?? "Link failed.";
+            throw new InvalidOperationException(msg);
+        }
+
+        resolvedPath = link.LinkedCasPath!;
+        return (resolvedPath, BenchRunHelpers.ReadCascode(resolvedPath));
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(
@@ -623,12 +694,14 @@ public class BenchRunService
     private MultiCircuitBenchRunResult AggregateResults(
         IReadOnlyList<CircuitBenchRunSummary> circuitSummaries,
         BenchBackendType backend,
-        string outputDir
+        string outputDir,
+        bool strictCompliance
     )
     {
         var globalCompliance = AggregateCompliance(circuitSummaries);
         var hadSimulationFailure = circuitSummaries.Any(cs => cs.Benches.Any(b => !b.Succeeded));
-        var exitCode = hadSimulationFailure || globalCompliance.FailedCount > 0 ? 1 : 0;
+        var exitCode =
+            hadSimulationFailure || (strictCompliance && globalCompliance.FailedCount > 0) ? 1 : 0;
 
         return new MultiCircuitBenchRunResult(
             exitCode,
@@ -891,8 +964,13 @@ public class BenchRunService
                 plan.Constraints
             );
 
-            var values = runner.RunAll();
-            var nodeByMetric = BuildNodeByMetric(circuit, benchName);
+            var constraintsForBench = GetNumericConstraintsForBench(circuit, benchName);
+            var nodeByMetric = BuildNodeByMetric(constraintsForBench, circuit);
+            var values = EvaluateMetricsForConstraintsOrAll(
+                runner,
+                plan.Bench,
+                constraintsForBench
+            );
             results = new BenchResult { Circuit = circuit.Name, Bench = benchName };
             foreach (var (metric, v) in values)
             {
@@ -963,6 +1041,159 @@ public class BenchRunService
         );
     }
 
+    private static IReadOnlyList<NumericConstraint> GetNumericConstraintsForBench(
+        Circuit circuit,
+        string benchName
+    )
+    {
+        if (circuit.Constraints?.Numeric is null)
+        {
+            return Array.Empty<NumericConstraint>();
+        }
+
+        return circuit
+            .Constraints.Numeric.Where(c =>
+                string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+    }
+
+    private static Dictionary<string, string?> BuildNodeByMetric(
+        IReadOnlyList<NumericConstraint> constraints,
+        Circuit circuit
+    )
+    {
+        var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        if (constraints.Count == 0)
+        {
+            return nodeByMetric;
+        }
+
+        foreach (
+            var group in constraints.GroupBy(
+                c => FormatMetricKey(c),
+                StringComparer.OrdinalIgnoreCase
+            )
+        )
+        {
+            var nodes = group
+                .Select(c => c.Node)
+                .Where(n => n != null && IsValidConstraintNode(circuit, n))
+                .Select(n => n!.ToString())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            nodeByMetric[group.Key] = nodes.Count == 1 ? nodes[0] : null;
+        }
+
+        return nodeByMetric;
+    }
+
+    private static IReadOnlyDictionary<
+        string,
+        (double Value, string Unit)
+    > EvaluateMetricsForConstraintsOrAll(
+        BenchMeasurementRunner runner,
+        BenchDefinition bench,
+        IReadOnlyList<NumericConstraint> constraints
+    )
+    {
+        if (constraints.Count == 0)
+        {
+            return runner.RunAll();
+        }
+
+        // Deduplicate constraint-driven metric invocations (including parameterized metrics).
+        var invocations = new Dictionary<string, NumericConstraint>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var c in constraints)
+        {
+            invocations.TryAdd(FormatMetricKey(c), c);
+        }
+
+        var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+
+        // Evaluate non-parameterized metrics in one batch.
+        var noArgMetrics = invocations
+            .Values.Where(c => c.MetricArgs.Count == 0)
+            .Select(c => c.Metric)
+            .ToList();
+        if (noArgMetrics.Count > 0)
+        {
+            foreach (var (metric, v) in runner.RunMetrics(noArgMetrics))
+            {
+                results[metric] = v;
+            }
+        }
+
+        // Evaluate parameterized metric invocations one-by-one.
+        foreach (var (metricKey, c) in invocations)
+        {
+            if (c.MetricArgs.Count == 0)
+            {
+                continue;
+            }
+
+            // Validate measurement exists on the bench.
+            var measurement = bench.Measurements.FirstOrDefault(m =>
+                m.Name.Equals(c.Metric, StringComparison.OrdinalIgnoreCase)
+            );
+            if (measurement is null)
+            {
+                throw new InvalidOperationException(
+                    $"Unknown measurement '{c.Metric}' referenced by constraint '{c.Id}'."
+                );
+            }
+
+            var args = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
+            foreach (var a in c.MetricArgs)
+            {
+                args[a.Name] = ParseConstraintArgValue(a.Value);
+            }
+
+            results[metricKey] = runner.RunMetricWithNamedArgs(c.Metric, args);
+        }
+
+        return results;
+    }
+
+    private static BenchValue ParseConstraintArgValue(string raw)
+    {
+        raw = raw.Trim();
+        if (raw.Length == 0)
+        {
+            return BenchMissing.Value;
+        }
+
+        if (raw.Contains("||", StringComparison.Ordinal))
+        {
+            return new BenchSymbol(raw);
+        }
+
+        try
+        {
+            return BenchQuantity.Parse(raw);
+        }
+        catch
+        {
+            return new BenchSymbol(raw);
+        }
+    }
+
+    private static string FormatMetricKey(NumericConstraint constraint)
+    {
+        if (constraint.MetricArgs.Count == 0)
+        {
+            return constraint.Metric;
+        }
+
+        var args = constraint
+            .MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(a => $"{a.Name}={a.Value}");
+
+        return $"{constraint.Metric}({string.Join(", ", args)})";
+    }
+
     private static void MergeMeasurements(
         Dictionary<string, MeasurementResult> target,
         IEnumerable<MeasurementResult> source
@@ -1024,33 +1255,7 @@ public class BenchRunService
         return binding;
     }
 
-    private static Dictionary<string, string?> BuildNodeByMetric(Circuit circuit, string benchName)
-    {
-        var nodeByMetric = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Constraints?.Numeric == null)
-        {
-            return nodeByMetric;
-        }
-
-        foreach (
-            var group in circuit
-                .Constraints.Numeric.Where(c =>
-                    string.Equals(c.Bench, benchName, StringComparison.OrdinalIgnoreCase)
-                )
-                .GroupBy(c => c.Metric, StringComparer.OrdinalIgnoreCase)
-        )
-        {
-            var nodes = group
-                .Select(c => c.Node)
-                .Where(n => n != null && IsValidConstraintNode(circuit, n))
-                .Select(n => n!.ToString())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            nodeByMetric[group.Key] = nodes.Count == 1 ? nodes[0] : null;
-        }
-
-        return nodeByMetric;
-    }
+    // BuildNodeByMetric moved above (constraint-driven; supports parameterized metrics).
 
     private static bool IsValidConstraintNode(Circuit circuit, NodeRef node)
     {

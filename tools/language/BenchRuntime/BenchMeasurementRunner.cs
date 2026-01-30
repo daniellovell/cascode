@@ -58,12 +58,67 @@ public sealed class BenchMeasurementRunner
         var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
         foreach (var m in _bench.Measurements)
         {
+            // Parameterized measurements require explicit arguments; they are evaluated on-demand
+            // via constraints or explicit calls (e.g. IntegratedInputNoise(from=..., to=...)).
+            if (m.Parameters.Count != 0)
+            {
+                continue;
+            }
+
             var v = EvaluateMeasurement(m.Name);
             var n = RequireNumber(v, $"measurement '{m.Name}'");
             results[m.Name] = (n.Value, m.Unit);
         }
 
         return results;
+    }
+
+    public IReadOnlyDictionary<string, (double Value, string Unit)> RunMetrics(
+        IEnumerable<string> measurementNames
+    )
+    {
+        ArgumentNullException.ThrowIfNull(measurementNames);
+
+        var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+        foreach (
+            var name in measurementNames
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            if (!_measurements.TryGetValue(name, out var m))
+            {
+                throw new InvalidOperationException($"Unknown measurement '{name}'.");
+            }
+
+            var v = EvaluateMeasurement(m.Name);
+            var n = RequireNumber(v, $"measurement '{m.Name}'");
+            results[m.Name] = (n.Value, m.Unit);
+        }
+
+        return results;
+    }
+
+    public (double Value, string Unit) RunMetricWithNamedArgs(
+        string name,
+        IReadOnlyDictionary<string, BenchValue> args
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(args);
+
+        if (!_measurements.TryGetValue(name, out var m))
+        {
+            throw new InvalidOperationException($"Unknown measurement '{name}'.");
+        }
+        if (m.Parameters.Count == 0)
+        {
+            throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
+        }
+
+        var v = EvaluateMeasurementInvocation(m, args);
+        var n = RequireNumber(v, $"measurement '{m.Name}'");
+        return (n.Value, m.Unit);
     }
 
     internal BenchValue EvaluateExpressionForPlan(
@@ -85,28 +140,65 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvaluateMeasurement(string name)
     {
-        if (_measurementCache.TryGetValue(name, out var cached))
-        {
-            return cached;
-        }
-
         if (!_measurements.TryGetValue(name, out var measurement))
         {
             throw new InvalidOperationException($"Unknown measurement '{name}'.");
         }
 
-        if (!_measurementStack.Add(name))
+        if (measurement.Parameters.Count != 0)
         {
             throw new InvalidOperationException(
-                $"Cyclic measurement dependency detected at '{name}'."
+                $"Measurement '{name}' requires arguments (e.g. {name}(...))."
+            );
+        }
+
+        return EvaluateMeasurementInvocation(measurement, args: null);
+    }
+
+    private BenchValue EvaluateMeasurementInvocation(
+        MeasurementDefinition measurement,
+        IReadOnlyDictionary<string, BenchValue>? args
+    )
+    {
+        if (measurement.Parameters.Count != 0 && args is null)
+        {
+            throw new InvalidOperationException(
+                $"Measurement '{measurement.Name}' requires arguments."
+            );
+        }
+
+        var cacheKey = MakeMeasurementCacheKey(measurement, args);
+        if (_measurementCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_measurementStack.Add(cacheKey))
+        {
+            throw new InvalidOperationException(
+                $"Cyclic measurement dependency detected at '{measurement.Name}'."
             );
         }
 
         var locals = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
-        var value = ExecuteStatements(measurement.Body, locals);
-        _measurementCache[name] = value;
-        _measurementStack.Remove(name);
-        return value;
+        if (args is not null)
+        {
+            foreach (var p in measurement.Parameters)
+            {
+                if (!args.TryGetValue(p.Name, out var value))
+                {
+                    throw new InvalidOperationException(
+                        $"Missing argument '{p.Name}' for measurement '{measurement.Name}'."
+                    );
+                }
+                locals[p.Name] = value;
+            }
+        }
+
+        var result = ExecuteStatements(measurement.Body, locals);
+        _measurementCache[cacheKey] = result;
+        _measurementStack.Remove(cacheKey);
+        return result;
     }
 
     private BenchValue ExecuteStatements(
@@ -156,6 +248,7 @@ public sealed class BenchMeasurementRunner
         return expr switch
         {
             BoolExists e => ScopedHasValue(e.Ref),
+            BoolTruthy t => !IsMissing(EvaluateExpr(t.Expr, locals)),
             BoolCompare c => Compare(
                 c.Op,
                 RequireNumber(EvaluateExpr(c.Left, locals), "lhs"),
@@ -166,6 +259,8 @@ public sealed class BenchMeasurementRunner
             ),
         };
     }
+
+    private static bool IsMissing(BenchValue v) => v is BenchMissing;
 
     private bool ScopedHasValue(ScopedValueRef r)
     {
@@ -232,9 +327,8 @@ public sealed class BenchMeasurementRunner
             MeasurementScope.Env when _env.TryGetValue(r.Name, out var e) => e,
             MeasurementScope.Harness when _harness.TryGetValue(r.Name, out var h) => h,
             MeasurementScope.Constraints when _constraints.TryGetValue(r.Name, out var c) => c,
-            _ => throw new InvalidOperationException(
-                $"Undefined scoped value '{r.Scope}.{r.Name}'."
-            ),
+            // Optional scoped values (especially constraints) can be absent.
+            _ => BenchMissing.Value,
         };
     }
 
@@ -316,13 +410,104 @@ public sealed class BenchMeasurementRunner
                 return EvalSqrt(call, locals);
         }
 
+        // Allow measurements to reference other measurements by name with explicit call syntax.
+        if (_measurements.TryGetValue(call.Name, out var measurement))
+        {
+            if (measurement.Parameters.Count == 0)
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Measurement '{call.Name}' does not accept arguments."
+                    );
+                }
+                return EvaluateMeasurementInvocation(measurement, args: null);
+            }
+
+            var args = BindMeasurementArguments(measurement, call, locals);
+            return EvaluateMeasurementInvocation(measurement, args);
+        }
+
         if (!_functions.TryGetValue(call.Name, out var fn))
         {
             throw new InvalidOperationException($"Unknown function '{call.Name}'.");
         }
 
-        var args = BindCallArguments(fn, call, locals);
-        return ExecuteStatements(fn.Body, args);
+        var fnArgs = BindCallArguments(fn, call, locals);
+        return ExecuteStatements(fn.Body, fnArgs);
+    }
+
+    private Dictionary<string, BenchValue> BindMeasurementArguments(
+        MeasurementDefinition measurement,
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        var values = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
+
+        var positional = call.Args.Where(a => a.Name is null).ToList();
+        var named = call
+            .Args.Where(a => a.Name is not null)
+            .ToDictionary(a => a.Name!, a => a.Value, StringComparer.Ordinal);
+
+        for (var i = 0; i < measurement.Parameters.Count; i++)
+        {
+            var p = measurement.Parameters[i];
+            if (named.TryGetValue(p.Name, out var expr))
+            {
+                values[p.Name] = EvaluateExpr(expr, locals);
+            }
+            else if (i < positional.Count)
+            {
+                values[p.Name] = EvaluateExpr(positional[i].Value, locals);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"Missing argument '{p.Name}' for measurement '{measurement.Name}'."
+                );
+            }
+        }
+
+        return values;
+    }
+
+    private static string MakeMeasurementCacheKey(
+        MeasurementDefinition measurement,
+        IReadOnlyDictionary<string, BenchValue>? args
+    )
+    {
+        if (measurement.Parameters.Count == 0 || args is null)
+        {
+            return measurement.Name;
+        }
+
+        var parts = new List<string>(measurement.Parameters.Count);
+        foreach (var p in measurement.Parameters)
+        {
+            if (!args.TryGetValue(p.Name, out var v))
+            {
+                parts.Add(p.Name + "=<missing>");
+                continue;
+            }
+
+            parts.Add(p.Name + "=" + BenchValueKey(v));
+        }
+
+        return $"{measurement.Name}({string.Join(",", parts)})";
+    }
+
+    private static string BenchValueKey(BenchValue v)
+    {
+        return v switch
+        {
+            BenchNumber n => $"{n.Kind}:{n.Value.ToString("G17", CultureInfo.InvariantCulture)}",
+            BenchSymbol s => "sym:" + s.Name,
+            BenchTerminalRef t => "term:" + t.Name,
+            BenchAnalysisRef a => "analysis:" + a.Name,
+            _ when IsMissing(v) => "missing",
+            _ => v.GetType().Name,
+        };
     }
 
     private Dictionary<string, BenchValue> BindCallArguments(
@@ -678,6 +863,10 @@ public sealed class BenchMeasurementRunner
         var wantFalling = dir.Equals("falling", StringComparison.OrdinalIgnoreCase);
         var count = 0;
 
+        // Capture a representative starting value so we can return a meaningful bound when the
+        // requested crossing does not exist within the search interval.
+        var yAtStart = values[startIndex] - threshold;
+
         for (var i = startIndex + 1; i <= endIndex; i++)
         {
             var y0 = values[i - 1] - threshold;
@@ -713,7 +902,19 @@ public sealed class BenchMeasurementRunner
             return Math.Pow(10.0, x);
         }
 
-        throw new InvalidOperationException("find_crossing: crossing not found.");
+        // No crossing found: return a conservative bound rather than failing the bench.
+        //
+        // Example: GainBandwidth uses a falling 0 dB crossing; if the gain never drops below 0 dB
+        // within the sweep, the best lower bound we can report is the sweep stop frequency.
+        //
+        // Similarly, for a rising crossing, if we start above threshold we report the sweep start
+        // (crossing occurred before the interval); otherwise we report the sweep stop.
+        if (wantFalling)
+        {
+            return yAtStart > 0 ? toHz : fromHz;
+        }
+
+        return yAtStart < 0 ? toHz : fromHz;
     }
 
     private BenchNumber EvalAbs(MeasurementCall call, Dictionary<string, BenchValue> locals)

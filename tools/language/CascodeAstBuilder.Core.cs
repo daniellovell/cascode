@@ -83,6 +83,12 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
+            // File-level 'library ...' is currently metadata-only; keep parsing but ignore semantically.
+            if (decl.filePackageDecl() is not null)
+            {
+                continue;
+            }
+
             if (decl.bundleDef() is not null)
             {
                 bundles.Add(BuildBundle(decl.bundleDef()));
@@ -204,7 +210,7 @@ internal sealed partial class CascodeAstBuilder
 
                 case CascodeParser.InterfaceBenchesContext benchesCtx:
                     interfaceDef.BenchBindings.AddRange(
-                        BuildBenchesSection(benchesCtx.benchesSection())
+                        BuildBenchBindings(benchesCtx.interfaceBenchesSection().benchBinding())
                     );
                     break;
             }

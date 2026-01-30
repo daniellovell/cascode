@@ -1,12 +1,12 @@
 library lib.std.amp
-include lib.std.benches
+include lib.std.bench
 
 // Interface: Single-ended operational amplifier (differential input, single-ended output).
 // Provides ports and bench metric mappings for Amplifier metrics.
 
 interface SingleEndedOpAmp {
   supply VDD
-  ground VSS
+  ground GND
   input IN : Diff
   output OUT : analog
 
@@ -14,25 +14,11 @@ interface SingleEndedOpAmp {
     bind DiffToSETransfer as transfer_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
-
-      GND localGround = new GND()
-      VDC dcSource = new VDC(harness.VDD) {
-        .P--dut.VDD
-        .N--localGround
-      }
-      dut.VSS--localGround
     }
 
     bind DiffToSENoise as noise_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
-
-      GND localGround = new GND()
-      VDC dcSource = new VDC(harness.VDD) {
-        .P--dut.VDD
-        .N--localGround
-      }
-      dut.VSS--localGround
     }
   }
 }

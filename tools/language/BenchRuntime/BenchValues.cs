@@ -28,6 +28,16 @@ public sealed record BenchNumber(BenchNumericKind Kind, double Value) : BenchVal
 
 public sealed record BenchTerminalRef(string Name, IReadOnlyList<string> LeafNodes) : BenchValue;
 
+/// <summary>
+/// Represents an intentionally-absent value (e.g. optional constraint not provided).
+/// </summary>
+public sealed record BenchMissing : BenchValue
+{
+    public static readonly BenchMissing Value = new();
+
+    private BenchMissing() { }
+}
+
 public sealed record BenchTransferFunction(double[] FrequenciesHz, Complex[] Values) : BenchValue;
 
 public sealed record BenchRealFunction(

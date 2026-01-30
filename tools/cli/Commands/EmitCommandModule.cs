@@ -84,10 +84,61 @@ internal sealed class EmitCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        var doc = TryReadCascodeDocument(inputPath, jsonOutput);
+        // Read input first; only run linking if the source contains include directives.
+        // This keeps the emit flow usable for already self-contained sources that happen to use the
+        // `.cas` extension (e.g. CascodeWriter round-trips from `.cai`).
+        var resolvedInputPath = inputPath;
+        var doc = TryReadCascodeDocument(resolvedInputPath, jsonOutput);
         if (doc == null)
         {
             return new CommandResult(2, false); // Parse error
+        }
+
+        if (
+            resolvedInputPath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase)
+            && doc.Includes.Count > 0
+        )
+        {
+            var workspaceRoot =
+                FindWorkspaceRoot(resolvedInputPath) ?? Directory.GetCurrentDirectory();
+            Directory.CreateDirectory(outputDir);
+            var link = CascodeLinker.LinkFile(
+                resolvedInputPath,
+                outputDir,
+                workspaceRoot,
+                _state.LoggerFactory?.CreateLogger("CascodeLinker")
+            );
+            if (!link.Success || string.IsNullOrWhiteSpace(link.LinkedCasPath))
+            {
+                var first =
+                    link.Diagnostics.FirstOrDefault(d =>
+                        d.Severity == DiagnosticSeverity.Error
+                    )?.Message
+                    ?? "Link failed.";
+                if (jsonOutput)
+                {
+                    OutputEmitJson(
+                        false,
+                        2,
+                        new ValidationResult(),
+                        new List<string>(),
+                        new List<string>(),
+                        first
+                    );
+                }
+                else
+                {
+                    _state.AddMessage(first);
+                }
+                return new CommandResult(2, false);
+            }
+
+            resolvedInputPath = link.LinkedCasPath!;
+            doc = TryReadCascodeDocument(resolvedInputPath, jsonOutput);
+            if (doc == null)
+            {
+                return new CommandResult(2, false);
+            }
         }
 
         var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();

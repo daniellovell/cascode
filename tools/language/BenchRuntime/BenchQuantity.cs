@@ -5,7 +5,7 @@ namespace Cascode.Language.BenchRuntime;
 /// <summary>
 /// Parses Cascode quantity literals (e.g. 10MHz, 3dB, 1.8V, 50Ohm, 1pF, 10ms).
 /// </summary>
-internal static class BenchQuantity
+public static class BenchQuantity
 {
     public static BenchValue Parse(string raw)
     {

@@ -25,7 +25,7 @@ public sealed class CascodeLinkerTests
             """
             VERSION 3.0
 
-            include lib.std_bench
+            include lib.std
 
             circuit LinkerSmoke {
               level EL

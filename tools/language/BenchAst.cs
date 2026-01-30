@@ -27,6 +27,9 @@ public enum BenchValueType
 {
     Bool,
 
+    // Bench terminals (stim/resp) used as values in measurement expressions.
+    Terminal,
+
     // Physical quantities
     Frequency,
     VoltageRatio,
@@ -73,6 +76,7 @@ public sealed class AnalysisDeclaration
 public sealed class MeasurementDefinition
 {
     public required string Name { get; init; }
+    public List<TypedParameter> Parameters { get; init; } = new();
     public required string Unit { get; init; }
     public List<BenchStatement> Body { get; init; } = new();
 }
@@ -112,6 +116,8 @@ public abstract record BoolExpr;
 
 public sealed record BoolExists(ScopedValueRef Ref) : BoolExpr;
 
+public sealed record BoolTruthy(MeasurementExpr Expr) : BoolExpr;
+
 public sealed record BoolCompare(ComparisonOp Op, MeasurementExpr Left, MeasurementExpr Right)
     : BoolExpr;
 
@@ -146,6 +152,12 @@ public sealed record MeasurementConditional(
 public sealed class BenchBinding
 {
     public required string BenchName { get; init; }
+    public required string BindingName { get; init; }
+    public List<BenchBindingStatement> Statements { get; init; } = new();
+}
+
+public sealed class BenchBindingExtension
+{
     public required string BindingName { get; init; }
     public List<BenchBindingStatement> Statements { get; init; } = new();
 }

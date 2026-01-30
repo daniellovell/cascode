@@ -214,6 +214,7 @@ public static class BundleDesugarer
                 : null,
             Env = circuit.Env,
             BenchBindings = circuit.BenchBindings,
+            BenchBindingExtensions = circuit.BenchBindingExtensions,
             Synth = circuit.Synth,
             Provenance = circuit.Provenance,
         };
@@ -710,6 +711,13 @@ public static class BundleDesugarer
     {
         return new HarnessBlock
         {
+            Grounds = harness
+                .Grounds.Select(g => new GroundValue
+                {
+                    Net = NormalizePath(g.Net),
+                    Value = g.Value,
+                })
+                .ToList(),
             Supplies = harness.Supplies,
             Biases = harness.Biases,
             Sources = harness

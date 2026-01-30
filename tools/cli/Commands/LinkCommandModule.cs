@@ -55,7 +55,9 @@ internal sealed class LinkCommandModule : ICommandModule
         var outputDir = Path.GetFullPath(
             outDir ?? Path.Combine(Path.GetDirectoryName(Path.GetFullPath(inputPath))!, "build")
         );
-        var workspaceRoot = _state.WorkspaceRoot;
+        var workspaceRoot =
+            Cascode.Cli.Services.BenchRunHelpers.FindWorkspaceRoot(inputPath)
+            ?? _state.WorkspaceRoot;
         var logger = _state.LoggerFactory?.CreateLogger("CascodeLinker");
 
         var result = CascodeLinker.LinkFile(inputPath, outputDir, workspaceRoot, logger);

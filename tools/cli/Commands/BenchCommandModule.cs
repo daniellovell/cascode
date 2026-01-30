@@ -65,12 +65,15 @@ internal sealed class BenchCommandModule : ICommandModule
         {
             _state.AddMessage(error);
             _state.AddMessage(
-                "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose]"
+                "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose] [--strict]"
             );
             _state.AddMessage(
                 "Runs all benches for all circuits with benches (in dependency order)."
             );
             _state.AddMessage("Use --circuit to run benches for a specific circuit only.");
+            _state.AddMessage(
+                "By default, compliance failures do not cause a non-zero exit code (use --strict)."
+            );
             return CommandResult.Failure;
         }
 

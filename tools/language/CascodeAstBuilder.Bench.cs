@@ -70,11 +70,13 @@ internal sealed partial class CascodeAstBuilder
         return fill;
     }
 
-    private IReadOnlyList<BenchBinding> BuildBenchesSection(CascodeParser.BenchesSectionContext ctx)
+    private IReadOnlyList<BenchBinding> BuildBenchBindings(
+        IEnumerable<CascodeParser.BenchBindingContext> bindingContexts
+    )
     {
         var bindings = new List<BenchBinding>();
 
-        foreach (var bindingCtx in ctx.benchBinding())
+        foreach (var bindingCtx in bindingContexts)
         {
             var binding = new BenchBinding
             {
@@ -122,6 +124,55 @@ internal sealed partial class CascodeAstBuilder
         return bindings;
     }
 
+    private IReadOnlyList<BenchBindingExtension> BuildBenchExtensions(
+        IEnumerable<CascodeParser.BenchExtensionContext> extensionContexts
+    )
+    {
+        var extensions = new List<BenchBindingExtension>();
+
+        foreach (var extCtx in extensionContexts)
+        {
+            var ext = new BenchBindingExtension { BindingName = extCtx.bindingName.Text };
+            foreach (var stmt in extCtx.bindingStatement())
+            {
+                if (stmt.terminalMapping() is not null)
+                {
+                    var t = stmt.terminalMapping();
+                    ext.Statements.Add(
+                        new BenchTerminalMapping(
+                            BenchTerminal: t.IDENT().GetText(),
+                            DutPinRef: BuildPinRef(t.pinRef())
+                        )
+                    );
+                    continue;
+                }
+
+                if (stmt.dutConnection() is not null)
+                {
+                    var c = stmt.dutConnection();
+                    ext.Statements.Add(
+                        new BenchDutConnection(
+                            DutPinRef: BuildPinRef(c.pinRef(0)),
+                            PinRef: BuildPinRef(c.pinRef(1))
+                        )
+                    );
+                    continue;
+                }
+
+                if (stmt.instanceDecl() is not null)
+                {
+                    ext.Statements.Add(
+                        new BenchBindingInstance(BuildInstance(stmt.instanceDecl()))
+                    );
+                }
+            }
+
+            extensions.Add(ext);
+        }
+
+        return extensions;
+    }
+
     private EnvBlock BuildEnvBlock(CascodeParser.EnvSectionContext ctx)
     {
         var env = new EnvBlock();
@@ -161,7 +212,10 @@ internal sealed partial class CascodeAstBuilder
             foreach (var p in ctx.typedParamList().typedParam())
             {
                 def.Parameters.Add(
-                    new TypedParameter(ParseTypedParamType(p.typedParamType()), p.IDENT().GetText())
+                    new TypedParameter(
+                        ParseTypedParamType(p.typedParamType()),
+                        p.idPart().GetText()
+                    )
                 );
             }
         }
@@ -188,7 +242,7 @@ internal sealed partial class CascodeAstBuilder
 
             foreach (var p in decl.analysisParams().analysisParam())
             {
-                analysis.Parameters[p.IDENT().GetText()] = BuildConditionalExpr(
+                analysis.Parameters[p.idPart().GetText()] = BuildConditionalExpr(
                     p.conditionalExpr()
                 );
             }
@@ -212,6 +266,19 @@ internal sealed partial class CascodeAstBuilder
                 Name = decl.name.Text,
                 Unit = decl.unitType().GetText(),
             };
+
+            if (decl.typedParamList() is not null)
+            {
+                foreach (var p in decl.typedParamList().typedParam())
+                {
+                    measurement.Parameters.Add(
+                        new TypedParameter(
+                            ParseTypedParamType(p.typedParamType()),
+                            p.idPart().GetText()
+                        )
+                    );
+                }
+            }
 
             foreach (var stmt in decl.measurementBody().statement())
             {
@@ -312,11 +379,16 @@ internal sealed partial class CascodeAstBuilder
 
     private MeasurementExpr BuildConditionalExpr(CascodeParser.ConditionalExprContext ctx)
     {
-        if (ctx.IF_KW() is null)
+        if (ctx.ifExpr() is null)
         {
-            return BuildMeasurementExpr(ctx.measurementExpr(0));
+            return BuildMeasurementExpr(ctx.measurementExpr());
         }
 
+        return BuildIfExpr(ctx.ifExpr());
+    }
+
+    private MeasurementExpr BuildIfExpr(CascodeParser.IfExprContext ctx)
+    {
         return new MeasurementConditional(
             Condition: BuildBoolExpr(ctx.boolExpr()),
             ThenExpr: BuildMeasurementExpr(ctx.measurementExpr(0)),
@@ -329,6 +401,11 @@ internal sealed partial class CascodeAstBuilder
         if (ctx.scopedAccess() is not null)
         {
             return new BoolExists(BuildScopedValueRef(ctx.scopedAccess()));
+        }
+
+        if (ctx.pathAccess() is not null)
+        {
+            return new BoolTruthy(new MeasurementPath(ctx.pathAccess().GetText()));
         }
 
         var op = ParseComparisonOp(ctx.COMPARISON_OP().GetText());
@@ -381,6 +458,11 @@ internal sealed partial class CascodeAstBuilder
 
     private MeasurementExpr BuildMeasurementAtom(CascodeParser.MeasurementAtomContext ctx)
     {
+        if (ctx.ifExpr() is not null)
+        {
+            return BuildIfExpr(ctx.ifExpr());
+        }
+
         if (ctx.measurementExpr() is not null)
         {
             return BuildMeasurementExpr(ctx.measurementExpr());
@@ -489,7 +571,20 @@ internal sealed partial class CascodeAstBuilder
             return ParsePhysicalType(ctx.physicalType());
         }
 
-        return ParseAnalysisType(ctx.analysisType());
+        if (ctx.analysisType() is not null)
+        {
+            return ParseAnalysisType(ctx.analysisType());
+        }
+
+        // Allow 'stim'/'resp' as a generic terminal value type.
+        return ctx.GetText() switch
+        {
+            "stim" => BenchValueType.Terminal,
+            "resp" => BenchValueType.Terminal,
+            _ => throw new InvalidOperationException(
+                $"Unknown typed parameter type: {ctx.GetText()}"
+            ),
+        };
     }
 
     private static BenchValueType ParsePhysicalType(CascodeParser.PhysicalTypeContext ctx)

@@ -28,7 +28,7 @@ public static class BenchPlanBuilder
 
         var functions = BuildFunctions(document, bench);
         var env = BuildEnv(circuit);
-        var harness = new Dictionary<string, BenchValue>(env, StringComparer.Ordinal);
+        var harness = BuildHarness(circuit, env);
         var constraints = BuildConstraints(circuit, binding.BindingName);
 
         var evalTerminals = new Dictionary<string, BenchTerminalRef>(
@@ -48,8 +48,13 @@ public static class BenchPlanBuilder
             constraints
         );
 
-        var (unionFind, instanceIds, harnessInstances, dutMappings, dutConnections) =
-            BuildConnectivity(circuit, bench, binding, bundlesByName);
+        var (unionFind, instanceIds, instances, dutMappings, dutConnections) = BuildConnectivity(
+            circuit,
+            bench,
+            binding,
+            bundlesByName
+        );
+        var harnessInstances = instances.ToList();
 
         // Force existence of DUT terminals in the union-find so they get stable naming.
         foreach (var p in circuit.Ports)
@@ -73,6 +78,23 @@ public static class BenchPlanBuilder
         foreach (var (a, b) in dutConnections)
         {
             unionFind.Union(a, b);
+        }
+
+        // Auto-inject harness-driven sources/loads onto DUT nets that are not otherwise driven by
+        // explicit bench/binding instances. This keeps interface bindings minimal: implementing
+        // circuits own how supplies/biases/grounds are applied.
+        var harnessAuto = BuildHarnessAutoInstances(circuit, unionFind, instanceIds);
+        if (harnessAuto.Count > 0)
+        {
+            foreach (var inst in harnessAuto)
+            {
+                harnessInstances.Add(inst);
+                instanceIds.Add(inst.Id);
+                foreach (var (pin, target) in inst.Bindings)
+                {
+                    unionFind.Union(inst.Id + "." + pin, target);
+                }
+            }
         }
 
         var netNamer = new NetNamer(unionFind, instanceIds);
@@ -123,6 +145,229 @@ public static class BenchPlanBuilder
         );
     }
 
+    private static List<InstanceDeclaration> BuildHarnessAutoInstances(
+        Circuit circuit,
+        UnionFind uf,
+        HashSet<string> existingInstanceIds
+    )
+    {
+        var auto = new List<InstanceDeclaration>();
+        if (circuit.Harness is null)
+        {
+            return auto;
+        }
+
+        // Prefer a conventional ground name if available, otherwise use the first declared ground.
+        var ground =
+            circuit.Grounds.FirstOrDefault(g => g.Equals("GND", StringComparison.OrdinalIgnoreCase))
+            ?? circuit.Grounds.OrderBy(g => g, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+
+        // If the design has no ground terminal, we can't safely auto-wire supplies/biases/loads.
+        if (string.IsNullOrWhiteSpace(ground))
+        {
+            return auto;
+        }
+
+        bool IsBound(string dutNet)
+        {
+            // Consider the DUT net "bound" if it is connected (via unions) to any explicit instance pin.
+            var rep = uf.Find(dutNet);
+            if (!uf.Groups.TryGetValue(rep, out var members))
+            {
+                return false;
+            }
+
+            foreach (var id in existingInstanceIds)
+            {
+                var prefix = id + ".";
+                if (members.Any(m => m.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        string UniqueId(string baseId)
+        {
+            var id = baseId;
+            var i = 1;
+            while (existingInstanceIds.Contains(id))
+            {
+                id = baseId + "_" + i;
+                i++;
+            }
+            return id;
+        }
+
+        static bool IsZeroVolts(string raw)
+        {
+            raw = raw.Trim();
+            return raw.Equals("0V", StringComparison.OrdinalIgnoreCase)
+                || raw.Equals("0", StringComparison.OrdinalIgnoreCase)
+                || raw.Equals("0.0V", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Grounds: allow explicit ground references in the harness. "0V" means use a GND() tie.
+        foreach (var g in circuit.Harness.Grounds)
+        {
+            if (string.IsNullOrWhiteSpace(g.Net))
+            {
+                continue;
+            }
+
+            var dutNet = "dut." + g.Net;
+            if (IsBound(dutNet))
+            {
+                continue;
+            }
+
+            if (IsZeroVolts(g.Value))
+            {
+                auto.Add(
+                    new InstanceDeclaration
+                    {
+                        Id = UniqueId("hGND_" + g.Net),
+                        Type = "GND",
+                        Bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["GND"] = dutNet,
+                        },
+                    }
+                );
+            }
+            else
+            {
+                auto.Add(
+                    new InstanceDeclaration
+                    {
+                        Id = UniqueId("hV_" + g.Net),
+                        Type = "VDC",
+                        Bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            ["P"] = dutNet,
+                            ["N"] = "0",
+                        },
+                        Params = new Dictionary<string, ParamValue>(
+                            StringComparer.OrdinalIgnoreCase
+                        )
+                        {
+                            ["V"] = new ParamValue { Numeric = g.Value },
+                        },
+                    }
+                );
+            }
+        }
+
+        // Supplies: VDC from supply net to ground.
+        foreach (var s in circuit.Harness.Supplies)
+        {
+            if (string.IsNullOrWhiteSpace(s.Net))
+            {
+                continue;
+            }
+
+            var dutNet = "dut." + s.Net;
+            if (IsBound(dutNet))
+            {
+                continue;
+            }
+
+            auto.Add(
+                new InstanceDeclaration
+                {
+                    Id = UniqueId("hV_" + s.Net),
+                    Type = "VDC",
+                    Bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["P"] = dutNet,
+                        ["N"] = "dut." + ground,
+                    },
+                    Params = new Dictionary<string, ParamValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["V"] = new ParamValue { Numeric = s.Value },
+                    },
+                }
+            );
+        }
+
+        // Biases: also treated as DC sources, typically relative to ground.
+        foreach (var b in circuit.Harness.Biases)
+        {
+            if (string.IsNullOrWhiteSpace(b.Net))
+            {
+                continue;
+            }
+
+            var dutNet = "dut." + b.Net;
+            if (IsBound(dutNet))
+            {
+                continue;
+            }
+
+            auto.Add(
+                new InstanceDeclaration
+                {
+                    Id = UniqueId("hV_" + b.Net),
+                    Type = "VDC",
+                    Bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["P"] = dutNet,
+                        ["N"] = "dut." + ground,
+                    },
+                    Params = new Dictionary<string, ParamValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["V"] = new ParamValue { Numeric = b.Value },
+                    },
+                }
+            );
+        }
+
+        // Loads: Impedor between net and ground. Multiple elements become a parallel "||" composite.
+        foreach (var l in circuit.Harness.Loads)
+        {
+            if (string.IsNullOrWhiteSpace(l.Net) || l.Elements.Count == 0)
+            {
+                continue;
+            }
+
+            var dutNet = "dut." + l.Net;
+            if (IsBound(dutNet))
+            {
+                continue;
+            }
+
+            var z = string.Join(
+                "||",
+                l.Elements.Select(e => e.Value.Trim()).Where(v => v.Length > 0)
+            );
+            if (z.Length == 0)
+            {
+                continue;
+            }
+
+            auto.Add(
+                new InstanceDeclaration
+                {
+                    Id = UniqueId("hLoad_" + l.Net),
+                    Type = "Impedor",
+                    Bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["P"] = dutNet,
+                        ["N"] = "dut." + ground,
+                    },
+                    Params = new Dictionary<string, ParamValue>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["Z"] = new ParamValue { Numeric = z },
+                    },
+                }
+            );
+        }
+
+        return auto;
+    }
+
     private static IReadOnlyDictionary<string, FunctionDefinition> BuildFunctions(
         CascodeDocument document,
         BenchDefinition bench
@@ -170,6 +415,65 @@ public static class BenchPlanBuilder
         return env;
     }
 
+    private static Dictionary<string, BenchValue> BuildHarness(
+        Circuit circuit,
+        IReadOnlyDictionary<string, BenchValue> env
+    )
+    {
+        var harness = new Dictionary<string, BenchValue>(env, StringComparer.Ordinal);
+        if (circuit.Harness is null)
+        {
+            return harness;
+        }
+
+        foreach (var g in circuit.Harness.Grounds)
+        {
+            if (string.IsNullOrWhiteSpace(g.Net))
+            {
+                continue;
+            }
+            harness[g.Net] = ParseHarnessScalar(g.Value);
+        }
+
+        foreach (var s in circuit.Harness.Supplies)
+        {
+            if (string.IsNullOrWhiteSpace(s.Net))
+            {
+                continue;
+            }
+            harness[s.Net] = ParseHarnessScalar(s.Value);
+        }
+
+        foreach (var b in circuit.Harness.Biases)
+        {
+            if (string.IsNullOrWhiteSpace(b.Net))
+            {
+                continue;
+            }
+            harness[b.Net] = ParseHarnessScalar(b.Value);
+        }
+
+        return harness;
+    }
+
+    private static BenchValue ParseHarnessScalar(string raw)
+    {
+        raw = raw.Trim();
+        if (raw.Length == 0)
+        {
+            return BenchMissing.Value;
+        }
+
+        try
+        {
+            return BenchQuantity.Parse(raw);
+        }
+        catch
+        {
+            return new BenchSymbol(raw);
+        }
+    }
+
     private static Dictionary<string, BenchValue> BuildConstraints(
         Circuit circuit,
         string bindingName
@@ -185,6 +489,12 @@ public static class BenchPlanBuilder
         {
             if (!c.Bench.Equals(bindingName, StringComparison.OrdinalIgnoreCase))
             {
+                continue;
+            }
+            if (c.MetricArgs.Count != 0)
+            {
+                // Constraint metric invocations (e.g. Metric(from=..., to=...)) are evaluated directly.
+                // The bench "constraints" scope is used only for scalar hints like GainBandwidth.
                 continue;
             }
 
@@ -355,12 +665,18 @@ public static class BenchPlanBuilder
 
     private static string? FindNoiseInputSource(IReadOnlyList<InstanceDeclaration> harnessInstances)
     {
-        var vac = harnessInstances
-            .Where(i => i.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase))
-            .OrderBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
+        // ngspice "noise" requires an independent input source name. Prefer VAC (explicit AC stimulus),
+        // but fall back to a DC source when doing noise-only benches.
+        var source = harnessInstances
+            .Where(i =>
+                i.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                || i.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+            )
+            .OrderBy(i => i.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
 
-        return vac is null ? null : "V" + vac.Id;
+        return source is null ? null : "V" + source.Id;
     }
 
     private static IReadOnlyDictionary<string, BenchTerminalRef> BuildBenchTerminals(
@@ -599,6 +915,10 @@ public static class BenchPlanBuilder
         {
             // Only a small set of harness primitives are supported initially.
             var type = inst.Type;
+            if (type.Equals("Impedor", StringComparison.OrdinalIgnoreCase))
+            {
+                type = "Impedance";
+            }
             if (
                 !type.Equals("GND", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("VDC", StringComparison.OrdinalIgnoreCase)

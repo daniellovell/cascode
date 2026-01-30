@@ -457,7 +457,7 @@ Helper functions can be declared at two scopes:
 **File-level functions** are declared outside bench blocks and can be shared across multiple benches in the same file:
 
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 // File-level function - shared across all benches in this file
 function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
@@ -740,7 +740,7 @@ circuit MultiSupplyOTA implements SingleEndedOpAmp {
 Every Cascode source file declares its namespace using the `library` keyword:
 
 ```cascode
-library lib.std.benches
+library lib.std.bench
 ```
 
 The library declaration:
@@ -752,10 +752,10 @@ The library declaration:
 
 Namespaces form a hierarchy. Files automatically inherit all symbols from ancestor namespaces without explicit includes:
 
-- A file in `lib.std.benches` automatically sees symbols from `lib.std` and `lib`
+- A file in `lib.std.bench` automatically sees symbols from `lib.std` and `lib`
 - A file in `lib.std.amp` automatically sees symbols from `lib.std` and `lib`
 
-This enables modular organization while minimizing boilerplate. For example, the `Diff` bundle defined in `lib.std` is automatically available to all files in `lib.std.benches` without explicit import.
+This enables modular organization while minimizing boilerplate. For example, the `Diff` bundle defined in `lib.std` is automatically available to all files in `lib.std.bench` without explicit import.
 
 ### 6.3 Include Syntax
 
@@ -780,8 +780,8 @@ lib/
 └── std/
     ├── Bundles.cas              // Common bundles (Diff, Quad) - library lib.std
     ├── benches/
-    │   ├── TransferBenches.cas  // Transfer function benches - library lib.std.benches
-    │   └── NoiseBenches.cas     // Noise analysis benches - library lib.std.benches
+    │   ├── TransferBenches.cas  // Transfer function benches - library lib.std.bench
+    │   └── NoiseBenches.cas     // Noise analysis benches - library lib.std.bench
     ├── amp/
     │   ├── SingleEndedOpAmp.cas // SE op-amp interface - library lib.std.amp
     │   └── FullyDifferentialOpAmp.cas
@@ -843,7 +843,7 @@ function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequen
 
 `lib/std/benches/TransferBenches.cas`:
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 bench DiffToSETransfer {
   stim IN : Diff
@@ -1019,7 +1019,7 @@ circuit My5TOTA implements SingleEndedOpAmp {
 
 `lib/std/benches/NoiseBenches.cas`:
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 bench DiffToSENoise {
   stim IN : Diff
@@ -2145,7 +2145,7 @@ lib/
     ├── benches/
     │   ├── TransferBenches.cas  // Transfer function benches (DiffToSETransfer, etc.)
     │   └── NoiseBenches.cas     // Noise analysis benches (DiffToSENoise)
-    │                            // library lib.std.benches
+    │                            // library lib.std.bench
     ├── amp/
     │   ├── SingleEndedOpAmp.cas // Single-ended op-amp interface
     │   └── FullyDifferentialOpAmp.cas
@@ -2159,7 +2159,7 @@ lib/
 
 Files in child namespaces automatically inherit symbols from parent namespaces:
 
-- `lib.std.benches` sees all symbols from `lib.std` (including the `Diff` bundle)
+- `lib.std.bench` sees all symbols from `lib.std` (including the `Diff` bundle)
 - `lib.std.amp` sees all symbols from `lib.std`
 - User designs that include `lib.std.amp` also get `lib.std` transitively
 

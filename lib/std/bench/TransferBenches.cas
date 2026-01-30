@@ -1,6 +1,6 @@
 VERSION 3.0
 
-library lib.std.benches
+library lib.std.bench
 
 function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
   Frequency f = sqrt(hp * lp)
@@ -117,19 +117,19 @@ bench DiffToSETransfer {
 
   measurements {
     measurement PassbandGain : dB {
-      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement GainBandwidth : Hz {
-      calc_gain_bandwidth(ac, IN, OUT)
+      return calc_gain_bandwidth(ac, IN, OUT)
     }
 
     measurement LowpassBandwidth : Hz {
-      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement HighpassBandwidth : Hz {
-      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement BandpassBandwidth : Hz {
@@ -192,19 +192,19 @@ bench DiffToDiffTransfer {
 
   measurements {
     measurement PassbandGain : dB {
-      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement GainBandwidth : Hz {
-      calc_gain_bandwidth(ac, IN, OUT)
+      return calc_gain_bandwidth(ac, IN, OUT)
     }
 
     measurement LowpassBandwidth : Hz {
-      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement HighpassBandwidth : Hz {
-      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement BandpassBandwidth : Hz {
@@ -235,10 +235,10 @@ bench SEToSETransfer {
       .N--vcm
     }
 
-    Impedor source = new Impedor(Z=env.SourceImpedance) { }
+    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
 
-    ac.P--source.P
-    source.N--IN
+    ac.P--sourceZ.P
+    sourceZ.N--IN
 
     Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
       .P--OUT
@@ -256,19 +256,19 @@ bench SEToSETransfer {
 
   measurements {
     measurement PassbandGain : dB {
-      calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement GainBandwidth : Hz {
-      calc_gain_bandwidth(ac, IN, OUT)
+      return calc_gain_bandwidth(ac, IN, OUT)
     }
 
     measurement LowpassBandwidth : Hz {
-      calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement HighpassBandwidth : Hz {
-      calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
     measurement BandpassBandwidth : Hz {

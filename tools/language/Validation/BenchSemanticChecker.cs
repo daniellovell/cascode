@@ -73,10 +73,16 @@ public static class BenchSemanticChecker
 
         foreach (var m in bench.Measurements)
         {
+            var measurementScope = scope.Clone();
+            foreach (var p in m.Parameters)
+            {
+                measurementScope.Values[p.Name] = MeasurementType.FromBenchValueType(p.Type);
+            }
+
             CheckStatements(
                 bench,
                 m.Body,
-                scope,
+                measurementScope,
                 expectedReturn: measurementTypes[m.Name],
                 measurementTypes,
                 benchesByName,
@@ -288,7 +294,15 @@ public static class BenchSemanticChecker
             case MeasurementConditional c:
                 var tThen = InferExprType(c.ThenExpr, scope, measurementTypes, benchesByName);
                 var tElse = InferExprType(c.ElseExpr, scope, measurementTypes, benchesByName);
-                return MeasurementType.CanAssign(tThen, tElse) ? tThen : MeasurementType.Scalar();
+                if (MeasurementType.CanAssign(tThen, tElse))
+                {
+                    return tThen;
+                }
+                if (MeasurementType.CanAssign(tElse, tThen))
+                {
+                    return tElse;
+                }
+                return MeasurementType.Scalar();
 
             case MeasurementCall call:
                 return InferCallType(call, scope, measurementTypes, benchesByName);
@@ -365,6 +379,12 @@ public static class BenchSemanticChecker
                     );
                 }
                 return MeasurementType.Scalar();
+        }
+
+        // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).
+        if (measurementTypes.TryGetValue(call.Name, out var mt))
+        {
+            return mt;
         }
 
         // User-defined function
@@ -582,6 +602,7 @@ public static class BenchSemanticChecker
             type switch
             {
                 BenchValueType.Bool => Bool(),
+                BenchValueType.Terminal => Terminal("unknown"),
                 BenchValueType.Scalar => Scalar(),
                 BenchValueType.Frequency => Frequency(),
                 BenchValueType.VoltageRatio => VoltageRatio(),

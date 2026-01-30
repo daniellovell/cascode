@@ -59,7 +59,11 @@ public static class ComplianceChecker
                     report.UncheckedByBench[benchForConstraint] = uncheckedList;
                 }
                 uncheckedList.Add(
-                    new UncheckedConstraint { Id = constraint.Id, Metric = constraint.Metric }
+                    new UncheckedConstraint
+                    {
+                        Id = constraint.Id,
+                        Metric = FormatMetricKey(constraint),
+                    }
                 );
                 continue;
             }
@@ -77,15 +81,17 @@ public static class ComplianceChecker
         BenchResult results
     )
     {
+        var metricKey = FormatMetricKey(constraint);
+
         // Find matching measurement by metric and optional node
-        var matchingMeasurement = FindMatchingMeasurement(constraint, results);
+        var matchingMeasurement = FindMatchingMeasurement(metricKey, constraint, results);
 
         if (matchingMeasurement == null)
         {
             return new ConstraintResult
             {
                 Id = constraint.Id,
-                Metric = constraint.Metric,
+                Metric = metricKey,
                 Node = constraint.Node?.ToString(),
                 Unit = constraint.Unit,
                 Operator = constraint.Op,
@@ -95,7 +101,7 @@ public static class ComplianceChecker
                 ActualUnit = null,
                 Passed = false,
                 Message =
-                    $"No measurement found for {constraint.Metric}"
+                    $"No measurement found for {metricKey}"
                     + (constraint.Node != null ? $" @ {constraint.Node}" : ""),
             };
         }
@@ -108,7 +114,7 @@ public static class ComplianceChecker
         return new ConstraintResult
         {
             Id = constraint.Id,
-            Metric = constraint.Metric,
+            Metric = metricKey,
             Node = constraint.Node?.ToString(),
             Unit = constraint.Unit,
             Operator = constraint.Op,
@@ -122,6 +128,7 @@ public static class ComplianceChecker
     }
 
     private static KeyValuePair<string, MeasurementResult>? FindMatchingMeasurement(
+        string metricKey,
         NumericConstraint constraint,
         BenchResult results
     )
@@ -130,13 +137,7 @@ public static class ComplianceChecker
         {
             var measurement = kvp.Value;
             // Match by metric name (case-insensitive)
-            if (
-                !string.Equals(
-                    measurement.Metric,
-                    constraint.Metric,
-                    StringComparison.OrdinalIgnoreCase
-                )
-            )
+            if (!string.Equals(measurement.Metric, metricKey, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -165,6 +166,20 @@ public static class ComplianceChecker
         }
 
         return null;
+    }
+
+    private static string FormatMetricKey(NumericConstraint constraint)
+    {
+        if (constraint.MetricArgs.Count == 0)
+        {
+            return constraint.Metric;
+        }
+
+        var args = constraint
+            .MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(a => $"{a.Name}={a.Value}");
+
+        return $"{constraint.Metric}({string.Join(", ", args)})";
     }
 
     private static bool MatchesNode(NodeRef constraintNode, string? measurementNode)

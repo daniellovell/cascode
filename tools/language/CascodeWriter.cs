@@ -120,7 +120,11 @@ public static class CascodeWriter
 
         if (interfaceDef.BenchBindings.Count > 0)
         {
-            WriteBenchesSection(interfaceDef.BenchBindings, writer);
+            WriteBenchesSection(
+                interfaceDef.BenchBindings,
+                Array.Empty<BenchBindingExtension>(),
+                writer
+            );
         }
 
         writer.WriteLine("}");
@@ -292,9 +296,9 @@ public static class CascodeWriter
             writer.WriteLine("  }");
         }
 
-        if (circuit.BenchBindings.Count > 0)
+        if (circuit.BenchBindings.Count > 0 || circuit.BenchBindingExtensions.Count > 0)
         {
-            WriteBenchesSection(circuit.BenchBindings, writer);
+            WriteBenchesSection(circuit.BenchBindings, circuit.BenchBindingExtensions, writer);
         }
 
         if (circuit.Synth is not null && circuit.Synth.Entries.Count > 0)
@@ -464,8 +468,18 @@ public static class CascodeWriter
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 var node = c.Node is not null ? $" at {c.Node}" : "";
+                var args =
+                    c.MetricArgs.Count == 0
+                        ? ""
+                        : "("
+                            + string.Join(
+                                ", ",
+                                c.MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                                    .Select(a => $"{a.Name}={a.Value}")
+                            )
+                            + ")";
                 writer.WriteLine(
-                    $"      {c.Id} = {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
+                    $"      {c.Id} = {c.Bench}::{c.Metric}{args}{node} {c.Op} {c.Value}{c.Unit}"
                 );
             }
             writer.WriteLine("    }");
@@ -494,6 +508,10 @@ public static class CascodeWriter
     private static void WriteHarness(HarnessBlock harness, TextWriter writer)
     {
         writer.WriteLine("  harness {");
+        foreach (var ground in harness.Grounds.OrderBy(g => g.Net, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    ground {ground.Net} = {ground.Value}");
+        }
         foreach (var supply in harness.Supplies.OrderBy(s => s.Net, StringComparer.Ordinal))
         {
             writer.WriteLine($"    supply {supply.Net} = {supply.Value}");
@@ -567,7 +585,11 @@ public static class CascodeWriter
         writer.WriteLine("  }");
     }
 
-    private static void WriteBenchesSection(IReadOnlyList<BenchBinding> bindings, TextWriter writer)
+    private static void WriteBenchesSection(
+        IReadOnlyList<BenchBinding> bindings,
+        IReadOnlyList<BenchBindingExtension> extensions,
+        TextWriter writer
+    )
     {
         writer.WriteLine("  benches {");
 
@@ -575,6 +597,32 @@ public static class CascodeWriter
         {
             writer.WriteLine($"    bind {binding.BenchName} as {binding.BindingName} {{");
             foreach (var stmt in binding.Statements)
+            {
+                switch (stmt)
+                {
+                    case BenchTerminalMapping mapping:
+                        writer.WriteLine(
+                            $"      bench.{mapping.BenchTerminal}--dut.{mapping.DutPinRef}"
+                        );
+                        break;
+
+                    case BenchDutConnection conn:
+                        writer.WriteLine($"      dut.{conn.DutPinRef}--{conn.PinRef}");
+                        break;
+
+                    case BenchBindingInstance inst:
+                        WriteInstance(inst.Instance, writer, indent: "      ");
+                        break;
+                }
+            }
+
+            writer.WriteLine("    }");
+        }
+
+        foreach (var ext in extensions.OrderBy(e => e.BindingName, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    extend {ext.BindingName} {{");
+            foreach (var stmt in ext.Statements)
             {
                 switch (stmt)
                 {
@@ -622,7 +670,16 @@ public static class CascodeWriter
         string indent
     )
     {
-        writer.WriteLine($"{indent}measurement {measurement.Name} : {measurement.Unit} {{");
+        var paramText = string.Join(
+            ", ",
+            measurement.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+        );
+        var sig =
+            measurement.Parameters.Count == 0
+                ? measurement.Name
+                : $"{measurement.Name}({paramText})";
+
+        writer.WriteLine($"{indent}measurement {sig} : {measurement.Unit} {{");
         foreach (var stmt in measurement.Body)
         {
             WriteBenchStatement(stmt, writer, indent: indent + "  ");
@@ -697,6 +754,8 @@ public static class CascodeWriter
         type switch
         {
             BenchValueType.Bool => "bool",
+            // BenchValueType doesn't currently preserve stim/resp role; emit a valid terminal type token.
+            BenchValueType.Terminal => "stim",
             BenchValueType.ACAnalysis => "ACAnalysis",
             BenchValueType.DCAnalysis => "DCAnalysis",
             BenchValueType.TranAnalysis => "TranAnalysis",
@@ -710,6 +769,7 @@ public static class CascodeWriter
         return expr switch
         {
             BoolExists e => FormatScopedAccess(e.Ref),
+            BoolTruthy t => FormatMeasurementExpr(t.Expr),
             BoolCompare c =>
                 $"{FormatMeasurementExpr(c.Left)} {FormatComparisonOp(c.Op)} {FormatMeasurementExpr(c.Right)}",
             _ => throw new InvalidOperationException($"Unhandled bool expr: {expr.GetType().Name}"),
