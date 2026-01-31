@@ -43,4 +43,13 @@ public static class BenchRuntimePaths
 
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.noise.wrdata");
     }
+
+    public static string GetOpWrdataPath(string outputDir, string circuitName, string bindingName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__op.op.wrdata");
+    }
 }

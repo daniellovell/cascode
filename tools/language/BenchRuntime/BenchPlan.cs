@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Cascode.Language;
+using Cascode.Language.BenchRuntime.Netlist;
 
 namespace Cascode.Language.BenchRuntime;
 
@@ -11,7 +12,8 @@ public sealed record BenchPlanAnalysis(
     double StartHz,
     double StopHz,
     BenchTerminalRef? OutputTerminal = null,
-    string? NoiseInputSource = null
+    string? NoiseInputSource = null,
+    double? StepS = null
 );
 
 public sealed record BenchHarnessElement(
@@ -37,5 +39,6 @@ public sealed record BenchPlan(
     IReadOnlyList<string> DutOrderedNets,
     string DutSubcktName,
     IReadOnlyList<string> AcNodeKeys,
-    IReadOnlyList<string> DutAcNodeKeys
+    IReadOnlyList<string> DutAcNodeKeys,
+    BenchNetlist Netlist
 );

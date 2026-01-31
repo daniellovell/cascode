@@ -16,7 +16,7 @@ public sealed record CascodeParseOptions(
     public static readonly CascodeParseOptions Default = new(
         DesugarBundles: true,
         RunBenchSemanticChecks: true,
-        RunBenchBindingChecksWhenNoIncludes: true
+        RunBenchBindingChecksWhenNoIncludes: false
     );
 
     public static readonly CascodeParseOptions SyntaxOnly = new(

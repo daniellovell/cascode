@@ -2,32 +2,19 @@ VERSION 3.0
 
 library lib.std.bench
 
-// Golden bench definition 
-bench QuiescentPower(Voltage supplyVoltage) {
-  term PWR : supply
-  term RET : ground
-
-  fill {
-    GND g = new GND() {
-      .GND--RET
-    }
-
-    VDC src = new VDC(V=supplyVoltage) {
-      .P--PWR
-      .N--RET
-    }
-  }
+// Minimal quiescent-power bench.
+//
+// This bench assumes the circuit harness provides a VDC supply source between the mapped
+// supply/return terminals (e.g. VDD -> GND). The bench runtime measures the operating-point
+// current through that source and reports positive static power drawn from the rail.
+bench QuiescentPower {
+  stim PWR : supply
+  resp RET : ground
 
   measurements {
     measurement QuiescentPower : W {
-      // Positive static power drawn from the single rail under test.
-      // Intended sign convention matches the legacy ngspice template:
-      //   P = (V(PWR)-V(RET)) * (-I(Vsrc))
       return quiescent_power(PWR, RET)
     }
   }
 }
-
-//
-
 

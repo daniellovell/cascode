@@ -11,6 +11,11 @@ interface SingleEndedOpAmp {
   output OUT : analog
 
   benches {
+    bind QuiescentPower as vdd_pwr {
+      bench.PWR--dut.VDD
+      bench.RET--dut.GND
+    }
+
     bind DiffToSETransfer as transfer_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT

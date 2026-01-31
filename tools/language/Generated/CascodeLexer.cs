@@ -58,7 +58,7 @@ public partial class CascodeLexer : Lexer {
 		RPAREN=119, LBRACK=120, RBRACK=121, LBRACE=122, RBRACE=123, STAR=124, 
 		SLASH=125, PLUS=126, MINUS=127, AT=128, NOISE_DENSITY_UNIT=129, INTEGRATED_RMS_UNIT=130, 
 		QUANTITY=131, NUMBER=132, IDENT=133, TRIPLE_STRING=134, STRING=135, UNSIZED=136, 
-		LINE_COMMENT=137, WS=138, NEWLINE=139;
+		LINE_COMMENT=137, WS=138, NEWLINE=139, WAVEFORM_TYPE=140;
 	public static string[] channelNames = {
 		"DEFAULT_TOKEN_CHANNEL", "HIDDEN"
 	};
@@ -91,7 +91,7 @@ public partial class CascodeLexer : Lexer {
 		"COMMA", "SEMI", "BIND_DOT", "DOT", "EQ", "LPAREN", "RPAREN", "LBRACK", 
 		"RBRACK", "LBRACE", "RBRACE", "STAR", "SLASH", "PLUS", "MINUS", "AT", 
 		"NOISE_DENSITY_UNIT", "INTEGRATED_RMS_UNIT", "QUANTITY", "NUMBER", "IDENT", 
-		"TRIPLE_STRING", "STRING", "UNSIZED", "LINE_COMMENT", "WS", "NEWLINE"
+		"TRIPLE_STRING", "STRING", "UNSIZED", "LINE_COMMENT", "WS", "NEWLINE", "WAVEFORM_TYPE"
 	};
 
 
@@ -137,7 +137,7 @@ public partial class CascodeLexer : Lexer {
 		"'Scalar'", "'ACAnalysis'", "'DCAnalysis'", "'TranAnalysis'", "'NoiseAnalysis'", 
 		"'STBAnalysis'", null, null, "'--'", "'::'", "'||'", "':'", "','", "';'", 
 		null, null, "'='", "'('", "')'", "'['", "']'", "'{'", "'}'", "'*'", "'/'", 
-		"'+'", "'-'", "'@'", null, null, null, null, null, null, null, "'??'"
+		"'+'", "'-'", "'@'", null, null, null, null, null, null, null, "'??'", null, null, null, "'Waveform'"
 	};
 	private static readonly string[] _SymbolicNames = {
 		null, "VERSION_KW", "BUNDLE_KW", "INTERFACE_KW", "BENCH_KW", "BENCHES_KW", 
@@ -163,7 +163,7 @@ public partial class CascodeLexer : Lexer {
 		"COMMA", "SEMI", "BIND_DOT", "DOT", "EQ", "LPAREN", "RPAREN", "LBRACK", 
 		"RBRACK", "LBRACE", "RBRACE", "STAR", "SLASH", "PLUS", "MINUS", "AT", 
 		"NOISE_DENSITY_UNIT", "INTEGRATED_RMS_UNIT", "QUANTITY", "NUMBER", "IDENT", 
-		"TRIPLE_STRING", "STRING", "UNSIZED", "LINE_COMMENT", "WS", "NEWLINE"
+		"TRIPLE_STRING", "STRING", "UNSIZED", "LINE_COMMENT", "WS", "NEWLINE", "WAVEFORM_TYPE"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 

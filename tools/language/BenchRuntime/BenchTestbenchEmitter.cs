@@ -22,79 +22,48 @@ public static class BenchTestbenchEmitter
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
         ArgumentNullException.ThrowIfNull(designPaths);
 
-        var interfacesByName = document.Traits.ToDictionary(
-            t => t.Name,
-            StringComparer.OrdinalIgnoreCase
-        );
-        var benchesByName = document.BenchDefinitions.ToDictionary(
-            b => b.Name,
-            StringComparer.OrdinalIgnoreCase
-        );
+        var plans = BenchCompiler.CompileAllPlans(document);
+        return EmitPlans(document, plans, outputDir, backend, designPaths, includeResolver);
+    }
 
-        var written = new List<string>();
+    public static IReadOnlyList<string> EmitPlans(
+        CascodeDocument document,
+        IReadOnlyList<BenchPlan> plans,
+        string outputDir,
+        BenchBackendType backend,
+        IReadOnlyList<string> designPaths,
+        IBenchIncludeResolver? includeResolver = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        ArgumentNullException.ThrowIfNull(plans);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentNullException.ThrowIfNull(designPaths);
 
-        foreach (
-            var circuit in document.Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
-        )
+        var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var written = new List<string>(plans.Count);
+
+        foreach (var plan in plans)
         {
-            var bindings = ResolveBenchBindings(circuit, interfacesByName);
-            foreach (var binding in bindings)
-            {
-                if (!benchesByName.ContainsKey(binding.BenchName))
-                {
-                    // Reported by bench binding checker; skip emission.
-                    continue;
-                }
+            circuitsByName.TryGetValue(plan.CircuitName, out var circuit);
+            var include = circuit is null
+                ? null
+                : includeResolver?.Resolve(circuit, backend, document);
 
-                var plan = BenchPlanBuilder.Build(document, circuit, binding);
-                var include = includeResolver?.Resolve(circuit, backend, document);
-
-                var tbPath = BenchRuntimePaths.GetTestbenchPath(
-                    outputDir,
-                    circuit.Name,
-                    binding.BindingName
-                );
-                Directory.CreateDirectory(Path.GetDirectoryName(tbPath)!);
-                File.WriteAllText(
-                    tbPath,
-                    RenderTestbench(plan, backend, designPaths, include, outputDir)
-                );
-                written.Add(tbPath);
-            }
+            var tbPath = BenchRuntimePaths.GetTestbenchPath(
+                outputDir,
+                plan.CircuitName,
+                plan.BindingName
+            );
+            Directory.CreateDirectory(Path.GetDirectoryName(tbPath)!);
+            File.WriteAllText(
+                tbPath,
+                RenderTestbench(plan, backend, designPaths, include, outputDir)
+            );
+            written.Add(tbPath);
         }
 
         return written;
-    }
-
-    private static IReadOnlyList<BenchBinding> ResolveBenchBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, TraitDefinition> interfacesByName
-    )
-    {
-        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
-
-        if (circuit.Traits is { Count: > 0 })
-        {
-            foreach (var iface in circuit.Traits)
-            {
-                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
-                {
-                    continue;
-                }
-
-                foreach (var b in interfaceDef.BenchBindings)
-                {
-                    map.TryAdd(b.BindingName, b);
-                }
-            }
-        }
-
-        foreach (var b in circuit.BenchBindings)
-        {
-            map[b.BindingName] = b;
-        }
-
-        return map.Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private static string RenderTestbench(
@@ -151,6 +120,30 @@ public static class BenchTestbenchEmitter
 
         sb.AppendLine(".control");
         sb.AppendLine("set filetype=ascii");
+
+        var vdcSources = plan
+            .HarnessElements.Where(e => e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (vdcSources.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("* operating point + supply currents");
+            sb.AppendLine("op");
+
+            var opWrdata = BenchRuntimePaths.GetOpWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.BindingName
+            );
+            sb.Append($"wrdata {Path.GetFileName(opWrdata)}");
+            foreach (var s in vdcSources)
+            {
+                sb.Append(' ');
+                sb.Append($"i(V{s.Id})");
+            }
+            sb.AppendLine();
+        }
 
         foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.ACAnalysis))
         {
@@ -278,6 +271,27 @@ public static class BenchTestbenchEmitter
             var ampl = FormatScalarForSpice(a, backend);
             var deg = phase is null ? "0" : FormatScalarForSpice(phase, backend);
             sb.AppendLine($"V{element.Id} {p} {n} 0 AC {ampl} {deg}");
+            return;
+        }
+
+        if (type.Equals("VSIN", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+                return;
+            var dc = GetParam(element, "DC") ?? new BenchNumber(BenchNumericKind.VoltageV, 0);
+            var a = GetParam(element, "A") ?? GetParam(element, "ampl");
+            var freq = GetParam(element, "freq");
+            var phase = GetParam(element, "phase");
+
+            // Format scalars using backend-specific formatting
+            var dcStr = FormatScalarForSpice(dc, backend);
+            var aStr = FormatScalarForSpice(a, backend);
+            var freqStr = FormatScalarForSpice(freq, backend);
+            var phaseStr = phase != null ? FormatScalarForSpice(phase, backend) : "0";
+
+            // ngspice syntax: Vname n+ n- sin(vo va freq td theta phase)
+            // We use 0 for td (time delay) and theta (damping factor)
+            sb.AppendLine($"V{element.Id} {p} {n} sin({dcStr} {aStr} {freqStr} 0 0 {phaseStr})");
             return;
         }
 

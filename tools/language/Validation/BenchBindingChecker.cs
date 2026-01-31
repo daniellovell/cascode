@@ -24,10 +24,8 @@ public static class BenchBindingChecker
         foreach (var circuit in document.Circuits)
         {
             var resolved = ResolveBenchBindingsForCircuit(circuit, interfacesByName, diagnostics);
-            if (resolved.Count == 0)
-            {
-                continue;
-            }
+
+            CheckConstraintBenchReferences(circuit, resolved, benchesByName, diagnostics);
 
             var dutTerminals = BuildDutTerminalMap(circuit, bundlesByName);
 
@@ -94,6 +92,40 @@ public static class BenchBindingChecker
         }
 
         return resolved;
+    }
+
+    private static void CheckConstraintBenchReferences(
+        Circuit circuit,
+        IReadOnlyDictionary<string, BenchBinding> resolvedBindings,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (circuit.Constraints?.Numeric is not { Count: > 0 })
+        {
+            return;
+        }
+
+        foreach (var constraint in circuit.Constraints.Numeric)
+        {
+            if (string.IsNullOrEmpty(constraint.Bench))
+            {
+                continue;
+            }
+
+            if (!resolvedBindings.ContainsKey(constraint.Bench))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3008: Constraint '{constraint.Id}' references unknown bench binding '{constraint.Bench}' in circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<constraints>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
     }
 
     private static Dictionary<

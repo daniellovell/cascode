@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -20,10 +21,12 @@ public class BenchRunService
     };
 
     private readonly ILogger<BenchRunService> _logger;
+    private readonly Action<string>? _progress;
 
-    public BenchRunService(ILogger<BenchRunService> logger)
+    public BenchRunService(ILogger<BenchRunService> logger, Action<string>? progress = null)
     {
         _logger = logger;
+        _progress = progress;
     }
 
     public sealed record BenchRunArgs(
@@ -75,7 +78,8 @@ public class BenchRunService
         string OutputDir,
         IReadOnlyList<CircuitBenchRunSummary> CircuitSummaries,
         string? GlobalResultsPath,
-        ComplianceReport GlobalCompliance
+        ComplianceReport GlobalCompliance,
+        BenchRunTimingReport? Timing = null
     )
     {
         public int TotalBenchesRun => CircuitSummaries.Sum(c => c.Benches.Count);
@@ -92,6 +96,14 @@ public class BenchRunService
         int ExitCode,
         MultiCircuitBenchRunSummary Summary
     );
+
+    private static string BuildPlanKey(string circuitName, string benchName) =>
+        $"{circuitName}:{benchName}";
+
+    private void Progress(string message)
+    {
+        _progress?.Invoke(message);
+    }
 
     public static bool TryParseArgs(string[] args, out BenchRunArgs parsed, out string error)
     {
@@ -198,12 +210,14 @@ public class BenchRunService
 
     public BenchRunResult Run(string workspaceRoot, string? pdkRoot, BenchRunArgs args)
     {
-        var (resolvedPath, doc) = ReadLinkedIfNeeded(
+        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
             args.CascodePath,
             workspaceRoot,
-            args.OutputDir
+            args.OutputDir,
+            _logger
         );
-        args = args with { CascodePath = resolvedPath };
+        args = args with { CascodePath = loaded.ResolvedPath };
+        var doc = loaded.Document;
         var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
 
         var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
@@ -250,18 +264,14 @@ public class BenchRunService
         );
         Directory.CreateDirectory(outputDir);
 
-        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            resolvedPath,
-            workspaceRoot
-        );
-        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
-        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
-        var emit = SpiceEmitter.ValidateAndEmit(
+        var resolvedWorkspaceRoot = loaded.WorkspaceRoot;
+        var emit = CascodeEmitPipeline.ValidateAndEmit(
             doc,
             outputDir,
             args.Backend,
             resolvedWorkspaceRoot,
-            includeResolver
+            pdkRoot,
+            _logger
         );
         var validationResult = ValidateEmissionOrReturnResult(emit, circuit.Name, args, outputDir);
         if (validationResult != null)
@@ -272,13 +282,15 @@ public class BenchRunService
         var allMeasurements = new Dictionary<string, MeasurementResult>(
             StringComparer.OrdinalIgnoreCase
         );
+        var planMap = BuildPlanMap(doc);
         var benchSummaries = RunBenches(
             doc,
             circuit,
             args,
             emit.Emit.TestbenchPaths,
             benchesToRun,
-            allMeasurements
+            allMeasurements,
+            planMap
         );
         var noMeasurementsResult = HandleNoMeasurementsOrReturnResult(
             circuit.Name,
@@ -335,18 +347,29 @@ public class BenchRunService
         BenchRunArgs args
     )
     {
-        var (resolvedPath, doc) = ReadLinkedIfNeeded(
+        var timing = new BenchRunTimingCollector();
+
+        Progress("load+link: start");
+        var loadStep = timing.Step("load+link");
+        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
             args.CascodePath,
             workspaceRoot,
-            args.OutputDir
+            args.OutputDir,
+            _logger
         );
-        args = args with { CascodePath = resolvedPath };
+        loadStep.Stop();
+        Progress(
+            $"load+link: done ({loadStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
+        args = args with { CascodePath = loaded.ResolvedPath };
+        var doc = loaded.Document;
         var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
 
         // Early exit: no circuits with benches
         if (allCircuitsWithBenches.Count == 0)
         {
             _logger.LogError("No EL-level circuits with benches found in Cascode document.");
+            var timingReport = timing.Build();
             return new MultiCircuitBenchRunResult(
                 2,
                 new MultiCircuitBenchRunSummary(
@@ -354,7 +377,8 @@ public class BenchRunService
                     args.OutputDir ?? string.Empty,
                     Array.Empty<CircuitBenchRunSummary>(),
                     null,
-                    new ComplianceReport()
+                    new ComplianceReport(),
+                    Timing: timingReport
                 )
             );
         }
@@ -368,7 +392,13 @@ public class BenchRunService
             out var circuitsWithBenches
         );
         if (filterResult != null)
-            return filterResult;
+        {
+            var timingReport = timing.Build();
+            return filterResult with
+            {
+                Summary = filterResult.Summary with { Timing = timingReport },
+            };
+        }
 
         // Determine output directory
         var outputDir =
@@ -382,6 +412,8 @@ public class BenchRunService
         Directory.CreateDirectory(outputDir);
 
         // Emit all testbenches upfront
+        Progress("emit: start");
+        var emitStep = timing.Step("emit");
         var emitResult = EmitAllDesignsOrReturnError(
             doc,
             outputDir,
@@ -390,10 +422,24 @@ public class BenchRunService
             args,
             out var emit
         );
+        emitStep.Stop();
+        Progress(
+            $"emit: done ({emitStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
         if (emitResult != null)
-            return emitResult;
+        {
+            var timingReport = timing.Build();
+            return emitResult with { Summary = emitResult.Summary with { Timing = timingReport } };
+        }
 
         // Run benches for each circuit in dependency order
+        Progress("bench-plan: compile start");
+        var planStep = timing.Step("bench-plan: compile");
+        var planMap = BuildPlanMap(doc);
+        planStep.Stop();
+        Progress(
+            $"bench-plan: compile done ({planStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
         var circuitSummaries = new List<CircuitBenchRunSummary>();
         foreach (var circuit in circuitsWithBenches)
         {
@@ -402,59 +448,23 @@ public class BenchRunService
                 doc,
                 args,
                 outputDir,
-                emit.Emit.TestbenchPaths
+                emit.Emit.TestbenchPaths,
+                planMap,
+                timing
             );
             circuitSummaries.Add(circuitSummary);
         }
 
         // Aggregate and return results
-        return AggregateResults(circuitSummaries, args.Backend, outputDir, args.StrictCompliance);
-    }
-
-    private (string ResolvedPath, CascodeDocument Document) ReadLinkedIfNeeded(
-        string inputPath,
-        string workspaceRoot,
-        string? outputDir
-    )
-    {
-        var resolvedPath = Path.GetFullPath(inputPath);
-        if (!resolvedPath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase))
-        {
-            return (resolvedPath, BenchRunHelpers.ReadCascode(resolvedPath));
-        }
-
-        // Parse first. If the source has no includes, treat it as already self-contained for the
-        // bench flow (no need to run the dependency-driven linker).
-        var parsed = BenchRunHelpers.ReadCascode(resolvedPath);
-        if (parsed.Includes.Count == 0)
-        {
-            return (resolvedPath, parsed);
-        }
-
-        // Source files with includes must be linked to a self-contained .cai before emission/simulation.
-        // Prefer the user-specified output directory for artifacts; otherwise use build/link.
-        var resolvedWorkspaceRoot = BenchRunHelpers.ResolveWorkspaceRoot(
-            resolvedPath,
-            workspaceRoot
+        var final = AggregateResults(
+            circuitSummaries,
+            args.Backend,
+            outputDir,
+            args.StrictCompliance,
+            timing.Build()
         );
-        var linkOutDir = string.IsNullOrWhiteSpace(outputDir)
-            ? Path.Combine(Directory.GetCurrentDirectory(), "build", "link")
-            : Path.GetFullPath(outputDir);
-        Directory.CreateDirectory(linkOutDir);
-
-        var link = CascodeLinker.LinkFile(resolvedPath, linkOutDir, resolvedWorkspaceRoot, _logger);
-        if (!link.Success || string.IsNullOrWhiteSpace(link.LinkedCasPath))
-        {
-            var msg =
-                link.Diagnostics.FirstOrDefault(d =>
-                    d.Severity == DiagnosticSeverity.Error
-                )?.Message
-                ?? "Link failed.";
-            throw new InvalidOperationException(msg);
-        }
-
-        resolvedPath = link.LinkedCasPath!;
-        return (resolvedPath, BenchRunHelpers.ReadCascode(resolvedPath));
+        Progress("bench: done");
+        return final;
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(
@@ -462,7 +472,9 @@ public class BenchRunService
         CascodeDocument doc,
         BenchRunArgs args,
         string outputDir,
-        IReadOnlyList<string> testbenchPaths
+        IReadOnlyList<string> testbenchPaths,
+        IReadOnlyDictionary<string, BenchPlan> planMap,
+        BenchRunTimingCollector timing
     )
     {
         var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
@@ -476,15 +488,21 @@ public class BenchRunService
         );
         var benchSummaries = new List<BenchRunBenchSummary>();
 
+        var benchCount = benchesToRun.Count;
+        var benchIndex = 0;
         foreach (var benchName in benchesToRun)
         {
+            benchIndex++;
+            Progress($"bench: run {circuit.Name}/{benchName} ({benchIndex}/{benchCount})");
             var summary = TryRunBench(
                 doc,
                 circuit,
                 args,
                 testbenchPaths,
                 benchName,
-                circuitMeasurements
+                circuitMeasurements,
+                planMap,
+                timing
             );
             benchSummaries.Add(summary);
         }
@@ -656,15 +674,13 @@ public class BenchRunService
             args.CascodePath,
             workspaceRoot
         );
-        var includeRoot = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
-        var includeResolver = PdkBenchIncludeResolver.Create(includeRoot, _logger);
-
-        emit = SpiceEmitter.ValidateAndEmit(
+        emit = CascodeEmitPipeline.ValidateAndEmit(
             doc,
             outputDir,
             args.Backend,
             resolvedWorkspaceRoot,
-            includeResolver
+            pdkRoot,
+            _logger
         );
 
         if (!emit.Validation.IsValid)
@@ -695,7 +711,8 @@ public class BenchRunService
         IReadOnlyList<CircuitBenchRunSummary> circuitSummaries,
         BenchBackendType backend,
         string outputDir,
-        bool strictCompliance
+        bool strictCompliance,
+        BenchRunTimingReport timing
     )
     {
         var globalCompliance = AggregateCompliance(circuitSummaries);
@@ -710,7 +727,8 @@ public class BenchRunService
                 outputDir,
                 circuitSummaries,
                 null,
-                globalCompliance
+                globalCompliance,
+                Timing: timing
             )
         );
     }
@@ -831,15 +849,26 @@ public class BenchRunService
         BenchRunArgs args,
         IReadOnlyList<string> testbenchPaths,
         IReadOnlyList<string> benchesToRun,
-        Dictionary<string, MeasurementResult> allMeasurements
+        Dictionary<string, MeasurementResult> allMeasurements,
+        IReadOnlyDictionary<string, BenchPlan> planMap
     )
     {
+        var timing = new BenchRunTimingCollector();
         var summaries = new List<BenchRunBenchSummary>();
 
         foreach (var benchName in benchesToRun)
         {
             summaries.Add(
-                TryRunBench(doc, circuit, args, testbenchPaths, benchName, allMeasurements)
+                TryRunBench(
+                    doc,
+                    circuit,
+                    args,
+                    testbenchPaths,
+                    benchName,
+                    allMeasurements,
+                    planMap,
+                    timing
+                )
             );
         }
 
@@ -852,7 +881,9 @@ public class BenchRunService
         BenchRunArgs args,
         IReadOnlyList<string> testbenchPaths,
         string benchName,
-        Dictionary<string, MeasurementResult> allMeasurements
+        Dictionary<string, MeasurementResult> allMeasurements,
+        IReadOnlyDictionary<string, BenchPlan> planMap,
+        BenchRunTimingCollector timing
     )
     {
         var testbenchPath = BenchRunHelpers.FindTestbenchPath(
@@ -861,18 +892,36 @@ public class BenchRunService
             benchName
         );
 
+        var simTime = TimeSpan.Zero;
+        var parseTime = TimeSpan.Zero;
+        var evalTime = TimeSpan.Zero;
+        var writeTime = TimeSpan.Zero;
+
         NgspiceExecutor.NgspiceRun run;
+        var swSim = Stopwatch.StartNew();
         try
         {
             run = NgspiceExecutor.Run(testbenchPath);
         }
         catch (Exception ex)
         {
+            simTime = swSim.Elapsed;
             _logger.LogError(
                 ex,
                 "Failed to run ngspice for '{BenchName}': {Message}",
                 benchName,
                 ex.Message
+            );
+            Progress($"bench: FAIL {circuit.Name}/{benchName} (ngspice launch)");
+            timing.AddBench(
+                new BenchBenchTiming(
+                    circuit.Name,
+                    benchName,
+                    Simulation: simTime,
+                    ParseOutputs: parseTime,
+                    EvaluateMeasurements: evalTime,
+                    WriteArtifacts: writeTime
+                )
             );
             return new BenchRunBenchSummary(
                 Name: benchName,
@@ -885,6 +934,11 @@ public class BenchRunService
                 ResultsPath: null
             );
         }
+        finally
+        {
+            swSim.Stop();
+            simTime = swSim.Elapsed;
+        }
 
         if (run.ExitCode != 0)
         {
@@ -893,6 +947,19 @@ public class BenchRunService
                 benchName,
                 run.ExitCode,
                 run.Stderr
+            );
+            Progress(
+                $"bench: FAIL {circuit.Name}/{benchName} (exit {run.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)})"
+            );
+            timing.AddBench(
+                new BenchBenchTiming(
+                    circuit.Name,
+                    benchName,
+                    Simulation: simTime,
+                    ParseOutputs: parseTime,
+                    EvaluateMeasurements: evalTime,
+                    WriteArtifacts: writeTime
+                )
             );
             return new BenchRunBenchSummary(
                 Name: benchName,
@@ -907,10 +974,16 @@ public class BenchRunService
         }
 
         BenchResult results;
+        var swParse = Stopwatch.StartNew();
         try
         {
-            var binding = ResolveBenchBindingOrThrow(doc, circuit, benchName);
-            var plan = BenchPlanBuilder.Build(doc, circuit, binding);
+            var planKey = BuildPlanKey(circuit.Name, benchName);
+            if (!planMap.TryGetValue(planKey, out var plan))
+            {
+                throw new InvalidOperationException(
+                    $"Missing compiled bench plan for '{circuit.Name}:{benchName}'."
+                );
+            }
 
             var analyses = new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
                 StringComparer.OrdinalIgnoreCase
@@ -954,6 +1027,30 @@ public class BenchRunService
                 }
             }
 
+            var vdcSources = plan
+                .HarnessElements.Where(e =>
+                    e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                )
+                .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var opCurrentsBySourceName = new Dictionary<string, double>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            if (vdcSources.Count > 0)
+            {
+                var wrdataPath = BenchRuntimePaths.GetOpWrdataPath(
+                    Path.GetDirectoryName(testbenchPath)!,
+                    plan.CircuitName,
+                    plan.BindingName
+                );
+
+                var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
+                foreach (var kvp in NgspiceWrdataOpParser.ParseCurrents(wrdataPath, sourceNames))
+                {
+                    opCurrentsBySourceName[kvp.Key] = kvp.Value;
+                }
+            }
+
             var runner = new BenchMeasurementRunner(
                 plan.Bench,
                 plan.Functions,
@@ -961,9 +1058,15 @@ public class BenchRunService
                 plan.Terminals,
                 plan.Env,
                 plan.Harness,
-                plan.Constraints
+                plan.Constraints,
+                harnessElements: plan.HarnessElements,
+                sourceCurrentsByName: opCurrentsBySourceName
             );
 
+            swParse.Stop();
+            parseTime = swParse.Elapsed;
+
+            var swEval = Stopwatch.StartNew();
             var constraintsForBench = GetNumericConstraintsForBench(circuit, benchName);
             var nodeByMetric = BuildNodeByMetric(constraintsForBench, circuit);
             var values = EvaluateMetricsForConstraintsOrAll(
@@ -987,13 +1090,28 @@ public class BenchRunService
             }
 
             MergeMeasurements(allMeasurements, results.Measurements.Values);
+            swEval.Stop();
+            evalTime = swEval.Elapsed;
         }
         catch (Exception ex)
         {
+            swParse.Stop();
+            parseTime = swParse.Elapsed;
             _logger.LogError(
                 ex,
                 "Failed to evaluate bench measurements for '{BenchName}'.",
                 benchName
+            );
+            Progress($"bench: FAIL {circuit.Name}/{benchName} (evaluation)");
+            timing.AddBench(
+                new BenchBenchTiming(
+                    circuit.Name,
+                    benchName,
+                    Simulation: simTime,
+                    ParseOutputs: parseTime,
+                    EvaluateMeasurements: evalTime,
+                    WriteArtifacts: writeTime
+                )
             );
             return new BenchRunBenchSummary(
                 Name: benchName,
@@ -1007,6 +1125,7 @@ public class BenchRunService
             );
         }
 
+        var swWrite = Stopwatch.StartNew();
         var resultsPath = Path.Combine(
             Path.GetDirectoryName(testbenchPath)!,
             $"{circuit.Name}_{benchName}_results.json"
@@ -1027,6 +1146,23 @@ public class BenchRunService
             testbenchPath,
             new List<BenchResultParser.TracePoint>(),
             results
+        );
+        swWrite.Stop();
+        writeTime = swWrite.Elapsed;
+
+        timing.AddBench(
+            new BenchBenchTiming(
+                circuit.Name,
+                benchName,
+                Simulation: simTime,
+                ParseOutputs: parseTime,
+                EvaluateMeasurements: evalTime,
+                WriteArtifacts: writeTime
+            )
+        );
+
+        Progress(
+            $"bench: done {circuit.Name}/{benchName} (sim {simTime.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
         );
 
         return new BenchRunBenchSummary(
@@ -1212,47 +1348,16 @@ public class BenchRunService
         }
     }
 
-    private static BenchBinding ResolveBenchBindingOrThrow(
-        CascodeDocument doc,
-        Circuit circuit,
-        string bindingName
-    )
+    private static IReadOnlyDictionary<string, BenchPlan> BuildPlanMap(CascodeDocument doc)
     {
-        var interfacesByName = doc.Traits.ToDictionary(
-            t => t.Name,
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
-        if (circuit.Traits is { Count: > 0 })
+        var plans = BenchCompiler.CompileAllPlans(doc);
+        var map = new Dictionary<string, BenchPlan>(StringComparer.OrdinalIgnoreCase);
+        foreach (var plan in plans)
         {
-            foreach (var iface in circuit.Traits)
-            {
-                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
-                {
-                    continue;
-                }
-
-                foreach (var b in interfaceDef.BenchBindings)
-                {
-                    map.TryAdd(b.BindingName, b);
-                }
-            }
+            map[BuildPlanKey(plan.CircuitName, plan.BindingName)] = plan;
         }
 
-        foreach (var b in circuit.BenchBindings)
-        {
-            map[b.BindingName] = b;
-        }
-
-        if (!map.TryGetValue(bindingName, out var binding))
-        {
-            throw new InvalidOperationException(
-                $"Bench binding '{bindingName}' not found on circuit '{circuit.Name}'."
-            );
-        }
-
-        return binding;
+        return map;
     }
 
     // BuildNodeByMetric moved above (constraint-driven; supports parameterized metrics).

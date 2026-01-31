@@ -16,6 +16,8 @@ public sealed class BenchMeasurementRunner
     private readonly IReadOnlyDictionary<string, BenchValue> _env;
     private readonly IReadOnlyDictionary<string, BenchValue> _harness;
     private readonly IReadOnlyDictionary<string, BenchValue> _constraints;
+    private readonly IReadOnlyDictionary<string, BenchHarnessElement> _harnessElementsById;
+    private readonly IReadOnlyDictionary<string, double> _sourceCurrentsByName;
 
     private readonly Dictionary<string, BenchValue> _measurementCache = new(
         StringComparer.OrdinalIgnoreCase
@@ -37,7 +39,9 @@ public sealed class BenchMeasurementRunner
         IReadOnlyDictionary<string, BenchTerminalRef> terminals,
         IReadOnlyDictionary<string, BenchValue> env,
         IReadOnlyDictionary<string, BenchValue> harness,
-        IReadOnlyDictionary<string, BenchValue> constraints
+        IReadOnlyDictionary<string, BenchValue> constraints,
+        IReadOnlyList<BenchHarnessElement>? harnessElements = null,
+        IReadOnlyDictionary<string, double>? sourceCurrentsByName = null
     )
     {
         _bench = bench;
@@ -51,6 +55,12 @@ public sealed class BenchMeasurementRunner
         _env = env;
         _harness = harness;
         _constraints = constraints;
+        _harnessElementsById = harnessElements is null
+            ? new Dictionary<string, BenchHarnessElement>(StringComparer.OrdinalIgnoreCase)
+            : harnessElements.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+        _sourceCurrentsByName =
+            sourceCurrentsByName
+            ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
     }
 
     public IReadOnlyDictionary<string, (double Value, string Unit)> RunAll()
@@ -408,6 +418,8 @@ public sealed class BenchMeasurementRunner
                 return EvalAbs(call, locals);
             case "sqrt":
                 return EvalSqrt(call, locals);
+            case "quiescent_power":
+                return EvalQuiescentPower(call, locals);
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
@@ -927,6 +939,129 @@ public sealed class BenchMeasurementRunner
     {
         var x = RequireNumber(EvaluateExpr(call.Args[0].Value, locals), "sqrt");
         return new BenchNumber(x.Kind, Math.Sqrt(x.Value));
+    }
+
+    private BenchNumber EvalQuiescentPower(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        if (call.Args.Count != 2)
+        {
+            throw new InvalidOperationException(
+                "quiescent_power requires two terminals: quiescent_power(PWR, RET)."
+            );
+        }
+
+        var pwr = RequireTerminal(EvaluateExpr(call.Args[0].Value, locals), "PWR");
+        var ret = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "RET");
+        if (pwr.LeafNodes.Count == 0 || ret.LeafNodes.Count == 0)
+        {
+            throw new InvalidOperationException("quiescent_power requires scalar terminals.");
+        }
+
+        var pwrNet = pwr.LeafNodes[0];
+        var retNet = ret.LeafNodes[0];
+
+        // Find the VDC source that actually applies the rail between (PWR, RET).
+        BenchHarnessElement? vsrc = null;
+        var sign = 1.0;
+        foreach (var e in _harnessElementsById.Values)
+        {
+            if (!e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryGetPinPair(e, out var p, out var n))
+            {
+                continue;
+            }
+
+            if (
+                p.Equals(pwrNet, StringComparison.OrdinalIgnoreCase)
+                && n.Equals(retNet, StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                vsrc = e;
+                sign = 1.0;
+                break;
+            }
+
+            if (
+                p.Equals(retNet, StringComparison.OrdinalIgnoreCase)
+                && n.Equals(pwrNet, StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                vsrc = e;
+                sign = -1.0;
+                break;
+            }
+        }
+
+        if (vsrc is null)
+        {
+            throw new InvalidOperationException(
+                $"quiescent_power: no VDC source found between nets '{pwrNet}' and '{retNet}'."
+            );
+        }
+
+        var sourceName = "V" + vsrc.Id;
+        if (!_sourceCurrentsByName.TryGetValue(sourceName, out var currentA))
+        {
+            throw new InvalidOperationException(
+                $"quiescent_power: missing current for source '{sourceName}'."
+            );
+        }
+
+        var v = GetVdcVoltageOrThrow(vsrc);
+        var powerW = sign * v * (-currentA);
+        return new BenchNumber(BenchNumericKind.Scalar, powerW);
+    }
+
+    private static bool TryGetPinPair(BenchHarnessElement e, out string p, out string n)
+    {
+        p = string.Empty;
+        n = string.Empty;
+
+        if (!e.Pins.TryGetValue("P", out var p0) || string.IsNullOrWhiteSpace(p0))
+        {
+            return false;
+        }
+        if (!e.Pins.TryGetValue("N", out var n0) || string.IsNullOrWhiteSpace(n0))
+        {
+            return false;
+        }
+
+        p = p0;
+        n = n0;
+        return true;
+    }
+
+    private static double GetVdcVoltageOrThrow(BenchHarnessElement e)
+    {
+        BenchValue? v = null;
+        if (e.Parameters.TryGetValue("V", out var v0))
+        {
+            v = v0;
+        }
+        else if (e.Parameters.TryGetValue("value", out var v1))
+        {
+            v = v1;
+        }
+        else if (e.Parameters.Count == 1)
+        {
+            v = e.Parameters.Values.First();
+        }
+
+        if (v is BenchNumber n)
+        {
+            return n.Value;
+        }
+
+        throw new InvalidOperationException(
+            $"quiescent_power: VDC source '{e.Id}' missing numeric voltage parameter."
+        );
     }
 
     private static BenchTerminalRef RequireTerminal(BenchValue value, string name)

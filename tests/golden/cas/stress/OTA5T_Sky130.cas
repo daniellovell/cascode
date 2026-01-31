@@ -58,13 +58,14 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
     }
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   }
+
   constraints {
     numeric {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
       // c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
-      // c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
     }
   }
   harness {

@@ -54,3 +54,14 @@ public sealed record BenchAnalysisRef(string Name) : BenchValue;
 public sealed record BenchBool(bool Value) : BenchValue;
 
 public sealed record BenchSymbol(string Name) : BenchValue;
+
+public sealed record TranDataset(
+    double[] TimePoints,
+    IReadOnlyDictionary<string, double[]> NodeVoltages
+);
+
+public sealed record BenchWaveform(
+    double[] TimePointsS,
+    double[] Values,
+    BenchNumericKind ValueKind
+) : BenchValue;

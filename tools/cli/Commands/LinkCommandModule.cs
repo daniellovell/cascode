@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Cascode.Cli.Output;
 using Cascode.Language;
 
 namespace Cascode.Cli.Commands;
@@ -7,10 +8,12 @@ namespace Cascode.Cli.Commands;
 internal sealed class LinkCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
-    public LinkCommandModule(ShellState state)
+    public LinkCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     public void Register(CommandRegistry registry)
@@ -22,9 +25,10 @@ internal sealed class LinkCommandModule : ICommandModule
 
     private CommandResult LinkCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: link <cascode_file> [-o|--out <dir>]");
+            output.WriteLine("Usage: link <cascode_file> [-o|--out <dir>]");
             return CommandResult.Success;
         }
 
@@ -41,14 +45,14 @@ internal sealed class LinkCommandModule : ICommandModule
 
             if (args[i].StartsWith('-'))
             {
-                _state.AddMessage($"Error: unknown option '{args[i]}'.");
+                output.Error($"Error: unknown option '{args[i]}'.");
                 return new CommandResult(2, false);
             }
         }
 
         if (!File.Exists(inputPath))
         {
-            _state.AddMessage($"Error: input file '{inputPath}' not found.");
+            output.Error($"Error: input file '{inputPath}' not found.");
             return new CommandResult(2, false);
         }
 
@@ -65,20 +69,20 @@ internal sealed class LinkCommandModule : ICommandModule
         {
             if (d.Severity == DiagnosticSeverity.Error)
             {
-                _state.AddMessage(d.Message);
+                output.Error(d.Message);
             }
         }
 
         if (!result.Success || result.LinkedCasPath is null)
         {
-            _state.AddMessage("link failed.");
+            output.Error("link failed.");
             return new CommandResult(2, false);
         }
 
-        _state.AddMessage($"Linked: {result.LinkedCasPath}");
+        output.Success($"Linked: {result.LinkedCasPath}");
         if (result.SynthYamlPath is not null)
         {
-            _state.AddMessage($"Synth: {result.SynthYamlPath}");
+            output.WriteLine($"Synth: {result.SynthYamlPath}");
         }
 
         return CommandResult.Success;

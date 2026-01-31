@@ -220,9 +220,11 @@ public static class SpiceEmitter
         }
 
         // Emit declarative bench testbenches (if any bindings exist on EL circuits).
+        var benchPlans = BenchCompiler.CompileAllPlans(doc);
         result.TestbenchPaths.AddRange(
-            BenchTestbenchEmitter.EmitAll(
+            BenchTestbenchEmitter.EmitPlans(
                 doc,
+                benchPlans,
                 outputDir,
                 backend,
                 result.DesignPaths,
