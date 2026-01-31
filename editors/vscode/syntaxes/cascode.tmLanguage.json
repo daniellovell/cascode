@@ -63,7 +63,6 @@
     "declarations": {
       "patterns": [
         { "include": "#interface-declaration" },
-        { "include": "#module-declaration" },
         { "include": "#motif-declaration" },
         { "include": "#bench-declaration" },
         { "include": "#bundle-declaration" },
@@ -110,51 +109,6 @@
         { "include": "#connector-block" },
         { "include": "#metrics-block" },
         { "include": "#benches-block" },
-        { "include": "#punctuation-semicolon" }
-      ]
-    },
-
-    "module-declaration": {
-      "begin": "(module)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
-      "beginCaptures": {
-        "1": { "name": "storage.type.module.cascode" },
-        "2": { "name": "entity.name.type.module.cascode" },
-        "3": { "name": "storage.modifier.implements.cascode" },
-        "4": { "name": "entity.name.type.interface.cascode" }
-      },
-      "end": "(?<=\\})",
-      "patterns": [
-        { "include": "#comment" },
-        {
-          "begin": "\\{",
-          "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
-          },
-          "end": "\\}",
-          "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
-          },
-          "patterns": [
-            { "include": "#module-members" }
-          ]
-        }
-      ]
-    },
-
-    "module-members": {
-      "patterns": [
-        { "include": "#comment" },
-        { "include": "#supply-declaration" },
-        { "include": "#ground-declaration" },
-        { "include": "#port-declaration" },
-        { "include": "#param-declaration" },
-        { "include": "#env-block" },
-        { "include": "#spec-block" },
-        { "include": "#bench-ref-block" },
-        { "include": "#use-block" },
-        { "include": "#slot-declaration" },
-        { "include": "#synth-block" },
-        { "include": "#char-block" },
         { "include": "#punctuation-semicolon" }
       ]
     },
@@ -230,13 +184,20 @@
       "patterns": [
         { "include": "#comment" },
         { "include": "#level-declaration" },
-        { "include": "#port-declaration" },
+        { "include": "#inline-declaration" },
+        { "include": "#supply-declaration" },
         { "include": "#ground-declaration" },
+        { "include": "#port-declaration" },
+        { "include": "#slot-declaration" },
+        { "include": "#fill-block" },
+        { "include": "#constraints-block" },
+        { "include": "#harness-block" },
+        { "include": "#env-block" },
+        { "include": "#benches-block" },
+        { "include": "#synth-block" },
+        { "include": "#provenance-block" },
         { "include": "#instance-declaration" },
         { "include": "#device-declaration" },
-        { "include": "#fill-block" },
-        { "include": "#benches-block" },
-        { "include": "#constraints-block" },
         { "include": "#attach-statement" },
         { "include": "#binding-statement" },
         { "include": "#punctuation-semicolon" }
@@ -488,6 +449,11 @@
         "1": { "name": "keyword.other.level.cascode" },
         "2": { "name": "constant.language.level.cascode" }
       }
+    },
+
+    "inline-declaration": {
+      "match": "\\b(inline)\\b",
+      "name": "storage.modifier.inline.cascode"
     },
 
     "terminal-declaration": {
@@ -887,6 +853,77 @@
           "name": "keyword.control.synth.cascode"
         },
         { "include": "#expression" }
+      ]
+    },
+
+    "harness-block": {
+      "begin": "(harness)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.harness.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#harness-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "harness-statement": {
+      "patterns": [
+        {
+          "match": "\\b(supply|ground|bias)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(=)",
+          "captures": {
+            "1": { "name": "keyword.other.harness.cascode" },
+            "2": { "name": "entity.name.variable.cascode" },
+            "3": { "name": "keyword.operator.assignment.cascode" }
+          }
+        },
+        {
+          "match": "\\b(load|source|sweep|icmr|pvt)\\b",
+          "name": "keyword.other.harness.cascode"
+        },
+        { "include": "#expression" }
+      ]
+    },
+
+    "provenance-block": {
+      "begin": "(provenance)\\s*\\{",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.block.provenance.cascode" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.curlybrace.close.cascode" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#provenance-statement" },
+        { "include": "#punctuation-semicolon" }
+      ]
+    },
+
+    "provenance-statement": {
+      "patterns": [
+        {
+          "match": "\\b(source|transform)\\s+(\"[^\"]*\")",
+          "captures": {
+            "1": { "name": "keyword.other.provenance.cascode" },
+            "2": { "name": "string.quoted.double.cascode" }
+          }
+        },
+        {
+          "match": "\\b(alias)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "keyword.other.provenance.cascode" },
+            "2": { "name": "entity.name.variable.cascode" },
+            "3": { "name": "keyword.operator.assignment.cascode" },
+            "4": { "name": "variable.other.cascode" }
+          }
+        }
       ]
     },
 
