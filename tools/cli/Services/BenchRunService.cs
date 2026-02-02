@@ -988,8 +988,53 @@ public class BenchRunService
             var analyses = new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
                 StringComparer.OrdinalIgnoreCase
             );
+
+            var hasDc = plan.Analyses.Any(a => a.Type == BenchValueType.DCAnalysis);
+            IReadOnlyDictionary<string, double>? opNodeVoltagesByKey = null;
+            if (hasDc)
+            {
+                var nodesWrdataPath = BenchRuntimePaths.GetOpNodesWrdataPath(
+                    Path.GetDirectoryName(testbenchPath)!,
+                    plan.CircuitName,
+                    plan.BindingName
+                );
+                opNodeVoltagesByKey = NgspiceWrdataOpParser.ParseNodeVoltages(
+                    nodesWrdataPath,
+                    plan.AcNodeKeys
+                );
+            }
+
             foreach (var a in plan.Analyses)
             {
+                if (a.Type == BenchValueType.DCAnalysis)
+                {
+                    if (opNodeVoltagesByKey is null)
+                    {
+                        throw new InvalidOperationException(
+                            $"DCAnalysis '{a.Name}' requires op node voltages, but none were parsed."
+                        );
+                    }
+
+                    var f = new[] { 0.0 };
+                    var nodes = new Dictionary<string, System.Numerics.Complex[]>(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                    foreach (var (key, v) in opNodeVoltagesByKey)
+                    {
+                        nodes[key] = new[] { new System.Numerics.Complex(v, 0) };
+                    }
+
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        StartHz: 0,
+                        StopHz: 0,
+                        StartS: 0,
+                        StopS: 0,
+                        Ac: new AcDataset(f, nodes)
+                    );
+                    continue;
+                }
+
                 if (a.Type == BenchValueType.ACAnalysis)
                 {
                     var wrdataPath = BenchRuntimePaths.GetAcWrdataPath(
@@ -1000,11 +1045,39 @@ public class BenchRunService
                     );
 
                     var ac = NgspiceWrdataAcParser.Parse(wrdataPath, plan.AcNodeKeys);
+
+                    AcDataset? acCurrents = null;
+                    if (plan.RequiresCurrents)
+                    {
+                        var currentSources = plan
+                            .HarnessElements.Where(e =>
+                                e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                                || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                                || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+                            )
+                            .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+                        if (currentSources.Count > 0)
+                        {
+                            var iWrdataPath = BenchRuntimePaths.GetAcCurrentsWrdataPath(
+                                Path.GetDirectoryName(testbenchPath)!,
+                                plan.CircuitName,
+                                plan.BindingName,
+                                a.Name
+                            );
+                            var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
+                            acCurrents = NgspiceWrdataAcParser.Parse(iWrdataPath, sourceNames);
+                        }
+                    }
+
                     analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
                         a.Name,
                         a.StartHz,
                         a.StopHz,
-                        ac
+                        StartS: 0,
+                        StopS: 0,
+                        ac,
+                        AcCurrents: acCurrents
                     );
                 }
                 else if (a.Type == BenchValueType.NoiseAnalysis)
@@ -1021,8 +1094,54 @@ public class BenchRunService
                         a.Name,
                         a.StartHz,
                         a.StopHz,
+                        StartS: 0,
+                        StopS: 0,
                         Ac: null,
                         Noise: noise
+                    );
+                }
+                else if (a.Type == BenchValueType.TranAnalysis)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetTranWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.BindingName,
+                        a.Name
+                    );
+
+                    var nodes = NgspiceWrdataTranParser.Parse(wrdataPath, plan.AcNodeKeys);
+
+                    TranDataset? currents = null;
+                    var currentSources = plan
+                        .HarnessElements.Where(e =>
+                            e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                            || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                            || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+                        )
+                        .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    if (plan.RequiresCurrents && currentSources.Count > 0)
+                    {
+                        var iWrdataPath = BenchRuntimePaths.GetTranCurrentsWrdataPath(
+                            Path.GetDirectoryName(testbenchPath)!,
+                            plan.CircuitName,
+                            plan.BindingName,
+                            a.Name
+                        );
+                        var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
+                        currents = NgspiceWrdataTranParser.Parse(iWrdataPath, sourceNames);
+                    }
+
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        StartHz: 0,
+                        StopHz: 0,
+                        StartS: a.StartS ?? 0,
+                        StopS: a.StopS ?? 0,
+                        Ac: null,
+                        Noise: null,
+                        Tran: nodes,
+                        TranCurrents: currents
                     );
                 }
             }
@@ -1060,7 +1179,8 @@ public class BenchRunService
                 plan.Harness,
                 plan.Constraints,
                 harnessElements: plan.HarnessElements,
-                sourceCurrentsByName: opCurrentsBySourceName
+                sourceCurrentsByName: opCurrentsBySourceName,
+                dutNodeKeyByPinRef: plan.DutNodeKeyByPinRef
             );
 
             swParse.Stop();
@@ -1079,13 +1199,36 @@ public class BenchRunService
             {
                 var node = nodeByMetric.TryGetValue(metric, out var n) ? n : null;
                 var key = node == null ? metric : $"{metric}@{node}";
+
+                if (v.Value is BenchMissing)
+                {
+                    // Preserve the "missing" distinction for compliance by omitting the measurement.
+                    continue;
+                }
+
+                var resultValue = double.NaN;
+                string? error = null;
+                if (v.Value is BenchNumber num)
+                {
+                    resultValue = num.Value;
+                }
+                else if (v.Value is BenchError err)
+                {
+                    error = err.Message;
+                }
+                else
+                {
+                    error = $"Unexpected measurement value type '{v.Value.GetType().Name}'.";
+                }
+
                 results.Measurements[key] = new MeasurementResult
                 {
                     Metric = metric,
-                    Value = v.Value,
+                    Value = resultValue,
                     Unit = v.Unit,
                     Node = node,
                     Bench = benchName,
+                    Error = error,
                 };
             }
 
@@ -1226,7 +1369,7 @@ public class BenchRunService
 
     private static IReadOnlyDictionary<
         string,
-        (double Value, string Unit)
+        (BenchValue Value, string Unit)
     > EvaluateMetricsForConstraintsOrAll(
         BenchMeasurementRunner runner,
         BenchDefinition bench,
@@ -1235,7 +1378,22 @@ public class BenchRunService
     {
         if (constraints.Count == 0)
         {
-            return runner.RunAll();
+            var all = runner.RunAllValues();
+            var evaluations = new Dictionary<string, (BenchValue, string)>(
+                StringComparer.OrdinalIgnoreCase
+            );
+            foreach (var (metric, v) in all)
+            {
+                var unit =
+                    bench
+                        .Measurements.FirstOrDefault(m =>
+                            m.Name.Equals(metric, StringComparison.OrdinalIgnoreCase)
+                        )
+                        ?.Unit
+                    ?? string.Empty;
+                evaluations[metric] = (v, unit);
+            }
+            return evaluations;
         }
 
         // Deduplicate constraint-driven metric invocations (including parameterized metrics).
@@ -1247,7 +1405,9 @@ public class BenchRunService
             invocations.TryAdd(FormatMetricKey(c), c);
         }
 
-        var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+        var results = new Dictionary<string, (BenchValue, string)>(
+            StringComparer.OrdinalIgnoreCase
+        );
 
         // Evaluate non-parameterized metrics in one batch.
         var noArgMetrics = invocations
@@ -1256,9 +1416,16 @@ public class BenchRunService
             .ToList();
         if (noArgMetrics.Count > 0)
         {
-            foreach (var (metric, v) in runner.RunMetrics(noArgMetrics))
+            foreach (var (metric, v) in runner.RunMetricValues(noArgMetrics))
             {
-                results[metric] = v;
+                var unit =
+                    bench
+                        .Measurements.FirstOrDefault(m =>
+                            m.Name.Equals(metric, StringComparison.OrdinalIgnoreCase)
+                        )
+                        ?.Unit
+                    ?? string.Empty;
+                results[metric] = (v, unit);
             }
         }
 
@@ -1287,7 +1454,8 @@ public class BenchRunService
                 args[a.Name] = ParseConstraintArgValue(a.Value);
             }
 
-            results[metricKey] = runner.RunMetricWithNamedArgs(c.Metric, args);
+            var unit = measurement.Unit;
+            results[metricKey] = (runner.RunMetricWithNamedArgsValue(c.Metric, args), unit);
         }
 
         return results;

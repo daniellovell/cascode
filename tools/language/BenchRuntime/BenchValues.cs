@@ -8,6 +8,7 @@ public enum BenchNumericKind
 {
     Scalar,
     FrequencyHz,
+    VoltageRatioLinear,
     VoltageRatioDb,
     PhaseDeg,
     VoltageV,
@@ -28,6 +29,10 @@ public sealed record BenchNumber(BenchNumericKind Kind, double Value) : BenchVal
 
 public sealed record BenchTerminalRef(string Name, IReadOnlyList<string> LeafNodes) : BenchValue;
 
+public sealed record BenchError(string Message) : BenchValue;
+
+public sealed record BenchElementPinRef(string ElementId, string Pin) : BenchValue;
+
 /// <summary>
 /// Represents an intentionally-absent value (e.g. optional constraint not provided).
 /// </summary>
@@ -40,14 +45,20 @@ public sealed record BenchMissing : BenchValue
 
 public sealed record BenchTransferFunction(double[] FrequenciesHz, Complex[] Values) : BenchValue;
 
-public sealed record BenchRealFunction(
+public sealed record BenchGainSpectrum(
     double[] FrequenciesHz,
     double[] Values,
-    BenchNumericKind RangeKind
+    BenchNumericKind ValueKind
 ) : BenchValue;
 
-public sealed record BenchNoiseFunction(double[] FrequenciesHz, double[] ValuesVPerRtHz)
+public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees) : BenchValue;
+
+public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
     : BenchValue;
+
+public sealed record BenchVoltageSpectrum(double[] FrequenciesHz, Complex[] Values) : BenchValue;
+
+public sealed record BenchCurrentSpectrum(double[] FrequenciesHz, Complex[] Values) : BenchValue;
 
 public sealed record BenchAnalysisRef(string Name) : BenchValue;
 

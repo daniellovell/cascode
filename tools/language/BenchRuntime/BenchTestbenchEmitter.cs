@@ -125,33 +125,68 @@ public static class BenchTestbenchEmitter
             .HarnessElements.Where(e => e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase))
             .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (vdcSources.Count > 0)
+        var hasDc = plan.Analyses.Any(a => a.Type == BenchValueType.DCAnalysis);
+        if (vdcSources.Count > 0 || hasDc)
         {
             sb.AppendLine();
-            sb.AppendLine("* operating point + supply currents");
+            sb.AppendLine("* operating point");
             sb.AppendLine("op");
+            sb.AppendLine("setplot op1");
 
-            var opWrdata = BenchRuntimePaths.GetOpWrdataPath(
-                outputDir,
-                plan.CircuitName,
-                plan.BindingName
-            );
-            sb.Append($"wrdata {Path.GetFileName(opWrdata)}");
-            foreach (var s in vdcSources)
+            if (vdcSources.Count > 0)
             {
-                sb.Append(' ');
-                sb.Append($"i(V{s.Id})");
+                sb.AppendLine("* supply currents");
+                var opWrdata = BenchRuntimePaths.GetOpWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.BindingName
+                );
+                sb.Append($"wrdata {Path.GetFileName(opWrdata)}");
+                foreach (var s in vdcSources)
+                {
+                    sb.Append(' ');
+                    sb.Append($"i(V{s.Id})");
+                }
+                sb.AppendLine();
             }
-            sb.AppendLine();
+
+            if (hasDc)
+            {
+                sb.AppendLine("* node voltages");
+                var nodesWrdata = BenchRuntimePaths.GetOpNodesWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.BindingName
+                );
+                sb.Append($"wrdata {Path.GetFileName(nodesWrdata)}");
+                foreach (var node in plan.AcNodeKeys)
+                {
+                    sb.Append(' ');
+                    sb.Append($"v({node})");
+                }
+                sb.AppendLine();
+            }
         }
 
+        var currentSources = plan
+            .HarnessElements.Where(e =>
+                e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+            )
+            .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var acIndex = 0;
         foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.ACAnalysis))
         {
+            acIndex++;
             var start = SiValue.FormatForBackend(a.StartHz, backend);
             var stop = SiValue.FormatForBackend(a.StopHz, backend);
 
             var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
             sb.AppendLine($"ac {space} {a.Samples} {start} {stop}");
+            sb.AppendLine($"setplot ac{acIndex}");
 
             var wrdata = BenchRuntimePaths.GetAcWrdataPath(
                 outputDir,
@@ -166,6 +201,23 @@ public static class BenchTestbenchEmitter
                 sb.Append($"v({node})");
             }
             sb.AppendLine();
+
+            if (plan.RequiresCurrents && currentSources.Count > 0)
+            {
+                var iWrdata = BenchRuntimePaths.GetAcCurrentsWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.BindingName,
+                    a.Name
+                );
+                sb.Append($"wrdata {Path.GetFileName(iWrdata)}");
+                foreach (var s in currentSources)
+                {
+                    sb.Append(' ');
+                    sb.Append($"i(V{s.Id})");
+                }
+                sb.AppendLine();
+            }
         }
 
         var noiseIndex = 0;
@@ -200,6 +252,68 @@ public static class BenchTestbenchEmitter
                 a.Name
             );
             sb.AppendLine($"wrdata {Path.GetFileName(wrdata)} onoise_spectrum");
+        }
+
+        var tranIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.TranAnalysis))
+        {
+            tranIndex++;
+            var stepS =
+                a.StepS
+                ?? throw new InvalidOperationException(
+                    $"TranAnalysis '{a.Name}' missing StepS in plan."
+                );
+            var stopS =
+                a.StopS
+                ?? throw new InvalidOperationException(
+                    $"TranAnalysis '{a.Name}' missing StopS in plan."
+                );
+
+            var step = SiValue.FormatForBackend(stepS, backend);
+            var stop = SiValue.FormatForBackend(stopS, backend);
+            var start = a.StartS is null ? null : SiValue.FormatForBackend(a.StartS.Value, backend);
+
+            if (a.StartS is not null && a.StartS.Value > 0)
+            {
+                sb.AppendLine($"tran {step} {stop} {start}");
+            }
+            else
+            {
+                sb.AppendLine($"tran {step} {stop}");
+            }
+
+            sb.AppendLine($"setplot tran{tranIndex}");
+
+            var wrdata = BenchRuntimePaths.GetTranWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.BindingName,
+                a.Name
+            );
+            sb.Append($"wrdata {Path.GetFileName(wrdata)}");
+            foreach (var node in plan.AcNodeKeys)
+            {
+                sb.Append(' ');
+                sb.Append($"v({node})");
+            }
+            sb.AppendLine();
+
+            if (plan.RequiresCurrents && currentSources.Count > 0)
+            {
+                var iWrdata = BenchRuntimePaths.GetTranCurrentsWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.BindingName,
+                    a.Name
+                );
+                sb.Append($"wrdata {Path.GetFileName(iWrdata)}");
+                foreach (var s in currentSources)
+                {
+                    sb.Append(' ');
+                    sb.Append($"i(V{s.Id})");
+                }
+                sb.AppendLine();
+            }
         }
 
         sb.AppendLine("quit");

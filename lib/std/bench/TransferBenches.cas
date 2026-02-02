@@ -15,55 +15,55 @@ function infer_hp_corner(Frequency fallback) : Frequency {
   return fallback
 }
 
-function infer_lp_corner(ACAnalysis ac, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+function infer_lp_corner(ACAnalysis ac, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {
   if lpConstraint { return lpConstraint }
   return ac.stop
 }
 
-function calc_passband_gain(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : VoltageRatio {
+function calc_passband_gain(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : VoltageRatio {
   TransferFunction H = transfer(ac, IN, OUT)
-  RealFunction G = db20(mag(H))
+  GainSpectrum G = db20(H.Mag())
 
   Frequency hp = infer_hp_corner(1Hz)
   Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
   Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-  return eval(G, fpb)
+  return G.ValueAt(fpb)
 }
 
 function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
   TransferFunction H = transfer(ac, IN, OUT)
-  RealFunction G = db20(mag(H))
+  GainSpectrum G = db20(H.Mag())
 
-  return find_crossing(G, 0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+  return G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
 }
 
-function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {
   TransferFunction H = transfer(ac, IN, OUT)
-  RealFunction G = db20(mag(H))
+  GainSpectrum G = db20(H.Mag())
 
   Frequency hp = infer_hp_corner(1Hz)
   Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
   Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-  VoltageRatio gpb = eval(G, fpb)
+  VoltageRatio gpb = G.ValueAt(fpb)
   VoltageRatio thr = gpb - 3dB
 
-  return find_crossing(G, thr, dir=falling, cross=1, from=fpb, to=ac.stop)
+  return G.FindCrossing(thr, dir=falling, cross=1, from=fpb, to=ac.stop)
 }
 
-function calc_highpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Scalar gbwConstraint) : Frequency {
+function calc_highpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {
   TransferFunction H = transfer(ac, IN, OUT)
-  RealFunction G = db20(mag(H))
+  GainSpectrum G = db20(H.Mag())
 
   Frequency hp = infer_hp_corner(1Hz)
   Frequency lp = infer_lp_corner(ac, lpConstraint, gbwConstraint)
   Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-  VoltageRatio gpb = eval(G, fpb)
+  VoltageRatio gpb = G.ValueAt(fpb)
   VoltageRatio thr = gpb - 3dB
 
-  return find_crossing(G, thr, dir=rising, cross=1, from=ac.start, to=fpb)
+  return G.FindCrossing(thr, dir=rising, cross=1, from=ac.start, to=fpb)
 }
 
 // TODO: We should support bench templates/abstract benches in the future

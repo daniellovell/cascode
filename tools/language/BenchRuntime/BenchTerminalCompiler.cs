@@ -10,7 +10,8 @@ internal sealed record BenchTerminalCompilation(
     IReadOnlyDictionary<string, BenchTerminalRef> Terminals,
     IReadOnlyList<string> DutOrderedNets,
     IReadOnlyList<string> AcNodeKeys,
-    IReadOnlyList<string> DutAcNodeKeys
+    IReadOnlyList<string> DutAcNodeKeys,
+    IReadOnlyDictionary<string, string> DutNodeKeyByPinRef
 );
 
 internal static class BenchTerminalCompiler
@@ -19,6 +20,7 @@ internal static class BenchTerminalCompiler
         BenchDefinition bench,
         Circuit circuit,
         IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName,
         BenchUnionFind uf,
         IReadOnlyList<InstanceDeclaration> instances
     )
@@ -26,6 +28,7 @@ internal static class BenchTerminalCompiler
         ArgumentNullException.ThrowIfNull(bench);
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(bundlesByName);
+        ArgumentNullException.ThrowIfNull(circuitsByName);
         ArgumentNullException.ThrowIfNull(uf);
         ArgumentNullException.ThrowIfNull(instances);
 
@@ -58,9 +61,13 @@ internal static class BenchTerminalCompiler
         var dutOrderedNets = BuildDutOrderedNets(circuit, netlist);
 
         var dutAccessPinRefs = CollectDutAccessPinRefs(bench);
-        var dutAcNodeKeys = dutAccessPinRefs
-            .Select(p => "XDUT:" + p.Replace('.', '_'))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var dutNodeKeyByPinRef = BenchDutNodeResolver.ResolveNodeKeys(
+            circuitsByName,
+            circuit,
+            dutAccessPinRefs
+        );
+        var dutAcNodeKeys = dutNodeKeyByPinRef
+            .Values.Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -76,7 +83,8 @@ internal static class BenchTerminalCompiler
             terminals,
             dutOrderedNets,
             acNodeKeys,
-            dutAcNodeKeys
+            dutAcNodeKeys,
+            dutNodeKeyByPinRef
         );
     }
 

@@ -34,8 +34,11 @@ public enum BenchValueType
     Frequency,
     VoltageRatio,
     TransferFunction,
-    RealFunction,
-    NoiseFunction,
+    GainSpectrum,
+    PhaseSpectrum,
+    VoltageSpectrum,
+    CurrentSpectrum,
+    NoiseSpectrum,
     NoiseSpectralDensity,
     IntegratedNoise,
     Impedance,
@@ -46,6 +49,13 @@ public enum BenchValueType
     Time,
     Phase,
     Scalar,
+
+    // Time-domain compound types
+    VoltageWaveform,
+    CurrentWaveform,
+
+    // Element references (used for current probing)
+    ElementPin,
 
     // Analysis types
     ACAnalysis,
@@ -132,6 +142,12 @@ public sealed record MeasurementCall(string Name, IReadOnlyList<MeasurementCallA
     : MeasurementExpr;
 
 public sealed record MeasurementCallArg(string? Name, MeasurementExpr Value);
+
+public sealed record MeasurementMethodCall(
+    MeasurementExpr Receiver,
+    string Method,
+    IReadOnlyList<MeasurementCallArg> Args
+) : MeasurementExpr;
 
 public sealed record MeasurementNumber(string Raw) : MeasurementExpr;
 

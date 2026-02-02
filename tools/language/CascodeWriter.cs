@@ -801,6 +801,8 @@ public static class CascodeWriter
                 $"({FormatMeasurementExpr(b.Left)} {b.Op} {FormatMeasurementExpr(b.Right)})",
             MeasurementCall c =>
                 $"{c.Name}({string.Join(", ", c.Args.Select(FormatMeasurementArg))})",
+            MeasurementMethodCall m =>
+                $"{FormatMeasurementExpr(m.Receiver)}.{m.Method}({string.Join(", ", m.Args.Select(FormatMeasurementArg))})",
             MeasurementConditional c =>
                 $"(if {FormatBoolExpr(c.Condition)} {{ {FormatMeasurementExpr(c.ThenExpr)} }} else {{ {FormatMeasurementExpr(c.ElseExpr)} }})",
             _ => throw new InvalidOperationException(

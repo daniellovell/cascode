@@ -1101,11 +1101,23 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitUnaryMeasurementExpr([NotNull] CascodeParser.UnaryMeasurementExprContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.measurementAtom"/>.
+	/// Visit a parse tree produced by <see cref="CascodeParser.measurementPostfix"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitMeasurementAtom([NotNull] CascodeParser.MeasurementAtomContext context);
+	Result VisitMeasurementPostfix([NotNull] CascodeParser.MeasurementPostfixContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.methodCallSuffix"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMethodCallSuffix([NotNull] CascodeParser.MethodCallSuffixContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.measurementPrimary"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMeasurementPrimary([NotNull] CascodeParser.MeasurementPrimaryContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.measurementFunctionCall"/>.
 	/// </summary>

@@ -50,8 +50,9 @@ internal sealed class SpectreCliOutput : ICliOutput
                     void Progress(string msg)
                     {
                         var ts = sw.Elapsed;
-                        // Status text is parsed as Spectre markup; escape to avoid accidental style tags.
-                        ctx.Status(Markup.Escape($"[{ts:hh\\:mm\\:ss}] {msg}"));
+                        // Status text is parsed as Spectre markup. Avoid any brackets in the raw
+                        // text so we never accidentally create a style tag like "[00:00:00]".
+                        ctx.Status(Markup.Escape($"{ts:hh\\:mm\\:ss} {msg}"));
                     }
 
                     try

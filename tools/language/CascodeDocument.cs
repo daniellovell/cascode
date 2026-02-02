@@ -26,6 +26,14 @@ public sealed class CascodeDocument
     public List<IncludeDirective> Includes { get; init; } = new();
 
     /// <summary>
+    /// File-level library namespace declared via <c>library ...</c>.
+    /// <para />
+    /// This is source-file metadata; linked documents typically combine multiple libraries and
+    /// should leave this unset.
+    /// </summary>
+    public string? FileLibrary { get; init; }
+
+    /// <summary>
     /// File-level helper functions (available to benches and other functions once linked).
     /// </summary>
     public List<FunctionDefinition> Functions { get; init; } = new();

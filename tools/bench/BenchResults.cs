@@ -34,6 +34,13 @@ public sealed class MeasurementResult
     [JsonPropertyName("value")]
     public double Value { get; init; }
 
+    /// <summary>
+    /// Optional error message when the measurement evaluation failed.
+    /// When present, <see cref="Value"/> is not meaningful.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public string? Error { get; init; }
+
     /// <summary>Unit of measurement (e.g., "dB", "Hz", "deg").</summary>
     [JsonPropertyName("unit")]
     public string Unit { get; init; } = string.Empty;

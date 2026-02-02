@@ -240,11 +240,15 @@ internal sealed partial class CascodeAstBuilder
                 Name = decl.name.Text,
             };
 
-            foreach (var p in decl.analysisParams().analysisParam())
+            var analysisParams = decl.analysisParams();
+            if (analysisParams is not null)
             {
-                analysis.Parameters[p.idPart().GetText()] = BuildConditionalExpr(
-                    p.conditionalExpr()
-                );
+                foreach (var p in analysisParams.analysisParam())
+                {
+                    analysis.Parameters[p.idPart().GetText()] = BuildConditionalExpr(
+                        p.conditionalExpr()
+                    );
+                }
             }
 
             analyses.Add(analysis);
@@ -450,13 +454,50 @@ internal sealed partial class CascodeAstBuilder
     {
         if (ctx.MINUS() is null)
         {
-            return BuildMeasurementAtom(ctx.measurementAtom());
+            return BuildMeasurementPostfix(ctx.measurementPostfix());
         }
 
         return new MeasurementUnary("-", BuildUnaryMeasurementExpr(ctx.unaryMeasurementExpr()));
     }
 
-    private MeasurementExpr BuildMeasurementAtom(CascodeParser.MeasurementAtomContext ctx)
+    private MeasurementExpr BuildMeasurementPostfix(CascodeParser.MeasurementPostfixContext ctx)
+    {
+        var expr = BuildMeasurementPrimary(ctx.measurementPrimary());
+        foreach (var suffix in ctx.methodCallSuffix())
+        {
+            var args = new List<MeasurementCallArg>();
+            if (suffix.measurementArgList() is not null)
+            {
+                foreach (var arg in suffix.measurementArgList().measurementArg())
+                {
+                    if (arg.idPart() is not null)
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                arg.idPart().GetText(),
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                    else
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                null,
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                }
+            }
+
+            expr = new MeasurementMethodCall(expr, suffix.IDENT().GetText(), args);
+        }
+
+        return expr;
+    }
+
+    private MeasurementExpr BuildMeasurementPrimary(CascodeParser.MeasurementPrimaryContext ctx)
     {
         if (ctx.ifExpr() is not null)
         {
@@ -525,7 +566,7 @@ internal sealed partial class CascodeAstBuilder
             return new MeasurementQuantity(ctx.QUANTITY().GetText());
         }
 
-        throw new InvalidOperationException($"Unsupported measurement atom: {ctx.GetText()}");
+        throw new InvalidOperationException($"Unsupported measurement primary: {ctx.GetText()}");
     }
 
     private ScopedValueRef BuildScopedValueRef(CascodeParser.ScopedAccessContext ctx)
@@ -540,7 +581,7 @@ internal sealed partial class CascodeAstBuilder
             return new ScopedValueRef(MeasurementScope.Constraints, ctx.IDENT().GetText());
         }
 
-        return new ScopedValueRef(MeasurementScope.Harness, ctx.IDENT().GetText());
+        return new ScopedValueRef(MeasurementScope.Harness, BuildPinRef(ctx.pinRef()));
     }
 
     private static ComparisonOp ParseComparisonOp(string raw) =>
@@ -594,10 +635,16 @@ internal sealed partial class CascodeAstBuilder
             "Frequency" => BenchValueType.Frequency,
             "VoltageRatio" => BenchValueType.VoltageRatio,
             "TransferFunction" => BenchValueType.TransferFunction,
-            "RealFunction" => BenchValueType.RealFunction,
-            "NoiseFunction" => BenchValueType.NoiseFunction,
+            "GainSpectrum" => BenchValueType.GainSpectrum,
+            "PhaseSpectrum" => BenchValueType.PhaseSpectrum,
+            "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
+            "CurrentSpectrum" => BenchValueType.CurrentSpectrum,
+            "NoiseSpectrum" => BenchValueType.NoiseSpectrum,
+            "VoltageWaveform" => BenchValueType.VoltageWaveform,
+            "CurrentWaveform" => BenchValueType.CurrentWaveform,
             "NoiseSpectralDensity" => BenchValueType.NoiseSpectralDensity,
             "IntegratedNoise" => BenchValueType.IntegratedNoise,
+            "ElementPin" => BenchValueType.ElementPin,
             "Impedance" => BenchValueType.Impedance,
             "Capacitance" => BenchValueType.Capacitance,
             "Inductance" => BenchValueType.Inductance,

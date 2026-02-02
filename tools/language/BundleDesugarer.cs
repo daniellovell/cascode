@@ -49,6 +49,7 @@ public static class BundleDesugarer
             VersionMajor = document.VersionMajor,
             VersionMinor = document.VersionMinor,
             Includes = document.Includes,
+            FileLibrary = document.FileLibrary,
             Functions = document.Functions,
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),

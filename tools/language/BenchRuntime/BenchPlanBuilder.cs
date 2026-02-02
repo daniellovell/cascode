@@ -25,6 +25,7 @@ public static class BenchPlanBuilder
 
         var bundlesByName = BundleExpander.GetBundlesByName(document);
         var functions = BuildFunctions(document, bench);
+        var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
 
         var connectivity = BenchConnectivityBuilder.Build(bench, binding, bundlesByName);
         var harnessCompilation = BenchHarnessCompiler.CompileAndInject(
@@ -34,9 +35,16 @@ public static class BenchPlanBuilder
             connectivity.Instances
         );
 
-        var evalTerminals = new Dictionary<string, BenchTerminalRef>(
-            StringComparer.OrdinalIgnoreCase
+        var terminalCompilation = BenchTerminalCompiler.Compile(
+            bench,
+            circuit,
+            bundlesByName,
+            circuitsByName,
+            connectivity.Uf,
+            harnessCompilation.Instances
         );
+
+        var dutSubcktName = SpiceEmitter.GetDefaultVariantName(circuit);
 
         // Used for evaluating analysis params and harness instance arguments.
         var evalRunner = new BenchMeasurementRunner(
@@ -45,26 +53,12 @@ public static class BenchPlanBuilder
             analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
                 StringComparer.OrdinalIgnoreCase
             ),
-            terminals: evalTerminals,
+            terminals: terminalCompilation.Terminals,
             harnessCompilation.Env,
             harnessCompilation.Harness,
-            harnessCompilation.Constraints
+            harnessCompilation.Constraints,
+            dutNodeKeyByPinRef: terminalCompilation.DutNodeKeyByPinRef
         );
-
-        var terminalCompilation = BenchTerminalCompiler.Compile(
-            bench,
-            circuit,
-            bundlesByName,
-            connectivity.Uf,
-            harnessCompilation.Instances
-        );
-
-        foreach (var kvp in terminalCompilation.Terminals)
-        {
-            evalTerminals[kvp.Key] = kvp.Value;
-        }
-
-        var dutSubcktName = SpiceEmitter.GetDefaultVariantName(circuit);
 
         var analyses = BenchAnalysisCompiler.Compile(
             bench,
@@ -77,6 +71,10 @@ public static class BenchPlanBuilder
             terminalCompilation.Netlist,
             evalRunner
         );
+
+        var requiresCurrents =
+            BenchPrimitiveCallFinder.ContainsCall(bench, "current")
+            || BenchPrimitiveCallFinder.ContainsCall(bench, "quiescent_power");
 
         return new BenchPlan(
             circuit.Name,
@@ -91,10 +89,12 @@ public static class BenchPlanBuilder
             harnessCompilation.Harness,
             harnessCompilation.Constraints,
             harnessElements,
+            requiresCurrents,
             terminalCompilation.DutOrderedNets,
             dutSubcktName,
             terminalCompilation.AcNodeKeys,
             terminalCompilation.DutAcNodeKeys,
+            terminalCompilation.DutNodeKeyByPinRef,
             terminalCompilation.Netlist
         );
     }

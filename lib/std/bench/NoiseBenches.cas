@@ -62,20 +62,20 @@ bench DiffToSENoise {
   measurements {
     measurement InputReferredNoise : V/rtHz {
       // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_in, f_spot)
+      return n_in.ValueAt(f_spot)
     }
 
     measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return integrate(n_in, from, to)
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
     }
 
     measurement OutputNoise : V/rtHz {
-      NoiseFunction n_out = noise(noise_ac, OUT)
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_out, f_spot)
+      return n_out.ValueAt(f_spot)
     }
   }
 }

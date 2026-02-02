@@ -72,6 +72,7 @@ internal sealed partial class CascodeAstBuilder
         var functions = new List<FunctionDefinition>();
         var primitives = new List<PrimitiveDefinition>();
         var circuits = new List<Circuit>();
+        string? fileLibrary = null;
 
         foreach (var decl in ctx.topLevelDecl())
         {
@@ -83,9 +84,22 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
-            // File-level 'library ...' is currently metadata-only; keep parsing but ignore semantically.
             if (decl.filePackageDecl() is not null)
             {
+                var lib = BuildQualifiedName(decl.filePackageDecl().qualifiedName());
+                if (fileLibrary is not null)
+                {
+                    AddDiagnostic(
+                        decl.filePackageDecl(),
+                        DiagnosticSeverity.Error,
+                        "CAS0009: Multiple file-level library declarations are not allowed."
+                    );
+                }
+                else
+                {
+                    fileLibrary = lib;
+                }
+
                 continue;
             }
 
@@ -140,6 +154,7 @@ internal sealed partial class CascodeAstBuilder
             VersionMajor = major,
             VersionMinor = minor,
             Includes = includes,
+            FileLibrary = fileLibrary,
             Functions = functions,
             BundleTypes = bundles,
             Traits = traits,

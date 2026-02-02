@@ -59,6 +59,10 @@ public static class CascodeLinker
         //
         // This is required to keep `include lib.std` usable even if that library contains
         // sources that are not relevant to the current design (or are legacy syntax).
+        //
+        // Includes are resolved by file-level "library ..." headers (not by directory alone).
+        // This enables namespace inheritance and avoids parsing unrelated files.
+        var libraryIndex = CascodeLibraryIndex.Build(workspaceRoot);
         var includedDocs = new List<CascodeDocument>();
         var parsedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -108,7 +112,14 @@ public static class CascodeLinker
 
             diagnostics.AddRange(read.Diagnostics);
             includedDocs.Add(read.Document);
-            AddIncludeCandidates(read.Document, path, workspaceRoot, candidates, diagnostics);
+            AddIncludeCandidates(
+                read.Document,
+                path,
+                workspaceRoot,
+                libraryIndex,
+                candidates,
+                diagnostics
+            );
             CollectRequiredSymbols(read.Document, required);
             return true;
         }
@@ -148,6 +159,7 @@ public static class CascodeLinker
             entryRead.Document,
             entryFullPath,
             workspaceRoot,
+            libraryIndex,
             candidates,
             diagnostics
         );
@@ -296,13 +308,22 @@ public static class CascodeLinker
         CascodeDocument doc,
         string parsedFilePath,
         string workspaceRoot,
+        CascodeLibraryIndex libraryIndex,
         HashSet<string> candidates,
         List<Diagnostic> diagnostics
     )
     {
+        // Namespace inheritance: a file in "lib.std.bench" can see "lib.std" and "lib" automatically.
+        AddNamespaceInheritanceCandidates(doc.FileLibrary, libraryIndex, candidates);
+
         foreach (var inc in doc.Includes)
         {
-            var targets = ResolveIncludeTargets(inc.Name, parsedFilePath, workspaceRoot);
+            var targets = ResolveIncludeTargets(
+                inc.Name,
+                parsedFilePath,
+                workspaceRoot,
+                libraryIndex
+            );
             if (targets.Count == 0)
             {
                 diagnostics.Add(
@@ -320,6 +341,35 @@ public static class CascodeLinker
             foreach (var t in targets)
             {
                 candidates.Add(Path.GetFullPath(t));
+            }
+        }
+    }
+
+    private static void AddNamespaceInheritanceCandidates(
+        string? fileLibrary,
+        CascodeLibraryIndex libraryIndex,
+        HashSet<string> candidates
+    )
+    {
+        if (string.IsNullOrWhiteSpace(fileLibrary))
+        {
+            return;
+        }
+
+        var normalized = CascodeLibraryIndex.NormalizeLibraryName(fileLibrary);
+        var parts = normalized.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return;
+        }
+
+        // Ancestors only (no descendants): lib.std.bench inherits lib.std and lib.
+        for (var i = parts.Length - 1; i >= 1; i--)
+        {
+            var ancestor = string.Join('.', parts.Take(i));
+            foreach (var p in libraryIndex.FindExact(ancestor))
+            {
+                candidates.Add(Path.GetFullPath(p));
             }
         }
     }
@@ -621,9 +671,25 @@ public static class CascodeLinker
     private static IReadOnlyList<string> ResolveIncludeTargets(
         string includeName,
         string includingFilePath,
-        string workspaceRoot
+        string workspaceRoot,
+        CascodeLibraryIndex libraryIndex
     )
     {
+        // Library-based include:
+        // include lib.std -> all files with library lib.std.* (prefix match).
+        //
+        // This mirrors the historical directory-based behavior (lib/std/**) while decoupling
+        // resolution from folder structure and avoiding full parses of unrelated files.
+        var normalized = CascodeLibraryIndex.NormalizeLibraryName(includeName);
+        if (normalized.Contains('.', StringComparison.Ordinal))
+        {
+            var byLibrary = libraryIndex.FindByPrefix(normalized);
+            if (byLibrary.Count > 0)
+            {
+                return byLibrary;
+            }
+        }
+
         // Directory-based include:
         // - "lib.std" -> <workspaceRoot>/lib/std/**.cas
         // - "lib_std" -> <workspaceRoot>/lib/std/**.cas (legacy separator)
@@ -952,6 +1018,7 @@ public static class CascodeLinker
             VersionMajor = doc.VersionMajor,
             VersionMinor = doc.VersionMinor,
             Includes = doc.Includes,
+            FileLibrary = doc.FileLibrary,
             Functions = doc.Functions,
             BundleTypes = doc.BundleTypes,
             Traits = doc.Traits,

@@ -263,6 +263,7 @@ internal static class BenchRunRenderer
                 Markup.Escape(complianceText)
             );
         }
+        SpectreTableSizing.ApplyStandardWidth(console, circuitsTable);
         console.Write(circuitsTable);
 
         console.WriteLine();
@@ -305,7 +306,9 @@ internal static class BenchRunRenderer
             var where = string.IsNullOrWhiteSpace(r.Node) ? r.Metric : $"{r.Metric}@{r.Node}";
             var expected = $"{r.Operator} {FormatNumber(r.Expected)} {r.Unit}".TrimEnd();
             var actual = r.Actual is null
-                ? "missing"
+                ? r.Message.StartsWith("Measurement error:", StringComparison.OrdinalIgnoreCase)
+                    ? "error"
+                    : "missing"
                 : $"{FormatNumber(r.Actual.Value)} {r.ActualUnit ?? r.Unit}".TrimEnd();
 
             table.AddRow(
@@ -317,6 +320,7 @@ internal static class BenchRunRenderer
             );
         }
 
+        SpectreTableSizing.ApplyStandardWidth(console, table);
         console.Write(table);
     }
 
@@ -360,6 +364,7 @@ internal static class BenchRunRenderer
         {
             steps.AddRow(Markup.Escape(s.Name), Markup.Escape(FormatDuration(s.Elapsed)));
         }
+        SpectreTableSizing.ApplyStandardWidth(console, steps);
         console.Write(steps);
 
         if (report.Benches.Count == 0)
@@ -387,6 +392,7 @@ internal static class BenchRunRenderer
                 Markup.Escape(FormatDuration(b.WriteArtifacts))
             );
         }
+        SpectreTableSizing.ApplyStandardWidth(console, benches);
         console.Write(benches);
     }
 
@@ -430,7 +436,9 @@ internal static class BenchRunRenderer
             : $"{result.Metric}@{result.Node}";
         var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
         var actual = result.Actual is null
-            ? "missing"
+            ? result.Message.StartsWith("Measurement error:", StringComparison.OrdinalIgnoreCase)
+                ? "error"
+                : "missing"
             : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
         return $"  {result.Id}: {where} {expected} (actual {actual})";
     }

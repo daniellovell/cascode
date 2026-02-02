@@ -430,8 +430,13 @@ idPart
     | FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
-    | REAL_FUNCTION_TYPE
-    | NOISE_FUNCTION_TYPE
+    | GAIN_SPECTRUM_TYPE
+    | PHASE_SPECTRUM_TYPE
+    | VOLTAGE_SPECTRUM_TYPE
+    | CURRENT_SPECTRUM_TYPE
+    | NOISE_SPECTRUM_TYPE
+    | VOLTAGE_WAVEFORM_TYPE
+    | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
     | INTEGRATED_NOISE_TYPE
     | IMPEDANCE_TYPE
@@ -731,10 +736,16 @@ physicalType
     : FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
-    | REAL_FUNCTION_TYPE
-    | NOISE_FUNCTION_TYPE
+    | GAIN_SPECTRUM_TYPE
+    | PHASE_SPECTRUM_TYPE
+    | VOLTAGE_SPECTRUM_TYPE
+    | CURRENT_SPECTRUM_TYPE
+    | NOISE_SPECTRUM_TYPE
+    | VOLTAGE_WAVEFORM_TYPE
+    | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
     | INTEGRATED_NOISE_TYPE
+    | ELEMENT_PIN_TYPE
     | IMPEDANCE_TYPE
     | CAPACITANCE_TYPE
     | INDUCTANCE_TYPE
@@ -780,7 +791,7 @@ analysisBlock
     ;
 
 analysisDecl
-    : analysisType name=IDENT EQ NEW_KW analysisType LPAREN analysisParams RPAREN
+    : analysisType name=IDENT EQ NEW_KW analysisType LPAREN analysisParams? RPAREN
     ;
 
 analysisParams
@@ -836,10 +847,18 @@ mulMeasurementExpr
 
 unaryMeasurementExpr
     : MINUS unaryMeasurementExpr
-    | measurementAtom
+    | measurementPostfix
     ;
 
-measurementAtom
+measurementPostfix
+    : measurementPrimary methodCallSuffix*
+    ;
+
+methodCallSuffix
+    : DOT IDENT LPAREN measurementArgList? RPAREN
+    ;
+
+measurementPrimary
     : ifExpr
     | LPAREN measurementExpr RPAREN
     | measurementFunctionCall
@@ -870,7 +889,7 @@ pathAccess
 scopedAccess
     : ENV_KW DOT IDENT
     | CONSTRAINTS_KW DOT IDENT
-    | HARNESS_KW DOT IDENT
+    | HARNESS_KW DOT pinRef
     ;
 
 dutAccess
@@ -984,10 +1003,16 @@ RETURN_KW       : 'return' ;
 FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
-REAL_FUNCTION_TYPE          : 'RealFunction' ;
-NOISE_FUNCTION_TYPE         : 'NoiseFunction' ;
+GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
+CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
+NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
+VOLTAGE_WAVEFORM_TYPE       : 'VoltageWaveform' ;
+CURRENT_WAVEFORM_TYPE       : 'CurrentWaveform' ;
 NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
 INTEGRATED_NOISE_TYPE       : 'IntegratedNoise' ;
+ELEMENT_PIN_TYPE            : 'ElementPin' ;
 IMPEDANCE_TYPE              : 'Impedance' ;
 CAPACITANCE_TYPE            : 'Capacitance' ;
 INDUCTANCE_TYPE             : 'Inductance' ;
@@ -996,7 +1021,6 @@ CURRENT_TYPE                : 'Current' ;
 TIME_TYPE                   : 'Time' ;
 PHASE_TYPE                  : 'Phase' ;
 SCALAR_TYPE                 : 'Scalar' ;
-WAVEFORM_TYPE               : 'Waveform' ;
 
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
 DC_ANALYSIS_TYPE    : 'DCAnalysis' ;

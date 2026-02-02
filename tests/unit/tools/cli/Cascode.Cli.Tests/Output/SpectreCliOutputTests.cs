@@ -13,7 +13,7 @@ public sealed class SpectreCliOutputTests
             "start",
             progress =>
             {
-                progress("step");
+                progress("[00:00:00] step");
                 return 0;
             }
         );

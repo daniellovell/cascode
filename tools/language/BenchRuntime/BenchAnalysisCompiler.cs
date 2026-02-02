@@ -159,26 +159,19 @@ internal static class BenchAnalysisCompiler
                         $"TranAnalysis '{a.Name}' missing required parameter 'stop'."
                     );
                 }
-                if (!a.Parameters.TryGetValue("step", out var stepExpr))
-                {
-                    throw new InvalidOperationException(
-                        $"TranAnalysis '{a.Name}' missing required parameter 'step'."
-                    );
-                }
 
                 var stopV = evalRunner.EvaluateExpressionForPlan(stopExpr) as BenchNumber;
-                var stepV = evalRunner.EvaluateExpressionForPlan(stepExpr) as BenchNumber;
+                var startV = a.Parameters.TryGetValue("start", out var startExpr)
+                    ? evalRunner.EvaluateExpressionForPlan(startExpr) as BenchNumber
+                    : new BenchNumber(BenchNumericKind.TimeS, 0);
+                var stepV = a.Parameters.TryGetValue("step", out var stepExpr)
+                    ? evalRunner.EvaluateExpressionForPlan(stepExpr) as BenchNumber
+                    : null;
 
                 if (stopV is null)
                 {
                     throw new InvalidOperationException(
                         $"TranAnalysis '{a.Name}' stop did not evaluate to a number."
-                    );
-                }
-                if (stepV is null)
-                {
-                    throw new InvalidOperationException(
-                        $"TranAnalysis '{a.Name}' step did not evaluate to a number."
                     );
                 }
 
@@ -188,16 +181,50 @@ internal static class BenchAnalysisCompiler
                         $"TranAnalysis '{a.Name}' stop must be a Time value."
                     );
                 }
-                if (stepV.Kind != BenchNumericKind.TimeS)
+                if (startV is null || startV.Kind != BenchNumericKind.TimeS)
+                {
+                    throw new InvalidOperationException(
+                        $"TranAnalysis '{a.Name}' start must be a Time value."
+                    );
+                }
+
+                if (stepV is not null && stepV.Kind != BenchNumericKind.TimeS)
                 {
                     throw new InvalidOperationException(
                         $"TranAnalysis '{a.Name}' step must be a Time value."
                     );
                 }
 
+                // Use a conservative default step if not specified: 1/1000 of stop time.
+                var stepS = stepV?.Value ?? Math.Max(stopV.Value / 1000.0, 1e-12);
+
                 analyses.Add(
-                    new BenchPlanAnalysis(a.Type, a.Name, "", 0, 0, stopV.Value, StepS: stepV.Value)
+                    new BenchPlanAnalysis(
+                        a.Type,
+                        a.Name,
+                        "",
+                        0,
+                        0,
+                        0,
+                        StartS: startV.Value,
+                        StopS: stopV.Value,
+                        StepS: stepS
+                    )
                 );
+            }
+
+            if (a.Type == BenchValueType.DCAnalysis)
+            {
+                // For now, we treat DCAnalysis as a DC operating point (op). Sweeps are modeled
+                // via circuit-level harness sweeps instead of bench-defined .dc cards.
+                if (a.Parameters.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        $"DCAnalysis '{a.Name}' does not accept parameters. Use circuit harness sweeps for multi-point evaluation."
+                    );
+                }
+
+                analyses.Add(new BenchPlanAnalysis(a.Type, a.Name, "", 0, 0, 0));
             }
         }
 

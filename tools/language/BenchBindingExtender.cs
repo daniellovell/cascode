@@ -88,6 +88,7 @@ public static class BenchBindingExtender
             VersionMajor = document.VersionMajor,
             VersionMinor = document.VersionMinor,
             Includes = document.Includes,
+            FileLibrary = document.FileLibrary,
             Functions = document.Functions,
             BundleTypes = document.BundleTypes,
             Traits = document.Traits,

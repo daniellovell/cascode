@@ -21,6 +21,42 @@ public static class NgspiceWrdataOpParser
             return new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         }
 
+        var values = ParseVectorValuesOrThrow(path, sourceNames.Count);
+
+        var map = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < sourceNames.Count; i++)
+        {
+            map[sourceNames[i]] = values[i];
+        }
+
+        return map;
+    }
+
+    public static IReadOnlyDictionary<string, double> ParseNodeVoltages(
+        string path,
+        IReadOnlyList<string> nodeKeys
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(nodeKeys);
+
+        if (nodeKeys.Count == 0)
+        {
+            return new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var values = ParseVectorValuesOrThrow(path, nodeKeys.Count);
+        var map = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < nodeKeys.Count; i++)
+        {
+            map[nodeKeys[i]] = values[i];
+        }
+
+        return map;
+    }
+
+    private static double[] ParseVectorValuesOrThrow(string path, int vectorCount)
+    {
         var lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
         if (lines.Length == 0)
         {
@@ -30,21 +66,15 @@ public static class NgspiceWrdataOpParser
         // For op, ngspice emits a single row. Use the last row defensively.
         var parts = lines[^1].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
 
-        var values = TryParseVectorRow(parts, sourceNames.Count);
+        var values = TryParseVectorRow(parts, vectorCount);
         if (values is null)
         {
             throw new InvalidOperationException(
-                $"Unexpected wrdata column count in '{path}': got {parts.Length} for {sourceNames.Count} vector(s)."
+                $"Unexpected wrdata column count in '{path}': got {parts.Length} for {vectorCount} vector(s)."
             );
         }
 
-        var map = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < sourceNames.Count; i++)
-        {
-            map[sourceNames[i]] = values[i];
-        }
-
-        return map;
+        return values;
     }
 
     private static double[]? TryParseVectorRow(string[] parts, int vectorCount)

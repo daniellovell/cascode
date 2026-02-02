@@ -108,6 +108,23 @@ public static class ComplianceChecker
 
         var expected = ParseValue(constraint.Value, constraint.Unit);
         var measurement = matchingMeasurement.Value.Value;
+        if (!string.IsNullOrWhiteSpace(measurement.Error))
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = null,
+                ActualUnit = null,
+                Passed = false,
+                Message = $"Measurement error: {measurement.Error}",
+            };
+        }
         var actual = measurement.Value;
         var passed = EvaluateOperator(constraint.Op, actual, expected);
 

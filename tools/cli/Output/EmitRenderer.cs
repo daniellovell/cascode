@@ -73,6 +73,7 @@ internal static class EmitRenderer
             files.AddRow("[cyan]testbench[/]", Markup.Escape(Path.GetFullPath(p)));
         }
 
+        SpectreTableSizing.ApplyStandardWidth(console, files);
         console.Write(files);
 
         output.Success(
