@@ -100,6 +100,10 @@ internal static class BenchPrimitiveCallFinder
                 return false;
 
             case MeasurementMethodCall m:
+                if (m.Method.Equals(name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
                 if (Contains(m.Receiver, name))
                 {
                     return true;

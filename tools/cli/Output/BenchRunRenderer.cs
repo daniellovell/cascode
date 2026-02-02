@@ -37,7 +37,7 @@ internal static class BenchRunRenderer
             return;
         }
 
-        RenderTimingPlain(report, Console.Error);
+        RenderTimingPlain(report, output);
     }
 
     private static void RenderPlain(
@@ -46,39 +46,53 @@ internal static class BenchRunRenderer
         Action<string> writeLine
     )
     {
-        // Single circuit: use simpler format matching old behavior
         if (summary.CircuitSummaries.Count == 1)
         {
-            var circuitSummary = summary.CircuitSummaries[0];
-            writeLine(
-                $"Circuit: {circuitSummary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})"
-            );
-            writeLine($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
+            RenderPlainSingle(summary, verbose, writeLine);
+        }
+        else
+        {
+            RenderPlainMulti(summary, verbose, writeLine);
+        }
+    }
 
-            var succeeded = circuitSummary
-                .Benches.Where(b => b.Succeeded)
-                .Select(b => b.Name)
-                .ToArray();
-            var failed = circuitSummary
-                .Benches.Where(b => !b.Succeeded)
-                .Select(b => b.Name)
-                .ToArray();
+    private static void RenderPlainSingle(
+        BenchRunService.MultiCircuitBenchRunSummary summary,
+        bool verbose,
+        Action<string> writeLine
+    )
+    {
+        var circuitSummary = summary.CircuitSummaries[0];
+        writeLine(
+            $"Circuit: {circuitSummary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})"
+        );
+        writeLine($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
 
-            if (succeeded.Length > 0)
-            {
-                writeLine($"Ran: {string.Join(", ", succeeded)}");
-            }
+        var succeeded = circuitSummary
+            .Benches.Where(b => b.Succeeded)
+            .Select(b => b.Name)
+            .ToArray();
+        var failed = circuitSummary.Benches.Where(b => !b.Succeeded).Select(b => b.Name).ToArray();
 
-            if (failed.Length > 0)
-            {
-                writeLine($"Simulation: FAIL ({string.Join(", ", failed)})");
-            }
-
-            WriteCompliancePlain(writeLine, circuitSummary.Compliance);
-            return;
+        if (succeeded.Length > 0)
+        {
+            writeLine($"Ran: {string.Join(", ", succeeded)}");
         }
 
-        // Multiple circuits: use multi-circuit format
+        if (failed.Length > 0)
+        {
+            writeLine($"Simulation: FAIL ({string.Join(", ", failed)})");
+        }
+
+        WriteCompliancePlain(writeLine, circuitSummary.Compliance);
+    }
+
+    private static void RenderPlainMulti(
+        BenchRunService.MultiCircuitBenchRunSummary summary,
+        bool verbose,
+        Action<string> writeLine
+    )
+    {
         writeLine($"Backend: {summary.Backend.ToString().ToLowerInvariant()}");
         writeLine($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
         writeLine($"Circuits: {summary.CircuitSummaries.Count}");
@@ -128,7 +142,6 @@ internal static class BenchRunRenderer
             writeLine("");
         }
 
-        // Global summary
         writeLine("=== GLOBAL SUMMARY ===");
         writeLine(
             $"Total Benches: {summary.TotalBenchesRun} ({summary.TotalBenchesSucceeded} passed, {summary.TotalBenchesFailed} failed)"
@@ -183,53 +196,66 @@ internal static class BenchRunRenderer
         IAnsiConsole console
     )
     {
-        // Keep the measurement report first-class: print it cleanly on stdout.
         if (summary.CircuitSummaries.Count == 1)
         {
-            var circuitSummary = summary.CircuitSummaries[0];
-            console.Write(
-                new Rule(
-                    $"[bold]{Markup.Escape(circuitSummary.CircuitName)}[/] [grey]({summary.Backend.ToString().ToLowerInvariant()})[/]"
-                )
-                {
-                    Style = Style.Parse("grey"),
-                }
-            );
+            RenderSpectreSingle(summary, verbose, console);
+        }
+        else
+        {
+            RenderSpectreMulti(summary, console);
+        }
+    }
 
-            console.MarkupLine(
-                $"[grey]Artifacts:[/] {Markup.Escape(Path.GetFullPath(summary.OutputDir))}"
-            );
-
-            var succeeded = circuitSummary
-                .Benches.Where(b => b.Succeeded)
-                .Select(b => b.Name)
-                .ToArray();
-            if (succeeded.Length > 0)
+    private static void RenderSpectreSingle(
+        BenchRunService.MultiCircuitBenchRunSummary summary,
+        bool verbose,
+        IAnsiConsole console
+    )
+    {
+        var circuitSummary = summary.CircuitSummaries[0];
+        console.Write(
+            new Rule(
+                $"[bold]{Markup.Escape(circuitSummary.CircuitName)}[/] [grey]({summary.Backend.ToString().ToLowerInvariant()})[/]"
+            )
             {
-                console.MarkupLine($"[grey]Ran:[/] {Markup.Escape(string.Join(", ", succeeded))}");
+                Style = Style.Parse("grey"),
             }
+        );
 
-            var failed = circuitSummary
-                .Benches.Where(b => !b.Succeeded)
-                .Select(b => b.Name)
-                .ToArray();
-            if (failed.Length > 0)
-            {
-                console.MarkupLine(
-                    $"[red]Simulation: FAIL[/] ({Markup.Escape(string.Join(", ", failed))})"
-                );
-            }
+        console.MarkupLine(
+            $"[grey]Artifacts:[/] {Markup.Escape(Path.GetFullPath(summary.OutputDir))}"
+        );
 
-            console.WriteLine();
-            RenderComplianceTable(circuitSummary.Compliance, console);
-            if (verbose)
-            {
-                RenderUncheckedConstraints(circuitSummary.Compliance, console);
-            }
-
-            return;
+        var succeeded = circuitSummary
+            .Benches.Where(b => b.Succeeded)
+            .Select(b => b.Name)
+            .ToArray();
+        if (succeeded.Length > 0)
+        {
+            console.MarkupLine($"[grey]Ran:[/] {Markup.Escape(string.Join(", ", succeeded))}");
         }
 
+        var failed = circuitSummary.Benches.Where(b => !b.Succeeded).Select(b => b.Name).ToArray();
+        if (failed.Length > 0)
+        {
+            console.MarkupLine(
+                $"[red]Simulation: FAIL[/] ({Markup.Escape(string.Join(", ", failed))})"
+            );
+        }
+
+        console.WriteLine();
+        RenderComplianceTable(circuitSummary.Compliance, console);
+        if (verbose)
+        {
+            RenderUncheckedConstraints(circuitSummary.Compliance, console);
+        }
+    }
+
+    private static void RenderSpectreMulti(
+        BenchRunService.MultiCircuitBenchRunSummary summary,
+        IAnsiConsole console
+    )
+    {
         console.Write(
             new Rule(
                 $"[bold]Bench Run[/] [grey]({summary.Backend.ToString().ToLowerInvariant()})[/]"
@@ -396,27 +422,27 @@ internal static class BenchRunRenderer
         console.Write(benches);
     }
 
-    private static void RenderTimingPlain(BenchRunTimingReport report, TextWriter writer)
+    private static void RenderTimingPlain(BenchRunTimingReport report, ICliOutput output)
     {
-        writer.WriteLine("");
-        writer.WriteLine("Timing:");
-        writer.WriteLine($"  Total: {FormatDuration(report.Total)}");
+        output.WriteErrorLine("");
+        output.WriteErrorLine("Timing:");
+        output.WriteErrorLine($"  Total: {FormatDuration(report.Total)}");
 
         if (report.Steps.Count > 0)
         {
-            writer.WriteLine("  Steps:");
+            output.WriteErrorLine("  Steps:");
             foreach (var step in report.Steps)
             {
-                writer.WriteLine($"    {step.Name}: {FormatDuration(step.Elapsed)}");
+                output.WriteErrorLine($"    {step.Name}: {FormatDuration(step.Elapsed)}");
             }
         }
 
         if (report.Benches.Count > 0)
         {
-            writer.WriteLine("  Benches:");
+            output.WriteErrorLine("  Benches:");
             foreach (var b in report.Benches.OrderByDescending(b => b.Total))
             {
-                writer.WriteLine(
+                output.WriteErrorLine(
                     $"    {b.CircuitName}/{b.BenchName}: total {FormatDuration(b.Total)} (sim {FormatDuration(b.Simulation)}, parse {FormatDuration(b.ParseOutputs)}, eval {FormatDuration(b.EvaluateMeasurements)}, write {FormatDuration(b.WriteArtifacts)})"
                 );
             }
