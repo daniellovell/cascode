@@ -10,7 +10,8 @@ internal static class BenchAnalysisCompiler
     public static IReadOnlyList<BenchPlanAnalysis> Compile(
         BenchDefinition bench,
         BenchMeasurementRunner evalRunner,
-        BenchNetlist netlist
+        BenchNetlist netlist,
+        IReadOnlyDictionary<string, BenchValue>? benchParams = null
     )
     {
         ArgumentNullException.ThrowIfNull(bench);
@@ -25,7 +26,7 @@ internal static class BenchAnalysisCompiler
             var space = "dec";
             if (a.Parameters.TryGetValue("space", out var spaceExpr))
             {
-                var raw = evalRunner.EvaluateExpressionForPlan(spaceExpr);
+                var raw = evalRunner.EvaluateExpressionForPlan(spaceExpr, benchParams);
                 if (raw is BenchSymbol sym && !string.IsNullOrWhiteSpace(sym.Name))
                 {
                     space = sym.Name.Trim().ToLowerInvariant();
@@ -35,7 +36,7 @@ internal static class BenchAnalysisCompiler
             var samples = 100;
             if (a.Parameters.TryGetValue("samples", out var samplesExpr))
             {
-                var raw = evalRunner.EvaluateExpressionForPlan(samplesExpr);
+                var raw = evalRunner.EvaluateExpressionForPlan(samplesExpr, benchParams);
                 if (raw is BenchNumber n)
                 {
                     samples = (int)n.Value;
@@ -57,8 +58,10 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
-                var startV = evalRunner.EvaluateExpressionForPlan(startExpr) as BenchNumber;
-                var stopV = evalRunner.EvaluateExpressionForPlan(stopExpr) as BenchNumber;
+                var startV =
+                    evalRunner.EvaluateExpressionForPlan(startExpr, benchParams) as BenchNumber;
+                var stopV =
+                    evalRunner.EvaluateExpressionForPlan(stopExpr, benchParams) as BenchNumber;
                 if (startV is null)
                 {
                     throw new InvalidOperationException(
@@ -110,8 +113,10 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
-                var startV = evalRunner.EvaluateExpressionForPlan(startExpr) as BenchNumber;
-                var stopV = evalRunner.EvaluateExpressionForPlan(stopExpr) as BenchNumber;
+                var startV =
+                    evalRunner.EvaluateExpressionForPlan(startExpr, benchParams) as BenchNumber;
+                var stopV =
+                    evalRunner.EvaluateExpressionForPlan(stopExpr, benchParams) as BenchNumber;
                 if (startV is null)
                 {
                     throw new InvalidOperationException(
@@ -126,7 +131,8 @@ internal static class BenchAnalysisCompiler
                 }
 
                 var output =
-                    evalRunner.EvaluateExpressionForPlan(outputExpr) as BenchTerminalRef
+                    evalRunner.EvaluateExpressionForPlan(outputExpr, benchParams)
+                        as BenchTerminalRef
                     ?? throw new InvalidOperationException(
                         $"NoiseAnalysis '{a.Name}' output did not evaluate to a terminal."
                     );
@@ -160,12 +166,13 @@ internal static class BenchAnalysisCompiler
                     );
                 }
 
-                var stopV = evalRunner.EvaluateExpressionForPlan(stopExpr) as BenchNumber;
+                var stopV =
+                    evalRunner.EvaluateExpressionForPlan(stopExpr, benchParams) as BenchNumber;
                 var startV = a.Parameters.TryGetValue("start", out var startExpr)
-                    ? evalRunner.EvaluateExpressionForPlan(startExpr) as BenchNumber
+                    ? evalRunner.EvaluateExpressionForPlan(startExpr, benchParams) as BenchNumber
                     : new BenchNumber(BenchNumericKind.TimeS, 0);
                 var stepV = a.Parameters.TryGetValue("step", out var stepExpr)
-                    ? evalRunner.EvaluateExpressionForPlan(stepExpr) as BenchNumber
+                    ? evalRunner.EvaluateExpressionForPlan(stepExpr, benchParams) as BenchNumber
                     : null;
 
                 if (stopV is null)

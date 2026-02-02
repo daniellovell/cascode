@@ -32,6 +32,12 @@ public static class BenchSemanticChecker
     {
         var scope = new TypeScope(globalFunctions, bench.Functions);
 
+        // Add bench parameters to the type scope so they can be resolved in analysis expressions.
+        foreach (var param in bench.Parameters)
+        {
+            scope.Values[param.Name] = MeasurementType.FromBenchValueType(param.Type);
+        }
+
         foreach (var terminal in bench.Terminals)
         {
             if (!scope.TryAddValue(terminal.Name, MeasurementType.Terminal(terminal.Type)))
@@ -947,6 +953,9 @@ public static class BenchSemanticChecker
                     );
                 }
                 return MeasurementType.Scalar();
+            case "period":
+                // period(Frequency) returns Time
+                return MeasurementType.Time();
         }
 
         // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).

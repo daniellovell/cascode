@@ -30,7 +30,9 @@ public static class BenchCompiler
         )
         {
             var bindings = ResolveBenchBindings(circuit, interfacesByName);
-            foreach (var binding in bindings)
+            var invocations = CollectBenchInvocations(circuit, bindings);
+
+            foreach (var (binding, instanceName, args) in invocations)
             {
                 if (!benchesByName.ContainsKey(binding.BenchName))
                 {
@@ -38,11 +40,79 @@ public static class BenchCompiler
                     continue;
                 }
 
-                plans.Add(BenchPlanBuilder.Build(document, circuit, binding));
+                plans.Add(BenchPlanBuilder.Build(document, circuit, binding, instanceName, args));
             }
         }
 
         return plans;
+    }
+
+    /// <summary>
+    /// Collects unique bench invocations for a circuit by examining constraints.
+    /// Each unique (bindingName, args) pair produces a separate bench instance.
+    /// Bindings not referenced by any constraint get a single instance with empty args.
+    /// </summary>
+    private static IReadOnlyList<(
+        BenchBinding Binding,
+        string InstanceName,
+        IReadOnlyList<MetricCallArg> Args
+    )> CollectBenchInvocations(Circuit circuit, IReadOnlyList<BenchBinding> bindings)
+    {
+        var bindingsByName = bindings.ToDictionary(
+            b => b.BindingName,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        // Collect unique invocations from constraints, keyed by computed instance name.
+        var invocationsByInstance = new Dictionary<
+            string,
+            (BenchBinding, string, IReadOnlyList<MetricCallArg>)
+        >(StringComparer.OrdinalIgnoreCase);
+
+        if (circuit.Constraints?.Numeric is { Count: > 0 })
+        {
+            foreach (var constraint in circuit.Constraints.Numeric)
+            {
+                if (!bindingsByName.TryGetValue(constraint.BenchBase, out var binding))
+                {
+                    continue; // Unknown binding, reported by validation.
+                }
+
+                var instanceName = constraint.Bench; // Already computed by AST builder.
+                if (!invocationsByInstance.ContainsKey(instanceName))
+                {
+                    invocationsByInstance[instanceName] = (
+                        binding,
+                        instanceName,
+                        constraint.BenchArgs
+                    );
+                }
+            }
+        }
+
+        // For bindings not referenced by any constraint, add a default invocation with empty args.
+        foreach (var binding in bindings)
+        {
+            if (
+                !invocationsByInstance.Values.Any(i =>
+                    i.Item1.BindingName.Equals(
+                        binding.BindingName,
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+            )
+            {
+                invocationsByInstance[binding.BindingName] = (
+                    binding,
+                    binding.BindingName,
+                    Array.Empty<MetricCallArg>()
+                );
+            }
+        }
+
+        return invocationsByInstance
+            .Values.OrderBy(i => i.Item2, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static IReadOnlyList<BenchBinding> ResolveBenchBindings(

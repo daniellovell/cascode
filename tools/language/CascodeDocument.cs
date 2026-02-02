@@ -441,7 +441,23 @@ public sealed class NumericConstraint
     /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Bench alias that provides the metric.</summary>
+    /// <summary>
+    /// Base bench binding alias written by the user (e.g., "tran_bench").
+    /// When no bench args are provided, this equals <see cref="Bench"/>.
+    /// </summary>
+    public string BenchBase { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Bench invocation arguments (e.g., stim_freq=1kHz for tran_bench(stim_freq=1kHz)::...).
+    /// These parameterize the bench instance, producing distinct testbench runs per arg-set.
+    /// </summary>
+    public List<MetricCallArg> BenchArgs { get; init; } = new();
+
+    /// <summary>
+    /// Computed bench instance name used for runtime matching and file naming.
+    /// When <see cref="BenchArgs"/> is empty, equals <see cref="BenchBase"/>.
+    /// Otherwise computed deterministically from BenchBase + BenchArgs.
+    /// </summary>
     public string Bench { get; init; } = string.Empty;
 
     /// <summary>The metric being constrained (e.g., "GainBandwidth", "PhaseMargin").</summary>

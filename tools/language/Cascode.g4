@@ -92,7 +92,15 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW name=IDENT LBRACE benchBody RBRACE
+    : BENCH_KW name=IDENT benchParamList? LBRACE benchBody RBRACE
+    ;
+
+benchParamList
+    : LPAREN benchParamDecl (COMMA benchParamDecl)* RPAREN
+    ;
+
+benchParamDecl
+    : physicalType name=IDENT (EQ measurementExpr)?
     ;
 
 benchBody
@@ -469,13 +477,13 @@ constraintSection
     | numericConstraint                                             # NumericConstraintDirect
     ;
 
-// id = Bench::Metric at Node >= ValueUnit
+// id = Bench(args)::Metric(args) at Node >= ValueUnit
 numericConstraint
     : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedQuantity
     ;
 
 benchMetricRef
-    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
     ;
 
 nodeRef

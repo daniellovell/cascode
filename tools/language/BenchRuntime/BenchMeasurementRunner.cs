@@ -543,6 +543,8 @@ public sealed class BenchMeasurementRunner
                 return EvalSqrt(call, locals);
             case "quiescent_power":
                 return EvalQuiescentPower(call, locals);
+            case "period":
+                return EvalPeriod(call, locals);
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
@@ -1721,6 +1723,24 @@ public sealed class BenchMeasurementRunner
     {
         var x = RequireNumber(EvaluateExpr(call.Args[0].Value, locals), "sqrt");
         return new BenchNumber(x.Kind, Math.Sqrt(x.Value));
+    }
+
+    private BenchNumber EvalPeriod(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 1)
+        {
+            throw new InvalidOperationException("period requires exactly one Frequency argument.");
+        }
+
+        var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "period");
+        if (f.Value <= 0)
+        {
+            throw new InvalidOperationException(
+                $"period: frequency must be positive, got {f.Value} Hz."
+            );
+        }
+
+        return new BenchNumber(BenchNumericKind.TimeS, 1.0 / f.Value);
     }
 
     private BenchNumber EvalQuiescentPower(

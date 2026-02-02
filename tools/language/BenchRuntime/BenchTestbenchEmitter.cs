@@ -53,7 +53,7 @@ public static class BenchTestbenchEmitter
             var tbPath = BenchRuntimePaths.GetTestbenchPath(
                 outputDir,
                 plan.CircuitName,
-                plan.BindingName
+                plan.InstanceName
             );
             Directory.CreateDirectory(Path.GetDirectoryName(tbPath)!);
             File.WriteAllText(
@@ -75,8 +75,8 @@ public static class BenchTestbenchEmitter
     )
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"* cascode auto-generated: {plan.CircuitName}:{plan.BindingName}");
-        sb.AppendLine($".title {plan.CircuitName}_{plan.BindingName}");
+        sb.AppendLine($"* cascode auto-generated: {plan.CircuitName}:{plan.InstanceName}");
+        sb.AppendLine($".title {plan.CircuitName}_{plan.InstanceName}");
         sb.AppendLine(".option numdgt=7");
         sb.AppendLine();
 
@@ -139,7 +139,7 @@ public static class BenchTestbenchEmitter
                 var opWrdata = BenchRuntimePaths.GetOpWrdataPath(
                     outputDir,
                     plan.CircuitName,
-                    plan.BindingName
+                    plan.InstanceName
                 );
                 sb.Append($"wrdata {Path.GetFileName(opWrdata)}");
                 foreach (var s in vdcSources)
@@ -156,7 +156,7 @@ public static class BenchTestbenchEmitter
                 var nodesWrdata = BenchRuntimePaths.GetOpNodesWrdataPath(
                     outputDir,
                     plan.CircuitName,
-                    plan.BindingName
+                    plan.InstanceName
                 );
                 sb.Append($"wrdata {Path.GetFileName(nodesWrdata)}");
                 foreach (var node in plan.AcNodeKeys)
@@ -191,7 +191,7 @@ public static class BenchTestbenchEmitter
             var wrdata = BenchRuntimePaths.GetAcWrdataPath(
                 outputDir,
                 plan.CircuitName,
-                plan.BindingName,
+                plan.InstanceName,
                 a.Name
             );
             sb.Append($"wrdata {Path.GetFileName(wrdata)}");
@@ -207,7 +207,7 @@ public static class BenchTestbenchEmitter
                 var iWrdata = BenchRuntimePaths.GetAcCurrentsWrdataPath(
                     outputDir,
                     plan.CircuitName,
-                    plan.BindingName,
+                    plan.InstanceName,
                     a.Name
                 );
                 sb.Append($"wrdata {Path.GetFileName(iWrdata)}");
@@ -248,7 +248,7 @@ public static class BenchTestbenchEmitter
             var wrdata = BenchRuntimePaths.GetNoiseWrdataPath(
                 outputDir,
                 plan.CircuitName,
-                plan.BindingName,
+                plan.InstanceName,
                 a.Name
             );
             sb.AppendLine($"wrdata {Path.GetFileName(wrdata)} onoise_spectrum");
@@ -287,7 +287,7 @@ public static class BenchTestbenchEmitter
             var wrdata = BenchRuntimePaths.GetTranWrdataPath(
                 outputDir,
                 plan.CircuitName,
-                plan.BindingName,
+                plan.InstanceName,
                 a.Name
             );
             sb.Append($"wrdata {Path.GetFileName(wrdata)}");
@@ -303,7 +303,7 @@ public static class BenchTestbenchEmitter
                 var iWrdata = BenchRuntimePaths.GetTranCurrentsWrdataPath(
                     outputDir,
                     plan.CircuitName,
-                    plan.BindingName,
+                    plan.InstanceName,
                     a.Name
                 );
                 sb.Append($"wrdata {Path.GetFileName(iWrdata)}");

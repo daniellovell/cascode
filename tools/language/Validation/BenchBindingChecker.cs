@@ -108,16 +108,19 @@ public static class BenchBindingChecker
 
         foreach (var constraint in circuit.Constraints.Numeric)
         {
-            if (string.IsNullOrEmpty(constraint.Bench))
+            // Validate against BenchBase (the user-written binding alias), not the computed
+            // instance name (Bench) which includes arg-set hashing.
+            var benchBinding = constraint.BenchBase;
+            if (string.IsNullOrEmpty(benchBinding))
             {
                 continue;
             }
 
-            if (!resolvedBindings.ContainsKey(constraint.Bench))
+            if (!resolvedBindings.ContainsKey(benchBinding))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS3008: Constraint '{constraint.Id}' references unknown bench binding '{constraint.Bench}' in circuit '{circuit.Name}'.",
+                        $"CAS3008: Constraint '{constraint.Id}' references unknown bench binding '{benchBinding}' in circuit '{circuit.Name}'.",
                         DiagnosticSeverity.Error,
                         "<constraints>",
                         1,

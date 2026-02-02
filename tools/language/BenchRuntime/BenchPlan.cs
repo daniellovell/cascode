@@ -28,6 +28,8 @@ public sealed record BenchHarnessElement(
 public sealed record BenchPlan(
     string CircuitName,
     string BindingName,
+    string InstanceName,
+    IReadOnlyList<MetricCallArg> InvocationArgs,
     string BenchName,
     BenchDefinition Bench,
     BenchBinding Binding,

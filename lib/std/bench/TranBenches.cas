@@ -4,11 +4,10 @@ library lib.std.bench
 
 // Transient benches (time-domain).
 //
-// NOTE: This is currently a fixed-frequency sine bench (1kHz). The measurement signature
-// includes at_freq for ergonomic constraint labeling (and future sweep support), but the
-// underlying stimulus frequency is not yet parameterized by measurement arguments.
+// Benches are parameterized by stimulus frequency. Different invocations with different
+// frequencies produce separate testbench instances (e.g., tran_bench(stim_freq=1kHz)::...).
 
-bench DiffToSETran {
+bench DiffToSETran(Frequency stim_freq = 1kHz) {
   stim IN : Diff
   resp OUT : analog
 
@@ -26,14 +25,14 @@ bench DiffToSETran {
       .N--gnd
     }
 
-    // 1kHz differential sine excitation around vcm.
+    // Differential sine excitation around vcm at the specified frequency.
     //
     // Choose a modest default amplitude so the metric is "about usable swing" rather than
     // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
-    VSIN inP = new VSIN(A=25mV, freq=1kHz, phase=0deg) {
+    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
       .N--vcm
     }
-    VSIN inN = new VSIN(A=25mV, freq=1kHz, phase=180deg) {
+    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
       .N--vcm
     }
 
@@ -54,12 +53,16 @@ bench DiffToSETran {
   }
 
   analysis {
-    // Capture only the last cycle (start=9ms, stop=10ms) to make min/max reflect steady-state.
-    TranAnalysis tran = new TranAnalysis(step=5us, start=9ms, stop=10ms)
+    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
+    TranAnalysis tran = new TranAnalysis(
+      step=period(stim_freq) / 200,
+      start=9 * period(stim_freq),
+      stop=10 * period(stim_freq)
+    )
   }
 
   measurements {
-    measurement OutputSwing(Frequency at_freq) : V {
+    measurement OutputSwing : V {
       VoltageWaveform vout = voltage(tran, OUT)
       return vout.Max() - vout.Min()
     }

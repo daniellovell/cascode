@@ -252,6 +252,22 @@ internal sealed partial class CascodeAstBuilder
             );
         }
 
+        var parameters = new List<BenchParameter>();
+        if (ctx.benchParamList() is not null)
+        {
+            foreach (var p in ctx.benchParamList().benchParamDecl())
+            {
+                var type = ParsePhysicalType(p.physicalType());
+                var name = p.name.Text;
+                MeasurementExpr? defaultExpr = null;
+                if (p.measurementExpr() is not null)
+                {
+                    defaultExpr = BuildMeasurementExpr(p.measurementExpr());
+                }
+                parameters.Add(new BenchParameter(type, name, defaultExpr));
+            }
+        }
+
         FillBlock? fill = null;
         if (body.fillBlock() is not null)
         {
@@ -269,6 +285,7 @@ internal sealed partial class CascodeAstBuilder
         return new BenchDefinition
         {
             Name = ctx.name.Text,
+            Parameters = parameters,
             Terminals = terminals,
             Fill = fill,
             Functions = functions,

@@ -132,7 +132,20 @@ public static class CascodeWriter
 
     private static void WriteBenchDefinition(BenchDefinition bench, TextWriter writer)
     {
-        writer.WriteLine($"bench {bench.Name} {{");
+        var paramSig =
+            bench.Parameters.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        bench.Parameters.Select(p =>
+                            p.Default is null
+                                ? $"{FormatBenchValueType(p.Type)} {p.Name}"
+                                : $"{FormatBenchValueType(p.Type)} {p.Name} = {FormatMeasurementExpr(p.Default)}"
+                        )
+                    )
+                    + ")";
+        writer.WriteLine($"bench {bench.Name}{paramSig} {{");
 
         foreach (var t in bench.Terminals.OrderBy(t => t.Name, StringComparer.Ordinal))
         {
@@ -468,7 +481,17 @@ public static class CascodeWriter
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 var node = c.Node is not null ? $" at {c.Node}" : "";
-                var args =
+                var benchArgs =
+                    c.BenchArgs.Count == 0
+                        ? ""
+                        : "("
+                            + string.Join(
+                                ", ",
+                                c.BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                                    .Select(a => $"{a.Name}={a.Value}")
+                            )
+                            + ")";
+                var metricArgs =
                     c.MetricArgs.Count == 0
                         ? ""
                         : "("
@@ -479,7 +502,7 @@ public static class CascodeWriter
                             )
                             + ")";
                 writer.WriteLine(
-                    $"      {c.Id} = {c.Bench}::{c.Metric}{args}{node} {c.Op} {c.Value}{c.Unit}"
+                    $"      {c.Id} = {c.BenchBase}{benchArgs}::{c.Metric}{metricArgs}{node} {c.Op} {c.Value}{c.Unit}"
                 );
             }
             writer.WriteLine("    }");

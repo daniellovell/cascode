@@ -477,29 +477,34 @@ public class BenchRunService
         BenchRunTimingCollector timing
     )
     {
-        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
-        var benchesToRun = ResolveBenchesToRunForCircuit(
+        // Get instance names from the plan map for this circuit.
+        var instanceNames = GetInstanceNamesForCircuit(planMap, circuit.Name);
+
+        // Filter by explicit bench name if provided (matches binding name).
+        var instancesToRun = ResolveInstancesToRunForCircuit(
             args.BenchName,
-            availableBenches,
+            instanceNames,
+            planMap,
             circuit.Name
         );
+
         var circuitMeasurements = new Dictionary<string, MeasurementResult>(
             StringComparer.OrdinalIgnoreCase
         );
         var benchSummaries = new List<BenchRunBenchSummary>();
 
-        var benchCount = benchesToRun.Count;
+        var benchCount = instancesToRun.Count;
         var benchIndex = 0;
-        foreach (var benchName in benchesToRun)
+        foreach (var instanceName in instancesToRun)
         {
             benchIndex++;
-            Progress($"bench: run {circuit.Name}/{benchName} ({benchIndex}/{benchCount})");
+            Progress($"bench: run {circuit.Name}/{instanceName} ({benchIndex}/{benchCount})");
             var summary = TryRunBench(
                 doc,
                 circuit,
                 args,
                 testbenchPaths,
-                benchName,
+                instanceName,
                 circuitMeasurements,
                 planMap,
                 timing
@@ -509,12 +514,12 @@ public class BenchRunService
 
         var combinedResults = BenchResultParser.CreateCombinedResults(
             circuit.Name,
-            benchesToRun,
+            instancesToRun,
             circuitMeasurements
         );
 
         // Write combined results file (for verify command compatibility)
-        if (benchesToRun.Count > 0 && circuitMeasurements.Count > 0)
+        if (instancesToRun.Count > 0 && circuitMeasurements.Count > 0)
         {
             BenchTraceWriter.WriteCombinedResults(outputDir, circuit.Name, combinedResults);
         }
@@ -525,45 +530,69 @@ public class BenchRunService
     }
 
     /// <summary>
-    /// Resolves benches to run for a circuit, considering the explicit bench filter.
-    /// Supports both "BenchName" and "CircuitName:BenchName" formats.
+    /// Gets all instance names from the plan map for a specific circuit.
     /// </summary>
-    private IReadOnlyList<string> ResolveBenchesToRunForCircuit(
+    private static IReadOnlyList<string> GetInstanceNamesForCircuit(
+        IReadOnlyDictionary<string, BenchPlan> planMap,
+        string circuitName
+    )
+    {
+        var prefix = circuitName + ":";
+        return planMap
+            .Where(kvp => kvp.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(kvp => kvp.Value.InstanceName)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Resolves instances to run for a circuit, filtering by explicit bench name if provided.
+    /// The filter matches against binding names (not instance names with hash).
+    /// </summary>
+    private static IReadOnlyList<string> ResolveInstancesToRunForCircuit(
         string? explicitBench,
-        string[] availableBenches,
+        IReadOnlyList<string> instanceNames,
+        IReadOnlyDictionary<string, BenchPlan> planMap,
         string circuitName
     )
     {
         if (string.IsNullOrWhiteSpace(explicitBench))
         {
-            return availableBenches;
+            return instanceNames;
         }
 
         // Check for circuit-qualified format: "CircuitName:BenchName"
+        string targetBench;
         if (explicitBench.Contains(':'))
         {
             var parts = explicitBench.Split(':', 2);
             var targetCircuit = parts[0];
-            var targetBench = parts[1];
+            targetBench = parts[1];
 
-            // If this isn't the target circuit, skip all benches
+            // If this isn't the target circuit, skip all instances.
             if (!targetCircuit.Equals(circuitName, StringComparison.OrdinalIgnoreCase))
             {
                 return Array.Empty<string>();
             }
-
-            // Find matching bench in this circuit
-            var match = availableBenches.FirstOrDefault(b =>
-                b.Equals(targetBench, StringComparison.OrdinalIgnoreCase)
-            );
-            return match != null ? new[] { match } : Array.Empty<string>();
+        }
+        else
+        {
+            targetBench = explicitBench;
         }
 
-        // Unqualified bench name: run on all circuits that have it
-        var benchMatch = availableBenches.FirstOrDefault(b =>
-            b.Equals(explicitBench, StringComparison.OrdinalIgnoreCase)
-        );
-        return benchMatch != null ? new[] { benchMatch } : Array.Empty<string>();
+        // Filter instances by binding name (which is the base name without hash).
+        return instanceNames
+            .Where(instanceName =>
+            {
+                var key = BuildPlanKey(circuitName, instanceName);
+                if (!planMap.TryGetValue(key, out var plan))
+                {
+                    return false;
+                }
+
+                return plan.BindingName.Equals(targetBench, StringComparison.OrdinalIgnoreCase);
+            })
+            .ToList();
     }
 
     private ComplianceReport AggregateCompliance(
@@ -996,7 +1025,7 @@ public class BenchRunService
                 var nodesWrdataPath = BenchRuntimePaths.GetOpNodesWrdataPath(
                     Path.GetDirectoryName(testbenchPath)!,
                     plan.CircuitName,
-                    plan.BindingName
+                    plan.InstanceName
                 );
                 opNodeVoltagesByKey = NgspiceWrdataOpParser.ParseNodeVoltages(
                     nodesWrdataPath,
@@ -1040,7 +1069,7 @@ public class BenchRunService
                     var wrdataPath = BenchRuntimePaths.GetAcWrdataPath(
                         Path.GetDirectoryName(testbenchPath)!,
                         plan.CircuitName,
-                        plan.BindingName,
+                        plan.InstanceName,
                         a.Name
                     );
 
@@ -1062,7 +1091,7 @@ public class BenchRunService
                             var iWrdataPath = BenchRuntimePaths.GetAcCurrentsWrdataPath(
                                 Path.GetDirectoryName(testbenchPath)!,
                                 plan.CircuitName,
-                                plan.BindingName,
+                                plan.InstanceName,
                                 a.Name
                             );
                             var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
@@ -1085,7 +1114,7 @@ public class BenchRunService
                     var wrdataPath = BenchRuntimePaths.GetNoiseWrdataPath(
                         Path.GetDirectoryName(testbenchPath)!,
                         plan.CircuitName,
-                        plan.BindingName,
+                        plan.InstanceName,
                         a.Name
                     );
 
@@ -1105,7 +1134,7 @@ public class BenchRunService
                     var wrdataPath = BenchRuntimePaths.GetTranWrdataPath(
                         Path.GetDirectoryName(testbenchPath)!,
                         plan.CircuitName,
-                        plan.BindingName,
+                        plan.InstanceName,
                         a.Name
                     );
 
@@ -1125,7 +1154,7 @@ public class BenchRunService
                         var iWrdataPath = BenchRuntimePaths.GetTranCurrentsWrdataPath(
                             Path.GetDirectoryName(testbenchPath)!,
                             plan.CircuitName,
-                            plan.BindingName,
+                            plan.InstanceName,
                             a.Name
                         );
                         var sourceNames = currentSources.Select(s => "V" + s.Id).ToList();
@@ -1160,7 +1189,7 @@ public class BenchRunService
                 var wrdataPath = BenchRuntimePaths.GetOpWrdataPath(
                     Path.GetDirectoryName(testbenchPath)!,
                     plan.CircuitName,
-                    plan.BindingName
+                    plan.InstanceName
                 );
 
                 var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
@@ -1522,7 +1551,7 @@ public class BenchRunService
         var map = new Dictionary<string, BenchPlan>(StringComparer.OrdinalIgnoreCase);
         foreach (var plan in plans)
         {
-            map[BuildPlanKey(plan.CircuitName, plan.BindingName)] = plan;
+            map[BuildPlanKey(plan.CircuitName, plan.InstanceName)] = plan;
         }
 
         return map;

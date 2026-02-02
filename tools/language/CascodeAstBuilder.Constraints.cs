@@ -53,33 +53,54 @@ internal sealed partial class CascodeAstBuilder
     {
         var id = ctx.IDENT().GetText();
         var benchRef = ctx.benchMetricRef();
-        var bench = benchRef.IDENT(0).GetText();
+        var benchBase = benchRef.IDENT(0).GetText();
         var metric = benchRef.IDENT(1).GetText();
-        var metricArgs = new List<MetricCallArg>();
-        if (benchRef.measurementArgList() is not null)
-        {
-            foreach (var arg in benchRef.measurementArgList().measurementArg())
-            {
-                if (arg.idPart() is null)
-                {
-                    throw new InvalidOperationException(
-                        "Numeric constraint metric invocations require named arguments."
-                    );
-                }
 
-                metricArgs.Add(
-                    new MetricCallArg(arg.idPart().GetText(), arg.measurementExpr().GetText())
-                );
+        // Extract bench args and metric args from the grammar:
+        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+        // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
+        var argLists = benchRef.measurementArgList();
+        var benchArgs = new List<MetricCallArg>();
+        var metricArgs = new List<MetricCallArg>();
+
+        if (argLists.Length == 2)
+        {
+            // Both bench(args)::metric(args)
+            benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+            metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
+        }
+        else if (argLists.Length == 1)
+        {
+            // Either bench(args)::metric or bench::metric(args)
+            // Check if the arg list appears before or after COLONCOLON by comparing token positions.
+            var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
+            var argListStartIndex = argLists[0].Start.TokenIndex;
+            if (argListStartIndex < colonColonIndex)
+            {
+                benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+            }
+            else
+            {
+                metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
             }
         }
+
         var node = ctx.nodeRef() != null ? BuildNodeRef(ctx.nodeRef()) : null;
         var op = ctx.COMPARISON_OP().GetText();
         var quantity = ctx.signedQuantity().GetText();
         var (value, unit) = ParseQuantity(quantity);
 
+        // Compute the bench instance name from BenchBase + BenchArgs.
+        var bench =
+            benchArgs.Count == 0
+                ? benchBase
+                : BenchRuntime.BenchInvocationName.Compute(benchBase, benchArgs);
+
         return new NumericConstraint
         {
             Id = id,
+            BenchBase = benchBase,
+            BenchArgs = benchArgs,
             Bench = bench,
             Metric = metric,
             MetricArgs = metricArgs,
@@ -88,6 +109,26 @@ internal sealed partial class CascodeAstBuilder
             Value = value,
             Unit = unit,
         };
+    }
+
+    private static List<MetricCallArg> ExtractConstraintArgs(
+        CascodeParser.MeasurementArgListContext argList,
+        string context
+    )
+    {
+        var args = new List<MetricCallArg>();
+        foreach (var arg in argList.measurementArg())
+        {
+            if (arg.idPart() is null)
+            {
+                throw new InvalidOperationException(
+                    $"Numeric constraint {context} requires named arguments."
+                );
+            }
+
+            args.Add(new MetricCallArg(arg.idPart().GetText(), arg.measurementExpr().GetText()));
+        }
+        return args;
     }
 
     /// <summary>Builds a technology constraint from its parse context.</summary>

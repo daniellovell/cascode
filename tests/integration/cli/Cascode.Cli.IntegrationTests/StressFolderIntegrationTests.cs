@@ -173,10 +173,10 @@ public sealed class StressFolderIntegrationTests : IDisposable
         // Assert per-bench artifacts exist and results are parseable.
         foreach (var plan in plans)
         {
-            var tbPath = Path.Combine(_outputDir, $"{plan.CircuitName}_{plan.BindingName}.sp");
+            var tbPath = Path.Combine(_outputDir, $"{plan.CircuitName}_{plan.InstanceName}.sp");
             var resultsPath = Path.Combine(
                 _outputDir,
-                $"{plan.CircuitName}_{plan.BindingName}_results.json"
+                $"{plan.CircuitName}_{plan.InstanceName}_results.json"
             );
 
             Assert.True(File.Exists(tbPath), $"testbench not found: {tbPath}");
@@ -194,7 +194,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
             );
             Assert.NotNull(results);
             Assert.Equal(plan.CircuitName, results!.Circuit);
-            Assert.Equal(plan.BindingName, results.Bench);
+            Assert.Equal(plan.InstanceName, results.Bench);
             Assert.True(results.Measurements.Count > 0);
             Assert.All(
                 results.Measurements.Values,

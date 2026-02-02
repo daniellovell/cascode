@@ -10,7 +10,8 @@ internal static class BenchHarnessElementCompiler
     public static IReadOnlyList<BenchHarnessElement> CompileHarnessElements(
         IReadOnlyList<InstanceDeclaration> instances,
         BenchNetlist netlist,
-        BenchMeasurementRunner evalRunner
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams = null
     )
     {
         ArgumentNullException.ThrowIfNull(instances);
@@ -43,7 +44,7 @@ internal static class BenchHarnessElementCompiler
             var parameters = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase);
             foreach (var (name, value) in inst.Params)
             {
-                parameters[name] = EvaluateInstanceParam(value, evalRunner);
+                parameters[name] = EvaluateInstanceParam(value, evalRunner, benchParams);
             }
 
             elements.Add(new BenchHarnessElement(type, inst.Id, pins, parameters));
@@ -76,7 +77,11 @@ internal static class BenchHarnessElementCompiler
         return type.Equals("Impedor", StringComparison.OrdinalIgnoreCase) ? "Impedance" : type;
     }
 
-    private static BenchValue EvaluateInstanceParam(ParamValue v, BenchMeasurementRunner evalRunner)
+    private static BenchValue EvaluateInstanceParam(
+        ParamValue v,
+        BenchMeasurementRunner evalRunner,
+        IReadOnlyDictionary<string, BenchValue>? benchParams
+    )
     {
         if (!string.IsNullOrWhiteSpace(v.Numeric))
         {
@@ -106,7 +111,7 @@ internal static class BenchHarnessElementCompiler
         {
             if (CascodeAstBuilder.TryParseMeasurementExprText(v.Symbolic, out var expr, out _))
             {
-                return evalRunner.EvaluateExpressionForPlan(expr!);
+                return evalRunner.EvaluateExpressionForPlan(expr!, benchParams);
             }
 
             return new BenchSymbol(v.Symbolic);

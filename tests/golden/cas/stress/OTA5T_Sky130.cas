@@ -66,7 +66,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
-      c_output_swing = tran_bench::OutputSwing(at_freq=1kHz) at net::OUT >= 0.4V
+      c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4V
     }
   }
   harness {

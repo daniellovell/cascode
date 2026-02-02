@@ -13,9 +13,21 @@ public enum BenchTerminalRole
 
 public sealed record BenchTerminal(BenchTerminalRole Role, string Name, string Type);
 
+/// <summary>
+/// Parameter declared on a bench definition (e.g., Frequency stim_freq = 1kHz).
+/// </summary>
+public sealed record BenchParameter(BenchValueType Type, string Name, MeasurementExpr? Default);
+
 public sealed class BenchDefinition
 {
     public required string Name { get; init; }
+
+    /// <summary>
+    /// Bench parameters that can be configured via constraint bench invocations.
+    /// For example, bench DiffToSETran(Frequency stim_freq = 1kHz) { ... }
+    /// </summary>
+    public List<BenchParameter> Parameters { get; init; } = new();
+
     public List<BenchTerminal> Terminals { get; init; } = new();
     public FillBlock? Fill { get; init; }
     public List<FunctionDefinition> Functions { get; init; } = new();
