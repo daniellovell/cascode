@@ -1478,7 +1478,7 @@ public class BenchRunService
         {
             return BenchQuantity.Parse(raw);
         }
-        catch
+        catch (FormatException)
         {
             return new BenchSymbol(raw);
         }

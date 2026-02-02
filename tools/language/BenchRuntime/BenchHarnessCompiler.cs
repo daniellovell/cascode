@@ -378,7 +378,7 @@ internal static class BenchHarnessCompiler
 
             return parsed;
         }
-        catch
+        catch (FormatException)
         {
             return new BenchSymbol(raw);
         }
@@ -437,7 +437,7 @@ internal static class BenchHarnessCompiler
         {
             return BenchQuantity.Parse(raw);
         }
-        catch
+        catch (FormatException)
         {
             return new BenchSymbol(raw);
         }
@@ -472,7 +472,7 @@ internal static class BenchHarnessCompiler
             {
                 constraints[c.Metric] = BenchQuantity.Parse(raw);
             }
-            catch
+            catch (FormatException)
             {
                 constraints[c.Metric] = new BenchSymbol(raw);
             }

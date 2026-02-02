@@ -85,7 +85,7 @@ internal static class BenchHarnessElementCompiler
             {
                 return BenchQuantity.Parse(v.Numeric);
             }
-            catch
+            catch (FormatException)
             {
                 if (
                     double.TryParse(

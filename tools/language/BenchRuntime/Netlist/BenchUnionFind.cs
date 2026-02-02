@@ -14,7 +14,7 @@ internal sealed class BenchUnionFind
         get
         {
             var groups = new Dictionary<BenchNode, List<BenchNode>>();
-            foreach (var node in _parent.Keys)
+            foreach (var node in _parent.Keys.ToArray())
             {
                 var rep = Find(node);
                 if (!groups.TryGetValue(rep, out var list))

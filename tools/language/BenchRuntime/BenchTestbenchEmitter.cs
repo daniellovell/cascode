@@ -548,7 +548,7 @@ public static class BenchTestbenchEmitter
                 var parsed = BenchQuantity.Parse(s.Name);
                 return parsed is BenchNumber pn ? SiValue.FormatForBackend(pn.Value, backend) : "0";
             }
-            catch
+            catch (FormatException)
             {
                 return s.Name;
             }

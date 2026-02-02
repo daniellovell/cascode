@@ -9,13 +9,17 @@ public sealed class SpectreCliOutputTests
     public void RunWithProgress_EscapesMarkupInStatusText()
     {
         var output = new SpectreCliOutput();
-        output.RunWithProgress(
-            "start",
+
+        // Markup characters that would cause issues if not escaped
+        var result = output.RunWithProgress(
+            "[red]initial[/]",
             progress =>
             {
-                progress("[00:00:00] step");
-                return 0;
+                progress("[green]step[/] with [[brackets]]");
+                return 42;
             }
         );
+
+        Assert.Equal(42, result);
     }
 }
