@@ -156,4 +156,130 @@ bench TestBench {{
         var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
         Assert.Contains("does not accept arguments", ex.Message);
     }
+
+    [Fact]
+    public void Env_Impedance_AllowsParensAndParallelExpr()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit EnvImpedanceSmoke {{
+  level EL
+  ground GND
+
+  fill {{ }}
+
+  env {{
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 15pF)
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var circuit = Assert.Single(result.Document!.Circuits);
+        var uf = new Cascode.Language.BenchRuntime.Netlist.BenchUnionFind();
+        var compiled = BenchHarnessCompiler.CompileAndInject(
+            circuit,
+            bindingName: "any",
+            uf,
+            baseInstances: Array.Empty<InstanceDeclaration>()
+        );
+
+        Assert.True(compiled.Env.TryGetValue("SourceImpedance", out var source));
+        var sourceZ = Assert.IsType<BenchImpedanceParallel>(source);
+        Assert.Single(sourceZ.Elements);
+        Assert.Equal(BenchNumericKind.ImpedanceOhm, sourceZ.Elements[0].Kind);
+
+        Assert.True(compiled.Env.TryGetValue("LoadImpedance", out var load));
+        var loadZ = Assert.IsType<BenchImpedanceParallel>(load);
+        Assert.Equal(2, loadZ.Elements.Count);
+        Assert.Contains(loadZ.Elements, e => e.Kind == BenchNumericKind.ImpedanceOhm);
+        Assert.Contains(loadZ.Elements, e => e.Kind == BenchNumericKind.CapacitanceF);
+    }
+
+    [Fact]
+    public void Impedance_Methods_ImplementHalfCircuitConversions()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ZBench {{
+  measurements {{
+    measurement Dummy : Hz {{
+      return 1Hz
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "ZBench");
+        var env = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["LoadImpedance"] = new BenchImpedanceParallel(
+                new[]
+                {
+                    new BenchNumber(BenchNumericKind.ImpedanceOhm, 1e9),
+                    new BenchNumber(BenchNumericKind.CapacitanceF, 15e-12),
+                }
+            ),
+        };
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env,
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        Assert.True(
+            CascodeAstBuilder.TryParseMeasurementExprText(
+                "env.LoadImpedance.DiffToShunt()",
+                out var diffToShunt,
+                out _
+            )
+        );
+        var zShunt = Assert.IsType<BenchImpedanceParallel>(
+            runner.EvaluateExpressionForPlan(diffToShunt!)
+        );
+        Assert.Contains(
+            zShunt.Elements,
+            e => e.Kind == BenchNumericKind.ImpedanceOhm && e.Value == 5e8
+        );
+        Assert.Contains(
+            zShunt.Elements,
+            e => e.Kind == BenchNumericKind.CapacitanceF && e.Value == 30e-12
+        );
+
+        Assert.True(
+            CascodeAstBuilder.TryParseMeasurementExprText(
+                "env.LoadImpedance.DiffToShunt().ShuntToDiff()",
+                out var roundTrip,
+                out _
+            )
+        );
+        var zRoundTrip = Assert.IsType<BenchImpedanceParallel>(
+            runner.EvaluateExpressionForPlan(roundTrip!)
+        );
+        Assert.Contains(
+            zRoundTrip.Elements,
+            e => e.Kind == BenchNumericKind.ImpedanceOhm && e.Value == 1e9
+        );
+        Assert.Contains(
+            zRoundTrip.Elements,
+            e => e.Kind == BenchNumericKind.CapacitanceF && e.Value == 15e-12
+        );
+    }
 }

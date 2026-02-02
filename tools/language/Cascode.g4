@@ -614,13 +614,18 @@ mulExpr
 
 unaryAtom
     : MINUS unaryAtom
-    | exprAtom
+    | exprPostfix
     ;
 
-exprAtom
+exprPostfix
+    : exprPrimary methodCallSuffix*
+    ;
+
+exprPrimary
     : LPAREN expr RPAREN
     | sizeFieldAccess
     | scopedAccess
+    | measurementFunctionCall
     | IDENT
     | NUMBER
     | QUANTITY
@@ -651,6 +656,7 @@ envStatement
 
 envValue
     : impedanceExpr
+    | LPAREN impedanceExpr RPAREN
     | QUANTITY
     | NUMBER IDENT?
     ;
@@ -855,7 +861,7 @@ measurementPostfix
     ;
 
 methodCallSuffix
-    : DOT IDENT LPAREN measurementArgList? RPAREN
+    : DOT idPart LPAREN measurementArgList? RPAREN
     ;
 
 measurementPrimary

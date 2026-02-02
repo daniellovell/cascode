@@ -1554,7 +1554,14 @@ public class BenchRunService
 
     private static bool HasCircuitNet(Circuit circuit, string path)
     {
-        if (circuit.Ports.Any(p => p.Name.Equals(path, StringComparison.OrdinalIgnoreCase)))
+        // Ports may be bundle-desugared into dotted leaves (e.g. "OUT.P", "OUT.N"). Allow
+        // constraints to refer to the parent bundle name (e.g. net::OUT).
+        if (
+            circuit.Ports.Any(p =>
+                p.Name.Equals(path, StringComparison.OrdinalIgnoreCase)
+                || p.Name.StartsWith(path + ".", StringComparison.OrdinalIgnoreCase)
+            )
+        )
         {
             return true;
         }

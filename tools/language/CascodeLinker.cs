@@ -500,6 +500,7 @@ public static class CascodeLinker
         return typeName.Equals("GND", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("VDC", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+            || typeName.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("Impedance", StringComparison.OrdinalIgnoreCase)
             || typeName.Equals("Impedor", StringComparison.OrdinalIgnoreCase);
     }

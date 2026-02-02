@@ -1374,7 +1374,7 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <return>The visitor result.</return>
 	public virtual Result VisitUnaryAtom([NotNull] CascodeParser.UnaryAtomContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.exprAtom"/>.
+	/// Visit a parse tree produced by <see cref="CascodeParser.exprPostfix"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
 	/// on <paramref name="context"/>.
@@ -1382,7 +1382,17 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitExprAtom([NotNull] CascodeParser.ExprAtomContext context) { return VisitChildren(context); }
+	public virtual Result VisitExprPostfix([NotNull] CascodeParser.ExprPostfixContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.exprPrimary"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitExprPrimary([NotNull] CascodeParser.ExprPrimaryContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.scalarExpr"/>.
 	/// <para>

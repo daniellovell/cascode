@@ -38,6 +38,18 @@ function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
   return G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
 }
 
+function calc_phase_margin(ACAnalysis ac, stim IN, resp OUT) : Phase {
+  // Approximate unity-feedback phase margin from the open-loop transfer function:
+  // PM = 180deg + phase(A(jw)) at the gain crossover (|A|=1, i.e. 0dB).
+  TransferFunction H = transfer(ac, IN, OUT)
+  GainSpectrum G = db20(H.Mag())
+  PhaseSpectrum P = H.Phase()
+
+  Frequency fg = G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+  Phase phi = P.ValueAt(fg)
+  return 180deg + phi
+}
+
 function calc_lowpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpConstraint, Frequency gbwConstraint) : Frequency {
   TransferFunction H = transfer(ac, IN, OUT)
   GainSpectrum G = db20(H.Mag())
@@ -91,8 +103,8 @@ bench DiffToSETransfer {
       .N--vcm
     }
 
-    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
-    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P
@@ -122,6 +134,10 @@ bench DiffToSETransfer {
 
     measurement GainBandwidth : Hz {
       return calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement PhaseMargin : deg {
+      return calc_phase_margin(ac, IN, OUT)
     }
 
     measurement LowpassBandwidth : Hz {
@@ -163,8 +179,8 @@ bench DiffToDiffTransfer {
       .N--vcm
     }
 
-    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
-    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P
@@ -172,11 +188,11 @@ bench DiffToDiffTransfer {
     acN.P--sourceN.P
     sourceN.N--IN.N
 
-    Impedor loadP = new Impedor(Z=(env.LoadImpedance / 2)) {
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.P
       .N--gnd
     }
-    Impedor loadN = new Impedor(Z=(env.LoadImpedance / 2)) {
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
       .P--OUT.N
       .N--gnd
     }
@@ -197,6 +213,10 @@ bench DiffToDiffTransfer {
 
     measurement GainBandwidth : Hz {
       return calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement PhaseMargin : deg {
+      return calc_phase_margin(ac, IN, OUT)
     }
 
     measurement LowpassBandwidth : Hz {

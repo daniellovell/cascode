@@ -125,4 +125,46 @@ public sealed class StressBenchRunIntegrationTests : IDisposable
         Assert.True(noiseResults.Measurements.Count > 0);
         Assert.All(noiseResults.Measurements.Values, m => Assert.False(double.IsNaN(m.Value)));
     }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task BenchRun_OTA5TFullyDiff_Ideal_CompletesAndSplitsDiffLoadImpedance()
+    {
+        var cascodePath = Path.Combine(
+            _repoRoot,
+            "tests/golden/cas/stress/OTA5TFullyDiff_Ideal.cas"
+        );
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(60),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var transferTb = Path.Combine(_outputDir, "OTA5TFullyDiff_Ideal_transfer_bench.sp");
+        Assert.True(File.Exists(transferTb), "transfer testbench not found");
+
+        var transferText = await File.ReadAllTextAsync(transferTb);
+
+        // The Diff->Diff transfer bench loads each output leg to AC ground using:
+        //   Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) ...
+        // For LoadImpedance=(1GOhm||15pF), DiffToShunt() => Z/2 => (500MEG || 30pF) per side.
+        Assert.Contains("500MEG", transferText);
+        Assert.Contains("30p", transferText);
+
+        // Ensure both halves exist (two shunts).
+        Assert.True(
+            transferText.Split("500MEG", StringSplitOptions.None).Length - 1 >= 2,
+            "expected two 500MEG load resistors"
+        );
+        Assert.True(
+            transferText.Split("30p", StringSplitOptions.None).Length - 1 >= 2,
+            "expected two 30p load capacitors"
+        );
+    }
 }

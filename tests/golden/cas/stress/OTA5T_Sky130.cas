@@ -40,7 +40,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
     // Required by lib.std transfer/noise benches.
     InputCommonModeRange = 0.9V
     SourceImpedance = 50Ohm
-    LoadImpedance = 1GOhm
+    LoadImpedance = (1GOhm || 15pF)
   }
 
   fill {
@@ -64,8 +64,9 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
-      // c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_output_swing = tran_bench::OutputSwing(at_freq=1kHz) at net::OUT >= 0.4V
     }
   }
   harness {

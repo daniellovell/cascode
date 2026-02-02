@@ -1,0 +1,67 @@
+VERSION 3.0
+
+library lib.std.bench
+
+// Transient benches (time-domain).
+//
+// NOTE: This is currently a fixed-frequency sine bench (1kHz). The measurement signature
+// includes at_freq for ergonomic constraint labeling (and future sweep support), but the
+// underlying stimulus frequency is not yet parameterized by measurement arguments.
+
+bench DiffToSETran {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    // Bias the input common-mode.
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // 1kHz differential sine excitation around vcm.
+    //
+    // Choose a modest default amplitude so the metric is "about usable swing" rather than
+    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
+    VSIN inP = new VSIN(A=25mV, freq=1kHz, phase=0deg) {
+      .N--vcm
+    }
+    VSIN inN = new VSIN(A=25mV, freq=1kHz, phase=180deg) {
+      .N--vcm
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    inP.P--sourceP.P
+    sourceP.N--IN.P
+
+    inN.P--sourceN.P
+    sourceN.N--IN.N
+
+    // Default load model uses env.LoadImpedance (consistent with AC benches).
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // Capture only the last cycle (start=9ms, stop=10ms) to make min/max reflect steady-state.
+    TranAnalysis tran = new TranAnalysis(step=5us, start=9ms, stop=10ms)
+  }
+
+  measurements {
+    measurement OutputSwing(Frequency at_freq) : V {
+      VoltageWaveform vout = voltage(tran, OUT)
+      return vout.Max() - vout.Min()
+    }
+  }
+}

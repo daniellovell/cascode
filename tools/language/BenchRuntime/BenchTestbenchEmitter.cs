@@ -477,6 +477,25 @@ public static class BenchTestbenchEmitter
 
             return;
         }
+
+        if (z is BenchImpedanceParallel par)
+        {
+            if (par.Elements.Count == 0)
+            {
+                return;
+            }
+
+            if (par.Elements.Count == 1)
+            {
+                EmitImpedance(sb, id, p, n, par.Elements[0], backend);
+                return;
+            }
+
+            for (var i = 0; i < par.Elements.Count; i++)
+            {
+                EmitImpedance(sb, $"{id}_{i}", p, n, par.Elements[i], backend);
+            }
+        }
     }
 
     private static bool TryGetPinPair(BenchHarnessElement e, out string p, out string n)

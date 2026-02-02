@@ -855,11 +855,17 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitUnaryAtom([NotNull] CascodeParser.UnaryAtomContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.exprAtom"/>.
+	/// Visit a parse tree produced by <see cref="CascodeParser.exprPostfix"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitExprAtom([NotNull] CascodeParser.ExprAtomContext context);
+	Result VisitExprPostfix([NotNull] CascodeParser.ExprPostfixContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.exprPrimary"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitExprPrimary([NotNull] CascodeParser.ExprPrimaryContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.scalarExpr"/>.
 	/// </summary>

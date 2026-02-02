@@ -491,7 +491,7 @@ internal sealed partial class CascodeAstBuilder
                 }
             }
 
-            expr = new MeasurementMethodCall(expr, suffix.IDENT().GetText(), args);
+            expr = new MeasurementMethodCall(expr, suffix.idPart().GetText(), args);
         }
 
         return expr;

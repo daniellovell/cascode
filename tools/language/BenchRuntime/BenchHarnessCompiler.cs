@@ -303,23 +303,85 @@ internal static class BenchHarnessCompiler
 
         foreach (var (key, raw) in circuit.Env.Entries)
         {
-            if (raw.Contains("||", StringComparison.Ordinal))
-            {
-                env[key] = new BenchSymbol(raw.Trim());
-                continue;
-            }
-
-            try
-            {
-                env[key] = BenchQuantity.Parse(raw);
-            }
-            catch
-            {
-                env[key] = new BenchSymbol(raw.Trim());
-            }
+            env[key] = ParseEnvValue(key, raw);
         }
 
         return env;
+    }
+
+    private static BenchValue ParseEnvValue(string key, string raw)
+    {
+        raw = raw.Trim();
+        if (raw.Length == 0)
+        {
+            return BenchMissing.Value;
+        }
+
+        // Allow outer parentheses for impedance expressions for ergonomics:
+        //   LoadImpedance = (1GOhm || 15pF)
+        if (raw.Length >= 2 && raw[0] == '(' && raw[^1] == ')')
+        {
+            raw = raw[1..^1].Trim();
+        }
+
+        var isImpedanceKey =
+            key.Equals("SourceImpedance", StringComparison.OrdinalIgnoreCase)
+            || key.Equals("LoadImpedance", StringComparison.OrdinalIgnoreCase);
+
+        if (raw.Contains("||", StringComparison.Ordinal))
+        {
+            var parts = raw.Split(
+                "||",
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            );
+
+            var elements = new List<BenchNumber>(capacity: parts.Length);
+            foreach (var part in parts)
+            {
+                var v = BenchQuantity.Parse(part);
+                if (
+                    v is not BenchNumber n
+                    || n.Kind
+                        is not (
+                            BenchNumericKind.ImpedanceOhm
+                            or BenchNumericKind.CapacitanceF
+                            or BenchNumericKind.InductanceH
+                        )
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"Invalid impedance element '{part}' (expected Ohm/F/H quantity)."
+                    );
+                }
+                elements.Add(n);
+            }
+
+            return new BenchImpedanceParallel(elements);
+        }
+
+        try
+        {
+            var parsed = BenchQuantity.Parse(raw);
+            if (
+                isImpedanceKey
+                && parsed is BenchNumber n
+                && n.Kind
+                    is (
+                        BenchNumericKind.ImpedanceOhm
+                        or BenchNumericKind.CapacitanceF
+                        or BenchNumericKind.InductanceH
+                    )
+            )
+            {
+                return new BenchImpedanceParallel(new[] { n });
+            }
+
+            return parsed;
+        }
+        catch
+        {
+            return new BenchSymbol(raw);
+        }
     }
 
     private static Dictionary<string, BenchValue> BuildHarnessScope(

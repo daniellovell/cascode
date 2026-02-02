@@ -1,0 +1,28 @@
+library lib.std.amp
+include lib.std.bench
+
+// Interface: Fully-differential operational amplifier.
+//
+// This is intentionally minimal: it exists to bind the standard benches for a Diff -> Diff
+// transfer function and quiescent power. Additional benches (noise, transient swing, etc.) can
+// be added once the corresponding standard benches exist for Diff outputs.
+interface FullyDifferentialOpAmp {
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input VTAIL : bias
+
+  benches {
+    bind QuiescentPower as vdd_pwr {
+      bench.PWR--dut.VDD
+      bench.RET--dut.GND
+    }
+
+    bind DiffToDiffTransfer as transfer_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+  }
+}
+

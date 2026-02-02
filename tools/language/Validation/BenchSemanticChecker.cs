@@ -806,6 +806,18 @@ public static class BenchSemanticChecker
             }
         }
 
+        if (recv.Kind == MeasurementTypeKind.Impedance)
+        {
+            if (
+                call.Method.Equals("DiffToShunt", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("ShuntToDiff", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("SplitParallel", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return MeasurementType.Impedance();
+            }
+        }
+
         if (recv.Kind == MeasurementTypeKind.VoltageWaveform)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))

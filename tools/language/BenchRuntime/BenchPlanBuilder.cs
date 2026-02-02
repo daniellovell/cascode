@@ -72,6 +72,21 @@ public static class BenchPlanBuilder
             evalRunner
         );
 
+        // Some parameterized measurements (e.g. OutputSwing(at_freq=...)) require specializing the
+        // generated testbench. Today we support a small set of such "plan-time" overrides driven
+        // by constraint metric invocation arguments.
+        var tranFreqHz = TryInferConstraintFrequencyHz(
+            circuit,
+            binding.BindingName,
+            metric: "OutputSwing",
+            argName: "at_freq"
+        );
+        if (tranFreqHz is not null)
+        {
+            harnessElements = ApplyTranStimulusFrequencyOverride(harnessElements, tranFreqHz.Value);
+            analyses = ApplyTranWindowOverride(analyses, tranFreqHz.Value);
+        }
+
         var requiresCurrents =
             BenchPrimitiveCallFinder.ContainsCall(bench, "current")
             || BenchPrimitiveCallFinder.ContainsCall(bench, "quiescent_power");
@@ -97,6 +112,119 @@ public static class BenchPlanBuilder
             terminalCompilation.DutNodeKeyByPinRef,
             terminalCompilation.Netlist
         );
+    }
+
+    private static double? TryInferConstraintFrequencyHz(
+        Circuit circuit,
+        string bindingName,
+        string metric,
+        string argName
+    )
+    {
+        if (circuit.Constraints?.Numeric is null)
+        {
+            return null;
+        }
+
+        var matches = circuit.Constraints.Numeric.Where(c =>
+            c.Bench.Equals(bindingName, StringComparison.OrdinalIgnoreCase)
+            && c.Metric.Equals(metric, StringComparison.OrdinalIgnoreCase)
+        );
+
+        double? hz = null;
+        foreach (var c in matches)
+        {
+            var arg = c.MetricArgs.FirstOrDefault(a =>
+                a.Name.Equals(argName, StringComparison.OrdinalIgnoreCase)
+            );
+            if (arg is null)
+            {
+                continue;
+            }
+
+            var raw = arg.Value.Trim();
+            if (raw.Length == 0)
+            {
+                continue;
+            }
+
+            var parsed = BenchQuantity.Parse(raw) as BenchNumber;
+            if (parsed is null || parsed.Kind != BenchNumericKind.FrequencyHz)
+            {
+                throw new InvalidOperationException(
+                    $"Constraint '{c.Id}': {metric}({argName}=...) requires a Frequency value, got '{arg.Value}'."
+                );
+            }
+
+            if (hz is null)
+            {
+                hz = parsed.Value;
+                continue;
+            }
+
+            if (Math.Abs(hz.Value - parsed.Value) > 1e-12 * Math.Max(1.0, Math.Abs(hz.Value)))
+            {
+                throw new InvalidOperationException(
+                    $"Multiple {metric} constraints specify different {argName} values for bench '{bindingName}'. Split into separate runs."
+                );
+            }
+        }
+
+        return hz;
+    }
+
+    private static IReadOnlyList<BenchHarnessElement> ApplyTranStimulusFrequencyOverride(
+        IReadOnlyList<BenchHarnessElement> elements,
+        double freqHz
+    )
+    {
+        var updated = new List<BenchHarnessElement>(elements.Count);
+        foreach (var e in elements)
+        {
+            if (!e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase))
+            {
+                updated.Add(e);
+                continue;
+            }
+
+            // For now, interpret "at_freq" as the frequency for all VSIN sources in the bench.
+            var parameters = new Dictionary<string, BenchValue>(
+                e.Parameters,
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["freq"] = new BenchNumber(BenchNumericKind.FrequencyHz, freqHz),
+            };
+            updated.Add(e with { Parameters = parameters });
+        }
+
+        return updated;
+    }
+
+    private static IReadOnlyList<BenchPlanAnalysis> ApplyTranWindowOverride(
+        IReadOnlyList<BenchPlanAnalysis> analyses,
+        double freqHz
+    )
+    {
+        // Capture 10 cycles total and evaluate on the last cycle.
+        var stop = 10.0 / freqHz;
+        var start = 9.0 / freqHz;
+
+        // Default to 200 points per cycle, but never increase step above what the bench asked for.
+        var step = 1.0 / (freqHz * 200.0);
+
+        return analyses
+            .Select(a =>
+                a.Type != BenchValueType.TranAnalysis
+                    ? a
+                    : a with
+                    {
+                        StartS = start,
+                        StopS = stop,
+                        StepS = a.StepS is null ? step : Math.Min(a.StepS.Value, step),
+                    }
+            )
+            .ToList();
     }
 
     private static IReadOnlyDictionary<string, FunctionDefinition> BuildFunctions(

@@ -28,8 +28,8 @@ bench DiffToSENoise {
       .N--vcm
     }
 
-    Impedor sourceP = new Impedor(Z=(env.SourceImpedance / 2)) { }
-    Impedor sourceN = new Impedor(Z=(env.SourceImpedance / 2)) { }
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
 
     acP.P--sourceP.P
     sourceP.N--IN.P

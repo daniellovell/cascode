@@ -25,5 +25,10 @@ interface SingleEndedOpAmp {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
     }
+
+    bind DiffToSETran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
   }
 }

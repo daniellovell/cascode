@@ -66,6 +66,12 @@ public sealed record BenchBool(bool Value) : BenchValue;
 
 public sealed record BenchSymbol(string Name) : BenchValue;
 
+/// <summary>
+/// A parallel impedance network represented as a set of primitive components (R/C/L) in parallel.
+/// This stays intentionally constrained: the RFC only requires the parallel-combination operator (||).
+/// </summary>
+public sealed record BenchImpedanceParallel(IReadOnlyList<BenchNumber> Elements) : BenchValue;
+
 public sealed record TranDataset(
     double[] TimePoints,
     IReadOnlyDictionary<string, double[]> NodeVoltages

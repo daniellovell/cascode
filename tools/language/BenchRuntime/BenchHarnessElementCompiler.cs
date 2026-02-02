@@ -27,6 +27,7 @@ internal static class BenchHarnessElementCompiler
                 !type.Equals("GND", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
+                && !type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
                 && !type.Equals("Impedance", StringComparison.OrdinalIgnoreCase)
             )
             {

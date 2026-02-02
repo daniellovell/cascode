@@ -415,11 +415,11 @@ public sealed class BenchMeasurementRunner
                 return Negate(RequireNumber(EvaluateExpr(u.Operand, locals), "unary"));
 
             case MeasurementBinary b:
-                return ApplyBinary(
-                    b.Op,
-                    RequireNumber(EvaluateExpr(b.Left, locals), "left"),
-                    RequireNumber(EvaluateExpr(b.Right, locals), "right")
-                );
+            {
+                var left = EvaluateExpr(b.Left, locals);
+                var right = EvaluateExpr(b.Right, locals);
+                return ApplyBinaryAny(b.Op, left, right);
+            }
 
             case MeasurementConditional c:
                 return EvaluateBool(c.Condition, locals)
@@ -578,6 +578,59 @@ public sealed class BenchMeasurementRunner
     )
     {
         var recv = EvaluateExpr(call.Receiver, locals);
+
+        // Impedance helpers (RFC half-circuit conversions).
+        if (TryAsImpedance(recv, out var z))
+        {
+            if (call.Method.Equals("DiffToShunt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.DiffToShunt takes no arguments."
+                    );
+                }
+                return ScaleImpedance(z, factor: 0.5);
+            }
+
+            if (call.Method.Equals("ShuntToDiff", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.ShuntToDiff takes no arguments."
+                    );
+                }
+                return ScaleImpedance(z, factor: 2.0);
+            }
+
+            if (call.Method.Equals("SplitParallel", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.SplitParallel requires 1 argument (n)."
+                    );
+                }
+
+                var count = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "SplitParallel(n)"
+                );
+                if (
+                    count.Kind != BenchNumericKind.Scalar
+                    || count.Value <= 0
+                    || count.Value != Math.Round(count.Value)
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"SplitParallel: expected positive integer scalar, got '{count.Value}'."
+                    );
+                }
+
+                return ScaleImpedance(z, factor: count.Value);
+            }
+        }
 
         // TransferFunction methods
         if (recv is BenchTransferFunction tf)
@@ -1809,6 +1862,34 @@ public sealed class BenchMeasurementRunner
             );
     }
 
+    private static bool TryAsImpedance(BenchValue value, out BenchImpedanceParallel z)
+    {
+        if (value is BenchImpedanceParallel par)
+        {
+            z = par;
+            return true;
+        }
+
+        if (value is BenchNumber n)
+        {
+            if (
+                n.Kind
+                is (
+                    BenchNumericKind.ImpedanceOhm
+                    or BenchNumericKind.CapacitanceF
+                    or BenchNumericKind.InductanceH
+                )
+            )
+            {
+                z = new BenchImpedanceParallel(new[] { n });
+                return true;
+            }
+        }
+
+        z = new BenchImpedanceParallel(Array.Empty<BenchNumber>());
+        return false;
+    }
+
     private static BenchNumber Negate(BenchNumber x) => new(x.Kind, -x.Value);
 
     private static BenchNumber ApplyBinary(string op, BenchNumber left, BenchNumber right)
@@ -1855,6 +1936,93 @@ public sealed class BenchMeasurementRunner
         }
 
         throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
+    }
+
+    private static BenchValue ApplyBinaryAny(string op, BenchValue left, BenchValue right)
+    {
+        if (left is BenchNumber ln && right is BenchNumber rn)
+        {
+            return ApplyBinary(op, ln, rn);
+        }
+
+        // Impedance arithmetic is intentionally limited to scaling by a dimensionless scalar.
+        // More complex impedance composition should be expressed structurally (e.g. `||` in env)
+        // and via explicit helper methods (e.g. DiffToShunt/ShuntToDiff).
+        if (left is BenchImpedanceParallel lz)
+        {
+            return ApplyImpedanceScale(op, lz, right, leftOnLhs: true);
+        }
+
+        if (right is BenchImpedanceParallel rz)
+        {
+            return ApplyImpedanceScale(op, rz, left, leftOnLhs: false);
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported binary '{op}' for {left.GetType().Name} and {right.GetType().Name}."
+        );
+    }
+
+    private static BenchValue ApplyImpedanceScale(
+        string op,
+        BenchImpedanceParallel z,
+        BenchValue other,
+        bool leftOnLhs
+    )
+    {
+        if (other is not BenchNumber n || n.Kind != BenchNumericKind.Scalar)
+        {
+            throw new InvalidOperationException(
+                $"Impedance '{op}' requires a scalar operand, got {other.GetType().Name}."
+            );
+        }
+
+        if (op == "*")
+        {
+            var factor = n.Value;
+            return ScaleImpedance(z, factor);
+        }
+
+        if (op == "/")
+        {
+            if (!leftOnLhs)
+            {
+                // scalar / impedance is not supported
+                throw new InvalidOperationException("Division by impedance is not supported.");
+            }
+
+            var factor = 1.0 / n.Value;
+            return ScaleImpedance(z, factor);
+        }
+
+        throw new InvalidOperationException($"Unsupported binary '{op}' for impedance.");
+    }
+
+    private static BenchImpedanceParallel ScaleImpedance(BenchImpedanceParallel z, double factor)
+    {
+        if (!double.IsFinite(factor) || factor == 0)
+        {
+            throw new InvalidOperationException($"Invalid impedance scale factor '{factor}'.");
+        }
+
+        var scaled = new BenchNumber[z.Elements.Count];
+        for (var i = 0; i < z.Elements.Count; i++)
+        {
+            var e = z.Elements[i];
+            scaled[i] = e.Kind switch
+            {
+                BenchNumericKind.ImpedanceOhm => new BenchNumber(e.Kind, e.Value * factor),
+                // Zc = 1/(jwC) so scaling impedance by factor => C scales by 1/factor.
+                BenchNumericKind.CapacitanceF => new BenchNumber(e.Kind, e.Value / factor),
+                // Zl = jwL so scaling impedance by factor => L scales by factor.
+                BenchNumericKind.InductanceH => new BenchNumber(e.Kind, e.Value * factor),
+                _ => throw new InvalidOperationException(
+                    $"Invalid impedance element kind '{e.Kind}'."
+                ),
+            };
+        }
+
+        return new BenchImpedanceParallel(scaled);
     }
 
     private static double InterpolateLogX(double[] xs, double[] ys, double x)
