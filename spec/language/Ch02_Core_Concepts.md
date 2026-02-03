@@ -223,6 +223,56 @@ circuit CurrentMirror(size Sense = size(W=2u, L=180n, M=1), int ratio = 1) {
 }
 ```
 
+### 2.5.4 `inline` circuits (reusable structural blocks)
+
+Cascode supports `inline` circuits as a way to define small structural blocks that expand into their
+parent during emission. This is the common mechanism for expressing reusable structural blocks
+without introducing a separate declaration kind.
+
+```cascode
+circuit BiasCell {
+  inline
+  level EL
+  supply VDD
+  ground GND
+  output VB : analog
+
+  fill { /* small structural block */ }
+}
+```
+
+When emitting SPICE, inline circuits do not produce standalone `.subckt` definitions. Instead, the
+emitter expands their contents into the instantiating context and applies deterministic naming to
+avoid collisions.
+
+Inline affects emission and bench node resolution; it does not change the basic semantic model of
+circuits, terminals, and wiring.
+
+### 2.5.5 Slots (synthesis placeholders)
+
+For high-level designs, Cascode retains `slot` declarations as explicit placeholders that are
+intended to be filled during synthesis.
+
+```cascode
+circuit MyTop {
+  level HL
+  input IN : Diff
+  output OUT : analog
+
+  slot Core implements SingleEndedOpAmp {
+    param ratio = 2
+    .IN--IN
+    .OUT--OUT
+  }
+
+  synth { seed = 123 }
+}
+```
+
+A slot declares an interface contract (`implements ...`) plus optional parameters and explicit
+bindings for the slot’s terminals. The synthesis stage (`cascode syn`) is responsible for producing
+an EL circuit in which all slots have been replaced by concrete structure.
+
 ---
 
 ## 2.6 Primitives and Devices

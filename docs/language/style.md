@@ -29,7 +29,7 @@ names.
 ## File organization
 
 - Put reusable benches in `lib/std/bench/**`.
-- Put reusable interfaces and connector traits near the primitives they describe (often `lib/std/prim/**`).
+- Put reusable interfaces and connector interfaces near the primitives they describe (often `lib/std/prim/**`).
 - Prefer small, single-purpose golden fixtures in `tests/golden/cas/**` that exercise a specific feature.
 
 ## Includes

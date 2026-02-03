@@ -17,7 +17,8 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 - Circuits and members: Section 3.7
 - Primitives and devices: Sections 3.8–3.9
 - Fill blocks and connectivity: Section 3.10
-- Constraints, benches sections, and harness (syntax): Section 3.11
+- Constraints, benches sections, environment, and harness (syntax): Section 3.11
+- Bench helper functions (syntax): Section 3.12
 
 ## Syntax index
 
@@ -26,17 +27,23 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | `VERSION` header | `VERSION 3.0` | 3.1.1 |
 | `library` | `library lib.std.amp` | 3.1.2 |
 | `include` | `include lib.std` | 3.1.3 |
+| `wrap spice` | `wrap spice """...""" map { ... }` | 3.1.5 |
 | `bundle` | `bundle Diff { P : analog }` | 3.5 |
 | `interface` | `interface SingleEndedOpAmp { ... }` | 3.6 |
 | `connectors` | `connectors { to X { A--B } }` | 3.6 |
 | `bench` | `bench DiffToSETransfer { ... }` | Chapter 4 |
+| `function` | `function f(...) : Frequency { ... }` | 3.12 |
 | `primitive` | `primitive NMOS Level1_NMOS(size s) { ... }` | 3.8 |
 | device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
+| `inline` | `inline` | 3.7 |
+| `slot` | `slot Core implements X { ... }` | 3.7 |
+| `synth {}` | `synth { seed = 123 }` | 3.7 |
 | `fill {}` | `fill { net n : analog  dp = new DiffPair { ... } }` | 3.10 |
 | `attach` | `attach cm to dp via A::B as name` | 3.10 |
 | `benches {}` | `benches { bind X as y { ... } }` | 3.11 |
 | `constraints {}` | `constraints { numeric { c = b::M >= 1 } }` | 3.11 |
+| `env {}` | `env { LoadImpedance = 50Ohm }` | 3.11 |
 | `harness {}` | `harness { supply VDD = 1.8V }` | 3.11 |
 
 ---
@@ -48,9 +55,11 @@ declarations. The most common declarations are:
 
 - `library ...` (file-level package metadata)
 - `include ...` (dependency inclusion)
+- `wrap spice """...""" map { ... }` (embed and map a SPICE subcircuit)
 - `bundle ... { ... }`
 - `interface ... { ... }`
 - `bench ... { ... }`
+- `function ... ( ... ) : <type> { ... }` (helper functions for measurements)
 - `primitive ... { ... }`
 - `circuit ... { ... }`
 
@@ -102,7 +111,28 @@ Cascode supports:
 - Normal strings: `"..."` (used for provenance and similar metadata)
 - Triple-quoted strings: `"""..."""` (used for embedding multi-line text, such as SPICE content)
 
-### 3.1.5 Minimal complete file
+### 3.1.5 SPICE wrapping (`wrap spice`)
+
+SPICE subcircuits can be embedded at the file level and mapped to Cascode terminal names:
+
+```cascode
+wrap spice """
+.subckt MY_BLOCK in out vdd gnd
+* ... SPICE content ...
+.ends
+""" map {
+  IN = in
+  OUT = out
+  VDD = vdd
+  GND = gnd
+}
+```
+
+`wrap spice` is a convenience for integrating existing simulator content into a structured Cascode
+design without losing explicit terminal naming. The mapping associates Cascode-facing names with the
+SPICE pin names of the embedded subcircuit.
+
+### 3.1.6 Minimal complete file
 
 The following minimal example shows the main structural forms in a single file:
 
@@ -328,6 +358,62 @@ Within the circuit body, the following members may appear (order is not signific
 The detailed syntax for `fill {}` connectivity, primitive devices, bench bindings, and constraints
 is specified in the remaining sections of this chapter and in the dedicated bench chapter.
 
+### 3.7.3 Inline circuits (`inline`)
+
+The `inline` keyword marks a circuit for inline expansion during SPICE emission:
+
+```cascode
+circuit BiasCell {
+  inline
+  level EL
+  // ...
+}
+```
+
+Inline circuits are expanded into their instantiating context rather than being emitted as separate
+`.subckt` definitions.
+
+### 3.7.4 Slots (`slot`)
+
+Slots are high-level placeholders intended to be filled during synthesis:
+
+```cascode
+circuit MyTop {
+  level HL
+  input IN : Diff
+  output OUT : analog
+
+  slot Core implements SingleEndedOpAmp {
+    param ratio = 2
+    .IN--IN
+    .OUT--OUT
+  }
+}
+```
+
+A slot body contains `param` assignments and binding statements written with the same `--` wiring
+operator used elsewhere.
+
+### 3.7.5 Synthesis guidance (`synth {}`)
+
+The `synth { ... }` block is a set of key/value entries that communicate synthesis guidance:
+
+```cascode
+circuit MyTop {
+  level HL
+
+  synth {
+    seed = 123
+    objective = minimize_power
+    vdd = 1.8V
+    notes = "do not use large capacitors"
+  }
+}
+```
+
+During linking, synthesis guidance is typically extracted into a sidecar `<name>.synth.yaml` file
+and removed from the linked `.cai` output.
+
 ---
 
 ## 3.8 Primitive Declarations
@@ -490,7 +576,7 @@ The wire operator is also used in connectors (`connectors { to X { A--B } }`) an
 
 ---
 
-## 3.11 Constraints, benches sections, and harness (syntax)
+## 3.11 Constraints, benches sections, environment, and harness (syntax)
 
 Constraints are declared in a `constraints { ... }` block, most commonly with a `numeric { ... }`
 section:
@@ -555,3 +641,37 @@ harness {
   sweep InputDCBias [0.3V:1.5V]
 }
 ```
+
+### 3.11.2 Environment (`env {}`)
+
+Environment values are declared as name/value assignments:
+
+```cascode
+env {
+  LoadImpedance = 50Ohm || 1pF
+  SourceImpedance = 50Ohm
+  TempC = 27
+}
+```
+
+The grammar supports an impedance expression form for `Z || C` style values, as used by standard
+benches. See Chapter 2 for the intent-level distinction between `env` and `harness`.
+
+---
+
+## 3.12 Helper Functions (Bench Expressions)
+
+Cascode supports helper `function` declarations at file scope and inside `bench { ... }` bodies.
+Functions are intended for measurement expressions and analysis post-processing.
+
+```cascode
+function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
+  TransferFunction H = transfer(ac, IN, OUT)
+  GainSpectrum G = db20(H.Mag())
+  return G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+}
+```
+
+Parameter types may be physical types (such as `Frequency`), analysis types (such as `ACAnalysis`),
+or terminal roles (`stim`, `resp`). A function body consists of variable declarations, `if/else`,
+and a `return` statement.

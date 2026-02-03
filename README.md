@@ -194,7 +194,7 @@ cascode/
 │     └─ Ch04_Bench_System.md
 ├─ lib/
 │  └─ std/
-│     ├─ prim/                 # Primitive definitions + connector traits
+│     ├─ prim/                 # Primitive definitions + connector interfaces
 │     ├─ bench/                # Standard bench definitions (declarative)
 │     ├─ amp/                  # Amplifier interfaces and circuits
 │     ├─ composites/           # Multi-block composites

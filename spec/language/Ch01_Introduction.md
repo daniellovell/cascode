@@ -63,6 +63,12 @@ The cascode toolchain operates on three primary artifact types:
 In typical use, `cascode link` produces `.cai` outputs, and `cascode emit` consumes EL-level circuits
 from either source `.cas` or linked `.cai`.
 
+The `.cai` extension is intentionally distinct from simulator conventions. In particular, `.cir` is
+widely used for SPICE netlists, and Cascode-linked artifacts are Cascode-shaped rather than SPICE.
+Reserving a distinct extension reduces ambiguity and keeps `.cal` available for Cascode Layout files
+in the long-horizon flow (Chapter 2 discusses the stage boundaries; the `.cal` format is specified
+separately from this language surface).
+
 ---
 
 ## 1.5 Cascode in a Few Examples
