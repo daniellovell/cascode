@@ -1,9 +1,12 @@
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using Cascode.Cli.Output;
+using Cascode.Cli.Services;
 using Cascode.Language;
 using Cascode.Language.Validation;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Cascode.Cli.Commands;
 
@@ -69,7 +72,7 @@ internal sealed class ErcCommandModule : ICommandModule
         var combinedResult = new ValidationResult();
         foreach (var circuit in circuits)
         {
-            var circuitResult = ElectricalRuleChecker.Check(circuit, requirePdk);
+            var circuitResult = ElectricalRuleChecker.Check(circuit, doc, requirePdk);
             combinedResult.Merge(circuitResult);
         }
 
@@ -121,44 +124,42 @@ internal sealed class ErcCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse Cascode document
-        CascodeReadResult readResult;
-        using (var reader = File.OpenText(inputPath))
-        {
-            readResult = CascodeReader.TryRead(reader, inputPath);
-        }
-
-        if (!readResult.Success)
+        var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
+        var linkArtifactsDir = Path.Combine(Directory.GetCurrentDirectory(), "build", "erc");
+        if (
+            !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
+                inputPath,
+                _state.WorkspaceRoot,
+                linkArtifactsDir,
+                loadLogger,
+                out var loaded,
+                out var diagnostics
+            )
+        )
         {
             if (jsonOutput)
             {
                 var errorResult = new ValidationResult();
-                foreach (
-                    var diag in readResult.Diagnostics.Where(d =>
-                        d.Severity == DiagnosticSeverity.Error
-                    )
-                )
+                foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
-                    errorResult.AddError("ERC-PARSE", diag.Message, $"{diag.FilePath}:{diag.Line}");
+                    var code = string.IsNullOrWhiteSpace(diag.Code) ? "ERC-LOAD" : diag.Code;
+                    errorResult.AddError(code, diag.Message, $"{diag.FilePath}:{diag.Line}");
                 }
                 output.WriteLine(errorResult.ToJson(2));
             }
             else
             {
-                foreach (
-                    var diag in readResult.Diagnostics.Where(d =>
-                        d.Severity == DiagnosticSeverity.Error
-                    )
-                )
+                foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
                     output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
             }
+
             earlyResult = new CommandResult(2, false);
             return false;
         }
 
-        doc = readResult.Document!;
+        doc = loaded.Document;
 
         // Find EL or ML circuits (topology-based ERC works on both)
         var circuits = doc

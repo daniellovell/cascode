@@ -7,9 +7,11 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
+using Cascode.Cli.Services;
 using Cascode.Language;
 using Cascode.Language.BenchRuntime;
 using Cascode.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
@@ -123,45 +125,31 @@ public sealed class StressFolderIntegrationTests : IDisposable
         await AssertRunArtifactsAndResults(doc, plans, expectedPdkMarker: null);
     }
 
+    [Theory]
+    [MemberData(nameof(StressCases))]
+    public async Task StressFolder_AllCasFiles_PassErc(string cascodePath)
+    {
+        var erc = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "erc",
+            cascodePath
+        );
+        CliIntegrationTestHelper.AssertSuccess(erc, "erc failed");
+    }
+
     private CascodeDocument LoadAndLinkIfNeededForTest(string inputPath)
     {
-        var resolvedPath = Path.GetFullPath(inputPath);
-        using var reader = File.OpenText(resolvedPath);
-        var read = CascodeReader.TryRead(reader, resolvedPath);
-        Assert.True(read.Success, $"failed to parse Cascode file: {resolvedPath}");
-        var doc = read.Document!;
-
-        if (
-            !resolvedPath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase)
-            || doc.Includes.Count == 0
-        )
-        {
-            return doc;
-        }
-
-        // Use the same linking approach as the CLI: included .cas sources must be linked to
-        // a self-contained .cai before compilation/emission.
-        var outDir = Path.Combine(_outputDir, "link");
-        Directory.CreateDirectory(outDir);
-        var link = CascodeLinker.LinkFile(
-            resolvedPath,
-            outDir,
-            workspaceRoot: _repoRoot,
-            logger: null
+        // This helper does not “cheat” the CLI run; it only produces the same in-memory model
+        // (including include linking) that the CLI uses, so test expectations line up.
+        var linkArtifactsDir = Path.Combine(_outputDir, "link");
+        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
+            inputPath,
+            workspaceRootHint: _repoRoot,
+            linkArtifactsDir: linkArtifactsDir,
+            logger: NullLogger.Instance
         );
-        Assert.True(link.Success, "link failed");
-        Assert.False(
-            string.IsNullOrWhiteSpace(link.LinkedCasPath),
-            "link did not produce a linked cas path"
-        );
-
-        using var linkedReader = File.OpenText(link.LinkedCasPath!);
-        var linkedRead = CascodeReader.TryRead(linkedReader, link.LinkedCasPath!);
-        Assert.True(
-            linkedRead.Success,
-            $"failed to parse linked Cascode file: {link.LinkedCasPath}"
-        );
-        return linkedRead.Document!;
+        return loaded.Document;
     }
 
     private async Task AssertRunArtifactsAndResults(
