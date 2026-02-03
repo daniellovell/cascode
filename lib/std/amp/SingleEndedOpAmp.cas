@@ -30,5 +30,15 @@ interface SingleEndedOpAmp {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
     }
+
+    bind SupplyToSERejection as psrr_bench {
+      bench.IN--dut.IN
+      bench.PWR--dut.VDD
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
   }
 }

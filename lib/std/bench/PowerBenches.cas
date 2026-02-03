@@ -18,3 +18,155 @@ bench QuiescentPower {
   }
 }
 
+// Power supply rejection ratio (PSRR) bench for single-ended output amplifiers.
+//
+// Applies AC ripple to the supply rail and measures the resulting output perturbation.
+// SupplyGain is the supply-to-output gain (Asupply). PSRR is output-referred PSRR
+// (does not depend on amplifier gain). InputReferredPSRR is gain-normalized PSRR.
+bench SupplyToSERejection {
+  stim IN : Diff
+  stim PWR : supply
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+    GND g = new GND() { .GND--gnd }
+
+    // Bias the input common-mode so the DUT inputs are not floating (avoids singular matrices in AC).
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    sourceP.P--vcm
+    sourceP.N--IN.P
+
+    sourceN.P--vcm
+    sourceN.N--IN.N
+
+    // Supply bias + ripple injection:
+    // - VDC sets the nominal rail voltage
+    // - VAC injects small-signal ripple on top
+    // This also prevents harness auto-injection for this rail (bench supplies override).
+    net vdd_dc : supply
+    VDC supplyDC = new VDC(V=harness.VDD) {
+      .P--vdd_dc
+      .N--gnd
+    }
+    VAC supplyAC = new VAC(A=1V, phase=0deg) {
+      .P--PWR
+      .N--vdd_dc
+    }
+
+    // Load impedance
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement SupplyGain : dB {
+      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement PSRR : dB {
+      return -SupplyGain()
+    }
+
+    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
+      return (dmGain - SupplyGain())
+    }
+  }
+}
+
+// Power supply rejection ratio (PSRR) bench for fully-differential output amplifiers.
+//
+// Applies AC ripple to the supply rail and measures the resulting differential output perturbation.
+// SupplyGain is the supply-to-output gain (Asupply). PSRR is output-referred PSRR
+// (does not depend on amplifier gain). InputReferredPSRR is gain-normalized PSRR.
+bench SupplyToDiffRejection {
+  stim IN : Diff
+  stim PWR : supply
+  resp OUT : Diff
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+    GND g = new GND() { .GND--gnd }
+
+    // Bias the input common-mode so the DUT inputs are not floating (avoids singular matrices in AC).
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    sourceP.P--vcm
+    sourceP.N--IN.P
+
+    sourceN.P--vcm
+    sourceN.N--IN.N
+
+    // Supply bias + ripple injection:
+    // - VDC sets the nominal rail voltage
+    // - VAC injects small-signal ripple on top
+    // This also prevents harness auto-injection for this rail (bench supplies override).
+    net vdd_dc : supply
+    VDC supplyDC = new VDC(V=harness.VDD) {
+      .P--vdd_dc
+      .N--gnd
+    }
+    VAC supplyAC = new VAC(A=1V, phase=0deg) {
+      .P--PWR
+      .N--vdd_dc
+    }
+
+    // Load impedances for differential output
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement SupplyGain : dB {
+      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement PSRR : dB {
+      return -SupplyGain()
+    }
+
+    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
+      return (dmGain - SupplyGain())
+    }
+  }
+}
+
