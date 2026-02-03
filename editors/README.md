@@ -59,8 +59,8 @@ The TextMate grammar recognizes:
 
 ### Keywords
 
-- **Package/Import**: `package`, `import`
-- **Declarations**: `module`, `motif`, `trait`, `extend`, `implements`
+- **Package/Import**: `library`, `import`
+- **Declarations**: `module`, `motif`, `interface`, `extend`, `implements`
 - **Blocks**: `supply`, `ground`, `port`, `net`, `param`, `env`, `use`, `spec`, `bench`, `synth`, `slot`, `phase`
 - **Directives**: `from`, `allow`, `prefer`, `forbid`, `objective`, `minimize`, `maximize`, `fill`, `bind`, `with`, `wrap`, `spice`, `map`
 - **Structure**: `attach`, `fb`, `pair`, `new`
@@ -199,6 +199,5 @@ Improvements to syntax highlighting are welcome! Please:
 ## 📄 License
 
 BSD-3 (matches main cascode repository)
-
 
 

@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Cascode.ACIR;
 using Cascode.Bench;
+using Cascode.Language;
 using Cascode.Workspace;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +39,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     public BenchIncludeResolution Resolve(
         Circuit circuit,
         BenchBackendType backend,
-        ACIRDocument? document = null
+        CascodeDocument? document = null
     )
     {
         var pdkDevices = CollectPdkDevicesRecursively(circuit, document);
@@ -152,7 +152,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     /// <summary>
     /// Recursively collects PDK device names from a circuit and its inline dependencies.
     /// </summary>
-    private static string[] CollectPdkDevicesRecursively(Circuit circuit, ACIRDocument? document)
+    private static string[] CollectPdkDevicesRecursively(Circuit circuit, CascodeDocument? document)
     {
         var pdkDevices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -160,8 +160,18 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
             c => c.Name,
             StringComparer.OrdinalIgnoreCase
         );
+        var primitivesByName = document?.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.OrdinalIgnoreCase
+        );
 
-        CollectPdkDevicesFromCircuit(circuit, circuitsByName, pdkDevices, visited);
+        CollectPdkDevicesFromCircuit(
+            circuit,
+            circuitsByName,
+            primitivesByName,
+            pdkDevices,
+            visited
+        );
 
         return pdkDevices.ToArray();
     }
@@ -169,6 +179,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     private static void CollectPdkDevicesFromCircuit(
         Circuit circuit,
         IReadOnlyDictionary<string, Circuit>? circuitsByName,
+        IReadOnlyDictionary<string, PrimitiveDefinition>? primitivesByName,
         HashSet<string> pdkDevices,
         HashSet<string> visited
     )
@@ -183,9 +194,29 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
         {
             foreach (var device in circuit.Fill.Devices)
             {
-                if (!string.IsNullOrWhiteSpace(device.PdkDevice))
+                if (
+                    primitivesByName is not null
+                    && primitivesByName.TryGetValue(device.Primitive, out var primitive)
+                    && !string.IsNullOrWhiteSpace(primitive.Device)
+                )
                 {
-                    pdkDevices.Add(device.PdkDevice);
+                    // Ignore built-in SPICE primitives and generic models; they don't require PDK includes.
+                    var key = primitive.Device.Trim();
+                    if (
+                        key.Equals("resistor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("capacitor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("inductor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("diode", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("nmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("pmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase)
+                    )
+                    {
+                        continue;
+                    }
+
+                    pdkDevices.Add(primitive.Device);
                 }
             }
         }
@@ -203,6 +234,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
                     CollectPdkDevicesFromCircuit(
                         targetCircuit,
                         circuitsByName,
+                        primitivesByName,
                         pdkDevices,
                         visited
                     );

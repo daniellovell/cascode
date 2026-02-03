@@ -9,6 +9,9 @@ internal static class NgspiceExecutor
 
     public static NgspiceRun Run(string spiceFile)
     {
+        spiceFile = Path.GetFullPath(spiceFile);
+        var workingDir = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory();
+
         var startInfo = new ProcessStartInfo
         {
             FileName = "ngspice",
@@ -16,10 +19,10 @@ internal static class NgspiceExecutor
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(spiceFile) ?? Directory.GetCurrentDirectory(),
+            WorkingDirectory = workingDir,
         };
         startInfo.ArgumentList.Add("-b");
-        startInfo.ArgumentList.Add(spiceFile);
+        startInfo.ArgumentList.Add(Path.GetFileName(spiceFile));
 
         using var process = new Process { StartInfo = startInfo };
         process.Start();

@@ -35,7 +35,7 @@ Primary flow
 Command surface (stable entry points)
 - System: `help`, `version`, `log`, `exit|quit`.
 - PDK: `pdk scan`, `pdk devices`, `pdk device <name>`, `pdk set-dir <path>|--clear`, and characterization entry points `pdk char …` (delegates).
-- Emit/ERC: `emit <acir_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]`, `erc <acir_file> [--require-pdk] [--json]`.
+- Emit/ERC: `emit <cascode_file> [--out <dir>] [--backend <ngspice|spectre>] [--json]`, `erc <cascode_file> [--require-pdk] [--json]`.
 - Bench/Build modules may add `bench …`, `build …` commands (thin orchestration only).
 
 Error handling & diagnostics

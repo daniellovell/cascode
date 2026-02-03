@@ -21,7 +21,7 @@ How it is used
 
 Emit/bench integration
 
-Emission and bench generation reuse the per-workspace pdk.db produced by pdk scan. When ACIR devices specify a PdkDevice name, the CLI resolves model include paths and the preferred section for the current corner, injects those includes into template variables, and maps the device to the resolved model or subckt name in the emitted design netlist. This flow never triggers a scan; if the database is missing, the CLI logs a warning and proceeds without PDK includes. For shared cluster runs, perform a single scan in a shared CASCODE_HOME and point jobs at the same workspace path (via --workspace or pdk set-dir) so they reuse the database. Corner selection comes from CASCODE_PDK_CORNER and defaults to tt.
+Emission and bench generation reuse the per-workspace pdk.db produced by pdk scan. When Cascode primitives reference PDK-backed devices via their `device "..."` directive (as opposed to built-in generic devices like `resistor` or `level1_nmos`), the CLI resolves model include paths and the preferred section for the current corner, injects those includes into the emitted netlists, and maps the device to the resolved model or subckt name. This flow never triggers a scan; if the database is missing, the CLI logs a warning and proceeds without PDK includes. For shared cluster runs, perform a single scan in a shared CASCODE_HOME and point jobs at the same workspace path (via --workspace or pdk set-dir) so they reuse the database. Corner selection comes from CASCODE_PDK_CORNER and defaults to tt.
 
 Recommended flow
 

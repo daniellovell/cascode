@@ -3,9 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Cascode.ACIR;
 using Cascode.Bench;
-using Cascode.Parser;
+using Cascode.Cli.Output;
+using Cascode.Language;
 
 namespace Cascode.Cli.Commands;
 
@@ -15,14 +15,16 @@ namespace Cascode.Cli.Commands;
 internal sealed class VerifyCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandModule"/> class.
     /// </summary>
     /// <param name="state">Shell state for messaging.</param>
-    public VerifyCommandModule(ShellState state)
+    public VerifyCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     /// <summary>
@@ -43,54 +45,55 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <summary>
     /// Executes the verify command to check constraint compliance.
     /// </summary>
-    /// <param name="args">Command arguments: --acir <file> --results <json>.</param>
+    /// <param name="args">Command arguments: --cascode <file> --results <json>.</param>
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult VerifyCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: verify <acir_file> <results_json|trace_jsonl>");
-            _state.AddMessage(
-                "       verify --acir <acir_file> (--results <results_json> | --trace <trace_jsonl>)"
+            output.WriteLine("Usage: verify <cascode_file> <results_json|trace_jsonl>");
+            output.WriteLine(
+                "       verify --cascode <cascode_file> (--results <results_json> | --trace <trace_jsonl>)"
             );
-            _state.AddMessage("");
-            _state.AddMessage(
-                "Verifies numeric constraints from ACIR against bench measurement results."
+            output.WriteLine("");
+            output.WriteLine(
+                "Verifies numeric constraints from Cascode against bench measurement results."
             );
             return CommandResult.Success;
         }
 
-        if (!ParseArguments(args, out var acirPath, out var resultsPath, out var tracePath))
+        if (!ParseArguments(args, out var cascodePath, out var resultsPath, out var tracePath))
         {
-            _state.AddMessage(
-                "Error: provide an ACIR path plus either a results.json or trace.jsonl path."
+            output.Error(
+                "Error: provide an Cascode path plus either a results.json or trace.jsonl path."
             );
             return CommandResult.Failure;
         }
 
-        if (!File.Exists(acirPath))
+        if (!File.Exists(cascodePath))
         {
-            _state.AddMessage($"ACIR file '{acirPath}' not found.");
+            output.Error($"Cascode file '{cascodePath}' not found.");
             return CommandResult.Failure;
         }
 
         if (resultsPath != null && !File.Exists(resultsPath))
         {
-            _state.AddMessage($"Results file '{resultsPath}' not found.");
+            output.Error($"Results file '{resultsPath}' not found.");
             return CommandResult.Failure;
         }
 
         if (tracePath != null && !File.Exists(tracePath))
         {
-            _state.AddMessage($"Trace file '{tracePath}' not found.");
+            output.Error($"Trace file '{tracePath}' not found.");
             return CommandResult.Failure;
         }
 
-        // Read ACIR document
-        ACIRReadResult readResult;
-        using (var reader = File.OpenText(acirPath))
+        // Read Cascode document
+        CascodeReadResult readResult;
+        using (var reader = File.OpenText(cascodePath))
         {
-            readResult = ACIRReader.TryRead(reader, acirPath);
+            readResult = CascodeReader.TryRead(reader, cascodePath);
         }
 
         if (!readResult.Success)
@@ -101,7 +104,7 @@ internal sealed class VerifyCommandModule : ICommandModule
                 )
             )
             {
-                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return CommandResult.Failure;
         }
@@ -109,10 +112,10 @@ internal sealed class VerifyCommandModule : ICommandModule
         var doc = readResult.Document!;
 
         // Find EL-level circuit (use first one, or match by name from results)
-        var elCircuits = doc.Circuits.Where(c => c.Level == ACIRLevel.EL).ToList();
+        var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
-            _state.AddMessage("No EL-level circuits found in ACIR document.");
+            output.Error("No EL-level circuits found in Cascode document.");
             return CommandResult.Failure;
         }
 
@@ -138,7 +141,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to read results file: {ex.Message}");
+            output.Error($"Failed to read results file: {ex.Message}");
             return CommandResult.Failure;
         }
 
@@ -151,35 +154,35 @@ internal sealed class VerifyCommandModule : ICommandModule
         // Check compliance
         var report = ComplianceChecker.Check(circuit, results);
 
-        DisplayComplianceReport(circuit, results.Bench, report);
+        DisplayComplianceReport(output, circuit, results.Bench, report);
 
         return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
     }
 
     /// <summary>
-    /// Parses command-line arguments to extract ACIR and results file paths.
+    /// Parses command-line arguments to extract Cascode and results file paths.
     /// </summary>
     /// <param name="args">Command arguments array.</param>
-    /// <param name="acirPath">Output parameter for ACIR file path.</param>
+    /// <param name="cascodePath">Output parameter for Cascode file path.</param>
     /// <param name="resultsPath">Output parameter for results JSON file path.</param>
     /// <returns>True if both arguments were found, false otherwise.</returns>
     private static bool ParseArguments(
         string[] args,
-        out string? acirPath,
+        out string? cascodePath,
         out string? resultsPath,
         out string? tracePath
     )
     {
-        acirPath = null;
+        cascodePath = null;
         resultsPath = null;
         tracePath = null;
         var positionals = new System.Collections.Generic.List<string>();
 
         for (var i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--acir" && i + 1 < args.Length)
+            if (args[i] == "--cascode" && i + 1 < args.Length)
             {
-                acirPath = args[i + 1];
+                cascodePath = args[i + 1];
                 i++;
             }
             else if (args[i] == "--results" && i + 1 < args.Length)
@@ -198,9 +201,9 @@ internal sealed class VerifyCommandModule : ICommandModule
             }
         }
 
-        if (acirPath == null && positionals.Count >= 1)
+        if (cascodePath == null && positionals.Count >= 1)
         {
-            acirPath = positionals[0];
+            cascodePath = positionals[0];
         }
 
         if (resultsPath == null && tracePath == null && positionals.Count >= 2)
@@ -216,7 +219,7 @@ internal sealed class VerifyCommandModule : ICommandModule
             }
         }
 
-        return acirPath != null && (resultsPath != null || tracePath != null);
+        return cascodePath != null && (resultsPath != null || tracePath != null);
     }
 
     private static BenchResult ReadResultsFromTrace(
@@ -262,17 +265,22 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <param name="circuit">The circuit being verified.</param>
     /// <param name="benchName">Name of the bench that produced the results.</param>
     /// <param name="report">The compliance report to display.</param>
-    private void DisplayComplianceReport(Circuit circuit, string benchName, ComplianceReport report)
+    private static void DisplayComplianceReport(
+        ICliOutput output,
+        Circuit circuit,
+        string benchName,
+        ComplianceReport report
+    )
     {
         var header = string.IsNullOrEmpty(benchName)
             ? $"Constraint Compliance Report for {circuit.Name}"
             : $"Constraint Compliance Report for {circuit.Name} ({benchName})";
-        _state.AddMessage(header);
-        _state.AddMessage(new string('-', 50));
+        output.WriteLine(header);
+        output.WriteLine(new string('-', 50));
 
         if (report.TotalCount == 0 && report.UncheckedCount == 0)
         {
-            _state.AddMessage("No numeric constraints found in circuit.");
+            output.Warning("No numeric constraints found in circuit.");
         }
 
         foreach (var result in report.Results)
@@ -287,30 +295,28 @@ internal sealed class VerifyCommandModule : ICommandModule
                 ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
                 : " (not measured)";
 
-            _state.AddMessage(
+            output.WriteLine(
                 $"{result.Id, -8} {result.Metric}{nodeStr} {result.Operator} {expectedStr, -12} {status}{actualStr}"
             );
         }
 
-        _state.AddMessage(new string('-', 50));
-        _state.AddMessage(
-            $"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied"
-        );
+        output.WriteLine(new string('-', 50));
+        output.WriteLine($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
 
         // Show hint about unchecked constraints from other benches
         if (report.UncheckedByBench.Count > 0)
         {
-            _state.AddMessage("");
+            output.WriteLine("");
 
             foreach (var kvp in report.UncheckedByBench)
             {
                 var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
                 var constraintWord = kvp.Value.Count == 1 ? "constraint" : "constraints";
-                _state.AddMessage(
+                output.WriteLine(
                     $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
                 );
             }
-            _state.AddMessage("Run `verify` with combined results to check all constraints.");
+            output.Warning("Run `verify` with combined results to check all constraints.");
         }
     }
 

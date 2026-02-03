@@ -1,6 +1,6 @@
 namespace Cascode.Render.Tests.Routing;
 
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -8,20 +8,20 @@ using Cascode.Render.Routing;
 public class MazeRouterTests
 {
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
-    public void Route_AllNetsFullyConnected(string acirPath)
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    public void Route_AllNetsFullyConnected(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -375,20 +375,20 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
-    public void Route_NoOverlappingSegmentsWithinNet(string acirPath)
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    public void Route_NoOverlappingSegmentsWithinNet(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -463,17 +463,17 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    public void Route_JunctionsAtBranchPointsNotTerminals(string acirPath)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    public void Route_JunctionsAtBranchPointsNotTerminals(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -546,17 +546,17 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    public void Route_DevicesOnSameAxisConnectedDirectly(string acirPath)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    public void Route_DevicesOnSameAxisConnectedDirectly(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -631,20 +631,20 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
-    public void Route_PortTerminalPositionsConnectedToWires(string acirPath)
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    public void Route_PortTerminalPositionsConnectedToWires(string cascodePath)
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -704,8 +704,8 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    public void Route_SymmetricTerminalsMeetAtCenterDevice(string acirPath)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    public void Route_SymmetricTerminalsMeetAtCenterDevice(string cascodePath)
     {
         // This test verifies that when a net has terminals on opposite sides of the
         // symmetry axis PLUS a center terminal, the routing goes through the center
@@ -718,13 +718,13 @@ public class MazeRouterTests
         // The expected routing is Y-shaped: both sources route DOWN to meet at tail drain.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -800,8 +800,8 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    public void Route_NoRedundantParallelPaths(string acirPath)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    public void Route_NoRedundantParallelPaths(string cascodePath)
     {
         // This test verifies that there are no redundant parallel paths to the same destination.
         // A proper tree has exactly one path between any two points.
@@ -810,13 +810,13 @@ public class MazeRouterTests
         // parallel horizontal segments at different Y coordinates that converge at the port.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -880,8 +880,8 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir", "vcm_node")]
-    public void Route_GatesToGatesConnectDirectlyOnSameY(string acirPath, string targetNet)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai", "vcm_node")]
+    public void Route_GatesToGatesConnectDirectlyOnSameY(string cascodePath, string targetNet)
     {
         // This test verifies that when a net has multiple gate terminals at the same Y level,
         // they are connected by a direct horizontal path rather than routing through other nodes.
@@ -892,13 +892,13 @@ public class MazeRouterTests
         // Expected routing: gates connect horizontally, then one vertical drops to resistors.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -966,11 +966,11 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/cs/CSAmpResistive.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TSingleEnded.el.cir")]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
-    public void Route_NoUselessWireStubs(string acirPath)
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
+    public void Route_NoUselessWireStubs(string cascodePath)
     {
         // This test verifies that every wire segment endpoint either:
         // 1. Connects to a terminal (device or port)
@@ -978,13 +978,13 @@ public class MazeRouterTests
         // Dead-end wire stubs that lead nowhere are routing errors.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -1027,21 +1027,21 @@ public class MazeRouterTests
     }
 
     [Theory]
-    [InlineData("tests/golden/acir/ota/OTA5TFullyDiff.el.cir")]
-    public void Route_OccupiedSegmentsMatchRenderedSegments(string acirPath)
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    public void Route_OccupiedSegmentsMatchRenderedSegments(string cascodePath)
     {
         // This test verifies that the OccupiedSegments map only contains
         // segments that are actually in the final routing result.
         // Ghost segments from pruned paths should NOT be in the occupied map.
 
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);
@@ -1087,19 +1087,19 @@ public class MazeRouterTests
     /// but the input side (left) needs a connector to be added.
     /// </summary>
     [Theory]
-    [InlineData("tests/golden/acir/filters/DiffRCFilter.el.cir")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
     public void Route_ParallelPathsWithOneSidedVerticalCoverage_ConnectorAddedToBothSides(
-        string acirPath
+        string cascodePath
     )
     {
         // Arrange
-        var fullPath = Path.Combine(GetRepoRoot(), acirPath);
+        var fullPath = Path.Combine(GetRepoRoot(), cascodePath);
         using var reader = File.OpenText(fullPath);
-        var readResult = ACIRReader.TryRead(reader, fullPath);
-        Assert.True(readResult.Success, "Failed to parse ACIR file");
+        var readResult = CascodeReader.TryRead(reader, fullPath);
+        Assert.True(readResult.Success, "Failed to parse Cascode file");
 
         var doc = readResult.Document!;
-        var elCircuit = doc.Circuits.First(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.First(c => c.Level == CascodeLevel.EL);
 
         var graph = CircuitGraph.Build(elCircuit);
         var topology = TopologyAnalyzer.Analyze(graph);

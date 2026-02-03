@@ -27,3 +27,5 @@ error.log
 
 # Git SPR
 .spr.yml
+# Bench runtime artifacts (should live in build/, but ignore if they leak)
+*.wrdata

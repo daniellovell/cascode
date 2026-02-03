@@ -1,0 +1,148 @@
+{
+  "cascodeVersion": "3.0",
+  "primitives": [
+    {
+      "name": "Level1_NMOS",
+      "kind": "NMOS",
+      "device": "level1_nmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    },
+    {
+      "name": "Level1_PMOS",
+      "kind": "PMOS",
+      "device": "level1_pmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    }
+  ],
+  "circuit": {
+    "name": "CommonSourceAmp",
+  "interfaces": [
+      "SingleEndedAmp"
+    ],
+    "level": "EL"
+  },
+  "supplies": [
+    "VDD"
+  ],
+  "grounds": [
+    "GND"
+  ],
+  "ports": [
+    {
+      "name": "IN",
+      "direction": "input",
+      "kind": "analog"
+    },
+    {
+      "name": "OUT",
+      "direction": "output",
+      "kind": "analog"
+    },
+    {
+      "name": "VBIAS",
+      "direction": "input",
+      "kind": "bias"
+    }
+  ],
+  "nets": [],
+  "components": [
+    {
+      "kind": "NMOS",
+      "name": "M_in",
+      "primitive": "Level1_NMOS",
+      "connections": {
+        "D": "OUT",
+        "G": "IN",
+        "S": "GND",
+        "B": "GND"
+      },
+      "size": {
+        "W": "10u",
+        "L": "180n",
+        "M": "1"
+      }
+    },
+    {
+      "kind": "PMOS",
+      "name": "load.M",
+      "primitive": "Level1_PMOS",
+      "connections": {
+        "D": "OUT",
+        "G": "VBIAS",
+        "S": "VDD",
+        "B": "VDD"
+      },
+      "size": {
+        "W": "20u",
+        "L": "180n",
+        "M": "1"
+      }
+    }
+  ],
+  "constraints": {
+    "numeric": [
+      {
+        "id": "c_gbw",
+        "bench": "ACBench",
+        "metric": "GainBandwidth",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 50000000,
+        "unit": "Hz"
+      },
+      {
+        "id": "c_gain",
+        "bench": "ACBench",
+        "metric": "PassbandGain",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 30,
+        "unit": "dB"
+      }
+    ],
+    "tech": []
+  },
+  "harness": {
+    "supply": {
+      "net": "VDD",
+      "voltage": 1.8
+    },
+    "biases": [
+      {
+        "net": "VBIAS",
+        "voltage": 0.7
+      }
+    ],
+    "loads": [
+      {
+        "net": "OUT",
+        "capacitances": [
+          1E-12
+        ],
+        "resistances": []
+      }
+    ],
+    "sweeps": []
+  },
+  "benchDefinitions": [
+    {
+      "name": "ACBench",
+      "interface": "SingleEndedAmp",
+      "builtin": "SEAmpACBench",
+      "outputs": [
+        "GainBandwidth",
+        "PassbandGain"
+      ]
+    }
+  ]
+}

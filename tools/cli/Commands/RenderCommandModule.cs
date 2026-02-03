@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Cascode.ACIR;
-using Cascode.Parser;
+using Cascode.Cli.Output;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -12,15 +12,17 @@ using Cascode.Render.Svg;
 namespace Cascode.Cli.Commands;
 
 /// <summary>
-/// Command module for rendering SVG schematics from ACIR EL circuits.
+/// Command module for rendering SVG schematics from Cascode EL circuits.
 /// </summary>
 internal sealed class RenderCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
-    public RenderCommandModule(ShellState state)
+    public RenderCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     public void Register(CommandRegistry registry)
@@ -28,7 +30,7 @@ internal sealed class RenderCommandModule : ICommandModule
         registry.Register(
             new DelegateCliCommand(
                 "render",
-                "Render SVG schematic from ACIR EL circuit",
+                "Render SVG schematic from Cascode EL circuit",
                 RenderCommand
             )
         );
@@ -36,9 +38,10 @@ internal sealed class RenderCommandModule : ICommandModule
 
     private CommandResult RenderCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            ShowUsage();
+            ShowUsage(output);
             return CommandResult.Success;
         }
 
@@ -49,22 +52,22 @@ internal sealed class RenderCommandModule : ICommandModule
         {
             if (options.JsonOutput)
             {
-                OutputJson(false, 2, null, $"Input file '{inputPath}' not found.");
+                OutputJson(output, false, 2, null, $"Input file '{inputPath}' not found.");
             }
             else
             {
-                _state.AddMessage($"Input file '{inputPath}' not found.");
+                output.Error($"Input file '{inputPath}' not found.");
             }
             return new CommandResult(2, false);
         }
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse ACIR document
-        ACIRReadResult readResult;
+        // Parse Cascode document
+        CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
-            readResult = ACIRReader.TryRead(reader, inputPath);
+            readResult = CascodeReader.TryRead(reader, inputPath);
         }
 
         if (!readResult.Success)
@@ -75,7 +78,7 @@ internal sealed class RenderCommandModule : ICommandModule
                     .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
                     .Select(d => d.Message)
                     .ToList();
-                OutputJson(false, 2, null, string.Join("; ", errors));
+                OutputJson(output, false, 2, null, string.Join("; ", errors));
             }
             else
             {
@@ -85,7 +88,7 @@ internal sealed class RenderCommandModule : ICommandModule
                     )
                 )
                 {
-                    _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                    output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
             }
             return new CommandResult(2, false);
@@ -94,17 +97,17 @@ internal sealed class RenderCommandModule : ICommandModule
         var doc = readResult.Document!;
 
         // Find EL-level circuit
-        var elCircuit = doc.Circuits.FirstOrDefault(c => c.Level == ACIRLevel.EL);
+        var elCircuit = doc.Circuits.FirstOrDefault(c => c.Level == CascodeLevel.EL);
         if (elCircuit == null)
         {
-            var msg = "No EL-level circuit found. Schematic rendering requires EL-level ACIR.";
+            var msg = "No EL-level circuit found. Schematic rendering requires EL-level Cascode.";
             if (options.JsonOutput)
             {
-                OutputJson(false, 2, null, msg);
+                OutputJson(output, false, 2, null, msg);
             }
             else
             {
-                _state.AddMessage(msg);
+                output.Error(msg);
             }
             return new CommandResult(2, false);
         }
@@ -148,13 +151,13 @@ internal sealed class RenderCommandModule : ICommandModule
 
             if (options.JsonOutput)
             {
-                OutputJson(true, 0, outputPath);
+                OutputJson(output, true, 0, outputPath);
             }
             else
             {
-                _state.AddMessage($"Rendered schematic: {outputPath}");
-                _state.AddMessage($"Circuit: {elCircuit.Name}");
-                _state.AddMessage($"Devices: {graph.Devices.Count}");
+                output.Success($"Rendered schematic: {outputPath}");
+                output.WriteLine($"Circuit: {elCircuit.Name}");
+                output.WriteLine($"Devices: {graph.Devices.Count}");
             }
 
             return CommandResult.Success;
@@ -163,34 +166,34 @@ internal sealed class RenderCommandModule : ICommandModule
         {
             if (options.JsonOutput)
             {
-                OutputJson(false, 1, null, $"Render failed: {ex.Message}");
+                OutputJson(output, false, 1, null, $"Render failed: {ex.Message}");
             }
             else
             {
-                _state.AddMessage($"Render failed: {ex.Message}");
+                output.Error($"Render failed: {ex.Message}");
             }
             return CommandResult.Failure;
         }
     }
 
-    private void ShowUsage()
+    private static void ShowUsage(ICliOutput output)
     {
-        _state.AddMessage("Usage: render <acir_file> [options]");
-        _state.AddMessage("");
-        _state.AddMessage("Renders an SVG schematic from an ACIR EL-level circuit.");
-        _state.AddMessage("");
-        _state.AddMessage("Options:");
-        _state.AddMessage("  -o, --output <path>   Output file path (default: <input>.svg)");
-        _state.AddMessage(
+        output.WriteLine("Usage: render <cascode_file> [options]");
+        output.WriteLine("");
+        output.WriteLine("Renders an SVG schematic from an Cascode EL-level circuit.");
+        output.WriteLine("");
+        output.WriteLine("Options:");
+        output.WriteLine("  -o, --output <path>   Output file path (default: <input>.svg)");
+        output.WriteLine(
             "  --style <name>        Style preset: default, dark, minimal, publication"
         );
-        _state.AddMessage("  --width <pixels>      Explicit width");
-        _state.AddMessage("  --height <pixels>     Explicit height");
-        _state.AddMessage("  --show-nets           Show internal net labels");
-        _state.AddMessage("  --no-labels           Hide device labels");
-        _state.AddMessage("  --no-params           Hide parameter labels");
-        _state.AddMessage("  --title <text>        Add title to schematic");
-        _state.AddMessage("  --json                Output result as JSON");
+        output.WriteLine("  --width <pixels>      Explicit width");
+        output.WriteLine("  --height <pixels>     Explicit height");
+        output.WriteLine("  --show-nets           Show internal net labels");
+        output.WriteLine("  --no-labels           Hide device labels");
+        output.WriteLine("  --no-params           Hide parameter labels");
+        output.WriteLine("  --title <text>        Add title to schematic");
+        output.WriteLine("  --json                Output result as JSON");
     }
 
     private static RenderCommandOptions ParseOptions(string[] args)
@@ -248,9 +251,15 @@ internal sealed class RenderCommandModule : ICommandModule
         return options;
     }
 
-    private void OutputJson(bool success, int exitCode, string? outputPath, string? error = null)
+    private static void OutputJson(
+        ICliOutput cliOutput,
+        bool success,
+        int exitCode,
+        string? outputPath,
+        string? error = null
+    )
     {
-        var output = new RenderJsonOutput
+        var json = new RenderJsonOutput
         {
             Success = success,
             ExitCode = exitCode,
@@ -258,7 +267,7 @@ internal sealed class RenderCommandModule : ICommandModule
             Error = error,
         };
 
-        _state.AddMessage(JsonSerializer.Serialize(output, RenderJsonOutput.SerializerOptions));
+        cliOutput.WriteLine(JsonSerializer.Serialize(json, RenderJsonOutput.SerializerOptions));
     }
 
     private sealed class RenderCommandOptions

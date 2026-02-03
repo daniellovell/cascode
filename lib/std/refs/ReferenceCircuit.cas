@@ -1,7 +1,6 @@
-package lib.std.refs;
+library lib.std.refs;
 
-// Spec-only base trait for reference circuits (voltage or current).
-trait ReferenceCircuit {
+// Spec-only interface for reference circuits (voltage or current).
+interface ReferenceCircuit {
   metrics { Accuracy; Tempco; Noise; PSRR; }
 }
-
