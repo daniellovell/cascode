@@ -316,7 +316,7 @@ through the same primitive and device instantiation mechanism. A common pattern 
 Cascode distinguishes three closely related sources of intent:
 
 - `constraints { ... }` declares requirements in a tool-checked form.
-- `env { ... }` declares values that benches consume as configuration (for example, `LoadImpedance`).
+- `env { ... }` specifies values that benches consume as configuration (for example, `LoadImpedance`).
 - `harness { ... }` declares the concrete simulation harness for emission (supply values, biases,
   loads/sources, sweeps, and PVT corners).
 
