@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using Cascode.Cli.Output;
 using Cascode.Language;
 using Cascode.Language.Validation;
 
@@ -24,10 +25,12 @@ namespace Cascode.Cli.Commands;
 internal sealed class ErcCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
-    public ErcCommandModule(ShellState state)
+    public ErcCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     public void Register(CommandRegistry registry)
@@ -39,9 +42,10 @@ internal sealed class ErcCommandModule : ICommandModule
 
     private CommandResult ErcCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            ShowUsage();
+            ShowUsage(output);
             return CommandResult.Success;
         }
 
@@ -73,11 +77,11 @@ internal sealed class ErcCommandModule : ICommandModule
 
         if (jsonOutput)
         {
-            BuildJsonOutput(combinedResult, exitCode);
+            BuildJsonOutput(output, combinedResult, exitCode);
         }
         else
         {
-            BuildHumanOutput(combinedResult, circuits.Count);
+            BuildHumanOutput(output, combinedResult, circuits.Count);
         }
 
         return new CommandResult(exitCode, false);
@@ -91,6 +95,7 @@ internal sealed class ErcCommandModule : ICommandModule
         out bool jsonOutput
     )
     {
+        var output = _output.Get();
         doc = null;
         earlyResult = null;
 
@@ -104,11 +109,11 @@ internal sealed class ErcCommandModule : ICommandModule
             {
                 var errorResult = new ValidationResult();
                 errorResult.AddError("ERC-PARSE", $"Input file '{inputPath}' not found");
-                _state.AddMessage(errorResult.ToJson(2));
+                output.WriteLine(errorResult.ToJson(2));
             }
             else
             {
-                _state.AddMessage($"Input file '{inputPath}' not found.");
+                output.Error($"Input file '{inputPath}' not found.");
             }
             earlyResult = new CommandResult(2, false);
             return false;
@@ -136,7 +141,7 @@ internal sealed class ErcCommandModule : ICommandModule
                 {
                     errorResult.AddError("ERC-PARSE", diag.Message, $"{diag.FilePath}:{diag.Line}");
                 }
-                _state.AddMessage(errorResult.ToJson(2));
+                output.WriteLine(errorResult.ToJson(2));
             }
             else
             {
@@ -146,7 +151,7 @@ internal sealed class ErcCommandModule : ICommandModule
                     )
                 )
                 {
-                    _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                    output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
             }
             earlyResult = new CommandResult(2, false);
@@ -168,11 +173,11 @@ internal sealed class ErcCommandModule : ICommandModule
                     "ERC-PARSE",
                     "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
                 );
-                _state.AddMessage(errorResult.ToJson(2));
+                output.WriteLine(errorResult.ToJson(2));
             }
             else
             {
-                _state.AddMessage(
+                output.Error(
                     "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
                 );
             }
@@ -183,59 +188,63 @@ internal sealed class ErcCommandModule : ICommandModule
         return true;
     }
 
-    private void BuildJsonOutput(ValidationResult result, int exitCode)
+    private static void BuildJsonOutput(ICliOutput output, ValidationResult result, int exitCode)
     {
-        _state.AddMessage(result.ToJson(exitCode));
+        output.WriteLine(result.ToJson(exitCode));
     }
 
-    private void BuildHumanOutput(ValidationResult result, int circuitCount)
+    private static void BuildHumanOutput(
+        ICliOutput output,
+        ValidationResult result,
+        int circuitCount
+    )
     {
         // Display errors
         foreach (var error in result.GetErrors())
         {
-            _state.AddMessage(error.ToString());
+            output.Error(error.ToString());
         }
 
         // Display warnings
         foreach (var warning in result.GetWarnings())
         {
-            _state.AddMessage(warning.ToString());
+            output.Warning(warning.ToString());
         }
 
         // Summary
         if (result.HasErrors)
         {
-            _state.AddMessage(
+            output.Error(
                 $"ERC failed: {result.ErrorCount} error(s), {result.WarningCount} warning(s)."
             );
         }
         else if (result.HasWarnings)
         {
-            _state.AddMessage($"ERC passed with {result.WarningCount} warning(s).");
+            output.Warning($"ERC passed with {result.WarningCount} warning(s).");
         }
         else
         {
-            _state.AddMessage($"ERC passed: {circuitCount} circuit(s) validated.");
+            output.Success($"ERC passed: {circuitCount} circuit(s) validated.");
         }
     }
 
-    private void ShowUsage()
+    private static void ShowUsage(ICliOutput output)
     {
-        _state.AddMessage("Usage: erc <cascode_file> [--require-pdk] [--json]");
-        _state.AddMessage("");
-        _state.AddMessage("Runs electrical rule checking on an Cascode EL or ML document.");
-        _state.AddMessage("ERC validates circuit topology and works on both sized (EL) and");
-        _state.AddMessage("unsized (ML with ??) circuits.");
-        _state.AddMessage("");
-        _state.AddMessage("Options:");
-        _state.AddMessage(
+        output.WriteLine("Usage: erc <cascode_file> [--require-pdk] [--json]");
+        output.WriteLine("");
+        output.WriteLine("Runs electrical rule checking on an Cascode EL or ML document.");
+        output.WriteLine("ERC validates circuit topology and works on both sized (EL) and");
+        output.WriteLine("unsized (ML with ??) circuits.");
+        output.WriteLine("");
+        output.WriteLine("Options:");
+        output.WriteLine(
             "  --require-pdk    Treat missing PDK device names as errors (default: warnings)"
         );
-        _state.AddMessage("  --json           Output results as JSON for machine processing");
-        _state.AddMessage("");
-        _state.AddMessage("Exit codes:");
-        _state.AddMessage("  0 = ERC passed");
-        _state.AddMessage("  1 = ERC failed (errors found)");
-        _state.AddMessage("  2 = Parse error / invalid input");
+        output.WriteLine("  --json           Output results as JSON for machine processing");
+        output.WriteLine("");
+        output.WriteLine("Exit codes:");
+        output.WriteLine("  0 = ERC passed");
+        output.WriteLine("  1 = ERC failed (errors found)");
+        output.WriteLine("  2 = Parse error / invalid input");
     }
 }

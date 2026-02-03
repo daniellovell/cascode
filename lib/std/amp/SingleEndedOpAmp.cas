@@ -1,20 +1,34 @@
-package lib.std.amp;
+library lib.std.amp
+include lib.std.bench
 
-// Interface trait: Single-ended operational amplifier (differential input, single-ended output).
+// Interface: Single-ended operational amplifier (differential input, single-ended output).
 // Provides ports and bench metric mappings for Amplifier metrics.
-trait SingleEndedOpAmp extend Amplifier {
-  ports [ IN: Diff, OUT: analog ]
-  supply VDD; ground GND;
 
-  // Declarative mapping from canonical metrics to bench metrics.
-  metrics {
-    GainBandwidth from SEOpAmpACBench.GainBandwidth;
-    PassbandGain  from SEOpAmpACBench.PassbandGain;
-    PhaseMargin   from SEOpAmpStability.PhaseMargin;
-    InputDCCommonMode from SEOpAmpDCBench.InputDCCommonMode;
-    OutputDCBias      from SEOpAmpDCBench.OutputDCBias;
-    QuiescentPower    from SEOpAmpDCBench.QuiescentPower;
-    // OutputSwing is handled by dedicated benches; left unspecified here.
+interface SingleEndedOpAmp {
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+
+  benches {
+    bind QuiescentPower as vdd_pwr {
+      bench.PWR--dut.VDD
+      bench.RET--dut.GND
+    }
+
+    bind DiffToSETransfer as transfer_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind DiffToSENoise as noise_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind DiffToSETran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
   }
 }
-

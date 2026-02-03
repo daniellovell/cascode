@@ -73,7 +73,7 @@ public static class CascodeReader
     /// </remarks>
     public static CascodeReadResult TryRead(TextReader reader, string filePath = "<unknown>")
     {
-        return CascodeParserFacade.Parse(filePath, reader.ReadToEnd());
+        return CascodeParserFacade.Parse(filePath, reader.ReadToEnd(), CascodeParseOptions.Default);
     }
 
     /// <summary>
@@ -84,6 +84,18 @@ public static class CascodeReader
     /// <returns>Read result containing the document and any diagnostics.</returns>
     public static CascodeReadResult TryParse(string content, string filePath = "<unknown>")
     {
-        return CascodeParserFacade.Parse(filePath, content);
+        return CascodeParserFacade.Parse(filePath, content, CascodeParseOptions.Default);
+    }
+
+    /// <summary>
+    /// Reads a Cascode document using explicit parse options (used by the linker for syntax-only parsing).
+    /// </summary>
+    public static CascodeReadResult TryRead(
+        TextReader reader,
+        CascodeParseOptions options,
+        string filePath = "<unknown>"
+    )
+    {
+        return CascodeParserFacade.Parse(filePath, reader.ReadToEnd(), options);
     }
 }

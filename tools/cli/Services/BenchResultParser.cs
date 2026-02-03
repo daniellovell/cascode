@@ -133,6 +133,7 @@ internal static partial class BenchResultParser
                 Value = value,
                 Unit = unit,
                 Node = nodeByMetric.TryGetValue(metric, out var n) ? n : null,
+                Bench = benchName,
             };
         }
 
@@ -146,10 +147,13 @@ internal static partial class BenchResultParser
     {
         foreach (var measurement in source)
         {
-            var key =
+            var metricKey =
                 measurement.Node == null
                     ? measurement.Metric
                     : $"{measurement.Metric}@{measurement.Node}";
+            var key = string.IsNullOrEmpty(measurement.Bench)
+                ? metricKey
+                : $"{measurement.Bench}/{metricKey}";
             target[key] = measurement;
         }
     }

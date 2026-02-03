@@ -1327,7 +1327,7 @@ public class AttachResolverTests
         Assert.True(result.Success);
         var warning = Assert.Single(
             result.Diagnostics,
-            d => d.Code == "CAS0026" && d.Message.Contains("trait")
+            d => d.Code == "CAS0026" && d.Message.Contains("interface")
         );
         Assert.Contains("DuplicateTrait", warning.Message);
         Assert.Contains("keeping first definition", warning.Message);

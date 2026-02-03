@@ -11,9 +11,9 @@ public sealed record CascodeJsonDocument
     [JsonPropertyName("cascodeVersion")]
     public string Version { get; init; } = Language.CascodeVersion.Current;
 
-    [JsonPropertyName("traits")]
+    [JsonPropertyName("interfaces")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<CascodeJsonTrait>? Traits { get; init; }
+    public IReadOnlyList<CascodeJsonTrait>? Interfaces { get; init; }
 
     [JsonPropertyName("primitives")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -63,16 +63,16 @@ public sealed record CascodeJsonDocument
 }
 
 /// <summary>
-/// Circuit metadata including name, traits, and elaboration level.
+/// Circuit metadata including name, interfaces, and elaboration level.
 /// </summary>
 public sealed record CascodeJsonCircuitInfo
 {
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
-    [JsonPropertyName("traits")]
+    [JsonPropertyName("interfaces")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public IReadOnlyList<string>? Traits { get; init; }
+    public IReadOnlyList<string>? Interfaces { get; init; }
 
     [JsonPropertyName("level")]
     public string Level { get; init; } = "EL";
@@ -237,8 +237,8 @@ public sealed record CascodeJsonBenchDefinition
     [JsonPropertyName("name")]
     public required string Name { get; init; }
 
-    [JsonPropertyName("trait")]
-    public required string Trait { get; init; }
+    [JsonPropertyName("interface")]
+    public required string Interface { get; init; }
 
     [JsonPropertyName("builtin")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -337,7 +337,7 @@ public sealed record CascodeJsonHarnessSweep
 }
 
 /// <summary>
-/// Trait definition in JSON format.
+/// Interface definition in JSON format.
 /// </summary>
 public sealed record CascodeJsonTrait
 {
@@ -353,11 +353,11 @@ public sealed record CascodeJsonTrait
 }
 
 /// <summary>
-/// Trait connector definition in JSON format.
+/// Interface connector definition in JSON format.
 /// </summary>
 public sealed record CascodeJsonConnector
 {
-    [JsonPropertyName("targetTrait")]
+    [JsonPropertyName("targetInterface")]
     public required string TargetTrait { get; init; }
 
     [JsonPropertyName("mappings")]

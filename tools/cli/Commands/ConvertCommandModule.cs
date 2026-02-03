@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Cascode.Cli.Output;
 using Cascode.Language;
 using Cascode.Language.Json;
 
@@ -24,10 +25,12 @@ namespace Cascode.Cli.Commands;
 internal sealed class ConvertCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
-    public ConvertCommandModule(ShellState state)
+    public ConvertCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     public void Register(CommandRegistry registry)
@@ -43,22 +46,23 @@ internal sealed class ConvertCommandModule : ICommandModule
 
     private CommandResult ConvertCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            ShowUsage();
+            ShowUsage(output);
             return CommandResult.Success;
         }
 
         var (inputPath, toJson, toCascode, outputPath, toStdout, parseError) = ParseArgs(args);
         if (parseError != null)
         {
-            _state.AddMessage(parseError);
+            output.Error(parseError);
             return new CommandResult(2, false);
         }
 
         if (!File.Exists(inputPath))
         {
-            _state.AddMessage($"Input file '{inputPath}' not found.");
+            output.Error($"Input file '{inputPath}' not found.");
             return new CommandResult(2, false);
         }
 
@@ -90,13 +94,14 @@ internal sealed class ConvertCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Conversion failed: {ex.Message}");
+            output.Error($"Conversion failed: {ex.Message}");
             return CommandResult.Failure;
         }
     }
 
     private CommandResult ConvertToJson(string inputPath, string? outputPath, bool toStdout)
     {
+        var output = _output.Get();
         CascodeReadResult readResult;
         using (var reader = File.OpenText(inputPath))
         {
@@ -111,7 +116,7 @@ internal sealed class ConvertCommandModule : ICommandModule
                 )
             )
             {
-                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return new CommandResult(2, false);
         }
@@ -121,9 +126,7 @@ internal sealed class ConvertCommandModule : ICommandModule
             .ToList();
         if (elCircuits.Count == 0)
         {
-            _state.AddMessage(
-                "No EL-level circuits found. Convert only supports EL-level Cascode."
-            );
+            output.Error("No EL-level circuits found. Convert only supports EL-level Cascode.");
             return new CommandResult(2, false);
         }
 
@@ -131,13 +134,13 @@ internal sealed class ConvertCommandModule : ICommandModule
 
         if (toStdout)
         {
-            _state.AddMessage(json);
+            output.WriteLine(json);
         }
         else
         {
             outputPath ??= Path.ChangeExtension(inputPath, ".json");
             File.WriteAllText(outputPath, json);
-            _state.AddMessage($"Wrote JSON: {outputPath}");
+            output.Success($"Wrote JSON: {outputPath}");
         }
 
         return CommandResult.Success;
@@ -145,6 +148,7 @@ internal sealed class ConvertCommandModule : ICommandModule
 
     private CommandResult ConvertToCascode(string inputPath, string? outputPath, bool toStdout)
     {
+        var output = _output.Get();
         string json;
         try
         {
@@ -152,7 +156,7 @@ internal sealed class ConvertCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to read input file: {ex.Message}");
+            output.Error($"Failed to read input file: {ex.Message}");
             return new CommandResult(2, false);
         }
 
@@ -164,7 +168,7 @@ internal sealed class ConvertCommandModule : ICommandModule
                 var diag in result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
             )
             {
-                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return new CommandResult(2, false);
         }
@@ -177,13 +181,13 @@ internal sealed class ConvertCommandModule : ICommandModule
 
         if (toStdout)
         {
-            _state.AddMessage(cascodeText);
+            output.WriteLine(cascodeText);
         }
         else
         {
-            outputPath ??= Path.ChangeExtension(inputPath, ".el.cas");
+            outputPath ??= Path.ChangeExtension(inputPath, ".el.cai");
             File.WriteAllText(outputPath, cascodeText);
-            _state.AddMessage($"Wrote Cascode: {outputPath}");
+            output.Success($"Wrote Cascode: {outputPath}");
         }
 
         return CommandResult.Success;
@@ -265,28 +269,26 @@ internal sealed class ConvertCommandModule : ICommandModule
         return (inputPath, toJson, toCascode, outputPath, toStdout, null);
     }
 
-    private void ShowUsage()
+    private static void ShowUsage(ICliOutput output)
     {
-        _state.AddMessage(
-            "Usage: convert <input_file> [--json|--cascode] [-o <output>] [--stdout]"
-        );
-        _state.AddMessage("");
-        _state.AddMessage("Converts between Cascode text (.el.cas) and JSON (.json) formats.");
-        _state.AddMessage("Only EL-level circuits are supported.");
-        _state.AddMessage("");
-        _state.AddMessage("Options:");
-        _state.AddMessage("  --json      Convert Cascode to JSON");
-        _state.AddMessage("  --cascode   Convert JSON to Cascode");
-        _state.AddMessage("  -o <file>   Output file (default: input with changed extension)");
-        _state.AddMessage("  --stdout    Write output to stdout instead of file");
-        _state.AddMessage("");
-        _state.AddMessage(
+        output.WriteLine("Usage: convert <input_file> [--json|--cascode] [-o <output>] [--stdout]");
+        output.WriteLine("");
+        output.WriteLine("Converts between Cascode text (.el.cas) and JSON (.json) formats.");
+        output.WriteLine("Only EL-level circuits are supported.");
+        output.WriteLine("");
+        output.WriteLine("Options:");
+        output.WriteLine("  --json      Convert Cascode to JSON");
+        output.WriteLine("  --cascode   Convert JSON to Cascode");
+        output.WriteLine("  -o <file>   Output file (default: input with changed extension)");
+        output.WriteLine("  --stdout    Write output to stdout instead of file");
+        output.WriteLine("");
+        output.WriteLine(
             "If neither --json nor --cascode is specified, direction is inferred from input extension."
         );
-        _state.AddMessage("");
-        _state.AddMessage("Exit codes:");
-        _state.AddMessage("  0 = Success");
-        _state.AddMessage("  1 = Runtime error");
-        _state.AddMessage("  2 = Parse/input error");
+        output.WriteLine("");
+        output.WriteLine("Exit codes:");
+        output.WriteLine("  0 = Success");
+        output.WriteLine("  1 = Runtime error");
+        output.WriteLine("  2 = Parse/input error");
     }
 }

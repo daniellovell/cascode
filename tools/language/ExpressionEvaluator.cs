@@ -145,10 +145,22 @@ public static class ExpressionEvaluator
                 return -Visit(ctx.unaryAtom());
             }
 
-            return Visit(ctx.exprAtom());
+            return Visit(ctx.exprPostfix());
         }
 
-        public override double VisitExprAtom(CascodeParser.ExprAtomContext ctx)
+        public override double VisitExprPostfix(CascodeParser.ExprPostfixContext ctx)
+        {
+            if (ctx.methodCallSuffix().Length != 0)
+            {
+                throw new ArgumentException(
+                    $"Method calls are not supported in parameter expressions: {ctx.GetText()}"
+                );
+            }
+
+            return Visit(ctx.exprPrimary());
+        }
+
+        public override double VisitExprPrimary(CascodeParser.ExprPrimaryContext ctx)
         {
             if (ctx.expr() is not null)
             {

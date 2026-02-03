@@ -20,6 +20,16 @@ public static class CascodeWriter
         writer.WriteLine($"VERSION {CascodeVersion.Current}");
         writer.WriteLine();
 
+        // Include directives (source documents only; linked documents must not contain includes).
+        foreach (var inc in document.Includes.OrderBy(i => i.Name, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"include {inc.Name}");
+        }
+        if (document.Includes.Count > 0)
+        {
+            writer.WriteLine();
+        }
+
         // Bundle type definitions
         foreach (
             var bundleType in document.BundleTypes.OrderBy(b => b.Name, StringComparer.Ordinal)
@@ -29,10 +39,10 @@ public static class CascodeWriter
             writer.WriteLine();
         }
 
-        // Trait definitions
-        foreach (var trait in document.Traits.OrderBy(t => t.Name, StringComparer.Ordinal))
+        // Interface definitions
+        foreach (var interfaceDef in document.Traits.OrderBy(t => t.Name, StringComparer.Ordinal))
         {
-            WriteTrait(trait, writer);
+            WriteTrait(interfaceDef, writer);
             writer.WriteLine();
         }
 
@@ -42,6 +52,13 @@ public static class CascodeWriter
         )
         {
             WriteBenchDefinition(bench, writer);
+            writer.WriteLine();
+        }
+
+        // File-level helper functions
+        foreach (var fn in document.Functions.OrderBy(f => f.Name, StringComparer.Ordinal))
+        {
+            WriteFunctionDefinition(fn, "function", writer);
             writer.WriteLine();
         }
 
@@ -70,22 +87,22 @@ public static class CascodeWriter
         writer.WriteLine("}");
     }
 
-    private static void WriteTrait(TraitDefinition trait, TextWriter writer)
+    private static void WriteTrait(TraitDefinition interfaceDef, TextWriter writer)
     {
-        writer.WriteLine($"interface {trait.Name} {{");
+        writer.WriteLine($"interface {interfaceDef.Name} {{");
 
         // Ports
-        foreach (var port in trait.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
+        foreach (var port in interfaceDef.Ports.OrderBy(p => p.Name, StringComparer.Ordinal))
         {
             writer.WriteLine($"  {port.Direction.ToCascodeString()} {port.Name} : {port.Type}");
         }
 
         // Connectors
-        if (trait.Connectors.Count > 0)
+        if (interfaceDef.Connectors.Count > 0)
         {
             writer.WriteLine("  connectors {");
             foreach (
-                var connector in trait.Connectors.OrderBy(
+                var connector in interfaceDef.Connectors.OrderBy(
                     c => c.TargetTrait,
                     StringComparer.Ordinal
                 )
@@ -101,34 +118,71 @@ public static class CascodeWriter
             writer.WriteLine("  }");
         }
 
+        if (interfaceDef.BenchBindings.Count > 0)
+        {
+            WriteBenchesSection(
+                interfaceDef.BenchBindings,
+                Array.Empty<BenchBindingExtension>(),
+                writer
+            );
+        }
+
         writer.WriteLine("}");
     }
 
     private static void WriteBenchDefinition(BenchDefinition bench, TextWriter writer)
     {
-        writer.WriteLine($"bench {bench.Name} for {bench.Trait} {{");
+        var paramSig =
+            bench.Parameters.Count == 0
+                ? ""
+                : "("
+                    + string.Join(
+                        ", ",
+                        bench.Parameters.Select(p =>
+                            p.Default is null
+                                ? $"{FormatBenchValueType(p.Type)} {p.Name}"
+                                : $"{FormatBenchValueType(p.Type)} {p.Name} = {FormatMeasurementExpr(p.Default)}"
+                        )
+                    )
+                    + ")";
+        writer.WriteLine($"bench {bench.Name}{paramSig} {{");
 
-        if (!string.IsNullOrEmpty(bench.Builtin))
+        foreach (var t in bench.Terminals.OrderBy(t => t.Name, StringComparer.Ordinal))
         {
-            writer.WriteLine($"  builtin {bench.Builtin}");
+            var role = t.Role == BenchTerminalRole.Stim ? "stim" : "resp";
+            writer.WriteLine($"  {role} {t.Name} : {t.Type}");
         }
 
-        if (bench.Config.Count > 0)
+        if (bench.Fill is not null)
         {
-            writer.WriteLine("  config {");
-            foreach (var entry in bench.Config.OrderBy(e => e.Key, StringComparer.Ordinal))
+            writer.WriteLine("  fill {");
+            WriteFillBlock(bench.Fill, writer);
+            writer.WriteLine("  }");
+        }
+
+        foreach (var fn in bench.Functions.OrderBy(f => f.Name, StringComparer.Ordinal))
+        {
+            WriteFunctionDefinition(fn, "function", writer, indent: "  ");
+        }
+
+        if (bench.Analyses.Count > 0)
+        {
+            writer.WriteLine("  analysis {");
+            foreach (var analysis in bench.Analyses.OrderBy(a => a.Name, StringComparer.Ordinal))
             {
-                writer.WriteLine($"    {entry.Key} = {entry.Value}");
+                WriteAnalysisDeclaration(analysis, writer, indent: "    ");
             }
             writer.WriteLine("  }");
         }
 
-        if (bench.Outputs.Count > 0)
+        if (bench.Measurements.Count > 0)
         {
-            writer.WriteLine("  outputs {");
-            foreach (var output in bench.Outputs.OrderBy(o => o, StringComparer.Ordinal))
+            writer.WriteLine("  measurements {");
+            foreach (
+                var measurement in bench.Measurements.OrderBy(m => m.Name, StringComparer.Ordinal)
+            )
             {
-                writer.WriteLine($"    {output}");
+                WriteMeasurementDefinition(measurement, writer, indent: "    ");
             }
             writer.WriteLine("  }");
         }
@@ -195,7 +249,7 @@ public static class CascodeWriter
         // Package
         if (!string.IsNullOrEmpty(circuit.Package))
         {
-            writer.WriteLine($"  package {circuit.Package}");
+            writer.WriteLine($"  library {circuit.Package}");
         }
 
         // Supplies
@@ -243,6 +297,31 @@ public static class CascodeWriter
         if (circuit.Harness is not null)
         {
             WriteHarness(circuit.Harness, writer);
+        }
+
+        if (circuit.Env is not null && circuit.Env.Entries.Count > 0)
+        {
+            writer.WriteLine("  env {");
+            foreach (var entry in circuit.Env.Entries.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {entry.Key} = {entry.Value}");
+            }
+            writer.WriteLine("  }");
+        }
+
+        if (circuit.BenchBindings.Count > 0 || circuit.BenchBindingExtensions.Count > 0)
+        {
+            WriteBenchesSection(circuit.BenchBindings, circuit.BenchBindingExtensions, writer);
+        }
+
+        if (circuit.Synth is not null && circuit.Synth.Entries.Count > 0)
+        {
+            writer.WriteLine("  synth {");
+            foreach (var entry in circuit.Synth.Entries.OrderBy(e => e.Key, StringComparer.Ordinal))
+            {
+                writer.WriteLine($"    {entry.Key} = {entry.Value}");
+            }
+            writer.WriteLine("  }");
         }
 
         // Provenance
@@ -354,6 +433,11 @@ public static class CascodeWriter
 
     private static void WriteInstance(InstanceDeclaration inst, TextWriter writer)
     {
+        WriteInstance(inst, writer, indent: "    ");
+    }
+
+    private static void WriteInstance(InstanceDeclaration inst, TextWriter writer, string indent)
+    {
         var args = new List<string>();
         foreach (var size in inst.Sizes.OrderBy(s => s.Key, StringComparer.Ordinal))
         {
@@ -365,12 +449,13 @@ public static class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
-        writer.WriteLine($"    {inst.Id} = new {inst.Type}{argList} {{");
+        writer.WriteLine($"{indent}{inst.Id} = new {inst.Type}{argList} {{");
+        var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {
-            writer.WriteLine($"      .{binding.Key}--{binding.Value}");
+            writer.WriteLine($"{bindIndent}.{binding.Key}--{binding.Value}");
         }
-        writer.WriteLine("    }");
+        writer.WriteLine($"{indent}}}");
     }
 
     private static void WriteDevice(DeviceDeclaration device, TextWriter writer)
@@ -396,8 +481,28 @@ public static class CascodeWriter
             foreach (var c in constraints.Numeric.OrderBy(c => c.Id, StringComparer.Ordinal))
             {
                 var node = c.Node is not null ? $" at {c.Node}" : "";
+                var benchArgs =
+                    c.BenchArgs.Count == 0
+                        ? ""
+                        : "("
+                            + string.Join(
+                                ", ",
+                                c.BenchArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                                    .Select(a => $"{a.Name}={a.Value}")
+                            )
+                            + ")";
+                var metricArgs =
+                    c.MetricArgs.Count == 0
+                        ? ""
+                        : "("
+                            + string.Join(
+                                ", ",
+                                c.MetricArgs.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                                    .Select(a => $"{a.Name}={a.Value}")
+                            )
+                            + ")";
                 writer.WriteLine(
-                    $"      {c.Id} = {c.Bench}::{c.Metric}{node} {c.Op} {c.Value}{c.Unit}"
+                    $"      {c.Id} = {c.BenchBase}{benchArgs}::{c.Metric}{metricArgs}{node} {c.Op} {c.Value}{c.Unit}"
                 );
             }
             writer.WriteLine("    }");
@@ -426,6 +531,10 @@ public static class CascodeWriter
     private static void WriteHarness(HarnessBlock harness, TextWriter writer)
     {
         writer.WriteLine("  harness {");
+        foreach (var ground in harness.Grounds.OrderBy(g => g.Net, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    ground {ground.Net} = {ground.Value}");
+        }
         foreach (var supply in harness.Supplies.OrderBy(s => s.Net, StringComparer.Ordinal))
         {
             writer.WriteLine($"    supply {supply.Net} = {supply.Value}");
@@ -497,6 +606,311 @@ public static class CascodeWriter
             }
         }
         writer.WriteLine("  }");
+    }
+
+    private static void WriteBenchesSection(
+        IReadOnlyList<BenchBinding> bindings,
+        IReadOnlyList<BenchBindingExtension> extensions,
+        TextWriter writer
+    )
+    {
+        writer.WriteLine("  benches {");
+
+        foreach (var binding in bindings.OrderBy(b => b.BindingName, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    bind {binding.BenchName} as {binding.BindingName} {{");
+            var bindingExports = binding
+                .Statements.OfType<BenchBindingMeasurementExport>()
+                .ToList();
+            foreach (var stmt in binding.Statements)
+            {
+                switch (stmt)
+                {
+                    case BenchTerminalMapping mapping:
+                        writer.WriteLine(
+                            $"      bench.{mapping.BenchTerminal}--dut.{mapping.DutPinRef}"
+                        );
+                        break;
+
+                    case BenchDutConnection conn:
+                        writer.WriteLine($"      dut.{conn.DutPinRef}--{conn.PinRef}");
+                        break;
+
+                    case BenchBindingInstance inst:
+                        WriteInstance(inst.Instance, writer, indent: "      ");
+                        break;
+                }
+            }
+
+            if (bindingExports.Count > 0)
+            {
+                writer.WriteLine("      measurements {");
+                foreach (var export in bindingExports.OrderBy(e => e.Name, StringComparer.Ordinal))
+                {
+                    var paramText = string.Join(
+                        ", ",
+                        export.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+                    );
+                    var sig =
+                        export.Parameters.Count == 0 ? export.Name : $"{export.Name}({paramText})";
+
+                    writer.WriteLine(
+                        $"        measurement {sig} : {export.Unit} = {FormatMeasurementExpr(export.Target)}"
+                    );
+                }
+                writer.WriteLine("      }");
+            }
+
+            writer.WriteLine("    }");
+        }
+
+        foreach (var ext in extensions.OrderBy(e => e.BindingName, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    extend {ext.BindingName} {{");
+            var extExports = ext.Statements.OfType<BenchBindingMeasurementExport>().ToList();
+            foreach (var stmt in ext.Statements)
+            {
+                switch (stmt)
+                {
+                    case BenchTerminalMapping mapping:
+                        writer.WriteLine(
+                            $"      bench.{mapping.BenchTerminal}--dut.{mapping.DutPinRef}"
+                        );
+                        break;
+
+                    case BenchDutConnection conn:
+                        writer.WriteLine($"      dut.{conn.DutPinRef}--{conn.PinRef}");
+                        break;
+
+                    case BenchBindingInstance inst:
+                        WriteInstance(inst.Instance, writer, indent: "      ");
+                        break;
+                }
+            }
+
+            if (extExports.Count > 0)
+            {
+                writer.WriteLine("      measurements {");
+                foreach (var export in extExports.OrderBy(e => e.Name, StringComparer.Ordinal))
+                {
+                    var paramText = string.Join(
+                        ", ",
+                        export.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+                    );
+                    var sig =
+                        export.Parameters.Count == 0 ? export.Name : $"{export.Name}({paramText})";
+
+                    writer.WriteLine(
+                        $"        measurement {sig} : {export.Unit} = {FormatMeasurementExpr(export.Target)}"
+                    );
+                }
+                writer.WriteLine("      }");
+            }
+
+            writer.WriteLine("    }");
+        }
+
+        writer.WriteLine("  }");
+    }
+
+    private static void WriteAnalysisDeclaration(
+        AnalysisDeclaration analysis,
+        TextWriter writer,
+        string indent
+    )
+    {
+        var args = analysis
+            .Parameters.OrderBy(p => p.Key, StringComparer.Ordinal)
+            .Select(p => $"{p.Key}={FormatMeasurementExpr(p.Value)}")
+            .ToList();
+
+        writer.WriteLine(
+            $"{indent}{FormatBenchValueType(analysis.Type)} {analysis.Name} = new {FormatBenchValueType(analysis.Type)}({string.Join(", ", args)})"
+        );
+    }
+
+    private static void WriteMeasurementDefinition(
+        MeasurementDefinition measurement,
+        TextWriter writer,
+        string indent
+    )
+    {
+        var paramText = string.Join(
+            ", ",
+            measurement.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+        );
+        var sig =
+            measurement.Parameters.Count == 0
+                ? measurement.Name
+                : $"{measurement.Name}({paramText})";
+
+        writer.WriteLine($"{indent}measurement {sig} : {measurement.Unit} {{");
+        foreach (var stmt in measurement.Body)
+        {
+            WriteBenchStatement(stmt, writer, indent: indent + "  ");
+        }
+        writer.WriteLine($"{indent}}}");
+    }
+
+    private static void WriteFunctionDefinition(
+        FunctionDefinition fn,
+        string keyword,
+        TextWriter writer,
+        string indent = ""
+    )
+    {
+        var paramText = string.Join(
+            ", ",
+            fn.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+        );
+
+        writer.WriteLine(
+            $"{indent}{keyword} {fn.Name}({paramText}) : {FormatBenchValueType(fn.ReturnType)} {{"
+        );
+
+        foreach (var stmt in fn.Body)
+        {
+            WriteBenchStatement(stmt, writer, indent: indent + "  ");
+        }
+
+        writer.WriteLine($"{indent}}}");
+    }
+
+    private static void WriteBenchStatement(BenchStatement stmt, TextWriter writer, string indent)
+    {
+        switch (stmt)
+        {
+            case BenchVarDecl v:
+                writer.WriteLine(
+                    $"{indent}{FormatBenchValueType(v.Type)} {v.Name} = {FormatMeasurementExpr(v.Expr)}"
+                );
+                break;
+
+            case BenchIf i:
+                writer.WriteLine($"{indent}if {FormatBoolExpr(i.Condition)} {{");
+                foreach (var s in i.ThenBody)
+                {
+                    WriteBenchStatement(s, writer, indent: indent + "  ");
+                }
+                writer.WriteLine($"{indent}}}");
+                if (i.ElseBody is not null)
+                {
+                    writer.WriteLine($"{indent}else {{");
+                    foreach (var s in i.ElseBody)
+                    {
+                        WriteBenchStatement(s, writer, indent: indent + "  ");
+                    }
+                    writer.WriteLine($"{indent}}}");
+                }
+                break;
+
+            case BenchReturn r:
+                writer.WriteLine($"{indent}return {FormatMeasurementExpr(r.Expr)}");
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unhandled bench statement: {stmt.GetType().Name}"
+                );
+        }
+    }
+
+    private static string FormatBenchValueType(BenchValueType type) =>
+        type switch
+        {
+            BenchValueType.Bool => "bool",
+            // BenchValueType doesn't currently preserve stim/resp role; emit a valid terminal type token.
+            BenchValueType.Terminal => "stim",
+            BenchValueType.ACAnalysis => "ACAnalysis",
+            BenchValueType.DCAnalysis => "DCAnalysis",
+            BenchValueType.TranAnalysis => "TranAnalysis",
+            BenchValueType.NoiseAnalysis => "NoiseAnalysis",
+            BenchValueType.STBAnalysis => "STBAnalysis",
+            _ => type.ToString(),
+        };
+
+    private static string FormatBoolExpr(BoolExpr expr)
+    {
+        return expr switch
+        {
+            BoolExists e => FormatScopedAccess(e.Ref),
+            BoolTruthy t => FormatMeasurementExpr(t.Expr),
+            BoolCompare c =>
+                $"{FormatMeasurementExpr(c.Left)} {FormatComparisonOp(c.Op)} {FormatMeasurementExpr(c.Right)}",
+            _ => throw new InvalidOperationException($"Unhandled bool expr: {expr.GetType().Name}"),
+        };
+    }
+
+    private static string FormatComparisonOp(ComparisonOp op) =>
+        op switch
+        {
+            ComparisonOp.Gte => ">=",
+            ComparisonOp.Lte => "<=",
+            ComparisonOp.Gt => ">",
+            ComparisonOp.Lt => "<",
+            ComparisonOp.Eq => "==",
+            _ => throw new InvalidOperationException($"Unhandled comparison op: {op}"),
+        };
+
+    private static string FormatMeasurementExpr(MeasurementExpr expr)
+    {
+        return expr switch
+        {
+            MeasurementNumber n => n.Raw,
+            MeasurementQuantity q => q.Raw,
+            MeasurementPath p => p.Path,
+            MeasurementScopedAccess s => FormatScopedAccess(s.Ref),
+            MeasurementDutAccess d => $"dut.{d.PinRef}",
+            MeasurementUnary u => $"{u.Op}{FormatMeasurementExpr(u.Operand)}",
+            MeasurementBinary b =>
+                $"({FormatMeasurementExpr(b.Left)} {b.Op} {FormatMeasurementExpr(b.Right)})",
+            MeasurementCall c =>
+                $"{c.Name}({string.Join(", ", c.Args.Select(FormatMeasurementArg))})",
+            MeasurementMethodCall m =>
+                $"{FormatMeasurementExpr(m.Receiver)}.{m.Method}({string.Join(", ", m.Args.Select(FormatMeasurementArg))})",
+            MeasurementConditional c =>
+                $"(if {FormatBoolExpr(c.Condition)} {{ {FormatMeasurementExpr(c.ThenExpr)} }} else {{ {FormatMeasurementExpr(c.ElseExpr)} }})",
+            MeasurementBenchMeasurementRef r => FormatBenchMeasurementRef(r),
+            _ => throw new InvalidOperationException(
+                $"Unhandled measurement expr: {expr.GetType().Name}"
+            ),
+        };
+    }
+
+    private static string FormatBenchMeasurementRef(MeasurementBenchMeasurementRef r)
+    {
+        if (r.Args.Count == 0)
+        {
+            return $"{r.BindingAlias}::{r.MeasurementName}";
+        }
+
+        var args = r.Args.Select(FormatBenchMeasurementRefArg);
+        return $"{r.BindingAlias}::{r.MeasurementName}({string.Join(", ", args)})";
+    }
+
+    private static string FormatBenchMeasurementRefArg(BenchMeasurementRefArg arg)
+    {
+        var value = FormatMeasurementExpr(arg.Expr);
+        return arg.Name is null ? value : $"{arg.Name}={value}";
+    }
+
+    private static string FormatMeasurementArg(MeasurementCallArg arg)
+    {
+        var value = FormatMeasurementExpr(arg.Value);
+        return arg.Name is null ? value : $"{arg.Name}={value}";
+    }
+
+    private static string FormatScopedAccess(ScopedValueRef r)
+    {
+        var scope = r.Scope switch
+        {
+            MeasurementScope.Env => "env",
+            MeasurementScope.Constraints => "constraints",
+            MeasurementScope.Harness => "harness",
+            _ => throw new InvalidOperationException($"Unhandled scope: {r.Scope}"),
+        };
+
+        return $"{scope}.{r.Name}";
     }
 
     private static string FormatSizeExpr(SizePack pack)

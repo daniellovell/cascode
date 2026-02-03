@@ -1,0 +1,16 @@
+library lib.std.amp
+
+interface CurrentMirrorLike {
+  input SENSE : analog
+  output TAP[0] : analog
+  connectors {
+    to DiffPairLike {
+      SENSE--OUT.N
+      TAP[0]--OUT.P
+    }
+  }
+}
+  
+interface DiffPairLike {
+  output OUT : Diff
+}

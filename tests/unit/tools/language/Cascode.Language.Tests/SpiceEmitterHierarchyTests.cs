@@ -1013,7 +1013,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -1025,7 +1025,7 @@ public class SpiceEmitterHierarchyTests
         // Should have 3 circuits: DiffPair, OTA5T_Hierarchical, CurrentMirror
         Assert.Equal(3, doc.Circuits.Count);
 
-        // Verify traits
+        // Verify interfaces
         Assert.Equal(2, doc.Traits.Count);
         Assert.Contains(doc.Traits, t => t.Name == "CurrentMirrorLike");
         Assert.Contains(doc.Traits, t => t.Name == "DiffPairLike");
@@ -1049,7 +1049,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
+            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -1092,7 +1092,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -1125,7 +1125,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -1145,7 +1145,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -1191,13 +1191,13 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cas"
+            "tests/golden/cas/hierarchy/OTA5T_Hierarchical.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);
         var doc = CascodeReader.Read(reader);
 
-        // Verify trait connector was parsed correctly
+        // Verify interface connector was parsed correctly
         var mirrorTrait = doc.Traits.First(t => t.Name == "CurrentMirrorLike");
         Assert.Single(mirrorTrait.Connectors);
 
@@ -1221,7 +1221,7 @@ public class SpiceEmitterHierarchyTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cas"
+            "tests/golden/cas/hierarchy/CurrentMirror_Standalone.el.cai"
         );
 
         using var reader = File.OpenText(cascodePath);

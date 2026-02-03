@@ -16,7 +16,7 @@ public class RenderIntegrationTests
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
         using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render");
         var outputPath = Path.Combine(home.Path, "ota5t.svg");
-        var inputPath = "tests/golden/cas/ota/OTA5TSingleEnded.el.cas";
+        var inputPath = "tests/golden/cas/ota/OTA5TSingleEnded.el.cai";
 
         // Act
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -59,7 +59,7 @@ public class RenderIntegrationTests
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
         using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render_align");
         var outputPath = Path.Combine(home.Path, "ota5t.svg");
-        var inputPath = "tests/golden/cas/ota/OTA5TSingleEnded.el.cas";
+        var inputPath = "tests/golden/cas/ota/OTA5TSingleEnded.el.cai";
 
         // Act
         var result = await CliIntegrationTestHelper.RunCliAsync(
@@ -116,7 +116,7 @@ public class RenderIntegrationTests
         var repoRoot = CliIntegrationTestHelper.GetRepositoryRoot();
         using var home = CliIntegrationTestHelper.CreateCascodeHome(repoRoot, "render_resistor");
         var outputPath = Path.Combine(home.Path, "cs_resistive.svg");
-        var inputPath = "tests/golden/cas/cs/CSAmpResistive.el.cas";
+        var inputPath = "tests/golden/cas/cs/CSAmpResistive.el.cai";
 
         // Act
         var result = await CliIntegrationTestHelper.RunCliAsync(

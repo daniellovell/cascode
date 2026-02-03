@@ -1,152 +1,121 @@
 # Getting Started with Cascode
 
-This guide introduces the core concepts of Cascode through a practical example: designing a 5-transistor operational transconductance amplifier (OTA).
+This guide is a practical entry point to the unified Cascode language and toolchain. It focuses on
+what you can do today: describe circuits with explicit connectivity, bind reusable benches, and
+check constraints against simulation results.
 
-## Core Language Constructs
+For the normative language rules, see `spec/language/README.md`. For practical authoring patterns
+(style, cookbook, troubleshooting), see `docs/language/README.md`.
 
-Cascode organizes analog design around a few primary language constructs: traits, motifs, modules, and benches.
+## Prerequisites
 
-A **trait** defines a behavioral contract. It specifies what ports a circuit exposes, what metrics it produces, and how those metrics map to concrete measurements. Traits can inherit from other traits, so we can build a taxonomy of circuit behaviors. An `Amplifier` trait, for instance, declares canonical metrics like gain-bandwidth and phase margin without prescribing any specific topology. A trait is analogous to an interface in object-oriented programming; it establishes expectations but carries no implementation.
+This repository can be exercised either with an installed `cascode` binary or by running the CLI
+from source:
 
-<img src="resources/images/getting_started_traits.png" alt="Trait hierarchy diagram" width="400"/>
+```sh
+dotnet run --project tools/cli/Cascode.Cli.csproj -- --help
+```
 
-A **motif** is a reusable structural building block. It is an entry in the topology selection catalog. It implements one or more traits by answering questions about circuit topology: which subcircuits to instantiate, how to connect them, and what design parameters to expose.
+Bench execution typically uses `ngspice` by default; ensure it is available on your PATH if you plan
+to run benches locally.
 
-Motifs compose. What I mean is, a `DiffPair` motif can be instantiated within an `OTA5TSingleEnded` motif, which itself can be used in a two-stage amplifier. Because a motif declares which traits it implements, the type system can verify at design-time that all required ports and metrics are present.
+## Run a complete example (RC lowpass)
 
-Very importantly, motifs contain no performance specifications. They describe structure, not requirements.
+The repo includes a small, self-contained EL example with a declarative bench:
+`tests/golden/cas/bench/RcLowpass.el.cai`.
 
-<img src="resources/images/getting_started_motifs.png" alt="Motif composition diagram" width="400"/>
+To emit simulator netlists:
 
-A **module** represents a complete design unit. It instantiates motifs, binds their free parameters, and attaches quantitative performance targets. A module declaration might state that gain-bandwidth must exceed 250 MHz or that phase margin must stay above 60 degrees. These specifications drive synthesis and optimization. Unlike a motif, which defines a reusable pattern, a module defines a concrete design instance with measurable goals.
+```sh
+dotnet run --project tools/cli/Cascode.Cli.csproj -- emit tests/golden/cas/bench/RcLowpass.el.cai --out build/rclowpass
+```
 
-A **bench** defines a simulation-based measurement. It specifies which SPICE netlist template to instantiate, what analyses to run, and what scalar quantities to extract. Traits bind their abstract metrics to concrete testbench outputs.
+To run benches and capture results:
 
-These constructs separate concerns that traditionally entangle in analog design flows. The trait system lets you reason about circuit behavior independently of topology. The motif library accumulates structural knowledge without embedding specific performance targets. The module layer states requirements without prescribing implementations. The bench layer handles the mechanical work of simulation setup and postprocessing.
+```sh
+dotnet run --project tools/cli/Cascode.Cli.csproj -- bench run tests/golden/cas/bench/RcLowpass.el.cai --out build/rclowpass
+```
 
-## Example: Building a 5T OTA
+To verify numeric constraints against the produced results:
 
-Let's examine how a 5-transistor OTA would be structurally constructed in Cascode ADL, so that it can be entered into the synthesis catalog as an eligible target for topology selection.
+```sh
+dotnet run --project tools/cli/Cascode.Cli.csproj -- verify tests/golden/cas/bench/RcLowpass.el.cai build/rclowpass/results.json
+```
 
-The `Amplifier` trait contributes the canonical performance metrics:
+The key idea in this example is that the circuit, the bench, and the constraint reference all live
+in one language with one syntax. The circuit’s `fill {}` block is just explicit connectivity:
 
-```java
-package lib.std.amp;
-
-trait Amplifier {
-  metrics { 
-    GainBandwidth;
-    PassbandGain;
-    PhaseMargin;
-    ICMR;
-    OutputSwing;
-    Power;
-    NoiseIn;
-  }
+```cascode
+fill {
+  Resistor R1 = new Ideal_Resistor(size(R=1k)) { .P--IN.P, .N--OUT }
+  Capacitor C1 = new Ideal_Capacitor(size(C=1p)) { .P--OUT, .N--GND }
 }
 ```
 
-The `SingleEndedOpAmp` trait extends that surface with the differential input, single-ended output port definitions and bench bindings:
+The bench is a declarative description of what to stimulate, what analyses to run, and what to
+measure (Chapter 4). The circuit binds the bench to the DUT and gives the mapping a stable name:
 
-```java
-package lib.std.amp;
-
-trait SingleEndedOpAmp extend Amplifier {
-  ports [ IN: Diff, OUT: analog ]
-  supply VDD; ground GND;
-
-  metrics {
-    GainBandwidth from SEOpAmpACBench.GainBandwidth;
-    PassbandGain  from SEOpAmpACBench.PassbandGain;
-    PhaseMargin   from SEOpAmpACBench.PhaseMargin;
+```cascode
+benches {
+  bind DiffToSELowpass as lp {
+    bench.IN--dut.IN
+    bench.OUT--dut.OUT
+    dut.GND--g0
   }
+}
+
+constraints {
+  numeric { c_fc = lp::LowpassBandwidth >= 50MHz }
 }
 ```
 
-This binding establishes how abstract performance requirements translate to concrete measurements. The bench itself defines what those measurements return:
+## Core concepts (mental model)
 
-```java
-package lib.benches;
+Cascode centers on a small set of constructs.
 
-bench SEOpAmpACBench {
-  spectre_template = "SEOpAmpACBench.tpl";
-  metrics [
-    GainBandwidth: Hz,
-    PassbandGain: dB,
-    PhaseMargin: deg,
-    LowpassBandwidth: Hz,
-    HighpassBandwidth: Hz,
-    BandpassBandwidth: Hz
-  ]
-}
-```
+A `circuit` declares terminals and a `level` (HL/ML/EL). EL circuits are emission-ready for SPICE.
+Structure lives in `fill {}` blocks as named instances and explicit wiring using `--` and
+`.Terminal--Net` bindings.
 
-Now the motif `OTA5TSingleEnded` can implement the contract while specifying only the topology:
+A `bench` declares measurement intent. It has terminals (with `stim`/`resp` roles), optional
+bench-local structure in `fill {}`, one or more analyses in `analysis {}`, and typed measurement
+expressions in `measurements {}`.
 
-```java
-package analog.ota; 
-import lib.std.amp.*; 
-import lib.std.prim.*;
+Bench reuse is achieved through bindings: `benches { bind ... as ... { ... } }` maps a bench onto a
+particular DUT. Constraints then reference measurements through the binding name using
+`binding::Measurement`.
 
-motif OTA5TSingleEnded implements SingleEndedOpAmp {
-  supply VDD = 1.8V; ground GND;
-  ports [ IN: Diff, OUT: analog, VTAIL: bias ]
+Simulation configuration is split between `env {}` (bench-facing assumptions) and `harness {}`
+(concrete simulation setup for emission). This separation is deliberate: it keeps intent and
+execution distinct while still allowing a single source file to describe both.
 
-  use {
-    // Differential pair with internal tail
-    dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
-    };
+These concepts are expanded in:
 
-    // PMOS current mirror as active load
-    cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp;
+- `spec/language/Ch02_Core_Concepts.md`
+- `spec/language/Ch04_Bench_System.md`
+- `docs/language/bench-cookbook.md`
 
-    // Single-ended output from sensed branch
-    connect dp.OUT.N -> OUT;
-  }
-}
-```
+## Toolchain pipeline (vision)
 
-Finally, a top-level module `MyOTA` instantiates the motif, binds its `VTAIL` to a synthesized bias rail, and attaches quantitative targets for gain, bandwidth, and stability:
+Today, the core stages are:
 
-```java
-module MyOTA {
-  ports [ IN: Diff, OUT: analog ]
-  supply VDD = 1.8V; ground GND;
+1. `cascode link`: resolve `include` directives and write a self-contained `.cai`.
+2. `cascode emit`: emit simulator netlists from EL circuits.
+3. `cascode bench run` and `cascode verify`: execute and check constrained benches.
 
-  spec {
-    GainBandwidth >= 250MHz;
-    PassbandGain >= 60dB;
-    PhaseMargin >= 60deg;
-    Power <= 1mW;
-  }
+The long-horizon flow preserves explicit stage boundaries:
 
-  env {
-    load C = 5pF;
-    vdd = 1.8V;
-    temp = 27C;
-  }
+- `cascode syn` (synthesis) consumes `.hl/.ml.cai` plus guidance (conventionally extracted to
+  `<name>.synth.yaml`) and produces `.el.cai`.
+- `cascode par` (place-and-route) consumes `.el.cai` and produces physical layout artifacts.
+  Cascode reserves `.cal` for Cascode Layout files; the `.cal` format is specified separately from
+  the language surface described in `spec/language/`.
 
-  use {
-    ota = new OTA5TSingleEnded { 
-      IN -> IN; 
-      OUT -> OUT; 
-      VTAIL -> vbias;
-    };
-    
-    // Bias generation would go here
-    // ...
-  }
-}
-```
+## Next steps
 
-What we have constructed is captured in the diagram below.
+If you want to go deeper, the best entry points are:
 
-<img src="resources/images/getting_started_example.png" alt="5T OTA structure with traits, motifs, and module" width="400"/>
-
-## What We've Accomplished
-
-This example demonstrates the core separation of concerns in Cascode. Behavioral specification (`Amplifier` trait) is independent of interface details. Interface contracts (`SingleEndedOpAmp`) connect behavior to measurement. Structural implementation (`OTA5TSingleEnded` motif) is topology-only. Performance requirements (`MyOTA` module) drive synthesis without prescribing topology. Measurements (benches) are reusable across different implementations.
-
-During synthesis, the toolchain can validate that the motif provides all required ports and metrics, size the transistors to meet the specifications, consider alternative motifs that implement the same trait, and verify performance through the mapped benches
+- `docs/language/style.md` for repository conventions
+- `docs/language/connectors.md` to understand `attach` and connector-driven hierarchy
+- `docs/language/troubleshooting.md` for common errors and diagnostics
+- `spec/language/Ch03_Syntax_Reference.md` for grammar-aligned syntax

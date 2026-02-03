@@ -14,7 +14,7 @@ This RFC proposes a comprehensive syntax overhaul for ACIR 3.0, introducing brac
 
 The changes fall into three categories: structural (brace delimiters, explicit closures), semantic (primitives, computed sizes), and notational (assignment operators, optional comma-separated bindings). Together, these ten changes address long-standing friction points in the current indentation-based syntax while preserving ACIR's core design as a line-oriented, diff-friendly intermediate representation.
 
-This RFC is orthogonal to RFC 0000 (measurement abstraction) but supersedes the terminology in that RFC where they overlap: specifically, this RFC adopts `interface` for connector-carrying contracts, leaving `trait` for capability markers as defined in RFC 0000.
+This RFC is orthogonal to RFC 0000 (measurement abstraction) but supersedes the terminology in that RFC where they overlap: specifically, this RFC adopts `interface` for connector-carrying contracts.
 
 ---
 
@@ -24,9 +24,9 @@ The current ACIR syntax (version 2.x and early 3.0 drafts) uses a Python-inspire
 
 1. Ambiguous block boundaries. Without explicit closing delimiters, tools and humans must infer where a block ends based on indentation changes. This complicates copy-paste operations, automated refactoring, and diff interpretation.
 
-2. Inconsistent declaration forms. Instance declarations (`inst dp : DiffPair`), device declarations (`nmos M_N (...) : nmos`), and constraint bindings (`c_gbw : ACBench::...`) all use the colon character for different purposes, creating parsing ambiguity and reader confusion.
+2. Inconsistent declaration forms. Instance declarations (`inst dp : DiffPair`), device declarations (`NMOS M_N (...) : NMOS`), and constraint bindings (`c_gbw : ACBench::...`) all use the colon character for different purposes, creating parsing ambiguity and reader confusion.
 
-3. Implicit device types. At EL level, device declarations reference implicit types (`nmos`, `pmos`) without explicit PDK binding. This conflates the device category with the concrete primitive, making PDK abstraction awkward.
+3. Implicit device types. At EL level, device declarations reference implicit types (`NMOS`, `PMOS`) without explicit PDK binding. This conflates the device category with the concrete primitive, making PDK abstraction awkward.
 
 4. Scattered parameter declarations. Circuit parameters and size packs are declared in the body rather than the signature, obscuring the circuit's interface contract at a glance.
 
@@ -114,9 +114,9 @@ Explicit braces eliminate the "where does this block end?" question that arises 
 
 ---
 
-### 3.2 Keyword Rename: `trait` → `interface`
+### 3.2 Keyword: `interface`
 
-The `trait` keyword is renamed to `interface` for connector-carrying contracts.
+The connector-carrying contract keyword is `interface`.
 
 #### 3.2.1 Syntax
 
@@ -128,7 +128,7 @@ interfaceDecl = "interface" IDENT "{" interfaceBody "}" ;
 
 An `interface` defines a contract that circuits can implement. Interfaces may declare ports, parameters, and connector blocks. The `implements` clause on circuits references interface names.
 
-The term `trait` is reserved for capability markers as defined in RFC 0000 (e.g., `HasSupplyPort`, `BalancedInput`). This separation clarifies the distinction between connector contracts (interface) and capability flags (trait).
+This RFC does not define a separate capability-marker keyword; capability flags are out of scope here.
 
 #### 3.2.3 Example
 
@@ -207,7 +207,7 @@ Circuit parameters and size declarations move from the body to the signature.
 #### 3.4.1 Syntax
 
 ```ebnf
-circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" traitList "{" circuitBody "}" ; 
+circuitDecl = "circuit" IDENT ["(" paramList ")"] "implements" interfaceList "{" circuitBody "}" ;
 paramList   = paramDecl ("," paramDecl)* ;
 paramDecl   = "size" IDENT ["=" sizeDefault]
             | typeName IDENT ["=" defaultValue] ;
@@ -264,7 +264,7 @@ Primitive definitions introduce named, parameterized device templates. They serv
 
 ```ebnf
 primitiveDecl   = "primitive" deviceKind IDENT "(" paramList ")" "{" primitiveBody "}" ;
-deviceKind      = "nmos" | "pmos" | "resistor" | "capacitor" | "inductor" | "diode" ;
+deviceKind      = "NMOS" | "PMOS" | "Resistor" | "Capacitor" | "Inductor" | "Diode" ;
 primitiveBody   = deviceDirective paramsBlock ;
 deviceDirective = "device" STRING ;
 paramsBlock     = "params" "{" paramMapping+ "}" ;
@@ -275,7 +275,7 @@ sizeFieldAccess = IDENT "." IDENT ;
 
 #### 3.5.2 Semantics
 
-A primitive definition declares a named template for a device kind (e.g., `nmos`) and specifies:
+A primitive definition declares a named template for a device kind (e.g., `NMOS`) and specifies:
 
 1. A `device` key (required) naming the concrete model/subckt/P-cell.
 2. A `params` block (required) that is a 1-1 map to the parameters of that concrete model/subckt/P-cell.
@@ -293,7 +293,7 @@ Cascode ships with always-available built-in device keys for simulation (e.g., `
 #### 3.5.3 Example
 
 ```acir
-primitive nmos Level1_NMOS(size primSize) {
+primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -302,7 +302,7 @@ primitive nmos Level1_NMOS(size primSize) {
   }
 }
 
-primitive pmos Level1_PMOS(size primSize) {
+primitive PMOS Level1_PMOS(size primSize) {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -311,7 +311,7 @@ primitive pmos Level1_PMOS(size primSize) {
   }
 }
 
-primitive nmos PdkBacked_NMOS(size primSize) {
+primitive NMOS PdkBacked_NMOS(size primSize) {
   device "nfet_01v8"
   params {
     w = primSize.W
@@ -343,8 +343,8 @@ Cascode provides built-in, always-available device keys for simulation:
 These correspond to ngspice-compatible Level-1 MOSFET model definitions (model names as shown):
 
 ```spice
-.model level1_nmos nmos level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
-.model level1_pmos pmos level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
+.model level1_nmos NMOS level=1 vto=0.5 kp=120u gamma=0.4 phi=0.65 lambda=0.04
+.model level1_pmos PMOS level=1 vto=-0.5 kp=40u gamma=0.4 phi=0.65 lambda=0.05
 ```
 
 Instance parameter expectations (and therefore the expected `params` keys when targeting these built-ins):
@@ -368,15 +368,15 @@ sizeArg    = IDENT | sizeExpr ;
 
 ```acir
 fill {
-  nmos M_N = new Level1_NMOS(InputPair) {
+  NMOS M_N = new Level1_NMOS(InputPair) {
     .B--GND, .D--OUT.N, .G--IN.P, .S--tnode
   }
 
-  nmos M_P = new Level1_NMOS(InputPair) {
+  NMOS M_P = new Level1_NMOS(InputPair) {
     .B--GND, .D--OUT.P, .G--IN.N, .S--tnode
   }
 
-  nmos M_TAIL = new Level1_NMOS(Tail) {
+  NMOS M_TAIL = new Level1_NMOS(Tail) {
     .B--GND, .D--tnode, .G--TAIL, .S--GND
   }
 }
@@ -448,7 +448,7 @@ circuit CurrentMirror(size Sense=(W=2u, L=180n, M=1), int ratio=1)
   fill {
     size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
 
-    pmos M_TAP0 = new Level1_PMOS(SenseMultiplied) {
+    PMOS M_TAP0 = new Level1_PMOS(SenseMultiplied) {
       .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD
     }
   }
@@ -521,14 +521,14 @@ circuit Name(params) implements Interfaces {
 
 ### 4.1 RFC 0000 (Measurement Abstraction)
 
-RFC 0000 introduces a `class`/`trait` distinction where `class` defines taxonomy (single inheritance) and `trait` defines capabilities (composable markers). This RFC adopts `interface` for what RFC 0000 calls connector-carrying contracts, preserving `trait` for capability markers.
+RFC 0000 introduces a taxonomy distinction alongside capability markers; this RFC adopts `interface` for connector-carrying contracts and does not define capability-marker syntax.
 
 Alignment:
 - `class` (RFC 0000): Taxonomy with port bindings
-- `trait` (RFC 0000): Capability marker (e.g., `HasSupplyPort`)
+- Capability markers (RFC 0000): out of scope for this RFC
 - `interface` (this RFC): Connector-carrying contract that circuits implement
 
-If RFC 0000 is adopted, the `interface` keyword from this RFC would coexist with `class` and `trait`, each serving a distinct purpose.
+If RFC 0000 is adopted, the `interface` keyword from this RFC would coexist with the class taxonomy and any future capability-marker syntax.
 
 ### 4.2 RFC 0002 (Terminal Directionality)
 
@@ -608,7 +608,7 @@ This RFC introduces breaking syntax changes. A migration script (`scripts/acir_m
 | Before | After |
 |--------|-------|
 | `bundle Name:` | `bundle Name {` |
-| `trait Name:` | `interface Name {` |
+| `interface Name:` | `interface Name {` |
 | `outputs:` | `outputs {` |
 | `fill:` | `fill {` |
 | `connectors:` | `connectors {` |
@@ -619,7 +619,7 @@ This RFC introduces breaking syntax changes. A migration script (`scripts/acir_m
 | `inst id : Type` | `id = new Type(...) { ... }` |
 | `param name = value` (in inst body) | `name=value` (in constructor call) |
 | `c_gbw : Bench::Metric ...` | `c_gbw = Bench::Metric ...` |
-| `nmos M (...) : nmos` | `nmos M = new PrimName(...) { ... }` |
+| `NMOS M (...) : NMOS` | `NMOS M = new PrimName(...) { ... }` |
 
 ### 6.2 Manual Review Required
 
@@ -645,9 +645,9 @@ Maintaining the existing colon-based, indentation-delimited syntax would avoid m
 
 Some languages use parentheses for block delimiters. Braces were chosen because they are more commonly associated with block structure in C-family languages and are visually distinct from function call parentheses.
 
-### 7.3 Make `interface` and `trait` Synonyms
+### 7.3 Single `interface` Keyword
 
-Treating `interface` and `trait` as synonyms would simplify the keyword set but would obscure the semantic distinction introduced in RFC 0000 between connector contracts and capability markers.
+The language uses a single `interface` keyword for connector contracts. Capability markers, if introduced later, will use a distinct syntax.
 
 ### 7.4 Optional Primitives
 

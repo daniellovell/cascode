@@ -121,29 +121,38 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
     {
         var cascodeRoot = Path.Combine(_repoRoot, "tests", "golden", "cas");
         var baseName = Path.GetFileNameWithoutExtension(jsonFile);
-        var targetFileName = $"{baseName}.cas";
 
-        var matches = Directory
-            .GetFiles(cascodeRoot, targetFileName, SearchOption.AllDirectories)
-            .Where(path =>
-                !path.Contains(
-                    $"{Path.DirectorySeparatorChar}json{Path.DirectorySeparatorChar}",
-                    StringComparison.OrdinalIgnoreCase
+        // Look for .cai files first (linked Cascode), then .cas files
+        var matches = new List<string>();
+        foreach (var ext in new[] { ".cai", ".cas" })
+        {
+            var targetFileName = $"{baseName}{ext}";
+            matches = Directory
+                .GetFiles(cascodeRoot, targetFileName, SearchOption.AllDirectories)
+                .Where(path =>
+                    !path.Contains(
+                        $"{Path.DirectorySeparatorChar}json{Path.DirectorySeparatorChar}",
+                        StringComparison.OrdinalIgnoreCase
+                    )
                 )
-            )
-            .OrderBy(Path.GetFullPath)
-            .ToList();
+                .OrderBy(Path.GetFullPath)
+                .ToList();
+            if (matches.Count > 0)
+            {
+                break;
+            }
+        }
 
         if (matches.Count == 0)
         {
-            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cas found");
+            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cai found");
             return null;
         }
 
         if (matches.Count > 1)
         {
             failures.Add(
-                $"{Path.GetFileName(jsonFile)}: Multiple .el.cas matches: {string.Join(", ", matches)}"
+                $"{Path.GetFileName(jsonFile)}: Multiple matches: {string.Join(", ", matches)}"
             );
             return null;
         }

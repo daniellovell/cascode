@@ -18,7 +18,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
       .G--IN
       .D--OUT
       .S--GND
@@ -91,7 +91,7 @@ circuit TestCircuit {{
   ground GND
   input IN : analog
   fill {{
-    nmos M1 bad_syntax here
+    NMOS M1 bad_syntax here
   }}
 }}
 ";
@@ -118,7 +118,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
       .G--IN
       bad_binding
       .D--OUT
@@ -152,7 +152,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
       .G->IN
       .D--OUT
       .S--GND
@@ -209,7 +209,7 @@ circuit TestCircuit {{
   supply VDD
   ground GND
   fill {{
-    nmos M1 invalid_syntax
+    NMOS M1 invalid_syntax
   }}
 }}
 ";
@@ -311,8 +311,8 @@ circuit Test {{
 circuit TestCircuit {
   level EL
   fill {
-    nmos M1 bad
-    nmos M2 also_bad
+    NMOS M1 bad
+    NMOS M2 also_bad
   }
 }
 ";
@@ -572,7 +572,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    nmos M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {{
       {gBinding}
       {dBinding}
       {sBinding}
@@ -640,11 +640,11 @@ circuit Test {{
         );
         Assert.NotNull(result.Document);
 
-        var trait = result.Document!.Traits.First(t => t.Name == "CurrentMirrorLike");
-        Assert.Single(trait.Connectors);
-        Assert.Single(trait.Connectors[0].Mappings);
-        Assert.Equal("SENSE", trait.Connectors[0].Mappings[0].SourcePort);
-        Assert.Equal("OUT.P", trait.Connectors[0].Mappings[0].TargetPort);
+        var interfaceDef = result.Document!.Traits.First(t => t.Name == "CurrentMirrorLike");
+        Assert.Single(interfaceDef.Connectors);
+        Assert.Single(interfaceDef.Connectors[0].Mappings);
+        Assert.Equal("SENSE", interfaceDef.Connectors[0].Mappings[0].SourcePort);
+        Assert.Equal("OUT.P", interfaceDef.Connectors[0].Mappings[0].TargetPort);
     }
 
     [Theory]

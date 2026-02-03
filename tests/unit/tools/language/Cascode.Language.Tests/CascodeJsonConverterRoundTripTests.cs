@@ -169,7 +169,7 @@ public class CascodeJsonConverterRoundTripTests
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(
             repoRoot,
-            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cas"
+            "tests/golden/cas/hierarchy/TelescopicCascodeFullyDiff_Attach.el.cai"
         );
 
         CascodeDocument doc;
@@ -277,16 +277,73 @@ public class CascodeJsonConverterRoundTripTests
                 new BenchDefinition
                 {
                     Name = "DCBench",
-                    Trait = "SingleEndedOpAmp",
-                    Builtin = "SEOpAmpDCBench",
-                    Outputs = ["QuiescentPower"],
+                    Terminals =
+                    [
+                        new BenchTerminal(BenchTerminalRole.Stim, "IN", "analog"),
+                        new BenchTerminal(BenchTerminalRole.Resp, "OUT", "analog"),
+                    ],
+                    Analyses =
+                    [
+                        new AnalysisDeclaration
+                        {
+                            Type = BenchValueType.DCAnalysis,
+                            Name = "dc",
+                            Parameters = new Dictionary<string, MeasurementExpr>
+                            {
+                                ["start"] = new MeasurementQuantity("0V"),
+                                ["stop"] = new MeasurementQuantity("1V"),
+                                ["steps"] = new MeasurementNumber("2"),
+                            },
+                        },
+                    ],
+                    Measurements =
+                    [
+                        new MeasurementDefinition
+                        {
+                            Name = "QuiescentPower",
+                            Unit = "W",
+                            Body = [new BenchReturn(new MeasurementQuantity("0W"))],
+                        },
+                    ],
                 },
                 new BenchDefinition
                 {
                     Name = "ACBench",
-                    Trait = "SingleEndedOpAmp",
-                    Builtin = "SEOpAmpACBench",
-                    Outputs = ["GainBandwidth", "PassbandGain"],
+                    Terminals =
+                    [
+                        new BenchTerminal(BenchTerminalRole.Stim, "IN", "analog"),
+                        new BenchTerminal(BenchTerminalRole.Resp, "OUT", "analog"),
+                    ],
+                    Analyses =
+                    [
+                        new AnalysisDeclaration
+                        {
+                            Type = BenchValueType.ACAnalysis,
+                            Name = "ac",
+                            Parameters = new Dictionary<string, MeasurementExpr>
+                            {
+                                ["space"] = new MeasurementPath("Log"),
+                                ["samples"] = new MeasurementNumber("10"),
+                                ["start"] = new MeasurementQuantity("1Hz"),
+                                ["stop"] = new MeasurementQuantity("1kHz"),
+                            },
+                        },
+                    ],
+                    Measurements =
+                    [
+                        new MeasurementDefinition
+                        {
+                            Name = "GainBandwidth",
+                            Unit = "Hz",
+                            Body = [new BenchReturn(new MeasurementQuantity("0Hz"))],
+                        },
+                        new MeasurementDefinition
+                        {
+                            Name = "PassbandGain",
+                            Unit = "dB",
+                            Body = [new BenchReturn(new MeasurementQuantity("0dB"))],
+                        },
+                    ],
                 },
             ],
             Circuits =

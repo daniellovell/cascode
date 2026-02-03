@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Bench;
+using Cascode.Cli.Output;
 using Cascode.Language;
 
 namespace Cascode.Cli.Commands;
@@ -14,14 +15,16 @@ namespace Cascode.Cli.Commands;
 internal sealed class VerifyCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="VerifyCommandModule"/> class.
     /// </summary>
     /// <param name="state">Shell state for messaging.</param>
-    public VerifyCommandModule(ShellState state)
+    public VerifyCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     /// <summary>
@@ -46,14 +49,15 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <returns>Command result indicating success or failure.</returns>
     private CommandResult VerifyCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: verify <cascode_file> <results_json|trace_jsonl>");
-            _state.AddMessage(
+            output.WriteLine("Usage: verify <cascode_file> <results_json|trace_jsonl>");
+            output.WriteLine(
                 "       verify --cascode <cascode_file> (--results <results_json> | --trace <trace_jsonl>)"
             );
-            _state.AddMessage("");
-            _state.AddMessage(
+            output.WriteLine("");
+            output.WriteLine(
                 "Verifies numeric constraints from Cascode against bench measurement results."
             );
             return CommandResult.Success;
@@ -61,7 +65,7 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         if (!ParseArguments(args, out var cascodePath, out var resultsPath, out var tracePath))
         {
-            _state.AddMessage(
+            output.Error(
                 "Error: provide an Cascode path plus either a results.json or trace.jsonl path."
             );
             return CommandResult.Failure;
@@ -69,19 +73,19 @@ internal sealed class VerifyCommandModule : ICommandModule
 
         if (!File.Exists(cascodePath))
         {
-            _state.AddMessage($"Cascode file '{cascodePath}' not found.");
+            output.Error($"Cascode file '{cascodePath}' not found.");
             return CommandResult.Failure;
         }
 
         if (resultsPath != null && !File.Exists(resultsPath))
         {
-            _state.AddMessage($"Results file '{resultsPath}' not found.");
+            output.Error($"Results file '{resultsPath}' not found.");
             return CommandResult.Failure;
         }
 
         if (tracePath != null && !File.Exists(tracePath))
         {
-            _state.AddMessage($"Trace file '{tracePath}' not found.");
+            output.Error($"Trace file '{tracePath}' not found.");
             return CommandResult.Failure;
         }
 
@@ -100,7 +104,7 @@ internal sealed class VerifyCommandModule : ICommandModule
                 )
             )
             {
-                _state.AddMessage($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
             }
             return CommandResult.Failure;
         }
@@ -111,7 +115,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         var elCircuits = doc.Circuits.Where(c => c.Level == CascodeLevel.EL).ToList();
         if (elCircuits.Count == 0)
         {
-            _state.AddMessage("No EL-level circuits found in Cascode document.");
+            output.Error("No EL-level circuits found in Cascode document.");
             return CommandResult.Failure;
         }
 
@@ -137,7 +141,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to read results file: {ex.Message}");
+            output.Error($"Failed to read results file: {ex.Message}");
             return CommandResult.Failure;
         }
 
@@ -150,7 +154,7 @@ internal sealed class VerifyCommandModule : ICommandModule
         // Check compliance
         var report = ComplianceChecker.Check(circuit, results);
 
-        DisplayComplianceReport(circuit, results.Bench, report);
+        DisplayComplianceReport(output, circuit, results.Bench, report);
 
         return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
     }
@@ -261,17 +265,22 @@ internal sealed class VerifyCommandModule : ICommandModule
     /// <param name="circuit">The circuit being verified.</param>
     /// <param name="benchName">Name of the bench that produced the results.</param>
     /// <param name="report">The compliance report to display.</param>
-    private void DisplayComplianceReport(Circuit circuit, string benchName, ComplianceReport report)
+    private static void DisplayComplianceReport(
+        ICliOutput output,
+        Circuit circuit,
+        string benchName,
+        ComplianceReport report
+    )
     {
         var header = string.IsNullOrEmpty(benchName)
             ? $"Constraint Compliance Report for {circuit.Name}"
             : $"Constraint Compliance Report for {circuit.Name} ({benchName})";
-        _state.AddMessage(header);
-        _state.AddMessage(new string('-', 50));
+        output.WriteLine(header);
+        output.WriteLine(new string('-', 50));
 
         if (report.TotalCount == 0 && report.UncheckedCount == 0)
         {
-            _state.AddMessage("No numeric constraints found in circuit.");
+            output.Warning("No numeric constraints found in circuit.");
         }
 
         foreach (var result in report.Results)
@@ -286,30 +295,28 @@ internal sealed class VerifyCommandModule : ICommandModule
                 ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
                 : " (not measured)";
 
-            _state.AddMessage(
+            output.WriteLine(
                 $"{result.Id, -8} {result.Metric}{nodeStr} {result.Operator} {expectedStr, -12} {status}{actualStr}"
             );
         }
 
-        _state.AddMessage(new string('-', 50));
-        _state.AddMessage(
-            $"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied"
-        );
+        output.WriteLine(new string('-', 50));
+        output.WriteLine($"Result: {report.PassedCount}/{report.TotalCount} constraints satisfied");
 
         // Show hint about unchecked constraints from other benches
         if (report.UncheckedByBench.Count > 0)
         {
-            _state.AddMessage("");
+            output.WriteLine("");
 
             foreach (var kvp in report.UncheckedByBench)
             {
                 var ids = string.Join(", ", kvp.Value.Select(c => c.Id));
                 var constraintWord = kvp.Value.Count == 1 ? "constraint" : "constraints";
-                _state.AddMessage(
+                output.WriteLine(
                     $"Note: {kvp.Value.Count} {constraintWord} ({ids}) measured by {kvp.Key}."
                 );
             }
-            _state.AddMessage("Run `verify` with combined results to check all constraints.");
+            output.Warning("Run `verify` with combined results to check all constraints.");
         }
     }
 

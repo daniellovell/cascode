@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Cascode.Bench;
+using Cascode.Language.BenchRuntime;
 using Cascode.Language.Validation;
 
 namespace Cascode.Language;
@@ -120,6 +121,18 @@ public static class SpiceEmitter
             circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         }
 
+        // If the design uses generic MOS model names (e.g. level1_nmos), emit model cards so
+        // ngspice can simulate without a PDK model include.
+        if (backend == BenchBackendType.Ngspice)
+        {
+            var requiredModels = GetRequiredGenericModels(circuit, primitivesByName);
+            if (requiredModels.Count != 0)
+            {
+                EmitGenericModels(requiredModels, writer);
+                writer.WriteLine();
+            }
+        }
+
         if (document is not null && variantMap is null)
         {
             variantMap = CollectAllVariants(document);
@@ -145,78 +158,6 @@ public static class SpiceEmitter
                 backend
             );
         }
-    }
-
-    /// <summary>
-    /// Emits a SPICE testbench for a given bench definition.
-    /// </summary>
-    /// <param name="circuit">The circuit containing the bench.</param>
-    /// <param name="bench">The bench definition.</param>
-    /// <param name="designPath">Path to the design .sp file to include.</param>
-    /// <param name="writer">Text writer for output.</param>
-    /// <param name="backend">Backend type for testbench generation.</param>
-    /// <exception cref="InvalidOperationException">Thrown if circuit is not EL level.</exception>
-    /// <remarks>
-    /// This method is deprecated. Use Emit() with backend parameter instead.
-    /// The testbench is now generated using templates via TestbenchGenerator.
-    /// </remarks>
-    [Obsolete("Use Emit() method with backend parameter instead")]
-    public static void EmitTestbench(
-        Circuit circuit,
-        BenchDefinition bench,
-        string designPath,
-        TextWriter writer,
-        BenchBackendType backend = BenchBackendType.Ngspice,
-        CascodeDocument? document = null
-    )
-    {
-        if (circuit.Level != CascodeLevel.EL)
-        {
-            throw new InvalidOperationException(
-                $"SpiceEmitter requires EL-level circuit, but '{circuit.Name}' is {circuit.Level}."
-            );
-        }
-
-        var title = $"{circuit.Name}_{bench.Name}";
-
-        // Header
-        writer.WriteLine($"* {title} - Generated from Cascode EL");
-        writer.WriteLine($".title {title}");
-        writer.WriteLine();
-
-        // Emit generic model definitions if circuit uses generic devices
-        var primitivesByName = document?.Primitives.ToDictionary(
-            p => p.Name,
-            StringComparer.Ordinal
-        );
-        var genericModels = GetRequiredGenericModels(circuit, primitivesByName);
-        if (genericModels.Count > 0)
-        {
-            EmitGenericModels(genericModels, writer);
-            writer.WriteLine();
-        }
-
-        // Include design
-        writer.WriteLine($".include \"{designPath}\"");
-        writer.WriteLine();
-
-        // Harness section
-        writer.WriteLine("* Harness");
-        if (circuit.Harness is not null)
-        {
-            EmitHarness(circuit, writer);
-        }
-        writer.WriteLine();
-
-        // DUT instantiation
-        writer.WriteLine("* DUT");
-        EmitDutInstantiation(circuit, writer);
-        writer.WriteLine();
-
-        // Analysis commands based on bench type
-        EmitAnalysis(bench, writer);
-
-        writer.WriteLine(".end");
     }
 
     /// <summary>
@@ -290,31 +231,18 @@ public static class SpiceEmitter
             result.DesignPaths.Add(designPath);
         }
 
-        // Emit testbenches after all design files are emitted (for hierarchical dependencies)
-        foreach (var circuit in orderedCircuits.Where(c => c.Level == CascodeLevel.EL))
-        {
-            var benchDefinitions = BenchDefinitionResolver.ResolveForCircuit(doc, circuit);
-            if (benchDefinitions.Count == 0)
-            {
-                continue;
-            }
-
-            var includeResolution = includeResolver?.Resolve(circuit, backend, doc);
-            foreach (var bench in benchDefinitions)
-            {
-                var files = CascodeBenchAdapter.GenerateTestbench(
-                    circuit,
-                    bench,
-                    backend,
-                    outputDir,
-                    workspaceRoot,
-                    includeResolution,
-                    result.DesignPaths,
-                    doc
-                );
-                result.TestbenchPaths.Add(files.NetlistPath);
-            }
-        }
+        // Emit declarative bench testbenches (if any bindings exist on EL circuits).
+        var benchPlans = BenchCompiler.CompileAllPlans(doc);
+        result.TestbenchPaths.AddRange(
+            BenchTestbenchEmitter.EmitPlans(
+                doc,
+                benchPlans,
+                outputDir,
+                backend,
+                result.DesignPaths,
+                includeResolver
+            )
+        );
 
         return result;
     }
@@ -727,12 +655,12 @@ public static class SpiceEmitter
 
         if (type == "polarity")
         {
-            if (trimmed.Equals("nmos", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.Equals("NMOS", StringComparison.OrdinalIgnoreCase))
             {
                 return "NMOS";
             }
 
-            if (trimmed.Equals("pmos", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.Equals("PMOS", StringComparison.OrdinalIgnoreCase))
             {
                 return "PMOS";
             }
@@ -1524,7 +1452,7 @@ public static class SpiceEmitter
             return trimmed;
         }
         var evaluated = context.Evaluate(trimmed);
-        return CascodeBenchAdapter.TransformValueForBackend(evaluated, backend);
+        return SiValue.TransformForBackend(evaluated, backend);
     }
 
     /// <summary>
@@ -1825,47 +1753,6 @@ public static class SpiceEmitter
 
         var subcktName = GetDefaultVariantName(circuit);
         writer.WriteLine($"XDUT {string.Join(" ", portList)} {subcktName}");
-    }
-
-    /// <summary>
-    /// Emits analysis commands based on bench type.
-    /// </summary>
-    /// <param name="bench">Bench definition.</param>
-    /// <param name="writer">Text writer for output.</param>
-    /// <remarks>
-    /// Bench type is inferred from the bench name:
-    /// - "AC" → AC sweep (op + ac dec)
-    /// - "STEP" or "TRAN" → Transient analysis (op + tran)
-    /// - Default → DC operating point only
-    /// </remarks>
-    private static void EmitAnalysis(BenchDefinition bench, TextWriter writer)
-    {
-        writer.WriteLine(".control");
-
-        // Determine analysis type from bench name
-        var benchName = (bench.Builtin ?? bench.Name).ToUpperInvariant();
-        if (benchName.Contains("AC"))
-        {
-            writer.WriteLine("op");
-            writer.WriteLine("ac dec 100 1 10G");
-        }
-        else if (benchName.Contains("STEP") || benchName.Contains("TRAN"))
-        {
-            writer.WriteLine("op");
-            writer.WriteLine("tran 1n 100n");
-        }
-        else if (benchName.Contains("DC"))
-        {
-            writer.WriteLine("op");
-        }
-        else
-        {
-            // Default to DC operating point
-            writer.WriteLine("op");
-        }
-
-        writer.WriteLine("quit");
-        writer.WriteLine(".endc");
     }
 
     /// <summary>

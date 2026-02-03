@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using Cascode.Cli.Output;
 using Cascode.Cli.Services;
 using Cascode.Workspace;
 using Spectre.Console;
@@ -12,10 +13,12 @@ namespace Cascode.Cli.Commands;
 internal sealed class CharacterizationCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
 
-    public CharacterizationCommandModule(ShellState state)
+    public CharacterizationCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state;
+        _output = output;
     }
 
     public void Register(CommandRegistry registry)
@@ -48,15 +51,16 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
     private CommandResult ShowCharUsage(string[] args)
     {
-        _state.AddMessage("Usage: char <subcommand>");
+        _output.Get().WriteLine("Usage: char <subcommand>");
         return CommandResult.Success;
     }
 
     private CommandResult CharacterizationGenerateCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage(
+            output.WriteLine(
                 "Usage: char gen <model> [--harness <id>] [--backend spectre|ngspice] [--out <dir>] [--corner <name>]"
             );
             return CommandResult.Success;
@@ -66,9 +70,10 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
     private CommandResult CharacterizationReadCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: char read <job-dir> [--head <n>]");
+            output.WriteLine("Usage: char read <job-dir> [--head <n>]");
             return CommandResult.Success;
         }
         return CharacterizationRead(args);
@@ -76,9 +81,10 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
     private CommandResult CharacterizationExportCommand(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: char export <job-dir> [--out <file.csv>] [--metrics <list>]");
+            output.WriteLine("Usage: char export <job-dir> [--out <file.csv>] [--metrics <list>]");
             return CommandResult.Success;
         }
         var jobDir = PathUtils.NormalizePath(args[0]);
@@ -114,15 +120,16 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             }
             catch (Exception ex)
             {
-                _state.AddMessage($"Failed to copy to '{outOverride}': {ex.Message}");
+                output.Error($"Failed to copy to '{outOverride}': {ex.Message}");
             }
         }
-        _state.AddMessage(msg);
+        output.WriteLine(msg);
         return ok ? CommandResult.Success : CommandResult.Failure;
     }
 
     private CommandResult CharacterizationRead(string[] args)
     {
+        var output = _output.Get();
         var jobDir = PathUtils.NormalizePath(args[0]);
         var head = 20;
         for (var i = 1; i < args.Length; i++)
@@ -131,27 +138,28 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         var csv = Path.Combine(jobDir, "results.csv");
         if (!File.Exists(csv))
         {
-            _state.AddMessage($"Results file not found: {csv}");
+            output.Error($"Results file not found: {csv}");
             return CommandResult.Failure;
         }
         try
         {
             using var reader = new StreamReader(csv);
             for (var i = 0; i < head && !reader.EndOfStream; i++)
-                _state.AddMessage(reader.ReadLine() ?? string.Empty);
+                output.WriteLine(reader.ReadLine() ?? string.Empty);
             if (!reader.EndOfStream)
-                _state.AddMessage("…");
+                output.WriteLine("…");
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to read: {ex.Message}");
+            output.Error($"Failed to read: {ex.Message}");
             return CommandResult.Failure;
         }
     }
 
     private CommandResult CharacterizationGenerate(string[] args)
     {
+        var output = _output.Get();
         var modelName = args[0];
         var backend = "ngspice";
         string? outDir = null;
@@ -201,7 +209,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             );
         if (model is null)
         {
-            _state.AddMessage("Model not found.");
+            output.Error("Model not found.");
             return CommandResult.Failure;
         }
 
@@ -293,7 +301,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         }
         var netlistModelName = ResolveModelNameForNetlist(model);
         if (resolvedIncludes.Count == 0)
-            _state.AddMessage(
+            output.Warning(
                 $"[warn] No include decks located for model '{model.Name}'. Spectre run may fail."
             );
 
@@ -342,22 +350,21 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             var reg = Cascode.Bench.HarnessService.CreateDefault(_state.WorkspaceRoot);
             var gen = new Cascode.Bench.TestbenchGenerator(reg);
             var files = gen.Generate(ctx);
-            _state.AddMessage($"Generated testbench: {files.NetlistPath}");
-            _state.AddMessage($"Spec: {files.SpecPath}");
-            _state.AddMessage(
-                "Run your simulator manually and then 'char export' to derive gm/Id."
-            );
+            output.WriteLine($"Generated testbench: {files.NetlistPath}");
+            output.WriteLine($"Spec: {files.SpecPath}");
+            output.WriteLine("Run your simulator manually and then 'char export' to derive gm/Id.");
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Generation failed: {ex.Message}");
+            output.Error($"Generation failed: {ex.Message}");
             return CommandResult.Failure;
         }
     }
 
     private IReadOnlyList<SpectreModel>? EnsureModels()
     {
+        var output = _output.Get();
         try
         {
             var dbPath = System.IO.Path.Combine(
@@ -366,14 +373,14 @@ internal sealed class CharacterizationCommandModule : ICommandModule
             );
             if (!System.IO.File.Exists(dbPath))
             {
-                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                output.Error("No PDK database found. Run 'pdk scan' first.");
                 return null;
             }
             return PdkDatabaseReader.LoadModels(dbPath);
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to load models from PDK database: {ex.Message}");
+            output.Error($"Failed to load models from PDK database: {ex.Message}");
             return null;
         }
     }

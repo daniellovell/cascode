@@ -10,10 +10,10 @@ namespace Cascode.Render.Tests.Routing;
 public class RoutingSanityTests
 {
     [Theory]
-    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cas")]
-    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cas")]
-    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cas")]
-    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cas")]
+    [InlineData("tests/golden/cas/cs/CSAmpResistive.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TSingleEnded.el.cai")]
+    [InlineData("tests/golden/cas/ota/OTA5TFullyDiff.el.cai")]
+    [InlineData("tests/golden/cas/filters/DiffRCFilter.el.cai")]
     public void RoutedWires_ConnectAllTerminals_AndAvoidForeignTerminals(string relativeCascodePath)
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();

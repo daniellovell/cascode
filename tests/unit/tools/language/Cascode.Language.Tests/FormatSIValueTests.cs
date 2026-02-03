@@ -29,7 +29,7 @@ namespace Cascode.Language.Tests
         [InlineData(3.3e6, "3.3M")]
         public void FormatSIValue_FormatsCorrectly(double input, string expected)
         {
-            var result = CascodeBenchAdapter.FormatSIValue(input);
+            var result = SiValue.Format(input);
             Assert.Equal(expected, result);
         }
 
@@ -43,10 +43,7 @@ namespace Cascode.Language.Tests
         [InlineData(1e-12, "1p")]
         public void FormatSIValueForBackend_NgspiceUsesMEGForMega(double input, string expected)
         {
-            var result = CascodeBenchAdapter.FormatSIValueForBackend(
-                input,
-                BenchBackendType.Ngspice
-            );
+            var result = SiValue.FormatForBackend(input, BenchBackendType.Ngspice);
             Assert.Equal(expected, result);
         }
 
@@ -57,10 +54,7 @@ namespace Cascode.Language.Tests
         [InlineData(2e6, "2M")]
         public void FormatSIValueForBackend_SpectreUsesMForMega(double input, string expected)
         {
-            var result = CascodeBenchAdapter.FormatSIValueForBackend(
-                input,
-                BenchBackendType.Spectre
-            );
+            var result = SiValue.FormatForBackend(input, BenchBackendType.Spectre);
             Assert.Equal(expected, result);
         }
 
@@ -76,10 +70,7 @@ namespace Cascode.Language.Tests
         [InlineData("50MHz", "50MEGHz")]
         public void TransformValueForBackend_NgspiceConvertsMToMEG(string input, string expected)
         {
-            var result = CascodeBenchAdapter.TransformValueForBackend(
-                input,
-                BenchBackendType.Ngspice
-            );
+            var result = SiValue.TransformForBackend(input, BenchBackendType.Ngspice);
             Assert.Equal(expected, result);
         }
 
@@ -91,10 +82,7 @@ namespace Cascode.Language.Tests
         [InlineData("50MHz", "50MHz")]
         public void TransformValueForBackend_SpectrePreservesMForMega(string input, string expected)
         {
-            var result = CascodeBenchAdapter.TransformValueForBackend(
-                input,
-                BenchBackendType.Spectre
-            );
+            var result = SiValue.TransformForBackend(input, BenchBackendType.Spectre);
             Assert.Equal(expected, result);
         }
 
@@ -117,10 +105,7 @@ namespace Cascode.Language.Tests
             string expected
         )
         {
-            var result = CascodeBenchAdapter.TransformValueForBackend(
-                input,
-                BenchBackendType.Ngspice
-            );
+            var result = SiValue.TransformForBackend(input, BenchBackendType.Ngspice);
             Assert.Equal(expected, result);
         }
     }

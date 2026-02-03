@@ -1,0 +1,88 @@
+VERSION 3.0
+
+// Stress test: fully-differential 5T OTA using generic Level-1 devices (no PDK needed).
+//
+// Primary purpose: exercise Diff->Diff bench binding and validate differential load impedance
+// splitting (LoadImpedance.DiffToShunt()) in the standard transfer bench.
+
+include lib.std
+
+circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  input VTAIL : bias
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    // Differential target load. Diff benches split this to per-side shunts via DiffToShunt().
+    LoadImpedance = (1GOhm || 15pF)
+  }
+
+  fill {
+    net tnode : analog
+    net vcm_node : analog
+
+    NMOS M_N = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT.P
+      .G--IN.P
+      .S--tnode
+    }
+
+    NMOS M_P = new Level1_NMOS(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT.N
+      .G--IN.N
+      .S--tnode
+    }
+
+    NMOS M_TAIL = new Level1_NMOS(size(W=4u, L=180n, M=1)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+
+    PMOS M_LOAD_P = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT.P
+      .G--vcm_node
+      .S--VDD
+    }
+
+    PMOS M_LOAD_N = new Level1_PMOS(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT.N
+      .G--vcm_node
+      .S--VDD
+    }
+
+    Resistor R_CMFB_P = new Ideal_Resistor(size(R=500k)) {
+      .P--OUT.P
+      .N--vcm_node
+    }
+
+    Resistor R_CMFB_N = new Ideal_Resistor(size(R=500k)) {
+      .P--OUT.N
+      .N--vcm_node
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_pwr = vdd_pwr::QuiescentPower <= 1nW
+      c_cmrr = cmrr_bench::CMRR >= 300dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+    bias VTAIL = 0.6V
+  }
+}

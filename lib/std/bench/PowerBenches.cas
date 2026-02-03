@@ -1,0 +1,20 @@
+VERSION 3.0
+
+library lib.std.bench
+
+// Minimal quiescent-power bench.
+//
+// This bench assumes the circuit harness provides a VDC supply source between the mapped
+// supply/return terminals (e.g. VDD -> GND). The bench runtime measures the operating-point
+// current through that source and reports positive static power drawn from the rail.
+bench QuiescentPower {
+  stim PWR : supply
+  resp RET : ground
+
+  measurements {
+    measurement QuiescentPower : W {
+      return quiescent_power(PWR, RET)
+    }
+  }
+}
+

@@ -164,7 +164,7 @@ public static class CascodeJsonConverter
         var circuit = new Circuit
         {
             Name = jsonDoc.Circuit.Name,
-            Traits = jsonDoc.Circuit.Traits?.ToList(),
+            Traits = jsonDoc.Circuit.Interfaces?.ToList(),
             Level = level,
             Inline = jsonDoc.Circuit.Inline,
             Parameters = BuildCircuitParameters(jsonDoc.Circuit.Parameters),
@@ -192,7 +192,7 @@ public static class CascodeJsonConverter
         {
             VersionMajor = major,
             VersionMinor = minor,
-            Traits = BuildTraits(jsonDoc.Traits, filePath, diagnostics) ?? [],
+            Traits = BuildTraits(jsonDoc.Interfaces, filePath, diagnostics) ?? [],
             Primitives = BuildPrimitives(jsonDoc.Primitives),
             BenchDefinitions = BuildBenchDefinitions(jsonDoc.BenchDefinitions),
             Circuits = [circuit],
@@ -223,12 +223,12 @@ public static class CascodeJsonConverter
         return new CascodeJsonDocument
         {
             Version = $"{document.VersionMajor}.{document.VersionMinor}",
-            Traits = ConvertTraits(document.Traits),
+            Interfaces = ConvertTraits(document.Traits),
             Primitives = ConvertPrimitives(document.Primitives),
             Circuit = new CascodeJsonCircuitInfo
             {
                 Name = circuit.Name,
-                Traits = circuit.Traits?.Count > 0 ? circuit.Traits : null,
+                Interfaces = circuit.Traits?.Count > 0 ? circuit.Traits : null,
                 Level = circuit.Level.ToString(),
                 Inline = circuit.Inline,
                 Parameters = ConvertCircuitParameters(circuit.Parameters),
@@ -266,10 +266,10 @@ public static class CascodeJsonConverter
             .Select(b => new CascodeJsonBenchDefinition
             {
                 Name = b.Name,
-                Trait = b.Trait,
-                Builtin = string.IsNullOrEmpty(b.Builtin) ? null : b.Builtin,
-                Config = b.Config.Count > 0 ? new Dictionary<string, string>(b.Config) : null,
-                Outputs = b.Outputs.Count > 0 ? b.Outputs.ToList() : null,
+                Interface = string.Empty,
+                Builtin = null,
+                Config = null,
+                Outputs = null,
             })
             .ToList();
     }
@@ -341,12 +341,12 @@ public static class CascodeJsonConverter
             .ToList();
     }
 
-    private static List<CascodeJsonTrait>? ConvertTraits(List<TraitDefinition> traits)
+    private static List<CascodeJsonTrait>? ConvertTraits(List<TraitDefinition> interfaces)
     {
-        if (traits.Count == 0)
+        if (interfaces.Count == 0)
             return null;
 
-        return traits
+        return interfaces
             .Select(t => new CascodeJsonTrait
             {
                 Name = t.Name,
@@ -610,28 +610,14 @@ public static class CascodeJsonConverter
 
     private static double ParseConstraintValue(string value)
     {
-        if (
-            CascodeBenchAdapter.TryParseSIValue(
-                value,
-                out var result,
-                stripUnits: false,
-                allowSubUnity: true
-            )
-        )
+        if (SiValue.TryParse(value, out var result, stripUnits: false, allowSubUnity: true))
             return result;
         return 0;
     }
 
     private static double ParseHarnessValue(string value)
     {
-        if (
-            CascodeBenchAdapter.TryParseSIValue(
-                value,
-                out var result,
-                stripUnits: true,
-                allowSubUnity: true
-            )
-        )
+        if (SiValue.TryParse(value, out var result, stripUnits: true, allowSubUnity: true))
             return result;
         return 0;
     }
@@ -728,20 +714,20 @@ public static class CascodeJsonConverter
     }
 
     private static List<TraitDefinition>? BuildTraits(
-        IReadOnlyList<CascodeJsonTrait>? traits,
+        IReadOnlyList<CascodeJsonTrait>? interfaces,
         string filePath,
         List<Diagnostic> diagnostics
     )
     {
-        if (traits is null or { Count: 0 })
+        if (interfaces is null or { Count: 0 })
             return [];
 
-        return traits
+        return interfaces
             .Select(t => new TraitDefinition
             {
                 Name = t.Name,
                 Ports =
-                    BuildPortDeclarations(t.Ports, filePath, diagnostics, $"trait '{t.Name}'")
+                    BuildPortDeclarations(t.Ports, filePath, diagnostics, $"interface '{t.Name}'")
                     ?? [],
                 Connectors =
                     t.Connectors?.Select(c => new TraitConnector
@@ -831,10 +817,11 @@ public static class CascodeJsonConverter
             .Select(b => new BenchDefinition
             {
                 Name = b.Name,
-                Trait = b.Trait,
-                Builtin = b.Builtin,
-                Config = b.Config?.ToDictionary(kvp => kvp.Key, kvp => kvp.Value) ?? new(),
-                Outputs = b.Outputs?.ToList() ?? new(),
+                Terminals = new List<BenchTerminal>(),
+                Fill = null,
+                Functions = new List<FunctionDefinition>(),
+                Analyses = new List<AnalysisDeclaration>(),
+                Measurements = new List<MeasurementDefinition>(),
             })
             .ToList();
     }
@@ -959,22 +946,22 @@ public static class CascodeJsonConverter
 
     private static string FormatSIValue(double value, string unit)
     {
-        var formatted = CascodeBenchAdapter.FormatSIValue(value);
+        var formatted = SiValue.Format(value);
         return formatted;
     }
 
     private static string FormatVoltage(double value)
     {
-        return $"{CascodeBenchAdapter.FormatSIValue(value)}V";
+        return $"{SiValue.Format(value)}V";
     }
 
     private static string FormatCapacitance(double value)
     {
-        return $"{CascodeBenchAdapter.FormatSIValue(value)}F";
+        return $"{SiValue.Format(value)}F";
     }
 
     private static string FormatResistance(double value)
     {
-        return $"{CascodeBenchAdapter.FormatSIValue(value)}Ohm";
+        return $"{SiValue.Format(value)}Ohm";
     }
 }

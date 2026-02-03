@@ -200,6 +200,22 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
                     && !string.IsNullOrWhiteSpace(primitive.Device)
                 )
                 {
+                    // Ignore built-in SPICE primitives and generic models; they don't require PDK includes.
+                    var key = primitive.Device.Trim();
+                    if (
+                        key.Equals("resistor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("capacitor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("inductor", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("diode", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("nmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("pmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("level1_nmos", StringComparison.OrdinalIgnoreCase)
+                        || key.Equals("level1_pmos", StringComparison.OrdinalIgnoreCase)
+                    )
+                    {
+                        continue;
+                    }
+
                     pdkDevices.Add(primitive.Device);
                 }
             }
