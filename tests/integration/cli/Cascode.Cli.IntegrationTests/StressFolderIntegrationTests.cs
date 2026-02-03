@@ -203,6 +203,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
                     if (string.IsNullOrEmpty(m.Error))
                     {
                         Assert.False(double.IsNaN(m.Value));
+                        Assert.False(double.IsInfinity(m.Value));
                     }
                 }
             );
@@ -239,6 +240,9 @@ public sealed class StressFolderIntegrationTests : IDisposable
                 {
                     Assert.DoesNotContain("No measurement found", r.Message);
                     Assert.DoesNotContain("Measurement error", r.Message);
+                    Assert.True(r.Actual.HasValue, "expected constraint to have an actual value");
+                    Assert.False(double.IsNaN(r.Actual.Value));
+                    Assert.False(double.IsInfinity(r.Actual.Value));
                 }
             );
         }

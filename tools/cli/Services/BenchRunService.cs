@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Bench;
+using Cascode.Cli.Output;
 using Cascode.Language;
 using Cascode.Language.BenchRuntime;
 using Microsoft.Extensions.Logging;
@@ -22,11 +24,25 @@ public class BenchRunService
 
     private readonly ILogger<BenchRunService> _logger;
     private readonly Action<string>? _progress;
+    private readonly IBenchProgressContext? _progressContext;
+    private readonly ICliOutput? _output;
+    private readonly object _progressLock = new();
 
     public BenchRunService(ILogger<BenchRunService> logger, Action<string>? progress = null)
     {
         _logger = logger;
         _progress = progress;
+    }
+
+    public BenchRunService(
+        ILogger<BenchRunService> logger,
+        IBenchProgressContext progressContext,
+        ICliOutput? output = null
+    )
+    {
+        _logger = logger;
+        _progressContext = progressContext;
+        _output = output;
     }
 
     public sealed record BenchRunArgs(
@@ -36,6 +52,7 @@ public class BenchRunService
         BenchBackendType Backend,
         bool Verbose,
         bool StrictCompliance,
+        int Parallelism,
         string? CircuitFilter = null
     );
 
@@ -49,17 +66,6 @@ public class BenchRunService
         string? TracePath,
         string? ResultsPath
     );
-
-    public sealed record BenchRunSummary(
-        string CircuitName,
-        BenchBackendType Backend,
-        string OutputDir,
-        IReadOnlyList<BenchRunBenchSummary> Benches,
-        string? CombinedResultsPath,
-        ComplianceReport Compliance
-    );
-
-    public sealed record BenchRunResult(int ExitCode, BenchRunSummary Summary);
 
     /// <summary>
     /// Summary for a single circuit's bench run within a multi-circuit execution.
@@ -100,10 +106,35 @@ public class BenchRunService
     private static string BuildPlanKey(string circuitName, string benchName) =>
         $"{circuitName}:{benchName}";
 
+    private static int ResolveParallelism(int parallelism) =>
+        parallelism <= 0 ? Math.Max(1, Environment.ProcessorCount) : parallelism;
+
     private void Progress(string message)
     {
-        _progress?.Invoke(message);
+        if (_progress is null)
+        {
+            return;
+        }
+
+        lock (_progressLock)
+        {
+            _progress(message);
+        }
     }
+
+    private sealed record BenchPrepared(
+        string InstanceName,
+        string TestbenchPath,
+        string? Stderr,
+        BenchPlan Plan,
+        BenchMeasurementRunner Runner,
+        IReadOnlyList<NumericConstraint> ConstraintsForBench,
+        IReadOnlyDictionary<string, string?> NodeByMetric,
+        TimeSpan SimulationTime,
+        TimeSpan ParseTime
+    );
+
+    private sealed record MetricValue(BenchValue Value, string Unit);
 
     public static bool TryParseArgs(string[] args, out BenchRunArgs parsed, out string error)
     {
@@ -113,7 +144,8 @@ public class BenchRunService
             null,
             BenchBackendType.Ngspice,
             false,
-            StrictCompliance: false
+            StrictCompliance: false,
+            Parallelism: 0
         );
         error = string.Empty;
 
@@ -123,6 +155,7 @@ public class BenchRunService
         var backend = BenchBackendType.Ngspice;
         var verbose = false;
         var strict = false;
+        var parallelism = 0;
         string? circuitFilter = null;
         var positionals = new List<string>();
 
@@ -147,6 +180,22 @@ public class BenchRunService
             else if (args[i] == "--strict")
             {
                 strict = true;
+            }
+            else if (args[i] == "--parallel" && i + 1 < args.Length)
+            {
+                if (
+                    !int.TryParse(
+                        args[++i],
+                        System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out parallelism
+                    )
+                    || parallelism < 0
+                )
+                {
+                    error = "Error: --parallel expects a non-negative integer.";
+                    return false;
+                }
             }
             else if ((args[i] == "--circuit" || args[i] == "-c") && i + 1 < args.Length)
             {
@@ -203,138 +252,10 @@ public class BenchRunService
             backend,
             verbose,
             StrictCompliance: strict,
+            Parallelism: parallelism,
             string.IsNullOrWhiteSpace(circuitFilter) ? null : circuitFilter
         );
         return true;
-    }
-
-    public BenchRunResult Run(string workspaceRoot, string? pdkRoot, BenchRunArgs args)
-    {
-        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
-            args.CascodePath,
-            workspaceRoot,
-            args.OutputDir,
-            _logger
-        );
-        args = args with { CascodePath = loaded.ResolvedPath };
-        var doc = loaded.Document;
-        var circuit = BenchRunHelpers.GetSingleElCircuit(doc);
-
-        var availableBenches = BenchRunHelpers.GetAvailableBenchNames(doc, circuit);
-        var benchesToRun = ResolveBenchesToRunOrError(
-            args.BenchName,
-            availableBenches,
-            out var benchResolutionError
-        );
-        if (benchesToRun == null)
-        {
-            var summary = new BenchRunSummary(
-                circuit.Name,
-                args.Backend,
-                BenchRunHelpers.ResolveOutputDir(
-                    args.OutputDir,
-                    circuit.Name,
-                    Array.Empty<string>()
-                ),
-                benchResolutionError == null
-                    ? Array.Empty<BenchRunBenchSummary>()
-                    : new[]
-                    {
-                        new BenchRunBenchSummary(
-                            Name: args.BenchName ?? string.Empty,
-                            Succeeded: false,
-                            ExitCode: 2,
-                            Error: benchResolutionError,
-                            Stderr: null,
-                            TestbenchPath: null,
-                            TracePath: null,
-                            ResultsPath: null
-                        ),
-                    },
-                CombinedResultsPath: null,
-                Compliance: new ComplianceReport()
-            );
-            return new BenchRunResult(2, summary);
-        }
-
-        var outputDir = BenchRunHelpers.ResolveOutputDir(
-            args.OutputDir,
-            circuit.Name,
-            benchesToRun
-        );
-        Directory.CreateDirectory(outputDir);
-
-        var resolvedWorkspaceRoot = loaded.WorkspaceRoot;
-        var emit = CascodeEmitPipeline.ValidateAndEmit(
-            doc,
-            outputDir,
-            args.Backend,
-            resolvedWorkspaceRoot,
-            pdkRoot,
-            _logger
-        );
-        var validationResult = ValidateEmissionOrReturnResult(emit, circuit.Name, args, outputDir);
-        if (validationResult != null)
-        {
-            return validationResult;
-        }
-
-        var allMeasurements = new Dictionary<string, MeasurementResult>(
-            StringComparer.OrdinalIgnoreCase
-        );
-        var planMap = BuildPlanMap(doc);
-        var benchSummaries = RunBenches(
-            doc,
-            circuit,
-            args,
-            emit.Emit.TestbenchPaths,
-            benchesToRun,
-            allMeasurements,
-            planMap
-        );
-        var noMeasurementsResult = HandleNoMeasurementsOrReturnResult(
-            circuit.Name,
-            args,
-            outputDir,
-            benchSummaries,
-            allMeasurements
-        );
-        if (noMeasurementsResult != null)
-        {
-            return noMeasurementsResult;
-        }
-
-        var combinedResults = BenchResultParser.CreateCombinedResults(
-            circuit.Name,
-            benchesToRun,
-            allMeasurements
-        );
-        string? combinedResultsPath = null;
-        if (benchesToRun.Count > 1)
-        {
-            combinedResultsPath = BenchTraceWriter.WriteCombinedResults(
-                outputDir,
-                circuit.Name,
-                combinedResults
-            );
-        }
-
-        var report = ComplianceChecker.Check(circuit, combinedResults);
-        var hadSimulationFailure = benchSummaries.Any(b => !b.Succeeded);
-        var exit =
-            hadSimulationFailure || (args.StrictCompliance && report.FailedCount != 0) ? 1 : 0;
-
-        return new BenchRunResult(
-            exit,
-            new BenchRunSummary(
-                circuit.Name,
-                args.Backend,
-                outputDir,
-                benchSummaries,
-                combinedResultsPath,
-                report
-            )
-        );
     }
 
     /// <summary>
@@ -445,7 +366,6 @@ public class BenchRunService
         {
             var circuitSummary = RunCircuitBenches(
                 circuit,
-                doc,
                 args,
                 outputDir,
                 emit.Emit.TestbenchPaths,
@@ -469,7 +389,6 @@ public class BenchRunService
 
     private CircuitBenchRunSummary RunCircuitBenches(
         Circuit circuit,
-        CascodeDocument doc,
         BenchRunArgs args,
         string outputDir,
         IReadOnlyList<string> testbenchPaths,
@@ -491,42 +410,588 @@ public class BenchRunService
         var circuitMeasurements = new Dictionary<string, MeasurementResult>(
             StringComparer.OrdinalIgnoreCase
         );
-        var benchSummaries = new List<BenchRunBenchSummary>();
+        var benchSummaries = new ConcurrentDictionary<string, BenchRunBenchSummary>(
+            StringComparer.OrdinalIgnoreCase
+        );
 
-        var benchCount = instancesToRun.Count;
-        var benchIndex = 0;
-        foreach (var instanceName in instancesToRun)
+        var benchByBindingAlias = new Dictionary<string, BenchDefinition>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        var bindingMeasurementExportsByBindingAlias = new Dictionary<
+            string,
+            IReadOnlyDictionary<string, BenchBindingMeasurementExport>
+        >(StringComparer.OrdinalIgnoreCase);
+        foreach (var plan in planMap.Values)
         {
-            benchIndex++;
-            Progress($"bench: run {circuit.Name}/{instanceName} ({benchIndex}/{benchCount})");
-            var summary = TryRunBench(
-                doc,
+            if (!plan.CircuitName.Equals(circuit.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            benchByBindingAlias.TryAdd(plan.BindingName, plan.Bench);
+
+            var exports = plan.Binding.Statements.OfType<BenchBindingMeasurementExport>().ToList();
+            if (exports.Count > 0)
+            {
+                var byName = new Dictionary<string, BenchBindingMeasurementExport>(
+                    StringComparer.OrdinalIgnoreCase
+                );
+                foreach (var export in exports)
+                {
+                    byName[export.Name] = export;
+                }
+                bindingMeasurementExportsByBindingAlias[plan.BindingName] = byName;
+            }
+        }
+
+        var constraintsToEvaluate = circuit.Constraints?.Numeric is null
+            ? new List<NumericConstraint>()
+            : circuit.Constraints.Numeric.Where(c => instancesToRun.Contains(c.Bench)).ToList();
+
+        if (
+            !BenchDependencyGraph.TryBuild(
                 circuit,
-                args,
-                testbenchPaths,
-                instanceName,
-                circuitMeasurements,
-                planMap,
-                timing
+                constraintsToEvaluate,
+                benchByBindingAlias,
+                bindingMeasurementExportsByBindingAlias,
+                out var graph,
+                out var graphDiagnostics
+            )
+        )
+        {
+            var message = string.Join(
+                "; ",
+                graphDiagnostics
+                    .Where(d => d.Severity == DiagnosticSeverity.Error)
+                    .Select(d => d.Message)
             );
-            benchSummaries.Add(summary);
+            _logger.LogError("Bench dependency graph build failed: {Message}", message);
+            return new CircuitBenchRunSummary(
+                circuit.Name,
+                new[]
+                {
+                    new BenchRunBenchSummary(
+                        Name: args.BenchName ?? string.Empty,
+                        Succeeded: false,
+                        ExitCode: 1,
+                        Error: message.Length == 0
+                            ? "Bench dependency graph build failed."
+                            : message,
+                        Stderr: null,
+                        TestbenchPath: null,
+                        TracePath: null,
+                        ResultsPath: null
+                    ),
+                },
+                new ComplianceReport()
+            );
+        }
+
+        // Render the dependency graph if output is available
+        if (_output is not null && graph.InvocationsById.Count > 0)
+        {
+            BenchDependencyGraphRenderer.Render(graph, _output);
+        }
+
+        static string? BuildRefInvocationId(MeasurementBenchMeasurementRef r)
+        {
+            foreach (var a in r.Args)
+            {
+                if (a.Name is null)
+                {
+                    return null;
+                }
+            }
+
+            if (r.Args.Count == 0)
+            {
+                return $"{r.BindingAlias}/{r.MeasurementName}";
+            }
+
+            var parts = r
+                .Args.OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(a => $"{a.Name}={a.Text}");
+            return $"{r.BindingAlias}/{r.MeasurementName}({string.Join(", ", parts)})";
+        }
+
+        var metricValuesById = new ConcurrentDictionary<string, MetricValue>(
+            StringComparer.Ordinal
+        );
+
+        BenchValue ResolveRef(MeasurementBenchMeasurementRef r)
+        {
+            var id = BuildRefInvocationId(r);
+            if (id is null)
+            {
+                return new BenchError(
+                    $"Cross-bench reference '{r.BindingAlias}::{r.MeasurementName}(...)' requires named arguments."
+                );
+            }
+
+            if (!metricValuesById.TryGetValue(id, out var v))
+            {
+                return new BenchError(
+                    $"Cross-bench dependency '{id}' was not evaluated (missing result)."
+                );
+            }
+
+            return v.Value;
+        }
+
+        var availableInstances = instanceNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var requiredInstances = graph
+            .InvocationsById.Values.Select(v => v.BenchInstanceName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(availableInstances.Contains)
+            .ToList();
+        var finalInstancesToRun = instancesToRun
+            .Concat(requiredInstances)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var preparedByInstance = new ConcurrentDictionary<string, BenchPrepared>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        var evalTicksByBench = new ConcurrentDictionary<string, long>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        var parallelism = ResolveParallelism(args.Parallelism);
+
+        // Create progress tasks upfront if multi-task progress is available
+        var progressTasks = new ConcurrentDictionary<string, IBenchTask>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        if (_progressContext is not null)
+        {
+            foreach (var name in finalInstancesToRun)
+            {
+                var task = _progressContext.AddTask($"○ {circuit.Name}/{name}");
+                progressTasks[name] = task;
+            }
+        }
+
+        Parallel.ForEach(
+            finalInstancesToRun,
+            new ParallelOptions { MaxDegreeOfParallelism = parallelism },
+            instanceName =>
+            {
+                if (progressTasks.TryGetValue(instanceName, out var task))
+                {
+                    task.UpdateDescription($"● {circuit.Name}/{instanceName} simulating...");
+                    task.StartTask();
+                }
+                else
+                {
+                    Progress($"bench: run {circuit.Name}/{instanceName}");
+                }
+
+                var prepError = TryPrepareBench(
+                    circuit,
+                    args,
+                    testbenchPaths,
+                    instanceName,
+                    planMap,
+                    benchMeasurementRefResolver: ResolveRef,
+                    out var simTime,
+                    out var parseTime,
+                    out var prepared
+                );
+                if (prepError is not null)
+                {
+                    benchSummaries[instanceName] = prepError;
+                    timing.AddBench(
+                        new BenchBenchTiming(
+                            circuit.Name,
+                            instanceName,
+                            Simulation: simTime,
+                            ParseOutputs: parseTime,
+                            EvaluateMeasurements: TimeSpan.Zero,
+                            WriteArtifacts: TimeSpan.Zero
+                        )
+                    );
+                    if (task is not null)
+                    {
+                        task.UpdateDescription($"✗ {circuit.Name}/{instanceName}");
+                        task.StopTask();
+                    }
+                    return;
+                }
+
+                preparedByInstance[instanceName] = prepared!;
+                if (task is not null)
+                {
+                    task.UpdateDescription($"✓ {circuit.Name}/{instanceName}");
+                    task.StopTask();
+                }
+            }
+        );
+
+        if (graph.InvocationsById.Count > 0)
+        {
+            foreach (var level in graph.GetExecutionLevels())
+            {
+                var groups = level
+                    .GroupBy(
+                        id => graph.InvocationsById[id].BenchInstanceName,
+                        StringComparer.OrdinalIgnoreCase
+                    )
+                    .ToList();
+
+                Parallel.ForEach(
+                    groups,
+                    new ParallelOptions { MaxDegreeOfParallelism = parallelism },
+                    group =>
+                    {
+                        var benchInstance = group.Key;
+                        var sw = Stopwatch.StartNew();
+
+                        foreach (var id in group)
+                        {
+                            var invocation = graph.InvocationsById[id];
+
+                            var unit = string.Empty;
+                            if (
+                                benchByBindingAlias.TryGetValue(
+                                    invocation.BenchBindingAlias,
+                                    out var b
+                                )
+                            )
+                            {
+                                unit =
+                                    b.Measurements.FirstOrDefault(m =>
+                                        m.Name.Equals(
+                                            invocation.MetricName,
+                                            StringComparison.OrdinalIgnoreCase
+                                        )
+                                    )?.Unit
+                                    ?? string.Empty;
+                            }
+                            if (
+                                string.IsNullOrWhiteSpace(unit)
+                                && bindingMeasurementExportsByBindingAlias.TryGetValue(
+                                    invocation.BenchBindingAlias,
+                                    out var exports
+                                )
+                                && exports.TryGetValue(invocation.MetricName, out var export)
+                            )
+                            {
+                                unit = export.Unit;
+                            }
+
+                            if (!preparedByInstance.TryGetValue(benchInstance, out var prepared))
+                            {
+                                metricValuesById[id] = new MetricValue(
+                                    new BenchError(
+                                        $"Missing bench run context for '{benchInstance}' (simulation may have failed)."
+                                    ),
+                                    unit
+                                );
+                                continue;
+                            }
+
+                            if (graph.DependenciesById.TryGetValue(id, out var deps))
+                            {
+                                var failedDep = deps.FirstOrDefault(dep =>
+                                    metricValuesById.TryGetValue(dep, out var dv)
+                                    && dv.Value is BenchError
+                                );
+                                if (!string.IsNullOrWhiteSpace(failedDep))
+                                {
+                                    metricValuesById[id] = new MetricValue(
+                                        new BenchError($"Failed dependency: {failedDep}"),
+                                        unit
+                                    );
+                                    continue;
+                                }
+                            }
+
+                            var bench = prepared.Plan.Bench;
+                            var measurement = bench.Measurements.FirstOrDefault(m =>
+                                m.Name.Equals(
+                                    invocation.MetricName,
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                            );
+                            unit = measurement?.Unit ?? unit;
+
+                            try
+                            {
+                                BenchValue value;
+                                if (
+                                    invocation.Args.Count == 0
+                                    && bindingMeasurementExportsByBindingAlias.TryGetValue(
+                                        invocation.BenchBindingAlias,
+                                        out var exportsByName
+                                    )
+                                    && exportsByName.TryGetValue(
+                                        invocation.MetricName,
+                                        out var exportDef
+                                    )
+                                    && exportDef.Target.BindingAlias.Equals(
+                                        "base",
+                                        StringComparison.OrdinalIgnoreCase
+                                    )
+                                )
+                                {
+                                    var argsDict = new Dictionary<string, BenchValue>(
+                                        StringComparer.Ordinal
+                                    );
+                                    foreach (var a in exportDef.Target.Args)
+                                    {
+                                        if (a.Name is null)
+                                        {
+                                            continue;
+                                        }
+
+                                        argsDict[a.Name] =
+                                            prepared.Runner.EvaluateExpressionForPlan(a.Expr);
+                                    }
+
+                                    value =
+                                        argsDict.Count == 0
+                                            ? prepared.Runner.RunMetricValues(
+                                                new[] { exportDef.Target.MeasurementName }
+                                            )[exportDef.Target.MeasurementName]
+                                            : prepared.Runner.RunMetricWithNamedArgsValue(
+                                                exportDef.Target.MeasurementName,
+                                                argsDict
+                                            );
+                                }
+                                else if (invocation.Args.Count == 0)
+                                {
+                                    value = prepared.Runner.RunMetricValues(
+                                        new[] { invocation.MetricName }
+                                    )[invocation.MetricName];
+                                }
+                                else
+                                {
+                                    var argsDict = new Dictionary<string, BenchValue>(
+                                        StringComparer.Ordinal
+                                    );
+                                    foreach (var a in invocation.Args)
+                                    {
+                                        argsDict[a.Name] =
+                                            prepared.Runner.EvaluateExpressionForPlan(a.Expr);
+                                    }
+                                    value = prepared.Runner.RunMetricWithNamedArgsValue(
+                                        invocation.MetricName,
+                                        argsDict
+                                    );
+                                }
+
+                                metricValuesById[id] = new MetricValue(value, unit);
+                            }
+                            catch (Exception ex)
+                            {
+                                metricValuesById[id] = new MetricValue(
+                                    new BenchError(ex.Message),
+                                    unit
+                                );
+                            }
+                        }
+
+                        sw.Stop();
+                        evalTicksByBench.AddOrUpdate(
+                            benchInstance,
+                            sw.ElapsedTicks,
+                            (_, existing) => existing + sw.ElapsedTicks
+                        );
+                    }
+                );
+            }
+        }
+
+        foreach (var instanceName in finalInstancesToRun)
+        {
+            if (benchSummaries.ContainsKey(instanceName))
+            {
+                continue;
+            }
+
+            if (!preparedByInstance.TryGetValue(instanceName, out var prepared))
+            {
+                benchSummaries[instanceName] = new BenchRunBenchSummary(
+                    Name: instanceName,
+                    Succeeded: false,
+                    ExitCode: 1,
+                    Error: "Bench did not produce results (missing prepared runner).",
+                    Stderr: null,
+                    TestbenchPath: null,
+                    TracePath: null,
+                    ResultsPath: null
+                );
+                continue;
+            }
+
+            var swEval = Stopwatch.StartNew();
+            var valuesToWrite = new Dictionary<string, MetricValue>(
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            if (prepared.ConstraintsForBench.Count == 0)
+            {
+                var all = prepared.Runner.RunAllValues();
+                foreach (var (metric, v) in all)
+                {
+                    var unit =
+                        prepared
+                            .Plan.Bench.Measurements.FirstOrDefault(m =>
+                                m.Name.Equals(metric, StringComparison.OrdinalIgnoreCase)
+                            )
+                            ?.Unit
+                        ?? string.Empty;
+                    valuesToWrite[metric] = new MetricValue(v, unit);
+                }
+            }
+
+            foreach (
+                var inv in graph.InvocationsById.Values.Where(v =>
+                    v.BenchInstanceName.Equals(instanceName, StringComparison.OrdinalIgnoreCase)
+                )
+            )
+            {
+                if (metricValuesById.TryGetValue(inv.Id, out var v))
+                {
+                    valuesToWrite[inv.MetricKey] = v;
+                }
+                else
+                {
+                    valuesToWrite[inv.MetricKey] = new MetricValue(
+                        new BenchError($"Missing evaluation for '{inv.Id}'."),
+                        string.Empty
+                    );
+                }
+            }
+
+            swEval.Stop();
+            evalTicksByBench.AddOrUpdate(
+                instanceName,
+                swEval.ElapsedTicks,
+                (_, existing) => existing + swEval.ElapsedTicks
+            );
+
+            var results = new BenchResult { Circuit = circuit.Name, Bench = instanceName };
+            foreach (var (metric, v) in valuesToWrite)
+            {
+                var node = prepared.NodeByMetric.TryGetValue(metric, out var n) ? n : null;
+                var key = node == null ? metric : $"{metric}@{node}";
+
+                if (v.Value is BenchMissing)
+                {
+                    continue;
+                }
+
+                var resultValue = double.NaN;
+                string? error = null;
+                if (v.Value is BenchNumber num)
+                {
+                    resultValue = num.Value;
+                }
+                else if (v.Value is BenchError err)
+                {
+                    error = err.Message;
+                }
+                else
+                {
+                    error = $"Unexpected measurement value type '{v.Value.GetType().Name}'.";
+                }
+
+                results.Measurements[key] = new MeasurementResult
+                {
+                    Metric = metric,
+                    Value = resultValue,
+                    Unit = v.Unit,
+                    Node = node,
+                    Bench = instanceName,
+                    Error = error,
+                };
+            }
+
+            var swWrite = Stopwatch.StartNew();
+            var resultsPath = Path.Combine(
+                Path.GetDirectoryName(prepared.TestbenchPath)!,
+                $"{circuit.Name}_{instanceName}_results.json"
+            );
+            File.WriteAllText(
+                resultsPath,
+                JsonSerializer.Serialize(results, _jsonSerializerOptions)
+            );
+
+            var tracePath = Path.Combine(
+                Path.GetDirectoryName(prepared.TestbenchPath)!,
+                $"{circuit.Name}_{instanceName}_trace.jsonl"
+            );
+            BenchTraceWriter.WriteTraceJsonl(
+                tracePath,
+                args with
+                {
+                    BenchName = instanceName,
+                },
+                circuit,
+                prepared.TestbenchPath,
+                new List<BenchResultParser.TracePoint>(),
+                results
+            );
+            swWrite.Stop();
+
+            lock (circuitMeasurements)
+            {
+                MergeMeasurements(circuitMeasurements, results.Measurements.Values);
+            }
+
+            var evalTime = TimeSpan.FromTicks(
+                evalTicksByBench.TryGetValue(instanceName, out var ticks) ? ticks : 0
+            );
+            timing.AddBench(
+                new BenchBenchTiming(
+                    circuit.Name,
+                    instanceName,
+                    Simulation: prepared.SimulationTime,
+                    ParseOutputs: prepared.ParseTime,
+                    EvaluateMeasurements: evalTime,
+                    WriteArtifacts: swWrite.Elapsed
+                )
+            );
+
+            Progress(
+                $"bench: done {circuit.Name}/{instanceName} (sim {prepared.SimulationTime.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+            );
+
+            benchSummaries[instanceName] = new BenchRunBenchSummary(
+                Name: instanceName,
+                Succeeded: true,
+                ExitCode: 0,
+                Error: null,
+                Stderr: null,
+                TestbenchPath: prepared.TestbenchPath,
+                TracePath: tracePath,
+                ResultsPath: resultsPath
+            );
         }
 
         var combinedResults = BenchResultParser.CreateCombinedResults(
             circuit.Name,
-            instancesToRun,
+            finalInstancesToRun,
             circuitMeasurements
         );
 
         // Write combined results file (for verify command compatibility)
-        if (instancesToRun.Count > 0 && circuitMeasurements.Count > 0)
+        if (finalInstancesToRun.Count > 0 && circuitMeasurements.Count > 0)
         {
             BenchTraceWriter.WriteCombinedResults(outputDir, circuit.Name, combinedResults);
         }
 
         var compliance = ComplianceChecker.Check(circuit, combinedResults);
 
-        return new CircuitBenchRunSummary(circuit.Name, benchSummaries, compliance);
+        var orderedSummaries = finalInstancesToRun
+            .Where(n => benchSummaries.TryGetValue(n, out _))
+            .Select(n => benchSummaries[n])
+            .ToList();
+
+        return new CircuitBenchRunSummary(circuit.Name, orderedSummaries, compliance);
     }
 
     /// <summary>
@@ -762,169 +1227,27 @@ public class BenchRunService
         );
     }
 
-    private BenchRunResult? ValidateEmissionOrReturnResult(
-        ValidatedEmitResult emit,
-        string circuitName,
-        BenchRunArgs args,
-        string outputDir
-    )
-    {
-        if (!emit.Validation.IsValid)
-        {
-            var first =
-                emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
-            _logger.LogError("Cascode emission validation failed: {Error}", first);
-            var summary = new BenchRunSummary(
-                circuitName,
-                args.Backend,
-                outputDir,
-                new[]
-                {
-                    new BenchRunBenchSummary(
-                        Name: args.BenchName ?? string.Empty,
-                        Succeeded: false,
-                        ExitCode: 2,
-                        Error: first,
-                        Stderr: null,
-                        TestbenchPath: null,
-                        TracePath: null,
-                        ResultsPath: null
-                    ),
-                },
-                CombinedResultsPath: null,
-                Compliance: new ComplianceReport()
-            );
-            return new BenchRunResult(2, summary);
-        }
-
-        return null;
-    }
-
-    private static BenchRunResult? HandleNoMeasurementsOrReturnResult(
-        string circuitName,
-        BenchRunArgs args,
-        string outputDir,
-        List<BenchRunBenchSummary> benchSummaries,
-        Dictionary<string, MeasurementResult> allMeasurements
-    )
-    {
-        if (allMeasurements.Count == 0)
-        {
-            var summary = new BenchRunSummary(
-                circuitName,
-                args.Backend,
-                outputDir,
-                benchSummaries.Count == 0
-                    ? new[]
-                    {
-                        new BenchRunBenchSummary(
-                            Name: args.BenchName ?? string.Empty,
-                            Succeeded: false,
-                            ExitCode: 1,
-                            Error: "No benches completed successfully.",
-                            Stderr: null,
-                            TestbenchPath: null,
-                            TracePath: null,
-                            ResultsPath: null
-                        ),
-                    }
-                    : benchSummaries,
-                CombinedResultsPath: null,
-                Compliance: new ComplianceReport()
-            );
-            return new BenchRunResult(1, summary);
-        }
-
-        return null;
-    }
-
-    private IReadOnlyList<string>? ResolveBenchesToRunOrError(
-        string? explicitBench,
-        string[] availableBenches,
-        out string? error
-    )
-    {
-        error = null;
-        if (availableBenches.Length == 0)
-        {
-            const string msg =
-                "No benches declared for the circuit interfaces in the Cascode document.";
-            _logger.LogError(msg);
-            error = msg;
-            return null;
-        }
-
-        var benches = BenchRunHelpers.ResolveBenchesToRun(availableBenches, explicitBench);
-        if (benches == null)
-        {
-            var list = string.Join(", ", availableBenches);
-            var msg =
-                $"Bench '{explicitBench}' not declared in Cascode bench definitions. Available: {list}";
-            _logger.LogError(
-                "Bench '{BenchName}' not declared in Cascode bench definitions. Available: {Available}",
-                explicitBench,
-                list
-            );
-            error = msg;
-            return null;
-        }
-
-        return benches;
-    }
-
-    private List<BenchRunBenchSummary> RunBenches(
-        CascodeDocument doc,
-        Circuit circuit,
-        BenchRunArgs args,
-        IReadOnlyList<string> testbenchPaths,
-        IReadOnlyList<string> benchesToRun,
-        Dictionary<string, MeasurementResult> allMeasurements,
-        IReadOnlyDictionary<string, BenchPlan> planMap
-    )
-    {
-        var timing = new BenchRunTimingCollector();
-        var summaries = new List<BenchRunBenchSummary>();
-
-        foreach (var benchName in benchesToRun)
-        {
-            summaries.Add(
-                TryRunBench(
-                    doc,
-                    circuit,
-                    args,
-                    testbenchPaths,
-                    benchName,
-                    allMeasurements,
-                    planMap,
-                    timing
-                )
-            );
-        }
-
-        return summaries;
-    }
-
-    private BenchRunBenchSummary TryRunBench(
-        CascodeDocument doc,
+    private BenchRunBenchSummary? TryPrepareBench(
         Circuit circuit,
         BenchRunArgs args,
         IReadOnlyList<string> testbenchPaths,
         string benchName,
-        Dictionary<string, MeasurementResult> allMeasurements,
         IReadOnlyDictionary<string, BenchPlan> planMap,
-        BenchRunTimingCollector timing
+        Func<MeasurementBenchMeasurementRef, BenchValue>? benchMeasurementRefResolver,
+        out TimeSpan simulationTime,
+        out TimeSpan parseTime,
+        out BenchPrepared? prepared
     )
     {
+        prepared = null;
+        simulationTime = TimeSpan.Zero;
+        parseTime = TimeSpan.Zero;
+
         var testbenchPath = BenchRunHelpers.FindTestbenchPath(
             testbenchPaths,
             circuit.Name,
             benchName
         );
-
-        var simTime = TimeSpan.Zero;
-        var parseTime = TimeSpan.Zero;
-        var evalTime = TimeSpan.Zero;
-        var writeTime = TimeSpan.Zero;
 
         NgspiceExecutor.NgspiceRun run;
         var swSim = Stopwatch.StartNew();
@@ -934,7 +1257,7 @@ public class BenchRunService
         }
         catch (Exception ex)
         {
-            simTime = swSim.Elapsed;
+            simulationTime = swSim.Elapsed;
             _logger.LogError(
                 ex,
                 "Failed to run ngspice for '{BenchName}': {Message}",
@@ -942,16 +1265,6 @@ public class BenchRunService
                 ex.Message
             );
             Progress($"bench: FAIL {circuit.Name}/{benchName} (ngspice launch)");
-            timing.AddBench(
-                new BenchBenchTiming(
-                    circuit.Name,
-                    benchName,
-                    Simulation: simTime,
-                    ParseOutputs: parseTime,
-                    EvaluateMeasurements: evalTime,
-                    WriteArtifacts: writeTime
-                )
-            );
             return new BenchRunBenchSummary(
                 Name: benchName,
                 Succeeded: false,
@@ -966,7 +1279,7 @@ public class BenchRunService
         finally
         {
             swSim.Stop();
-            simTime = swSim.Elapsed;
+            simulationTime = swSim.Elapsed;
         }
 
         if (run.ExitCode != 0)
@@ -980,16 +1293,6 @@ public class BenchRunService
             Progress(
                 $"bench: FAIL {circuit.Name}/{benchName} (exit {run.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture)})"
             );
-            timing.AddBench(
-                new BenchBenchTiming(
-                    circuit.Name,
-                    benchName,
-                    Simulation: simTime,
-                    ParseOutputs: parseTime,
-                    EvaluateMeasurements: evalTime,
-                    WriteArtifacts: writeTime
-                )
-            );
             return new BenchRunBenchSummary(
                 Name: benchName,
                 Succeeded: false,
@@ -1002,7 +1305,6 @@ public class BenchRunService
             );
         }
 
-        BenchResult results;
         var swParse = Stopwatch.StartNew();
         try
         {
@@ -1031,6 +1333,30 @@ public class BenchRunService
                     nodesWrdataPath,
                     plan.AcNodeKeys
                 );
+            }
+
+            IReadOnlyDictionary<string, double>? opCurrentsBySourceName = null;
+            if (plan.RequiresCurrents)
+            {
+                var vdcSources = plan
+                    .HarnessElements.Where(e =>
+                        e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (vdcSources.Count > 0)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetOpWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.InstanceName
+                    );
+                    var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
+                    opCurrentsBySourceName = NgspiceWrdataOpParser.ParseCurrents(
+                        wrdataPath,
+                        sourceNames
+                    );
+                }
             }
 
             foreach (var a in plan.Analyses)
@@ -1168,34 +1494,9 @@ public class BenchRunService
                         StartS: a.StartS ?? 0,
                         StopS: a.StopS ?? 0,
                         Ac: null,
-                        Noise: null,
                         Tran: nodes,
                         TranCurrents: currents
                     );
-                }
-            }
-
-            var vdcSources = plan
-                .HarnessElements.Where(e =>
-                    e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
-                )
-                .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var opCurrentsBySourceName = new Dictionary<string, double>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            if (vdcSources.Count > 0)
-            {
-                var wrdataPath = BenchRuntimePaths.GetOpWrdataPath(
-                    Path.GetDirectoryName(testbenchPath)!,
-                    plan.CircuitName,
-                    plan.InstanceName
-                );
-
-                var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
-                foreach (var kvp in NgspiceWrdataOpParser.ParseCurrents(wrdataPath, sourceNames))
-                {
-                    opCurrentsBySourceName[kvp.Key] = kvp.Value;
                 }
             }
 
@@ -1209,144 +1510,47 @@ public class BenchRunService
                 plan.Constraints,
                 harnessElements: plan.HarnessElements,
                 sourceCurrentsByName: opCurrentsBySourceName,
-                dutNodeKeyByPinRef: plan.DutNodeKeyByPinRef
+                dutNodeKeyByPinRef: plan.DutNodeKeyByPinRef,
+                benchMeasurementRefResolver: benchMeasurementRefResolver
             );
 
             swParse.Stop();
             parseTime = swParse.Elapsed;
 
-            var swEval = Stopwatch.StartNew();
             var constraintsForBench = GetNumericConstraintsForBench(circuit, benchName);
             var nodeByMetric = BuildNodeByMetric(constraintsForBench, circuit);
-            var values = EvaluateMetricsForConstraintsOrAll(
-                runner,
-                plan.Bench,
-                constraintsForBench
+
+            prepared = new BenchPrepared(
+                InstanceName: benchName,
+                TestbenchPath: testbenchPath,
+                Stderr: run.Stderr,
+                Plan: plan,
+                Runner: runner,
+                ConstraintsForBench: constraintsForBench,
+                NodeByMetric: nodeByMetric,
+                SimulationTime: simulationTime,
+                ParseTime: parseTime
             );
-            results = new BenchResult { Circuit = circuit.Name, Bench = benchName };
-            foreach (var (metric, v) in values)
-            {
-                var node = nodeByMetric.TryGetValue(metric, out var n) ? n : null;
-                var key = node == null ? metric : $"{metric}@{node}";
 
-                if (v.Value is BenchMissing)
-                {
-                    // Preserve the "missing" distinction for compliance by omitting the measurement.
-                    continue;
-                }
-
-                var resultValue = double.NaN;
-                string? error = null;
-                if (v.Value is BenchNumber num)
-                {
-                    resultValue = num.Value;
-                }
-                else if (v.Value is BenchError err)
-                {
-                    error = err.Message;
-                }
-                else
-                {
-                    error = $"Unexpected measurement value type '{v.Value.GetType().Name}'.";
-                }
-
-                results.Measurements[key] = new MeasurementResult
-                {
-                    Metric = metric,
-                    Value = resultValue,
-                    Unit = v.Unit,
-                    Node = node,
-                    Bench = benchName,
-                    Error = error,
-                };
-            }
-
-            MergeMeasurements(allMeasurements, results.Measurements.Values);
-            swEval.Stop();
-            evalTime = swEval.Elapsed;
+            return null;
         }
         catch (Exception ex)
         {
             swParse.Stop();
             parseTime = swParse.Elapsed;
-            _logger.LogError(
-                ex,
-                "Failed to evaluate bench measurements for '{BenchName}'.",
-                benchName
-            );
-            Progress($"bench: FAIL {circuit.Name}/{benchName} (evaluation)");
-            timing.AddBench(
-                new BenchBenchTiming(
-                    circuit.Name,
-                    benchName,
-                    Simulation: simTime,
-                    ParseOutputs: parseTime,
-                    EvaluateMeasurements: evalTime,
-                    WriteArtifacts: writeTime
-                )
-            );
+            _logger.LogError(ex, "Failed to prepare bench runner for '{BenchName}'.", benchName);
+            Progress($"bench: FAIL {circuit.Name}/{benchName} (parse)");
             return new BenchRunBenchSummary(
                 Name: benchName,
                 Succeeded: false,
                 ExitCode: 1,
-                Error: $"Failed to evaluate measurements: {ex.Message}",
+                Error: $"Failed to parse outputs: {ex.Message}",
                 Stderr: run.Stderr,
                 TestbenchPath: testbenchPath,
                 TracePath: null,
                 ResultsPath: null
             );
         }
-
-        var swWrite = Stopwatch.StartNew();
-        var resultsPath = Path.Combine(
-            Path.GetDirectoryName(testbenchPath)!,
-            $"{circuit.Name}_{benchName}_results.json"
-        );
-        File.WriteAllText(resultsPath, JsonSerializer.Serialize(results, _jsonSerializerOptions));
-
-        var tracePath = Path.Combine(
-            Path.GetDirectoryName(testbenchPath)!,
-            $"{circuit.Name}_{benchName}_trace.jsonl"
-        );
-        BenchTraceWriter.WriteTraceJsonl(
-            tracePath,
-            args with
-            {
-                BenchName = benchName,
-            },
-            circuit,
-            testbenchPath,
-            new List<BenchResultParser.TracePoint>(),
-            results
-        );
-        swWrite.Stop();
-        writeTime = swWrite.Elapsed;
-
-        timing.AddBench(
-            new BenchBenchTiming(
-                circuit.Name,
-                benchName,
-                Simulation: simTime,
-                ParseOutputs: parseTime,
-                EvaluateMeasurements: evalTime,
-                WriteArtifacts: writeTime
-            )
-        );
-
-        Progress(
-            $"bench: done {circuit.Name}/{benchName} (sim {simTime.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
-        );
-
-        return new BenchRunBenchSummary(
-            Name: benchName,
-            Succeeded: true,
-            ExitCode: 0,
-            Error: null,
-            Stderr: null,
-            TestbenchPath: testbenchPath,
-            TracePath: tracePath,
-            ResultsPath: resultsPath
-        );
     }
 
     private static IReadOnlyList<NumericConstraint> GetNumericConstraintsForBench(
@@ -1394,123 +1598,6 @@ public class BenchRunService
         }
 
         return nodeByMetric;
-    }
-
-    private static IReadOnlyDictionary<
-        string,
-        (BenchValue Value, string Unit)
-    > EvaluateMetricsForConstraintsOrAll(
-        BenchMeasurementRunner runner,
-        BenchDefinition bench,
-        IReadOnlyList<NumericConstraint> constraints
-    )
-    {
-        if (constraints.Count == 0)
-        {
-            var all = runner.RunAllValues();
-            var evaluations = new Dictionary<string, (BenchValue, string)>(
-                StringComparer.OrdinalIgnoreCase
-            );
-            foreach (var (metric, v) in all)
-            {
-                var unit =
-                    bench
-                        .Measurements.FirstOrDefault(m =>
-                            m.Name.Equals(metric, StringComparison.OrdinalIgnoreCase)
-                        )
-                        ?.Unit
-                    ?? string.Empty;
-                evaluations[metric] = (v, unit);
-            }
-            return evaluations;
-        }
-
-        // Deduplicate constraint-driven metric invocations (including parameterized metrics).
-        var invocations = new Dictionary<string, NumericConstraint>(
-            StringComparer.OrdinalIgnoreCase
-        );
-        foreach (var c in constraints)
-        {
-            invocations.TryAdd(FormatMetricKey(c), c);
-        }
-
-        var results = new Dictionary<string, (BenchValue, string)>(
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        // Evaluate non-parameterized metrics in one batch.
-        var noArgMetrics = invocations
-            .Values.Where(c => c.MetricArgs.Count == 0)
-            .Select(c => c.Metric)
-            .ToList();
-        if (noArgMetrics.Count > 0)
-        {
-            foreach (var (metric, v) in runner.RunMetricValues(noArgMetrics))
-            {
-                var unit =
-                    bench
-                        .Measurements.FirstOrDefault(m =>
-                            m.Name.Equals(metric, StringComparison.OrdinalIgnoreCase)
-                        )
-                        ?.Unit
-                    ?? string.Empty;
-                results[metric] = (v, unit);
-            }
-        }
-
-        // Evaluate parameterized metric invocations one-by-one.
-        foreach (var (metricKey, c) in invocations)
-        {
-            if (c.MetricArgs.Count == 0)
-            {
-                continue;
-            }
-
-            // Validate measurement exists on the bench.
-            var measurement = bench.Measurements.FirstOrDefault(m =>
-                m.Name.Equals(c.Metric, StringComparison.OrdinalIgnoreCase)
-            );
-            if (measurement is null)
-            {
-                throw new InvalidOperationException(
-                    $"Unknown measurement '{c.Metric}' referenced by constraint '{c.Id}'."
-                );
-            }
-
-            var args = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
-            foreach (var a in c.MetricArgs)
-            {
-                args[a.Name] = ParseConstraintArgValue(a.Value);
-            }
-
-            var unit = measurement.Unit;
-            results[metricKey] = (runner.RunMetricWithNamedArgsValue(c.Metric, args), unit);
-        }
-
-        return results;
-    }
-
-    private static BenchValue ParseConstraintArgValue(string raw)
-    {
-        raw = raw.Trim();
-        if (raw.Length == 0)
-        {
-            return BenchMissing.Value;
-        }
-
-        if (raw.Contains("||", StringComparison.Ordinal))
-        {
-            return new BenchSymbol(raw);
-        }
-
-        try
-        {
-            return BenchQuantity.Parse(raw);
-        }
-        catch (FormatException)
-        {
-            return new BenchSymbol(raw);
-        }
     }
 
     private static string FormatMetricKey(NumericConstraint constraint)

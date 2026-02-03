@@ -68,7 +68,7 @@ internal sealed class BenchCommandModule : ICommandModule
         {
             output.Error(error);
             output.WriteLine(
-                "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [-v|--verbose] [--strict]"
+                "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [--parallel <n>] [-v|--verbose] [--strict]"
             );
             output.WriteLine(
                 "Runs all benches for all circuits with benches (in dependency order)."
@@ -96,17 +96,15 @@ internal sealed class BenchCommandModule : ICommandModule
                     })
                 );
 
-            var result = output.RunWithProgress(
-                "bench run: start",
-                progress =>
-                {
-                    var service = new BenchRunService(
-                        loggerFactory.CreateLogger<BenchRunService>(),
-                        progress: progress
-                    );
-                    return service.RunAll(_state.WorkspaceRoot, _state.PdkRoot, parsed);
-                }
-            );
+            var result = output.RunWithMultiTaskProgress(progressCtx =>
+            {
+                var service = new BenchRunService(
+                    loggerFactory.CreateLogger<BenchRunService>(),
+                    progressCtx,
+                    output
+                );
+                return service.RunAll(_state.WorkspaceRoot, _state.PdkRoot, parsed);
+            });
 
             BenchRunRenderer.Render(result.Summary, parsed.Verbose, output);
             if (result.Summary.Timing is not null)

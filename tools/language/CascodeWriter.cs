@@ -619,6 +619,9 @@ public static class CascodeWriter
         foreach (var binding in bindings.OrderBy(b => b.BindingName, StringComparer.Ordinal))
         {
             writer.WriteLine($"    bind {binding.BenchName} as {binding.BindingName} {{");
+            var bindingExports = binding
+                .Statements.OfType<BenchBindingMeasurementExport>()
+                .ToList();
             foreach (var stmt in binding.Statements)
             {
                 switch (stmt)
@@ -639,12 +642,32 @@ public static class CascodeWriter
                 }
             }
 
+            if (bindingExports.Count > 0)
+            {
+                writer.WriteLine("      measurements {");
+                foreach (var export in bindingExports.OrderBy(e => e.Name, StringComparer.Ordinal))
+                {
+                    var paramText = string.Join(
+                        ", ",
+                        export.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+                    );
+                    var sig =
+                        export.Parameters.Count == 0 ? export.Name : $"{export.Name}({paramText})";
+
+                    writer.WriteLine(
+                        $"        measurement {sig} : {export.Unit} = {FormatMeasurementExpr(export.Target)}"
+                    );
+                }
+                writer.WriteLine("      }");
+            }
+
             writer.WriteLine("    }");
         }
 
         foreach (var ext in extensions.OrderBy(e => e.BindingName, StringComparer.Ordinal))
         {
             writer.WriteLine($"    extend {ext.BindingName} {{");
+            var extExports = ext.Statements.OfType<BenchBindingMeasurementExport>().ToList();
             foreach (var stmt in ext.Statements)
             {
                 switch (stmt)
@@ -663,6 +686,25 @@ public static class CascodeWriter
                         WriteInstance(inst.Instance, writer, indent: "      ");
                         break;
                 }
+            }
+
+            if (extExports.Count > 0)
+            {
+                writer.WriteLine("      measurements {");
+                foreach (var export in extExports.OrderBy(e => e.Name, StringComparer.Ordinal))
+                {
+                    var paramText = string.Join(
+                        ", ",
+                        export.Parameters.Select(p => $"{FormatBenchValueType(p.Type)} {p.Name}")
+                    );
+                    var sig =
+                        export.Parameters.Count == 0 ? export.Name : $"{export.Name}({paramText})";
+
+                    writer.WriteLine(
+                        $"        measurement {sig} : {export.Unit} = {FormatMeasurementExpr(export.Target)}"
+                    );
+                }
+                writer.WriteLine("      }");
             }
 
             writer.WriteLine("    }");
@@ -828,10 +870,28 @@ public static class CascodeWriter
                 $"{FormatMeasurementExpr(m.Receiver)}.{m.Method}({string.Join(", ", m.Args.Select(FormatMeasurementArg))})",
             MeasurementConditional c =>
                 $"(if {FormatBoolExpr(c.Condition)} {{ {FormatMeasurementExpr(c.ThenExpr)} }} else {{ {FormatMeasurementExpr(c.ElseExpr)} }})",
+            MeasurementBenchMeasurementRef r => FormatBenchMeasurementRef(r),
             _ => throw new InvalidOperationException(
                 $"Unhandled measurement expr: {expr.GetType().Name}"
             ),
         };
+    }
+
+    private static string FormatBenchMeasurementRef(MeasurementBenchMeasurementRef r)
+    {
+        if (r.Args.Count == 0)
+        {
+            return $"{r.BindingAlias}::{r.MeasurementName}";
+        }
+
+        var args = r.Args.Select(FormatBenchMeasurementRefArg);
+        return $"{r.BindingAlias}::{r.MeasurementName}({string.Join(", ", args)})";
+    }
+
+    private static string FormatBenchMeasurementRefArg(BenchMeasurementRefArg arg)
+    {
+        var value = FormatMeasurementExpr(arg.Expr);
+        return arg.Name is null ? value : $"{arg.Name}={value}";
     }
 
     private static string FormatMeasurementArg(MeasurementCallArg arg)

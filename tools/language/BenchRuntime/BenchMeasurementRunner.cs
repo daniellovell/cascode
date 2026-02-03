@@ -19,6 +19,7 @@ public sealed class BenchMeasurementRunner
     private readonly IReadOnlyDictionary<string, BenchHarnessElement> _harnessElementsById;
     private readonly IReadOnlyDictionary<string, double> _sourceCurrentsByName;
     private readonly IReadOnlyDictionary<string, string> _dutNodeKeyByPinRef;
+    private readonly Func<MeasurementBenchMeasurementRef, BenchValue>? _benchMeasurementRefResolver;
 
     private readonly Dictionary<string, BenchValue> _measurementCache = new(
         StringComparer.OrdinalIgnoreCase
@@ -48,7 +49,8 @@ public sealed class BenchMeasurementRunner
         IReadOnlyDictionary<string, BenchValue> constraints,
         IReadOnlyList<BenchHarnessElement>? harnessElements = null,
         IReadOnlyDictionary<string, double>? sourceCurrentsByName = null,
-        IReadOnlyDictionary<string, string>? dutNodeKeyByPinRef = null
+        IReadOnlyDictionary<string, string>? dutNodeKeyByPinRef = null,
+        Func<MeasurementBenchMeasurementRef, BenchValue>? benchMeasurementRefResolver = null
     )
     {
         _bench = bench;
@@ -70,6 +72,7 @@ public sealed class BenchMeasurementRunner
             ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         _dutNodeKeyByPinRef =
             dutNodeKeyByPinRef ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _benchMeasurementRefResolver = benchMeasurementRefResolver;
     }
 
     public IReadOnlyDictionary<string, (double Value, string Unit)> RunAll()
@@ -406,6 +409,15 @@ public sealed class BenchMeasurementRunner
 
             case MeasurementPath p:
                 return ResolvePathValue(p.Path, locals);
+
+            case MeasurementBenchMeasurementRef r:
+                if (_benchMeasurementRefResolver is null)
+                {
+                    return new BenchError(
+                        $"Cross-bench measurement reference '{r.BindingAlias}::{r.MeasurementName}(...)' cannot be resolved in this context."
+                    );
+                }
+                return _benchMeasurementRefResolver(r);
 
             case MeasurementUnary u:
                 if (u.Op != "-")
@@ -1550,20 +1562,20 @@ public sealed class BenchMeasurementRunner
     private BenchGainSpectrum EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
         var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
-        var values = g
-            .Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : double.NegativeInfinity)
-            .ToArray();
+        var values = g.Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
     }
 
     private BenchGainSpectrum EvalDb10(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
         var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
-        var values = g
-            .Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : double.NegativeInfinity)
-            .ToArray();
+        var values = g.Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor).ToArray();
         return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
     }
+
+    // Practical floor for log-domain quantities: log10(0) is -Infinity, which propagates through
+    // dB-domain metrics like CMRR and breaks deterministic reporting/compliance checks.
+    private const double DbFloor = -300.0;
 
     private static double FindCrossing(
         double[] freqs,

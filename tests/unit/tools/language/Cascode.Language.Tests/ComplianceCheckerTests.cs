@@ -12,6 +12,45 @@ namespace Cascode.Language.Tests;
 public class ComplianceCheckerTests
 {
     [Theory]
+    [InlineData(">=")]
+    [InlineData("<=")]
+    [InlineData("==")]
+    [InlineData(">")]
+    [InlineData("<")]
+    public void Check_NonFiniteMeasurementValue_FailsConstraint(string op)
+    {
+        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, op, "20", "dB");
+        var results = CreateResultsWithMeasurement(
+            "TestMetric",
+            double.PositiveInfinity,
+            "dB",
+            null
+        );
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        Assert.Single(report.Results);
+        Assert.False(report.Results[0].Passed);
+    }
+
+    [Theory]
+    [InlineData(">=")]
+    [InlineData("<=")]
+    [InlineData("==")]
+    [InlineData(">")]
+    [InlineData("<")]
+    public void Check_NaNMeasurementValue_FailsConstraint(string op)
+    {
+        var circuit = CreateCircuitWithConstraint("c_test", "TestMetric", null, op, "20", "dB");
+        var results = CreateResultsWithMeasurement("TestMetric", double.NaN, "dB", null);
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        Assert.Single(report.Results);
+        Assert.False(report.Results[0].Passed);
+    }
+
+    [Theory]
     [InlineData(">=", 100.0, 150.0, true)]
     [InlineData(">=", 100.0, 100.0, true)]
     [InlineData(">=", 100.0, 50.0, false)]

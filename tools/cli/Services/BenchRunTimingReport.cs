@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -27,8 +28,8 @@ public sealed record BenchRunTimingReport(
 internal sealed class BenchRunTimingCollector
 {
     private readonly Stopwatch _total = Stopwatch.StartNew();
-    private readonly List<BenchRunTimingEntry> _steps = new();
-    private readonly List<BenchBenchTiming> _benches = new();
+    private readonly ConcurrentQueue<BenchRunTimingEntry> _steps = new();
+    private readonly ConcurrentBag<BenchBenchTiming> _benches = new();
 
     public StepScope Step(string name)
     {
@@ -50,10 +51,10 @@ internal sealed class BenchRunTimingCollector
     {
         private readonly string _name;
         private readonly Stopwatch _sw;
-        private readonly List<BenchRunTimingEntry> _steps;
+        private readonly ConcurrentQueue<BenchRunTimingEntry> _steps;
         private bool _stopped;
 
-        public StepScope(string name, List<BenchRunTimingEntry> steps)
+        public StepScope(string name, ConcurrentQueue<BenchRunTimingEntry> steps)
         {
             _name = name;
             _steps = steps;
@@ -71,7 +72,7 @@ internal sealed class BenchRunTimingCollector
 
             _stopped = true;
             _sw.Stop();
-            _steps.Add(new BenchRunTimingEntry(_name, _sw.Elapsed));
+            _steps.Enqueue(new BenchRunTimingEntry(_name, _sw.Elapsed));
         }
 
         public void Dispose()

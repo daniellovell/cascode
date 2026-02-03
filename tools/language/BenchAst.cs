@@ -155,10 +155,18 @@ public sealed record MeasurementCall(string Name, IReadOnlyList<MeasurementCallA
 
 public sealed record MeasurementCallArg(string? Name, MeasurementExpr Value);
 
+public sealed record BenchMeasurementRefArg(string? Name, string Text, MeasurementExpr Expr);
+
 public sealed record MeasurementMethodCall(
     MeasurementExpr Receiver,
     string Method,
     IReadOnlyList<MeasurementCallArg> Args
+) : MeasurementExpr;
+
+public sealed record MeasurementBenchMeasurementRef(
+    string BindingAlias,
+    string MeasurementName,
+    IReadOnlyList<BenchMeasurementRefArg> Args
 ) : MeasurementExpr;
 
 public sealed record MeasurementNumber(string Raw) : MeasurementExpr;
@@ -198,3 +206,10 @@ public sealed record BenchTerminalMapping(string BenchTerminal, string DutPinRef
 public sealed record BenchDutConnection(string DutPinRef, string PinRef) : BenchBindingStatement;
 
 public sealed record BenchBindingInstance(InstanceDeclaration Instance) : BenchBindingStatement;
+
+public sealed record BenchBindingMeasurementExport(
+    string Name,
+    IReadOnlyList<TypedParameter> Parameters,
+    string Unit,
+    MeasurementBenchMeasurementRef Target
+) : BenchBindingStatement;

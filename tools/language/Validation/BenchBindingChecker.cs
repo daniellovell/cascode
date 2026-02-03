@@ -194,6 +194,8 @@ public static class BenchBindingChecker
             StringComparer.OrdinalIgnoreCase
         );
 
+        CheckBindingMeasurementExports(circuit, binding, bench, diagnostics);
+
         var mappings = binding.Statements.OfType<BenchTerminalMapping>().ToList();
         var mappedBench = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -279,6 +281,125 @@ public static class BenchBindingChecker
                 diagnostics.Add(
                     new Diagnostic(
                         $"CAS3007: Binding '{binding.BindingName}' does not map required bench terminal '{t.Name}' (bench '{bench.Name}').",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+    }
+
+    private static void CheckBindingMeasurementExports(
+        Circuit circuit,
+        BenchBinding binding,
+        BenchDefinition bench,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var exports = binding.Statements.OfType<BenchBindingMeasurementExport>().ToList();
+        if (exports.Count == 0)
+        {
+            return;
+        }
+
+        var byName = new Dictionary<string, BenchBindingMeasurementExport>(
+            StringComparer.OrdinalIgnoreCase
+        );
+        foreach (var export in exports)
+        {
+            if (!byName.TryAdd(export.Name, export))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3020: Binding '{binding.BindingName}' defines duplicate exported measurement '{export.Name}' in circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            if (export.Parameters.Count != 0)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3021: Binding '{binding.BindingName}' exported measurement '{export.Name}' must not declare parameters (binding exports are adapters, not overrides).",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            if (!export.Target.BindingAlias.Equals("base", StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3023: Binding '{binding.BindingName}' exported measurement '{export.Name}' must forward to 'base::<measurement>(...)'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            if (export.Target.Args.Any(a => a.Name is null))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3022: Binding '{binding.BindingName}' exported measurement '{export.Name}' forwarding call requires named arguments.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            var target = bench.Measurements.FirstOrDefault(m =>
+                m.Name.Equals(export.Target.MeasurementName, StringComparison.OrdinalIgnoreCase)
+            );
+            if (target is null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3024: Binding '{binding.BindingName}' exported measurement '{export.Name}' forwards to unknown measurement '{export.Target.MeasurementName}' on bench '{bench.Name}' in circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            if (
+                export.Name.Equals(target.Name, StringComparison.OrdinalIgnoreCase)
+                && target.Parameters.Count == 0
+            )
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3027: Binding '{binding.BindingName}' exported measurement '{export.Name}' would override a non-parameterized bench measurement. Use a different exported name if you intend to expose an adapter.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            if (!string.Equals(export.Unit, target.Unit, StringComparison.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3025: Binding '{binding.BindingName}' exported measurement '{export.Name}' unit '{export.Unit}' does not match bench measurement '{target.Name}' unit '{target.Unit}' on bench '{bench.Name}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,

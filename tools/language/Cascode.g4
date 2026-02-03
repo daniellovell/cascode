@@ -699,8 +699,17 @@ benchExtension
 
 bindingStatement
     : terminalMapping
+    | bindingMeasurementsBlock
     | instanceDecl
     | dutConnection
+    ;
+
+bindingMeasurementsBlock
+    : MEASUREMENTS_KW LBRACE bindingMeasurementDecl* RBRACE
+    ;
+
+bindingMeasurementDecl
+    : MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType EQ benchMeasurementRef
     ;
 
 terminalMapping
@@ -875,12 +884,19 @@ methodCallSuffix
 measurementPrimary
     : ifExpr
     | LPAREN measurementExpr RPAREN
+    | benchMeasurementRef
     | measurementFunctionCall
     | scopedAccess
     | dutAccess
     | pathAccess
     | QUANTITY
     | NUMBER
+    ;
+
+// Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
+// Syntax: binding_alias::Measurement(args)
+benchMeasurementRef
+    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall

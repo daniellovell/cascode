@@ -126,6 +126,25 @@ public static class ComplianceChecker
             };
         }
         var actual = measurement.Value;
+        if (!IsFinite(actual))
+        {
+            return new ConstraintResult
+            {
+                Id = constraint.Id,
+                Metric = metricKey,
+                Node = constraint.Node?.ToString(),
+                Unit = constraint.Unit,
+                Operator = constraint.Op,
+                ExpectedRaw = constraint.Value,
+                Expected = expected,
+                Actual = actual,
+                ActualUnit = measurement.Unit,
+                Passed = false,
+                Message =
+                    $"Non-finite measurement value: {actual.ToString(CultureInfo.InvariantCulture)}",
+            };
+        }
+
         var passed = EvaluateOperator(constraint.Op, actual, expected);
 
         return new ConstraintResult
@@ -224,6 +243,11 @@ public static class ComplianceChecker
 
     private static bool EvaluateOperator(string op, double actual, double expected)
     {
+        if (!IsFinite(actual) || !IsFinite(expected))
+        {
+            return false;
+        }
+
         return op switch
         {
             ">=" => actual >= expected,
@@ -234,6 +258,8 @@ public static class ComplianceChecker
             _ => throw new InvalidOperationException($"Unknown operator: {op}"),
         };
     }
+
+    private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
     private static double ParseValue(string valueStr, string unit)
     {

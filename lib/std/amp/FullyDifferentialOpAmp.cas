@@ -23,6 +23,17 @@ interface FullyDifferentialOpAmp {
       bench.IN--dut.IN
       bench.OUT--dut.OUT
     }
+
+    bind DiffCMRejection as cmrr_bench {
+      bench.CM--dut.IN.P
+      bench.CM--dut.IN.N
+      bench.OUT--dut.OUT
+
+      // Binding exports are adapters (not overrides): this exports a no-arg `CMRR` by forwarding to
+      // the underlying bench's `CMRR(dmGain=...)` with a default dmGain source.
+      measurements {
+        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
   }
 }
-

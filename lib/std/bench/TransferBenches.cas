@@ -296,3 +296,111 @@ bench SEToSETransfer {
     }
   }
 }
+
+bench DiffCMRejection {
+  stim CM : analog
+  resp OUT : Diff
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND g = new GND() {
+      .GND--gnd
+    }
+
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VAC cmAC = new VAC(A=1V, phase=0deg) {
+      .N--vcm
+    }
+
+    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+
+    cmAC.P--sourceZ.P
+    sourceZ.N--CM
+
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement CommonModeGain : dB {
+      return calc_passband_gain(ac, CM, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement CMRR(VoltageRatio dmGain) : dB {
+      VoltageRatio cmGain = CommonModeGain()
+      return (dmGain - cmGain)
+    }
+  }
+}
+
+// Common-mode rejection bench for differential-input / single-ended-output amplifiers.
+//
+// Applies a common-mode signal to both differential inputs (inputs tied together) and measures the
+// resulting single-ended output. CommonModeGain is the CM-to-out gain (Acm).
+// CMRR takes the differential gain as a parameter and computes CMRR = Ad - Acm (in dB).
+bench DiffToSECMRejection {
+  stim CM : analog
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND g = new GND() { .GND--gnd }
+
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    VAC cmAC = new VAC(A=1V, phase=0deg) { .N--vcm }
+
+    Impedor srcZ = new Impedor(Z=env.SourceImpedance) { }
+    cmAC.P--srcZ.P
+    srcZ.N--CM
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement CommonModeGain : dB {
+      return calc_passband_gain(ac, CM, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement CMRR(VoltageRatio dmGain) : dB {
+      VoltageRatio cmGain = CommonModeGain()
+      return (dmGain - cmGain)
+    }
+  }
+}

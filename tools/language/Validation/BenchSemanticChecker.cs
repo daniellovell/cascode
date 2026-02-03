@@ -653,6 +653,10 @@ public static class BenchSemanticChecker
                 }
                 return MeasurementType.Scalar();
 
+            case MeasurementBenchMeasurementRef:
+                // Cross-bench references are resolved from constraints, not from within benches.
+                return MeasurementType.Scalar();
+
             case MeasurementUnary u:
                 var ot = InferExprType(u.Operand, scope, measurementTypes, benchesByName);
                 return ot;

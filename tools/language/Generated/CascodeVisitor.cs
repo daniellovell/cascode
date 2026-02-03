@@ -945,6 +945,18 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBindingStatement([NotNull] CascodeParser.BindingStatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.bindingMeasurementsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBindingMeasurementsBlock([NotNull] CascodeParser.BindingMeasurementsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.bindingMeasurementDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBindingMeasurementDecl([NotNull] CascodeParser.BindingMeasurementDeclContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.terminalMapping"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -1136,6 +1148,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitMeasurementPrimary([NotNull] CascodeParser.MeasurementPrimaryContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.benchMeasurementRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBenchMeasurementRef([NotNull] CascodeParser.BenchMeasurementRefContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.measurementFunctionCall"/>.
 	/// </summary>

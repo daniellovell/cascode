@@ -67,6 +67,22 @@ internal sealed class SpectreCliOutput : ICliOutput
             );
     }
 
+    public T RunWithMultiTaskProgress<T>(Func<IBenchProgressContext, T> run)
+    {
+        return _err.Progress()
+            .AutoClear(true)
+            .HideCompleted(false)
+            .Columns(
+                new SpinnerColumn { Style = Style.Parse("grey") },
+                new TaskDescriptionColumn { Alignment = Justify.Left }
+            )
+            .Start(ctx =>
+            {
+                var progressContext = new SpectreProgressContext(ctx);
+                return run(progressContext);
+            });
+    }
+
     private static IAnsiConsole CreateConsole(TextWriter writer)
     {
         var ansi = writer == Console.Out ? Console.IsOutputRedirected : Console.IsErrorRedirected;
@@ -80,4 +96,35 @@ internal sealed class SpectreCliOutput : ICliOutput
     }
 
     private static string Escape(string text) => Markup.Escape(text);
+
+    private sealed class SpectreProgressContext : IBenchProgressContext
+    {
+        private readonly ProgressContext _ctx;
+
+        public SpectreProgressContext(ProgressContext ctx) => _ctx = ctx;
+
+        public IBenchTask AddTask(string description)
+        {
+            var task = _ctx.AddTask(Markup.Escape(description), autoStart: false, maxValue: 1);
+            return new SpectreProgressTask(task);
+        }
+    }
+
+    private sealed class SpectreProgressTask : IBenchTask
+    {
+        private readonly ProgressTask _task;
+
+        public SpectreProgressTask(ProgressTask task) => _task = task;
+
+        public void UpdateDescription(string description) =>
+            _task.Description = Markup.Escape(description);
+
+        public void StartTask() => _task.StartTask();
+
+        public void StopTask()
+        {
+            _task.Value = _task.MaxValue;
+            _task.StopTask();
+        }
+    }
 }
