@@ -6,7 +6,7 @@ which analyses are run, and which measurements are produced. Circuits and interf
 to their terminals, enabling bench reuse across topology variants.
 
 The bench system replaces the legacy template-driven approach. Instead of selecting a backend-specific
-Scriban template, benches are executable language constructs that drive emission, simulation, and
+template, benches are executable language constructs that drive emission, simulation, and
 post-processing through typed measurement expressions.
 
 ---

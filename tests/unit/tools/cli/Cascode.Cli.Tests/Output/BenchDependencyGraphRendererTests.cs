@@ -26,16 +26,16 @@ public sealed class BenchDependencyGraphRendererTests
         var circuit = CreateTestCircuit();
         var constraints = new List<NumericConstraint>
         {
-            new NumericConstraint(
-                "c1",
-                "transfer",
-                "transfer",
-                "Gain",
-                ">",
-                10.0,
-                "dB",
-                new List<NumericConstraint.MetricArg>()
-            ),
+            new()
+            {
+                Id = "c1",
+                BenchBase = "transfer",
+                Bench = "transfer",
+                Metric = "Gain",
+                Op = ">=",
+                Value = "10",
+                Unit = "dB",
+            },
         };
         var benchByBindingAlias = new Dictionary<string, BenchDefinition>
         {
@@ -78,42 +78,25 @@ public sealed class BenchDependencyGraphRendererTests
 
     private static Circuit CreateTestCircuit()
     {
-        return new Circuit(
-            Name: "TestCircuit",
-            Type: CircuitType.EL,
-            Body: new List<CircuitBodyStatement>(),
-            Parameters: null,
-            ExposedPorts: null,
-            BenchBindings: null,
-            Constraints: null
-        );
+        return new Circuit { Name = "TestCircuit", Level = CascodeLevel.EL };
     }
 
     private static BenchDefinition CreateTestBench(string name, params string[] measurementNames)
     {
-        var measurements = new List<BenchMeasurement>();
+        var measurements = new List<MeasurementDefinition>();
         foreach (var m in measurementNames)
         {
             measurements.Add(
-                new BenchMeasurement(
-                    m,
-                    new List<BenchFormalArg>(),
-                    new MeasurementLiteral(1.0),
-                    "V",
-                    null
-                )
+                new MeasurementDefinition
+                {
+                    Name = m,
+                    Unit = "V",
+                    Body = new List<BenchStatement> { new BenchReturn(new MeasurementNumber("0")) },
+                }
             );
         }
 
-        return new BenchDefinition(
-            name,
-            null,
-            new List<BenchFormalArg>(),
-            new BenchHarness("TestHarness", new List<BenchHarnessArg>()),
-            new List<BenchBodyStatement>(),
-            measurements,
-            new List<BenchAnalysis>()
-        );
+        return new BenchDefinition { Name = name, Measurements = measurements };
     }
 
     private sealed class TestCliOutput : ICliOutput
