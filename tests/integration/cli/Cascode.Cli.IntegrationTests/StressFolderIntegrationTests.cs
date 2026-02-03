@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
@@ -136,6 +137,35 @@ public sealed class StressFolderIntegrationTests : IDisposable
             cascodePath
         );
         CliIntegrationTestHelper.AssertSuccess(erc, "erc failed");
+    }
+
+    [Theory]
+    [MemberData(nameof(StressCases))]
+    public async Task StressFolder_AllCasFiles_RenderSucceeds_AndProducesDevices(string cascodePath)
+    {
+        var renderDir = Path.Combine(_outputDir, "render");
+        Directory.CreateDirectory(renderDir);
+
+        var render = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "render",
+            cascodePath,
+            "--output",
+            renderDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(render, "render failed");
+
+        var doc = LoadAndLinkIfNeededForTest(cascodePath);
+        foreach (var circuit in doc.Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline))
+        {
+            var svgPath = Path.Combine(renderDir, $"{circuit.Name}.svg");
+            Assert.True(File.Exists(svgPath), $"SVG not found: {svgPath}");
+
+            var content = await File.ReadAllTextAsync(svgPath);
+            Assert.Contains("<svg", content);
+            Assert.Matches(new Regex("class=\"device\\b", RegexOptions.CultureInvariant), content);
+        }
     }
 
     private CascodeDocument LoadAndLinkIfNeededForTest(string inputPath)
