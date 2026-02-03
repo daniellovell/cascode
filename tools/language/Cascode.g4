@@ -39,7 +39,7 @@ topLevelDecl
 // File-level library/package annotation. This is primarily metadata today but must parse
 // because standard library files use it.
 filePackageDecl
-    : PACKAGE_KW qualifiedName SEMI?
+    : PACKAGE_KW qualifiedName
     ;
 
 includeDecl
@@ -296,7 +296,7 @@ wrapSpiceDef
     ;
 
 wrapMapEntry
-    : IDENT EQ IDENT SEMI?
+    : IDENT EQ IDENT
     ;
 
 fillBlock
@@ -1076,7 +1076,6 @@ COLONCOLON      : '::' ;
 PIPEPIPE        : '||' ;
 COLON           : ':' ;
 COMMA           : ',' ;
-SEMI            : ';' ;
 BIND_DOT        : '.' { _atLineStart }? ;
 DOT             : '.' ;
 EQ              : '=' ;

@@ -2,13 +2,26 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Cascode",
   "scopeName": "source.cascode",
-  "fileTypes": ["cas", "cai"],
+  "fileTypes": [
+    "cas",
+    "cai"
+  ],
   "patterns": [
-    { "include": "#comment" },
-    { "include": "#version-directive" },
-    { "include": "#library-directive" },
-    { "include": "#import-directive" },
-    { "include": "#declarations" }
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#version-directive"
+    },
+    {
+      "include": "#library-directive"
+    },
+    {
+      "include": "#import-directive"
+    },
+    {
+      "include": "#declarations"
+    }
   ],
   "repository": {
     "comment": {
@@ -17,7 +30,9 @@
           "name": "comment.line.double-slash.cascode",
           "begin": "//",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.comment.cascode" }
+            "0": {
+              "name": "punctuation.definition.comment.cascode"
+            }
           },
           "end": "$"
         },
@@ -25,1125 +40,1759 @@
           "name": "comment.block.cascode",
           "begin": "/\\*",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.comment.cascode" }
+            "0": {
+              "name": "punctuation.definition.comment.cascode"
+            }
           },
           "end": "\\*/",
           "endCaptures": {
-            "0": { "name": "punctuation.definition.comment.cascode" }
+            "0": {
+              "name": "punctuation.definition.comment.cascode"
+            }
           }
         }
       ]
     },
-
     "version-directive": {
       "match": "^\\s*(VERSION)\\s+([0-9]+\\.[0-9]+)",
       "captures": {
-        "1": { "name": "keyword.control.directive.version.cascode" },
-        "2": { "name": "constant.numeric.version.cascode" }
+        "1": {
+          "name": "keyword.control.directive.version.cascode"
+        },
+        "2": {
+          "name": "constant.numeric.version.cascode"
+        }
       }
     },
-
     "library-directive": {
       "match": "\\b(library)\\s+(@?[a-zA-Z_][a-zA-Z0-9_.]*)",
       "captures": {
-        "1": { "name": "keyword.control.directive.library.cascode" },
-        "2": { "name": "entity.name.namespace.cascode" }
+        "1": {
+          "name": "keyword.control.directive.library.cascode"
+        },
+        "2": {
+          "name": "entity.name.namespace.cascode"
+        }
       }
     },
-
     "import-directive": {
       "match": "\\b(include|import)\\s+(@?[a-zA-Z_][a-zA-Z0-9_.]*)(\\s*\\.\\s*\\*)?",
       "captures": {
-        "1": { "name": "keyword.control.directive.import.cascode" },
-        "2": { "name": "entity.name.namespace.cascode" },
-        "3": { "name": "keyword.operator.wildcard.cascode" }
+        "1": {
+          "name": "keyword.control.directive.import.cascode"
+        },
+        "2": {
+          "name": "entity.name.namespace.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.wildcard.cascode"
+        }
       }
     },
-
     "declarations": {
       "patterns": [
-        { "include": "#interface-declaration" },
-        { "include": "#motif-declaration" },
-        { "include": "#bench-declaration" },
-        { "include": "#bundle-declaration" },
-        { "include": "#circuit-declaration" },
-        { "include": "#primitive-declaration" },
-        { "include": "#function-declaration" }
+        {
+          "include": "#interface-declaration"
+        },
+        {
+          "include": "#motif-declaration"
+        },
+        {
+          "include": "#bench-declaration"
+        },
+        {
+          "include": "#bundle-declaration"
+        },
+        {
+          "include": "#circuit-declaration"
+        },
+        {
+          "include": "#primitive-declaration"
+        },
+        {
+          "include": "#function-declaration"
+        }
       ]
     },
-
     "interface-declaration": {
       "begin": "(interface)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(extend)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.interface.cascode" },
-        "2": { "name": "entity.name.type.interface.cascode" },
-        "3": { "name": "storage.modifier.extend.cascode" },
-        "4": { "name": "entity.name.type.interface.cascode" }
+        "1": {
+          "name": "storage.type.interface.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.interface.cascode"
+        },
+        "3": {
+          "name": "storage.modifier.extend.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.interface.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#interface-members" }
+            {
+              "include": "#interface-members"
+            }
           ]
         }
       ]
     },
-
     "interface-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#supply-declaration" },
-        { "include": "#ground-declaration" },
-        { "include": "#port-declaration" },
-        { "include": "#ports-block" },
-        { "include": "#connector-block" },
-        { "include": "#metrics-block" },
-        { "include": "#benches-block" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#supply-declaration"
+        },
+        {
+          "include": "#ground-declaration"
+        },
+        {
+          "include": "#port-declaration"
+        },
+        {
+          "include": "#ports-block"
+        },
+        {
+          "include": "#connector-block"
+        },
+        {
+          "include": "#metrics-block"
+        },
+        {
+          "include": "#benches-block"
+        }
       ]
     },
-
     "motif-declaration": {
       "begin": "(motif)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.motif.cascode" },
-        "2": { "name": "entity.name.type.motif.cascode" },
-        "3": { "name": "storage.modifier.implements.cascode" },
-        "4": { "name": "entity.name.type.interface.cascode" }
+        "1": {
+          "name": "storage.type.motif.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.motif.cascode"
+        },
+        "3": {
+          "name": "storage.modifier.implements.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.interface.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#motif-members" }
+            {
+              "include": "#motif-members"
+            }
           ]
         }
       ]
     },
-
     "motif-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#level-declaration" },
-        { "include": "#params-block" },
-        { "include": "#ports-block" },
-        { "include": "#ports-array" },
-        { "include": "#use-block" },
-        { "include": "#wrap-spice" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#level-declaration"
+        },
+        {
+          "include": "#params-block"
+        },
+        {
+          "include": "#ports-block"
+        },
+        {
+          "include": "#ports-array"
+        },
+        {
+          "include": "#use-block"
+        },
+        {
+          "include": "#wrap-spice"
+        }
       ]
     },
-
     "circuit-declaration": {
       "begin": "(circuit)\\s+([A-Z][a-zA-Z0-9_]*)(?:\\s+(implements)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.circuit.cascode" },
-        "2": { "name": "entity.name.type.circuit.cascode" },
-        "3": { "name": "storage.modifier.implements.cascode" },
-        "4": { "name": "entity.name.type.interface.cascode" }
+        "1": {
+          "name": "storage.type.circuit.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.circuit.cascode"
+        },
+        "3": {
+          "name": "storage.modifier.implements.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.interface.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#circuit-members" }
+            {
+              "include": "#circuit-members"
+            }
           ]
         }
       ]
     },
-
     "circuit-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#level-declaration" },
-        { "include": "#inline-declaration" },
-        { "include": "#supply-declaration" },
-        { "include": "#ground-declaration" },
-        { "include": "#port-declaration" },
-        { "include": "#slot-declaration" },
-        { "include": "#fill-block" },
-        { "include": "#constraints-block" },
-        { "include": "#harness-block" },
-        { "include": "#env-block" },
-        { "include": "#benches-block" },
-        { "include": "#synth-block" },
-        { "include": "#provenance-block" },
-        { "include": "#instance-declaration" },
-        { "include": "#device-declaration" },
-        { "include": "#attach-statement" },
-        { "include": "#binding-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#level-declaration"
+        },
+        {
+          "include": "#inline-declaration"
+        },
+        {
+          "include": "#supply-declaration"
+        },
+        {
+          "include": "#ground-declaration"
+        },
+        {
+          "include": "#port-declaration"
+        },
+        {
+          "include": "#slot-declaration"
+        },
+        {
+          "include": "#fill-block"
+        },
+        {
+          "include": "#constraints-block"
+        },
+        {
+          "include": "#harness-block"
+        },
+        {
+          "include": "#env-block"
+        },
+        {
+          "include": "#benches-block"
+        },
+        {
+          "include": "#synth-block"
+        },
+        {
+          "include": "#provenance-block"
+        },
+        {
+          "include": "#instance-declaration"
+        },
+        {
+          "include": "#device-declaration"
+        },
+        {
+          "include": "#attach-statement"
+        },
+        {
+          "include": "#binding-statement"
+        }
       ]
     },
-
     "primitive-declaration": {
       "begin": "(primitive)\\s+([A-Z][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.primitive.cascode" },
-        "2": { "name": "storage.type.device.cascode" },
-        "3": { "name": "entity.name.function.primitive.cascode" }
+        "1": {
+          "name": "keyword.declaration.primitive.cascode"
+        },
+        "2": {
+          "name": "storage.type.device.cascode"
+        },
+        "3": {
+          "name": "entity.name.function.primitive.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#primitive-parameter-list" },
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#primitive-parameter-list"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#primitive-members" }
+            {
+              "include": "#primitive-members"
+            }
           ]
         }
       ]
     },
-
     "primitive-parameter-list": {
       "begin": "\\(",
       "beginCaptures": {
-        "0": { "name": "punctuation.paren.open.cascode" }
+        "0": {
+          "name": "punctuation.paren.open.cascode"
+        }
       },
       "end": "\\)",
       "endCaptures": {
-        "0": { "name": "punctuation.paren.close.cascode" }
+        "0": {
+          "name": "punctuation.paren.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "match": "\\b(size)\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {
-            "1": { "name": "storage.type.size.cascode" },
-            "2": { "name": "variable.parameter.cascode" }
+            "1": {
+              "name": "storage.type.size.cascode"
+            },
+            "2": {
+              "name": "variable.parameter.cascode"
+            }
           }
         },
-        { "include": "#punctuation-comma" }
+        {
+          "include": "#punctuation-comma"
+        }
       ]
     },
-
     "primitive-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#device-directive" },
-        { "include": "#primitive-params-block" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#device-directive"
+        },
+        {
+          "include": "#primitive-params-block"
+        }
       ]
     },
-
     "device-directive": {
       "match": "(device)\\s+(\"[^\"]*\")",
       "captures": {
-        "1": { "name": "keyword.other.device.cascode" },
-        "2": { "name": "string.quoted.double.cascode" }
+        "1": {
+          "name": "keyword.other.device.cascode"
+        },
+        "2": {
+          "name": "string.quoted.double.cascode"
+        }
       }
     },
-
     "primitive-params-block": {
       "begin": "(params)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.params.cascode" }
+        "1": {
+          "name": "keyword.control.block.params.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#primitive-param-assignment" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#primitive-param-assignment"
+        }
       ]
     },
-
     "primitive-param-assignment": {
       "match": "([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\\.[a-zA-Z_][a-zA-Z0-9_]*)?)",
       "captures": {
-        "1": { "name": "variable.other.property.cascode" },
-        "2": { "name": "keyword.operator.assignment.cascode" },
-        "3": { "name": "variable.other.cascode" }
+        "1": {
+          "name": "variable.other.property.cascode"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.cascode"
+        },
+        "3": {
+          "name": "variable.other.cascode"
+        }
       }
     },
-
     "bench-declaration": {
       "begin": "(bench)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.bench.cascode" },
-        "2": { "name": "entity.name.type.bench.cascode" }
+        "1": {
+          "name": "storage.type.bench.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.bench.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#bench-members" }
+            {
+              "include": "#bench-members"
+            }
           ]
         }
       ]
     },
-
     "bench-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#terminal-declaration" },
-        { "include": "#fill-block" },
-        { "include": "#analysis-block" },
-        { "include": "#measurements-block" },
-        { "include": "#function-declaration" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#terminal-declaration"
+        },
+        {
+          "include": "#fill-block"
+        },
+        {
+          "include": "#analysis-block"
+        },
+        {
+          "include": "#measurements-block"
+        },
+        {
+          "include": "#function-declaration"
+        }
       ]
     },
-
     "bundle-declaration": {
       "begin": "(bundle)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.bundle.cascode" },
-        "2": { "name": "entity.name.type.bundle.cascode" }
+        "1": {
+          "name": "storage.type.bundle.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.bundle.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#comment" },
+        {
+          "include": "#comment"
+        },
         {
           "begin": "\\{",
           "beginCaptures": {
-            "0": { "name": "punctuation.curlybrace.open.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.open.cascode"
+            }
           },
           "end": "\\}",
           "endCaptures": {
-            "0": { "name": "punctuation.curlybrace.close.cascode" }
+            "0": {
+              "name": "punctuation.curlybrace.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#bundle-members" }
+            {
+              "include": "#bundle-members"
+            }
           ]
         }
       ]
     },
-
     "bundle-members": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#bundle-field-declaration" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#bundle-field-declaration"
+        }
       ]
     },
-
     "bundle-field-declaration": {
       "match": "([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*(analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
       "captures": {
-        "1": { "name": "entity.name.variable.field.cascode" },
-        "2": { "name": "punctuation.separator.colon.cascode" },
-        "3": { "name": "storage.type.domain.cascode" }
+        "1": {
+          "name": "entity.name.variable.field.cascode"
+        },
+        "2": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "3": {
+          "name": "storage.type.domain.cascode"
+        }
       }
     },
-
     "supply-declaration": {
       "match": "\\b(supply)\\s+([A-Z_][a-zA-Z0-9_]*)(?:\\s*(=)\\s*([^;]+))?",
       "captures": {
-        "1": { "name": "keyword.other.supply.cascode" },
-        "2": { "name": "entity.name.variable.supply.cascode" },
-        "3": { "name": "keyword.operator.assignment.cascode" },
+        "1": {
+          "name": "keyword.other.supply.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.supply.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.cascode"
+        },
         "4": {
           "patterns": [
-            { "include": "#expression" }
+            {
+              "include": "#expression"
+            }
           ]
         }
       }
     },
-
     "ground-declaration": {
       "match": "\\b(ground)\\s+([A-Z_][a-zA-Z0-9_]*)",
       "captures": {
-        "1": { "name": "keyword.other.ground.cascode" },
-        "2": { "name": "entity.name.variable.ground.cascode" }
+        "1": {
+          "name": "keyword.other.ground.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.ground.cascode"
+        }
       }
     },
-
     "port-declaration": {
       "patterns": [
         {
           "match": "\\b(port)\\s+(in|out|io)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
           "captures": {
-            "1": { "name": "keyword.other.port.cascode" },
-            "2": { "name": "storage.modifier.direction.cascode" },
-            "3": { "name": "entity.name.variable.port.cascode" },
-            "4": { "name": "punctuation.separator.colon.cascode" },
-            "5": { "name": "storage.type.cascode" }
+            "1": {
+              "name": "keyword.other.port.cascode"
+            },
+            "2": {
+              "name": "storage.modifier.direction.cascode"
+            },
+            "3": {
+              "name": "entity.name.variable.port.cascode"
+            },
+            "4": {
+              "name": "punctuation.separator.colon.cascode"
+            },
+            "5": {
+              "name": "storage.type.cascode"
+            }
           }
         },
         {
           "match": "\\b(input|output|io)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
           "captures": {
-            "1": { "name": "storage.modifier.direction.cascode" },
-            "2": { "name": "entity.name.variable.port.cascode" },
-            "3": { "name": "punctuation.separator.colon.cascode" },
-            "4": { "name": "storage.type.cascode" }
+            "1": {
+              "name": "storage.modifier.direction.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.port.cascode"
+            },
+            "3": {
+              "name": "punctuation.separator.colon.cascode"
+            },
+            "4": {
+              "name": "storage.type.cascode"
+            }
           }
         },
         {
           "match": "\\b(input|output|alias)\\s+([A-Z_][a-zA-Z0-9_]*)(?:\\s*(=)\\s*([A-Z_][a-zA-Z0-9_]*))?",
           "captures": {
-            "1": { "name": "storage.modifier.direction.cascode" },
-            "2": { "name": "entity.name.variable.port.cascode" },
-            "3": { "name": "keyword.operator.assignment.cascode" },
-            "4": { "name": "variable.other.port.reference.cascode" }
+            "1": {
+              "name": "storage.modifier.direction.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.port.cascode"
+            },
+            "3": {
+              "name": "keyword.operator.assignment.cascode"
+            },
+            "4": {
+              "name": "variable.other.port.reference.cascode"
+            }
           }
         }
       ]
     },
-
     "param-declaration": {
       "match": "\\b(param)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*([^;]+)",
       "captures": {
-        "1": { "name": "keyword.other.param.cascode" },
-        "2": { "name": "entity.name.variable.parameter.cascode" },
-        "3": { "name": "keyword.operator.assignment.cascode" },
+        "1": {
+          "name": "keyword.other.param.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.parameter.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.cascode"
+        },
         "4": {
           "patterns": [
-            { "include": "#expression" }
+            {
+              "include": "#expression"
+            }
           ]
         }
       }
     },
-
     "level-declaration": {
       "match": "\\b(level)\\s+(HL|ML|EL)\\b",
       "captures": {
-        "1": { "name": "keyword.other.level.cascode" },
-        "2": { "name": "constant.language.level.cascode" }
+        "1": {
+          "name": "keyword.other.level.cascode"
+        },
+        "2": {
+          "name": "constant.language.level.cascode"
+        }
       }
     },
-
     "inline-declaration": {
       "match": "\\b(inline)\\b",
       "name": "storage.modifier.inline.cascode"
     },
-
     "terminal-declaration": {
       "match": "\\b(stim|resp)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
       "captures": {
-        "1": { "name": "keyword.other.terminal.cascode" },
-        "2": { "name": "entity.name.variable.terminal.cascode" },
-        "3": { "name": "punctuation.separator.colon.cascode" },
-        "4": { "name": "storage.type.cascode" }
+        "1": {
+          "name": "keyword.other.terminal.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.terminal.cascode"
+        },
+        "3": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "4": {
+          "name": "storage.type.cascode"
+        }
       }
     },
-
     "slot-declaration": {
       "begin": "\\b(slot)\\s+([A-Z][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*)\\s*(bind)\\s*",
       "beginCaptures": {
-        "1": { "name": "keyword.other.slot.cascode" },
-        "2": { "name": "entity.name.variable.slot.cascode" },
-        "3": { "name": "punctuation.separator.colon.cascode" },
-        "4": { "name": "entity.name.type.interface.cascode" },
-        "5": { "name": "keyword.control.bind.cascode" }
+        "1": {
+          "name": "keyword.other.slot.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.slot.cascode"
+        },
+        "3": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.interface.cascode"
+        },
+        "5": {
+          "name": "keyword.control.bind.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#binding-block" }
+        {
+          "include": "#binding-block"
+        }
       ]
     },
-
     "instance-declaration": {
       "begin": "([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
       "beginCaptures": {
-        "1": { "name": "entity.name.variable.instance.cascode" },
-        "2": { "name": "keyword.operator.assignment.cascode" },
-        "3": { "name": "keyword.operator.new.cascode" },
-        "4": { "name": "entity.name.type.cascode" }
+        "1": {
+          "name": "entity.name.variable.instance.cascode"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.new.cascode"
+        },
+        "4": {
+          "name": "entity.name.type.cascode"
+        }
       },
       "end": "(?<=\\})|(?=;)",
       "patterns": [
-        { "include": "#argument-list" },
-        { "include": "#binding-block" }
+        {
+          "include": "#argument-list"
+        },
+        {
+          "include": "#binding-block"
+        }
       ]
     },
-
     "device-declaration": {
       "begin": "\\b([A-Z][a-zA-Z0-9_]*)\\s+([a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*(=)\\s*(new)\\s+(@?[a-zA-Z_][a-zA-Z0-9_\\.]*)\\s*",
       "beginCaptures": {
-        "1": { "name": "storage.type.device.cascode" },
-        "2": { "name": "entity.name.variable.device.cascode" },
-        "3": { "name": "keyword.operator.assignment.cascode" },
-        "4": { "name": "keyword.operator.new.cascode" },
-        "5": { "name": "entity.name.type.device.cascode" }
+        "1": {
+          "name": "storage.type.device.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.device.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.cascode"
+        },
+        "4": {
+          "name": "keyword.operator.new.cascode"
+        },
+        "5": {
+          "name": "entity.name.type.device.cascode"
+        }
       },
       "end": "(?<=\\})|(?=;)",
       "patterns": [
-        { "include": "#argument-list" },
-        { "include": "#binding-block" }
+        {
+          "include": "#argument-list"
+        },
+        {
+          "include": "#binding-block"
+        }
       ]
     },
-
     "attach-statement": {
       "match": "\\b(attach)\\s+([a-z_][a-zA-Z0-9_]*)\\s+(to)\\s+([a-z_][a-zA-Z0-9_]*)",
       "captures": {
-        "1": { "name": "keyword.control.attach.cascode" },
-        "2": { "name": "variable.other.instance.cascode" },
-        "3": { "name": "keyword.control.to.cascode" },
-        "4": { "name": "variable.other.instance.cascode" }
+        "1": {
+          "name": "keyword.control.attach.cascode"
+        },
+        "2": {
+          "name": "variable.other.instance.cascode"
+        },
+        "3": {
+          "name": "keyword.control.to.cascode"
+        },
+        "4": {
+          "name": "variable.other.instance.cascode"
+        }
       }
     },
-
     "binding-statement": {
       "match": "(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?\\s*(--)\\s*(\\.?)([a-zA-Z_][a-zA-Z0-9_\\.]*)(?:\\s*(\\[)(\\d+|\\*)(\\]))?",
       "captures": {
-        "1": { "name": "punctuation.accessor.cascode" },
-        "2": { "name": "variable.other.pin.cascode" },
-        "3": { "name": "punctuation.squarebracket.open.cascode" },
-        "4": { "name": "constant.numeric.index.cascode" },
-        "5": { "name": "punctuation.squarebracket.close.cascode" },
-        "6": { "name": "punctuation.separator.wire.cascode" },
-        "7": { "name": "punctuation.accessor.cascode" },
-        "8": { "name": "variable.other.net.cascode" },
-        "9": { "name": "punctuation.squarebracket.open.cascode" },
-        "10": { "name": "constant.numeric.index.cascode" },
-        "11": { "name": "punctuation.squarebracket.close.cascode" }
+        "1": {
+          "name": "punctuation.accessor.cascode"
+        },
+        "2": {
+          "name": "variable.other.pin.cascode"
+        },
+        "3": {
+          "name": "punctuation.squarebracket.open.cascode"
+        },
+        "4": {
+          "name": "constant.numeric.index.cascode"
+        },
+        "5": {
+          "name": "punctuation.squarebracket.close.cascode"
+        },
+        "6": {
+          "name": "punctuation.separator.wire.cascode"
+        },
+        "7": {
+          "name": "punctuation.accessor.cascode"
+        },
+        "8": {
+          "name": "variable.other.net.cascode"
+        },
+        "9": {
+          "name": "punctuation.squarebracket.open.cascode"
+        },
+        "10": {
+          "name": "constant.numeric.index.cascode"
+        },
+        "11": {
+          "name": "punctuation.squarebracket.close.cascode"
+        }
       }
     },
-
     "binding-block": {
       "begin": "\\{",
       "beginCaptures": {
-        "0": { "name": "punctuation.curlybrace.open.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.open.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#binding-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#binding-statement"
+        }
       ]
     },
-
     "params-block": {
       "begin": "(params)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.params.cascode" }
+        "1": {
+          "name": "keyword.control.block.params.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#param-field-declaration" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#param-field-declaration"
+        }
       ]
     },
-
     "param-field-declaration": {
       "match": "([a-z_][a-zA-Z0-9_]*)\\s*(:)\\s*(bool|int|real|polarity|resistance|enum\\s*\\{[^}]+\\})\\s*(=)\\s*([^;,}]+)",
       "captures": {
-        "1": { "name": "entity.name.variable.parameter.cascode" },
-        "2": { "name": "punctuation.separator.colon.cascode" },
-        "3": { "name": "storage.type.primitive.cascode" },
-        "4": { "name": "keyword.operator.assignment.cascode" },
+        "1": {
+          "name": "entity.name.variable.parameter.cascode"
+        },
+        "2": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "3": {
+          "name": "storage.type.primitive.cascode"
+        },
+        "4": {
+          "name": "keyword.operator.assignment.cascode"
+        },
         "5": {
           "patterns": [
-            { "include": "#expression" }
+            {
+              "include": "#expression"
+            }
           ]
         }
       }
     },
-
     "ports-block": {
       "begin": "(ports)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.ports.cascode" }
+        "1": {
+          "name": "keyword.control.block.ports.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#control-flow" },
-        { "include": "#port-field-declaration" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#control-flow"
+        },
+        {
+          "include": "#port-field-declaration"
+        }
       ]
     },
-
     "ports-array": {
       "begin": "(ports)\\s*\\[",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.ports.cascode" }
+        "1": {
+          "name": "keyword.control.block.ports.cascode"
+        }
       },
       "end": "\\]",
       "endCaptures": {
-        "0": { "name": "punctuation.squarebracket.close.cascode" }
+        "0": {
+          "name": "punctuation.squarebracket.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#port-field-declaration" },
-        { "include": "#punctuation-comma" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#port-field-declaration"
+        },
+        {
+          "include": "#punctuation-comma"
+        }
       ]
     },
-
     "port-field-declaration": {
       "match": "([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
       "captures": {
-        "1": { "name": "entity.name.variable.port.cascode" },
-        "2": { "name": "punctuation.separator.colon.cascode" },
-        "3": { "name": "storage.type.cascode" }
+        "1": {
+          "name": "entity.name.variable.port.cascode"
+        },
+        "2": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "3": {
+          "name": "storage.type.cascode"
+        }
       }
     },
-
     "connector-block": {
       "begin": "(connector)(?:\\s+(to)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.connector.cascode" },
-        "2": { "name": "keyword.control.to.cascode" },
-        "3": { "name": "entity.name.type.interface.cascode" }
+        "1": {
+          "name": "keyword.control.block.connector.cascode"
+        },
+        "2": {
+          "name": "keyword.control.to.cascode"
+        },
+        "3": {
+          "name": "entity.name.type.interface.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#binding-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#binding-statement"
+        }
       ]
     },
-
     "metrics-block": {
       "begin": "(metrics)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.metrics.cascode" }
+        "1": {
+          "name": "keyword.control.block.metrics.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#metric-declaration" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#metric-declaration"
+        }
       ]
     },
-
     "metric-declaration": {
       "match": "([A-Z][a-zA-Z0-9_]*)(?:\\s+(from)\\s+([a-zA-Z_][a-zA-Z0-9_.]+))?",
       "captures": {
-        "1": { "name": "entity.name.variable.metric.cascode" },
-        "2": { "name": "keyword.control.from.cascode" },
-        "3": { "name": "variable.other.metric-source.cascode" }
+        "1": {
+          "name": "entity.name.variable.metric.cascode"
+        },
+        "2": {
+          "name": "keyword.control.from.cascode"
+        },
+        "3": {
+          "name": "variable.other.metric-source.cascode"
+        }
       }
     },
-
     "benches-block": {
       "begin": "(benches)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.benches.cascode" }
+        "1": {
+          "name": "keyword.control.block.benches.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#bind-block" },
-        { "include": "#bind-statement" },
-        { "include": "#type-reference" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#bind-block"
+        },
+        {
+          "include": "#bind-statement"
+        },
+        {
+          "include": "#type-reference"
+        }
       ]
     },
-
     "bind-block": {
       "begin": "\\b(bind)\\s+([A-Z][a-zA-Z0-9_]*)\\s+(as)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(\\{)",
       "beginCaptures": {
-        "1": { "name": "keyword.control.bind.cascode" },
-        "2": { "name": "entity.name.type.bench.cascode" },
-        "3": { "name": "keyword.control.as.cascode" },
-        "4": { "name": "entity.name.variable.binding.cascode" },
-        "5": { "name": "punctuation.curlybrace.open.cascode" }
+        "1": {
+          "name": "keyword.control.bind.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.bench.cascode"
+        },
+        "3": {
+          "name": "keyword.control.as.cascode"
+        },
+        "4": {
+          "name": "entity.name.variable.binding.cascode"
+        },
+        "5": {
+          "name": "punctuation.curlybrace.open.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#use-body" }
+        {
+          "include": "#use-body"
+        }
       ]
     },
-
     "bind-statement": {
       "match": "\\b(bind)\\s+([A-Z][a-zA-Z0-9_]*)\\s+(as)\\s+([a-z_][a-zA-Z0-9_]*)",
       "captures": {
-        "1": { "name": "keyword.control.bind.cascode" },
-        "2": { "name": "entity.name.type.bench.cascode" },
-        "3": { "name": "keyword.control.as.cascode" },
-        "4": { "name": "entity.name.variable.binding.cascode" }
+        "1": {
+          "name": "keyword.control.bind.cascode"
+        },
+        "2": {
+          "name": "entity.name.type.bench.cascode"
+        },
+        "3": {
+          "name": "keyword.control.as.cascode"
+        },
+        "4": {
+          "name": "entity.name.variable.binding.cascode"
+        }
       }
     },
-
     "env-block": {
       "begin": "(env)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.env.cascode" }
+        "1": {
+          "name": "keyword.control.block.env.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#env-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#env-statement"
+        }
       ]
     },
-
     "env-statement": {
       "patterns": [
         {
           "match": "\\b(vdd|icmr|load|source|temperature|sweep)\\b",
           "name": "keyword.other.env.cascode"
         },
-        { "include": "#range-expression" },
-        { "include": "#expression" }
+        {
+          "include": "#range-expression"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "spec-block": {
       "begin": "(spec)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.spec.cascode" }
+        "1": {
+          "name": "keyword.control.block.spec.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#spec-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#spec-statement"
+        }
       ]
     },
-
     "spec-statement": {
       "patterns": [
         {
           "match": "([A-Z][a-zA-Z0-9_]*)(?:\\s*\\(\\s*([A-Z_][a-zA-Z0-9_]*)\\s*\\))?\\s*(>=|<=|==|>|<|in)\\s*",
           "captures": {
-            "1": { "name": "entity.name.variable.metric.cascode" },
-            "2": { "name": "variable.other.node.cascode" },
-            "3": { "name": "keyword.operator.comparison.cascode" }
+            "1": {
+              "name": "entity.name.variable.metric.cascode"
+            },
+            "2": {
+              "name": "variable.other.node.cascode"
+            },
+            "3": {
+              "name": "keyword.operator.comparison.cascode"
+            }
           }
         },
-        { "include": "#range-expression" },
-        { "include": "#expression" }
+        {
+          "include": "#range-expression"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "bench-ref-block": {
       "begin": "(bench)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.bench.cascode" }
+        "1": {
+          "name": "keyword.control.block.bench.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#type-reference" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#type-reference"
+        }
       ]
     },
-
     "use-block": {
       "begin": "(use|fill)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.use.cascode" }
+        "1": {
+          "name": "keyword.control.block.use.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#use-body" }
+        {
+          "include": "#use-body"
+        }
       ]
     },
-
     "use-body": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#net-declaration" },
-        { "include": "#instance-declaration" },
-        { "include": "#device-declaration" },
-        { "include": "#control-flow" },
-        { "include": "#block" },
-        { "include": "#attach-statement" },
-        { "include": "#binding-statement" },
-        { "include": "#expression" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#net-declaration"
+        },
+        {
+          "include": "#instance-declaration"
+        },
+        {
+          "include": "#device-declaration"
+        },
+        {
+          "include": "#control-flow"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#attach-statement"
+        },
+        {
+          "include": "#binding-statement"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "net-declaration": {
       "match": "\\b(net)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(:)\\s*(analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
       "captures": {
-        "1": { "name": "keyword.other.net.cascode" },
-        "2": { "name": "entity.name.variable.net.cascode" },
-        "3": { "name": "punctuation.separator.colon.cascode" },
-        "4": { "name": "storage.type.domain.cascode" }
+        "1": {
+          "name": "keyword.other.net.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.net.cascode"
+        },
+        "3": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "4": {
+          "name": "storage.type.domain.cascode"
+        }
       }
     },
-
     "synth-block": {
       "begin": "(synth)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.synth.cascode" }
+        "1": {
+          "name": "keyword.control.block.synth.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#synth-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#synth-statement"
+        }
       ]
     },
-
     "synth-statement": {
       "patterns": [
         {
           "match": "\\b(from|fill|allow|forbid|prefer|objective|minimize|maximize)\\b",
           "name": "keyword.control.synth.cascode"
         },
-        { "include": "#expression" }
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "harness-block": {
       "begin": "(harness)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.harness.cascode" }
+        "1": {
+          "name": "keyword.control.block.harness.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#harness-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#harness-statement"
+        }
       ]
     },
-
     "harness-statement": {
       "patterns": [
         {
           "match": "\\b(supply|ground|bias)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(=)",
           "captures": {
-            "1": { "name": "keyword.other.harness.cascode" },
-            "2": { "name": "entity.name.variable.cascode" },
-            "3": { "name": "keyword.operator.assignment.cascode" }
+            "1": {
+              "name": "keyword.other.harness.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.cascode"
+            },
+            "3": {
+              "name": "keyword.operator.assignment.cascode"
+            }
           }
         },
         {
           "match": "\\b(load|source|sweep|icmr|pvt)\\b",
           "name": "keyword.other.harness.cascode"
         },
-        { "include": "#expression" }
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "provenance-block": {
       "begin": "(provenance)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.provenance.cascode" }
+        "1": {
+          "name": "keyword.control.block.provenance.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#provenance-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#provenance-statement"
+        }
       ]
     },
-
     "provenance-statement": {
       "patterns": [
         {
           "match": "\\b(source|transform)\\s+(\"[^\"]*\")",
           "captures": {
-            "1": { "name": "keyword.other.provenance.cascode" },
-            "2": { "name": "string.quoted.double.cascode" }
+            "1": {
+              "name": "keyword.other.provenance.cascode"
+            },
+            "2": {
+              "name": "string.quoted.double.cascode"
+            }
           }
         },
         {
           "match": "\\b(alias)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
           "captures": {
-            "1": { "name": "keyword.other.provenance.cascode" },
-            "2": { "name": "entity.name.variable.cascode" },
-            "3": { "name": "keyword.operator.assignment.cascode" },
-            "4": { "name": "variable.other.cascode" }
+            "1": {
+              "name": "keyword.other.provenance.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.cascode"
+            },
+            "3": {
+              "name": "keyword.operator.assignment.cascode"
+            },
+            "4": {
+              "name": "variable.other.cascode"
+            }
           }
         }
       ]
     },
-
     "char-block": {
       "begin": "(char)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.char.cascode" }
+        "1": {
+          "name": "keyword.control.block.char.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#char-statement" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#char-statement"
+        }
       ]
     },
-
     "char-statement": {
       "patterns": [
         {
           "match": "\\b(benches|pvt|sweep|fit|validity)\\b",
           "name": "keyword.control.char.cascode"
         },
-        { "include": "#expression" }
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "constraints-block": {
       "begin": "(constraints)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.constraints.cascode" }
+        "1": {
+          "name": "keyword.control.block.constraints.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#constraints-inner-block" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#constraints-inner-block"
+        }
       ]
     },
-
     "constraints-inner-block": {
       "begin": "(numeric|timing|area|power)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.constraint-type.cascode" }
+        "1": {
+          "name": "keyword.control.block.constraint-type.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#constraint-assignment" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#constraint-assignment"
+        }
       ]
     },
-
     "constraint-assignment": {
       "match": "([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(.+)",
       "captures": {
-        "1": { "name": "entity.name.variable.constraint.cascode" },
-        "2": { "name": "keyword.operator.assignment.cascode" },
+        "1": {
+          "name": "entity.name.variable.constraint.cascode"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.cascode"
+        },
         "3": {
           "patterns": [
-            { "include": "#expression" }
+            {
+              "include": "#expression"
+            }
           ]
         }
       }
     },
-
     "fill-block": {
       "begin": "(fill)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.fill.cascode" }
+        "1": {
+          "name": "keyword.control.block.fill.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#use-body" }
+        {
+          "include": "#use-body"
+        }
       ]
     },
-
     "analysis-block": {
       "begin": "(analysis)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.analysis.cascode" }
+        "1": {
+          "name": "keyword.control.block.analysis.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#analysis-declaration" },
-        { "include": "#block" },
-        { "include": "#expression" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#analysis-declaration"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "analysis-declaration": {
       "match": "(ACAnalysis|DCAnalysis|TranAnalysis|NoiseAnalysis|STBAnalysis)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(=)\\s*(new)\\s+(ACAnalysis|DCAnalysis|TranAnalysis|NoiseAnalysis|STBAnalysis)",
       "captures": {
-        "1": { "name": "storage.type.analysis.cascode" },
-        "2": { "name": "entity.name.variable.analysis.cascode" },
-        "3": { "name": "keyword.operator.assignment.cascode" },
-        "4": { "name": "keyword.operator.new.cascode" },
-        "5": { "name": "entity.name.type.analysis.cascode" }
+        "1": {
+          "name": "storage.type.analysis.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.analysis.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.cascode"
+        },
+        "4": {
+          "name": "keyword.operator.new.cascode"
+        },
+        "5": {
+          "name": "entity.name.type.analysis.cascode"
+        }
       }
     },
-
     "measurements-block": {
       "begin": "(measurements)\\s*\\{",
       "beginCaptures": {
-        "1": { "name": "keyword.control.block.measurements.cascode" }
+        "1": {
+          "name": "keyword.control.block.measurements.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#measurement-declaration" },
-        { "include": "#variable-declaration" },
-        { "include": "#control-flow" },
-        { "include": "#expression" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#measurement-declaration"
+        },
+        {
+          "include": "#variable-declaration"
+        },
+        {
+          "include": "#control-flow"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "measurement-declaration": {
       "begin": "\\b(measurement)\\s+([A-Z][a-zA-Z0-9_]*)(\\s*\\([^)]*\\))?\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.measurement.cascode" },
-        "2": { "name": "entity.name.function.measurement.cascode" },
-        "3": { "name": "meta.parameters.cascode" },
-        "4": { "name": "punctuation.separator.colon.cascode" },
-        "5": { "name": "storage.type.unit.cascode" },
-        "6": { "name": "punctuation.curlybrace.open.cascode" }
+        "1": {
+          "name": "keyword.declaration.measurement.cascode"
+        },
+        "2": {
+          "name": "entity.name.function.measurement.cascode"
+        },
+        "3": {
+          "name": "meta.parameters.cascode"
+        },
+        "4": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "5": {
+          "name": "storage.type.unit.cascode"
+        },
+        "6": {
+          "name": "punctuation.curlybrace.open.cascode"
+        }
       },
       "end": "(\\})",
       "endCaptures": {
-        "1": { "name": "punctuation.curlybrace.close.cascode" }
+        "1": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#block" },
-        { "include": "#variable-declaration" },
-        { "include": "#control-flow" },
-        { "include": "#expression" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#variable-declaration"
+        },
+        {
+          "include": "#control-flow"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "variable-declaration": {
       "match": "(Frequency|VoltageRatio|CurrentRatio|TransferFunction|RealFunction|NoiseFunction|Impedance|Voltage|Current|Time|Phase|Scalar|NoiseSpectralDensity|IntegratedNoise|Capacitance|Inductance)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*(=)",
       "captures": {
-        "1": { "name": "storage.type.physical.cascode" },
-        "2": { "name": "entity.name.variable.local.cascode" },
-        "3": { "name": "keyword.operator.assignment.cascode" }
+        "1": {
+          "name": "storage.type.physical.cascode"
+        },
+        "2": {
+          "name": "entity.name.variable.local.cascode"
+        },
+        "3": {
+          "name": "keyword.operator.assignment.cascode"
+        }
       }
     },
-
     "function-declaration": {
       "begin": "(function)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(\\()",
       "beginCaptures": {
-        "1": { "name": "keyword.declaration.function.cascode" },
-        "2": { "name": "entity.name.function.cascode" },
-        "3": { "name": "punctuation.parenthesis.open.cascode" }
+        "1": {
+          "name": "keyword.declaration.function.cascode"
+        },
+        "2": {
+          "name": "entity.name.function.cascode"
+        },
+        "3": {
+          "name": "punctuation.parenthesis.open.cascode"
+        }
       },
       "end": "(?<=\\})",
       "patterns": [
-        { "include": "#function-parameters" },
-        { "include": "#return-type" },
-        { "include": "#block" }
+        {
+          "include": "#function-parameters"
+        },
+        {
+          "include": "#return-type"
+        },
+        {
+          "include": "#block"
+        }
       ]
     },
-
     "function-parameters": {
       "begin": "(?<=\\()",
       "end": "(\\))",
       "endCaptures": {
-        "1": { "name": "punctuation.parenthesis.close.cascode" }
+        "1": {
+          "name": "punctuation.parenthesis.close.cascode"
+        }
       },
       "patterns": [
         {
           "match": "([A-Z][a-zA-Z0-9_]*)\\s+([a-z_][a-zA-Z0-9_]*)",
           "captures": {
-            "1": { "name": "storage.type.cascode" },
-            "2": { "name": "entity.name.variable.parameter.cascode" }
+            "1": {
+              "name": "storage.type.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.parameter.cascode"
+            }
           }
         },
-        { "include": "#punctuation-comma" }
+        {
+          "include": "#punctuation-comma"
+        }
       ]
     },
-
     "return-type": {
       "match": "(:)\\s*([A-Z][a-zA-Z0-9_]*)",
       "captures": {
-        "1": { "name": "punctuation.separator.colon.cascode" },
-        "2": { "name": "storage.type.return.cascode" }
+        "1": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "2": {
+          "name": "storage.type.return.cascode"
+        }
       }
     },
-
     "wrap-spice": {
       "begin": "(wrap)\\s+(spice)\\s*(\"\"\")",
       "beginCaptures": {
-        "1": { "name": "keyword.control.wrap.cascode" },
-        "2": { "name": "keyword.other.spice.cascode" },
-        "3": { "name": "punctuation.definition.string.begin.cascode" }
+        "1": {
+          "name": "keyword.control.wrap.cascode"
+        },
+        "2": {
+          "name": "keyword.other.spice.cascode"
+        },
+        "3": {
+          "name": "punctuation.definition.string.begin.cascode"
+        }
       },
       "end": "(\"\"\")",
       "endCaptures": {
-        "1": { "name": "punctuation.definition.string.end.cascode" }
+        "1": {
+          "name": "punctuation.definition.string.end.cascode"
+        }
       },
       "contentName": "meta.embedded.block.spice",
       "patterns": [
@@ -1153,21 +1802,28 @@
         }
       ]
     },
-
     "control-flow": {
       "patterns": [
         {
           "begin": "\\b(if)\\s*(\\()",
           "beginCaptures": {
-            "1": { "name": "keyword.control.conditional.if.cascode" },
-            "2": { "name": "punctuation.parenthesis.open.cascode" }
+            "1": {
+              "name": "keyword.control.conditional.if.cascode"
+            },
+            "2": {
+              "name": "punctuation.parenthesis.open.cascode"
+            }
           },
           "end": "(\\))",
           "endCaptures": {
-            "1": { "name": "punctuation.parenthesis.close.cascode" }
+            "1": {
+              "name": "punctuation.parenthesis.close.cascode"
+            }
           },
           "patterns": [
-            { "include": "#expression" }
+            {
+              "include": "#expression"
+            }
           ]
         },
         {
@@ -1177,14 +1833,24 @@
         {
           "begin": "\\b(for|repeat)\\s+([a-z_][a-zA-Z0-9_]*)\\s+(in)\\s*",
           "beginCaptures": {
-            "1": { "name": "keyword.control.loop.for.cascode" },
-            "2": { "name": "entity.name.variable.iterator.cascode" },
-            "3": { "name": "keyword.operator.in.cascode" }
+            "1": {
+              "name": "keyword.control.loop.for.cascode"
+            },
+            "2": {
+              "name": "entity.name.variable.iterator.cascode"
+            },
+            "3": {
+              "name": "keyword.operator.in.cascode"
+            }
           },
           "end": "(?=\\{)",
           "patterns": [
-            { "include": "#range-expression" },
-            { "include": "#expression" }
+            {
+              "include": "#range-expression"
+            },
+            {
+              "include": "#expression"
+            }
           ]
         },
         {
@@ -1201,104 +1867,161 @@
         }
       ]
     },
-
     "block": {
       "begin": "\\{",
       "beginCaptures": {
-        "0": { "name": "punctuation.curlybrace.open.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.open.cascode"
+        }
       },
       "end": "\\}",
       "endCaptures": {
-        "0": { "name": "punctuation.curlybrace.close.cascode" }
+        "0": {
+          "name": "punctuation.curlybrace.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#statement" }
+        {
+          "include": "#statement"
+        }
       ]
     },
-
     "statement": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#variable-declaration" },
-        { "include": "#control-flow" },
-        { "include": "#block" },
-        { "include": "#expression" },
-        { "include": "#punctuation-semicolon" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#variable-declaration"
+        },
+        {
+          "include": "#control-flow"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#expression"
+        }
       ]
     },
-
     "argument-list": {
       "begin": "(\\()",
       "beginCaptures": {
-        "1": { "name": "punctuation.parenthesis.open.cascode" }
+        "1": {
+          "name": "punctuation.parenthesis.open.cascode"
+        }
       },
       "end": "(\\))",
       "endCaptures": {
-        "1": { "name": "punctuation.parenthesis.close.cascode" }
+        "1": {
+          "name": "punctuation.parenthesis.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#named-argument" },
-        { "include": "#expression" },
-        { "include": "#punctuation-comma" }
+        {
+          "include": "#named-argument"
+        },
+        {
+          "include": "#expression"
+        },
+        {
+          "include": "#punctuation-comma"
+        }
       ]
     },
-
     "named-argument": {
       "match": "([a-z_][a-zA-Z0-9_]*)\\s*(=)(?!=)",
       "captures": {
-        "1": { "name": "entity.name.variable.parameter.cascode" },
-        "2": { "name": "keyword.operator.assignment.cascode" }
+        "1": {
+          "name": "entity.name.variable.parameter.cascode"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.cascode"
+        }
       }
     },
-
     "range-expression": {
       "match": "(\\[)\\s*([^\\]]+?)\\s*(\\.\\.)\\s*([^\\]]+?)\\s*(\\])",
       "captures": {
-        "1": { "name": "punctuation.squarebracket.open.cascode" },
+        "1": {
+          "name": "punctuation.squarebracket.open.cascode"
+        },
         "2": {
           "patterns": [
-            { "include": "#literal" }
+            {
+              "include": "#literal"
+            }
           ]
         },
-        "3": { "name": "keyword.operator.range.cascode" },
+        "3": {
+          "name": "keyword.operator.range.cascode"
+        },
         "4": {
           "patterns": [
-            { "include": "#literal" }
+            {
+              "include": "#literal"
+            }
           ]
         },
-        "5": { "name": "punctuation.squarebracket.close.cascode" }
+        "5": {
+          "name": "punctuation.squarebracket.close.cascode"
+        }
       }
     },
-
     "expression": {
       "patterns": [
-        { "include": "#comment" },
-        { "include": "#block" },
-        { "include": "#parenthesized-expression" },
-        { "include": "#function-call" },
-        { "include": "#member-access" },
-        { "include": "#operators" },
-        { "include": "#literal" },
-        { "include": "#type-reference" },
-        { "include": "#identifier" }
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#block"
+        },
+        {
+          "include": "#parenthesized-expression"
+        },
+        {
+          "include": "#function-call"
+        },
+        {
+          "include": "#member-access"
+        },
+        {
+          "include": "#operators"
+        },
+        {
+          "include": "#literal"
+        },
+        {
+          "include": "#type-reference"
+        },
+        {
+          "include": "#identifier"
+        }
       ]
     },
-
     "parenthesized-expression": {
       "begin": "(\\()",
       "beginCaptures": {
-        "1": { "name": "punctuation.parenthesis.open.cascode" }
+        "1": {
+          "name": "punctuation.parenthesis.open.cascode"
+        }
       },
       "end": "(\\))",
       "endCaptures": {
-        "1": { "name": "punctuation.parenthesis.close.cascode" }
+        "1": {
+          "name": "punctuation.parenthesis.close.cascode"
+        }
       },
       "patterns": [
-        { "include": "#expression" },
-        { "include": "#punctuation-comma" }
+        {
+          "include": "#expression"
+        },
+        {
+          "include": "#punctuation-comma"
+        }
       ]
     },
-
     "function-call": {
       "patterns": [
         {
@@ -1311,15 +2034,17 @@
         }
       ]
     },
-
     "member-access": {
       "match": "(\\.)\\s*(@?[a-zA-Z_][a-zA-Z0-9_]*)",
       "captures": {
-        "1": { "name": "punctuation.accessor.cascode" },
-        "2": { "name": "variable.other.member.cascode" }
+        "1": {
+          "name": "punctuation.accessor.cascode"
+        },
+        "2": {
+          "name": "variable.other.member.cascode"
+        }
       }
     },
-
     "operators": {
       "patterns": [
         {
@@ -1364,34 +2089,43 @@
         }
       ]
     },
-
     "literal": {
       "patterns": [
-        { "include": "#boolean-literal" },
-        { "include": "#polarity-literal" },
-        { "include": "#level-literal" },
-        { "include": "#special-literal" },
-        { "include": "#string-literal" },
-        { "include": "#unit-literal" },
-        { "include": "#numeric-literal" }
+        {
+          "include": "#boolean-literal"
+        },
+        {
+          "include": "#polarity-literal"
+        },
+        {
+          "include": "#level-literal"
+        },
+        {
+          "include": "#special-literal"
+        },
+        {
+          "include": "#string-literal"
+        },
+        {
+          "include": "#unit-literal"
+        },
+        {
+          "include": "#numeric-literal"
+        }
       ]
     },
-
     "boolean-literal": {
       "match": "\\b(true|false)\\b",
       "name": "constant.language.boolean.cascode"
     },
-
     "polarity-literal": {
       "match": "\\b(NMOS|PMOS)\\b",
       "name": "constant.language.polarity.cascode"
     },
-
     "level-literal": {
       "match": "\\b(HL|ML|EL)\\b",
       "name": "constant.language.level.cascode"
     },
-
     "special-literal": {
       "patterns": [
         {
@@ -1412,29 +2146,36 @@
         }
       ]
     },
-
     "string-literal": {
       "patterns": [
         {
           "name": "string.quoted.triple.cascode",
           "begin": "\"\"\"",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.string.begin.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.begin.cascode"
+            }
           },
           "end": "\"\"\"",
           "endCaptures": {
-            "0": { "name": "punctuation.definition.string.end.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.end.cascode"
+            }
           }
         },
         {
           "name": "string.quoted.double.cascode",
           "begin": "\"",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.string.begin.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.begin.cascode"
+            }
           },
           "end": "\"",
           "endCaptures": {
-            "0": { "name": "punctuation.definition.string.end.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.end.cascode"
+            }
           },
           "patterns": [
             {
@@ -1447,11 +2188,15 @@
           "name": "string.quoted.single.cascode",
           "begin": "'",
           "beginCaptures": {
-            "0": { "name": "punctuation.definition.string.begin.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.begin.cascode"
+            }
           },
           "end": "'",
           "endCaptures": {
-            "0": { "name": "punctuation.definition.string.end.cascode" }
+            "0": {
+              "name": "punctuation.definition.string.end.cascode"
+            }
           },
           "patterns": [
             {
@@ -1462,97 +2207,145 @@
         }
       ]
     },
-
     "unit-literal": {
       "patterns": [
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(THz|GHz|MHz|kHz|Hz)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.frequency.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.frequency.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mV|uV|nV|pV|V)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.voltage.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.voltage.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mA|uA|nA|pA|A)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.current.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.current.cascode"
+            }
           }
         },
         {
-          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(MΩ|kΩ|Ω|MOhm|kOhm|Ohm)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(M\u03a9|k\u03a9|\u03a9|MOhm|kOhm|Ohm)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.resistance.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.resistance.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(uF|nF|pF|fF|F)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.capacitance.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.capacitance.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(mH|uH|nH|pH|H)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.inductance.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.inductance.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(ms|us|ns|ps|fs|s)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.time.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.time.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(deg|rad)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.angle.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.angle.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(dB|W)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.power.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.power.cascode"
+            }
           }
         },
         {
-          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(nV|uV|pV|V|nA|pA|uA|A)(/√Hz|/rtHz|rms)",
+          "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(nV|uV|pV|V|nA|pA|uA|A)(/\u221aHz|/rtHz|rms)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.noise.cascode" },
-            "3": { "name": "constant.numeric.unit.noise.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.noise.cascode"
+            },
+            "3": {
+              "name": "constant.numeric.unit.noise.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*(?:[eE][+-]?[0-9]+)?)(C|K)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.temperature.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.temperature.cascode"
+            }
           }
         },
         {
           "match": "([0-9]+\\.?[0-9]*)(T|G|M|k|m|u|n|p|f)(?=[^a-zA-Z]|$)",
           "captures": {
-            "1": { "name": "constant.numeric.decimal.cascode" },
-            "2": { "name": "constant.numeric.unit.prefix.cascode" }
+            "1": {
+              "name": "constant.numeric.decimal.cascode"
+            },
+            "2": {
+              "name": "constant.numeric.unit.prefix.cascode"
+            }
           }
         }
       ]
     },
-
     "numeric-literal": {
       "patterns": [
         {
@@ -1573,7 +2366,6 @@
         }
       ]
     },
-
     "type-reference": {
       "patterns": [
         {
@@ -1606,20 +2398,13 @@
         }
       ]
     },
-
     "identifier": {
       "match": "@?[a-z_][a-zA-Z0-9_]*",
       "name": "variable.other.cascode"
     },
-
     "punctuation-comma": {
       "match": ",",
       "name": "punctuation.separator.comma.cascode"
-    },
-
-    "punctuation-semicolon": {
-      "match": ";",
-      "name": "punctuation.terminator.statement.cascode"
     }
   }
 }

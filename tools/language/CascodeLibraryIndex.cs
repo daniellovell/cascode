@@ -177,24 +177,18 @@ internal sealed class CascodeLibraryIndex
                 if (trimmed.StartsWith("library", StringComparison.OrdinalIgnoreCase))
                 {
                     var rest = trimmed["library".Length..].Trim();
-                    if (rest.Length == 0)
+                    if (string.IsNullOrWhiteSpace(rest))
                     {
                         return null;
                     }
 
-                    // Strip a trailing ';' if present.
-                    if (rest.EndsWith(';'))
-                    {
-                        rest = rest[..^1].Trim();
-                    }
-
                     // Take the first token (qualified name).
-                    var token = rest.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0];
-                    if (token.EndsWith(';'))
+                    var tokens = rest.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+                    if (tokens.Length == 0)
                     {
-                        token = token[..^1];
+                        return null;
                     }
-                    return NormalizeLibraryName(token);
+                    return NormalizeLibraryName(tokens[0]);
                 }
 
                 // Any other non-header construct ends the search.

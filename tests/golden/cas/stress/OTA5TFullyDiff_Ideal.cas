@@ -76,9 +76,9 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
     numeric {
       // Keep thresholds permissive; this is a stress/e2e test (bench run + emission + impedance split),
       // not a performance target.
-      c_gain = transfer_bench::PassbandGain at net::OUT >= -200dB
-      c_pwr = vdd_pwr::QuiescentPower <= 10W
-      c_cmrr = cmrr_bench::CMRR >= 20dB
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_pwr = vdd_pwr::QuiescentPower <= 1nW
+      c_cmrr = cmrr_bench::CMRR >= 300dB
     }
   }
 
