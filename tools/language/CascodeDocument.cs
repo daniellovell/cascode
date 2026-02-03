@@ -26,6 +26,14 @@ public sealed class CascodeDocument
     public List<IncludeDirective> Includes { get; init; } = new();
 
     /// <summary>
+    /// File-level library namespace declared via <c>library ...</c>.
+    /// <para />
+    /// This is source-file metadata; linked documents typically combine multiple libraries and
+    /// should leave this unset.
+    /// </summary>
+    public string? FileLibrary { get; init; }
+
+    /// <summary>
     /// File-level helper functions (available to benches and other functions once linked).
     /// </summary>
     public List<FunctionDefinition> Functions { get; init; } = new();
@@ -176,6 +184,11 @@ public sealed class Circuit
 
     /// <summary>Bench bindings declared on the circuit (override/extend interface benches).</summary>
     public List<BenchBinding> BenchBindings { get; init; } = new();
+
+    /// <summary>
+    /// Bench binding extensions declared on the circuit (adds statements to inherited/circuit bindings).
+    /// </summary>
+    public List<BenchBindingExtension> BenchBindingExtensions { get; init; } = new();
 
     /// <summary>Synthesis guidance (extracted to sidecar during linking).</summary>
     public SynthBlock? Synth { get; init; }
@@ -428,11 +441,32 @@ public sealed class NumericConstraint
     /// <summary>Unique identifier for this constraint (e.g., "c_gbw").</summary>
     public string Id { get; init; } = string.Empty;
 
-    /// <summary>Bench alias that provides the metric.</summary>
+    /// <summary>
+    /// Base bench binding alias written by the user (e.g., "tran_bench").
+    /// When no bench args are provided, this equals <see cref="Bench"/>.
+    /// </summary>
+    public string BenchBase { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Bench invocation arguments (e.g., stim_freq=1kHz for tran_bench(stim_freq=1kHz)::...).
+    /// These parameterize the bench instance, producing distinct testbench runs per arg-set.
+    /// </summary>
+    public List<MetricCallArg> BenchArgs { get; init; } = new();
+
+    /// <summary>
+    /// Computed bench instance name used for runtime matching and file naming.
+    /// When <see cref="BenchArgs"/> is empty, equals <see cref="BenchBase"/>.
+    /// Otherwise computed deterministically from BenchBase + BenchArgs.
+    /// </summary>
     public string Bench { get; init; } = string.Empty;
 
     /// <summary>The metric being constrained (e.g., "GainBandwidth", "PhaseMargin").</summary>
     public string Metric { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Optional metric invocation arguments (e.g., IntegratedInputNoise(from=10Hz, to=10MHz)).
+    /// </summary>
+    public List<MetricCallArg> MetricArgs { get; init; } = new();
 
     /// <summary>Optional node reference where the metric is measured.</summary>
     public NodeRef? Node { get; init; }
@@ -446,6 +480,9 @@ public sealed class NumericConstraint
     /// <summary>Physical unit for the value (e.g., "Hz", "dB", "deg").</summary>
     public string Unit { get; init; } = string.Empty;
 }
+
+/// <summary>Named argument for a metric invocation within a numeric constraint.</summary>
+public sealed record MetricCallArg(string Name, string Value);
 
 /// <summary>
 /// Node reference with a scope prefix (e.g., net::OUT, term::dp.M_P.D).
@@ -505,6 +542,7 @@ public sealed class GraphConstraint
 /// </summary>
 public sealed class HarnessBlock
 {
+    public List<GroundValue> Grounds { get; init; } = new();
     public List<SupplyValue> Supplies { get; init; } = new();
     public List<BiasValue> Biases { get; init; } = new();
     public List<SourceValue> Sources { get; init; } = new();
@@ -512,6 +550,15 @@ public sealed class HarnessBlock
     public List<SweepCondition> Sweeps { get; init; } = new();
     public IcmrRange? Icmr { get; init; }
     public List<string> Pvt { get; init; } = new();
+}
+
+/// <summary>
+/// Ground reference value in harness.
+/// </summary>
+public sealed class GroundValue
+{
+    public string Net { get; init; } = string.Empty;
+    public string Value { get; init; } = string.Empty;
 }
 
 /// <summary>

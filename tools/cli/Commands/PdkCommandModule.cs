@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Cascode.Cli.Logging;
+using Cascode.Cli.Output;
 using Cascode.Cli.Services;
 using Cascode.Workspace;
 using Microsoft.Extensions.Logging;
@@ -22,6 +23,9 @@ internal sealed class PdkCommandModule : ICommandModule
     private readonly CliConfigStorage _configStorage;
     private readonly string _initialWorkspaceRoot;
     private readonly Func<bool> _isInteractive;
+    private readonly CliOutputProvider _outputProvider;
+    private readonly ICliOutput _shellOutput;
+    private ICliOutput? _nonInteractiveOutput;
     private CommandRegistry? _registry;
     internal static readonly string[] PdkCommandPrefix = new[] { "pdk" };
     internal static readonly string[] SimulatorBackends = new[] { "spectre", "ngspice" };
@@ -38,7 +42,8 @@ internal sealed class PdkCommandModule : ICommandModule
         CliConfig config,
         CliConfigStorage configStorage,
         string initialWorkspaceRoot,
-        Func<bool> isInteractive
+        Func<bool> isInteractive,
+        CliOutputProvider output
     )
     {
         _state = state;
@@ -47,6 +52,22 @@ internal sealed class PdkCommandModule : ICommandModule
         _configStorage = configStorage;
         _initialWorkspaceRoot = initialWorkspaceRoot;
         _isInteractive = isInteractive;
+        _outputProvider = output;
+        _shellOutput = new ShellStateCliOutput(_state);
+    }
+
+    private ICliOutput Output =>
+        _isInteractive() ? _shellOutput : _nonInteractiveOutput ??= _outputProvider.Get();
+
+    private void WriteRenderable(IRenderable renderable)
+    {
+        if (Output.Out is not null)
+        {
+            Output.Out.Write(renderable);
+            return;
+        }
+
+        AnsiConsole.Write(renderable);
     }
 
     public void Register(CommandRegistry registry)
@@ -116,7 +137,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
     private CommandResult ShowPdkUsage(string[] args)
     {
-        _state.AddMessage("Usage: pdk <subcommand>");
+        Output.WriteLine("Usage: pdk <subcommand>");
         var subcommands = _registry!.GetSubcommands(PdkCommandPrefix).ToArray();
         var width = subcommands.Length == 0 ? 0 : subcommands.Max(c => c.DisplayPath.Length);
         foreach (var sub in subcommands)
@@ -125,7 +146,7 @@ internal sealed class PdkCommandModule : ICommandModule
             var description = string.IsNullOrEmpty(sub.Description)
                 ? string.Empty
                 : $"  {sub.Description}";
-            _state.AddMessage($"  {padded}{description}");
+            Output.WriteLine($"  {padded}{description}");
         }
         return CommandResult.Success;
     }
@@ -140,7 +161,7 @@ internal sealed class PdkCommandModule : ICommandModule
             );
             if (!File.Exists(dbPath))
             {
-                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                Output.WriteLine("No PDK database found. Run 'pdk scan' first.");
                 return CommandResult.Failure;
             }
 
@@ -175,7 +196,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var summary = Cascode.Workspace.PdkDatabaseReader.LoadDeviceClassSummary(dbPath);
                 if (summary.Count == 0)
                 {
-                    _state.AddMessage("No devices discovered. Run 'pdk scan'.");
+                    Output.WriteLine("No devices discovered. Run 'pdk scan'.");
                     return CommandResult.Success;
                 }
                 var classRows = new List<DeviceClassSummaryRow>(summary.Count);
@@ -221,7 +242,7 @@ internal sealed class PdkCommandModule : ICommandModule
                     detailFilters: Array.Empty<string>()
                 );
                 _state.ShowDeviceSummary(view);
-                _state.AddMessage(summaryLine);
+                Output.WriteLine(summaryLine);
                 return CommandResult.Success;
             }
             else
@@ -230,7 +251,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 var devicesAll = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
                 if (devicesAll.Count == 0)
                 {
-                    _state.AddMessage("No devices discovered. Run 'pdk scan'.");
+                    Output.WriteLine("No devices discovered. Run 'pdk scan'.");
                     return CommandResult.Success;
                 }
 
@@ -260,7 +281,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 {
                     if (devices.Count == 0)
                     {
-                        _state.AddMessage("No devices matched the selected filters.");
+                        Output.WriteLine("No devices matched the selected filters.");
                         _state.ShowDeviceSummary(
                             new DeviceSummaryViewState(
                                 "Devices",
@@ -319,7 +340,7 @@ internal sealed class PdkCommandModule : ICommandModule
                     );
                     _state.ShowDeviceSummary(view);
                     var visible = Math.Min(pageSize, rows.Count);
-                    _state.AddMessage(
+                    Output.WriteLine(
                         $"Devices: showing {visible} of {rows.Count} (page size {pageSize}, total {total}). Matched: {matched}. Use 'pdk device <name>' for details."
                     );
                 }
@@ -340,8 +361,8 @@ internal sealed class PdkCommandModule : ICommandModule
                         var views = d.Views.Count == 0 ? "-" : string.Join(',', d.Views);
                         table.AddRow(d.LibraryName, d.CellName, d.Class.ToString(), vt, vdd, views);
                     }
-                    AnsiConsole.Write(table);
-                    _state.AddMessage(
+                    WriteRenderable(table);
+                    Output.WriteLine(
                         $"Devices: {total}. Showing first {Math.Min(limit, total)}. Matched: {matched}. Use 'pdk device <name>' for details."
                     );
                 }
@@ -350,7 +371,7 @@ internal sealed class PdkCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to load devices: {ex.Message}");
+            Output.WriteLine($"Failed to load devices: {ex.Message}");
             return CommandResult.Failure;
         }
     }
@@ -359,7 +380,7 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: pdk device <name>");
+            Output.WriteLine("Usage: pdk device <name>");
             return CommandResult.Success;
         }
 
@@ -371,7 +392,7 @@ internal sealed class PdkCommandModule : ICommandModule
             );
             if (!File.Exists(dbPath))
             {
-                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                Output.WriteLine("No PDK database found. Run 'pdk scan' first.");
                 return CommandResult.Failure;
             }
             var devices = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
@@ -382,7 +403,7 @@ internal sealed class PdkCommandModule : ICommandModule
             );
             if (d is null)
             {
-                _state.AddMessage("Device not found.");
+                Output.WriteLine("Device not found.");
                 return CommandResult.Failure;
             }
 
@@ -423,12 +444,12 @@ internal sealed class PdkCommandModule : ICommandModule
                     detail.AddRow("Geometry", Markup.Escape(gstr));
                 }
             }
-            AnsiConsole.Write(detail);
+            WriteRenderable(detail);
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to load device: {ex.Message}");
+            Output.WriteLine($"Failed to load device: {ex.Message}");
             return CommandResult.Failure;
         }
     }
@@ -436,69 +457,65 @@ internal sealed class PdkCommandModule : ICommandModule
     private CommandResult ShowPdkCharUsage(string[] args)
     {
         // Match legacy interactive log output
-        _state.AddMessage("=== PDK Characterization ===");
-        _state.AddMessage("");
-        _state.AddMessage("Goal: Build device LUTs (gm/Id, etc.) for synthesis and sizing.");
-        _state.AddMessage("Outputs: Netlists, results.csv, derived.csv stored in workspace cache.");
-        _state.AddMessage("");
-        _state.AddMessage("Commands:");
-        _state.AddMessage(
+        Output.WriteLine("=== PDK Characterization ===");
+        Output.WriteLine("");
+        Output.WriteLine("Goal: Build device LUTs (gm/Id, etc.) for synthesis and sizing.");
+        Output.WriteLine("Outputs: Netlists, results.csv, derived.csv stored in workspace cache.");
+        Output.WriteLine("");
+        Output.WriteLine("Commands:");
+        Output.WriteLine(
             "  pdk char config              Interactive form to set defaults (backend/corner/filters/jobs)."
         );
-        _state.AddMessage("  pdk char config --show       Show the saved defaults.");
-        _state.AddMessage(
+        Output.WriteLine("  pdk char config --show       Show the saved defaults.");
+        Output.WriteLine(
             "  pdk char run                 Run a batch using saved defaults (flags override). Shows progress."
         );
-        _state.AddMessage(
+        Output.WriteLine(
             "  pdk char status              Show characterization coverage matrix (devices × corners)."
         );
-        _state.AddMessage(
-            "  pdk char read <device/model> Preview latest LUT — table + sparklines."
-        );
-        _state.AddMessage("");
-        _state.AddMessage("Common Flags:");
-        _state.AddMessage(
+        Output.WriteLine("  pdk char read <device/model> Preview latest LUT — table + sparklines.");
+        Output.WriteLine("");
+        Output.WriteLine("Common Flags:");
+        Output.WriteLine(
             "  --backend spectre|ngspice    Pick simulator (Spectre-first; ngspice for CI)."
         );
-        _state.AddMessage("  --corner <name>              Model section/corner, e.g., tt/ff/ss.");
-        _state.AddMessage(
+        Output.WriteLine("  --corner <name>              Model section/corner, e.g., tt/ff/ss.");
+        Output.WriteLine(
             "  --limit <n>                  Cap how many devices to process (0 = all)."
         );
-        _state.AddMessage(
+        Output.WriteLine(
             "  --jobs <n>                   Planned: parallelize bench generation (not Spectre)."
         );
-        _state.AddMessage("  --class nmos,pmos            Filter device classes.");
-        _state.AddMessage("  --name-contains <csv>        Only names containing any token.");
-        _state.AddMessage("  --name-excludes <csv>        Skip names containing any token.");
-        _state.AddMessage("  --vt <csv>                   Only VT flavors (e.g., LVT,HVT).");
-        _state.AddMessage("  --vdd <csv>                  Only VDD tags (e.g., 1.8V,01v8).");
-        _state.AddMessage(
+        Output.WriteLine("  --class nmos,pmos            Filter device classes.");
+        Output.WriteLine("  --name-contains <csv>        Only names containing any token.");
+        Output.WriteLine("  --name-excludes <csv>        Skip names containing any token.");
+        Output.WriteLine("  --vt <csv>                   Only VT flavors (e.g., LVT,HVT).");
+        Output.WriteLine("  --vdd <csv>                  Only VDD tags (e.g., 1.8V,01v8).");
+        Output.WriteLine(
             "  --infra / --no-infra         Include only infra devices, or exclude them."
         );
-        _state.AddMessage("");
-        _state.AddMessage("Examples:");
-        _state.AddMessage("  pdk char config");
-        _state.AddMessage(
+        Output.WriteLine("");
+        Output.WriteLine("Examples:");
+        Output.WriteLine("  pdk char config");
+        Output.WriteLine(
             "    → Open the defaults form; save corner/backend/filters/jobs to workspace."
         );
-        _state.AddMessage("  pdk char run");
-        _state.AddMessage(
+        Output.WriteLine("  pdk char run");
+        Output.WriteLine(
             "    → Start a batch with saved defaults; shows a live progress bar chart."
         );
-        _state.AddMessage("  pdk char run --class nmos --limit 5 --name-excludes esd,io --vt LVT");
-        _state.AddMessage("    → Quick LVT-only NMOS subset; skips ESD/IO variants.");
-        _state.AddMessage("  pdk char run --corner tt --backend spectre --jobs 4");
-        _state.AddMessage(
+        Output.WriteLine("  pdk char run --class nmos --limit 5 --name-excludes esd,io --vt LVT");
+        Output.WriteLine("    → Quick LVT-only NMOS subset; skips ESD/IO variants.");
+        Output.WriteLine("  pdk char run --corner tt --backend spectre --jobs 4");
+        Output.WriteLine(
             "    → Spectre-first; prepare to parallelize bench generation with 4 jobs."
         );
-        _state.AddMessage("  pdk char read sky130_fd_pr__nfet_01v8");
-        _state.AddMessage(
-            "    → Show table and gm/Id sparkline for the latest run of that device."
-        );
-        _state.AddMessage("");
-        _state.AddMessage("Notes:");
-        _state.AddMessage("- If SPECTRE_BIN isn't set, runs are skipped (generation only).");
-        _state.AddMessage(
+        Output.WriteLine("  pdk char read sky130_fd_pr__nfet_01v8");
+        Output.WriteLine("    → Show table and gm/Id sparkline for the latest run of that device.");
+        Output.WriteLine("");
+        Output.WriteLine("Notes:");
+        Output.WriteLine("- If SPECTRE_BIN isn't set, runs are skipped (generation only).");
+        Output.WriteLine(
             "- Results live under ~/.cascode/workspaces/<id>/char/<backend>/<corner>/<device>/<ts>/"
         );
         return CommandResult.Success;
@@ -607,8 +624,8 @@ internal sealed class PdkCommandModule : ICommandModule
             cfg.OutRoot = null;
 
         cfg.Save(cfgPath);
-        _state.AddMessage($"Saved characterization config → {cfgPath}");
-        _state.AddMessage("Run 'pdk char run' to start a batch using this configuration.");
+        Output.WriteLine($"Saved characterization config → {cfgPath}");
+        Output.WriteLine("Run 'pdk char run' to start a batch using this configuration.");
         return CommandResult.Success;
 
         void DumpConfig(CharRunConfig show)
@@ -628,7 +645,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 show.Infra.HasValue ? (show.Infra.Value ? "infra-only" : "exclude-infra") : "all"
             );
             table.AddRow("OutRoot", show.OutRoot ?? "(default)");
-            AnsiConsole.Write(table);
+            WriteRenderable(table);
         }
     }
 
@@ -728,7 +745,7 @@ internal sealed class PdkCommandModule : ICommandModule
                                     {
                                         cancellationTokenSource.Cancel();
                                         wasCancelled = true;
-                                        _state.AddMessage("Scan aborted by user (ESC)");
+                                        Output.WriteLine("Scan aborted by user (ESC)");
                                         break; // Exit immediately
                                     }
                                 }
@@ -812,7 +829,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
             if (scanError is not null)
             {
-                _state.AddMessage($"Scan failed: {scanError.Message}");
+                Output.WriteLine($"Scan failed: {scanError.Message}");
                 return CommandResult.Failure;
             }
 
@@ -916,7 +933,7 @@ internal sealed class PdkCommandModule : ICommandModule
             CliConfigStorage.Save(_config);
             _state.UpdatePdkRoot(null);
             _state.SetWorkspace(_initialWorkspaceRoot);
-            _state.AddMessage("Cleared default PDK workspace preference.");
+            Output.WriteLine("Cleared default PDK workspace preference.");
             return CommandResult.Success;
         }
 
@@ -932,7 +949,7 @@ internal sealed class PdkCommandModule : ICommandModule
         );
         if (string.IsNullOrWhiteSpace(input))
         {
-            _state.AddMessage("PDK workspace unchanged.");
+            Output.WriteLine("PDK workspace unchanged.");
             return CommandResult.Success;
         }
         return ApplyPdkDirectory(input);
@@ -945,7 +962,7 @@ internal sealed class PdkCommandModule : ICommandModule
             var resolved = PathUtils.NormalizePath(path);
             if (!Directory.Exists(resolved))
             {
-                _state.AddMessage($"Directory '{resolved}' not found.");
+                Output.WriteLine($"Directory '{resolved}' not found.");
                 return CommandResult.Failure;
             }
 
@@ -953,12 +970,12 @@ internal sealed class PdkCommandModule : ICommandModule
             CliConfigStorage.Save(_config);
             _state.UpdatePdkRoot(resolved);
             _state.SetWorkspace(resolved);
-            _state.AddMessage($"PDK workspace set to {resolved}");
+            Output.WriteLine($"PDK workspace set to {resolved}");
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Invalid path: {ex.Message}");
+            Output.WriteLine($"Invalid path: {ex.Message}");
             return CommandResult.Failure;
         }
     }
@@ -1044,7 +1061,7 @@ internal sealed class PdkCommandModule : ICommandModule
         );
         if (!File.Exists(dbPath))
         {
-            _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+            Output.WriteLine("No PDK database found. Run 'pdk scan' first.");
             return CommandResult.Failure;
         }
 
@@ -1058,7 +1075,7 @@ internal sealed class PdkCommandModule : ICommandModule
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to build characterization plan: {ex.Message}");
+            Output.WriteLine($"Failed to build characterization plan: {ex.Message}");
             return CommandResult.Failure;
         }
 
@@ -1068,7 +1085,7 @@ internal sealed class PdkCommandModule : ICommandModule
             var allDevices = Cascode.Workspace.PdkDatabaseReader.LoadDevices(dbPath);
             if (allDevices.Count == 0)
             {
-                _state.AddMessage("No devices discovered. Run 'pdk scan' first.");
+                Output.WriteLine("No devices discovered. Run 'pdk scan' first.");
                 return CommandResult.Failure;
             }
 
@@ -1083,7 +1100,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 .ToList();
             if (filteredDevices.Count == 0)
             {
-                _state.AddMessage("No devices matched the selected filters.");
+                Output.WriteLine("No devices matched the selected filters.");
                 return CommandResult.Failure;
             }
 
@@ -1093,13 +1110,13 @@ internal sealed class PdkCommandModule : ICommandModule
                 .ToList();
             if (matchedFiltered.Count == 0)
             {
-                _state.AddMessage(
+                Output.WriteLine(
                     $"Filtered devices: {filteredDevices.Count}. None have matched models; rerun 'pdk scan' or adjust matching."
                 );
                 return CommandResult.Failure;
             }
 
-            _state.AddMessage("No devices matched the selection.");
+            Output.WriteLine("No devices matched the selection.");
             return CommandResult.Success;
         }
 
@@ -1110,7 +1127,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
         // Start progress
         _state.StartCharJob(plans.Count, backend, corner);
-        _state.AddMessage(
+        Output.WriteLine(
             $"Starting characterization batch → backend={backend}, corner={corner}, devices={plans.Count}, models={modelCount}"
         );
 
@@ -1155,7 +1172,7 @@ internal sealed class PdkCommandModule : ICommandModule
                         out _,
                         out var exportMsg
                     );
-                    _state.AddMessage(exportMsg);
+                    Output.WriteLine(exportMsg);
                     if (exportOk)
                     {
                         exported++;
@@ -1167,30 +1184,30 @@ internal sealed class PdkCommandModule : ICommandModule
                             if (File.Exists(dbPath))
                             {
                                 Cascode.Workspace.CharLutWriter.ImportFromJobDir(dbPath, jobDir);
-                                _state.AddMessage($"LUT stored in database for {plan.DeviceName}.");
+                                Output.WriteLine($"LUT stored in database for {plan.DeviceName}.");
                             }
                         }
                         catch (Exception lutEx)
                         {
-                            _state.AddMessage($"[warn] Failed to store LUT: {lutEx.Message}");
+                            Output.WriteLine($"[warn] Failed to store LUT: {lutEx.Message}");
                         }
                     }
                 }
 
-                _state.AddMessage(
+                Output.WriteLine(
                     $"Characterization batch complete: ran {executed}, exported {exported}, skipped {skipped}."
                 );
                 completed = true;
             }
             catch (Exception ex)
             {
-                _state.AddMessage($"Characterization batch failed: {ex.Message}");
+                Output.WriteLine($"Characterization batch failed: {ex.Message}");
             }
             finally
             {
                 if (!completed)
                 {
-                    _state.AddMessage("Characterization batch terminated early.");
+                    Output.WriteLine("Characterization batch terminated early.");
                 }
 
                 _state.CompleteCharJob();
@@ -1200,7 +1217,7 @@ internal sealed class PdkCommandModule : ICommandModule
         if (_isInteractive())
         {
             Task.Run(RunBatch);
-            _state.AddMessage(
+            Output.WriteLine(
                 "Batch running in background; progress will update while the CLI remains responsive."
             );
             return CommandResult.Success;
@@ -1236,7 +1253,7 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         if (args.Length == 0)
         {
-            _state.AddMessage(
+            Output.WriteLine(
                 "Usage: pdk char read <model> [--corner <name>] [--backend spectre] [--head <n>] [--job <path>]"
             );
             return CommandResult.Success;
@@ -1278,7 +1295,7 @@ internal sealed class PdkCommandModule : ICommandModule
         );
         if (!File.Exists(dbPath))
         {
-            _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+            Output.WriteLine("No PDK database found. Run 'pdk scan' first.");
             return CommandResult.Failure;
         }
 
@@ -1310,7 +1327,7 @@ internal sealed class PdkCommandModule : ICommandModule
 
             if (run is null)
             {
-                _state.AddMessage($"No characterization recorded for '{query}'.");
+                Output.WriteLine($"No characterization recorded for '{query}'.");
                 return CommandResult.Failure;
             }
 
@@ -1319,14 +1336,14 @@ internal sealed class PdkCommandModule : ICommandModule
 
         if (!Directory.Exists(jobDir))
         {
-            _state.AddMessage($"Job directory not found: {jobDir}");
+            Output.WriteLine($"Job directory not found: {jobDir}");
             return CommandResult.Failure;
         }
 
         var derivedPath = Path.Combine(jobDir, "derived.csv");
         if (!File.Exists(derivedPath))
         {
-            _state.AddMessage(
+            Output.WriteLine(
                 $"Derived metrics not found at {derivedPath}. Run 'char export {jobDir}' first."
             );
             return CommandResult.Failure;
@@ -1335,7 +1352,7 @@ internal sealed class PdkCommandModule : ICommandModule
         var (headers, samples) = Services.CharIoHelpers.LoadDerivedCsv(derivedPath);
         if (headers.Count == 0 || samples.Count == 0)
         {
-            _state.AddMessage("Derived CSV did not contain numeric samples.");
+            Output.WriteLine("Derived CSV did not contain numeric samples.");
             return CommandResult.Failure;
         }
 
@@ -1449,7 +1466,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 derivedPath
             );
             _state.ShowCharRead(view);
-            _state.AddMessage($"Showing characterization for {query}");
+            Output.WriteLine($"Showing characterization for {query}");
             return CommandResult.Success;
         }
 
@@ -1460,18 +1477,18 @@ internal sealed class PdkCommandModule : ICommandModule
         foreach (var r in displayRows)
             table.AddRow(r.ToArray());
 
-        AnsiConsole.Write(
+        WriteRenderable(
             new Rule($"[bold]{query}[/] — {backend} / {corner}") { Justification = Justify.Left }
         );
-        AnsiConsole.Write(table);
+        WriteRenderable(table);
 
         foreach (var kvp in sparklines)
         {
-            AnsiConsole.Write(ShellRenderer.BuildSparkline(kvp.Key, kvp.Value));
-            AnsiConsole.WriteLine();
+            WriteRenderable(ShellRenderer.BuildSparkline(kvp.Key, kvp.Value));
+            Output.WriteLine(string.Empty);
         }
 
-        _state.AddMessage($"Derived source: {derivedPath}");
+        Output.WriteLine($"Derived source: {derivedPath}");
         return CommandResult.Success;
     }
 
@@ -1483,7 +1500,7 @@ internal sealed class PdkCommandModule : ICommandModule
         );
         if (!File.Exists(dbPath))
         {
-            _state.AddMessage("PDK database not found. Run 'pdk scan' first.");
+            Output.WriteLine("PDK database not found. Run 'pdk scan' first.");
             return CommandResult.Failure;
         }
 
@@ -1492,13 +1509,13 @@ internal sealed class PdkCommandModule : ICommandModule
             var coverage = Cascode.Workspace.CharLutReader.GetDeviceCoverage(dbPath);
             if (coverage.Devices.Count == 0)
             {
-                _state.AddMessage("No devices discovered. Run 'pdk scan' first.");
+                Output.WriteLine("No devices discovered. Run 'pdk scan' first.");
                 return CommandResult.Success;
             }
 
             if (coverage.TotalRuns == 0)
             {
-                _state.AddMessage(
+                Output.WriteLine(
                     "No characterization runs found. Use 'pdk char run' to characterize devices."
                 );
                 return CommandResult.Success;
@@ -1540,18 +1557,18 @@ internal sealed class PdkCommandModule : ICommandModule
                 table.AddRow(row.ToArray());
             }
 
-            AnsiConsole.Write(table);
+            WriteRenderable(table);
 
             var totalPossible = coverage.Devices.Count * Math.Max(1, coverage.Corners.Count);
             var percentage = totalPossible > 0 ? (coverage.TotalRuns * 100.0 / totalPossible) : 0.0;
-            _state.AddMessage(
+            Output.WriteLine(
                 $"Device coverage: {coverage.TotalRuns}/{totalPossible} ({percentage:F1}%)"
             );
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to load characterization status: {ex.Message}");
+            Output.WriteLine($"Failed to load characterization status: {ex.Message}");
             return CommandResult.Failure;
         }
     }
@@ -1634,12 +1651,12 @@ internal sealed class PdkCommandModule : ICommandModule
             }
 
             if (resolvedIncludes.Count == 0)
-                _state.AddMessage(
+                Output.WriteLine(
                     $"[warn] No include decks located for device '{plan.DeviceName}'. Spectre run may fail."
                 );
 
             var netlistModelName = ResolveModelNameForNetlist(plan.ModelName);
-            _state.AddMessage(
+            Output.WriteLine(
                 $"Geometry for {plan.DeviceName}: W={plan.Width:g4} m, L={plan.Length:g4} m, NF={plan.Nf}"
             );
 
@@ -1683,13 +1700,13 @@ internal sealed class PdkCommandModule : ICommandModule
             var reg = Cascode.Bench.HarnessService.CreateDefault(_state.WorkspaceRoot);
             var gen = new Cascode.Bench.TestbenchGenerator(reg);
             var files = gen.Generate(ctx);
-            _state.AddMessage($"Generated testbench: {files.NetlistPath}");
-            _state.AddMessage($"Spec: {files.SpecPath}");
+            Output.WriteLine($"Generated testbench: {files.NetlistPath}");
+            Output.WriteLine($"Spec: {files.SpecPath}");
             return true;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Generation failed: {ex.Message}");
+            Output.WriteLine($"Generation failed: {ex.Message}");
             return false;
         }
     }
@@ -1810,7 +1827,7 @@ internal sealed class PdkCommandModule : ICommandModule
         }
         if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe))
         {
-            _state.AddMessage("SPECTRE_BIN not set or executable not found; skipping runs.");
+            Output.WriteLine("SPECTRE_BIN not set or executable not found; skipping runs.");
             return false;
         }
         // Find a netlist to run (prefer .scs)
@@ -1820,7 +1837,7 @@ internal sealed class PdkCommandModule : ICommandModule
             .FirstOrDefault();
         if (netlist is null)
         {
-            _state.AddMessage("No Spectre netlist (.scs) found; skipping runs.");
+            Output.WriteLine("No Spectre netlist (.scs) found; skipping runs.");
             return false;
         }
 
@@ -1843,7 +1860,7 @@ internal sealed class PdkCommandModule : ICommandModule
             var rc = p.ExitCode;
             if (rc == 0)
             {
-                _state.AddMessage("Spectre run completed.");
+                Output.WriteLine("Spectre run completed.");
                 return true;
             }
             else
@@ -1855,13 +1872,13 @@ internal sealed class PdkCommandModule : ICommandModule
                         .Split('\n')
                         .FirstOrDefault(line => !string.IsNullOrWhiteSpace(line))
                         ?? "Unknown error";
-                _state.AddMessage($"Spectre exited with code {rc}: {errorPreview}");
+                Output.WriteLine($"Spectre exited with code {rc}: {errorPreview}");
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to run Spectre: {ex.Message}");
+            Output.WriteLine($"Failed to run Spectre: {ex.Message}");
             return false;
         }
     }
@@ -2009,7 +2026,7 @@ internal sealed class PdkCommandModule : ICommandModule
             );
             if (!File.Exists(dbPath))
             {
-                _state.AddMessage("No PDK database found. Run 'pdk scan' first.");
+                Output.WriteLine("No PDK database found. Run 'pdk scan' first.");
                 return CommandResult.Failure;
             }
 
@@ -2033,19 +2050,19 @@ internal sealed class PdkCommandModule : ICommandModule
                     row.Unmatched.ToString(CultureInfo.InvariantCulture)
                 );
             }
-            AnsiConsole.Write(table);
-            _state.AddMessage(
+            WriteRenderable(table);
+            Output.WriteLine(
                 $"Coverage: total={cov.Total}, matched={cov.Matched}, ambiguous={cov.Ambiguous}, unmatched={cov.Unmatched}."
             );
             if (cov.SampleAmbiguous.Count > 0)
-                _state.AddMessage("Ambiguous examples: " + string.Join(", ", cov.SampleAmbiguous));
+                Output.WriteLine("Ambiguous examples: " + string.Join(", ", cov.SampleAmbiguous));
             if (cov.SampleUnmatched.Count > 0)
-                _state.AddMessage("Unmatched examples: " + string.Join(", ", cov.SampleUnmatched));
+                Output.WriteLine("Unmatched examples: " + string.Join(", ", cov.SampleUnmatched));
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            _state.AddMessage($"Failed to compute match coverage: {ex.Message}");
+            Output.WriteLine($"Failed to compute match coverage: {ex.Message}");
             return CommandResult.Failure;
         }
     }

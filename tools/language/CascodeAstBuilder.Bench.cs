@@ -70,11 +70,13 @@ internal sealed partial class CascodeAstBuilder
         return fill;
     }
 
-    private IReadOnlyList<BenchBinding> BuildBenchesSection(CascodeParser.BenchesSectionContext ctx)
+    private IReadOnlyList<BenchBinding> BuildBenchBindings(
+        IEnumerable<CascodeParser.BenchBindingContext> bindingContexts
+    )
     {
         var bindings = new List<BenchBinding>();
 
-        foreach (var bindingCtx in ctx.benchBinding())
+        foreach (var bindingCtx in bindingContexts)
         {
             var binding = new BenchBinding
             {
@@ -82,44 +84,98 @@ internal sealed partial class CascodeAstBuilder
                 BindingName = bindingCtx.bindingName.Text,
             };
 
-            foreach (var stmt in bindingCtx.bindingStatement())
-            {
-                if (stmt.terminalMapping() is not null)
-                {
-                    var t = stmt.terminalMapping();
-                    binding.Statements.Add(
-                        new BenchTerminalMapping(
-                            BenchTerminal: t.IDENT().GetText(),
-                            DutPinRef: BuildPinRef(t.pinRef())
-                        )
-                    );
-                    continue;
-                }
-
-                if (stmt.dutConnection() is not null)
-                {
-                    var c = stmt.dutConnection();
-                    binding.Statements.Add(
-                        new BenchDutConnection(
-                            DutPinRef: BuildPinRef(c.pinRef(0)),
-                            PinRef: BuildPinRef(c.pinRef(1))
-                        )
-                    );
-                    continue;
-                }
-
-                if (stmt.instanceDecl() is not null)
-                {
-                    binding.Statements.Add(
-                        new BenchBindingInstance(BuildInstance(stmt.instanceDecl()))
-                    );
-                }
-            }
+            ProcessBindingStatements(bindingCtx.bindingStatement(), binding.Statements);
 
             bindings.Add(binding);
         }
 
         return bindings;
+    }
+
+    private void ProcessBindingStatements(
+        IEnumerable<CascodeParser.BindingStatementContext> statements,
+        List<BenchBindingStatement> target
+    )
+    {
+        foreach (var stmt in statements)
+        {
+            if (stmt.terminalMapping() is not null)
+            {
+                var t = stmt.terminalMapping();
+                target.Add(
+                    new BenchTerminalMapping(
+                        BenchTerminal: t.IDENT().GetText(),
+                        DutPinRef: BuildPinRef(t.pinRef())
+                    )
+                );
+                continue;
+            }
+
+            if (stmt.bindingMeasurementsBlock() is not null)
+            {
+                foreach (var decl in stmt.bindingMeasurementsBlock().bindingMeasurementDecl())
+                {
+                    var parameters = new List<TypedParameter>();
+                    if (decl.typedParamList() is not null)
+                    {
+                        foreach (var p in decl.typedParamList().typedParam())
+                        {
+                            parameters.Add(
+                                new TypedParameter(
+                                    ParseTypedParamType(p.typedParamType()),
+                                    p.idPart().GetText()
+                                )
+                            );
+                        }
+                    }
+
+                    target.Add(
+                        new BenchBindingMeasurementExport(
+                            Name: decl.name.Text,
+                            Parameters: parameters,
+                            Unit: decl.unitType().GetText(),
+                            Target: BuildBenchMeasurementRef(decl.benchMeasurementRef())
+                        )
+                    );
+                }
+                continue;
+            }
+
+            if (stmt.dutConnection() is not null)
+            {
+                var c = stmt.dutConnection();
+                target.Add(
+                    new BenchDutConnection(
+                        DutPinRef: BuildPinRef(c.pinRef(0)),
+                        PinRef: BuildPinRef(c.pinRef(1))
+                    )
+                );
+                continue;
+            }
+
+            if (stmt.instanceDecl() is not null)
+            {
+                target.Add(new BenchBindingInstance(BuildInstance(stmt.instanceDecl())));
+            }
+        }
+    }
+
+    private IReadOnlyList<BenchBindingExtension> BuildBenchExtensions(
+        IEnumerable<CascodeParser.BenchExtensionContext> extensionContexts
+    )
+    {
+        var extensions = new List<BenchBindingExtension>();
+
+        foreach (var extCtx in extensionContexts)
+        {
+            var ext = new BenchBindingExtension { BindingName = extCtx.bindingName.Text };
+
+            ProcessBindingStatements(extCtx.bindingStatement(), ext.Statements);
+
+            extensions.Add(ext);
+        }
+
+        return extensions;
     }
 
     private EnvBlock BuildEnvBlock(CascodeParser.EnvSectionContext ctx)
@@ -161,7 +217,10 @@ internal sealed partial class CascodeAstBuilder
             foreach (var p in ctx.typedParamList().typedParam())
             {
                 def.Parameters.Add(
-                    new TypedParameter(ParseTypedParamType(p.typedParamType()), p.IDENT().GetText())
+                    new TypedParameter(
+                        ParseTypedParamType(p.typedParamType()),
+                        p.idPart().GetText()
+                    )
                 );
             }
         }
@@ -186,11 +245,15 @@ internal sealed partial class CascodeAstBuilder
                 Name = decl.name.Text,
             };
 
-            foreach (var p in decl.analysisParams().analysisParam())
+            var analysisParams = decl.analysisParams();
+            if (analysisParams is not null)
             {
-                analysis.Parameters[p.IDENT().GetText()] = BuildConditionalExpr(
-                    p.conditionalExpr()
-                );
+                foreach (var p in analysisParams.analysisParam())
+                {
+                    analysis.Parameters[p.idPart().GetText()] = BuildConditionalExpr(
+                        p.conditionalExpr()
+                    );
+                }
             }
 
             analyses.Add(analysis);
@@ -212,6 +275,19 @@ internal sealed partial class CascodeAstBuilder
                 Name = decl.name.Text,
                 Unit = decl.unitType().GetText(),
             };
+
+            if (decl.typedParamList() is not null)
+            {
+                foreach (var p in decl.typedParamList().typedParam())
+                {
+                    measurement.Parameters.Add(
+                        new TypedParameter(
+                            ParseTypedParamType(p.typedParamType()),
+                            p.idPart().GetText()
+                        )
+                    );
+                }
+            }
 
             foreach (var stmt in decl.measurementBody().statement())
             {
@@ -312,11 +388,16 @@ internal sealed partial class CascodeAstBuilder
 
     private MeasurementExpr BuildConditionalExpr(CascodeParser.ConditionalExprContext ctx)
     {
-        if (ctx.IF_KW() is null)
+        if (ctx.ifExpr() is null)
         {
-            return BuildMeasurementExpr(ctx.measurementExpr(0));
+            return BuildMeasurementExpr(ctx.measurementExpr());
         }
 
+        return BuildIfExpr(ctx.ifExpr());
+    }
+
+    private MeasurementExpr BuildIfExpr(CascodeParser.IfExprContext ctx)
+    {
         return new MeasurementConditional(
             Condition: BuildBoolExpr(ctx.boolExpr()),
             ThenExpr: BuildMeasurementExpr(ctx.measurementExpr(0)),
@@ -329,6 +410,11 @@ internal sealed partial class CascodeAstBuilder
         if (ctx.scopedAccess() is not null)
         {
             return new BoolExists(BuildScopedValueRef(ctx.scopedAccess()));
+        }
+
+        if (ctx.pathAccess() is not null)
+        {
+            return new BoolTruthy(new MeasurementPath(ctx.pathAccess().GetText()));
         }
 
         var op = ParseComparisonOp(ctx.COMPARISON_OP().GetText());
@@ -373,17 +459,64 @@ internal sealed partial class CascodeAstBuilder
     {
         if (ctx.MINUS() is null)
         {
-            return BuildMeasurementAtom(ctx.measurementAtom());
+            return BuildMeasurementPostfix(ctx.measurementPostfix());
         }
 
         return new MeasurementUnary("-", BuildUnaryMeasurementExpr(ctx.unaryMeasurementExpr()));
     }
 
-    private MeasurementExpr BuildMeasurementAtom(CascodeParser.MeasurementAtomContext ctx)
+    private MeasurementExpr BuildMeasurementPostfix(CascodeParser.MeasurementPostfixContext ctx)
     {
+        var expr = BuildMeasurementPrimary(ctx.measurementPrimary());
+        foreach (var suffix in ctx.methodCallSuffix())
+        {
+            var args = new List<MeasurementCallArg>();
+            if (suffix.measurementArgList() is not null)
+            {
+                foreach (var arg in suffix.measurementArgList().measurementArg())
+                {
+                    if (arg.idPart() is not null)
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                arg.idPart().GetText(),
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                    else
+                    {
+                        args.Add(
+                            new MeasurementCallArg(
+                                null,
+                                BuildMeasurementExpr(arg.measurementExpr())
+                            )
+                        );
+                    }
+                }
+            }
+
+            expr = new MeasurementMethodCall(expr, suffix.idPart().GetText(), args);
+        }
+
+        return expr;
+    }
+
+    private MeasurementExpr BuildMeasurementPrimary(CascodeParser.MeasurementPrimaryContext ctx)
+    {
+        if (ctx.ifExpr() is not null)
+        {
+            return BuildIfExpr(ctx.ifExpr());
+        }
+
         if (ctx.measurementExpr() is not null)
         {
             return BuildMeasurementExpr(ctx.measurementExpr());
+        }
+
+        if (ctx.benchMeasurementRef() is not null)
+        {
+            return BuildBenchMeasurementRef(ctx.benchMeasurementRef());
         }
 
         if (ctx.measurementFunctionCall() is not null)
@@ -443,7 +576,31 @@ internal sealed partial class CascodeAstBuilder
             return new MeasurementQuantity(ctx.QUANTITY().GetText());
         }
 
-        throw new InvalidOperationException($"Unsupported measurement atom: {ctx.GetText()}");
+        throw new InvalidOperationException($"Unsupported measurement primary: {ctx.GetText()}");
+    }
+
+    private MeasurementBenchMeasurementRef BuildBenchMeasurementRef(
+        CascodeParser.BenchMeasurementRefContext r
+    )
+    {
+        var args = new List<BenchMeasurementRefArg>();
+        if (r.measurementArgList() is not null)
+        {
+            foreach (var arg in r.measurementArgList().measurementArg())
+            {
+                var name = arg.idPart() is null ? null : arg.idPart().GetText();
+                var text = arg.measurementExpr().GetText();
+                args.Add(
+                    new BenchMeasurementRefArg(
+                        name,
+                        text,
+                        BuildMeasurementExpr(arg.measurementExpr())
+                    )
+                );
+            }
+        }
+
+        return new MeasurementBenchMeasurementRef(r.IDENT(0).GetText(), r.IDENT(1).GetText(), args);
     }
 
     private ScopedValueRef BuildScopedValueRef(CascodeParser.ScopedAccessContext ctx)
@@ -458,7 +615,7 @@ internal sealed partial class CascodeAstBuilder
             return new ScopedValueRef(MeasurementScope.Constraints, ctx.IDENT().GetText());
         }
 
-        return new ScopedValueRef(MeasurementScope.Harness, ctx.IDENT().GetText());
+        return new ScopedValueRef(MeasurementScope.Harness, BuildPinRef(ctx.pinRef()));
     }
 
     private static ComparisonOp ParseComparisonOp(string raw) =>
@@ -489,7 +646,20 @@ internal sealed partial class CascodeAstBuilder
             return ParsePhysicalType(ctx.physicalType());
         }
 
-        return ParseAnalysisType(ctx.analysisType());
+        if (ctx.analysisType() is not null)
+        {
+            return ParseAnalysisType(ctx.analysisType());
+        }
+
+        // Allow 'stim'/'resp' as a generic terminal value type.
+        return ctx.GetText() switch
+        {
+            "stim" => BenchValueType.Terminal,
+            "resp" => BenchValueType.Terminal,
+            _ => throw new InvalidOperationException(
+                $"Unknown typed parameter type: {ctx.GetText()}"
+            ),
+        };
     }
 
     private static BenchValueType ParsePhysicalType(CascodeParser.PhysicalTypeContext ctx)
@@ -499,10 +669,16 @@ internal sealed partial class CascodeAstBuilder
             "Frequency" => BenchValueType.Frequency,
             "VoltageRatio" => BenchValueType.VoltageRatio,
             "TransferFunction" => BenchValueType.TransferFunction,
-            "RealFunction" => BenchValueType.RealFunction,
-            "NoiseFunction" => BenchValueType.NoiseFunction,
+            "GainSpectrum" => BenchValueType.GainSpectrum,
+            "PhaseSpectrum" => BenchValueType.PhaseSpectrum,
+            "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
+            "CurrentSpectrum" => BenchValueType.CurrentSpectrum,
+            "NoiseSpectrum" => BenchValueType.NoiseSpectrum,
+            "VoltageWaveform" => BenchValueType.VoltageWaveform,
+            "CurrentWaveform" => BenchValueType.CurrentWaveform,
             "NoiseSpectralDensity" => BenchValueType.NoiseSpectralDensity,
             "IntegratedNoise" => BenchValueType.IntegratedNoise,
+            "ElementPin" => BenchValueType.ElementPin,
             "Impedance" => BenchValueType.Impedance,
             "Capacitance" => BenchValueType.Capacitance,
             "Inductance" => BenchValueType.Inductance,

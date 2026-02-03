@@ -29,6 +29,24 @@ public static class BenchRuntimePaths
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.ac.wrdata");
     }
 
+    public static string GetAcCurrentsWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(
+            outputDir,
+            $"{circuitName}_{bindingName}__{analysisName}.ac.currents.wrdata"
+        );
+    }
+
     public static string GetNoiseWrdataPath(
         string outputDir,
         string circuitName,
@@ -42,5 +60,60 @@ public static class BenchRuntimePaths
         ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
 
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.noise.wrdata");
+    }
+
+    public static string GetOpWrdataPath(string outputDir, string circuitName, string bindingName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__op.op.wrdata");
+    }
+
+    public static string GetOpNodesWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__op.nodes.wrdata");
+    }
+
+    public static string GetTranWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.tran.wrdata");
+    }
+
+    public static string GetTranCurrentsWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(
+            outputDir,
+            $"{circuitName}_{bindingName}__{analysisName}.tran.currents.wrdata"
+        );
     }
 }

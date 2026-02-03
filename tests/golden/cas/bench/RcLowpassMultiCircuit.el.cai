@@ -45,8 +45,8 @@ bench DiffToSELowpass {
   measurements {
     measurement LowpassBandwidth : Hz {
       TransferFunction H = transfer(ac, IN, OUT)
-      RealFunction G = db20(mag(H))
-      return find_crossing(G, -3dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+      GainSpectrum G = db20(H.Mag())
+      return G.FindCrossing(-3dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
     }
   }
 }
@@ -104,4 +104,3 @@ circuit RcLowpassB {
     }
   }
 }
-

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -52,23 +53,82 @@ internal sealed partial class CascodeAstBuilder
     {
         var id = ctx.IDENT().GetText();
         var benchRef = ctx.benchMetricRef();
-        var bench = benchRef.IDENT(0).GetText();
+        var benchBase = benchRef.IDENT(0).GetText();
         var metric = benchRef.IDENT(1).GetText();
+
+        // Extract bench args and metric args from the grammar:
+        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+        // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
+        var argLists = benchRef.measurementArgList();
+        var benchArgs = new List<MetricCallArg>();
+        var metricArgs = new List<MetricCallArg>();
+
+        if (argLists.Length == 2)
+        {
+            // Both bench(args)::metric(args)
+            benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+            metricArgs = ExtractConstraintArgs(argLists[1], "metric invocation");
+        }
+        else if (argLists.Length == 1)
+        {
+            // Either bench(args)::metric or bench::metric(args)
+            // Check if the arg list appears before or after COLONCOLON by comparing token positions.
+            var colonColonIndex = benchRef.COLONCOLON().Symbol.TokenIndex;
+            var argListStartIndex = argLists[0].Start.TokenIndex;
+            if (argListStartIndex < colonColonIndex)
+            {
+                benchArgs = ExtractConstraintArgs(argLists[0], "bench invocation");
+            }
+            else
+            {
+                metricArgs = ExtractConstraintArgs(argLists[0], "metric invocation");
+            }
+        }
+
         var node = ctx.nodeRef() != null ? BuildNodeRef(ctx.nodeRef()) : null;
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.QUANTITY().GetText();
+        var quantity = ctx.signedQuantity().GetText();
         var (value, unit) = ParseQuantity(quantity);
+
+        // Compute the bench instance name from BenchBase + BenchArgs.
+        var bench =
+            benchArgs.Count == 0
+                ? benchBase
+                : BenchRuntime.BenchInvocationName.Compute(benchBase, benchArgs);
 
         return new NumericConstraint
         {
             Id = id,
+            BenchBase = benchBase,
+            BenchArgs = benchArgs,
             Bench = bench,
             Metric = metric,
+            MetricArgs = metricArgs,
             Node = node,
             Op = op,
             Value = value,
             Unit = unit,
         };
+    }
+
+    private static List<MetricCallArg> ExtractConstraintArgs(
+        CascodeParser.MeasurementArgListContext argList,
+        string context
+    )
+    {
+        var args = new List<MetricCallArg>();
+        foreach (var arg in argList.measurementArg())
+        {
+            if (arg.idPart() is null)
+            {
+                throw new InvalidOperationException(
+                    $"Numeric constraint {context} requires named arguments."
+                );
+            }
+
+            args.Add(new MetricCallArg(arg.idPart().GetText(), arg.measurementExpr().GetText()));
+        }
+        return args;
     }
 
     /// <summary>Builds a technology constraint from its parse context.</summary>
@@ -80,7 +140,7 @@ internal sealed partial class CascodeAstBuilder
         var param = ctx.IDENT(1).GetText();
         var scope = ctx.techConstraintScope().GetText();
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.QUANTITY().GetText();
+        var quantity = ctx.signedQuantity().GetText();
         var (value, unit) = ParseQuantity(quantity);
 
         return new TechConstraint
@@ -143,6 +203,7 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Harness block.</returns>
     private HarnessBlock BuildHarnessBlock(CascodeParser.HarnessSectionContext ctx)
     {
+        var grounds = new List<GroundValue>();
         var supplies = new List<SupplyValue>();
         var biases = new List<BiasValue>();
         var sources = new List<SourceValue>();
@@ -155,6 +216,16 @@ internal sealed partial class CascodeAstBuilder
         {
             switch (stmtCtx)
             {
+                case CascodeParser.HarnessGroundContext groundCtx:
+                    grounds.Add(
+                        new GroundValue
+                        {
+                            Net = groundCtx.IDENT().GetText(),
+                            Value = BuildHarnessValue(groundCtx.harnessValue()),
+                        }
+                    );
+                    break;
+
                 case CascodeParser.HarnessSupplyContext supplyCtx:
                     supplies.Add(
                         new SupplyValue
@@ -182,7 +253,7 @@ internal sealed partial class CascodeAstBuilder
                 case CascodeParser.HarnessSourceContext sourceCtx:
                     var sourceSpec = sourceCtx.sourceSpec();
                     var zValue =
-                        sourceSpec.QUANTITY()?.GetText()
+                        sourceSpec.signedQuantity()?.GetText()
                         ?? sourceSpec.NUMBER()?.GetText()
                         ?? string.Empty;
                     // Normalize: if no unit, add "Ohm"
@@ -200,8 +271,8 @@ internal sealed partial class CascodeAstBuilder
                 case CascodeParser.HarnessIcmrContext icmrCtx:
                     icmr = new IcmrRange
                     {
-                        Min = icmrCtx.QUANTITY(0).GetText(),
-                        Max = icmrCtx.QUANTITY(1).GetText(),
+                        Min = icmrCtx.signedQuantity(0).GetText(),
+                        Max = icmrCtx.signedQuantity(1).GetText(),
                     };
                     break;
 
@@ -213,6 +284,7 @@ internal sealed partial class CascodeAstBuilder
 
         return new HarnessBlock
         {
+            Grounds = grounds,
             Supplies = supplies,
             Biases = biases,
             Sources = sources,
@@ -259,7 +331,7 @@ internal sealed partial class CascodeAstBuilder
     {
         var idents = ctx.IDENT();
         var type = idents[0].GetText();
-        var value = ctx.QUANTITY()?.GetText() ?? ctx.NUMBER()?.GetText() ?? string.Empty;
+        var value = ctx.signedQuantity()?.GetText() ?? ctx.NUMBER()?.GetText() ?? string.Empty;
         var unit = idents.Length > 1 ? idents[1].GetText() : null;
 
         // Normalize legacy format: combine value and unit (e.g., "1p" + "F" -> "1pF")
@@ -322,9 +394,9 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Normalized sweep value.</returns>
     private static string BuildSweepValue(CascodeParser.SweepValueContext ctx)
     {
-        if (ctx.QUANTITY() != null)
+        if (ctx.signedQuantity() != null)
         {
-            return ctx.QUANTITY().GetText();
+            return ctx.signedQuantity().GetText();
         }
         // Normalize: combine NUMBER and optional IDENT unit (e.g., "0.3" + "V" -> "0.3V")
         var value = ctx.NUMBER()?.GetText() ?? string.Empty;
@@ -341,9 +413,9 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Normalized harness value.</returns>
     private static string BuildHarnessValue(CascodeParser.HarnessValueContext ctx)
     {
-        if (ctx.QUANTITY() != null)
+        if (ctx.signedQuantity() != null)
         {
-            return ctx.QUANTITY().GetText();
+            return ctx.signedQuantity().GetText();
         }
         // Normalize: combine NUMBER and optional IDENT unit (e.g., "1.8" + "V" -> "1.8V")
         var value = ctx.NUMBER()?.GetText() ?? string.Empty;

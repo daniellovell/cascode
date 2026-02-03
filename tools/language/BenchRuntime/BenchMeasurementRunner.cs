@@ -16,6 +16,10 @@ public sealed class BenchMeasurementRunner
     private readonly IReadOnlyDictionary<string, BenchValue> _env;
     private readonly IReadOnlyDictionary<string, BenchValue> _harness;
     private readonly IReadOnlyDictionary<string, BenchValue> _constraints;
+    private readonly IReadOnlyDictionary<string, BenchHarnessElement> _harnessElementsById;
+    private readonly IReadOnlyDictionary<string, double> _sourceCurrentsByName;
+    private readonly IReadOnlyDictionary<string, string> _dutNodeKeyByPinRef;
+    private readonly Func<MeasurementBenchMeasurementRef, BenchValue>? _benchMeasurementRefResolver;
 
     private readonly Dictionary<string, BenchValue> _measurementCache = new(
         StringComparer.OrdinalIgnoreCase
@@ -26,8 +30,13 @@ public sealed class BenchMeasurementRunner
         string Name,
         double StartHz,
         double StopHz,
+        double StartS,
+        double StopS,
         AcDataset? Ac,
-        NoiseDataset? Noise = null
+        NoiseDataset? Noise = null,
+        TranDataset? Tran = null,
+        TranDataset? TranCurrents = null,
+        AcDataset? AcCurrents = null
     );
 
     public BenchMeasurementRunner(
@@ -37,7 +46,11 @@ public sealed class BenchMeasurementRunner
         IReadOnlyDictionary<string, BenchTerminalRef> terminals,
         IReadOnlyDictionary<string, BenchValue> env,
         IReadOnlyDictionary<string, BenchValue> harness,
-        IReadOnlyDictionary<string, BenchValue> constraints
+        IReadOnlyDictionary<string, BenchValue> constraints,
+        IReadOnlyList<BenchHarnessElement>? harnessElements = null,
+        IReadOnlyDictionary<string, double>? sourceCurrentsByName = null,
+        IReadOnlyDictionary<string, string>? dutNodeKeyByPinRef = null,
+        Func<MeasurementBenchMeasurementRef, BenchValue>? benchMeasurementRefResolver = null
     )
     {
         _bench = bench;
@@ -51,6 +64,15 @@ public sealed class BenchMeasurementRunner
         _env = env;
         _harness = harness;
         _constraints = constraints;
+        _harnessElementsById = harnessElements is null
+            ? new Dictionary<string, BenchHarnessElement>(StringComparer.OrdinalIgnoreCase)
+            : harnessElements.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+        _sourceCurrentsByName =
+            sourceCurrentsByName
+            ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        _dutNodeKeyByPinRef =
+            dutNodeKeyByPinRef ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _benchMeasurementRefResolver = benchMeasurementRefResolver;
     }
 
     public IReadOnlyDictionary<string, (double Value, string Unit)> RunAll()
@@ -58,12 +80,139 @@ public sealed class BenchMeasurementRunner
         var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
         foreach (var m in _bench.Measurements)
         {
+            // Parameterized measurements require explicit arguments; they are evaluated on-demand
+            // via constraints or explicit calls (e.g. IntegratedInputNoise(from=..., to=...)).
+            if (m.Parameters.Count != 0)
+            {
+                continue;
+            }
+
             var v = EvaluateMeasurement(m.Name);
+            if (v is BenchError err)
+            {
+                throw new InvalidOperationException(err.Message);
+            }
             var n = RequireNumber(v, $"measurement '{m.Name}'");
             results[m.Name] = (n.Value, m.Unit);
         }
 
         return results;
+    }
+
+    public IReadOnlyDictionary<string, BenchValue> RunAllValues()
+    {
+        var results = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in _bench.Measurements)
+        {
+            if (m.Parameters.Count != 0)
+            {
+                continue;
+            }
+
+            results[m.Name] = EvaluateMeasurement(m.Name);
+        }
+
+        return results;
+    }
+
+    public IReadOnlyDictionary<string, (double Value, string Unit)> RunMetrics(
+        IEnumerable<string> measurementNames
+    )
+    {
+        ArgumentNullException.ThrowIfNull(measurementNames);
+
+        var results = new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase);
+        foreach (
+            var name in measurementNames
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            if (!_measurements.TryGetValue(name, out var m))
+            {
+                throw new InvalidOperationException($"Unknown measurement '{name}'.");
+            }
+
+            var v = EvaluateMeasurement(m.Name);
+            if (v is BenchError err)
+            {
+                throw new InvalidOperationException(err.Message);
+            }
+            var n = RequireNumber(v, $"measurement '{m.Name}'");
+            results[m.Name] = (n.Value, m.Unit);
+        }
+
+        return results;
+    }
+
+    public IReadOnlyDictionary<string, BenchValue> RunMetricValues(
+        IEnumerable<string> measurementNames
+    )
+    {
+        ArgumentNullException.ThrowIfNull(measurementNames);
+
+        var results = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase);
+        foreach (
+            var name in measurementNames
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+        )
+        {
+            if (!_measurements.ContainsKey(name))
+            {
+                throw new InvalidOperationException($"Unknown measurement '{name}'.");
+            }
+
+            results[name] = EvaluateMeasurement(name);
+        }
+
+        return results;
+    }
+
+    public (double Value, string Unit) RunMetricWithNamedArgs(
+        string name,
+        IReadOnlyDictionary<string, BenchValue> args
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(args);
+
+        if (!_measurements.TryGetValue(name, out var m))
+        {
+            throw new InvalidOperationException($"Unknown measurement '{name}'.");
+        }
+        if (m.Parameters.Count == 0)
+        {
+            throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
+        }
+
+        var v = EvaluateMeasurementInvocation(m, args);
+        if (v is BenchError err)
+        {
+            throw new InvalidOperationException(err.Message);
+        }
+        var n = RequireNumber(v, $"measurement '{m.Name}'");
+        return (n.Value, m.Unit);
+    }
+
+    public BenchValue RunMetricWithNamedArgsValue(
+        string name,
+        IReadOnlyDictionary<string, BenchValue> args
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(args);
+
+        if (!_measurements.TryGetValue(name, out var m))
+        {
+            throw new InvalidOperationException($"Unknown measurement '{name}'.");
+        }
+        if (m.Parameters.Count == 0)
+        {
+            throw new InvalidOperationException($"Measurement '{name}' does not accept arguments.");
+        }
+
+        return EvaluateMeasurementInvocation(m, args);
     }
 
     internal BenchValue EvaluateExpressionForPlan(
@@ -85,28 +234,81 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue EvaluateMeasurement(string name)
     {
-        if (_measurementCache.TryGetValue(name, out var cached))
-        {
-            return cached;
-        }
-
         if (!_measurements.TryGetValue(name, out var measurement))
         {
             throw new InvalidOperationException($"Unknown measurement '{name}'.");
         }
 
-        if (!_measurementStack.Add(name))
+        if (measurement.Parameters.Count != 0)
         {
             throw new InvalidOperationException(
-                $"Cyclic measurement dependency detected at '{name}'."
+                $"Measurement '{name}' requires arguments (e.g. {name}(...))."
             );
         }
 
-        var locals = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
-        var value = ExecuteStatements(measurement.Body, locals);
-        _measurementCache[name] = value;
-        _measurementStack.Remove(name);
-        return value;
+        return EvaluateMeasurementInvocation(measurement, args: null);
+    }
+
+    private BenchValue EvaluateMeasurementInvocation(
+        MeasurementDefinition measurement,
+        IReadOnlyDictionary<string, BenchValue>? args
+    )
+    {
+        if (measurement.Parameters.Count != 0 && args is null)
+        {
+            throw new InvalidOperationException(
+                $"Measurement '{measurement.Name}' requires arguments."
+            );
+        }
+
+        var cacheKey = MakeMeasurementCacheKey(measurement, args);
+        if (_measurementCache.TryGetValue(cacheKey, out var cached))
+        {
+            return cached;
+        }
+
+        if (!_measurementStack.Add(cacheKey))
+        {
+            var err = new BenchError(
+                $"Cyclic measurement dependency detected at '{measurement.Name}'."
+            );
+            _measurementCache[cacheKey] = err;
+            return err;
+        }
+
+        BenchValue result = BenchMissing.Value;
+        try
+        {
+            var locals = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
+            if (args is not null)
+            {
+                foreach (var p in measurement.Parameters)
+                {
+                    if (!args.TryGetValue(p.Name, out var value))
+                    {
+                        throw new InvalidOperationException(
+                            $"Missing argument '{p.Name}' for measurement '{measurement.Name}'."
+                        );
+                    }
+                    locals[p.Name] = value;
+                }
+            }
+
+            result = ExecuteStatements(measurement.Body, locals);
+        }
+        catch (Exception ex)
+        {
+            // A failed measurement should not abort bench evaluation. Capture a stable error and
+            // let constraints treat it as a compliance failure.
+            result = new BenchError(ex.Message);
+        }
+        finally
+        {
+            _measurementCache[cacheKey] = result;
+            _measurementStack.Remove(cacheKey);
+        }
+
+        return result;
     }
 
     private BenchValue ExecuteStatements(
@@ -156,6 +358,7 @@ public sealed class BenchMeasurementRunner
         return expr switch
         {
             BoolExists e => ScopedHasValue(e.Ref),
+            BoolTruthy t => !IsMissing(EvaluateExpr(t.Expr, locals)),
             BoolCompare c => Compare(
                 c.Op,
                 RequireNumber(EvaluateExpr(c.Left, locals), "lhs"),
@@ -166,6 +369,8 @@ public sealed class BenchMeasurementRunner
             ),
         };
     }
+
+    private static bool IsMissing(BenchValue v) => v is BenchMissing;
 
     private bool ScopedHasValue(ScopedValueRef r)
     {
@@ -194,10 +399,25 @@ public sealed class BenchMeasurementRunner
             case MeasurementDutAccess d:
                 // Treat dut.<net> as a terminal whose voltage is probed via hierarchical naming.
                 // The testbench emitter is responsible for saving this node in wrdata.
-                return new BenchTerminalRef("dut." + d.PinRef, new[] { MakeDutNodeKey(d.PinRef) });
+                if (!_dutNodeKeyByPinRef.TryGetValue(d.PinRef, out var nodeKey))
+                {
+                    throw new InvalidOperationException(
+                        $"Unknown dut node reference '{d.PinRef}' (missing from compiled plan)."
+                    );
+                }
+                return new BenchTerminalRef("dut." + d.PinRef, new[] { nodeKey });
 
             case MeasurementPath p:
                 return ResolvePathValue(p.Path, locals);
+
+            case MeasurementBenchMeasurementRef r:
+                if (_benchMeasurementRefResolver is null)
+                {
+                    return new BenchError(
+                        $"Cross-bench measurement reference '{r.BindingAlias}::{r.MeasurementName}(...)' cannot be resolved in this context."
+                    );
+                }
+                return _benchMeasurementRefResolver(r);
 
             case MeasurementUnary u:
                 if (u.Op != "-")
@@ -207,16 +427,19 @@ public sealed class BenchMeasurementRunner
                 return Negate(RequireNumber(EvaluateExpr(u.Operand, locals), "unary"));
 
             case MeasurementBinary b:
-                return ApplyBinary(
-                    b.Op,
-                    RequireNumber(EvaluateExpr(b.Left, locals), "left"),
-                    RequireNumber(EvaluateExpr(b.Right, locals), "right")
-                );
+            {
+                var left = EvaluateExpr(b.Left, locals);
+                var right = EvaluateExpr(b.Right, locals);
+                return ApplyBinaryAny(b.Op, left, right);
+            }
 
             case MeasurementConditional c:
                 return EvaluateBool(c.Condition, locals)
                     ? EvaluateExpr(c.ThenExpr, locals)
                     : EvaluateExpr(c.ElseExpr, locals);
+
+            case MeasurementMethodCall m:
+                return EvaluateMethodCall(m, locals);
 
             case MeasurementCall call:
                 return EvaluateCall(call, locals);
@@ -227,15 +450,31 @@ public sealed class BenchMeasurementRunner
 
     private BenchValue ResolveScopedValue(ScopedValueRef r)
     {
-        return r.Scope switch
+        if (r.Scope == MeasurementScope.Env && _env.TryGetValue(r.Name, out var e))
         {
-            MeasurementScope.Env when _env.TryGetValue(r.Name, out var e) => e,
-            MeasurementScope.Harness when _harness.TryGetValue(r.Name, out var h) => h,
-            MeasurementScope.Constraints when _constraints.TryGetValue(r.Name, out var c) => c,
-            _ => throw new InvalidOperationException(
-                $"Undefined scoped value '{r.Scope}.{r.Name}'."
-            ),
-        };
+            return e;
+        }
+
+        if (r.Scope == MeasurementScope.Constraints && _constraints.TryGetValue(r.Name, out var c))
+        {
+            return c;
+        }
+
+        if (r.Scope == MeasurementScope.Harness)
+        {
+            if (_harness.TryGetValue(r.Name, out var h))
+            {
+                return h;
+            }
+
+            if (TryResolveHarnessPin(r.Name, out var pin))
+            {
+                return pin;
+            }
+        }
+
+        // Optional scoped values can be absent.
+        return BenchMissing.Value;
     }
 
     private BenchValue ResolvePathValue(string path, Dictionary<string, BenchValue> locals)
@@ -271,10 +510,18 @@ public sealed class BenchMeasurementRunner
             {
                 if (member.Equals("start", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (analysis.Tran is not null)
+                    {
+                        return new BenchNumber(BenchNumericKind.TimeS, analysis.StartS);
+                    }
                     return new BenchNumber(BenchNumericKind.FrequencyHz, analysis.StartHz);
                 }
                 if (member.Equals("stop", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (analysis.Tran is not null)
+                    {
+                        return new BenchNumber(BenchNumericKind.TimeS, analysis.StopS);
+                    }
                     return new BenchNumber(BenchNumericKind.FrequencyHz, analysis.StopHz);
                 }
             }
@@ -290,30 +537,44 @@ public sealed class BenchMeasurementRunner
         {
             case "transfer":
                 return EvalTransfer(call, locals);
-            case "mag":
-                return EvalMag(call, locals);
+            case "voltage":
+                return EvalVoltage(call, locals);
+            case "current":
+                return EvalCurrent(call, locals);
             case "db20":
                 return EvalDb20(call, locals);
             case "db10":
                 return EvalDb10(call, locals);
-            case "phase":
-                return EvalPhase(call, locals);
-            case "eval":
-                return EvalEval(call, locals);
-            case "find_crossing":
-                return EvalFindCrossing(call, locals);
             case "noise":
                 return EvalNoise(call, locals);
             case "input_referred_noise":
                 return EvalInputReferredNoise(call, locals);
-            case "integrate":
-                return EvalIntegrateNoise(call, locals);
-            case "spot_noise":
-                return EvalSpotNoise(call, locals);
             case "abs":
                 return EvalAbs(call, locals);
             case "sqrt":
                 return EvalSqrt(call, locals);
+            case "quiescent_power":
+                return EvalQuiescentPower(call, locals);
+            case "period":
+                return EvalPeriod(call, locals);
+        }
+
+        // Allow measurements to reference other measurements by name with explicit call syntax.
+        if (_measurements.TryGetValue(call.Name, out var measurement))
+        {
+            if (measurement.Parameters.Count == 0)
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        $"Measurement '{call.Name}' does not accept arguments."
+                    );
+                }
+                return EvaluateMeasurementInvocation(measurement, args: null);
+            }
+
+            var args = BindMeasurementArguments(measurement, call, locals);
+            return EvaluateMeasurementInvocation(measurement, args);
         }
 
         if (!_functions.TryGetValue(call.Name, out var fn))
@@ -321,14 +582,681 @@ public sealed class BenchMeasurementRunner
             throw new InvalidOperationException($"Unknown function '{call.Name}'.");
         }
 
-        var args = BindCallArguments(fn, call, locals);
-        return ExecuteStatements(fn.Body, args);
+        var fnArgs = BindCallArguments(fn, call, locals);
+        return ExecuteStatements(fn.Body, fnArgs);
     }
 
-    private Dictionary<string, BenchValue> BindCallArguments(
-        FunctionDefinition fn,
-        MeasurementCall call,
+    private BenchValue EvaluateMethodCall(
+        MeasurementMethodCall call,
         Dictionary<string, BenchValue> locals
+    )
+    {
+        var recv = EvaluateExpr(call.Receiver, locals);
+
+        // Impedance helpers (RFC half-circuit conversions).
+        if (TryAsImpedance(recv, out var z))
+        {
+            if (call.Method.Equals("DiffToShunt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.DiffToShunt takes no arguments."
+                    );
+                }
+                return ScaleImpedance(z, factor: 0.5);
+            }
+
+            if (call.Method.Equals("ShuntToDiff", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.ShuntToDiff takes no arguments."
+                    );
+                }
+                return ScaleImpedance(z, factor: 2.0);
+            }
+
+            if (call.Method.Equals("SplitParallel", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "Impedance.SplitParallel requires 1 argument (n)."
+                    );
+                }
+
+                var count = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "SplitParallel(n)"
+                );
+                if (
+                    count.Kind != BenchNumericKind.Scalar
+                    || count.Value <= 0
+                    || count.Value != Math.Round(count.Value)
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"SplitParallel: expected positive integer scalar, got '{count.Value}'."
+                    );
+                }
+
+                return ScaleImpedance(z, factor: count.Value);
+            }
+        }
+
+        // TransferFunction methods
+        if (recv is BenchTransferFunction tf)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                var values = tf.Values.Select(v => v.Magnitude).ToArray();
+                return new BenchGainSpectrum(
+                    tf.FrequenciesHz,
+                    values,
+                    BenchNumericKind.VoltageRatioLinear
+                );
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                var values = tf.Values.Select(v => v.Phase * 180.0 / Math.PI).ToArray();
+                return new BenchPhaseSpectrum(tf.FrequenciesHz, values);
+            }
+        }
+
+        // GainSpectrum methods
+        if (recv is BenchGainSpectrum g)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "GainSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(g.FrequenciesHz, g.Values, f.Value);
+                return new BenchNumber(g.ValueKind, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "GainSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != g.ValueKind
+                    && threshold.Kind != BenchNumericKind.Scalar
+                    && g.ValueKind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match spectrum kind '{g.ValueKind}'."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? g.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? g.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    g.FrequenciesHz,
+                    g.Values,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("GainSpectrum.Max takes no arguments.");
+                }
+                return new BenchNumber(g.ValueKind, g.Values.Max());
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("GainSpectrum.Min takes no arguments.");
+                }
+                return new BenchNumber(g.ValueKind, g.Values.Min());
+            }
+        }
+
+        // PhaseSpectrum methods
+        if (recv is BenchPhaseSpectrum p)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "PhaseSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(p.FrequenciesHz, p.Degrees, f.Value);
+                return new BenchNumber(BenchNumericKind.PhaseDeg, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "PhaseSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.PhaseDeg
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match PhaseSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? p.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? p.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    p.FrequenciesHz,
+                    p.Degrees,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("PhaseSpectrum.Max takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.PhaseDeg, p.Degrees.Max());
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("PhaseSpectrum.Min takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.PhaseDeg, p.Degrees.Min());
+            }
+        }
+
+        // NoiseSpectrum methods
+        if (recv is BenchNoiseSpectrum n)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "NoiseSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(n.FrequenciesHz, n.ValuesVPerRtHz, f.Value);
+                return new BenchNumber(BenchNumericKind.NoiseVoltageVPerRtHz, v);
+            }
+
+            if (call.Method.Equals("Integrate", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 2)
+                {
+                    throw new InvalidOperationException(
+                        "NoiseSpectrum.Integrate requires (from, to)."
+                    );
+                }
+
+                var from = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "from");
+                var to = RequireFrequency(EvaluateExpr(call.Args[1].Value, locals), "to");
+                var rms = IntegrateNoiseRms(
+                    n.FrequenciesHz,
+                    n.ValuesVPerRtHz,
+                    from.Value,
+                    to.Value
+                );
+                return new BenchNumber(BenchNumericKind.IntegratedNoiseVrms, rms);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("NoiseSpectrum.Max takes no arguments.");
+                }
+                return new BenchNumber(
+                    BenchNumericKind.NoiseVoltageVPerRtHz,
+                    n.ValuesVPerRtHz.Max()
+                );
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("NoiseSpectrum.Min takes no arguments.");
+                }
+                return new BenchNumber(
+                    BenchNumericKind.NoiseVoltageVPerRtHz,
+                    n.ValuesVPerRtHz.Min()
+                );
+            }
+        }
+
+        if (recv is BenchVoltageSpectrum vs)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "VoltageSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var mags = vs.Values.Select(v => v.Magnitude).ToArray();
+                var v = InterpolateLogX(vs.FrequenciesHz, mags, f.Value);
+                return new BenchNumber(BenchNumericKind.VoltageV, v);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("VoltageSpectrum.Max takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.VoltageV, vs.Values.Max(v => v.Magnitude));
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("VoltageSpectrum.Min takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.VoltageV, vs.Values.Min(v => v.Magnitude));
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "VoltageSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.VoltageV
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match VoltageSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? vs.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? vs.FrequenciesHz.Last();
+                var mags = vs.Values.Select(v => v.Magnitude).ToArray();
+                var crossing = FindCrossing(
+                    vs.FrequenciesHz,
+                    mags,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+        }
+
+        if (recv is BenchCurrentSpectrum cs)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var mags = cs.Values.Select(v => v.Magnitude).ToArray();
+                var v = InterpolateLogX(cs.FrequenciesHz, mags, f.Value);
+                return new BenchNumber(BenchNumericKind.CurrentA, v);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("CurrentSpectrum.Max takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.CurrentA, cs.Values.Max(v => v.Magnitude));
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("CurrentSpectrum.Min takes no arguments.");
+                }
+                return new BenchNumber(BenchNumericKind.CurrentA, cs.Values.Min(v => v.Magnitude));
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.CurrentA
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match CurrentSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? cs.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? cs.FrequenciesHz.Last();
+                var mags = cs.Values.Select(v => v.Magnitude).ToArray();
+                var crossing = FindCrossing(
+                    cs.FrequenciesHz,
+                    mags,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+        }
+
+        // Waveform methods (time-domain)
+        if (recv is BenchWaveform w)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException("Waveform.ValueAt requires 1 argument.");
+                }
+
+                var t = RequireTime(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLinearX(w.TimePointsS, w.Values, t.Value);
+                return new BenchNumber(w.ValueKind, v);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("Waveform.Max takes no arguments.");
+                }
+                return new BenchNumber(w.ValueKind, w.Values.Max());
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("Waveform.Min takes no arguments.");
+                }
+                return new BenchNumber(w.ValueKind, w.Values.Min());
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "Waveform.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != w.ValueKind
+                    && threshold.Kind != BenchNumericKind.Scalar
+                    && w.ValueKind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match waveform kind '{w.ValueKind}'."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "rising";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedTime(call, "from", locals) ?? w.TimePointsS.First();
+                var to = GetNamedTime(call, "to", locals) ?? w.TimePointsS.Last();
+
+                var crossing = FindCrossingLinear(
+                    w.TimePointsS,
+                    w.Values,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.TimeS, crossing);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported method call '{call.Method}' on '{recv.GetType().Name}'."
+        );
+    }
+
+    private BenchValue EvalVoltage(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 2)
+        {
+            throw new InvalidOperationException("voltage requires (analysis, terminal).");
+        }
+
+        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        if (!_analyses.TryGetValue(analysisName, out var analysis))
+        {
+            throw new InvalidOperationException($"voltage: unknown analysis '{analysisName}'.");
+        }
+
+        var terminal = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "terminal");
+
+        if (analysis.Tran is not null)
+        {
+            var t = analysis.Tran.TimePoints;
+            var values = new double[t.Length];
+            for (var i = 0; i < t.Length; i++)
+            {
+                values[i] = TerminalVoltage(analysis.Tran, terminal, i);
+            }
+            return new BenchWaveform(t, values, BenchNumericKind.VoltageV);
+        }
+
+        if (analysis.Ac is not null)
+        {
+            var f = analysis.Ac.FrequenciesHz;
+            var values = new Complex[f.Length];
+            for (var i = 0; i < f.Length; i++)
+            {
+                values[i] = TerminalVoltage(analysis.Ac, terminal, i);
+            }
+            return new BenchVoltageSpectrum(f, values);
+        }
+
+        throw new InvalidOperationException($"voltage: unsupported analysis '{analysisName}'.");
+    }
+
+    private BenchValue EvalCurrent(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 2)
+        {
+            throw new InvalidOperationException("current requires (analysis, element_pin).");
+        }
+
+        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        if (!_analyses.TryGetValue(analysisName, out var analysis))
+        {
+            throw new InvalidOperationException($"current: unknown analysis '{analysisName}'.");
+        }
+
+        var pin = EvaluateExpr(call.Args[1].Value, locals) as BenchElementPinRef;
+        if (pin is null)
+        {
+            throw new InvalidOperationException(
+                "current: second argument must be a harness element pin (e.g. harness.VDD.P)."
+            );
+        }
+
+        var sourceName = "V" + pin.ElementId;
+        var sign = pin.Pin.Equals("P", StringComparison.OrdinalIgnoreCase) ? -1.0 : 1.0;
+
+        if (analysis.TranCurrents is not null)
+        {
+            if (!analysis.TranCurrents.NodeVoltages.TryGetValue(sourceName, out var values))
+            {
+                throw new InvalidOperationException(
+                    $"current(tran, ...): missing current vector for '{sourceName}'."
+                );
+            }
+
+            var signed = values.Select(v => sign * v).ToArray();
+            return new BenchWaveform(
+                analysis.TranCurrents.TimePoints,
+                signed,
+                BenchNumericKind.CurrentA
+            );
+        }
+
+        if (analysis.AcCurrents is not null)
+        {
+            if (!analysis.AcCurrents.NodeVoltages.TryGetValue(sourceName, out var values))
+            {
+                throw new InvalidOperationException(
+                    $"current(ac, ...): missing current vector for '{sourceName}'."
+                );
+            }
+
+            var signed = values.Select(v => sign * v).ToArray();
+            return new BenchCurrentSpectrum(analysis.AcCurrents.FrequenciesHz, signed);
+        }
+
+        throw new InvalidOperationException($"current: unsupported analysis '{analysisName}'.");
+    }
+
+    private bool TryResolveHarnessPin(string raw, out BenchElementPinRef pin)
+    {
+        pin = default!;
+        var dot = raw.LastIndexOf('.');
+        if (dot <= 0 || dot >= raw.Length - 1)
+        {
+            return false;
+        }
+
+        var baseName = raw[..dot];
+        var pinName = raw[(dot + 1)..];
+        if (
+            !pinName.Equals("P", StringComparison.OrdinalIgnoreCase)
+            && !pinName.Equals("N", StringComparison.OrdinalIgnoreCase)
+        )
+        {
+            return false;
+        }
+
+        if (_harnessElementsById.ContainsKey(baseName))
+        {
+            pin = new BenchElementPinRef(baseName, pinName);
+            return true;
+        }
+
+        // Allow "harness.<net>.P" by mapping it to the injected VDC source (if any).
+        var prefix = "hV_" + baseName;
+        var elementId = _harnessElementsById
+            .Keys.Where(id => id.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(id => id, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        if (elementId is null)
+        {
+            return false;
+        }
+
+        pin = new BenchElementPinRef(elementId, pinName);
+        return true;
+    }
+
+    private Dictionary<string, BenchValue> BindArgumentsCore(
+        IReadOnlyList<TypedParameter> parameters,
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals,
+        string targetName,
+        string targetKind
     )
     {
         var values = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
@@ -338,12 +1266,13 @@ public sealed class BenchMeasurementRunner
             .Args.Where(a => a.Name is not null)
             .ToDictionary(a => a.Name!, a => a.Value, StringComparer.Ordinal);
 
-        for (var i = 0; i < fn.Parameters.Count; i++)
+        for (var i = 0; i < parameters.Count; i++)
         {
-            var p = fn.Parameters[i];
+            var p = parameters[i];
             if (named.TryGetValue(p.Name, out var expr))
             {
                 values[p.Name] = EvaluateExpr(expr, locals);
+                named.Remove(p.Name);
             }
             else if (i < positional.Count)
             {
@@ -352,12 +1281,82 @@ public sealed class BenchMeasurementRunner
             else
             {
                 throw new InvalidOperationException(
-                    $"Missing argument '{p.Name}' for function '{fn.Name}'."
+                    $"Missing argument '{p.Name}' for {targetKind} '{targetName}'."
                 );
             }
         }
 
+        if (named.Count > 0)
+        {
+            var unexpectedArgs = string.Join(", ", named.Keys.Select(k => $"'{k}'"));
+            throw new InvalidOperationException(
+                $"Unexpected argument(s) {unexpectedArgs} for {targetKind} '{targetName}'."
+            );
+        }
+
         return values;
+    }
+
+    private Dictionary<string, BenchValue> BindMeasurementArguments(
+        MeasurementDefinition measurement,
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        return BindArgumentsCore(
+            measurement.Parameters,
+            call,
+            locals,
+            measurement.Name,
+            "measurement"
+        );
+    }
+
+    private static string MakeMeasurementCacheKey(
+        MeasurementDefinition measurement,
+        IReadOnlyDictionary<string, BenchValue>? args
+    )
+    {
+        if (measurement.Parameters.Count == 0 || args is null)
+        {
+            return measurement.Name;
+        }
+
+        var parts = new List<string>(measurement.Parameters.Count);
+        foreach (var p in measurement.Parameters)
+        {
+            if (!args.TryGetValue(p.Name, out var v))
+            {
+                parts.Add(p.Name + "=<missing>");
+                continue;
+            }
+
+            parts.Add(p.Name + "=" + BenchValueKey(v));
+        }
+
+        return $"{measurement.Name}({string.Join(",", parts)})";
+    }
+
+    private static string BenchValueKey(BenchValue v)
+    {
+        return v switch
+        {
+            BenchNumber n => $"{n.Kind}:{n.Value.ToString("G17", CultureInfo.InvariantCulture)}",
+            BenchSymbol s => "sym:" + s.Name,
+            BenchTerminalRef t => "term:" + t.Name,
+            BenchAnalysisRef a => "analysis:" + a.Name,
+            _ when IsMissing(v) => "missing",
+            _ => v.GetType().Name,
+        };
+    }
+
+    private Dictionary<string, BenchValue> BindCallArguments(
+        FunctionDefinition fn,
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        return BindArgumentsCore(fn.Parameters, call, locals, fn.Name, "function");
     }
 
     private BenchTransferFunction EvalTransfer(
@@ -398,7 +1397,7 @@ public sealed class BenchMeasurementRunner
         return new BenchTransferFunction(f, values);
     }
 
-    private BenchNoiseFunction EvalNoise(
+    private BenchNoiseSpectrum EvalNoise(
         MeasurementCall call,
         Dictionary<string, BenchValue> locals
     )
@@ -414,13 +1413,13 @@ public sealed class BenchMeasurementRunner
         // Validate node argument type (even though the dataset is analysis-defined).
         _ = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "node");
 
-        return new BenchNoiseFunction(
+        return new BenchNoiseSpectrum(
             analysis.Noise.FrequenciesHz,
             analysis.Noise.OutputNoiseVPerRtHz
         );
     }
 
-    private BenchNoiseFunction EvalInputReferredNoise(
+    private BenchNoiseSpectrum EvalInputReferredNoise(
         MeasurementCall call,
         Dictionary<string, BenchValue> locals
     )
@@ -456,37 +1455,7 @@ public sealed class BenchMeasurementRunner
                 mag <= 0 ? double.PositiveInfinity : noise.Noise.OutputNoiseVPerRtHz[i] / mag;
         }
 
-        return new BenchNoiseFunction(freqs, values);
-    }
-
-    private BenchNumber EvalSpotNoise(MeasurementCall call, Dictionary<string, BenchValue> locals)
-    {
-        var fn = (BenchNoiseFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var x = RequireNumber(EvaluateExpr(call.Args[1].Value, locals), "freq");
-        if (x.Kind != BenchNumericKind.FrequencyHz)
-        {
-            throw new InvalidOperationException("spot_noise: second argument must be a Frequency.");
-        }
-
-        var value = InterpolateLogX(fn.FrequenciesHz, fn.ValuesVPerRtHz, x.Value);
-        return new BenchNumber(BenchNumericKind.NoiseVoltageVPerRtHz, value);
-    }
-
-    private BenchNumber EvalIntegrateNoise(
-        MeasurementCall call,
-        Dictionary<string, BenchValue> locals
-    )
-    {
-        var fn = (BenchNoiseFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var fLo = RequireNumber(EvaluateExpr(call.Args[1].Value, locals), "f_lo");
-        var fHi = RequireNumber(EvaluateExpr(call.Args[2].Value, locals), "f_hi");
-        if (fLo.Kind != BenchNumericKind.FrequencyHz || fHi.Kind != BenchNumericKind.FrequencyHz)
-        {
-            throw new InvalidOperationException("integrate: bounds must be Frequency values.");
-        }
-
-        var rms = IntegrateNoiseRms(fn.FrequenciesHz, fn.ValuesVPerRtHz, fLo.Value, fHi.Value);
-        return new BenchNumber(BenchNumericKind.IntegratedNoiseVrms, rms);
+        return new BenchNoiseSpectrum(freqs, values);
     }
 
     private static double IntegrateNoiseRms(
@@ -575,83 +1544,38 @@ public sealed class BenchMeasurementRunner
         return ac.NodeVoltages[t.LeafNodes[0]][index] - ac.NodeVoltages[t.LeafNodes[1]][index];
     }
 
-    private BenchRealFunction EvalMag(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    private static double TerminalVoltage(TranDataset tran, BenchTerminalRef t, int index)
     {
-        var tf = (BenchTransferFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var values = tf.Values.Select(v => v.Magnitude).ToArray();
-        return new BenchRealFunction(tf.FrequenciesHz, values, BenchNumericKind.Scalar);
-    }
-
-    private BenchRealFunction EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)
-    {
-        var f = (BenchRealFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var values = f
-            .Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : double.NegativeInfinity)
-            .ToArray();
-        return new BenchRealFunction(f.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
-    }
-
-    private BenchRealFunction EvalDb10(MeasurementCall call, Dictionary<string, BenchValue> locals)
-    {
-        var f = (BenchRealFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var values = f
-            .Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : double.NegativeInfinity)
-            .ToArray();
-        return new BenchRealFunction(f.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
-    }
-
-    private BenchRealFunction EvalPhase(MeasurementCall call, Dictionary<string, BenchValue> locals)
-    {
-        var tf = (BenchTransferFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var values = tf
-            .Values.Select(v => Math.Atan2(v.Imaginary, v.Real) * 180.0 / Math.PI)
-            .ToArray();
-        return new BenchRealFunction(tf.FrequenciesHz, values, BenchNumericKind.PhaseDeg);
-    }
-
-    private BenchNumber EvalEval(MeasurementCall call, Dictionary<string, BenchValue> locals)
-    {
-        var f = (BenchRealFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var x = RequireNumber(EvaluateExpr(call.Args[1].Value, locals), "freq");
-        if (x.Kind != BenchNumericKind.FrequencyHz)
+        if (t.LeafNodes.Count == 0)
         {
-            throw new InvalidOperationException("eval: second argument must be a Frequency.");
+            return 0;
         }
 
-        var value = InterpolateLogX(f.FrequenciesHz, f.Values, x.Value);
-        return new BenchNumber(f.RangeKind, value);
-    }
-
-    private BenchNumber EvalFindCrossing(
-        MeasurementCall call,
-        Dictionary<string, BenchValue> locals
-    )
-    {
-        var fn = (BenchRealFunction)EvaluateExpr(call.Args[0].Value, locals);
-        var threshold = RequireNumber(EvaluateExpr(call.Args[1].Value, locals), "threshold");
-        if (threshold.Kind != fn.RangeKind)
+        if (t.LeafNodes.Count == 1)
         {
-            throw new InvalidOperationException(
-                $"find_crossing: threshold kind '{threshold.Kind}' does not match function range '{fn.RangeKind}'."
-            );
+            return tran.NodeVoltages[t.LeafNodes[0]][index];
         }
 
-        var dir = GetNamedSymbol(call, "dir") ?? "falling";
-        var cross = GetNamedInt(call, "cross") ?? 1;
-        var from = GetNamedFrequency(call, "from", locals) ?? fn.FrequenciesHz.First();
-        var to = GetNamedFrequency(call, "to", locals) ?? fn.FrequenciesHz.Last();
-
-        var crossing = FindCrossing(
-            fn.FrequenciesHz,
-            fn.Values,
-            threshold.Value,
-            dir,
-            cross,
-            from,
-            to
-        );
-        return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+        return tran.NodeVoltages[t.LeafNodes[0]][index] - tran.NodeVoltages[t.LeafNodes[1]][index];
     }
+
+    private BenchGainSpectrum EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
+        var values = g.Values.Select(v => v > 0 ? 20.0 * Math.Log10(v) : DbFloor).ToArray();
+        return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
+    }
+
+    private BenchGainSpectrum EvalDb10(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        var g = (BenchGainSpectrum)EvaluateExpr(call.Args[0].Value, locals);
+        var values = g.Values.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor).ToArray();
+        return new BenchGainSpectrum(g.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
+    }
+
+    // Practical floor for log-domain quantities: log10(0) is -Infinity, which propagates through
+    // dB-domain metrics like CMRR and breaks deterministic reporting/compliance checks.
+    private const double DbFloor = -300.0;
 
     private static double FindCrossing(
         double[] freqs,
@@ -677,6 +1601,10 @@ public sealed class BenchMeasurementRunner
 
         var wantFalling = dir.Equals("falling", StringComparison.OrdinalIgnoreCase);
         var count = 0;
+
+        // Capture a representative starting value so we can return a meaningful bound when the
+        // requested crossing does not exist within the search interval.
+        var yAtStart = values[startIndex] - threshold;
 
         for (var i = startIndex + 1; i <= endIndex; i++)
         {
@@ -713,7 +1641,88 @@ public sealed class BenchMeasurementRunner
             return Math.Pow(10.0, x);
         }
 
-        throw new InvalidOperationException("find_crossing: crossing not found.");
+        // No crossing found: return a conservative bound rather than failing the bench.
+        //
+        // Example: GainBandwidth uses a falling 0 dB crossing; if the gain never drops below 0 dB
+        // within the sweep, the best lower bound we can report is the sweep stop frequency.
+        //
+        // Similarly, for a rising crossing, if we start above threshold we report the sweep start
+        // (crossing occurred before the interval); otherwise we report the sweep stop.
+        if (wantFalling)
+        {
+            return yAtStart > 0 ? toHz : fromHz;
+        }
+
+        return yAtStart < 0 ? toHz : fromHz;
+    }
+
+    private static double FindCrossingLinear(
+        double[] xs,
+        double[] ys,
+        double threshold,
+        string dir,
+        int cross,
+        double fromX,
+        double toX
+    )
+    {
+        if (cross < 1)
+        {
+            throw new InvalidOperationException("FindCrossing: cross must be >= 1.");
+        }
+
+        var startIndex = Array.FindIndex(xs, x => x >= fromX);
+        var endIndex = Array.FindLastIndex(xs, x => x <= toX);
+        if (startIndex < 0 || endIndex < 0 || endIndex <= startIndex)
+        {
+            throw new InvalidOperationException("FindCrossing: empty search range.");
+        }
+
+        var wantFalling = dir.Equals("falling", StringComparison.OrdinalIgnoreCase);
+        var count = 0;
+
+        var yAtStart = ys[startIndex] - threshold;
+
+        for (var i = startIndex + 1; i <= endIndex; i++)
+        {
+            var y0 = ys[i - 1] - threshold;
+            var y1 = ys[i] - threshold;
+            if (double.IsNaN(y0) || double.IsNaN(y1))
+            {
+                continue;
+            }
+
+            var crossed = (y0 >= 0 && y1 <= 0) || (y0 <= 0 && y1 >= 0);
+            if (!crossed)
+            {
+                continue;
+            }
+
+            var falling = y0 > y1;
+            if (wantFalling != falling)
+            {
+                continue;
+            }
+
+            count++;
+            if (count != cross)
+            {
+                continue;
+            }
+
+            // Interpolate linearly on the time axis.
+            var x0 = xs[i - 1];
+            var x1 = xs[i];
+            var t = y0 == y1 ? 0.0 : y0 / (y0 - y1);
+            return x0 + t * (x1 - x0);
+        }
+
+        if (wantFalling)
+        {
+            return yAtStart > 0 ? toX : fromX;
+        }
+
+        return yAtStart < 0 ? toX : fromX;
     }
 
     private BenchNumber EvalAbs(MeasurementCall call, Dictionary<string, BenchValue> locals)
@@ -726,6 +1735,147 @@ public sealed class BenchMeasurementRunner
     {
         var x = RequireNumber(EvaluateExpr(call.Args[0].Value, locals), "sqrt");
         return new BenchNumber(x.Kind, Math.Sqrt(x.Value));
+    }
+
+    private BenchNumber EvalPeriod(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 1)
+        {
+            throw new InvalidOperationException("period requires exactly one Frequency argument.");
+        }
+
+        var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "period");
+        if (f.Value <= 0)
+        {
+            throw new InvalidOperationException(
+                $"period: frequency must be positive, got {f.Value} Hz."
+            );
+        }
+
+        return new BenchNumber(BenchNumericKind.TimeS, 1.0 / f.Value);
+    }
+
+    private BenchNumber EvalQuiescentPower(
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        if (call.Args.Count != 2)
+        {
+            throw new InvalidOperationException(
+                "quiescent_power requires two terminals: quiescent_power(PWR, RET)."
+            );
+        }
+
+        var pwr = RequireTerminal(EvaluateExpr(call.Args[0].Value, locals), "PWR");
+        var ret = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "RET");
+        if (pwr.LeafNodes.Count == 0 || ret.LeafNodes.Count == 0)
+        {
+            throw new InvalidOperationException("quiescent_power requires scalar terminals.");
+        }
+
+        var pwrNet = pwr.LeafNodes[0];
+        var retNet = ret.LeafNodes[0];
+
+        // Find the VDC source that actually applies the rail between (PWR, RET).
+        BenchHarnessElement? vsrc = null;
+        var sign = 1.0;
+        foreach (var e in _harnessElementsById.Values)
+        {
+            if (!e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!TryGetPinPair(e, out var p, out var n))
+            {
+                continue;
+            }
+
+            if (
+                p.Equals(pwrNet, StringComparison.OrdinalIgnoreCase)
+                && n.Equals(retNet, StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                vsrc = e;
+                sign = 1.0;
+                break;
+            }
+
+            if (
+                p.Equals(retNet, StringComparison.OrdinalIgnoreCase)
+                && n.Equals(pwrNet, StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                vsrc = e;
+                sign = -1.0;
+                break;
+            }
+        }
+
+        if (vsrc is null)
+        {
+            throw new InvalidOperationException(
+                $"quiescent_power: no VDC source found between nets '{pwrNet}' and '{retNet}'."
+            );
+        }
+
+        var sourceName = "V" + vsrc.Id;
+        if (!_sourceCurrentsByName.TryGetValue(sourceName, out var currentA))
+        {
+            throw new InvalidOperationException(
+                $"quiescent_power: missing current for source '{sourceName}'."
+            );
+        }
+
+        var v = GetVdcVoltageOrThrow(vsrc);
+        var powerW = sign * v * (-currentA);
+        return new BenchNumber(BenchNumericKind.Scalar, powerW);
+    }
+
+    private static bool TryGetPinPair(BenchHarnessElement e, out string p, out string n)
+    {
+        p = string.Empty;
+        n = string.Empty;
+
+        if (!e.Pins.TryGetValue("P", out var p0) || string.IsNullOrWhiteSpace(p0))
+        {
+            return false;
+        }
+        if (!e.Pins.TryGetValue("N", out var n0) || string.IsNullOrWhiteSpace(n0))
+        {
+            return false;
+        }
+
+        p = p0;
+        n = n0;
+        return true;
+    }
+
+    private static double GetVdcVoltageOrThrow(BenchHarnessElement e)
+    {
+        BenchValue? v = null;
+        if (e.Parameters.TryGetValue("V", out var v0))
+        {
+            v = v0;
+        }
+        else if (e.Parameters.TryGetValue("value", out var v1))
+        {
+            v = v1;
+        }
+        else if (e.Parameters.Count == 1)
+        {
+            v = e.Parameters.Values.First();
+        }
+
+        if (v is BenchNumber n)
+        {
+            return n.Value;
+        }
+
+        throw new InvalidOperationException(
+            $"quiescent_power: VDC source '{e.Id}' missing numeric voltage parameter."
+        );
     }
 
     private static BenchTerminalRef RequireTerminal(BenchValue value, string name)
@@ -742,6 +1892,34 @@ public sealed class BenchMeasurementRunner
             ?? throw new InvalidOperationException(
                 $"Expected number for '{name}', got {value.GetType().Name}."
             );
+    }
+
+    private static bool TryAsImpedance(BenchValue value, out BenchImpedanceParallel z)
+    {
+        if (value is BenchImpedanceParallel par)
+        {
+            z = par;
+            return true;
+        }
+
+        if (value is BenchNumber n)
+        {
+            if (
+                n.Kind
+                is (
+                    BenchNumericKind.ImpedanceOhm
+                    or BenchNumericKind.CapacitanceF
+                    or BenchNumericKind.InductanceH
+                )
+            )
+            {
+                z = new BenchImpedanceParallel(new[] { n });
+                return true;
+            }
+        }
+
+        z = new BenchImpedanceParallel(Array.Empty<BenchNumber>());
+        return false;
     }
 
     private static BenchNumber Negate(BenchNumber x) => new(x.Kind, -x.Value);
@@ -792,8 +1970,118 @@ public sealed class BenchMeasurementRunner
         throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
     }
 
+    private static BenchValue ApplyBinaryAny(string op, BenchValue left, BenchValue right)
+    {
+        if (left is BenchNumber ln && right is BenchNumber rn)
+        {
+            return ApplyBinary(op, ln, rn);
+        }
+
+        // Impedance arithmetic is intentionally limited to scaling by a dimensionless scalar.
+        // More complex impedance composition should be expressed structurally (e.g. `||` in env)
+        // and via explicit helper methods (e.g. DiffToShunt/ShuntToDiff).
+        if (left is BenchImpedanceParallel lz)
+        {
+            return ApplyImpedanceScale(op, lz, right, leftOnLhs: true);
+        }
+
+        if (right is BenchImpedanceParallel rz)
+        {
+            return ApplyImpedanceScale(op, rz, left, leftOnLhs: false);
+        }
+
+        throw new InvalidOperationException(
+            $"Unsupported binary '{op}' for {left.GetType().Name} and {right.GetType().Name}."
+        );
+    }
+
+    private static BenchValue ApplyImpedanceScale(
+        string op,
+        BenchImpedanceParallel z,
+        BenchValue other,
+        bool leftOnLhs
+    )
+    {
+        if (other is not BenchNumber n || n.Kind != BenchNumericKind.Scalar)
+        {
+            throw new InvalidOperationException(
+                $"Impedance '{op}' requires a scalar operand, got {other.GetType().Name}."
+            );
+        }
+
+        if (op == "*")
+        {
+            var factor = n.Value;
+            return ScaleImpedance(z, factor);
+        }
+
+        if (op == "/")
+        {
+            if (!leftOnLhs)
+            {
+                // scalar / impedance is not supported
+                throw new InvalidOperationException("Division by impedance is not supported.");
+            }
+
+            var factor = 1.0 / n.Value;
+            return ScaleImpedance(z, factor);
+        }
+
+        throw new InvalidOperationException($"Unsupported binary '{op}' for impedance.");
+    }
+
+    private static BenchImpedanceParallel ScaleImpedance(BenchImpedanceParallel z, double factor)
+    {
+        if (!double.IsFinite(factor) || factor == 0)
+        {
+            throw new InvalidOperationException($"Invalid impedance scale factor '{factor}'.");
+        }
+
+        var scaled = new BenchNumber[z.Elements.Count];
+        for (var i = 0; i < z.Elements.Count; i++)
+        {
+            var e = z.Elements[i];
+            scaled[i] = e.Kind switch
+            {
+                BenchNumericKind.ImpedanceOhm => new BenchNumber(e.Kind, e.Value * factor),
+                // Zc = 1/(jwC) so scaling impedance by factor => C scales by 1/factor.
+                BenchNumericKind.CapacitanceF => new BenchNumber(e.Kind, e.Value / factor),
+                // Zl = jwL so scaling impedance by factor => L scales by factor.
+                BenchNumericKind.InductanceH => new BenchNumber(e.Kind, e.Value * factor),
+                _ => throw new InvalidOperationException(
+                    $"Invalid impedance element kind '{e.Kind}'."
+                ),
+            };
+        }
+
+        return new BenchImpedanceParallel(scaled);
+    }
+
     private static double InterpolateLogX(double[] xs, double[] ys, double x)
     {
+        if (xs.Length == 0 || ys.Length == 0)
+        {
+            throw new InvalidOperationException("InterpolateLogX: empty input.");
+        }
+        if (xs.Length != ys.Length)
+        {
+            throw new InvalidOperationException(
+                $"InterpolateLogX: length mismatch xs={xs.Length} ys={ys.Length}."
+            );
+        }
+
+        if (xs.Length == 1)
+        {
+            return ys[0];
+        }
+
+        // Log interpolation requires strictly-positive x values. For DC-like data (x==0) or any
+        // non-positive axis values, fall back to linear interpolation.
+        if (x <= 0 || xs[0] <= 0)
+        {
+            return InterpolateLinearX(xs, ys, x);
+        }
+
         if (x <= xs[0])
         {
             return ys[0];
@@ -818,9 +2106,41 @@ public sealed class BenchMeasurementRunner
         return ys[i0] + t * (ys[i1] - ys[i0]);
     }
 
-    private static string? GetNamedSymbol(MeasurementCall call, string name)
+    private static double InterpolateLinearX(double[] xs, double[] ys, double x)
     {
-        var arg = call.Args.FirstOrDefault(a =>
+        if (x <= xs[0])
+        {
+            return ys[0];
+        }
+        if (x >= xs[^1])
+        {
+            return ys[^1];
+        }
+
+        var i = Array.BinarySearch(xs, x);
+        if (i >= 0)
+        {
+            return ys[i];
+        }
+
+        i = ~i;
+        var i0 = i - 1;
+        var i1 = i;
+        var x0 = xs[i0];
+        var x1 = xs[i1];
+        var t = x0 == x1 ? 0.0 : (x - x0) / (x1 - x0);
+        return ys[i0] + t * (ys[i1] - ys[i0]);
+    }
+
+    private static string? GetNamedSymbol(MeasurementCall call, string name) =>
+        GetNamedSymbol(call.Args, name);
+
+    private static string? GetNamedSymbol(MeasurementMethodCall call, string name) =>
+        GetNamedSymbol(call.Args, name);
+
+    private static string? GetNamedSymbol(IReadOnlyList<MeasurementCallArg> args, string name)
+    {
+        var arg = args.FirstOrDefault(a =>
             string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)
         );
         if (arg is null)
@@ -837,9 +2157,15 @@ public sealed class BenchMeasurementRunner
         };
     }
 
-    private static int? GetNamedInt(MeasurementCall call, string name)
+    private static int? GetNamedInt(MeasurementCall call, string name) =>
+        GetNamedInt(call.Args, name);
+
+    private static int? GetNamedInt(MeasurementMethodCall call, string name) =>
+        GetNamedInt(call.Args, name);
+
+    private static int? GetNamedInt(IReadOnlyList<MeasurementCallArg> args, string name)
     {
-        var arg = call.Args.FirstOrDefault(a =>
+        var arg = args.FirstOrDefault(a =>
             string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)
         );
         if (arg is null)
@@ -880,6 +2206,40 @@ public sealed class BenchMeasurementRunner
         return RequireFrequency(EvaluateExpr(arg.Value, locals), $"{call.Name}:{name}").Value;
     }
 
+    private double? GetNamedFrequency(
+        MeasurementMethodCall call,
+        string name,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        var arg = call.Args.FirstOrDefault(a =>
+            string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)
+        );
+        if (arg is null)
+        {
+            return null;
+        }
+
+        return RequireFrequency(EvaluateExpr(arg.Value, locals), $"{call.Method}:{name}").Value;
+    }
+
+    private double? GetNamedTime(
+        MeasurementMethodCall call,
+        string name,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        var arg = call.Args.FirstOrDefault(a =>
+            string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)
+        );
+        if (arg is null)
+        {
+            return null;
+        }
+
+        return RequireTime(EvaluateExpr(arg.Value, locals), $"{call.Method}:{name}").Value;
+    }
+
     private static BenchValue ParseQuantity(string raw)
     {
         return BenchQuantity.Parse(raw);
@@ -891,6 +2251,16 @@ public sealed class BenchMeasurementRunner
         if (n.Kind != BenchNumericKind.FrequencyHz)
         {
             throw new InvalidOperationException($"Expected Frequency for {context}, got {n.Kind}.");
+        }
+        return n;
+    }
+
+    private static BenchNumber RequireTime(BenchValue v, string context)
+    {
+        var n = RequireNumber(v, context);
+        if (n.Kind != BenchNumericKind.TimeS)
+        {
+            throw new InvalidOperationException($"Expected Time for {context}, got {n.Kind}.");
         }
         return n;
     }
@@ -932,9 +2302,5 @@ public sealed class BenchMeasurementRunner
         };
     }
 
-    private static string MakeDutNodeKey(string pinRef)
-    {
-        // ngspice hierarchical node syntax uses XDUT:<net>. Keep ':' and sanitize dots.
-        return "XDUT:" + pinRef.Replace('.', '_');
-    }
+    // dut node key resolution is provided by BenchDutNodeResolver during plan compilation.
 }

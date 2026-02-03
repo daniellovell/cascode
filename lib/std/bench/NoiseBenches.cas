@@ -1,4 +1,6 @@
-library lib.std.benches
+VERSION 3.0
+
+library lib.std.bench
 
 bench DiffToSENoise {
   stim IN : Diff
@@ -17,12 +19,26 @@ bench DiffToSENoise {
       .N--gnd
     }
 
-    // Bias inputs at common mode for noise analysis (no AC stimulus)
-    IN.P--vcm
-    IN.N--vcm
+    // Provide an AC-defined input source for ngspice noise analysis.
+    // The actual input-referred noise computation uses the paired ACAnalysis transfer function.
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
+      .N--vcm
+    }
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
+      .N--vcm
+    }
 
-    Impedor load = new Impedor(Z=env.LoadImpedance) {
-      OUT--.P
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    acP.P--sourceP.P
+    sourceP.N--IN.P
+
+    acN.P--sourceN.P
+    sourceN.N--IN.N
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
       .N--gnd
     }
   }
@@ -44,22 +60,22 @@ bench DiffToSENoise {
   }
 
   measurements {
-    measurement InputReferredNoise : nV/rtHz {
+    measurement InputReferredNoise : V/rtHz {
       // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_in, f_spot)
+      return n_in.ValueAt(f_spot)
     }
 
-    measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return integrate(n_in, from, to)
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
     }
 
-    measurement OutputNoise : nV/rtHz {
-      NoiseFunction n_out = noise(noise_ac, OUT)
+    measurement OutputNoise : V/rtHz {
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_out, f_spot)
+      return n_out.ValueAt(f_spot)
     }
   }
 }

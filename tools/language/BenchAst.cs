@@ -13,9 +13,21 @@ public enum BenchTerminalRole
 
 public sealed record BenchTerminal(BenchTerminalRole Role, string Name, string Type);
 
+/// <summary>
+/// Parameter declared on a bench definition (e.g., Frequency stim_freq = 1kHz).
+/// </summary>
+public sealed record BenchParameter(BenchValueType Type, string Name, MeasurementExpr? Default);
+
 public sealed class BenchDefinition
 {
     public required string Name { get; init; }
+
+    /// <summary>
+    /// Bench parameters that can be configured via constraint bench invocations.
+    /// For example, bench DiffToSETran(Frequency stim_freq = 1kHz) { ... }
+    /// </summary>
+    public List<BenchParameter> Parameters { get; init; } = new();
+
     public List<BenchTerminal> Terminals { get; init; } = new();
     public FillBlock? Fill { get; init; }
     public List<FunctionDefinition> Functions { get; init; } = new();
@@ -27,12 +39,18 @@ public enum BenchValueType
 {
     Bool,
 
+    // Bench terminals (stim/resp) used as values in measurement expressions.
+    Terminal,
+
     // Physical quantities
     Frequency,
     VoltageRatio,
     TransferFunction,
-    RealFunction,
-    NoiseFunction,
+    GainSpectrum,
+    PhaseSpectrum,
+    VoltageSpectrum,
+    CurrentSpectrum,
+    NoiseSpectrum,
     NoiseSpectralDensity,
     IntegratedNoise,
     Impedance,
@@ -43,6 +61,13 @@ public enum BenchValueType
     Time,
     Phase,
     Scalar,
+
+    // Time-domain compound types
+    VoltageWaveform,
+    CurrentWaveform,
+
+    // Element references (used for current probing)
+    ElementPin,
 
     // Analysis types
     ACAnalysis,
@@ -73,6 +98,7 @@ public sealed class AnalysisDeclaration
 public sealed class MeasurementDefinition
 {
     public required string Name { get; init; }
+    public List<TypedParameter> Parameters { get; init; } = new();
     public required string Unit { get; init; }
     public List<BenchStatement> Body { get; init; } = new();
 }
@@ -112,6 +138,8 @@ public abstract record BoolExpr;
 
 public sealed record BoolExists(ScopedValueRef Ref) : BoolExpr;
 
+public sealed record BoolTruthy(MeasurementExpr Expr) : BoolExpr;
+
 public sealed record BoolCompare(ComparisonOp Op, MeasurementExpr Left, MeasurementExpr Right)
     : BoolExpr;
 
@@ -126,6 +154,20 @@ public sealed record MeasurementCall(string Name, IReadOnlyList<MeasurementCallA
     : MeasurementExpr;
 
 public sealed record MeasurementCallArg(string? Name, MeasurementExpr Value);
+
+public sealed record BenchMeasurementRefArg(string? Name, string Text, MeasurementExpr Expr);
+
+public sealed record MeasurementMethodCall(
+    MeasurementExpr Receiver,
+    string Method,
+    IReadOnlyList<MeasurementCallArg> Args
+) : MeasurementExpr;
+
+public sealed record MeasurementBenchMeasurementRef(
+    string BindingAlias,
+    string MeasurementName,
+    IReadOnlyList<BenchMeasurementRefArg> Args
+) : MeasurementExpr;
 
 public sealed record MeasurementNumber(string Raw) : MeasurementExpr;
 
@@ -150,6 +192,12 @@ public sealed class BenchBinding
     public List<BenchBindingStatement> Statements { get; init; } = new();
 }
 
+public sealed class BenchBindingExtension
+{
+    public required string BindingName { get; init; }
+    public List<BenchBindingStatement> Statements { get; init; } = new();
+}
+
 public abstract record BenchBindingStatement;
 
 public sealed record BenchTerminalMapping(string BenchTerminal, string DutPinRef)
@@ -158,3 +206,10 @@ public sealed record BenchTerminalMapping(string BenchTerminal, string DutPinRef
 public sealed record BenchDutConnection(string DutPinRef, string PinRef) : BenchBindingStatement;
 
 public sealed record BenchBindingInstance(InstanceDeclaration Instance) : BenchBindingStatement;
+
+public sealed record BenchBindingMeasurementExport(
+    string Name,
+    IReadOnlyList<TypedParameter> Parameters,
+    string Unit,
+    MeasurementBenchMeasurementRef Target
+) : BenchBindingStatement;

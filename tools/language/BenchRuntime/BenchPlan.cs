@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Cascode.Language;
+using Cascode.Language.BenchRuntime.Netlist;
 
 namespace Cascode.Language.BenchRuntime;
 
@@ -10,8 +11,11 @@ public sealed record BenchPlanAnalysis(
     int Samples,
     double StartHz,
     double StopHz,
+    double? StartS = null,
+    double? StopS = null,
     BenchTerminalRef? OutputTerminal = null,
-    string? NoiseInputSource = null
+    string? NoiseInputSource = null,
+    double? StepS = null
 );
 
 public sealed record BenchHarnessElement(
@@ -24,6 +28,8 @@ public sealed record BenchHarnessElement(
 public sealed record BenchPlan(
     string CircuitName,
     string BindingName,
+    string InstanceName,
+    IReadOnlyList<MetricCallArg> InvocationArgs,
     string BenchName,
     BenchDefinition Bench,
     BenchBinding Binding,
@@ -34,8 +40,11 @@ public sealed record BenchPlan(
     IReadOnlyDictionary<string, BenchValue> Harness,
     IReadOnlyDictionary<string, BenchValue> Constraints,
     IReadOnlyList<BenchHarnessElement> HarnessElements,
+    bool RequiresCurrents,
     IReadOnlyList<string> DutOrderedNets,
     string DutSubcktName,
     IReadOnlyList<string> AcNodeKeys,
-    IReadOnlyList<string> DutAcNodeKeys
+    IReadOnlyList<string> DutAcNodeKeys,
+    IReadOnlyDictionary<string, string> DutNodeKeyByPinRef,
+    BenchNetlist Netlist
 );

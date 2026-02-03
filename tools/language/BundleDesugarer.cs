@@ -49,6 +49,7 @@ public static class BundleDesugarer
             VersionMajor = document.VersionMajor,
             VersionMinor = document.VersionMinor,
             Includes = document.Includes,
+            FileLibrary = document.FileLibrary,
             Functions = document.Functions,
             BundleTypes = document.BundleTypes, // Preserve for documentation/round-trip
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
@@ -214,6 +215,7 @@ public static class BundleDesugarer
                 : null,
             Env = circuit.Env,
             BenchBindings = circuit.BenchBindings,
+            BenchBindingExtensions = circuit.BenchBindingExtensions,
             Synth = circuit.Synth,
             Provenance = circuit.Provenance,
         };
@@ -710,6 +712,13 @@ public static class BundleDesugarer
     {
         return new HarnessBlock
         {
+            Grounds = harness
+                .Grounds.Select(g => new GroundValue
+                {
+                    Net = NormalizePath(g.Net),
+                    Value = g.Value,
+                })
+                .ToList(),
             Supplies = harness.Supplies,
             Biases = harness.Biases,
             Sources = harness

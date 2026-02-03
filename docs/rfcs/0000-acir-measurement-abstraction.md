@@ -291,11 +291,11 @@ All declared analyses are in scope within `measurements {}`. If an analysis is d
 
 **A7. Explicit Typing**
 
-All variables must be explicitly typed at declaration. Types are semantic categories: `Frequency`, `VoltageRatio`, `TransferFunction`, `RealFunction`, etc.
+All variables must be explicitly typed at declaration. Types are semantic categories: `Frequency`, `VoltageRatio`, `TransferFunction`, `GainSpectrum`, `VoltageWaveform`, etc.
 
 ```cascode
 Frequency f = 1MHz
-VoltageRatio g = eval(G, f)
+VoltageRatio g = G.ValueAt(f)
 ```
 
 **A8. Multi-line Expression Parenthesization**
@@ -457,7 +457,7 @@ Helper functions can be declared at two scopes:
 **File-level functions** are declared outside bench blocks and can be shared across multiple benches in the same file:
 
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 // File-level function - shared across all benches in this file
 function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequency {
@@ -540,20 +540,20 @@ The `measurements {}` block defines typed measurement expressions:
 measurements {
   measurement PassbandGain : dB {
     TransferFunction H = transfer(ac, IN, OUT)
-    RealFunction G = db20(mag(H))
+    GainSpectrum G = db20(H.Mag())
 
     Frequency hp = infer_hp_corner(1Hz)
     Frequency lp = infer_lp_corner()
     Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-    return eval(G, fpb)
+    return G.ValueAt(fpb)
   }
 
   measurement GainBandwidth : Hz {
     TransferFunction H = transfer(ac, IN, OUT)
-    RealFunction G = db20(mag(H))
+    GainSpectrum G = db20(H.Mag())
 
-    return find_crossing(G, 0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+    return G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
   }
 }
 ```
@@ -583,8 +583,8 @@ Measurements can accept parameters to enable flexible, reusable measurement defi
 **Declaration syntax:**
 ```cascode
 measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
-  NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-  return integrate(n_in, from, to)
+  NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+  return n_in.Integrate(from, to)
 }
 ```
 
@@ -740,7 +740,7 @@ circuit MultiSupplyOTA implements SingleEndedOpAmp {
 Every Cascode source file declares its namespace using the `library` keyword:
 
 ```cascode
-library lib.std.benches
+library lib.std.bench
 ```
 
 The library declaration:
@@ -752,10 +752,10 @@ The library declaration:
 
 Namespaces form a hierarchy. Files automatically inherit all symbols from ancestor namespaces without explicit includes:
 
-- A file in `lib.std.benches` automatically sees symbols from `lib.std` and `lib`
+- A file in `lib.std.bench` automatically sees symbols from `lib.std` and `lib`
 - A file in `lib.std.amp` automatically sees symbols from `lib.std` and `lib`
 
-This enables modular organization while minimizing boilerplate. For example, the `Diff` bundle defined in `lib.std` is automatically available to all files in `lib.std.benches` without explicit import.
+This enables modular organization while minimizing boilerplate. For example, the `Diff` bundle defined in `lib.std` is automatically available to all files in `lib.std.bench` without explicit import.
 
 ### 6.3 Include Syntax
 
@@ -780,8 +780,8 @@ lib/
 └── std/
     ├── Bundles.cas              // Common bundles (Diff, Quad) - library lib.std
     ├── benches/
-    │   ├── TransferBenches.cas  // Transfer function benches - library lib.std.benches
-    │   └── NoiseBenches.cas     // Noise analysis benches - library lib.std.benches
+    │   ├── TransferBenches.cas  // Transfer function benches - library lib.std.bench
+    │   └── NoiseBenches.cas     // Noise analysis benches - library lib.std.bench
     ├── amp/
     │   ├── SingleEndedOpAmp.cas // SE op-amp interface - library lib.std.amp
     │   └── FullyDifferentialOpAmp.cas
@@ -843,7 +843,7 @@ function calc_passband_freq(ACAnalysis ac, Frequency hp, Frequency lp) : Frequen
 
 `lib/std/benches/TransferBenches.cas`:
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 bench DiffToSETransfer {
   stim IN : Diff
@@ -909,48 +909,48 @@ bench DiffToSETransfer {
   measurements {
     measurement PassbandGain : dB {
       TransferFunction H = transfer(ac, IN, OUT)
-      RealFunction G = db20(mag(H))
+      GainSpectrum G = db20(H.Mag())
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
       Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-      return eval(G, fpb)
+      return G.ValueAt(fpb)
     }
 
     measurement GainBandwidth : Hz {
       TransferFunction H = transfer(ac, IN, OUT)
-      RealFunction G = db20(mag(H))
+      GainSpectrum G = db20(H.Mag())
 
-      return find_crossing(G, 0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+      return G.FindCrossing(0dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
     }
 
     measurement LowpassBandwidth : Hz {
       TransferFunction H = transfer(ac, IN, OUT)
-      RealFunction G = db20(mag(H))
+      GainSpectrum G = db20(H.Mag())
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
       Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-      VoltageRatio gpb = eval(G, fpb)
+      VoltageRatio gpb = G.ValueAt(fpb)
       VoltageRatio thr = gpb - 3dB
 
-      return find_crossing(G, thr, dir=falling, cross=1, from=fpb, to=ac.stop)
+      return G.FindCrossing(thr, dir=falling, cross=1, from=fpb, to=ac.stop)
     }
 
     measurement HighpassBandwidth : Hz {
       TransferFunction H = transfer(ac, IN, OUT)
-      RealFunction G = db20(mag(H))
+      GainSpectrum G = db20(H.Mag())
 
       Frequency hp = infer_hp_corner(1Hz)
       Frequency lp = infer_lp_corner()
       Frequency fpb = calc_passband_freq(ac, hp, lp)
 
-      VoltageRatio gpb = eval(G, fpb)
+      VoltageRatio gpb = G.ValueAt(fpb)
       VoltageRatio thr = gpb - 3dB
 
-      return find_crossing(G, thr, dir=rising, cross=1, from=ac.start, to=fpb)
+      return G.FindCrossing(thr, dir=rising, cross=1, from=ac.start, to=fpb)
     }
 
     measurement BandpassBandwidth : Hz {
@@ -1019,7 +1019,7 @@ circuit My5TOTA implements SingleEndedOpAmp {
 
 `lib/std/benches/NoiseBenches.cas`:
 ```cascode
-library lib.std.benches
+library lib.std.bench
 
 bench DiffToSENoise {
   stim IN : Diff
@@ -1067,27 +1067,27 @@ bench DiffToSENoise {
   measurements {
     measurement InputReferredNoise : nV/rtHz {
       // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_in, f_spot)
+      return n_in.ValueAt(f_spot)
     }
 
     // Parameterized measurement - integration bounds specified at invocation
     measurement IntegratedInputNoise(Frequency from, Frequency to) : nVrms {
-      NoiseFunction n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return integrate(n_in, from, to)
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
     }
 
     measurement OutputNoise : nV/rtHz {
-      NoiseFunction n_out = noise(noise_ac, OUT)
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
       Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return spot_noise(n_out, f_spot)
+      return n_out.ValueAt(f_spot)
     }
   }
 }
 ```
 
-This bench demonstrates the noise measurement primitives. The `input_referred_noise` primitive divides the output noise spectral density by the transfer function magnitude to compute the equivalent input noise. The `integrate` primitive computes RMS noise over a specified bandwidth, useful for total integrated noise specifications.
+This bench demonstrates the noise measurement primitives. The `input_referred_noise` function divides the output noise spectral density by the transfer function magnitude to compute the equivalent input noise. The `Integrate` method computes RMS noise over a specified bandwidth, useful for total integrated noise specifications.
 
 ---
 
@@ -1191,7 +1191,8 @@ The following phases have been completed or are in progress:
 ### 10.3 Phase 2: Semantic Type System (~400 LOC)
 
 **PR 2.1: Physical Quantity Types**
-- Implement `Frequency`, `VoltageRatio`, `TransferFunction`, `RealFunction` types
+- Implement scalar types: `Frequency`, `VoltageRatio`, `Voltage`, `Current`, `Time`, `Phase`, `Scalar`
+- Implement compound types: `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `NoiseSpectrum`, `VoltageWaveform`, `CurrentWaveform`
 - Implement type checking for variable declarations
 - Implement type inference for expressions
 
@@ -1261,16 +1262,88 @@ The following phases have been completed or are in progress:
 
 ## 11. Measurement Primitives
 
-### 11.1 Transfer Function Primitives
+Measurement primitives are divided into two categories: **constructor functions** that create typed data structures from simulation results, and **type methods** that operate on those structures. This separation enables IDE autocomplete on types while keeping construction and conversion as standalone functions.
 
-| Primitive | Signature | Semantics |
-|-----------|-----------|-----------|
-| `transfer(analysis, stim, resp)` | `(Analysis, Terminal, Terminal) -> TransferFunction` | Complex voltage transfer function |
-| `mag(H)` | `TransferFunction -> RealFunction` | Linear magnitude |
-| `db20(F)` | `RealFunction -> RealFunction` | 20*log10 conversion |
-| `phase(H)` | `TransferFunction -> RealFunction` | Phase in degrees |
+### 11.1 Constructor Functions
 
-#### Terminal Voltage Computation
+Constructor functions extract typed data from simulation analyses.
+
+| Function | Signature | Semantics |
+|----------|-----------|-----------|
+| `transfer(analysis, stim, resp)` | `(ACAnalysis, Terminal, Terminal) -> TransferFunction` | Complex voltage transfer function Vout/Vin(f) |
+| `voltage(analysis, terminal)` | `(ACAnalysis, Terminal) -> VoltageSpectrum` | Complex voltage spectrum V(f) |
+| `voltage(analysis, terminal)` | `(TranAnalysis, Terminal) -> VoltageWaveform` | Voltage waveform V(t) |
+| `current(analysis, element)` | `(ACAnalysis, Element) -> CurrentSpectrum` | Complex current spectrum I(f) |
+| `current(analysis, element)` | `(TranAnalysis, Element) -> CurrentWaveform` | Current waveform I(t) |
+| `noise(analysis, terminal)` | `(NoiseAnalysis, Terminal) -> NoiseSpectrum` | Noise spectral density V/√Hz(f) |
+| `input_referred_noise(noise, ac, stim, resp)` | `(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseSpectrum` | Input-referred noise from output noise and transfer function |
+
+The `voltage()` and `current()` functions are overloaded by analysis type: AC analysis returns a frequency-domain spectrum, while transient analysis returns a time-domain waveform.
+
+### 11.2 Conversion Functions
+
+Conversion functions transform values between unit systems without changing the underlying data structure.
+
+| Function | Signature | Semantics |
+|----------|-----------|-----------|
+| `db20(x)` | `GainSpectrum -> GainSpectrum` | 20·log₁₀ conversion (voltage ratio) |
+| `db20(x)` | `VoltageRatio -> VoltageRatio` | 20·log₁₀ conversion (scalar) |
+| `db10(x)` | `GainSpectrum -> GainSpectrum` | 10·log₁₀ conversion (power ratio) |
+| `db10(x)` | `PowerRatio -> PowerRatio` | 10·log₁₀ conversion (scalar) |
+
+These functions act as type casts between linear and logarithmic representations. They apply pointwise when given spectrum arguments.
+
+### 11.3 TransferFunction Methods
+
+Methods on `TransferFunction` extract magnitude and phase components.
+
+| Method | Signature | Semantics |
+|--------|-----------|-----------|
+| `tf.Mag()` | `TransferFunction -> GainSpectrum` | Linear magnitude \|H(f)\| |
+| `tf.Phase()` | `TransferFunction -> PhaseSpectrum` | Phase angle arg(H(f)) in degrees |
+
+### 11.4 Spectrum Methods
+
+Methods available on frequency-domain spectrum types (`GainSpectrum`, `PhaseSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`).
+
+| Method | Signature | Semantics |
+|--------|-----------|-----------|
+| `spectrum.ValueAt(freq)` | `(Spectrum, Frequency) -> Scalar` | Evaluate spectrum at frequency |
+| `spectrum.Max()` | `Spectrum -> Scalar` | Maximum value in spectrum |
+| `spectrum.Min()` | `Spectrum -> Scalar` | Minimum value in spectrum |
+| `spectrum.FindCrossing(threshold, dir, cross, from?, to?)` | `(...) -> Frequency` | Find frequency where spectrum crosses threshold |
+
+The `FindCrossing` method locates where the spectrum crosses a threshold value. Parameters:
+- `threshold`: The value to cross
+- `dir`: Direction (`rising` or `falling`)
+- `cross`: Which crossing (`first` or `last`)
+- `from`, `to`: Optional frequency range to search (defaults to full analysis range)
+
+### 11.5 Waveform Methods
+
+Methods available on time-domain waveform types (`VoltageWaveform`, `CurrentWaveform`).
+
+| Method | Signature | Semantics |
+|--------|-----------|-----------|
+| `waveform.ValueAt(time)` | `(Waveform, Time) -> Scalar` | Evaluate waveform at time point |
+| `waveform.Max()` | `Waveform -> Scalar` | Maximum value in waveform |
+| `waveform.Min()` | `Waveform -> Scalar` | Minimum value in waveform |
+| `waveform.FindCrossing(threshold, dir, cross, from?, to?)` | `(...) -> Time` | Find time where waveform crosses threshold |
+
+These methods mirror the spectrum methods but operate over time instead of frequency.
+
+### 11.6 NoiseSpectrum Methods
+
+Methods specific to noise spectral density data.
+
+| Method | Signature | Semantics |
+|--------|-----------|-----------|
+| `noise.ValueAt(freq)` | `(NoiseSpectrum, Frequency) -> NoiseSpectralDensity` | Spot noise at frequency |
+| `noise.Integrate(f_lo, f_hi)` | `(NoiseSpectrum, Frequency, Frequency) -> IntegratedNoise` | RMS noise over bandwidth |
+
+The `Integrate` method computes the RMS noise by integrating the power spectral density over the specified frequency range and taking the square root.
+
+### 11.7 Terminal Voltage Computation
 
 Measurement primitives compute terminal voltages based on the structure of the terminal bundle:
 
@@ -1279,34 +1352,16 @@ Measurement primitives compute terminal voltages based on the structure of the t
 | Single-ended (e.g., `analog`) | 1 | `V(node)` relative to ground |
 | Differential (e.g., `Diff`) | 2 | `V(P) - V(N)` differential |
 
-This behavior applies to the `stim` and `resp` arguments of `transfer()`, `noise()`, and `input_referred_noise()`. A single-ended terminal measures the voltage at that node relative to the simulator's ground reference. A differential terminal (with two leaf nodes) computes the voltage difference between the positive and negative nodes.
+This behavior applies to the terminal arguments of `transfer()`, `voltage()`, `noise()`, and `input_referred_noise()`. A single-ended terminal measures the voltage at that node relative to the simulator's ground reference. A differential terminal (with two leaf nodes) computes the voltage difference between the positive and negative nodes.
 
 This allows measurement primitives to work uniformly across single-ended and differential topologies. For example, `transfer(ac, IN, OUT)` correctly computes:
 - Single-ended to single-ended: `V(OUT) / V(IN)`
 - Differential to single-ended: `V(OUT) / (V(IN.P) - V(IN.N))`
 - Differential to differential: `(V(OUT.P) - V(OUT.N)) / (V(IN.P) - V(IN.N))`
 
-### 11.2 Evaluation Primitives
+### 11.8 Arithmetic
 
-| Primitive | Signature | Semantics |
-|-----------|-----------|-----------|
-| `eval(F, freq)` | `(RealFunction, Frequency) -> Scalar` | Evaluate at frequency |
-| `find_crossing(F, threshold, dir, cross, from, to)` | `(...) -> Frequency` | Find crossing frequency |
-
-### 11.3 Arithmetic
-
-Standard operators (`+`, `-`, `*`, `/`) and functions (`abs`, `sqrt`) are available for scalar values with appropriate unit propagation.
-
-### 11.4 Noise Primitives
-
-| Primitive | Signature | Semantics |
-|-----------|-----------|-----------|
-| `noise(analysis, node)` | `(NoiseAnalysis, Terminal) -> NoiseFunction` | Extract output noise spectral density at the specified node |
-| `input_referred_noise(noise, ac, stim, resp)` | `(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseFunction` | Compute input-referred noise from output noise and transfer function |
-| `integrate(F, f_lo, f_hi)` | `(NoiseFunction, Frequency, Frequency) -> IntegratedNoise` | Integrate spectral density over frequency range to get RMS noise |
-| `spot_noise(F, freq)` | `(NoiseFunction, Frequency) -> NoiseSpectralDensity` | Evaluate spectral density at a specific frequency |
-
-The `input_referred_noise` primitive computes the equivalent input noise by dividing the output noise spectral density by the magnitude of the transfer function from stimulus to response. This is the standard input-referred noise calculation used in amplifier characterization. The primitive requires both a `NoiseAnalysis` (for output noise spectral density) and an `ACAnalysis` (for the transfer function magnitude) to be declared in the analysis block.
+Standard operators (`+`, `-`, `*`, `/`) and functions (`abs`, `sqrt`) are available for scalar values with appropriate unit propagation
 
 ---
 
@@ -1338,13 +1393,29 @@ The measurement system uses semantic types representing physical quantities. All
 
 The `rtHz` suffix represents "root Hz" (√Hz) for noise spectral density units. This avoids requiring special characters in source files while remaining unambiguous.
 
-### 12.2 Function Types
+### 12.2 Compound Types
 
-| Type | Description |
-|------|-------------|
-| `TransferFunction` | Complex-valued function of frequency |
-| `RealFunction` | Real-valued function of frequency or time |
-| `NoiseFunction` | Noise spectral density as a function of frequency |
+The measurement system provides compound types representing simulation data over frequency or time domains. These types support method syntax for intrinsic operations.
+
+#### Frequency Domain Types
+
+| Type | Domain | Value Type | Description |
+|------|--------|------------|-------------|
+| `TransferFunction` | Frequency | Complex | Complex voltage ratio Vout/Vin(f) |
+| `GainSpectrum` | Frequency | VoltageRatio | Magnitude \|Vout/Vin\|(f) from `tf.Mag()` |
+| `PhaseSpectrum` | Frequency | Phase | Phase angle arg(Vout/Vin)(f) from `tf.Phase()` |
+| `VoltageSpectrum` | Frequency | Complex Voltage | Voltage V(f) from `voltage(ac, terminal)` |
+| `CurrentSpectrum` | Frequency | Complex Current | Current I(f) from `current(ac, element)` |
+| `NoiseSpectrum` | Frequency | NoiseSpectralDensity | Noise density V/√Hz(f) from `noise(...)` |
+
+#### Time Domain Types
+
+| Type | Domain | Value Type | Description |
+|------|--------|------------|-------------|
+| `VoltageWaveform` | Time | Voltage | Voltage V(t) from `voltage(tran, terminal)` |
+| `CurrentWaveform` | Time | Current | Current I(t) from `current(tran, element)` |
+
+The compound types replace the earlier `RealFunction` and `NoiseFunction` types with more specific names that indicate both the physical quantity and the domain. This improves code clarity and enables better IDE autocomplete support.
 
 ### 12.3 Implicit Unit Conversion
 
@@ -1380,25 +1451,71 @@ Frequency bad = g1         // Parse-time error: cannot convert VoltageRatio to F
 | `/` | T | T | Scalar |
 | `<`, `>`, `<=`, `>=`, `==` | T | T | Boolean |
 
-### 12.5 Function Signatures
+### 12.5 Function and Method Signatures
 
-Transfer function primitives:
+The measurement system distinguishes between **functions** (for construction and conversion) and **methods** (for type-intrinsic operations). This separation enables IDE autocomplete on compound types while keeping transformations like `db20()` as standalone functions.
+
+#### 12.5.1 Constructor Functions
+
+Constructor functions create compound types from simulation analyses:
+
 ```
-transfer(Analysis, Terminal, Terminal) -> TransferFunction
-mag(TransferFunction) -> RealFunction
-phase(TransferFunction) -> RealFunction
-db20(RealFunction) -> RealFunction
-db10(RealFunction) -> RealFunction
+transfer(ACAnalysis, Terminal, Terminal) -> TransferFunction
+voltage(ACAnalysis, Terminal) -> VoltageSpectrum
+voltage(TranAnalysis, Terminal) -> VoltageWaveform
+current(ACAnalysis, Element) -> CurrentSpectrum
+current(TranAnalysis, Element) -> CurrentWaveform
+noise(NoiseAnalysis, Terminal) -> NoiseSpectrum
+input_referred_noise(NoiseAnalysis, ACAnalysis, Terminal, Terminal) -> NoiseSpectrum
 ```
 
-Evaluation primitives:
+#### 12.5.2 Conversion Functions
+
+Conversion functions transform between unit representations:
+
 ```
-eval(RealFunction, Frequency) -> Scalar
-eval(TransferFunction, Frequency) -> Complex
-find_crossing(RealFunction, threshold, dir, cross, from, to) -> Frequency
+db20(GainSpectrum) -> GainSpectrum
+db20(VoltageRatio) -> VoltageRatio
+db10(GainSpectrum) -> GainSpectrum
+db10(PowerRatio) -> PowerRatio
 ```
 
-Mathematical functions:
+#### 12.5.3 Type Methods
+
+Methods are invoked on compound type instances using dot notation.
+
+TransferFunction methods:
+```
+TransferFunction.Mag() -> GainSpectrum
+TransferFunction.Phase() -> PhaseSpectrum
+```
+
+Spectrum methods (GainSpectrum, PhaseSpectrum, VoltageSpectrum, CurrentSpectrum):
+```
+Spectrum.ValueAt(Frequency) -> Scalar
+Spectrum.Max() -> Scalar
+Spectrum.Min() -> Scalar
+Spectrum.FindCrossing(threshold, direction, crossing, from?, to?) -> Frequency
+```
+
+Waveform methods (VoltageWaveform, CurrentWaveform):
+```
+Waveform.ValueAt(Time) -> Scalar
+Waveform.Max() -> Scalar
+Waveform.Min() -> Scalar
+Waveform.FindCrossing(threshold, direction, crossing, from?, to?) -> Time
+```
+
+NoiseSpectrum methods:
+```
+NoiseSpectrum.ValueAt(Frequency) -> NoiseSpectralDensity
+NoiseSpectrum.Integrate(Frequency, Frequency) -> IntegratedNoise
+```
+
+#### 12.5.4 Mathematical Functions
+
+Mathematical functions operate on scalar values:
+
 ```
 abs(T) -> T where T is numeric
 sqrt(Scalar) -> Scalar
@@ -1586,13 +1703,14 @@ Measurements can access internal nodes of the DUT using the `dut.` prefix. This 
 ```cascode
 measurements {
   measurement InternalBias : V {
-    return eval(dc, dut.mirror_gate)  // Access internal node
+    VoltageSpectrum v_dc = voltage(dc, dut.mirror_gate)  // Access internal node
+    return v_dc.ValueAt(0Hz)
   }
 
-  measurement InternalSwing : V {
+  measurement InternalSwing : dB {
     TransferFunction H_internal = transfer(ac, IN, dut.stage1_out)
-    RealFunction G = db20(mag(H_internal))
-    return eval(G, 1MHz)
+    GainSpectrum G = db20(H_internal.Mag())
+    return G.ValueAt(1MHz)
   }
 }
 ```
@@ -1770,8 +1888,13 @@ physicalType
     : FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
-    | REAL_FUNCTION_TYPE
-    | NOISE_FUNCTION_TYPE
+    | GAIN_SPECTRUM_TYPE
+    | PHASE_SPECTRUM_TYPE
+    | VOLTAGE_SPECTRUM_TYPE
+    | CURRENT_SPECTRUM_TYPE
+    | NOISE_SPECTRUM_TYPE
+    | VOLTAGE_WAVEFORM_TYPE
+    | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
     | INTEGRATED_NOISE_TYPE
     | IMPEDANCE_TYPE
@@ -1894,8 +2017,8 @@ unaryMeasurementExpr
     ;
 
 measurementAtom
-    : LPAREN measurementExpr RPAREN
-    | measurementCall
+    : measurementAtom DOT methodCall      // Method call: expr.Method(args)
+    | LPAREN measurementExpr RPAREN
     | functionCall
     | scopedAccess
     | dutAccess
@@ -1904,8 +2027,13 @@ measurementAtom
     | NUMBER
     ;
 
-// Measurement call - cross-measurement reference with optional named arguments
-measurementCall
+// Method call on a compound type (e.g., tf.Mag(), spectrum.ValueAt(1kHz))
+methodCall
+    : IDENT LPAREN measurementArgList? RPAREN
+    ;
+
+// Function call - constructor or conversion function
+functionCall
     : IDENT LPAREN measurementArgList? RPAREN
     ;
 
@@ -1914,11 +2042,8 @@ measurementArgList
     ;
 
 measurementArg
-    : IDENT EQ measurementExpr
-    ;
-
-functionCall
-    : IDENT LPAREN argList? RPAREN
+    : IDENT EQ measurementExpr    // Named argument
+    | measurementExpr             // Positional argument
     ;
 
 dutAccess
@@ -2054,12 +2179,9 @@ IF_KW           : 'if' ;
 ELSE_KW         : 'else' ;
 RETURN_KW       : 'return' ;
 
-// Type keywords
+// Type keywords - Physical quantities
 FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
-TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
-REAL_FUNCTION_TYPE          : 'RealFunction' ;
-NOISE_FUNCTION_TYPE         : 'NoiseFunction' ;
 NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
 INTEGRATED_NOISE_TYPE       : 'IntegratedNoise' ;
 IMPEDANCE_TYPE              : 'Impedance' ;
@@ -2070,6 +2192,18 @@ CURRENT_TYPE                : 'Current' ;
 TIME_TYPE                   : 'Time' ;
 PHASE_TYPE                  : 'Phase' ;
 SCALAR_TYPE                 : 'Scalar' ;
+
+// Type keywords - Compound types (frequency domain)
+TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
+GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
+CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
+NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
+
+// Type keywords - Compound types (time domain)
+VOLTAGE_WAVEFORM_TYPE       : 'VoltageWaveform' ;
+CURRENT_WAVEFORM_TYPE       : 'CurrentWaveform' ;
 
 // Analysis type keywords
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
@@ -2145,7 +2279,7 @@ lib/
     ├── benches/
     │   ├── TransferBenches.cas  // Transfer function benches (DiffToSETransfer, etc.)
     │   └── NoiseBenches.cas     // Noise analysis benches (DiffToSENoise)
-    │                            // library lib.std.benches
+    │                            // library lib.std.bench
     ├── amp/
     │   ├── SingleEndedOpAmp.cas // Single-ended op-amp interface
     │   └── FullyDifferentialOpAmp.cas
@@ -2159,7 +2293,7 @@ lib/
 
 Files in child namespaces automatically inherit symbols from parent namespaces:
 
-- `lib.std.benches` sees all symbols from `lib.std` (including the `Diff` bundle)
+- `lib.std.bench` sees all symbols from `lib.std` (including the `Diff` bundle)
 - `lib.std.amp` sees all symbols from `lib.std`
 - User designs that include `lib.std.amp` also get `lib.std` transitively
 

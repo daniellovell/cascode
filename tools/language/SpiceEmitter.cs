@@ -121,6 +121,18 @@ public static class SpiceEmitter
             circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
         }
 
+        // If the design uses generic MOS model names (e.g. level1_nmos), emit model cards so
+        // ngspice can simulate without a PDK model include.
+        if (backend == BenchBackendType.Ngspice)
+        {
+            var requiredModels = GetRequiredGenericModels(circuit, primitivesByName);
+            if (requiredModels.Count != 0)
+            {
+                EmitGenericModels(requiredModels, writer);
+                writer.WriteLine();
+            }
+        }
+
         if (document is not null && variantMap is null)
         {
             variantMap = CollectAllVariants(document);
@@ -220,9 +232,11 @@ public static class SpiceEmitter
         }
 
         // Emit declarative bench testbenches (if any bindings exist on EL circuits).
+        var benchPlans = BenchCompiler.CompileAllPlans(doc);
         result.TestbenchPaths.AddRange(
-            BenchTestbenchEmitter.EmitAll(
+            BenchTestbenchEmitter.EmitPlans(
                 doc,
+                benchPlans,
                 outputDir,
                 backend,
                 result.DesignPaths,

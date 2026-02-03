@@ -33,6 +33,7 @@ internal sealed partial class CascodeAstBuilder
             Harness = memberState.Harness,
             Env = memberState.Env,
             BenchBindings = memberState.BenchBindings,
+            BenchBindingExtensions = memberState.BenchBindingExtensions,
             Synth = memberState.Synth,
             Provenance = memberState.Provenance,
         };
@@ -97,7 +98,11 @@ internal sealed partial class CascodeAstBuilder
                     break;
 
                 case CascodeParser.CircuitBenchesContext benchesCtx:
-                    state.BenchBindings.AddRange(BuildBenchesSection(benchesCtx.benchesSection()));
+                    var section = benchesCtx.circuitBenchesSection();
+                    state.BenchBindings.AddRange(BuildBenchBindings(section.benchBinding()));
+                    state.BenchBindingExtensions.AddRange(
+                        BuildBenchExtensions(section.benchExtension())
+                    );
                     break;
 
                 case CascodeParser.SynthSectionContext synthCtx:
@@ -115,7 +120,7 @@ internal sealed partial class CascodeAstBuilder
 
     private static string BuildQualifiedName(CascodeParser.QualifiedNameContext ctx)
     {
-        return string.Join(".", ctx.IDENT().Select(i => i.GetText()));
+        return string.Join(".", ctx.idPart().Select(i => i.GetText()));
     }
 
     private sealed class CircuitMemberState
@@ -125,6 +130,7 @@ internal sealed partial class CascodeAstBuilder
         public HarnessBlock? Harness { get; set; }
         public EnvBlock? Env { get; set; }
         public List<BenchBinding> BenchBindings { get; } = new();
+        public List<BenchBindingExtension> BenchBindingExtensions { get; } = new();
         public SynthBlock? Synth { get; set; }
         public ProvenanceBlock? Provenance { get; set; }
         public CascodeLevel Level { get; set; } = CascodeLevel.ML;
@@ -408,7 +414,9 @@ internal sealed partial class CascodeAstBuilder
         var id = ctx.instanceId.Text;
         var type = ctx.instanceTypeName().GetText();
 
-        var bindings = BuildBindings(ctx.bindingBlock().bindingList());
+        var bindings = ctx.bindingBlock() is null
+            ? new Dictionary<string, string>()
+            : BuildBindings(ctx.bindingBlock().bindingList());
         var prefix = $"{id}.";
         var invalidKeys = bindings
             .Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
@@ -416,8 +424,11 @@ internal sealed partial class CascodeAstBuilder
         foreach (var key in invalidKeys)
         {
             bindings.Remove(key);
+            Antlr4.Runtime.ParserRuleContext diagnosticCtx = ctx.bindingBlock() is null
+                ? ctx
+                : ctx.bindingBlock();
             AddDiagnostic(
-                ctx.bindingBlock(),
+                diagnosticCtx,
                 DiagnosticSeverity.Error,
                 $"CAS0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
             );
@@ -430,7 +441,27 @@ internal sealed partial class CascodeAstBuilder
         {
             foreach (var argCtx in ctx.argList().arg())
             {
-                var name = argCtx.argName().GetText();
+                var name = argCtx.argName()?.GetText();
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    // Positional arg syntax: new Foo(<expr>). Store under "value" so harness emitters
+                    // can read it via "value" or as the single param (GetFirstParam()).
+                    name = "value";
+                    if (
+                        instanceParams.ContainsKey(name)
+                        || sizes.ContainsKey(name)
+                        || ctx.argList().arg().Length > 1
+                    )
+                    {
+                        AddDiagnostic(
+                            argCtx,
+                            DiagnosticSeverity.Error,
+                            "CAS0034: Positional instance arguments support only a single argument."
+                        );
+                        continue;
+                    }
+                }
+
                 if (argCtx.argValue().sizeExpr() != null)
                 {
                     sizes[name] = BuildSizeExpression(argCtx.argValue().sizeExpr(), argCtx);

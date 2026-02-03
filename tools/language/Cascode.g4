@@ -26,6 +26,7 @@ document
 
 topLevelDecl
     : includeDecl
+    | filePackageDecl
     | bundleDef
     | interfaceDef
     | benchDef
@@ -33,6 +34,12 @@ topLevelDecl
     | wrapSpiceDef
     | primitiveDef
     | circuit
+    ;
+
+// File-level library/package annotation. This is primarily metadata today but must parse
+// because standard library files use it.
+filePackageDecl
+    : PACKAGE_KW qualifiedName
     ;
 
 includeDecl
@@ -66,8 +73,10 @@ interfaceDef
 
 interfaceMember
     : direction portName COLON portType                             # InterfacePort
+    | SUPPLY_KW IDENT                                               # InterfaceSupply
+    | GROUND_KW IDENT                                               # InterfaceGround
     | CONNECTORS_KW LBRACE connectorDef* RBRACE                      # InterfaceConnectors
-    | benchesSection                                                 # InterfaceBenches
+    | interfaceBenchesSection                                        # InterfaceBenches
     ;
 
 connectorDef
@@ -83,7 +92,15 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW name=IDENT LBRACE benchBody RBRACE
+    : BENCH_KW name=IDENT benchParamList? LBRACE benchBody RBRACE
+    ;
+
+benchParamList
+    : LPAREN benchParamDecl (COMMA benchParamDecl)* RPAREN
+    ;
+
+benchParamDecl
+    : physicalType name=IDENT (EQ measurementExpr)?
     ;
 
 benchBody
@@ -176,7 +193,7 @@ circuitMember
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
     | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
-    | benchesSection                                                # CircuitBenches
+    | circuitBenchesSection                                         # CircuitBenches
     | SYNTH_KW LBRACE synthEntry* RBRACE                            # SynthSection
     | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
     ;
@@ -279,7 +296,7 @@ wrapSpiceDef
     ;
 
 wrapMapEntry
-    : IDENT EQ IDENT SEMI?
+    : IDENT EQ IDENT
     ;
 
 fillBlock
@@ -287,7 +304,7 @@ fillBlock
     ;
 
 instanceDecl
-    : instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock
+    : (declaredType=IDENT)? instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
     ;
 
 instanceTypeName
@@ -301,6 +318,7 @@ argList
 
 arg
     : argName EQ argValue
+    | argValue
     ;
 
 argName
@@ -363,6 +381,7 @@ idPart
     | FOR_KW
     | VIA_KW
     | AS_KW
+    | EXTEND_KW
     | BENCH_KW
     | BUILTIN_KW
     | OUTPUTS_KW
@@ -419,8 +438,13 @@ idPart
     | FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
-    | REAL_FUNCTION_TYPE
-    | NOISE_FUNCTION_TYPE
+    | GAIN_SPECTRUM_TYPE
+    | PHASE_SPECTRUM_TYPE
+    | VOLTAGE_SPECTRUM_TYPE
+    | CURRENT_SPECTRUM_TYPE
+    | NOISE_SPECTRUM_TYPE
+    | VOLTAGE_WAVEFORM_TYPE
+    | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
     | INTEGRATED_NOISE_TYPE
     | IMPEDANCE_TYPE
@@ -442,6 +466,10 @@ pinRef
 // Constraints block content
 // ----------------------------------------------------------------------------
 
+signedQuantity
+    : MINUS? QUANTITY
+    ;
+
 constraintSection
     : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
     | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
@@ -449,13 +477,13 @@ constraintSection
     | numericConstraint                                             # NumericConstraintDirect
     ;
 
-// id = Bench::Metric at Node >= ValueUnit
+// id = Bench(args)::Metric(args) at Node >= ValueUnit
 numericConstraint
-    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP QUANTITY
+    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedQuantity
     ;
 
 benchMetricRef
-    : IDENT COLONCOLON IDENT
+    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
     ;
 
 nodeRef
@@ -470,7 +498,7 @@ nodeScope
 
 // id : Param >= ValueUnit on Scope
 techConstraint
-    : IDENT COLON IDENT COMPARISON_OP QUANTITY ON_KW techConstraintScope
+    : IDENT COLON IDENT COMPARISON_OP signedQuantity ON_KW techConstraintScope
     ;
 
 techConstraintScope
@@ -497,17 +525,18 @@ graphProp
 
 harnessStatement
     : SUPPLY_KW IDENT EQ harnessValue                               # HarnessSupply
+    | GROUND_KW IDENT EQ harnessValue                               # HarnessGround
     | BIAS_KW IDENT EQ harnessValue                                 # HarnessBias
     | LOAD_KW IDENT loadSpec                                        # HarnessLoad
     | SOURCE_KW IDENT sourceSpec                                    # HarnessSource
     | SWEEP_KW IDENT sweepSpec                                      # HarnessSweep
-    | ICMR_KW LBRACK QUANTITY COLON QUANTITY RBRACK                 # HarnessIcmr
+    | ICMR_KW LBRACK signedQuantity COLON signedQuantity RBRACK     # HarnessIcmr
     | PVT_KW pvtList                                                # HarnessPvt
     ;
 
 // Harness value allows legacy format with space between number and unit (e.g., 1.8 V).
 harnessValue
-    : QUANTITY
+    : signedQuantity
     | NUMBER IDENT?                                                 // Allow "1.8 V" with space.
     ;
 
@@ -518,12 +547,12 @@ loadSpec
 
 // Load element allows legacy format with split value and unit (e.g., C=1p F).
 loadElement
-    : IDENT EQ (QUANTITY | NUMBER) IDENT?
+    : IDENT EQ (signedQuantity | NUMBER) IDENT?
     ;
 
 // Source spec allows legacy format without unit (e.g., Z=50).
 sourceSpec
-    : Z_KW EQ (QUANTITY | NUMBER)
+    : Z_KW EQ (signedQuantity | NUMBER)
     ;
 
 sweepSpec
@@ -538,7 +567,7 @@ sweepRange
 
 // Sweep value allows legacy format with space between number and unit (e.g., 0.3 V).
 sweepValue
-    : QUANTITY
+    : signedQuantity
     | NUMBER IDENT?
     ;
 
@@ -593,13 +622,18 @@ mulExpr
 
 unaryAtom
     : MINUS unaryAtom
-    | exprAtom
+    | exprPostfix
     ;
 
-exprAtom
+exprPostfix
+    : exprPrimary methodCallSuffix*
+    ;
+
+exprPrimary
     : LPAREN expr RPAREN
     | sizeFieldAccess
     | scopedAccess
+    | measurementFunctionCall
     | IDENT
     | NUMBER
     | QUANTITY
@@ -617,7 +651,7 @@ scalarExpr
     ;
 
 qualifiedName
-    : IDENT (DOT IDENT)*
+    : idPart (DOT idPart)*
     ;
 
 // ----------------------------------------------------------------------------
@@ -630,6 +664,7 @@ envStatement
 
 envValue
     : impedanceExpr
+    | LPAREN impedanceExpr RPAREN
     | QUANTITY
     | NUMBER IDENT?
     ;
@@ -643,21 +678,38 @@ impedanceElement
     ;
 
 // ----------------------------------------------------------------------------
-// Benches section (in interfaces and circuits)
+// Benches sections
 // ----------------------------------------------------------------------------
 
-benchesSection
+interfaceBenchesSection
     : BENCHES_KW LBRACE benchBinding* RBRACE
+    ;
+
+circuitBenchesSection
+    : BENCHES_KW LBRACE (benchBinding | benchExtension)* RBRACE
     ;
 
 benchBinding
     : BIND_KW benchName=IDENT AS_KW bindingName=IDENT LBRACE bindingStatement* RBRACE
     ;
 
+benchExtension
+    : EXTEND_KW bindingName=IDENT LBRACE bindingStatement* RBRACE
+    ;
+
 bindingStatement
     : terminalMapping
+    | bindingMeasurementsBlock
     | instanceDecl
     | dutConnection
+    ;
+
+bindingMeasurementsBlock
+    : MEASUREMENTS_KW LBRACE bindingMeasurementDecl* RBRACE
+    ;
+
+bindingMeasurementDecl
+    : MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType EQ benchMeasurementRef
     ;
 
 terminalMapping
@@ -689,12 +741,13 @@ typedParamList
     ;
 
 typedParam
-    : typedParamType IDENT
+    : typedParamType idPart
     ;
 
 typedParamType
     : physicalType
     | analysisType
+    | terminalRole
     ;
 
 returnType
@@ -706,10 +759,16 @@ physicalType
     : FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
-    | REAL_FUNCTION_TYPE
-    | NOISE_FUNCTION_TYPE
+    | GAIN_SPECTRUM_TYPE
+    | PHASE_SPECTRUM_TYPE
+    | VOLTAGE_SPECTRUM_TYPE
+    | CURRENT_SPECTRUM_TYPE
+    | NOISE_SPECTRUM_TYPE
+    | VOLTAGE_WAVEFORM_TYPE
+    | CURRENT_WAVEFORM_TYPE
     | NOISE_SPECTRAL_DENSITY_TYPE
     | INTEGRATED_NOISE_TYPE
+    | ELEMENT_PIN_TYPE
     | IMPEDANCE_TYPE
     | CAPACITANCE_TYPE
     | INDUCTANCE_TYPE
@@ -755,7 +814,7 @@ analysisBlock
     ;
 
 analysisDecl
-    : analysisType name=IDENT EQ NEW_KW analysisType LPAREN analysisParams RPAREN
+    : analysisType name=IDENT EQ NEW_KW analysisType LPAREN analysisParams? RPAREN
     ;
 
 analysisParams
@@ -763,12 +822,16 @@ analysisParams
     ;
 
 analysisParam
-    : IDENT EQ conditionalExpr
+    : idPart EQ conditionalExpr
     ;
 
 conditionalExpr
-    : LPAREN IF_KW boolExpr LBRACE measurementExpr RBRACE ELSE_KW LBRACE measurementExpr RBRACE RPAREN
+    : ifExpr
     | measurementExpr
+    ;
+
+ifExpr
+    : LPAREN IF_KW boolExpr LBRACE measurementExpr RBRACE ELSE_KW LBRACE measurementExpr RBRACE RPAREN
     ;
 
 measurementsBlock
@@ -776,7 +839,7 @@ measurementsBlock
     ;
 
 measurementDecl
-    : MEASUREMENT_KW name=IDENT COLON unitType LBRACE measurementBody RBRACE
+    : MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
     ;
 
 unitType
@@ -791,6 +854,7 @@ measurementBody
 
 boolExpr
     : scopedAccess
+    | pathAccess
     | measurementExpr COMPARISON_OP measurementExpr
     ;
 
@@ -806,17 +870,33 @@ mulMeasurementExpr
 
 unaryMeasurementExpr
     : MINUS unaryMeasurementExpr
-    | measurementAtom
+    | measurementPostfix
     ;
 
-measurementAtom
-    : LPAREN measurementExpr RPAREN
+measurementPostfix
+    : measurementPrimary methodCallSuffix*
+    ;
+
+methodCallSuffix
+    : DOT idPart LPAREN measurementArgList? RPAREN
+    ;
+
+measurementPrimary
+    : ifExpr
+    | LPAREN measurementExpr RPAREN
+    | benchMeasurementRef
     | measurementFunctionCall
     | scopedAccess
     | dutAccess
     | pathAccess
     | QUANTITY
     | NUMBER
+    ;
+
+// Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
+// Syntax: binding_alias::Measurement(args)
+benchMeasurementRef
+    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall
@@ -833,13 +913,13 @@ measurementArg
     ;
 
 pathAccess
-    : IDENT (DOT IDENT)*
+    : idPart (DOT idPart)*
     ;
 
 scopedAccess
     : ENV_KW DOT IDENT
     | CONSTRAINTS_KW DOT IDENT
-    | HARNESS_KW DOT IDENT
+    | HARNESS_KW DOT pinRef
     ;
 
 dutAccess
@@ -867,6 +947,7 @@ INTERFACE_KW    : 'interface' ;
 BENCH_KW        : 'bench' ;
 BENCHES_KW      : 'benches' ;
 BIND_KW         : 'bind' ;
+EXTEND_KW       : 'extend' ;
 CIRCUIT_KW      : 'circuit' ;
 PRIMITIVE_KW    : 'primitive' ;
 DEVICE_KW       : 'device' ;
@@ -952,10 +1033,16 @@ RETURN_KW       : 'return' ;
 FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
-REAL_FUNCTION_TYPE          : 'RealFunction' ;
-NOISE_FUNCTION_TYPE         : 'NoiseFunction' ;
+GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
+CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
+NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;
+VOLTAGE_WAVEFORM_TYPE       : 'VoltageWaveform' ;
+CURRENT_WAVEFORM_TYPE       : 'CurrentWaveform' ;
 NOISE_SPECTRAL_DENSITY_TYPE : 'NoiseSpectralDensity' ;
 INTEGRATED_NOISE_TYPE       : 'IntegratedNoise' ;
+ELEMENT_PIN_TYPE            : 'ElementPin' ;
 IMPEDANCE_TYPE              : 'Impedance' ;
 CAPACITANCE_TYPE            : 'Capacitance' ;
 INDUCTANCE_TYPE             : 'Inductance' ;
@@ -989,7 +1076,6 @@ COLONCOLON      : '::' ;
 PIPEPIPE        : '||' ;
 COLON           : ':' ;
 COMMA           : ',' ;
-SEMI            : ';' ;
 BIND_DOT        : '.' { _atLineStart }? ;
 DOT             : '.' ;
 EQ              : '=' ;

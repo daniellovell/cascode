@@ -5,14 +5,14 @@ namespace Cascode.Language.BenchRuntime;
 /// <summary>
 /// Parses Cascode quantity literals (e.g. 10MHz, 3dB, 1.8V, 50Ohm, 1pF, 10ms).
 /// </summary>
-internal static class BenchQuantity
+public static class BenchQuantity
 {
     public static BenchValue Parse(string raw)
     {
         raw = raw.Trim();
         if (raw.Length == 0)
         {
-            throw new InvalidOperationException("Empty quantity.");
+            throw new FormatException("Empty quantity.");
         }
 
         // Compound noise units (rtHz = sqrt(Hz)).
@@ -35,9 +35,7 @@ internal static class BenchQuantity
                 return new BenchNumber(BenchNumericKind.NoiseCurrentAPerRtHz, a);
             }
 
-            throw new InvalidOperationException(
-                $"Invalid noise spectral density quantity '{raw}'."
-            );
+            throw new FormatException($"Invalid noise spectral density quantity '{raw}'.");
         }
 
         // Integrated noise (RMS). Examples: nVrms, pArms.
@@ -59,7 +57,7 @@ internal static class BenchQuantity
                 return new BenchNumber(BenchNumericKind.IntegratedNoiseArms, a);
             }
 
-            throw new InvalidOperationException($"Invalid integrated noise quantity '{raw}'.");
+            throw new FormatException($"Invalid integrated noise quantity '{raw}'.");
         }
 
         if (raw.EndsWith("dB", StringComparison.OrdinalIgnoreCase))
@@ -124,7 +122,7 @@ internal static class BenchQuantity
     {
         if (!SiValue.TryParse(raw, out var value, stripUnits: true, allowSubUnity: true))
         {
-            throw new InvalidOperationException($"Invalid numeric quantity '{raw}'.");
+            throw new FormatException($"Invalid numeric quantity '{raw}'.");
         }
 
         return value;
@@ -134,7 +132,7 @@ internal static class BenchQuantity
     {
         if (!SiValue.TryParse(raw, out var value, stripUnits: true, allowSubUnity: true))
         {
-            throw new InvalidOperationException($"Invalid quantity '{raw}'.");
+            throw new FormatException($"Invalid quantity '{raw}'.");
         }
 
         return value;

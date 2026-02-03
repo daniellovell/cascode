@@ -10,13 +10,20 @@ include lib.std // Should recursively include all
 circuit RcLowpass {
   level EL
 
-  input IN : Diff
+  input IN : analog
   output OUT : analog
   ground GND
 
+  env {
+    // Required by lib.std transfer benches.
+    InputCommonModeRange = 0V
+    SourceImpedance = 50Ohm
+    LoadImpedance = 1GOhm
+  }
+
   fill {
     Resistor R1 = new Ideal_Resistor(size(R=1k)) {
-      .P--IN.P
+      .P--IN
       .N--OUT
     }
 
@@ -24,11 +31,10 @@ circuit RcLowpass {
       .P--OUT
       .N--GND
     }
-
   }
 
   benches {
-    bind DiffToSETransfer as transfer {
+    bind SEToSETransfer as transfer {
       GND g0 = new GND()
       bench.IN--dut.IN
       bench.OUT--dut.OUT
@@ -40,7 +46,8 @@ circuit RcLowpass {
     numeric {
       // 1k || 1p -> fc ~ 159 MHz
       c_fc = transfer::LowpassBandwidth >= 50MHz
-      c_gain = transfer::PassbandGain >= 0dB
+      // PassbandGain is evaluated at a non-zero passband frequency, so it will be slightly < 0dB.
+      c_gain = transfer::PassbandGain >= -0.001dB
     }
   }
 }

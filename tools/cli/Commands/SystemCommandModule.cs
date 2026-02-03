@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Reflection;
+using Cascode.Cli.Output;
 
 namespace Cascode.Cli.Commands;
 
@@ -8,14 +9,16 @@ namespace Cascode.Cli.Commands;
 internal sealed class SystemCommandModule : ICommandModule
 {
     private readonly ShellState _state;
+    private readonly CliOutputProvider _output;
     private CommandRegistry? _registry;
     internal static readonly string[] HelpAliases = new[] { "-h", "--help" };
     internal static readonly string[] VersionAliases = new[] { "--version", "-v" };
     internal static readonly string[] ExitAliases = new[] { "exit" };
 
-    public SystemCommandModule(ShellState state)
+    public SystemCommandModule(ShellState state, CliOutputProvider output)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
+        _output = output ?? throw new ArgumentNullException(nameof(output));
     }
 
     public void Register(CommandRegistry registry)
@@ -70,7 +73,8 @@ internal sealed class SystemCommandModule : ICommandModule
 
     private CommandResult ShowHelp(string[] args)
     {
-        _state.AddMessage("Commands:");
+        var output = _output.Get();
+        output.WriteLine("Commands:");
         var commands = _registry!.GetCanonicalCommands();
         var array = System.Linq.Enumerable.ToArray(commands);
         var width =
@@ -81,40 +85,43 @@ internal sealed class SystemCommandModule : ICommandModule
             var description = string.IsNullOrEmpty(command.Description)
                 ? string.Empty
                 : $"  {command.Description}";
-            _state.AddMessage($"  {padded}{description}");
+            output.WriteLine($"  {padded}{description}");
         }
         return CommandResult.Success;
     }
 
     private CommandResult ShowVersion(string[] args)
     {
+        var output = _output.Get();
         var asm = typeof(SystemCommandModule).Assembly;
         var info =
             asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         var version = string.IsNullOrWhiteSpace(info)
             ? (asm.GetName().Version?.ToString() ?? "0.0.0")
             : info.Split('+', 2)[0]; // strip build metadata if present
-        _state.AddMessage(version);
+        output.WriteLine(version);
         return CommandResult.Success;
     }
 
     private CommandResult Home(string[] args)
     {
+        var output = _output.Get();
         if (_state.ViewMode == ShellViewMode.Home)
         {
-            _state.AddMessage("Already on dashboard layout.");
+            output.WriteLine("Already on dashboard layout.");
             return CommandResult.Success;
         }
         _state.ShowHome();
-        _state.AddMessage("Returned to dashboard layout.");
+        output.WriteLine("Returned to dashboard layout.");
         return CommandResult.Success;
     }
 
     private CommandResult Log(string[] args)
     {
+        var output = _output.Get();
         if (args.Length == 0)
         {
-            _state.AddMessage("Usage: log <up|down|pageup|pagedown|top|bottom> [count]");
+            output.WriteLine("Usage: log <up|down|pageup|pagedown|top|bottom> [count]");
             return CommandResult.Success;
         }
 
@@ -155,7 +162,7 @@ internal sealed class SystemCommandModule : ICommandModule
                 _state.ScrollLogEnd();
                 break;
             default:
-                _state.AddMessage($"Unknown log action '{action}'.");
+                output.Error($"Unknown log action '{action}'.");
                 return CommandResult.Failure;
         }
 
