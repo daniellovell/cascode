@@ -79,7 +79,16 @@ with open('$tmp_file', 'w') as f:
 }
 
 declare -a ext_dirs=()
-declare -A seen_dirs=()
+
+# Bash 3.x compatible array membership check
+array_contains() {
+  local needle="$1"
+  shift
+  for item in "$@"; do
+    [ "$item" = "$needle" ] && return 0
+  done
+  return 1
+}
 
 add_ext_dir() {
   local candidate="$1"
@@ -90,12 +99,16 @@ add_ext_dir() {
   local normalized
   normalized="$(normalize_path "$candidate")"
 
-  if [ -z "$normalized" ] || [ -n "${seen_dirs["$normalized"]+true}" ]; then
+  if [ -z "$normalized" ]; then
+    return
+  fi
+
+  # Skip if already added (deduplication)
+  if array_contains "$normalized" "${ext_dirs[@]+"${ext_dirs[@]}"}"; then
     return
   fi
 
   ext_dirs+=("$normalized")
-  seen_dirs["$normalized"]=1
 }
 
 add_ext_dir "$HOME/.vscode/extensions"
