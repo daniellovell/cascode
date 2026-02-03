@@ -272,10 +272,13 @@ public class BenchRunService
 
         Progress("load+link: start");
         var loadStep = timing.Step("load+link");
+        var inputDir =
+            Path.GetDirectoryName(Path.GetFullPath(args.CascodePath))
+            ?? Directory.GetCurrentDirectory();
         var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
             args.CascodePath,
             workspaceRoot,
-            args.OutputDir,
+            args.OutputDir ?? Path.Combine(inputDir, "build", "link", "bench"),
             _logger
         );
         loadStep.Stop();
@@ -325,7 +328,7 @@ public class BenchRunService
         var outputDir =
             args.OutputDir
             ?? Path.Combine(
-                Directory.GetCurrentDirectory(),
+                inputDir,
                 "build",
                 "bench",
                 circuitsWithBenches.Count == 1 ? circuitsWithBenches[0].Name : "multi"

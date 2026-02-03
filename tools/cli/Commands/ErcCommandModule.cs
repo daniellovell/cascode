@@ -125,7 +125,11 @@ internal sealed class ErcCommandModule : ICommandModule
         inputPath = Path.GetFullPath(inputPath);
 
         var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
-        var linkArtifactsDir = Path.Combine(Directory.GetCurrentDirectory(), "build", "erc");
+        var linkArtifactsDir = Path.Combine(
+            Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory(),
+            "build",
+            "erc"
+        );
         if (
             !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
                 inputPath,
