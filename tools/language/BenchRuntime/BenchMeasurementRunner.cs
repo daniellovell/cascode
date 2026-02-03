@@ -1251,10 +1251,12 @@ public sealed class BenchMeasurementRunner
         return true;
     }
 
-    private Dictionary<string, BenchValue> BindMeasurementArguments(
-        MeasurementDefinition measurement,
+    private Dictionary<string, BenchValue> BindArgumentsCore(
+        IReadOnlyList<TypedParameter> parameters,
         MeasurementCall call,
-        Dictionary<string, BenchValue> locals
+        Dictionary<string, BenchValue> locals,
+        string targetName,
+        string targetKind
     )
     {
         var values = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
@@ -1264,12 +1266,13 @@ public sealed class BenchMeasurementRunner
             .Args.Where(a => a.Name is not null)
             .ToDictionary(a => a.Name!, a => a.Value, StringComparer.Ordinal);
 
-        for (var i = 0; i < measurement.Parameters.Count; i++)
+        for (var i = 0; i < parameters.Count; i++)
         {
-            var p = measurement.Parameters[i];
+            var p = parameters[i];
             if (named.TryGetValue(p.Name, out var expr))
             {
                 values[p.Name] = EvaluateExpr(expr, locals);
+                named.Remove(p.Name);
             }
             else if (i < positional.Count)
             {
@@ -1278,12 +1281,35 @@ public sealed class BenchMeasurementRunner
             else
             {
                 throw new InvalidOperationException(
-                    $"Missing argument '{p.Name}' for measurement '{measurement.Name}'."
+                    $"Missing argument '{p.Name}' for {targetKind} '{targetName}'."
                 );
             }
         }
 
+        if (named.Count > 0)
+        {
+            var unexpectedArgs = string.Join(", ", named.Keys.Select(k => $"'{k}'"));
+            throw new InvalidOperationException(
+                $"Unexpected argument(s) {unexpectedArgs} for {targetKind} '{targetName}'."
+            );
+        }
+
         return values;
+    }
+
+    private Dictionary<string, BenchValue> BindMeasurementArguments(
+        MeasurementDefinition measurement,
+        MeasurementCall call,
+        Dictionary<string, BenchValue> locals
+    )
+    {
+        return BindArgumentsCore(
+            measurement.Parameters,
+            call,
+            locals,
+            measurement.Name,
+            "measurement"
+        );
     }
 
     private static string MakeMeasurementCacheKey(
@@ -1330,33 +1356,7 @@ public sealed class BenchMeasurementRunner
         Dictionary<string, BenchValue> locals
     )
     {
-        var values = new Dictionary<string, BenchValue>(StringComparer.Ordinal);
-
-        var positional = call.Args.Where(a => a.Name is null).ToList();
-        var named = call
-            .Args.Where(a => a.Name is not null)
-            .ToDictionary(a => a.Name!, a => a.Value, StringComparer.Ordinal);
-
-        for (var i = 0; i < fn.Parameters.Count; i++)
-        {
-            var p = fn.Parameters[i];
-            if (named.TryGetValue(p.Name, out var expr))
-            {
-                values[p.Name] = EvaluateExpr(expr, locals);
-            }
-            else if (i < positional.Count)
-            {
-                values[p.Name] = EvaluateExpr(positional[i].Value, locals);
-            }
-            else
-            {
-                throw new InvalidOperationException(
-                    $"Missing argument '{p.Name}' for function '{fn.Name}'."
-                );
-            }
-        }
-
-        return values;
+        return BindArgumentsCore(fn.Parameters, call, locals, fn.Name, "function");
     }
 
     private BenchTransferFunction EvalTransfer(

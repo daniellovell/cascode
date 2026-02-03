@@ -397,13 +397,13 @@
       "begin": "\\(",
       "beginCaptures": {
         "0": {
-          "name": "punctuation.paren.open.cascode"
+          "name": "punctuation.parenthesis.open.cascode"
         }
       },
       "end": "\\)",
       "endCaptures": {
         "0": {
-          "name": "punctuation.paren.close.cascode"
+          "name": "punctuation.parenthesis.close.cascode"
         }
       },
       "patterns": [
@@ -451,10 +451,13 @@
       }
     },
     "primitive-params-block": {
-      "begin": "(params)\\s*\\{",
+      "begin": "(params)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.params.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -906,10 +909,13 @@
       ]
     },
     "params-block": {
-      "begin": "(params)\\s*\\{",
+      "begin": "(params)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.params.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -952,10 +958,13 @@
       }
     },
     "ports-block": {
-      "begin": "(ports)\\s*\\{",
+      "begin": "(ports)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.ports.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1016,7 +1025,7 @@
       }
     },
     "connector-block": {
-      "begin": "(connector)(?:\\s+(to)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*\\{",
+      "begin": "(connector)(?:\\s+(to)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.connector.cascode"
@@ -1026,6 +1035,9 @@
         },
         "3": {
           "name": "entity.name.type.interface.cascode"
+        },
+        "4": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1044,10 +1056,13 @@
       ]
     },
     "metrics-block": {
-      "begin": "(metrics)\\s*\\{",
+      "begin": "(metrics)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.metrics.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1080,10 +1095,13 @@
       }
     },
     "benches-block": {
-      "begin": "(benches)\\s*\\{",
+      "begin": "(benches)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.benches.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1156,10 +1174,13 @@
       }
     },
     "env-block": {
-      "begin": "(env)\\s*\\{",
+      "begin": "(env)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.env.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1192,10 +1213,13 @@
       ]
     },
     "spec-block": {
-      "begin": "(spec)\\s*\\{",
+      "begin": "(spec)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.spec.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1238,10 +1262,13 @@
       ]
     },
     "bench-ref-block": {
-      "begin": "(bench)\\s*\\{",
+      "begin": "(bench)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.bench.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1260,10 +1287,13 @@
       ]
     },
     "use-block": {
-      "begin": "(use|fill)\\s*\\{",
+      "begin": "(use|fill)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.use.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1327,10 +1357,13 @@
       }
     },
     "synth-block": {
-      "begin": "(synth)\\s*\\{",
+      "begin": "(synth)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.synth.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1360,10 +1393,13 @@
       ]
     },
     "harness-block": {
-      "begin": "(harness)\\s*\\{",
+      "begin": "(harness)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.harness.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1407,10 +1443,13 @@
       ]
     },
     "provenance-block": {
-      "begin": "(provenance)\\s*\\{",
+      "begin": "(provenance)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.provenance.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1461,10 +1500,13 @@
       ]
     },
     "char-block": {
-      "begin": "(char)\\s*\\{",
+      "begin": "(char)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.char.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1494,10 +1536,13 @@
       ]
     },
     "constraints-block": {
-      "begin": "(constraints)\\s*\\{",
+      "begin": "(constraints)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.constraints.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1516,10 +1561,13 @@
       ]
     },
     "constraints-inner-block": {
-      "begin": "(numeric|timing|area|power)\\s*\\{",
+      "begin": "(numeric|timing|area|power)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.constraint-type.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1556,10 +1604,13 @@
       }
     },
     "fill-block": {
-      "begin": "(fill)\\s*\\{",
+      "begin": "(fill)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.fill.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1575,10 +1626,13 @@
       ]
     },
     "analysis-block": {
-      "begin": "(analysis)\\s*\\{",
+      "begin": "(analysis)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.analysis.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",
@@ -1623,10 +1677,13 @@
       }
     },
     "measurements-block": {
-      "begin": "(measurements)\\s*\\{",
+      "begin": "(measurements)\\s*(\\{)",
       "beginCaptures": {
         "1": {
           "name": "keyword.control.block.measurements.cascode"
+        },
+        "2": {
+          "name": "punctuation.curlybrace.open.cascode"
         }
       },
       "end": "\\}",

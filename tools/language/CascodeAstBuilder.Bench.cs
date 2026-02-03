@@ -84,74 +84,80 @@ internal sealed partial class CascodeAstBuilder
                 BindingName = bindingCtx.bindingName.Text,
             };
 
-            foreach (var stmt in bindingCtx.bindingStatement())
-            {
-                if (stmt.terminalMapping() is not null)
-                {
-                    var t = stmt.terminalMapping();
-                    binding.Statements.Add(
-                        new BenchTerminalMapping(
-                            BenchTerminal: t.IDENT().GetText(),
-                            DutPinRef: BuildPinRef(t.pinRef())
-                        )
-                    );
-                    continue;
-                }
-
-                if (stmt.bindingMeasurementsBlock() is not null)
-                {
-                    foreach (var decl in stmt.bindingMeasurementsBlock().bindingMeasurementDecl())
-                    {
-                        var parameters = new List<TypedParameter>();
-                        if (decl.typedParamList() is not null)
-                        {
-                            foreach (var p in decl.typedParamList().typedParam())
-                            {
-                                parameters.Add(
-                                    new TypedParameter(
-                                        ParseTypedParamType(p.typedParamType()),
-                                        p.idPart().GetText()
-                                    )
-                                );
-                            }
-                        }
-
-                        binding.Statements.Add(
-                            new BenchBindingMeasurementExport(
-                                Name: decl.name.Text,
-                                Parameters: parameters,
-                                Unit: decl.unitType().GetText(),
-                                Target: BuildBenchMeasurementRef(decl.benchMeasurementRef())
-                            )
-                        );
-                    }
-                    continue;
-                }
-
-                if (stmt.dutConnection() is not null)
-                {
-                    var c = stmt.dutConnection();
-                    binding.Statements.Add(
-                        new BenchDutConnection(
-                            DutPinRef: BuildPinRef(c.pinRef(0)),
-                            PinRef: BuildPinRef(c.pinRef(1))
-                        )
-                    );
-                    continue;
-                }
-
-                if (stmt.instanceDecl() is not null)
-                {
-                    binding.Statements.Add(
-                        new BenchBindingInstance(BuildInstance(stmt.instanceDecl()))
-                    );
-                }
-            }
+            ProcessBindingStatements(bindingCtx.bindingStatement(), binding.Statements);
 
             bindings.Add(binding);
         }
 
         return bindings;
+    }
+
+    private void ProcessBindingStatements(
+        IEnumerable<CascodeParser.BindingStatementContext> statements,
+        List<BenchBindingStatement> target
+    )
+    {
+        foreach (var stmt in statements)
+        {
+            if (stmt.terminalMapping() is not null)
+            {
+                var t = stmt.terminalMapping();
+                target.Add(
+                    new BenchTerminalMapping(
+                        BenchTerminal: t.IDENT().GetText(),
+                        DutPinRef: BuildPinRef(t.pinRef())
+                    )
+                );
+                continue;
+            }
+
+            if (stmt.bindingMeasurementsBlock() is not null)
+            {
+                foreach (var decl in stmt.bindingMeasurementsBlock().bindingMeasurementDecl())
+                {
+                    var parameters = new List<TypedParameter>();
+                    if (decl.typedParamList() is not null)
+                    {
+                        foreach (var p in decl.typedParamList().typedParam())
+                        {
+                            parameters.Add(
+                                new TypedParameter(
+                                    ParseTypedParamType(p.typedParamType()),
+                                    p.idPart().GetText()
+                                )
+                            );
+                        }
+                    }
+
+                    target.Add(
+                        new BenchBindingMeasurementExport(
+                            Name: decl.name.Text,
+                            Parameters: parameters,
+                            Unit: decl.unitType().GetText(),
+                            Target: BuildBenchMeasurementRef(decl.benchMeasurementRef())
+                        )
+                    );
+                }
+                continue;
+            }
+
+            if (stmt.dutConnection() is not null)
+            {
+                var c = stmt.dutConnection();
+                target.Add(
+                    new BenchDutConnection(
+                        DutPinRef: BuildPinRef(c.pinRef(0)),
+                        PinRef: BuildPinRef(c.pinRef(1))
+                    )
+                );
+                continue;
+            }
+
+            if (stmt.instanceDecl() is not null)
+            {
+                target.Add(new BenchBindingInstance(BuildInstance(stmt.instanceDecl())));
+            }
+        }
     }
 
     private IReadOnlyList<BenchBindingExtension> BuildBenchExtensions(
@@ -163,69 +169,8 @@ internal sealed partial class CascodeAstBuilder
         foreach (var extCtx in extensionContexts)
         {
             var ext = new BenchBindingExtension { BindingName = extCtx.bindingName.Text };
-            foreach (var stmt in extCtx.bindingStatement())
-            {
-                if (stmt.terminalMapping() is not null)
-                {
-                    var t = stmt.terminalMapping();
-                    ext.Statements.Add(
-                        new BenchTerminalMapping(
-                            BenchTerminal: t.IDENT().GetText(),
-                            DutPinRef: BuildPinRef(t.pinRef())
-                        )
-                    );
-                    continue;
-                }
 
-                if (stmt.bindingMeasurementsBlock() is not null)
-                {
-                    foreach (var decl in stmt.bindingMeasurementsBlock().bindingMeasurementDecl())
-                    {
-                        var parameters = new List<TypedParameter>();
-                        if (decl.typedParamList() is not null)
-                        {
-                            foreach (var p in decl.typedParamList().typedParam())
-                            {
-                                parameters.Add(
-                                    new TypedParameter(
-                                        ParseTypedParamType(p.typedParamType()),
-                                        p.idPart().GetText()
-                                    )
-                                );
-                            }
-                        }
-
-                        ext.Statements.Add(
-                            new BenchBindingMeasurementExport(
-                                Name: decl.name.Text,
-                                Parameters: parameters,
-                                Unit: decl.unitType().GetText(),
-                                Target: BuildBenchMeasurementRef(decl.benchMeasurementRef())
-                            )
-                        );
-                    }
-                    continue;
-                }
-
-                if (stmt.dutConnection() is not null)
-                {
-                    var c = stmt.dutConnection();
-                    ext.Statements.Add(
-                        new BenchDutConnection(
-                            DutPinRef: BuildPinRef(c.pinRef(0)),
-                            PinRef: BuildPinRef(c.pinRef(1))
-                        )
-                    );
-                    continue;
-                }
-
-                if (stmt.instanceDecl() is not null)
-                {
-                    ext.Statements.Add(
-                        new BenchBindingInstance(BuildInstance(stmt.instanceDecl()))
-                    );
-                }
-            }
+            ProcessBindingStatements(extCtx.bindingStatement(), ext.Statements);
 
             extensions.Add(ext);
         }

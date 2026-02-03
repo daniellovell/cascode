@@ -353,4 +353,229 @@ bench ZBench {{
             e => e.Kind == BenchNumericKind.CapacitanceF && e.Value == 15e-12
         );
     }
+
+    [Fact]
+    public void BindMeasurementArguments_SingleUnexpectedNamedArg_Throws()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TestBench {{
+  measurements {{
+    measurement M(Frequency f) : Hz {{
+      return f
+    }}
+
+    measurement Caller : Hz {{
+      return M(f=1Hz, frq=2Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s) 'frq'", ex.Message);
+        Assert.Contains("measurement 'M'", ex.Message);
+    }
+
+    [Fact]
+    public void BindMeasurementArguments_MultipleUnexpectedNamedArgs_Throws()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TestBench {{
+  measurements {{
+    measurement M(Frequency f) : Hz {{
+      return f
+    }}
+
+    measurement Caller : Hz {{
+      return M(f=1Hz, extra=2Hz, other=3Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s)", ex.Message);
+        Assert.Contains("'extra'", ex.Message);
+        Assert.Contains("'other'", ex.Message);
+        Assert.Contains("measurement 'M'", ex.Message);
+    }
+
+    [Fact]
+    public void BindCallArguments_UnexpectedNamedArg_Throws()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+function calc(Frequency f) : Frequency {{
+  return f
+}}
+
+bench TestBench {{
+  measurements {{
+    measurement Caller : Hz {{
+      return calc(f=1Hz, frq=2Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s) 'frq'", ex.Message);
+        Assert.Contains("function 'calc'", ex.Message);
+    }
+
+    [Fact]
+    public void BindMeasurementArguments_MixedPositionalAndNamedWithTypo_Throws()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TestBench {{
+  measurements {{
+    measurement M(Frequency a, Frequency b) : Hz {{
+      return a + b
+    }}
+
+    measurement Caller : Hz {{
+      return M(1Hz, b=2Hz, bb=3Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Unexpected argument(s) 'bb'", ex.Message);
+        Assert.Contains("measurement 'M'", ex.Message);
+    }
+
+    [Fact]
+    public void BindMeasurementArguments_ValidUsage_DoesNotThrow()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+function add(Frequency a, Frequency b) : Frequency {{
+  return a + b
+}}
+
+bench TestBench {{
+  measurements {{
+    measurement M(Frequency f1, Frequency f2) : Hz {{
+      return f1 + f2
+    }}
+
+    measurement AllPositional : Hz {{
+      return M(1Hz, 2Hz)
+    }}
+
+    measurement AllNamed : Hz {{
+      return M(f1=3Hz, f2=4Hz)
+    }}
+
+    measurement Mixed : Hz {{
+      return M(5Hz, f2=6Hz)
+    }}
+
+    measurement WithFunction : Hz {{
+      return add(7Hz, 8Hz) + add(a=9Hz, b=10Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TestBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            ),
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.Ordinal),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunAll();
+        Assert.Equal(3.0, values["AllPositional"].Value);
+        Assert.Equal(7.0, values["AllNamed"].Value);
+        Assert.Equal(11.0, values["Mixed"].Value);
+        Assert.Equal(34.0, values["WithFunction"].Value);
+    }
 }
