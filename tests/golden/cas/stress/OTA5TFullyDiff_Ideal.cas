@@ -74,9 +74,15 @@ circuit OTA5TFullyDiff_Ideal implements FullyDifferentialOpAmp {
 
   constraints {
     numeric {
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 10MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
-      c_pwr = vdd_pwr::QuiescentPower <= 1nW
-      c_cmrr = cmrr_bench::CMRR >= 300dB
+      c_cmrr = cmrr_bench::CMRR at net::OUT >= 300dB
+      c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 10uVrms
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 1nW
+      c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.2V
+      c_psrr = psrr_bench::PSRR at net::OUT >= 20dB
+      c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 20dB
     }
   }
 

@@ -9,6 +9,8 @@ The bench system replaces the legacy template-driven approach. Instead of select
 template, benches are executable language constructs that drive emission, simulation, and
 post-processing through typed measurement expressions.
 
+Practical authoring patterns and worked examples are collected in the [bench cookbook](../../docs/language/bench-cookbook.md).
+
 ---
 
 ## 4.0 Summary
@@ -21,8 +23,24 @@ A `bench` block contains:
 4. An `analysis {}` block declaring analyses (AC, DC, transient, noise, stability).
 5. A `measurements {}` block defining typed measurement outputs.
 
-Bench declarations typically live in libraries (for example, `lib/std/bench/*.cas`). A circuit or
+Bench declarations typically live in libraries (for example, [`lib/std/bench/*.cas`](../../lib/std/bench/)). A circuit or
 interface selects and configures benches via `benches { ... }` bindings in circuits and interfaces.
+
+### 4.0.1 Terminology
+
+This chapter uses the following terms:
+
+- **Bench definition**: a `bench Name { ... }` declaration. A bench definition describes a testbench
+  topology (stimulus, load, analyses, and measurement computations) but is not connected to a
+  particular circuit until it is bound.
+- **Bench binding**: a `bind BenchName as binding_name { ... }` block inside an `interface` or
+  `circuit`. A binding maps bench terminals onto a specific circuit under test and optionally adds
+  binding-scoped wiring and harness primitives.
+- **Bench instance**: the specialization of a bench binding with compile-time bench parameters,
+  written as `binding_name(param=value, ...)`. Different bench instances produce separate emitted
+  testbenches and separate result sets.
+- **Harness primitive**: a special instance kind (for example `VAC`, `VDC`, `VSIN`, `Impedor`) that
+  the bench runtime recognizes and emits as backend elements during `cascode emit`.
 
 ---
 
@@ -70,19 +88,36 @@ bench GainSweep(Frequency start = 1Hz, Frequency stop = 10GHz) {
 ```
 
 Bench parameters are compile-time values and are available in the bench scope alongside `env`,
-`constraints`, and `harness` (see Section 4.1.3).
+`constraints`, and `harness` (see [Section 4.1.3](#413-scope-and-availability)).
 
 ### 4.1.3 Scope and Availability
 
-The following names are available throughout a bench:
+Benches and bindings execute in a shared testbench context. This section describes the names that are
+available when authoring benches and bindings. (See [Chapter 2, Section 2.7](Ch02_Core_Concepts.md#27-constraints-harness-and-environment)
+for the definitions of `env`, `constraints`, and `harness`.)
 
+Within a bench definition:
+
+- Bench parameters are available by name.
+- Bench terminals declared with `stim`/`resp` are available by name (for example, `IN.P`).
 - `env.<Name>`: resolved environment values from the bound circuit.
-- `constraints.<Name>`: resolved constraint values from the bound circuit (absent/null if unconstrained).
+- `constraints.<Name>`: resolved constraint values from the bound circuit (absent if unconstrained).
 - `harness.<Name>`: resolved harness values used by emission and bench execution.
+- `dut.<Name>`: the circuit under test. `dut` exposes the DUT’s declared terminals and any named
+  internal nets; benches may use this to probe internal nodes (for example,
+  `voltage(tran, dut.mid)`).
 
 Analyses declared in `analysis {}` are in scope inside `measurements {}`. Measurements are declared
 using `measurement Name : Unit { ... }`; the declared unit determines the measurement’s required
 return type and the units reported to downstream consumers.
+
+Within a bench binding body:
+
+- `bench.<Terminal>` refers to a bench terminal being mapped (for example, `bench.IN--dut.IN`).
+- `dut.<Name>` refers to a DUT terminal or named internal net.
+- Binding bodies may declare additional nets and instances and wire them. The binding elaborates into
+  the same emitted testbench netlist as the bench’s `fill {}` block, so binding statements may
+  reference nets created by either the bench or the binding.
 
 ---
 
@@ -138,7 +173,7 @@ User-defined bundle types:
   two leaves (`.P`, `.N`), each of which must be mapped during binding.
 
 The special `ground` type is most commonly used as a return terminal when a bench needs to reason
-about supply current (for example, `QuiescentPower`). Grounds within the test circuit itself are
+about supply current (for example, [`QuiescentPower`](../../lib/std/bench/PowerBenches.cas)). Grounds within the test circuit itself are
 usually modeled as internal nets connected via a `GND()` element inside `fill {}`.
 
 ### 4.2.4 `stim` / `resp` as Value Types
@@ -157,6 +192,39 @@ function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
 This use of `stim`/`resp` is distinct from the domain types (`analog`, `digital`, etc.). It describes
 the value category passed to measurement primitives (a terminal reference), not the electrical domain
 of a terminal leaf.
+
+### 4.2.5 Differential terminal semantics
+
+Measurement primitives operate on *terminal values*. For scalar terminals (one leaf), the terminal’s
+voltage is the node voltage at that leaf. For two-leaf terminals (for example, `Diff`), the terminal
+is treated as a differential quantity \(V(P) - V(N)\).
+
+This differential interpretation applies consistently to:
+
+- `transfer(ac, stim, resp)` (both the stimulus and response terminals)
+- `voltage(analysis, terminal)` for AC spectra and transient waveforms
+- `NoiseAnalysis(..., output=terminal)` and `noise(noise_analysis, terminal)`
+
+Example (differential response):
+
+```cascode
+bench DiffToDiffTransfer {
+  stim IN : Diff
+  resp OUT : Diff
+
+  analysis { ACAnalysis ac = new ACAnalysis(space=Log, samples=100, start=1Hz, stop=10GHz) }
+
+  measurements {
+    measurement PassbandGain : dB {
+      TransferFunction H = transfer(ac, IN, OUT)  // OUT is interpreted as V(OUT.P) - V(OUT.N)
+      return db20(H.Mag()).ValueAt(1kHz)
+    }
+  }
+}
+```
+
+For bundle types with more than two leaves, benches should reference the desired leaves explicitly
+(for example, `OUT.P`).
 
 ---
 
@@ -195,7 +263,8 @@ z.N--IN.P
 
 ### 4.3.2 Harness Primitives
 
-The following instance types are treated as harness primitives by the current toolchain.
+The following instance types are treated as harness primitives by the current toolchain (see
+[Section 4.0.1](#401-terminology) for the definition of harness primitive).
 Other instances are treated as normal structural instances in the test circuit.
 
 | Primitive type | Parameters | Pins | Notes |
@@ -264,7 +333,7 @@ The current grammar defines the following analysis types:
 | `ACAnalysis` | Small-signal frequency sweep |
 | `DCAnalysis` | Operating-point / DC sweep (backend-dependent) |
 | `TranAnalysis` | Time-domain transient simulation |
-| `NoiseAnalysis` | Noise analysis driven by an input source |
+| `NoiseAnalysis` | Noise analysis driven by an input source (see [Section 4.4.3](#443-noise-analysis-contract)) |
 | `STBAnalysis` | Stability analysis (backend-dependent) |
 
 Each analysis type has its own constructor parameters. Parameters are expressions, and may reference
@@ -285,6 +354,25 @@ analysis {
     start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
     stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
 }
+```
+
+### 4.4.3 Noise analysis contract
+
+Noise benches use `NoiseAnalysis` to request an output-referred noise spectrum over frequency. A
+portable noise bench must satisfy the following contract:
+
+- `NoiseAnalysis` must provide `start`, `stop`, and `output` parameters.
+- `output` must evaluate to a terminal reference (scalar or differential). For a two-leaf terminal,
+  the toolchain treats the output as a differential quantity $V(P) - V(N)$ (see [Section 4.2.5](#425-differential-terminal-semantics)).
+- The testbench netlist must include at least one independent source that can act as the noise input
+  reference. Standard benches (see [`lib/std/bench/NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas)) typically include `VAC` sources (preferred) or a `VDC` source if a
+  bench is noise-only.
+
+In most cases, `NoiseAnalysis` is paired with an `ACAnalysis` so the bench can compute input-referred
+noise by dividing the output noise density by the transfer magnitude:
+
+```cascode
+NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 ```
 
 ---
@@ -327,7 +415,7 @@ Measurement bodies support:
 - Explicit `return` expressions
 
 Multi-line expressions must be parenthesized, and conditional expressions inside argument lists use
-the `(if ... { ... } else { ... })` form (shown in Section 4.4).
+the `(if ... { ... } else { ... })` form (shown in [Section 4.4](#44-analysis-blocks)).
 
 ### 4.5.3 Calling Other Measurements
 
@@ -377,7 +465,7 @@ Common structured result types produced by measurement primitives:
 | `TransferFunction` | `transfer(ac, stim, resp)` | Complex frequency response |
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
-| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency |
+| `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
 | `VoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency |
 | `CurrentSpectrum` | `current(ac, harness_pin)` | Current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
@@ -424,8 +512,8 @@ Spectrum methods:
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
-The standard library uses these methods to implement measurements such as gain-bandwidth and phase
-margin (transfer benches) and spot/integrated noise (noise benches).
+The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
+margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
 
 ## 4.8 Bench Binding and Constraint References
 
@@ -511,11 +599,38 @@ The general form is:
 <binding>(<bench-args>)? :: <measurement>(<measurement-args>)?
 ```
 
-Bench arguments specialize a parameterized bench binding. Measurement arguments invoke a parameterized
-measurement within the selected bench.
+Bench arguments specialize a parameterized bench binding (see [Section 4.1.2](#412-bench-parameters)). Measurement arguments invoke a parameterized
+measurement within the selected bench (see [Section 4.5.3](#453-calling-other-measurements)).
 
 ### 4.8.4 Emission and Execution Model
 
 Bench simulation is constraint-driven: benches are emitted and executed when at least one of their
 measurements is referenced by a constraint. If any measurement from a bench is constrained, the whole
 bench is simulated and all of its measurements are produced.
+
+### 4.8.5 Binding measurement exports
+
+A binding may include a `measurements { ... }` block. Measurements declared in this block are *binding
+exports*: they behave like additional measurements on the bound bench instance and may be referenced
+from constraints using the binding name.
+
+Binding exports are commonly used to:
+
+- Provide default arguments for parameterized bench measurements.
+- Define derived metrics that depend on other benches (for example, gain-normalized PSRR).
+
+Within a binding export expression, `base::Name(...)` refers to a measurement defined by the bound
+bench itself. See [standard amplifier interfaces](../../lib/std/amp/) for examples in practice.
+
+```cascode
+bind SupplyToSERejection as psrr_bench {
+  bench.IN--dut.IN
+  bench.PWR--dut.VDD
+  bench.OUT--dut.OUT
+
+  measurements {
+    measurement InputReferredPSRR : dB =
+      base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
+  }
+}
+```
