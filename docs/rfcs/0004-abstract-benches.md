@@ -50,7 +50,7 @@ abstract bench AbstractTransfer for Amplifier {
         Rload : resistor = 10k
         Cload : capacitor = 1p
         
-        // Abstract "holes" that must be defined by overriding bench
+        // Abstract "holes" that must be defined by extending bench
         abstract input_net : net
         abstract output_net : net
     }
@@ -70,10 +70,10 @@ abstract bench AbstractTransfer for Amplifier {
 
 ### 3.2 Concrete Bench Override
 
-Concrete benches use `overrides` to inherit from an abstract bench:
+Concrete benches use `extends` to inherit from an abstract bench:
 
 ```cascode
-bench DiffToSETransfer overrides AbstractTransfer {
+bench DiffToSETransfer extends AbstractTransfer {
     harness {
         // Fulfill the abstract requirements
         input_net = dut.inp - dut.inm  // differential input
@@ -87,7 +87,7 @@ bench DiffToSETransfer overrides AbstractTransfer {
     }
 }
 
-bench SEToSETransfer overrides AbstractTransfer {
+bench SEToSETransfer extends AbstractTransfer {
     harness {
         input_net = dut.inp
         output_net = dut.out
@@ -95,20 +95,23 @@ bench SEToSETransfer overrides AbstractTransfer {
 }
 ```
 
-### 3.3 Keyword Choice: `overrides` vs Alternatives
+### 3.3 Keyword Choice: `extends`
+
+The keyword `extends` was chosen for abstract bench inheritance. Alternative keywords considered:
 
 | Keyword | Pros | Cons |
 |---------|------|------|
-| `overrides` | Clear intent, implies replacing/fulfilling | Might suggest complete replacement |
-| `extends` | Familiar from OOP | Implies adding, not fulfilling holes |
+| `extends` | Familiar from OOP, works for multi-level hierarchies | Could imply "adding" rather than "filling" |
+| `overrides` | Implies action | Semantically wrong (not replacing existing impl) |
 | `implements` | Clear contract fulfillment | Usually for interfaces, not partial implementations |
 | `specializes` | Accurate semantically | Verbose, unfamiliar |
+| `completes` | Explicit about filling holes | Implies finality, awkward for abstract-to-abstract |
 
-The recommended keyword is `overrides` because it clearly communicates that the concrete bench is providing specific implementations for abstract holes while inheriting the rest.
+The keyword `extends` was selected because it is universally understood, scales cleanly to multi-level hierarchies (`abstract bench B extends A`), and has precedent in hardware description contexts (SystemVerilog uses `extends` for class inheritance).
 
 ### 3.4 Abstract Members
 
-Members in an abstract bench fall into three categories. Concrete members are fully defined and inherited as-is by overriding benches. Abstract members are declared with the `abstract` keyword and must be provided by the overriding bench. Virtual members (a future extension not covered in this RFC) would have a default implementation that can be optionally overridden.
+Members in an abstract bench fall into three categories. Concrete members are fully defined and inherited as-is by extending benches. Abstract members are declared with the `abstract` keyword and must be provided by the extending bench. Virtual members (a future extension not covered in this RFC) would have a default implementation that can be optionally overridden.
 
 ```cascode
 abstract bench Example for SomeTrait {
@@ -121,7 +124,7 @@ abstract bench Example for SomeTrait {
 
 ### 3.5 Override Validation
 
-The compiler enforces that all abstract members must be provided by the overriding bench. Non-abstract members cannot be overridden unless marked virtual in a future extension. An abstract bench cannot be used directly in `attach` statements.
+The compiler enforces that all abstract members must be provided by the extending bench. Non-abstract members cannot be overridden unless marked virtual in a future extension. An abstract bench cannot be used directly in `attach` statements.
 
 ---
 
@@ -168,7 +171,7 @@ abstract bench AbstractTransfer for Amplifier {
     }
 }
 
-bench DiffToDiffTransfer overrides AbstractTransfer {
+bench DiffToDiffTransfer extends AbstractTransfer {
     harness {
         stim_pos = dut.inp
         stim_neg = dut.inm
@@ -177,7 +180,7 @@ bench DiffToDiffTransfer overrides AbstractTransfer {
     }
 }
 
-bench DiffToSETransfer overrides AbstractTransfer {
+bench DiffToSETransfer extends AbstractTransfer {
     harness {
         stim_pos = dut.inp
         stim_neg = dut.inm
@@ -186,7 +189,7 @@ bench DiffToSETransfer overrides AbstractTransfer {
     }
 }
 
-bench SEToSETransfer overrides AbstractTransfer {
+bench SEToSETransfer extends AbstractTransfer {
     harness {
         stim_pos = dut.inp
         stim_neg = gnd
@@ -206,9 +209,9 @@ This is an additive feature. Existing benches continue to work unchanged. Users 
 
 ## 6. Open Questions
 
-Several design decisions remain open for discussion. Chained inheritance (where `bench A overrides B` and `B overrides C`) is likely desirable but may warrant a depth limit to prevent overly complex hierarchies. The question of partial overrides arises: can an overriding bench itself be abstract, requiring further specialization? The recommended answer is yes, enabling layered abstraction.
+Several design decisions remain open for discussion. Chained inheritance (where `bench A extends B` and `B extends C`) is likely desirable but may warrant a depth limit to prevent overly complex hierarchies. The question of partial extension arises: can an extending bench itself be abstract, requiring further specialization? The recommended answer is yes, enabling layered abstraction.
 
-Trait compatibility presents another choice: must the overriding bench explicitly specify the same trait as its parent, or is it inherited? Inheriting the trait and allowing omission seems cleaner. Finally, visibility modifiers (public/private) for abstract members could be useful but add complexity; this RFC defers that decision.
+Trait compatibility presents another choice: must the extending bench explicitly specify the same trait as its parent, or is it inherited? Inheriting the trait and allowing omission seems cleaner. Finally, visibility modifiers (public/private) for abstract members could be useful but add complexity; this RFC defers that decision.
 
 ---
 
