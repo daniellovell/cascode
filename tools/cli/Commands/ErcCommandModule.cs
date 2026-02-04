@@ -108,28 +108,20 @@ internal sealed class ErcCommandModule : ICommandModule
 
         if (!File.Exists(inputPath))
         {
-            if (jsonOutput)
-            {
-                var errorResult = new ValidationResult();
-                errorResult.AddError("ERC-PARSE", $"Input file '{inputPath}' not found");
-                output.WriteLine(errorResult.ToJson(2));
-            }
-            else
-            {
-                output.Error($"Input file '{inputPath}' not found.");
-            }
+            OutputParseError(
+                output,
+                jsonOutput,
+                "ERC-PARSE",
+                $"Input file '{inputPath}' not found"
+            );
             earlyResult = new CommandResult(2, false);
             return false;
         }
 
         inputPath = Path.GetFullPath(inputPath);
-
         var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
-        var linkArtifactsDir = Path.Combine(
-            Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory(),
-            "build",
-            "erc"
-        );
+        var linkArtifactsDir = ResolveLinkArtifactsDirectory(inputPath);
+
         if (
             !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
                 inputPath,
@@ -141,56 +133,80 @@ internal sealed class ErcCommandModule : ICommandModule
             )
         )
         {
-            if (jsonOutput)
-            {
-                var errorResult = new ValidationResult();
-                foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
-                {
-                    var code = string.IsNullOrWhiteSpace(diag.Code) ? "ERC-LOAD" : diag.Code;
-                    errorResult.AddError(code, diag.Message, $"{diag.FilePath}:{diag.Line}");
-                }
-                output.WriteLine(errorResult.ToJson(2));
-            }
-            else
-            {
-                foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
-                {
-                    output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
-                }
-            }
-
+            OutputLoadDiagnostics(output, jsonOutput, diagnostics);
             earlyResult = new CommandResult(2, false);
             return false;
         }
 
         doc = loaded.Document;
 
-        // Find EL or ML circuits (topology-based ERC works on both)
         var circuits = doc
             .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
             .ToList();
         if (circuits.Count == 0)
         {
-            if (jsonOutput)
-            {
-                var errorResult = new ValidationResult();
-                errorResult.AddError(
-                    "ERC-PARSE",
-                    "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
-                );
-                output.WriteLine(errorResult.ToJson(2));
-            }
-            else
-            {
-                output.Error(
-                    "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
-                );
-            }
+            OutputParseError(
+                output,
+                jsonOutput,
+                "ERC-PARSE",
+                "No EL or ML level circuits found. ERC requires EL or ML level Cascode."
+            );
             earlyResult = new CommandResult(2, false);
             return false;
         }
 
         return true;
+    }
+
+    private static string ResolveLinkArtifactsDirectory(string inputPath)
+    {
+        var inputDir = Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory();
+        return Path.Combine(inputDir, "build", "erc");
+    }
+
+    private static void OutputParseError(
+        ICliOutput output,
+        bool jsonOutput,
+        string code,
+        string message
+    )
+    {
+        if (jsonOutput)
+        {
+            var errorResult = new ValidationResult();
+            errorResult.AddError(code, message);
+            output.WriteLine(errorResult.ToJson(2));
+        }
+        else
+        {
+            output.Error($"{message}.");
+        }
+    }
+
+    private static void OutputLoadDiagnostics(
+        ICliOutput output,
+        bool jsonOutput,
+        System.Collections.Generic.IReadOnlyList<Diagnostic> diagnostics
+    )
+    {
+        var errors = diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        if (jsonOutput)
+        {
+            var errorResult = new ValidationResult();
+            foreach (var diag in errors)
+            {
+                var code = string.IsNullOrWhiteSpace(diag.Code) ? "ERC-LOAD" : diag.Code;
+                errorResult.AddError(code, diag.Message, $"{diag.FilePath}:{diag.Line}");
+            }
+            output.WriteLine(errorResult.ToJson(2));
+        }
+        else
+        {
+            foreach (var diag in errors)
+            {
+                output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
+            }
+        }
     }
 
     private static void BuildJsonOutput(ICliOutput output, ValidationResult result, int exitCode)

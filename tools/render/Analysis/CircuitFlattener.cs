@@ -117,6 +117,8 @@ public static class CircuitFlattener
             }
         }
 
+        AddPrefixedInternalNetSubstitutions(prefix, inlineInternalNets, netSubstitutions);
+
         var deviceIdsInThisInstance = new List<string>();
 
         if (inlineCircuit.Fill?.Devices is not null)
@@ -208,6 +210,18 @@ public static class CircuitFlattener
             Size = device.Size,
             Bindings = flattenedBindings,
         };
+    }
+
+    private static void AddPrefixedInternalNetSubstitutions(
+        string prefix,
+        HashSet<string> inlineInternalNets,
+        Dictionary<string, string> netSubstitutions
+    )
+    {
+        foreach (var netId in inlineInternalNets)
+        {
+            netSubstitutions[netId] = $"{prefix}.{netId}";
+        }
     }
 
     private static Dictionary<string, string> BuildNetSubstitutions(

@@ -157,7 +157,11 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(render, "render failed");
 
         var doc = LoadAndLinkIfNeededForTest(cascodePath);
-        foreach (var circuit in doc.Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline))
+        foreach (
+            var circuit in doc
+                .Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
+                .OrderBy(c => c.Name, StringComparer.Ordinal)
+        )
         {
             var svgPath = Path.Combine(renderDir, $"{circuit.Name}.svg");
             Assert.True(File.Exists(svgPath), $"SVG not found: {svgPath}");
