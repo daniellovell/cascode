@@ -17,19 +17,9 @@ This RFC proposes an **abstract bench** mechanism to reduce boilerplate in bench
 
 ## 1. Problem Statement
 
-The current bench system requires each bench variant to fully specify its harness, constraints, and measurements, even when benches in a family share 80-90% of their structure. For example, transfer function benches (`DiffToSETransfer`, `SEToSETransfer`, `DiffToDiffTransfer`) likely share:
+The current bench system requires each bench variant to fully specify its harness, constraints, and measurements, even when benches in a family share 80-90% of their structure. Transfer function benches like `DiffToSETransfer`, `SEToSETransfer`, and `DiffToDiffTransfer` share AC stimulus injection patterns, load configurations, frequency sweep parameters, and common constraint bindings. Only the input/output signal routing differs between them.
 
-- AC stimulus injection patterns
-- Load configurations
-- Frequency sweep parameters
-- Common constraint bindings
-
-Only the input/output signal routing differs between variants. This leads to:
-
-1. **Code duplication**: Same harness structure copied across multiple bench definitions
-2. **Maintenance burden**: Fixing a bug or improving a pattern requires changes in N places
-3. **Inconsistency risk**: Variants can drift apart over time
-4. **Barrier to entry**: Users creating custom bench families must understand and replicate the full pattern
+This repetition creates several problems. The same harness structure gets copied across multiple bench definitions, so fixing a bug or improving a pattern requires changes in N places. Variants can drift apart over time as independent edits accumulate. Users creating custom bench families face a high barrier to entry because they must understand and replicate the full pattern rather than specifying only what differs.
 
 ---
 
@@ -37,17 +27,11 @@ Only the input/output signal routing differs between variants. This leads to:
 
 ### Goals
 
-1. Allow bench families to share common structure through inheritance
-2. Clearly delineate what must be overridden vs. what is inherited
-3. Integrate naturally with existing `bench ... for Trait` syntax
-4. Preserve the current bench semantics (this is purely a code organization mechanism)
+This RFC aims to allow bench families to share common structure through inheritance while clearly delineating what must be overridden versus what is inherited. The mechanism should integrate naturally with existing `bench ... for Trait` syntax and preserve the current bench semantics; this is purely a code organization mechanism with no runtime behavior changes.
 
 ### Non-Goals
 
-1. Multiple inheritance for benches
-2. Runtime polymorphism or dynamic bench selection
-3. Changes to how benches bind to circuits or traits
-4. Automatic generation of bench variants (that's a separate feature)
+This RFC does not address multiple inheritance for benches, runtime polymorphism or dynamic bench selection, changes to how benches bind to circuits or traits, or automatic generation of bench variants. These remain potential future work.
 
 ---
 
@@ -120,15 +104,11 @@ bench SEToSETransfer overrides AbstractTransfer {
 | `implements` | Clear contract fulfillment | Usually for interfaces, not partial implementations |
 | `specializes` | Accurate semantically | Verbose, unfamiliar |
 
-**Recommendation:** `overrides` clearly communicates that the concrete bench is providing specific implementations for abstract holes while inheriting the rest.
+The recommended keyword is `overrides` because it clearly communicates that the concrete bench is providing specific implementations for abstract holes while inheriting the rest.
 
 ### 3.4 Abstract Members
 
-Members in an abstract bench can be:
-
-1. **Concrete**: Fully defined, inherited as-is
-2. **Abstract**: Declared with `abstract` keyword, must be provided by overriding bench
-3. **Virtual**: Has a default but can be overridden (future extension, not in this RFC)
+Members in an abstract bench fall into three categories. Concrete members are fully defined and inherited as-is by overriding benches. Abstract members are declared with the `abstract` keyword and must be provided by the overriding bench. Virtual members (a future extension not covered in this RFC) would have a default implementation that can be optionally overridden.
 
 ```cascode
 abstract bench Example for SomeTrait {
@@ -141,11 +121,7 @@ abstract bench Example for SomeTrait {
 
 ### 3.5 Override Validation
 
-The compiler enforces:
-
-1. All `abstract` members must be provided by the overriding bench
-2. Non-abstract members cannot be overridden (unless marked `virtual` in future)
-3. An abstract bench cannot be used directly in `attach` statements
+The compiler enforces that all abstract members must be provided by the overriding bench. Non-abstract members cannot be overridden unless marked virtual in a future extension. An abstract bench cannot be used directly in `attach` statements.
 
 ---
 
@@ -230,21 +206,15 @@ This is an additive feature. Existing benches continue to work unchanged. Users 
 
 ## 6. Open Questions
 
-1. **Chained inheritance**: Should `bench A overrides B` where `B overrides C` be allowed? (Recommend: yes, with depth limit)
+Several design decisions remain open for discussion. Chained inheritance (where `bench A overrides B` and `B overrides C`) is likely desirable but may warrant a depth limit to prevent overly complex hierarchies. The question of partial overrides arises: can an overriding bench itself be abstract, requiring further specialization? The recommended answer is yes, enabling layered abstraction.
 
-2. **Partial override**: Can an overriding bench still be abstract? (e.g., `abstract bench PartialTransfer overrides AbstractTransfer`)
-
-3. **Trait compatibility**: Must the overriding bench specify the same trait, or is it inherited? (Recommend: inherited, can be omitted)
-
-4. **Visibility**: Should abstract members be able to specify visibility (public/private)?
+Trait compatibility presents another choice: must the overriding bench explicitly specify the same trait as its parent, or is it inherited? Inheriting the trait and allowing omission seems cleaner. Finally, visibility modifiers (public/private) for abstract members could be useful but add complexity; this RFC defers that decision.
 
 ---
 
 ## 7. Future Extensions
 
-- `virtual` members with defaults that can be optionally overridden
-- Parameterized abstract benches (generic over types)
-- Abstract bench libraries for common patterns (characterization, stress testing)
+Future work may introduce virtual members with defaults that can be optionally overridden, parameterized abstract benches (generic over types), and standard library abstract benches for common patterns like characterization and stress testing.
 
 ---
 
