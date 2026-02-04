@@ -283,6 +283,10 @@ bench SEToSETransfer {
       return calc_gain_bandwidth(ac, IN, OUT)
     }
 
+    measurement PhaseMargin : deg {
+      return calc_phase_margin(ac, IN, OUT)
+    }
+
     measurement LowpassBandwidth : Hz {
       return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }

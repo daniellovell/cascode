@@ -68,3 +68,124 @@ bench DiffToSETran(Frequency stim_freq = 1kHz) {
     }
   }
 }
+
+bench DiffToDiffTran(Frequency stim_freq = 1kHz) {
+  stim IN : Diff
+  resp OUT : Diff
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    // Bias the input common-mode.
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Differential sine excitation around vcm at the specified frequency.
+    //
+    // Choose a modest default amplitude so the metric is "about usable swing" rather than
+    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
+    VSIN inP = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+      .N--vcm
+    }
+    VSIN inN = new VSIN(A=25mV, freq=stim_freq, phase=180deg) {
+      .N--vcm
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    inP.P--sourceP.P
+    sourceP.N--IN.P
+
+    inN.P--sourceN.P
+    sourceN.N--IN.N
+
+    // Differential target load. Diff benches split this to per-side shunts via DiffToShunt().
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
+    TranAnalysis tran = new TranAnalysis(
+      step=period(stim_freq) / 200,
+      start=9 * period(stim_freq),
+      stop=10 * period(stim_freq)
+    )
+  }
+
+  measurements {
+    measurement OutputSwing : V {
+      VoltageWaveform vout = voltage(tran, OUT)
+      return vout.Max() - vout.Min()
+    }
+  }
+}
+
+bench SEToSETran(Frequency stim_freq = 1kHz) {
+  stim IN : analog
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    // Bias the input common-mode.
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Single-ended sine excitation around vcm at the specified frequency.
+    //
+    // Choose a modest default amplitude so the metric is "about usable swing" rather than
+    // "rail-to-rail saturation". Circuits can override by setting env.TranInputAmplitude.
+    VSIN vin = new VSIN(A=25mV, freq=stim_freq, phase=0deg) {
+      .N--vcm
+    }
+
+    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+
+    vin.P--sourceZ.P
+    sourceZ.N--IN
+
+    // Default load model uses env.LoadImpedance (consistent with AC benches).
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
+    TranAnalysis tran = new TranAnalysis(
+      step=period(stim_freq) / 200,
+      start=9 * period(stim_freq),
+      stop=10 * period(stim_freq)
+    )
+  }
+
+  measurements {
+    measurement OutputSwing : V {
+      VoltageWaveform vout = voltage(tran, OUT)
+      return vout.Max() - vout.Min()
+    }
+  }
+}

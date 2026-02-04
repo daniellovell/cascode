@@ -79,3 +79,156 @@ bench DiffToSENoise {
     }
   }
 }
+
+bench DiffToDiffNoise {
+  stim IN : Diff
+  resp OUT : Diff
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Provide an AC-defined input source for ngspice noise analysis.
+    // The actual input-referred noise computation uses the paired ACAnalysis transfer function.
+    VAC acP = new VAC(A=0.5V, phase=0deg) {
+      .N--vcm
+    }
+    VAC acN = new VAC(A=0.5V, phase=180deg) {
+      .N--vcm
+    }
+
+    Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+    Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { }
+
+    acP.P--sourceP.P
+    sourceP.N--IN.P
+
+    acN.P--sourceN.P
+    sourceN.N--IN.N
+
+    // Differential target load. Diff benches split this to per-side shunts via DiffToShunt().
+    Impedor loadP = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.P
+      .N--gnd
+    }
+    Impedor loadN = new Impedor(Z=env.LoadImpedance.DiffToShunt()) {
+      .P--OUT.N
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // ACAnalysis required for input_referred_noise to compute transfer function
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+    NoiseAnalysis noise_ac = new NoiseAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      output=OUT)
+  }
+
+  measurements {
+    measurement InputReferredNoise : V/rtHz {
+      // input_referred_noise uses paired ACAnalysis to compute transfer function
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_in.ValueAt(f_spot)
+    }
+
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
+    }
+
+    measurement OutputNoise : V/rtHz {
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_out.ValueAt(f_spot)
+    }
+  }
+}
+
+bench SEToSENoise {
+  stim IN : analog
+  resp OUT : analog
+
+  fill {
+    net vcm : analog
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    VDC biasDC = new VDC(V=env.InputCommonModeRange) {
+      .P--vcm
+      .N--gnd
+    }
+
+    // Provide an AC-defined input source for ngspice noise analysis.
+    // The actual input-referred noise computation uses the paired ACAnalysis transfer function.
+    VAC ac = new VAC(A=1V, phase=0deg) {
+      .N--vcm
+    }
+
+    Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { }
+    ac.P--sourceZ.P
+    sourceZ.N--IN
+
+    Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
+      .P--OUT
+      .N--gnd
+    }
+  }
+
+  analysis {
+    // ACAnalysis required for input_referred_noise to compute transfer function
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+    NoiseAnalysis noise_ac = new NoiseAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      output=OUT)
+  }
+
+  measurements {
+    measurement InputReferredNoise : V/rtHz {
+      // input_referred_noise uses paired ACAnalysis to compute transfer function
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_in.ValueAt(f_spot)
+    }
+
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
+    }
+
+    measurement OutputNoise : V/rtHz {
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_out.ValueAt(f_spot)
+    }
+  }
+}
