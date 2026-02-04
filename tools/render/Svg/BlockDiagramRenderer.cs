@@ -1,9 +1,12 @@
 namespace Cascode.Render.Svg;
 
-using System.Globalization;
 using System.Text;
 using Cascode.Language;
+using static Cascode.Render.Svg.SvgFormat;
 
+/// <summary>
+/// Renders a simple instance block diagram to SVG.
+/// </summary>
 public sealed class BlockDiagramRenderer
 {
     public string Render(Circuit circuit, StyleSheet style, RenderOptions options)
@@ -72,19 +75,5 @@ public sealed class BlockDiagramRenderer
         sb.AppendLine("</g>");
         sb.AppendLine("</svg>");
         return sb.ToString();
-    }
-
-    private static string F(double value)
-    {
-        return value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
-    private static string EscapeXml(string text)
-    {
-        return text.Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\"", "&quot;")
-            .Replace("'", "&apos;");
     }
 }
