@@ -35,5 +35,15 @@ interface FullyDifferentialOpAmp {
         measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
       }
     }
+
+    bind SupplyToDiffRejection as psrr_bench {
+      bench.IN--dut.IN
+      bench.PWR--dut.VDD
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
   }
 }
