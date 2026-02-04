@@ -3,11 +3,13 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Cli.Output;
+using Cascode.Cli.Services;
 using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
 using Cascode.Render.Svg;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Cascode.Cli.Commands;
 
@@ -52,7 +54,7 @@ internal sealed class RenderCommandModule : ICommandModule
         {
             if (options.JsonOutput)
             {
-                OutputJson(output, false, 2, null, $"Input file '{inputPath}' not found.");
+                OutputJson(output, false, 2, null, error: $"Input file '{inputPath}' not found.");
             }
             else
             {
@@ -63,30 +65,31 @@ internal sealed class RenderCommandModule : ICommandModule
 
         inputPath = Path.GetFullPath(inputPath);
 
-        // Parse Cascode document
-        CascodeReadResult readResult;
-        using (var reader = File.OpenText(inputPath))
-        {
-            readResult = CascodeReader.TryRead(reader, inputPath);
-        }
-
-        if (!readResult.Success)
+        var inputDir = Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory();
+        var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
+        var linkArtifactsDir = Path.Combine(inputDir, "build", "render");
+        if (
+            !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
+                inputPath,
+                _state.WorkspaceRoot,
+                linkArtifactsDir,
+                loadLogger,
+                out var loaded,
+                out var diagnostics
+            )
+        )
         {
             if (options.JsonOutput)
             {
-                var errors = readResult
-                    .Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)
+                var errors = diagnostics
+                    .Where(d => d.Severity == DiagnosticSeverity.Error)
                     .Select(d => d.Message)
                     .ToList();
-                OutputJson(output, false, 2, null, string.Join("; ", errors));
+                OutputJson(output, false, 2, null, error: string.Join("; ", errors));
             }
             else
             {
-                foreach (
-                    var diag in readResult.Diagnostics.Where(d =>
-                        d.Severity == DiagnosticSeverity.Error
-                    )
-                )
+                foreach (var diag in diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error))
                 {
                     output.Error($"{diag.FilePath}:{diag.Line}: {diag.Message}");
                 }
@@ -94,16 +97,19 @@ internal sealed class RenderCommandModule : ICommandModule
             return new CommandResult(2, false);
         }
 
-        var doc = readResult.Document!;
+        var doc = loaded.Document;
+        var attachResolution = new AttachResolver(doc).Resolve();
 
-        // Find EL-level circuit
-        var elCircuit = doc.Circuits.FirstOrDefault(c => c.Level == CascodeLevel.EL);
-        if (elCircuit == null)
+        var circuitsToRender = doc
+            .Circuits.Where(c => !c.Inline && c.Level is CascodeLevel.EL or CascodeLevel.ML)
+            .ToList();
+        if (circuitsToRender.Count == 0)
         {
-            var msg = "No EL-level circuit found. Schematic rendering requires EL-level Cascode.";
+            var msg =
+                "No non-inline EL or ML circuit found. Rendering requires Cascode circuits at EL or ML level.";
             if (options.JsonOutput)
             {
-                OutputJson(output, false, 2, null, msg);
+                OutputJson(output, false, 2, null, error: msg);
             }
             else
             {
@@ -114,23 +120,9 @@ internal sealed class RenderCommandModule : ICommandModule
 
         try
         {
-            // Build circuit graph
-            var graph = CircuitGraph.Build(elCircuit);
-
-            // Analyze topology: vertical chains, symmetry, stages
-            var topology = TopologyAnalyzer.Analyze(graph);
-
-            // Coarse grid placement using SAT solver
-            var placement = CoarseGridPlacer.Place(topology, graph);
-
-            // Wire routing using maze router
-            var routing = MazeRouter.Route(placement, graph);
-
             // Get style
             var style = StyleSheet.GetByName(options.StyleName ?? "default");
 
-            // Render SVG
-            var renderer = new SvgRenderer();
             var renderOptions = new RenderOptions
             {
                 ShowNetLabels = options.ShowNets,
@@ -141,23 +133,32 @@ internal sealed class RenderCommandModule : ICommandModule
                 ExplicitHeight = options.Height,
             };
 
-            var svg = renderer.Render(placement, routing, graph, style, renderOptions);
-
-            // Determine output path
-            var outputPath = options.OutputPath ?? Path.ChangeExtension(inputPath, ".svg");
-
-            // Write output
-            File.WriteAllText(outputPath, svg);
+            var outputPaths = RenderCircuits(
+                circuitsToRender,
+                doc,
+                attachResolution,
+                style,
+                renderOptions,
+                options,
+                inputDir
+            );
 
             if (options.JsonOutput)
             {
-                OutputJson(output, true, 0, outputPath);
+                OutputJson(
+                    output,
+                    true,
+                    0,
+                    outputPaths.Count == 1 ? outputPaths[0] : null,
+                    outputPaths.Count > 1 ? outputPaths : null
+                );
             }
             else
             {
-                output.Success($"Rendered schematic: {outputPath}");
-                output.WriteLine($"Circuit: {elCircuit.Name}");
-                output.WriteLine($"Devices: {graph.Devices.Count}");
+                foreach (var path in outputPaths)
+                {
+                    output.Success($"Rendered: {path}");
+                }
             }
 
             return CommandResult.Success;
@@ -166,7 +167,7 @@ internal sealed class RenderCommandModule : ICommandModule
         {
             if (options.JsonOutput)
             {
-                OutputJson(output, false, 1, null, $"Render failed: {ex.Message}");
+                OutputJson(output, false, 1, null, error: $"Render failed: {ex.Message}");
             }
             else
             {
@@ -180,10 +181,12 @@ internal sealed class RenderCommandModule : ICommandModule
     {
         output.WriteLine("Usage: render <cascode_file> [options]");
         output.WriteLine("");
-        output.WriteLine("Renders an SVG schematic from an Cascode EL-level circuit.");
+        output.WriteLine("Renders SVG output from Cascode EL/ML circuits.");
         output.WriteLine("");
         output.WriteLine("Options:");
-        output.WriteLine("  -o, --output <path>   Output file path (default: <input>.svg)");
+        output.WriteLine(
+            "  -o, --output <path>   Output file path (single circuit) or output directory (multi-circuit)"
+        );
         output.WriteLine(
             "  --style <name>        Style preset: default, dark, minimal, publication"
         );
@@ -194,6 +197,94 @@ internal sealed class RenderCommandModule : ICommandModule
         output.WriteLine("  --no-params           Hide parameter labels");
         output.WriteLine("  --title <text>        Add title to schematic");
         output.WriteLine("  --json                Output result as JSON");
+    }
+
+    private static List<string> RenderCircuits(
+        IReadOnlyList<Circuit> circuits,
+        CascodeDocument document,
+        AttachResolutionResult attachResolution,
+        StyleSheet style,
+        RenderOptions renderOptions,
+        RenderCommandOptions commandOptions,
+        string inputDir
+    )
+    {
+        var outputPaths = new List<string>();
+
+        var outputRoot = ResolveOutputRoot(circuits, commandOptions, inputDir);
+        Directory.CreateDirectory(outputRoot);
+        var isSingleSvgOutput = circuits.Count == 1 && IsSvgFilePath(commandOptions.OutputPath);
+
+        foreach (var circuit in circuits.OrderBy(c => c.Name, StringComparer.Ordinal))
+        {
+            var outputPath = isSingleSvgOutput
+                ? Path.GetFullPath(commandOptions.OutputPath!)
+                : Path.Combine(outputRoot, $"{circuit.Name}.svg");
+
+            if (circuit.Level == CascodeLevel.ML)
+            {
+                var blockSvg = new BlockDiagramRenderer().Render(circuit, style, renderOptions);
+                File.WriteAllText(outputPath, blockSvg);
+                outputPaths.Add(outputPath);
+                continue;
+            }
+
+            var resolution = attachResolution.CircuitResults.GetValueOrDefault(circuit.Name);
+            var flattened = CircuitFlattener.Flatten(circuit, document, resolution);
+            var graph = CircuitGraph.Build(flattened);
+            var topology = TopologyAnalyzer.Analyze(graph);
+            var placement = CoarseGridPlacer.Place(topology, graph);
+            var routing = MazeRouter.Route(placement, graph);
+
+            var schematicSvg = new SvgRenderer().Render(
+                placement,
+                routing,
+                graph,
+                style,
+                renderOptions
+            );
+            File.WriteAllText(outputPath, schematicSvg);
+            outputPaths.Add(outputPath);
+        }
+
+        return outputPaths;
+    }
+
+    private static string ResolveOutputRoot(
+        IReadOnlyList<Circuit> circuits,
+        RenderCommandOptions options,
+        string inputDir
+    )
+    {
+        if (string.IsNullOrWhiteSpace(options.OutputPath))
+        {
+            return Path.Combine(inputDir, "build");
+        }
+
+        var outputPath = Path.GetFullPath(options.OutputPath);
+        if (IsSvgFilePath(outputPath))
+        {
+            if (circuits.Count > 1)
+            {
+                throw new InvalidOperationException(
+                    "Multiple circuits selected for rendering. Use --output <dir> to choose an output directory."
+                );
+            }
+
+            return Path.GetDirectoryName(outputPath) ?? Directory.GetCurrentDirectory();
+        }
+
+        return outputPath;
+    }
+
+    private static bool IsSvgFilePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        return Path.GetExtension(path).Equals(".svg", StringComparison.OrdinalIgnoreCase);
     }
 
     private static RenderCommandOptions ParseOptions(string[] args)
@@ -256,6 +347,7 @@ internal sealed class RenderCommandModule : ICommandModule
         bool success,
         int exitCode,
         string? outputPath,
+        IReadOnlyList<string>? outputPaths = null,
         string? error = null
     )
     {
@@ -264,6 +356,7 @@ internal sealed class RenderCommandModule : ICommandModule
             Success = success,
             ExitCode = exitCode,
             OutputPath = outputPath,
+            OutputPaths = outputPaths,
             Error = error,
         };
 
@@ -301,6 +394,9 @@ internal sealed class RenderJsonOutput
 
     [JsonPropertyName("outputPath")]
     public string? OutputPath { get; init; }
+
+    [JsonPropertyName("outputPaths")]
+    public IReadOnlyList<string>? OutputPaths { get; init; }
 
     [JsonPropertyName("error")]
     public string? Error { get; init; }

@@ -258,6 +258,45 @@ public class BenchRunService
         return true;
     }
 
+    private sealed record ResolvedPaths(string InputDir, string LinkArtifactsDir);
+
+    private static ResolvedPaths ResolveInputAndOutputPaths(BenchRunArgs args)
+    {
+        var inputDir =
+            Path.GetDirectoryName(Path.GetFullPath(args.CascodePath))
+            ?? Directory.GetCurrentDirectory();
+        var linkArtifactsDir = args.OutputDir ?? Path.Combine(inputDir, "build", "link", "bench");
+        return new ResolvedPaths(inputDir, linkArtifactsDir);
+    }
+
+    private (
+        CascodeDocument Doc,
+        BenchRunArgs Args,
+        IReadOnlyList<Circuit> Circuits
+    ) PerformLoadAndLink(
+        string workspaceRoot,
+        BenchRunArgs args,
+        ResolvedPaths paths,
+        BenchRunTimingCollector timing
+    )
+    {
+        Progress("load+link: start");
+        var loadStep = timing.Step("load+link");
+        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
+            args.CascodePath,
+            workspaceRoot,
+            paths.LinkArtifactsDir,
+            _logger
+        );
+        loadStep.Stop();
+        Progress(
+            $"load+link: done ({loadStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
+        var updatedArgs = args with { CascodePath = loaded.ResolvedPath };
+        var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(loaded.Document);
+        return (loaded.Document, updatedArgs, allCircuitsWithBenches);
+    }
+
     /// <summary>
     /// Runs benches for all EL circuits with benches, in dependency order (leaves first).
     /// Optionally filtered to a single circuit via CircuitFilter.
@@ -269,42 +308,21 @@ public class BenchRunService
     )
     {
         var timing = new BenchRunTimingCollector();
-
-        Progress("load+link: start");
-        var loadStep = timing.Step("load+link");
-        var loaded = CascodeLoadLinkService.LoadAndLinkIfNeeded(
-            args.CascodePath,
+        var paths = ResolveInputAndOutputPaths(args);
+        var (doc, updatedArgs, allCircuitsWithBenches) = PerformLoadAndLink(
             workspaceRoot,
-            args.OutputDir,
-            _logger
+            args,
+            paths,
+            timing
         );
-        loadStep.Stop();
-        Progress(
-            $"load+link: done ({loadStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
-        );
-        args = args with { CascodePath = loaded.ResolvedPath };
-        var doc = loaded.Document;
-        var allCircuitsWithBenches = BenchRunHelpers.GetElCircuitsWithBenches(doc);
+        args = updatedArgs;
 
-        // Early exit: no circuits with benches
         if (allCircuitsWithBenches.Count == 0)
         {
             _logger.LogError("No EL-level circuits with benches found in Cascode document.");
-            var timingReport = timing.Build();
-            return new MultiCircuitBenchRunResult(
-                2,
-                new MultiCircuitBenchRunSummary(
-                    args.Backend,
-                    args.OutputDir ?? string.Empty,
-                    Array.Empty<CircuitBenchRunSummary>(),
-                    null,
-                    new ComplianceReport(),
-                    Timing: timingReport
-                )
-            );
+            return BuildEmptyResult(args, timing);
         }
 
-        // Validate and filter circuits
         var filterResult = ValidateCircuitFilterOrReturnError(
             allCircuitsWithBenches,
             args.CircuitFilter,
@@ -314,68 +332,41 @@ public class BenchRunService
         );
         if (filterResult != null)
         {
-            var timingReport = timing.Build();
             return filterResult with
             {
-                Summary = filterResult.Summary with { Timing = timingReport },
+                Summary = filterResult.Summary with { Timing = timing.Build() },
             };
         }
 
-        // Determine output directory
-        var outputDir =
-            args.OutputDir
-            ?? Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "build",
-                "bench",
-                circuitsWithBenches.Count == 1 ? circuitsWithBenches[0].Name : "multi"
-            );
+        var outputDir = ResolveOutputDirectory(args.OutputDir, paths.InputDir, circuitsWithBenches);
         Directory.CreateDirectory(outputDir);
 
-        // Emit all testbenches upfront
-        Progress("emit: start");
-        var emitStep = timing.Step("emit");
-        var emitResult = EmitAllDesignsOrReturnError(
+        var emitResult = RunEmitPhase(
             doc,
             outputDir,
             workspaceRoot,
             pdkRoot,
             args,
+            timing,
             out var emit
-        );
-        emitStep.Stop();
-        Progress(
-            $"emit: done ({emitStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
         );
         if (emitResult != null)
         {
-            var timingReport = timing.Build();
-            return emitResult with { Summary = emitResult.Summary with { Timing = timingReport } };
+            return emitResult with
+            {
+                Summary = emitResult.Summary with { Timing = timing.Build() },
+            };
         }
 
-        // Run benches for each circuit in dependency order
-        Progress("bench-plan: compile start");
-        var planStep = timing.Step("bench-plan: compile");
-        var planMap = BuildPlanMap(doc);
-        planStep.Stop();
-        Progress(
-            $"bench-plan: compile done ({planStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        var circuitSummaries = RunBenchPhase(
+            circuitsWithBenches,
+            args,
+            outputDir,
+            doc,
+            emit.Emit.TestbenchPaths,
+            timing
         );
-        var circuitSummaries = new List<CircuitBenchRunSummary>();
-        foreach (var circuit in circuitsWithBenches)
-        {
-            var circuitSummary = RunCircuitBenches(
-                circuit,
-                args,
-                outputDir,
-                emit.Emit.TestbenchPaths,
-                planMap,
-                timing
-            );
-            circuitSummaries.Add(circuitSummary);
-        }
 
-        // Aggregate and return results
         var final = AggregateResults(
             circuitSummaries,
             args.Backend,
@@ -385,6 +376,99 @@ public class BenchRunService
         );
         Progress("bench: done");
         return final;
+    }
+
+    private MultiCircuitBenchRunResult BuildEmptyResult(
+        BenchRunArgs args,
+        BenchRunTimingCollector timing
+    )
+    {
+        return new MultiCircuitBenchRunResult(
+            2,
+            new MultiCircuitBenchRunSummary(
+                args.Backend,
+                args.OutputDir ?? string.Empty,
+                Array.Empty<CircuitBenchRunSummary>(),
+                null,
+                new ComplianceReport(),
+                Timing: timing.Build()
+            )
+        );
+    }
+
+    private static string ResolveOutputDirectory(
+        string? explicitOutputDir,
+        string inputDir,
+        IReadOnlyList<Circuit> circuits
+    )
+    {
+        return explicitOutputDir
+            ?? Path.Combine(
+                inputDir,
+                "build",
+                "bench",
+                circuits.Count == 1 ? circuits[0].Name : "multi"
+            );
+    }
+
+    private MultiCircuitBenchRunResult? RunEmitPhase(
+        CascodeDocument doc,
+        string outputDir,
+        string workspaceRoot,
+        string? pdkRoot,
+        BenchRunArgs args,
+        BenchRunTimingCollector timing,
+        out ValidatedEmitResult emit
+    )
+    {
+        Progress("emit: start");
+        var emitStep = timing.Step("emit");
+        var emitResult = EmitAllDesignsOrReturnError(
+            doc,
+            outputDir,
+            workspaceRoot,
+            pdkRoot,
+            args,
+            out emit
+        );
+        emitStep.Stop();
+        Progress(
+            $"emit: done ({emitStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
+        return emitResult;
+    }
+
+    private List<CircuitBenchRunSummary> RunBenchPhase(
+        IReadOnlyList<Circuit> circuitsWithBenches,
+        BenchRunArgs args,
+        string outputDir,
+        CascodeDocument doc,
+        IReadOnlyList<string> testbenchPaths,
+        BenchRunTimingCollector timing
+    )
+    {
+        Progress("bench-plan: compile start");
+        var planStep = timing.Step("bench-plan: compile");
+        var planMap = BuildPlanMap(doc);
+        planStep.Stop();
+        Progress(
+            $"bench-plan: compile done ({planStep.Elapsed.TotalSeconds.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}s)"
+        );
+
+        var circuitSummaries = new List<CircuitBenchRunSummary>();
+        foreach (var circuit in circuitsWithBenches)
+        {
+            var circuitSummary = RunCircuitBenches(
+                circuit,
+                args,
+                outputDir,
+                testbenchPaths,
+                planMap,
+                timing
+            );
+            circuitSummaries.Add(circuitSummary);
+        }
+        return circuitSummaries;
     }
 
     private CircuitBenchRunSummary RunCircuitBenches(

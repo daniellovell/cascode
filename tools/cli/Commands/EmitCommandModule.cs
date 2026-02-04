@@ -318,7 +318,7 @@ internal sealed class EmitCommandModule : ICommandModule
         output.WriteLine("Generates both design subcircuit and testbench files.");
         output.WriteLine("");
         output.WriteLine("Options:");
-        output.WriteLine("  --out <dir>      Output directory (default: ./build)");
+        output.WriteLine("  --out <dir>      Output directory (default: <input_dir>/build)");
         output.WriteLine(
             "  --backend <type> Simulator backend: ngspice or spectre (default: ngspice)"
         );
@@ -329,7 +329,10 @@ internal sealed class EmitCommandModule : ICommandModule
         string[] args
     )
     {
-        var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "build");
+        var outputDir = Path.Combine(
+            Path.GetDirectoryName(Path.GetFullPath(args[0])) ?? Directory.GetCurrentDirectory(),
+            "build"
+        );
         var backend = BenchBackendType.Ngspice;
         var jsonOutput = false;
 

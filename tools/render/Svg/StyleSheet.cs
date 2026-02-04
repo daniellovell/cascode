@@ -77,6 +77,10 @@ public sealed class StyleSheet
             .param-label {{ font-family: {LabelFont}; font-size: {FontSize - 2}px; fill: {LabelColor}; opacity: 0.8; }}
             .port-label {{ font-family: {LabelFont}; font-size: {FontSize}px; fill: {LabelColor}; font-weight: bold; }}
             .rail {{ stroke: {WireStroke}; stroke-width: 2; }}
+            .inline-boundary {{ stroke: {DeviceStroke}; stroke-width: {StrokeWidth}; fill: none; stroke-dasharray: 6 4; opacity: 0.7; }}
+            .inline-boundary-label {{ font-family: {LabelFont}; font-size: {FontSize - 1}px; fill: {LabelColor}; opacity: 0.85; }}
+            .block {{ stroke: {DeviceStroke}; stroke-width: {StrokeWidth}; fill: none; }}
+            .block-label {{ font-family: {LabelFont}; font-size: {FontSize}px; fill: {LabelColor}; }}
         ".Trim();
     }
 }

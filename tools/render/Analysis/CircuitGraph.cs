@@ -14,6 +14,7 @@ public sealed class CircuitGraph
 {
     private readonly Dictionary<string, List<TerminalRef>> _netConnections;
     private readonly Dictionary<string, DeviceDeclaration> _devices;
+    private readonly IReadOnlyList<InlineInstanceGroup> _inlineInstanceGroups;
     private readonly HashSet<string> _supplies;
     private readonly HashSet<string> _grounds;
     private readonly HashSet<string> _inputPorts;
@@ -24,6 +25,7 @@ public sealed class CircuitGraph
     private CircuitGraph(
         Dictionary<string, List<TerminalRef>> netConnections,
         Dictionary<string, DeviceDeclaration> devices,
+        IReadOnlyList<InlineInstanceGroup> inlineInstanceGroups,
         HashSet<string> supplies,
         HashSet<string> grounds,
         HashSet<string> inputPorts,
@@ -34,6 +36,7 @@ public sealed class CircuitGraph
     {
         _netConnections = netConnections;
         _devices = devices;
+        _inlineInstanceGroups = inlineInstanceGroups;
         _supplies = supplies;
         _grounds = grounds;
         _inputPorts = inputPorts;
@@ -51,6 +54,8 @@ public sealed class CircuitGraph
     /// Device ID to device declaration.
     /// </summary>
     public IReadOnlyDictionary<string, DeviceDeclaration> Devices => _devices;
+
+    public IReadOnlyList<InlineInstanceGroup> InlineInstanceGroups => _inlineInstanceGroups;
 
     /// <summary>
     /// Supply net names (e.g., VDD).
@@ -87,16 +92,46 @@ public sealed class CircuitGraph
     /// </summary>
     public static CircuitGraph Build(Circuit circuit)
     {
+        var devices =
+            circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
+            ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
+        var internalNets =
+            circuit.Fill?.Nets.Select(n => n.Id).ToHashSet(StringComparer.Ordinal)
+            ?? new HashSet<string>(StringComparer.Ordinal);
+
+        return BuildCore(
+            circuit,
+            devices,
+            internalNets,
+            inlineInstanceGroups: Array.Empty<InlineInstanceGroup>()
+        );
+    }
+
+    public static CircuitGraph Build(FlattenedCircuit flattenedCircuit)
+    {
+        ArgumentNullException.ThrowIfNull(flattenedCircuit);
+        return BuildCore(
+            flattenedCircuit.RootCircuit,
+            flattenedCircuit.Devices,
+            flattenedCircuit.InternalNets,
+            flattenedCircuit.InlineInstanceGroups
+        );
+    }
+
+    private static CircuitGraph BuildCore(
+        Circuit circuit,
+        IReadOnlyDictionary<string, DeviceDeclaration> devices,
+        IReadOnlySet<string> internalNets,
+        IReadOnlyList<InlineInstanceGroup> inlineInstanceGroups
+    )
+    {
         var netConnections = new Dictionary<string, List<TerminalRef>>();
-        var devices = new Dictionary<string, DeviceDeclaration>();
         var supplies = new HashSet<string>(circuit.Supplies);
         var grounds = new HashSet<string>(circuit.Grounds);
         var inputPorts = new HashSet<string>();
         var outputPorts = new HashSet<string>();
         var biasPorts = new HashSet<string>();
-        var internalNets = new HashSet<string>();
 
-        // Classify ports by domain
         foreach (var port in circuit.Ports)
         {
             var domain = port.Type.ToLowerInvariant();
@@ -106,7 +141,6 @@ public sealed class CircuitGraph
                 continue;
             }
 
-            // Io is semantically bidirectional (Cascode §3.3.4) but treated as input-only for layout (left side).
             switch (port.Direction)
             {
                 case PortDirection.Output:
@@ -119,29 +153,21 @@ public sealed class CircuitGraph
             }
         }
 
-        // Collect internal nets from fill block
-        if (circuit.Fill != null)
+        foreach (var net in internalNets)
         {
-            foreach (var net in circuit.Fill.Nets)
-            {
-                internalNets.Add(net.Id);
-                EnsureNet(netConnections, net.Id);
-            }
+            EnsureNet(netConnections, net);
+        }
 
-            // Process devices and their terminal bindings
-            foreach (var device in circuit.Fill.Devices)
+        var deviceMap = devices.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal);
+        foreach (var (deviceId, device) in deviceMap)
+        {
+            foreach (var (terminal, netName) in device.Bindings)
             {
-                devices[device.Id] = device;
-
-                foreach (var (terminal, netName) in device.Bindings)
-                {
-                    EnsureNet(netConnections, netName);
-                    netConnections[netName].Add(new TerminalRef(device.Id, terminal));
-                }
+                EnsureNet(netConnections, netName);
+                netConnections[netName].Add(new TerminalRef(deviceId, terminal));
             }
         }
 
-        // Ensure all port/supply/ground nets exist in the connection map
         foreach (var supply in supplies)
         {
             EnsureNet(netConnections, supply);
@@ -157,13 +183,14 @@ public sealed class CircuitGraph
 
         return new CircuitGraph(
             netConnections,
-            devices,
+            deviceMap,
+            inlineInstanceGroups,
             supplies,
             grounds,
             inputPorts,
             outputPorts,
             biasPorts,
-            internalNets
+            new HashSet<string>(internalNets, StringComparer.Ordinal)
         );
     }
 

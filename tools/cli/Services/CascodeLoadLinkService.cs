@@ -90,7 +90,11 @@ internal static class CascodeLoadLinkService
         // Source files with includes must be linked to a self-contained .cai before emission/simulation.
         // Prefer a caller-provided artifacts directory; otherwise use build/link.
         var outDir = string.IsNullOrWhiteSpace(linkArtifactsDir)
-            ? Path.Combine(Directory.GetCurrentDirectory(), "build", "link")
+            ? Path.Combine(
+                Path.GetDirectoryName(resolvedPath) ?? Directory.GetCurrentDirectory(),
+                "build",
+                "link"
+            )
             : Path.GetFullPath(linkArtifactsDir);
         Directory.CreateDirectory(outDir);
 
