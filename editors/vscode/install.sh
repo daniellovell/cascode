@@ -112,15 +112,13 @@ add_ext_dir() {
 }
 
 add_ext_dir "$HOME/.vscode/extensions"
+add_ext_dir "$HOME/.cursor/extensions"
 add_ext_dir "$HOME/.cursor-server/extensions"
 
 case "${OS:-$(uname -s)}" in
   Windows_NT|MINGW*|MSYS*|CYGWIN*)
     if [ -n "${APPDATA:-}" ]; then
       add_ext_dir "$APPDATA/Cursor/User/extensions"
-    fi
-    if [ -n "${USERPROFILE:-}" ]; then
-      add_ext_dir "$USERPROFILE/.cursor/extensions"
     fi
     ;;
 esac
