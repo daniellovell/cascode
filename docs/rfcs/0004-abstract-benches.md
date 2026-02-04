@@ -11,7 +11,7 @@ Related Issue: #94
 
 ## Abstract
 
-This RFC proposes an **abstract bench** mechanism to reduce boilerplate in bench families. Abstract benches define common structure—harness setup, shared constraints, and measurement patterns—while concrete benches override only the differing portions. This addresses repetition in `TransferBenches.cas` and similar bench collections, improving maintainability and reducing copy-paste errors.
+This RFC proposes an **abstract bench** mechanism to reduce boilerplate in bench families. Abstract benches define common structure (harness setup, shared constraints, and measurement patterns) while concrete benches override only the differing portions. This addresses repetition in `TransferBenches.cas` and similar bench collections, improving maintainability and reducing copy-paste errors.
 
 ---
 
@@ -26,10 +26,10 @@ The current bench system requires each bench variant to fully specify its harnes
 
 Only the input/output signal routing differs between variants. This leads to:
 
-1. **Code duplication** — Same harness structure copied across multiple bench definitions
-2. **Maintenance burden** — Fixing a bug or improving a pattern requires changes in N places
-3. **Inconsistency risk** — Variants can drift apart over time
-4. **Barrier to entry** — Users creating custom bench families must understand and replicate the full pattern
+1. **Code duplication**: Same harness structure copied across multiple bench definitions
+2. **Maintenance burden**: Fixing a bug or improving a pattern requires changes in N places
+3. **Inconsistency risk**: Variants can drift apart over time
+4. **Barrier to entry**: Users creating custom bench families must understand and replicate the full pattern
 
 ---
 
@@ -40,7 +40,7 @@ Only the input/output signal routing differs between variants. This leads to:
 1. Allow bench families to share common structure through inheritance
 2. Clearly delineate what must be overridden vs. what is inherited
 3. Integrate naturally with existing `bench ... for Trait` syntax
-4. Preserve the current bench semantics—this is purely a code organization mechanism
+4. Preserve the current bench semantics (this is purely a code organization mechanism)
 
 ### Non-Goals
 
@@ -66,7 +66,7 @@ abstract bench AbstractTransfer for Amplifier {
         Rload : resistor = 10k
         Cload : capacitor = 1p
         
-        // Abstract "holes" — must be defined by overriding bench
+        // Abstract "holes" that must be defined by overriding bench
         abstract input_net : net
         abstract output_net : net
     }
@@ -120,15 +120,15 @@ bench SEToSETransfer overrides AbstractTransfer {
 | `implements` | Clear contract fulfillment | Usually for interfaces, not partial implementations |
 | `specializes` | Accurate semantically | Verbose, unfamiliar |
 
-**Recommendation:** `overrides` — it clearly communicates that the concrete bench is providing specific implementations for abstract holes while inheriting the rest.
+**Recommendation:** `overrides` clearly communicates that the concrete bench is providing specific implementations for abstract holes while inheriting the rest.
 
 ### 3.4 Abstract Members
 
 Members in an abstract bench can be:
 
-1. **Concrete** — Fully defined, inherited as-is
-2. **Abstract** — Declared with `abstract` keyword, must be provided by overriding bench
-3. **Virtual** — Has a default but can be overridden (future extension, not in this RFC)
+1. **Concrete**: Fully defined, inherited as-is
+2. **Abstract**: Declared with `abstract` keyword, must be provided by overriding bench
+3. **Virtual**: Has a default but can be overridden (future extension, not in this RFC)
 
 ```cascode
 abstract bench Example for SomeTrait {
@@ -230,13 +230,13 @@ This is an additive feature. Existing benches continue to work unchanged. Users 
 
 ## 6. Open Questions
 
-1. **Chained inheritance** — Should `bench A overrides B` where `B overrides C` be allowed? (Recommend: yes, with depth limit)
+1. **Chained inheritance**: Should `bench A overrides B` where `B overrides C` be allowed? (Recommend: yes, with depth limit)
 
-2. **Partial override** — Can an overriding bench still be abstract? (e.g., `abstract bench PartialTransfer overrides AbstractTransfer`)
+2. **Partial override**: Can an overriding bench still be abstract? (e.g., `abstract bench PartialTransfer overrides AbstractTransfer`)
 
-3. **Trait compatibility** — Must the overriding bench specify the same trait, or is it inherited? (Recommend: inherited, can be omitted)
+3. **Trait compatibility**: Must the overriding bench specify the same trait, or is it inherited? (Recommend: inherited, can be omitted)
 
-4. **Visibility** — Should abstract members be able to specify visibility (public/private)?
+4. **Visibility**: Should abstract members be able to specify visibility (public/private)?
 
 ---
 
