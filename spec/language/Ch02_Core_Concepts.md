@@ -300,38 +300,69 @@ synthesis specification. The bare `slot` tells the toolchain that no concrete `f
 and that `cascode syn` must produce one. Bare `slot` is valid only at circuit body level (not
 inside `fill` blocks).
 
-#### Composition slot (sub-block placeholders inside fill)
+#### Composition slot (`slot { ... }` block)
 
-When a circuit has partial concrete structure and needs synthesis for specific sub-blocks, named
-slots go inside the `fill` block. Each composition slot declares an interface contract and
-terminal bindings that map the slot's ports into the parent's wiring namespace:
+When a circuit composes several HL sub-blocks, a `slot { ... }` block declares those sub-blocks
+and their wiring. The syntax mirrors `fill { ... }` — the same constructs are available (`net`,
+`repeat`, `pair`, `match`, wiring with `--`) — but each instantiated name resolves at the HL
+level rather than to concrete devices.
+
+Sub-block instantiation uses `name = new Type(params) { bindings }`. If `Type` names a circuit,
+that circuit's spec is used directly. If `Type` names an interface, synthesis picks any circuit
+that implements it. Parameterized instantiation works identically to fill blocks
+(`new MyLNA(stages=2)`).
+
+Each sub-block is self-contained: it carries its own environment, constraints, and harness and is
+independently testable. Constraints declared on a sub-block are minimums — a parent's system-level
+synthesis may tighten them but never relax them.
+
+Supply and ground wiring is explicit, consistent with the language's no-implicit-wiring rule.
 
 ```cascode
 circuit MyReceiver {
   level HL
+  supply VDD
+  ground GND
   input RF_IN : analog
   output BB_OUT : Diff
 
-  fill {
+  slot {
     net mid : analog
-    slot lna implements LNA {
+
+    lna = new MyLNA(stages=2) {
+      .VDD--VDD
+      .GND--GND
       .IN--RF_IN
       .OUT--mid
     }
-    slot mixer implements Mixer {
+    mixer = new MyMixer() {
+      .VDD--VDD
+      .GND--GND
       .RF--mid
       .BB--BB_OUT
     }
   }
+
+  constraints {
+    numeric {
+      c_system_gain = system_bench::Gain >= 20dB
+      c_system_nf = system_bench::NoiseFigure <= 3dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
 }
 ```
 
-Here the bindings carry real information: they wire terminals across different interface contracts
-and different naming conventions. A composition slot body contains optional `param` assignments and
-binding statements written with the standard `--` wiring operator.
+A `slot { ... }` block and a `fill { ... }` block may coexist in the same circuit for mixed
+HL/EL designs. The two blocks share a single net namespace, and cross-references between them are
+permitted. Neither block must appear before the other.
 
-The synthesis stage (`cascode syn`) is responsible for replacing all slots with concrete structure
-to produce an EL circuit.
+The synthesis stage (`cascode syn`) is responsible for replacing all slot sub-blocks with concrete
+structure to produce an EL circuit.
 
 ---
 

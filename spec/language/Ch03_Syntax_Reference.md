@@ -37,7 +37,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
 | `inline` | `inline` | 3.7 |
-| `slot` | `slot` (bare) or `slot Name implements X { ... }` | 3.7 |
+| `slot` | `slot` (bare) or `slot { lna = new X() { ... } }` | 3.7 |
 | `synth {}` | `synth { seed = 123 }` | 3.7 |
 | `fill {}` | `fill { net n : analog  dp = new DiffPair { ... } }` | 3.10 |
 | `attach` | `attach cm to dp via A::B as name` | 3.10 |
@@ -395,22 +395,31 @@ circuit MyOpAmp implements SingleEndedOpAmp {
 }
 ```
 
-A composition slot appears inside a `fill` block, names a sub-block, declares its interface
-contract, and binds its terminals into the parent's wiring namespace:
+A `slot { ... }` block is the HL analog of `fill { ... }`. It contains sub-block instantiation,
+net declarations, and wiring — the same constructs available in fill blocks (`net`, `repeat`,
+`pair`, `match`, `--` wiring). Each sub-block is instantiated with `name = new Type(params) { bindings }`:
 
 ```cascode
-fill {
+slot {
   net mid : analog
-  slot lna implements LNA {
-    param gain_target = 20
+
+  lna = new MyLNA(stages=2) {
+    .VDD--VDD
+    .GND--GND
     .IN--RF_IN
     .OUT--mid
+  }
+  mixer = new MyMixer() {
+    .VDD--VDD
+    .GND--GND
+    .RF--mid
+    .BB--BB_OUT
   }
 }
 ```
 
-A composition slot body contains optional `param` assignments and binding statements written with
-the standard `--` wiring operator.
+A `slot { ... }` block and a `fill { ... }` block may coexist in the same circuit for mixed HL/EL
+designs. The two blocks share a single net namespace and cross-references are permitted.
 
 ### 3.7.5 Synthesis guidance (`synth {}`)
 

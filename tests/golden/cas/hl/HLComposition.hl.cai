@@ -1,0 +1,108 @@
+VERSION 3.0
+
+include lib.std
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+circuit MyLNA {
+  level HL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  param stages : int
+
+  slot
+
+  env {
+    SourceImpedance = 50Ohm
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_nf   = noise_bench::NoiseFigure <= 2dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
+
+circuit MyMixer {
+  level HL
+  supply VDD
+  ground GND
+  input RF : analog
+  output BB : Diff
+
+  slot
+
+  env {
+    LOPower = 0dBm
+  }
+
+  constraints {
+    numeric {
+      c_gain = transfer_bench::ConversionGain >= 5dB
+      c_nf   = noise_bench::NoiseFigure <= 10dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
+
+circuit MyReceiver {
+  level HL
+  supply VDD
+  ground GND
+  input RF_IN : analog
+  output BB_OUT : Diff
+  output MON : analog
+
+  slot {
+    net mid : analog
+
+    lna = new MyLNA(stages=2) {
+      .VDD--VDD
+      .GND--GND
+      .IN--RF_IN
+      .OUT--mid
+    }
+    mixer = new MyMixer() {
+      .VDD--VDD
+      .GND--GND
+      .RF--mid
+      .BB--BB_OUT
+    }
+  }
+
+  fill {
+    NMOS M_mon = new nfet_01v8(size(W=1u, L=180n, M=1)) {
+      .D--MON
+      .G--mid
+      .S--GND
+      .B--GND
+    }
+  }
+
+  constraints {
+    numeric {
+      c_system_gain = system_bench::Gain >= 20dB
+      c_system_nf   = system_bench::NoiseFigure <= 3dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
