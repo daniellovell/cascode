@@ -1504,14 +1504,32 @@ public static class BenchSemanticChecker
                 return left.Kind == right.Kind ? left : Scalar();
             }
 
-            // Multiplication/division with scalar preserves the other type.
-            if (left.Kind == MeasurementTypeKind.Scalar)
+            if (op == "*")
             {
-                return right;
+                // Multiplication with scalar preserves the other type.
+                if (left.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return right;
+                }
+                if (right.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return left;
+                }
             }
-            if (right.Kind == MeasurementTypeKind.Scalar)
+            else if (op == "/")
             {
-                return left;
+                // Division by scalar preserves the numerator's type.
+                if (right.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return left;
+                }
+
+                // Scalar divided by a non-scalar is not representable in this type system.
+                // Fall back to scalar to avoid spurious type errors for common expressions.
+                if (left.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return Scalar();
+                }
             }
 
             // Keep common cases used in the stdlib examples.

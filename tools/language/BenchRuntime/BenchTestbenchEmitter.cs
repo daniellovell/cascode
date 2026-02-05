@@ -41,6 +41,10 @@ public static class BenchTestbenchEmitter
         ArgumentNullException.ThrowIfNull(designPaths);
 
         var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var primitivesByName = document.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
         var written = new List<string>(plans.Count);
 
         foreach (var plan in plans)
@@ -58,7 +62,15 @@ public static class BenchTestbenchEmitter
             Directory.CreateDirectory(Path.GetDirectoryName(tbPath)!);
             File.WriteAllText(
                 tbPath,
-                RenderTestbench(plan, circuit, backend, designPaths, include, outputDir)
+                RenderTestbench(
+                    plan,
+                    circuit,
+                    primitivesByName,
+                    backend,
+                    designPaths,
+                    include,
+                    outputDir
+                )
             );
             written.Add(tbPath);
         }
@@ -69,6 +81,7 @@ public static class BenchTestbenchEmitter
     private static string RenderTestbench(
         BenchPlan plan,
         Circuit? circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         BenchBackendType backend,
         IReadOnlyList<string> designPaths,
         BenchIncludeResolution? includes,
@@ -230,17 +243,24 @@ public static class BenchTestbenchEmitter
 
             if (hasDc && plan.RequiresOpParams)
             {
+                var mosRef = ResolveDutOpMosReference(
+                    circuit,
+                    primitivesByName,
+                    includes?.DeviceModelMap
+                );
+
                 sb.AppendLine("* device operating point params (op_param)");
-                sb.AppendLine("let op_gm = @m.xdut.mdut[gm]");
-                sb.AppendLine("let op_gds = @m.xdut.mdut[gds]");
-                sb.AppendLine("let op_vth = @m.xdut.mdut[vth]");
-                sb.AppendLine("let op_vdsat = @m.xdut.mdut[vdsat]");
-                sb.AppendLine("let op_cgs = @m.xdut.mdut[cgs]");
-                sb.AppendLine("let op_cgd = @m.xdut.mdut[cgd]");
-                sb.AppendLine("let op_cgg = @m.xdut.mdut[cgg]");
-                sb.AppendLine("let op_id = @m.xdut.mdut[id]");
-                sb.AppendLine("let op_vgs = @m.xdut.mdut[vgs]");
-                sb.AppendLine("let op_vds = @m.xdut.mdut[vds]");
+                sb.AppendLine($"let op_gm = {mosRef}[gm]");
+                sb.AppendLine($"let op_gds = {mosRef}[gds]");
+                sb.AppendLine($"let op_vth = {mosRef}[vth]");
+                sb.AppendLine($"let op_vdsat = {mosRef}[vdsat]");
+                sb.AppendLine($"let op_cgs = {mosRef}[cgs]");
+                sb.AppendLine($"let op_cgd = {mosRef}[cgd]");
+                sb.AppendLine($"let op_cgg = {mosRef}[cgg]");
+                sb.AppendLine($"let op_cds = {mosRef}[cds]");
+                sb.AppendLine($"let op_id = {mosRef}[id]");
+                sb.AppendLine($"let op_vgs = {mosRef}[vgs]");
+                sb.AppendLine($"let op_vds = {mosRef}[vds]");
 
                 var paramsWrdata = BenchRuntimePaths.GetOpParamsWrdataPath(
                     outputDir,
@@ -248,7 +268,7 @@ public static class BenchTestbenchEmitter
                     plan.InstanceName
                 );
                 sb.Append(
-                    $"wrdata {Path.GetFileName(paramsWrdata)} op_gm op_gds op_vth op_vdsat op_cgs op_cgd op_cgg op_id op_vgs op_vds"
+                    $"wrdata {Path.GetFileName(paramsWrdata)} op_gm op_gds op_vth op_vdsat op_cgs op_cgd op_cgg op_cds op_id op_vgs op_vds"
                 );
                 sb.AppendLine();
             }
@@ -407,6 +427,86 @@ public static class BenchTestbenchEmitter
         sb.AppendLine(".end");
 
         return sb.ToString();
+    }
+
+    private static string ResolveDutOpMosReference(
+        Circuit? circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
+    )
+    {
+        if (circuit is null)
+        {
+            throw new InvalidOperationException(
+                "op_param requires an EL circuit definition, but the circuit was not found."
+            );
+        }
+
+        var fill = circuit.Fill;
+        if (fill?.Devices is null || fill.Devices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires circuit '{circuit.Name}' to contain a single-device fill block."
+            );
+        }
+
+        var device = fill.Devices.FirstOrDefault(d =>
+            d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
+        );
+        if (device is null)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires circuit '{circuit.Name}' to declare a device named 'DUT'."
+            );
+        }
+
+        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+        {
+            throw new InvalidOperationException(
+                $"op_param: circuit '{circuit.Name}' device '{device.Id}' references unknown primitive '{device.Primitive}'."
+            );
+        }
+
+        var resolution =
+            deviceModelMap is not null && deviceModelMap.TryGetValue(primitive.Device, out var r)
+                ? r
+                : null;
+        var useSubckt = resolution?.IsSubckt ?? false;
+
+        var dutInstName = (useSubckt ? "x" : "m") + device.Id.ToLowerInvariant();
+        if (!useSubckt)
+        {
+            return $"@m.xdut.{dutInstName}";
+        }
+
+        var segments = new List<string>();
+        for (var i = 0; i < 16; i++)
+        {
+            if (!primitive.Params.TryGetValue($"__op_path{i}", out var segExpr))
+            {
+                break;
+            }
+
+            var seg = segExpr.Trim();
+            if (string.IsNullOrWhiteSpace(seg))
+            {
+                throw new InvalidOperationException(
+                    $"op_param: primitive '{primitive.Name}' has an empty '__op_path{i}' mapping."
+                );
+            }
+
+            segments.Add(seg.ToLowerInvariant());
+        }
+
+        if (segments.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires primitive '{primitive.Name}' to define '__op_path0' in its params block (rerun 'pdk emit primitives')."
+            );
+        }
+
+        var relative = string.Join('.', segments);
+        return $"@m.xdut.{dutInstName}.{relative}";
     }
 
     private static string FormatTerminalVoltageExpr(BenchTerminalRef terminal)

@@ -10,6 +10,7 @@ primitive NMOS nfet_01v8(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_01v8
   }
 }
 
@@ -21,6 +22,7 @@ primitive NMOS nfet_01v8_lvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_01v8_lvt
   }
 }
 
@@ -32,6 +34,7 @@ primitive NMOS nfet_03v3_nvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_03v3_nvt
   }
 }
 
@@ -43,6 +46,7 @@ primitive NMOS nfet_05v0_nvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_05v0_nvt
   }
 }
 
@@ -54,6 +58,7 @@ primitive NMOS nfet_g5v0d10v5(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_g5v0d10v5
   }
 }
 
@@ -65,6 +70,7 @@ primitive PMOS pfet_01v8(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_01v8
   }
 }
 
@@ -76,6 +82,7 @@ primitive PMOS pfet_01v8_hvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_01v8_hvt
   }
 }
 
@@ -87,6 +94,7 @@ primitive PMOS pfet_01v8_lvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_01v8_lvt
   }
 }
 
@@ -98,6 +106,7 @@ primitive PMOS pfet_g5v0d10v5(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_g5v0d10v5
   }
 }
 
@@ -109,6 +118,7 @@ primitive NMOS esd_nfet_01v8(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__esd_nfet_01v8
   }
 }
 
@@ -120,6 +130,7 @@ primitive NMOS esd_nfet_g5v0d10v5(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__esd_nfet_g5v0d10v5
   }
 }
 
@@ -131,6 +142,7 @@ primitive PMOS esd_pfet_g5v0d10v5(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__esd_pfet_g5v0d10v5
   }
 }
 
@@ -142,6 +154,7 @@ primitive NMOS nfet_20v0(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -153,6 +166,7 @@ primitive NMOS nfet_20v0_iso(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -164,6 +178,7 @@ primitive NMOS nfet_20v0_nvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -175,6 +190,7 @@ primitive NMOS nfet_20v0_reverse_iso(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -186,6 +202,7 @@ primitive NMOS nfet_20v0_zvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -207,6 +224,8 @@ primitive NMOS nfet_g5v0d16v0(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = xmain1
+    __op_path1 = msky130_fd_pr__nfet_g5v0d16v0__base
   }
 }
 
@@ -218,6 +237,7 @@ primitive NMOS base(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__nfet_g5v0d16v0__base
   }
 }
 
@@ -229,6 +249,7 @@ primitive PMOS pfet_01v8_mvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_01v8_mvt
   }
 }
 
@@ -240,6 +261,7 @@ primitive PMOS pfet_20v0(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = m1
   }
 }
 
@@ -261,985 +283,20 @@ primitive PMOS pfet_g5v0d16v0(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = xmain1
+    __op_path1 = msky130_fd_pr__pfet_g5v0d16v0__base
   }
 }
 
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W1p65L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W1p65L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W1p65L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W1p65L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W1p65L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W1p65L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W3p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W3p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W3p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W3p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W3p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W5p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W5p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM02W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM02W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W1p65L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W1p65L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W1p65L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W1p65L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W1p65L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W1p65L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W3p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W3p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W3p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W3p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W3p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W5p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W5p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_bM04W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_bM04W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF02W0p42L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF02W0p42L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF02W0p84L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF02W0p84L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF02W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF02W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF04W0p84L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF04W0p84L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF04W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF04W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF08W0p84L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF08W0p84L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_aF08W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_aF08W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM02(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM02"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM02W3p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM02W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM02W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM02W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM02W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM02W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM02W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM02W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM04(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM04"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM04W3p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM04W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM04W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM04W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM04W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM04W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_01v8_lvt_bM04W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_nfet_01v8_lvt_bM04W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[3.005E-06..5.095E-06] L=[4.95E-07..5.05E-07] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM02(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM02"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM02W3p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM02W3p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM02W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM02W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM02W5p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM02W5p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[3.005E-06..7.095E-06] L=[4.95E-07..5.05E-07] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04W3p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04W3p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04W5p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04W5p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04W7p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04W7p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM04W7p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM04W7p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[3.005E-06..7.095E-06] L=[4.95E-07..5.05E-07] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10W3p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10W3p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10W5p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10W5p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10W5p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10W7p00(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10W7p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive NMOS rf_nfet_g5v0d10v5_bM10W7p00L0p50(size primSize) {
-  device "sky130_fd_pr__rf_nfet_g5v0d10v5_bM10W7p00L0p50"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_aF02W0p84L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_aF02W0p84L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_aF02W1p68L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_aF02W1p68L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_aF02W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_aF02W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_aF02W5p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_aF02W5p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_aF04W1p68L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_aF04W1p68L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W1p65L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W1p65L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W1p65L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W1p65L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W1p65L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W1p65L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W3p00(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W3p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W3p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W3p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W3p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W5p00(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W5p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W5p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM02W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM02W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[1.645E-06..5.055E-06] L=[1.45E-07..2.55E-07] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W1p65L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W1p65L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W1p65L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W1p65L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W1p65L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W1p65L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W3p00(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W3p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W3p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W3p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W3p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W3p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W3p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W3p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W5p00(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W5p00"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W5p00L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W5p00L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W5p00L0p18(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W5p00L0p18"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_bM04W5p00L0p25(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_bM04W5p00L0p25"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_mvt_aF02W0p84L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_mvt_aF02W0p84L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_mvt_aF02W1p68L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_mvt_aF02W1p68L0p15"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
-  }
-}
-
 // geometry: W=[-..-] L=[-..-] NF=[-..-]
-primitive PMOS rf_pfet_01v8_mvt_aF04W1p68L0p15(size primSize) {
-  device "sky130_fd_pr__rf_pfet_01v8_mvt_aF04W1p68L0p15"
+primitive PMOS base_2(size primSize) {
+  device "sky130_fd_pr__pfet_g5v0d16v0__base"
   params {
     w = primSize.W
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__pfet_g5v0d16v0__base
   }
 }
 
@@ -1251,6 +308,7 @@ primitive NMOS special_nfet_latch(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__special_nfet_latch
   }
 }
 
@@ -1262,6 +320,7 @@ primitive NMOS special_nfet_pass(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__special_nfet_pass
   }
 }
 
@@ -1273,6 +332,7 @@ primitive NMOS special_nfet_pass_flash(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__special_nfet_pass_flash
   }
 }
 
@@ -1284,6 +344,7 @@ primitive NMOS special_nfet_pass_lvt(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__special_nfet_pass_lvt
   }
 }
 
@@ -1295,6 +356,7 @@ primitive PMOS special_pfet_pass(size primSize) {
     l = primSize.L
     mult = primSize.M
     nf = primSize.NF
+    __op_path0 = msky130_fd_pr__special_pfet_pass
   }
 }
 

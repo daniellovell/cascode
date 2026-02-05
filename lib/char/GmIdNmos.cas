@@ -24,5 +24,41 @@ bench GmIdNmos {
     measurement Id : A {
       return current(dc, harness.D.P)
     }
+
+    measurement Gm : S {
+      return op_param(dc, dut, gm)
+    }
+
+    measurement Gds : S {
+      return op_param(dc, dut, gds)
+    }
+
+    measurement Vth : V {
+      return op_param(dc, dut, vth)
+    }
+
+    measurement Vdsat : V {
+      return op_param(dc, dut, vdsat)
+    }
+
+    measurement Cgs : F {
+      return op_param(dc, dut, cgs)
+    }
+
+    measurement Cgd : F {
+      return op_param(dc, dut, cgd)
+    }
+
+    measurement Cgg : F {
+      return op_param(dc, dut, cgg)
+    }
+
+    measurement Cds : F {
+      return op_param(dc, dut, cds)
+    }
+
+    measurement GmOverId : InvV {
+      return Gm() / Id()
+    }
   }
 }

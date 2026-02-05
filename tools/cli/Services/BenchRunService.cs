@@ -1497,6 +1497,7 @@ public class BenchRunService
                     "op_cgs",
                     "op_cgd",
                     "op_cgg",
+                    "op_cds",
                     "op_id",
                     "op_vgs",
                     "op_vds",
@@ -1560,6 +1561,7 @@ public class BenchRunService
                         pointOpParams["cgs"] = opParamsSweep.ValuesByName["op_cgs"][i];
                         pointOpParams["cgd"] = opParamsSweep.ValuesByName["op_cgd"][i];
                         pointOpParams["cgg"] = opParamsSweep.ValuesByName["op_cgg"][i];
+                        pointOpParams["cds"] = opParamsSweep.ValuesByName["op_cds"][i];
                         pointOpParams["id"] = opParamsSweep.ValuesByName["op_id"][i];
                         pointOpParams["vgs"] = opParamsSweep.ValuesByName["op_vgs"][i];
                         pointOpParams["vds"] = opParamsSweep.ValuesByName["op_vds"][i];
@@ -1682,6 +1684,7 @@ public class BenchRunService
                         ["cgs"] = opParamsSweep.ValuesByName["op_cgs"][last],
                         ["cgd"] = opParamsSweep.ValuesByName["op_cgd"][last],
                         ["cgg"] = opParamsSweep.ValuesByName["op_cgg"][last],
+                        ["cds"] = opParamsSweep.ValuesByName["op_cds"][last],
                         ["id"] = opParamsSweep.ValuesByName["op_id"][last],
                         ["vgs"] = opParamsSweep.ValuesByName["op_vgs"][last],
                         ["vds"] = opParamsSweep.ValuesByName["op_vds"][last],
@@ -1718,6 +1721,7 @@ public class BenchRunService
                         "op_cgs",
                         "op_cgd",
                         "op_cgg",
+                        "op_cds",
                         "op_id",
                         "op_vgs",
                         "op_vds",
@@ -1746,6 +1750,7 @@ public class BenchRunService
                         ["cgs"] = parsed.ValuesByName["op_cgs"][last],
                         ["cgd"] = parsed.ValuesByName["op_cgd"][last],
                         ["cgg"] = parsed.ValuesByName["op_cgg"][last],
+                        ["cds"] = parsed.ValuesByName["op_cds"][last],
                         ["id"] = parsed.ValuesByName["op_id"][last],
                         ["vgs"] = parsed.ValuesByName["op_vgs"][last],
                         ["vds"] = parsed.ValuesByName["op_vds"][last],

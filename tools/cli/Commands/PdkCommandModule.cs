@@ -162,7 +162,9 @@ internal sealed class PdkCommandModule : ICommandModule
     private CommandResult ShowPdkEmitUsage(string[] args)
     {
         Output.WriteLine("Usage: pdk emit <subcommand>");
-        Output.WriteLine("  pdk emit primitives  Generate lib/pdk/<pdk>_Primitives.cas");
+        Output.WriteLine(
+            "  pdk emit primitives  Generate lib/pdk/<pdk>_Primitives.cas (parametric families only by default)"
+        );
         return CommandResult.Success;
     }
 
@@ -170,6 +172,7 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         string? pdkName = null;
         string? outPath = null;
+        var includeFixed = false;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -184,10 +187,14 @@ internal sealed class PdkCommandModule : ICommandModule
             {
                 outPath = args[++i];
             }
+            else if (args[i].Equals("--include-fixed", StringComparison.OrdinalIgnoreCase))
+            {
+                includeFixed = true;
+            }
             else if (args[i].Equals("--help", StringComparison.OrdinalIgnoreCase))
             {
                 Output.WriteLine(
-                    "Usage: pdk emit primitives [--pdk <name>] [--out <file.cas>]\n\nDefaults:\n  --pdk  (derived from current PDK root directory name)\n  --out  lib/pdk/<pdk>_Primitives.cas"
+                    "Usage: pdk emit primitives [--pdk <name>] [--out <file.cas>] [--include-fixed]\n\nDefaults:\n  --pdk            (derived from current PDK root directory name)\n  --out            lib/pdk/<pdk>_Primitives.cas\n  --include-fixed  disabled (emit only parametric primitive families)"
                 );
                 return CommandResult.Success;
             }
@@ -215,7 +222,8 @@ internal sealed class PdkCommandModule : ICommandModule
             new PdkEmitPrimitivesService.EmitArgs(
                 PdkName: pdkName,
                 DbPath: dbPath,
-                OutputPath: outPath
+                OutputPath: outPath,
+                IncludeFixed: includeFixed
             )
         );
 
@@ -1232,7 +1240,7 @@ internal sealed class PdkCommandModule : ICommandModule
             $"Starting characterization batch → backend={backend}, corner={corner}, devices={plans.Count}, models={modelCount}"
         );
 
-        void RunBatch()
+        bool RunBatch()
         {
             var oldCorner = Environment.GetEnvironmentVariable("CASCODE_PDK_CORNER");
             Environment.SetEnvironmentVariable("CASCODE_PDK_CORNER", corner);
@@ -1255,6 +1263,7 @@ internal sealed class PdkCommandModule : ICommandModule
             var exported = 0;
             var skipped = 0;
             var completed = false;
+            var fatalFailure = false;
 
             try
             {
@@ -1294,6 +1303,18 @@ internal sealed class PdkCommandModule : ICommandModule
                     );
                     if (!gen.Succeeded)
                     {
+                        if (
+                            gen.Message.Contains(
+                                "No parametric primitive is available",
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                        {
+                            Output.WriteLine($"[error] {plan.DeviceName}: {gen.Message}");
+                            fatalFailure = true;
+                            break;
+                        }
+
                         Output.WriteLine($"[warn] {plan.DeviceName}: {gen.Message}");
                         skipped++;
                         _state.UpdateCharProgress(plan.DeviceName, skippedDelta: 1);
@@ -1334,7 +1355,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 Output.WriteLine(
                     $"Characterization batch complete: ran {ran}, exported {exported}, skipped {skipped}."
                 );
-                completed = true;
+                completed = !fatalFailure;
             }
             catch (Exception ex)
             {
@@ -1351,6 +1372,8 @@ internal sealed class PdkCommandModule : ICommandModule
                 Environment.SetEnvironmentVariable("CASCODE_PDK_CORNER", oldCorner);
                 localFactory?.Dispose();
             }
+
+            return completed;
         }
 
         if (_isInteractive())
@@ -1362,8 +1385,8 @@ internal sealed class PdkCommandModule : ICommandModule
             return CommandResult.Success;
         }
 
-        RunBatch();
-        return CommandResult.Success;
+        var batchSucceeded = RunBatch();
+        return batchSucceeded ? CommandResult.Success : CommandResult.Failure;
     }
 
     private static DeviceFilterOptions BuildDeviceFilterOptions(CharRunConfig cfg)

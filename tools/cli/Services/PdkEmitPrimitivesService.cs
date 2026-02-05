@@ -10,7 +10,12 @@ namespace Cascode.Cli.Services;
 
 internal static class PdkEmitPrimitivesService
 {
-    public sealed record EmitArgs(string PdkName, string DbPath, string OutputPath);
+    public sealed record EmitArgs(
+        string PdkName,
+        string DbPath,
+        string OutputPath,
+        bool IncludeFixed
+    );
 
     public sealed record EmitResult(bool Succeeded, int PrimitivesWritten, string Message);
 
@@ -37,16 +42,56 @@ internal static class PdkEmitPrimitivesService
             );
         }
 
-        var candidates = models.Where(m => m.DeviceClass is DeviceClass.Nmos or DeviceClass.Pmos);
-        var chosenModels = candidates
-            .GroupBy(m => PrimitiveNameFromModelName(m.Name), StringComparer.OrdinalIgnoreCase)
-            .Select(g =>
-                g.OrderBy(m => PreferModelTypeRank(m.ModelType))
-                    .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
-                    .First()
-            )
-            .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+        var candidates = models
+            .Where(m => m.DeviceClass is DeviceClass.Nmos or DeviceClass.Pmos)
+            .Select(m => new ModelCandidate(
+                Model: m,
+                PrimitiveName: PdkPrimitiveNaming.PrimitiveNameFromModelName(m.Name),
+                FamilyName: PdkPrimitiveNaming.PrimitiveFamilyNameFromModelName(m.Name)
+            ))
             .ToList();
+
+        var skippedFixedOnlyFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var chosenModels = args.IncludeFixed
+            ? candidates
+                .GroupBy(
+                    c => new PrimitiveKey(c.Model.DeviceClass, c.PrimitiveName),
+                    PrimitiveKeyComparer.Instance
+                )
+                .Select(g =>
+                    g.OrderBy(c => PdkPrimitiveNaming.PreferModelTypeRank(c.Model.ModelType))
+                        .ThenBy(c => c.Model.Name, StringComparer.OrdinalIgnoreCase)
+                        .First()
+                )
+                .OrderBy(c => c.Model.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : candidates
+                .GroupBy(
+                    c => new FamilyKey(c.Model.DeviceClass, c.FamilyName),
+                    FamilyKeyComparer.Instance
+                )
+                .Select(group =>
+                {
+                    var familyRepresentative = group
+                        .Where(c =>
+                            c.PrimitiveName.Equals(c.FamilyName, StringComparison.OrdinalIgnoreCase)
+                        )
+                        .OrderBy(c => PdkPrimitiveNaming.PreferModelTypeRank(c.Model.ModelType))
+                        .ThenBy(c => c.Model.Name, StringComparer.OrdinalIgnoreCase)
+                        .FirstOrDefault();
+
+                    if (familyRepresentative is not null)
+                    {
+                        return familyRepresentative;
+                    }
+
+                    skippedFixedOnlyFamilies.Add(group.Key.FamilyName);
+                    return null;
+                })
+                .Where(c => c is not null)
+                .Select(c => c!)
+                .OrderBy(c => c.Model.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
         if (chosenModels.Count == 0)
         {
@@ -56,6 +101,17 @@ internal static class PdkEmitPrimitivesService
                 Message: "No NMOS/PMOS models found in pdk.db."
             );
         }
+
+        var subcktBodiesByName = SpiceSubcktOpPathResolver.IndexSubcktBodies(
+            chosenModels
+                .Where(m => IsSubcktModel(m.Model.ModelType))
+                .SelectMany(m => m.Model.SourceFiles ?? Array.Empty<string>())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(TryGetFullPathIfExists)
+                .Where(p => p is not null)
+                .Select(p => p!)
+                .ToList()
+        );
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(args.OutputPath))!);
 
@@ -71,14 +127,12 @@ internal static class PdkEmitPrimitivesService
 
         foreach (var model in chosenModels)
         {
-            var primitiveKind = model.DeviceClass == DeviceClass.Nmos ? "NMOS" : "PMOS";
-            var primitiveName = MakeUniquePrimitiveName(
-                PrimitiveNameFromModelName(model.Name),
-                usedNames
-            );
+            var primitiveKind = model.Model.DeviceClass == DeviceClass.Nmos ? "NMOS" : "PMOS";
+            var primitiveNameBase = args.IncludeFixed ? model.PrimitiveName : model.FamilyName;
+            var primitiveName = MakeUniquePrimitiveName(primitiveNameBase, usedNames);
             usedNames.Add(primitiveName);
 
-            var geom = PdkDatabaseReader.LoadGeometryForModel(args.DbPath, model.Name);
+            var geom = PdkDatabaseReader.LoadGeometryForModel(args.DbPath, model.Model.Name);
             if (geom is not null)
             {
                 sb.AppendLine(
@@ -87,13 +141,13 @@ internal static class PdkEmitPrimitivesService
             }
 
             sb.AppendLine($"primitive {primitiveKind} {primitiveName}(size primSize) {{");
-            sb.AppendLine($"  device \"{model.Name}\"");
+            sb.AppendLine($"  device \"{model.Model.Name}\"");
             sb.AppendLine("  params {");
 
             // Most PDK-provided transistor wrappers are subckts with parameters: w, l, mult, nf.
             // For raw MOS models, W/L/m are more portable.
             var isSubckt = string.Equals(
-                model.ModelType,
+                model.Model.ModelType,
                 "subckt",
                 StringComparison.OrdinalIgnoreCase
             );
@@ -103,6 +157,18 @@ internal static class PdkEmitPrimitivesService
                 sb.AppendLine("    l = primSize.L");
                 sb.AppendLine("    mult = primSize.M");
                 sb.AppendLine("    nf = primSize.NF");
+
+                var opSegments = SpiceSubcktOpPathResolver.TryResolveUniqueOpSegments(
+                    model.Model.Name,
+                    subcktBodiesByName
+                );
+                if (opSegments is not null && opSegments.Count > 0)
+                {
+                    for (var i = 0; i < opSegments.Count; i++)
+                    {
+                        sb.AppendLine($"    __op_path{i} = {opSegments[i]}");
+                    }
+                }
             }
             else
             {
@@ -119,44 +185,37 @@ internal static class PdkEmitPrimitivesService
 
         File.WriteAllText(args.OutputPath, sb.ToString());
 
+        var skippedMessage =
+            skippedFixedOnlyFamilies.Count == 0
+                ? string.Empty
+                : $" Skipped {skippedFixedOnlyFamilies.Count.ToString(CultureInfo.InvariantCulture)} fixed-only family/families (use '--include-fixed' to include them).";
+
         return new EmitResult(
             Succeeded: true,
             PrimitivesWritten: written,
-            Message: $"Wrote {written.ToString(CultureInfo.InvariantCulture)} primitive(s) to '{args.OutputPath}'."
+            Message: $"Wrote {written.ToString(CultureInfo.InvariantCulture)} primitive(s) to '{args.OutputPath}'.{skippedMessage}"
         );
     }
 
-    private static string PrimitiveNameFromModelName(string modelName)
+    private static bool IsSubcktModel(string? modelType) =>
+        string.Equals(modelType, "subckt", StringComparison.OrdinalIgnoreCase);
+
+    private static string? TryGetFullPathIfExists(string path)
     {
-        // Keep names readable while remaining deterministic.
-        // Example: "sky130_fd_pr__nfet_01v8__model.0" -> "nfet_01v8"
-        var name = modelName ?? string.Empty;
-        var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-        if (modelMarker >= 0)
+        if (string.IsNullOrWhiteSpace(path))
         {
-            name = name.Substring(0, modelMarker);
+            return null;
         }
 
-        var lastSep = name.LastIndexOf("__", StringComparison.Ordinal);
-        if (lastSep >= 0 && lastSep + 2 < name.Length)
+        try
         {
-            name = name[(lastSep + 2)..];
+            var full = Path.GetFullPath(path);
+            return File.Exists(full) ? full : null;
         }
-
-        name = name.Replace('.', '_');
-        name = SanitizeIdentifier(name);
-        if (string.IsNullOrWhiteSpace(name))
+        catch
         {
-            name = "Primitive";
+            return null;
         }
-
-        return name;
-    }
-
-    private static int PreferModelTypeRank(string? modelType)
-    {
-        // Prefer raw MOS models ("model") over wrapper subckts ("subckt") for op_param stability.
-        return string.Equals(modelType, "model", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
     }
 
     private static string MakeUniquePrimitiveName(string baseName, HashSet<string> used)
@@ -195,33 +254,76 @@ internal static class PdkEmitPrimitivesService
         return string.IsNullOrWhiteSpace(s) ? "pdk" : s;
     }
 
-    private static string SanitizeIdentifier(string name)
+    private sealed record ModelCandidate(
+        SpectreModel Model,
+        string PrimitiveName,
+        string FamilyName
+    );
+
+    private sealed record PrimitiveKey(DeviceClass DeviceClass, string PrimitiveName);
+
+    private sealed record FamilyKey(DeviceClass DeviceClass, string FamilyName);
+
+    private sealed class PrimitiveKeyComparer : IEqualityComparer<PrimitiveKey>
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
+        public static readonly PrimitiveKeyComparer Instance = new();
 
-        var sb = new StringBuilder(name.Length);
-        foreach (var c in name.Trim())
+        public bool Equals(PrimitiveKey? x, PrimitiveKey? y)
         {
-            if (char.IsLetterOrDigit(c) || c == '_')
+            if (ReferenceEquals(x, y))
             {
-                sb.Append(c);
+                return true;
             }
-            else
+
+            if (x is null || y is null)
             {
-                sb.Append('_');
+                return false;
             }
+
+            return x.DeviceClass == y.DeviceClass
+                && string.Equals(
+                    x.PrimitiveName,
+                    y.PrimitiveName,
+                    StringComparison.OrdinalIgnoreCase
+                );
         }
 
-        var s = sb.ToString();
-        if (s.Length > 0 && !char.IsLetter(s[0]) && s[0] != '_')
+        public int GetHashCode(PrimitiveKey obj)
         {
-            s = "_" + s;
+            return HashCode.Combine(
+                obj.DeviceClass,
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.PrimitiveName)
+            );
+        }
+    }
+
+    private sealed class FamilyKeyComparer : IEqualityComparer<FamilyKey>
+    {
+        public static readonly FamilyKeyComparer Instance = new();
+
+        public bool Equals(FamilyKey? x, FamilyKey? y)
+        {
+            if (ReferenceEquals(x, y))
+            {
+                return true;
+            }
+
+            if (x is null || y is null)
+            {
+                return false;
+            }
+
+            return x.DeviceClass == y.DeviceClass
+                && string.Equals(x.FamilyName, y.FamilyName, StringComparison.OrdinalIgnoreCase);
         }
 
-        return s;
+        public int GetHashCode(FamilyKey obj)
+        {
+            return HashCode.Combine(
+                obj.DeviceClass,
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.FamilyName)
+            );
+        }
     }
 
     private static string FormatNullable(double? v)

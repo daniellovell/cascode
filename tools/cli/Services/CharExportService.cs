@@ -83,6 +83,7 @@ internal static class CharExportService
             var iCgs = FindFirstColumn(map, "cgs");
             var iCgd = FindFirstColumn(map, "cgd");
             var iCgg = FindFirstColumn(map, "cgg");
+            var iCds = FindFirstColumn(map, "cds");
             var iGmOverId = FindFirstColumn(map, "gmoverid", "gm_over_id");
 
             if (iControl is null || iVds is null || iId is null)
@@ -108,6 +109,7 @@ internal static class CharExportService
                 "cgs",
                 "cgd",
                 "cgg",
+                "cds",
             };
             foreach (var col in optional)
             {
@@ -221,6 +223,7 @@ internal static class CharExportService
                 var cgs = iCgs is null ? double.NaN : Get(parts, iCgs.Value);
                 var cgd = iCgd is null ? double.NaN : Get(parts, iCgd.Value);
                 var cgg = iCgg is null ? double.NaN : Get(parts, iCgg.Value);
+                var cds = iCds is null ? double.NaN : Get(parts, iCds.Value);
 
                 var gmOverId = iGmOverId is null
                     ? (
@@ -269,6 +272,7 @@ internal static class CharExportService
                             "cgs" => F(cgs),
                             "cgd" => F(cgd),
                             "cgg" => F(cgg),
+                            "cds" => F(cds),
                             _ => string.Empty,
                         }
                     );

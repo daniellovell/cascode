@@ -102,7 +102,21 @@ internal static class CharGenService
             );
         }
 
-        var primitiveName = PrimitiveNameFromModelName(model.Name);
+        var familyName = PdkPrimitiveNaming.PrimitiveFamilyNameFromModelName(model.Name);
+        var familyRepresentative = ResolveFamilyRepresentativeModel(
+            models,
+            model.DeviceClass,
+            familyName
+        );
+        if (familyRepresentative is null)
+        {
+            return new CharGenResult(
+                Succeeded: false,
+                Message: $"No parametric primitive is available for family '{familyName}' (matched model '{model.Name}'). Use a parametric family for characterization."
+            );
+        }
+
+        var primitiveName = familyName;
         var circuitName = SanitizeIdentifier("CharGmId_" + primitiveName);
         var deviceKind = model.DeviceClass == DeviceClass.Nmos ? "NMOS" : "PMOS";
         var isPmos = model.DeviceClass == DeviceClass.Pmos;
@@ -126,7 +140,7 @@ internal static class CharGenService
         );
 
         var specPath = Path.Combine(args.OutputDir, "spec.json");
-        File.WriteAllText(specPath, RenderSpecJson(args, model.Name));
+        File.WriteAllText(specPath, RenderSpecJson(args, familyRepresentative.Name));
 
         var runArgs = new BenchRunService.BenchRunArgs(
             CascodePath: wrapperPath,
@@ -200,11 +214,75 @@ internal static class CharGenService
             return exact;
         }
 
+        var familyExact = models
+            .Where(m =>
+                PdkPrimitiveNaming
+                    .PrimitiveFamilyNameFromModelName(m.Name)
+                    .Equals(query, StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+        if (familyExact.Count > 0)
+        {
+            return ChooseBestFamilyModel(familyExact);
+        }
+
         var matches = models
-            .Where(m => m.Name.Contains(query, StringComparison.OrdinalIgnoreCase))
+            .Where(m =>
+                m.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
+                || PdkPrimitiveNaming
+                    .PrimitiveFamilyNameFromModelName(m.Name)
+                    .Contains(query, StringComparison.OrdinalIgnoreCase)
+            )
             .OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return matches.Count == 1 ? matches[0] : null;
+        if (matches.Count == 1)
+        {
+            return matches[0];
+        }
+
+        var families = matches
+            .GroupBy(m => new
+            {
+                m.DeviceClass,
+                Family = PdkPrimitiveNaming.PrimitiveFamilyNameFromModelName(m.Name),
+            })
+            .ToList();
+        return families.Count == 1 ? ChooseBestFamilyModel(families[0]) : null;
+    }
+
+    private static SpectreModel? ResolveFamilyRepresentativeModel(
+        IReadOnlyList<SpectreModel> models,
+        DeviceClass deviceClass,
+        string familyName
+    )
+    {
+        var familyModels = models
+            .Where(m =>
+                m.DeviceClass == deviceClass
+                && PdkPrimitiveNaming
+                    .PrimitiveFamilyNameFromModelName(m.Name)
+                    .Equals(familyName, StringComparison.OrdinalIgnoreCase)
+            )
+            .ToList();
+        if (familyModels.Count == 0)
+        {
+            return null;
+        }
+
+        return familyModels
+            .Where(m => PdkPrimitiveNaming.IsFamilyRepresentativeModel(m.Name))
+            .OrderBy(m => PdkPrimitiveNaming.PreferModelTypeRank(m.ModelType))
+            .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+    }
+
+    private static SpectreModel ChooseBestFamilyModel(IEnumerable<SpectreModel> models)
+    {
+        return models
+            .OrderByDescending(m => PdkPrimitiveNaming.IsFamilyRepresentativeModel(m.Name))
+            .ThenBy(m => PdkPrimitiveNaming.PreferModelTypeRank(m.ModelType))
+            .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+            .First();
     }
 
     private static string RenderWrapperCascode(
@@ -313,26 +391,6 @@ circuit {circuitName} {{
         };
 
         return JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
-    }
-
-    private static string PrimitiveNameFromModelName(string modelName)
-    {
-        var name = modelName ?? string.Empty;
-        var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-        if (modelMarker >= 0)
-        {
-            name = name.Substring(0, modelMarker);
-        }
-
-        var lastSep = name.LastIndexOf("__", StringComparison.Ordinal);
-        if (lastSep >= 0 && lastSep + 2 < name.Length)
-        {
-            name = name[(lastSep + 2)..];
-        }
-
-        name = name.Replace('.', '_');
-        name = SanitizeIdentifier(name);
-        return string.IsNullOrWhiteSpace(name) ? "Primitive" : name;
     }
 
     private static string SanitizeIdentifier(string name)

@@ -15,9 +15,9 @@ public sealed class CharExportServiceTests
     {
         using var tmpDir = new TemporaryDirectory();
         var csv = """
-point_index,vgs,vds,id,gm,gds,cgg
-0,0,0.9,1e-6,2e-3,1e-5,1e-12
-1,0.01,0.9,2e-6,3e-3,2e-5,2e-12
+point_index,vgs,vds,id,gm,gds,cgg,cds
+0,0,0.9,1e-6,2e-3,1e-5,1e-12,3e-13
+1,0.01,0.9,2e-6,3e-3,2e-5,2e-12,4e-13
 """;
         File.WriteAllText(Path.Combine(tmpDir.Path, "results.csv"), csv);
 
@@ -41,8 +41,15 @@ point_index,vgs,vds,id,gm,gds,cgg
         var gmOverIdIdx = Array.IndexOf(header, "gm_over_id");
         var roIdx = Array.IndexOf(header, "ro");
         var ftIdx = Array.IndexOf(header, "ft");
+        var cdsIdx = Array.IndexOf(header, "cds");
         Assert.True(
-            vgsIdx >= 0 && vdIdx >= 0 && idIdx >= 0 && gmOverIdIdx >= 0 && roIdx >= 0 && ftIdx >= 0,
+            vgsIdx >= 0
+                && vdIdx >= 0
+                && idIdx >= 0
+                && gmOverIdIdx >= 0
+                && roIdx >= 0
+                && ftIdx >= 0
+                && cdsIdx >= 0,
             "Required columns missing from derived.csv"
         );
 
@@ -53,12 +60,14 @@ point_index,vgs,vds,id,gm,gds,cgg
         Assert.Equal(2000, double.Parse(r0[gmOverIdIdx], CultureInfo.InvariantCulture), 6);
         Assert.Equal(100000, double.Parse(r0[roIdx], CultureInfo.InvariantCulture), 6);
         Assert.True(double.Parse(r0[ftIdx], CultureInfo.InvariantCulture) > 0);
+        Assert.Equal(3e-13, double.Parse(r0[cdsIdx], CultureInfo.InvariantCulture), 12);
 
         var r1 = lines[2].Split(',', StringSplitOptions.None);
         Assert.Equal(0.01, double.Parse(r1[vgsIdx], CultureInfo.InvariantCulture), 6);
         Assert.Equal(0.9, double.Parse(r1[vdIdx], CultureInfo.InvariantCulture), 6);
         Assert.Equal(2e-6, double.Parse(r1[idIdx], CultureInfo.InvariantCulture), 12);
         Assert.Equal(1500, double.Parse(r1[gmOverIdIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(4e-13, double.Parse(r1[cdsIdx], CultureInfo.InvariantCulture), 12);
     }
 
     // Note: legacy Spectre/oppoint recovery is intentionally unsupported.

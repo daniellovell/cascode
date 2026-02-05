@@ -1134,14 +1134,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var target = EvaluateExpr(call.Args[1].Value, locals);
-        var targetName = target switch
-        {
-            BenchSymbol s => s.Name,
-            _ => throw new InvalidOperationException(
-                "op_param: target must be a symbol (e.g. dut)."
-            ),
-        };
+        var targetName = ResolveOpParamSymbol(call.Args[1].Value, locals, isTarget: true);
         if (!targetName.Equals("dut", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -1149,14 +1142,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var p = EvaluateExpr(call.Args[2].Value, locals);
-        var paramName = p switch
-        {
-            BenchSymbol s => s.Name,
-            _ => throw new InvalidOperationException(
-                "op_param: parameter name must be a symbol (e.g. gm)."
-            ),
-        };
+        var paramName = ResolveOpParamSymbol(call.Args[2].Value, locals, isTarget: false);
 
         var normalized = NormalizeOpParamName(paramName);
         if (!_dutOpParamsByName.TryGetValue(normalized, out var value))
@@ -1165,6 +1151,34 @@ public sealed class BenchMeasurementRunner
         }
 
         return new BenchNumber(BenchNumericKind.Scalar, value);
+    }
+
+    private string ResolveOpParamSymbol(
+        MeasurementExpr expr,
+        Dictionary<string, BenchValue> locals,
+        bool isTarget
+    )
+    {
+        // Important: treat bare identifiers as raw symbols even if they coincide with measurement
+        // names (e.g. measurement "Gm" and op_param(..., gm)). Evaluating those would recursively
+        // resolve to the measurement instead of yielding the intended parameter name.
+        if (expr is MeasurementPath p)
+        {
+            return p.Path;
+        }
+
+        var v = EvaluateExpr(expr, locals);
+        if (v is BenchSymbol s)
+        {
+            return s.Name;
+        }
+
+        if (isTarget)
+        {
+            throw new InvalidOperationException("op_param: target must be a symbol (e.g. dut).");
+        }
+
+        throw new InvalidOperationException("op_param: parameter name must be a symbol (e.g. gm).");
     }
 
     private static string NormalizeOpParamName(string name)
@@ -1186,6 +1200,7 @@ public sealed class BenchMeasurementRunner
             "cgs" => "cgs",
             "cgd" => "cgd",
             "cgg" => "cgg",
+            "cds" => "cds",
             "id" => "id",
             "ids" => "id",
             "vgs" => "vgs",
