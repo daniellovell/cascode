@@ -163,7 +163,7 @@ internal sealed class PdkCommandModule : ICommandModule
     {
         Output.WriteLine("Usage: pdk emit <subcommand>");
         Output.WriteLine(
-            "  pdk emit primitives  Generate lib/pdk/<pdk>_Primitives.cas (parametric families only by default)"
+            "  pdk emit primitives  Generate lib/pdk/<pdk>/{devices,resistors,capacitors,diodes}.cas"
         );
         return CommandResult.Success;
     }
@@ -171,7 +171,7 @@ internal sealed class PdkCommandModule : ICommandModule
     private CommandResult PdkEmitPrimitivesCommand(string[] args)
     {
         string? pdkName = null;
-        string? outPath = null;
+        string? outDirectory = null;
         var includeFixed = false;
 
         for (var i = 0; i < args.Length; i++)
@@ -185,7 +185,7 @@ internal sealed class PdkCommandModule : ICommandModule
                 && i + 1 < args.Length
             )
             {
-                outPath = args[++i];
+                outDirectory = args[++i];
             }
             else if (args[i].Equals("--include-fixed", StringComparison.OrdinalIgnoreCase))
             {
@@ -194,7 +194,7 @@ internal sealed class PdkCommandModule : ICommandModule
             else if (args[i].Equals("--help", StringComparison.OrdinalIgnoreCase))
             {
                 Output.WriteLine(
-                    "Usage: pdk emit primitives [--pdk <name>] [--out <file.cas>] [--include-fixed]\n\nDefaults:\n  --pdk            (derived from current PDK root directory name)\n  --out            lib/pdk/<pdk>_Primitives.cas\n  --include-fixed  disabled (emit only parametric primitive families)"
+                    "Usage: pdk emit primitives [--pdk <name>] [--out <dir>] [--include-fixed]\n\nDefaults:\n  --pdk            (derived from current PDK root directory name)\n  --out            lib/pdk/<pdk>\n  --include-fixed  disabled (emit only parametric primitive families)"
                 );
                 return CommandResult.Success;
             }
@@ -212,7 +212,7 @@ internal sealed class PdkCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        outPath ??= Path.Combine("lib", "pdk", $"{pdkName}_Primitives.cas");
+        outDirectory ??= PdkPrimitiveLibraryLayout.GetDefaultOutputDirectory(pdkName);
 
         var dbPath = Path.Combine(
             WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
@@ -222,7 +222,7 @@ internal sealed class PdkCommandModule : ICommandModule
             new PdkEmitPrimitivesService.EmitArgs(
                 PdkName: pdkName,
                 DbPath: dbPath,
-                OutputPath: outPath,
+                OutputDirectory: outDirectory,
                 IncludeFixed: includeFixed
             )
         );
@@ -1152,25 +1152,24 @@ internal sealed class PdkCommandModule : ICommandModule
             backend = "ngspice";
         }
 
-        var primitivesDir = Path.Combine(Directory.GetCurrentDirectory(), "lib", "pdk");
-        var primitivesFiles = Directory.Exists(primitivesDir)
-            ? Directory
-                .EnumerateFiles(primitivesDir, "*_Primitives.cas", SearchOption.TopDirectoryOnly)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList()
-            : new List<string>();
-        if (primitivesFiles.Count == 0)
+        var pdkNameSource = _state.PdkRoot ?? _state.WorkspaceRoot;
+        var pdkName = Path.GetFileName(Path.GetFullPath(pdkNameSource));
+        if (string.IsNullOrWhiteSpace(pdkName))
         {
-            Output.WriteLine(
-                "No PDK primitive library found under lib/pdk. Run 'pdk emit primitives' first."
-            );
+            Output.WriteLine("Unable to determine active PDK name.");
             return CommandResult.Failure;
         }
-        if (primitivesFiles.Count > 1)
+
+        if (
+            !PdkPrimitiveLibraryLayout.TryValidateLibrary(
+                Directory.GetCurrentDirectory(),
+                pdkName,
+                out _,
+                out var libraryError
+            )
+        )
         {
-            Output.WriteLine(
-                "Multiple PDK primitive libraries found under lib/pdk. Keep exactly one '*_Primitives.cas' file for now."
-            );
+            Output.WriteLine(libraryError);
             return CommandResult.Failure;
         }
 

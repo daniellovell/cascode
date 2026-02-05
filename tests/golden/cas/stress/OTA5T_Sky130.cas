@@ -7,26 +7,7 @@ VERSION 3.0
 // SingleEndedOpAmp, CurrentMirrorLike, and DiffPairLike all come from lib.std.amp
 // The Diff bundle comes from lib.std
 include lib.std
-
-// TODO: Cascode should append these during linking
-// We shouldn't have to
-primitive NMOS nfet_01v8(size primSize) {
-  device "sky130_fd_pr__nfet_01v8"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-  }
-}
-
-primitive PMOS pfet_01v8(size primSize) {
-  device "sky130_fd_pr__pfet_01v8"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-  }
-}
+include lib.pdk.sky130
 
 circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   level EL
@@ -44,7 +25,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   }
 
   fill {
-    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1, NF=1), Tail=size(W=4u, L=180n, M=1, NF=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
@@ -105,7 +86,7 @@ circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
   }
 }
 
-circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1, NF=1), int ratio=1) implements CurrentMirrorLike {
   level EL
   supply VDD
   ground GND
@@ -113,7 +94,7 @@ circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) imple
   output TAP[0] : analog
   fill {
     PMOS M_SENSE = new pfet_01v8(Sense) { .B--VDD, .D--SENSE, .G--SENSE, .S--VDD }
-    size SenseMultiplied = size(Sense.W, Sense.L, Sense.M*ratio)
+    size SenseMultiplied = size(W=Sense.W, L=Sense.L, M=Sense.M*ratio, NF=Sense.NF)
     PMOS M_TAP0 = new pfet_01v8(SenseMultiplied) { .B--VDD, .D--TAP[0], .G--SENSE, .S--VDD }
   }
 }

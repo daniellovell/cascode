@@ -7,11 +7,16 @@ namespace Cascode.Cli.Services;
 
 internal static class SpiceSubcktOpPathResolver
 {
-    public static IReadOnlyDictionary<string, IReadOnlyList<string>> IndexSubcktBodies(
+    public sealed record SubcktDefinition(
+        IReadOnlyList<string> Terminals,
+        IReadOnlyList<string> BodyLines
+    );
+
+    public static IReadOnlyDictionary<string, SubcktDefinition> IndexSubcktDefinitions(
         IReadOnlyList<string> files
     )
     {
-        var map = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, SubcktDefinition>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in files)
         {
             try
@@ -24,6 +29,18 @@ internal static class SpiceSubcktOpPathResolver
             }
         }
         return map;
+    }
+
+    public static IReadOnlyDictionary<string, IReadOnlyList<string>> IndexSubcktBodies(
+        IReadOnlyList<string> files
+    )
+    {
+        return IndexSubcktDefinitions(files)
+            .ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.BodyLines,
+                StringComparer.OrdinalIgnoreCase
+            );
     }
 
     public static IReadOnlyList<string>? TryResolveUniqueOpSegments(
@@ -144,7 +161,7 @@ internal static class SpiceSubcktOpPathResolver
 
     private static void IndexSubcktBodiesFromFile(
         string path,
-        Dictionary<string, IReadOnlyList<string>> into
+        Dictionary<string, SubcktDefinition> into
     )
     {
         if (!File.Exists(path))
@@ -153,6 +170,7 @@ internal static class SpiceSubcktOpPathResolver
         }
 
         string? currentName = null;
+        IReadOnlyList<string> currentTerminals = Array.Empty<string>();
         var currentBody = new List<string>();
         string? currentLogical = null;
 
@@ -170,6 +188,7 @@ internal static class SpiceSubcktOpPathResolver
                 if (parts.Length >= 2)
                 {
                     currentName = parts[1];
+                    currentTerminals = ParseSubcktTerminals(parts);
                     currentBody = new List<string>();
                 }
                 return;
@@ -179,9 +198,13 @@ internal static class SpiceSubcktOpPathResolver
             {
                 if (!string.IsNullOrWhiteSpace(currentName) && currentBody.Count > 0)
                 {
-                    into[currentName] = currentBody.ToArray();
+                    into[currentName] = new SubcktDefinition(
+                        currentTerminals,
+                        currentBody.ToArray()
+                    );
                 }
                 currentName = null;
+                currentTerminals = Array.Empty<string>();
                 currentBody = new List<string>();
                 return;
             }
@@ -233,8 +256,45 @@ internal static class SpiceSubcktOpPathResolver
 
         if (!string.IsNullOrWhiteSpace(currentName) && currentBody.Count > 0)
         {
-            into[currentName] = currentBody.ToArray();
+            into[currentName] = new SubcktDefinition(currentTerminals, currentBody.ToArray());
         }
+    }
+
+    private static IReadOnlyList<string> ParseSubcktTerminals(string[] tokens)
+    {
+        if (tokens.Length <= 2)
+        {
+            return Array.Empty<string>();
+        }
+
+        var terminals = new List<string>();
+        for (var i = 2; i < tokens.Length; i++)
+        {
+            var token = tokens[i].Trim();
+            if (token.Length == 0)
+            {
+                continue;
+            }
+
+            if (token.Equals("params:", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            if (token.StartsWith("params:", StringComparison.OrdinalIgnoreCase))
+            {
+                break;
+            }
+
+            if (token.Contains('='))
+            {
+                break;
+            }
+
+            terminals.Add(token);
+        }
+
+        return terminals;
     }
 
     private static string StripInlineComment(string line)

@@ -56,27 +56,17 @@ internal static class CharGenService
             );
         }
 
-        var primitivesDir = Path.Combine(workspaceRoot, "lib", "pdk");
-        var primitivesFiles = Directory.Exists(primitivesDir)
-            ? Directory
-                .EnumerateFiles(primitivesDir, "*_Primitives.cas", SearchOption.TopDirectoryOnly)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .ToList()
-            : new List<string>();
-
-        if (primitivesFiles.Count == 0)
+        var pdkName = ResolvePdkName(pdkRoot, workspaceRoot);
+        if (
+            !PdkPrimitiveLibraryLayout.TryValidateLibrary(
+                workspaceRoot,
+                pdkName,
+                out _,
+                out var libraryError
+            )
+        )
         {
-            return new CharGenResult(
-                Succeeded: false,
-                Message: "No PDK primitive library found under lib/pdk. Run 'pdk emit primitives' first."
-            );
-        }
-        if (primitivesFiles.Count > 1)
-        {
-            return new CharGenResult(
-                Succeeded: false,
-                Message: "Multiple PDK primitive libraries found under lib/pdk. Keep exactly one '*_Primitives.cas' file for now."
-            );
+            return new CharGenResult(Succeeded: false, Message: libraryError);
         }
 
         var models = PdkDatabaseReader.LoadModels(dbPath);
@@ -122,6 +112,7 @@ internal static class CharGenService
         var isPmos = model.DeviceClass == DeviceClass.Pmos;
         var benchName = model.DeviceClass == DeviceClass.Nmos ? "GmIdNmos" : "GmIdPmos";
         var bindingAlias = "gm_id";
+        var pdkLibraryNamespace = PdkPrimitiveLibraryLayout.GetLibraryNamespace(pdkName);
 
         Directory.CreateDirectory(args.OutputDir);
 
@@ -135,7 +126,8 @@ internal static class CharGenService
                 isPmos,
                 benchName,
                 bindingAlias,
-                primitiveName
+                primitiveName,
+                pdkLibraryNamespace
             )
         );
 
@@ -292,7 +284,8 @@ internal static class CharGenService
         bool isPmos,
         string benchName,
         string bindingAlias,
-        string primitiveName
+        string primitiveName,
+        string pdkLibraryNamespace
     )
     {
         static string F(double v) => v.ToString("G17", CultureInfo.InvariantCulture);
@@ -305,7 +298,7 @@ internal static class CharGenService
         return $@"VERSION {CascodeVersion.Current}
 
 include lib.char
-include lib.pdk
+include {pdkLibraryNamespace}
 
 circuit {circuitName} {{
   level EL
@@ -337,6 +330,13 @@ circuit {circuitName} {{
     }}
   }}
 }}";
+    }
+
+    private static string ResolvePdkName(string? pdkRoot, string workspaceRoot)
+    {
+        var source = string.IsNullOrWhiteSpace(pdkRoot) ? workspaceRoot : pdkRoot;
+        var derived = Path.GetFileName(Path.GetFullPath(source));
+        return string.IsNullOrWhiteSpace(derived) ? "pdk" : derived;
     }
 
     private static string RenderNmosHarness(CharGenArgs args)

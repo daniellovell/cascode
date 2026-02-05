@@ -172,6 +172,34 @@ public sealed class StressFolderIntegrationTests : IDisposable
         }
     }
 
+    [Fact]
+    public void Ota5tSky130_UsesPdkInclude_InsteadOfInlinePrimitives()
+    {
+        var cascodePath = Path.Combine(
+            _repoRoot,
+            "tests",
+            "golden",
+            "cas",
+            "stress",
+            "OTA5T_Sky130.cas"
+        );
+
+        var sourceText = File.ReadAllText(cascodePath);
+        Assert.Contains("include lib.pdk.sky130", sourceText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("primitive NMOS", sourceText, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("primitive PMOS", sourceText, StringComparison.OrdinalIgnoreCase);
+
+        var linked = LoadAndLinkIfNeededForTest(cascodePath);
+        Assert.Contains(
+            linked.Primitives,
+            primitive => primitive.Name.Equals("nfet_01v8", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            linked.Primitives,
+            primitive => primitive.Name.Equals("pfet_01v8", StringComparison.Ordinal)
+        );
+    }
+
     private CascodeDocument LoadAndLinkIfNeededForTest(string inputPath)
     {
         // This helper does not “cheat” the CLI run; it only produces the same in-memory model

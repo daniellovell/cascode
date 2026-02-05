@@ -1,6 +1,6 @@
 VERSION 3.0
 
-library lib.pdk.sky130.prim
+library lib.pdk.sky130.devices
 
 // geometry: W=[3.6E-07..0.0001] L=[1.5E-07..0.0001] NF=[-..-]
 primitive NMOS nfet_01v8(size primSize) {

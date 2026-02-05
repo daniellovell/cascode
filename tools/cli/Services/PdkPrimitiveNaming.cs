@@ -10,12 +10,7 @@ internal static partial class PdkPrimitiveNaming
 
     public static string PrimitiveNameFromModelName(string modelName)
     {
-        var name = modelName ?? string.Empty;
-        var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-        if (modelMarker >= 0)
-        {
-            name = name.Substring(0, modelMarker);
-        }
+        var name = BinModelSuffixPattern().Replace(modelName ?? string.Empty, string.Empty);
 
         var lastSep = name.LastIndexOf("__", StringComparison.Ordinal);
         if (lastSep >= 0 && lastSep + 2 < name.Length)
@@ -78,4 +73,7 @@ internal static partial class PdkPrimitiveNaming
 
     [GeneratedRegex(@"_(?:aF|bM)\d+(?:W\d+p\d+)?(?:L\d+p\d+)?$", RegexOptions.IgnoreCase)]
     private static partial Regex FixedVariantSuffixPattern();
+
+    [GeneratedRegex(@"(?:__|_)model(?:_base)?(?:\.\d+)?$", RegexOptions.IgnoreCase)]
+    private static partial Regex BinModelSuffixPattern();
 }

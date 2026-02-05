@@ -25,11 +25,23 @@ Emission and bench generation reuse the per-workspace pdk.db produced by pdk sca
 
 Primitive emission and characterization
 
-`pdk emit primitives` reads models from `pdk.db` and generates `lib/pdk/<pdk>_Primitives.cas`.
+`pdk emit primitives` reads models from `pdk.db` and generates a structured PDK primitive library at `lib/pdk/<pdk>/`.
 
-By default, it emits only canonical parametric primitive families. Fixed-size wrapper variants are collapsed to a family name when possible and are skipped when no parametric family representative exists. The command reports how many fixed-only families were skipped. Use `--include-fixed` to include every discovered wrapper variant in the generated library.
+Library layout contract:
 
-`char gen` and `pdk char run` depend on parametric primitives. If a selected model maps only to fixed wrappers and no parametric family representative exists, characterization fails fast with guidance instead of silently skipping the model.
+```
+lib/pdk/<pdk>/
+  devices.cas
+  resistors.cas
+  capacitors.cas
+  diodes.cas
+```
+
+Each file declares a file-level namespace under `lib.pdk.<pdk>.*` (for example `lib.pdk.sky130.devices`). Consumers include the full emitted package with `include lib.pdk.<pdk>`.
+
+By default, emission keeps canonical parametric family names and skips fixed-only wrapper families when no parametric representative exists. The command reports skipped fixed-only families. Use `--include-fixed` to include fixed wrapper variants.
+
+`char gen` and `pdk char run` depend on parametric MOS primitives from this emitted library. If a selected model maps only to fixed wrappers and no parametric family representative exists, characterization fails fast with guidance instead of silently skipping the model.
 
 Recommended flow
 
