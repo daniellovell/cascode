@@ -37,7 +37,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
 | `circuit` | `circuit OTA5T implements SingleEndedOpAmp { ... }` | 3.7 |
 | `inline` | `inline` | 3.7 |
-| `slot` | `slot Core implements X { ... }` | 3.7 |
+| `slot` | `slot` (bare) or `slot Name implements X { ... }` | 3.7 |
 | `synth {}` | `synth { seed = 123 }` | 3.7 |
 | `fill {}` | `fill { net n : analog  dp = new DiffPair { ... } }` | 3.10 |
 | `attach` | `attach cm to dp via A::B as name` | 3.10 |
@@ -375,24 +375,42 @@ Inline circuits are expanded into their instantiating context rather than being 
 
 ### 3.7.4 Slots (`slot`)
 
-Slots are high-level placeholders intended to be filled during synthesis:
+Slots are high-level placeholders intended to be filled during synthesis. There are two forms.
+
+A bare `slot` statement marks the circuit itself as a synthesis target. It is valid only at circuit
+body level and implies that the circuit has no `fill` block — the entire implementation is to be
+synthesized. The circuit's own `implements` clause and terminal declarations serve as the interface
+contract:
 
 ```cascode
-circuit MyTop {
+circuit MyOpAmp implements SingleEndedOpAmp {
   level HL
+  supply VDD
+  ground GND
   input IN : Diff
   output OUT : analog
+  input VTAIL : bias
 
-  slot Core implements SingleEndedOpAmp {
-    param ratio = 2
-    .IN--IN
-    .OUT--OUT
+  slot
+}
+```
+
+A composition slot appears inside a `fill` block, names a sub-block, declares its interface
+contract, and binds its terminals into the parent's wiring namespace:
+
+```cascode
+fill {
+  net mid : analog
+  slot lna implements LNA {
+    param gain_target = 20
+    .IN--RF_IN
+    .OUT--mid
   }
 }
 ```
 
-A slot body contains `param` assignments and binding statements written with the same `--` wiring
-operator used elsewhere.
+A composition slot body contains optional `param` assignments and binding statements written with
+the standard `--` wiring operator.
 
 ### 3.7.5 Synthesis guidance (`synth {}`)
 
@@ -637,10 +655,22 @@ Harness configuration is declared in a `harness { ... }` block:
 harness {
   supply VDD = 1.8V
   ground GND = 0V
+  bias VTAIL = 0.6V             // pinned value
+  bias VTAIL                     // unconstrained synthesis variable
+  bias VTAIL in [0.3V:0.9V]     // bounded synthesis variable
   load OUT C=1pF
   sweep InputDCBias [0.3V:1.5V]
 }
 ```
+
+The bias statement grammar is:
+
+```
+biasStatement = "bias" IDENT ( "=" quantity | "in" "[" quantity ":" quantity "]" )?
+```
+
+All terminals declared on the circuit MUST appear in the harness. Bare and bounded bias forms must
+be resolved to concrete values before EL emission.
 
 ### 3.11.2 Environment (`env {}`)
 
