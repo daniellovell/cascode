@@ -1,0 +1,28 @@
+VERSION 3.0
+
+library lib.char
+
+bench GmIdPmos {
+  stim G : bias
+  stim D : bias
+  stim S : bias
+  stim B : bias
+
+  analysis {
+    DCAnalysis dc = new DCAnalysis()
+  }
+
+  measurements {
+    measurement Vsg : V {
+      return harness.S - harness.G
+    }
+
+    measurement Vds : V {
+      return harness.S - harness.D
+    }
+
+    measurement Id : A {
+      return current(dc, harness.D.P)
+    }
+  }
+}

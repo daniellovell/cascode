@@ -84,6 +84,19 @@ public static class BenchRuntimePaths
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__op.nodes.wrdata");
     }
 
+    public static string GetOpParamsWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__op.params.wrdata");
+    }
+
     public static string GetTranWrdataPath(
         string outputDir,
         string circuitName,

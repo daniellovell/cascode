@@ -5,8 +5,7 @@ using System.IO;
 using System.Linq;
 using Cascode.Cli.Output;
 using Cascode.Cli.Services;
-using Cascode.Workspace;
-using Spectre.Console;
+using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Commands;
 
@@ -60,9 +59,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
         var output = _output.Get();
         if (args.Length == 0)
         {
-            output.WriteLine(
-                "Usage: char gen <model> [--harness <id>] [--backend spectre|ngspice] [--out <dir>] [--corner <name>]"
-            );
+            output.WriteLine("Usage: char gen <model> [--out <dir>] [--param <k=v>]");
             return CommandResult.Success;
         }
         return CharacterizationGenerate(args);
@@ -160,29 +157,16 @@ internal sealed class CharacterizationCommandModule : ICommandModule
     private CommandResult CharacterizationGenerate(string[] args)
     {
         var output = _output.Get();
-        var modelName = args[0];
-        var backend = "ngspice";
+        var modelQuery = args[0];
         string? outDir = null;
-        string? corner = null;
-        string harness = "gm_id.v1";
         var userParams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 1; i < args.Length; i++)
         {
             var a = args[i];
-            if (a.Equals("--backend", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                backend = args[++i];
-            else if (a.Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            if (a.Equals("--out", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
                 outDir = args[++i];
-            else if (
-                a.Equals("--corner", StringComparison.OrdinalIgnoreCase)
-                && i + 1 < args.Length
-            )
-                corner = args[++i];
-            else if (
-                a.Equals("--harness", StringComparison.OrdinalIgnoreCase)
-                && i + 1 < args.Length
-            )
-                harness = args[++i];
+            }
             else if (a.Equals("--param", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
             {
                 var kv = args[++i];
@@ -195,22 +179,11 @@ internal sealed class CharacterizationCommandModule : ICommandModule
                         userParams[key] = value;
                 }
             }
-        }
-
-        var models = EnsureModels();
-        if (models is null || models.Count == 0)
-            return CommandResult.Failure;
-        var model =
-            models.FirstOrDefault(m =>
-                string.Equals(m.Name, modelName, StringComparison.OrdinalIgnoreCase)
-            )
-            ?? models.FirstOrDefault(m =>
-                m.Name.Contains(modelName, StringComparison.OrdinalIgnoreCase)
-            );
-        if (model is null)
-        {
-            output.Error("Model not found.");
-            return CommandResult.Failure;
+            else
+            {
+                output.Error($"Unknown option: {a}");
+                return CommandResult.Failure;
+            }
         }
 
         var jobRoot =
@@ -219,7 +192,7 @@ internal sealed class CharacterizationCommandModule : ICommandModule
                 _state.WorkspaceRoot,
                 "build",
                 "char",
-                Sanitize(model.Name),
+                Sanitize(modelQuery),
                 DateTime.UtcNow.ToString("yyyyMMdd_HHmmss")
             );
         Directory.CreateDirectory(jobRoot);
@@ -231,157 +204,70 @@ internal sealed class CharacterizationCommandModule : ICommandModule
 
         var w_m = TryParseDouble("w", TryParseDouble("w_m", 1e-6));
         var l_m = TryParseDouble("l", TryParseDouble("l_m", 0.18e-6));
-        var vsbVal = TryParseDouble("vsb", 0.0);
-        var vdsVal = TryParseDouble("vds", 0.9);
-        var start = TryParseDouble("start", 0.0);
-        var stop = TryParseDouble("stop", 1.2);
-        var step = TryParseDouble("step", 0.01);
-        var multVal = TryParseInt("mult", 1);
-        var nfVal = TryParseInt("nf", 1);
+        var vsbV = TryParseDouble("vsb", 0.0);
+        var vdsV = TryParseDouble("vds", 0.9);
+        var startV = TryParseDouble("start", 0.0);
+        var stopV = TryParseDouble("stop", 1.2);
+        var stepV = TryParseDouble("step", 0.01);
+        var mult = TryParseInt("mult", 1);
+        var nf = TryParseInt("nf", 1);
 
-        static string? TryNormalizeInclude(string path)
-        {
-            if (string.IsNullOrWhiteSpace(path))
-                return null;
-            try
-            {
-                return PathUtils.NormalizePath(path);
-            }
-            catch
-            {
-                return File.Exists(path) ? Path.GetFullPath(path) : null;
-            }
-        }
-
-        var rawDecks = model.Decks ?? Array.Empty<string>();
-        var decksWithSection = rawDecks
-            .Select(TryNormalizeInclude)
-            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
-            .Select(p => p!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var sourceIncludesAll = (model.SourceFiles ?? Array.Empty<string>())
-            .Select(TryNormalizeInclude)
-            .Where(p => !string.IsNullOrWhiteSpace(p) && File.Exists(p!))
-            .Select(p => p!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        List<string> extraIncludes = new();
-        if (!string.IsNullOrWhiteSpace(corner))
-        {
-            var key = corner!.Trim();
-            sourceIncludesAll = sourceIncludesAll
-                .Where(p =>
-                    Path.GetFileName(p).Contains($"_{key}", StringComparison.OrdinalIgnoreCase)
-                )
-                .ToList();
-        }
-        if (decksWithSection.Count == 0)
-            extraIncludes = sourceIncludesAll;
-        else
-            extraIncludes.Clear();
-
-        var resolvedIncludes = new List<string>(decksWithSection.Count + extraIncludes.Count);
-        resolvedIncludes.AddRange(decksWithSection);
-        resolvedIncludes.AddRange(extraIncludes);
-
-        static string ResolveModelNameForNetlist(Cascode.Workspace.SpectreModel m)
-        {
-            var name = m.Name;
-            if (string.IsNullOrWhiteSpace(name))
-                return name;
-            var modelMarker = name.IndexOf("__model", StringComparison.OrdinalIgnoreCase);
-            if (modelMarker < 0)
-                return name;
-            var basePart = name.Substring(0, modelMarker);
-            var lastSeparator = basePart.LastIndexOf("__", StringComparison.Ordinal);
-            if (lastSeparator >= 0 && lastSeparator + 2 < basePart.Length)
-                basePart = basePart[(lastSeparator + 2)..];
-            return basePart.Replace('.', '_');
-        }
-        var netlistModelName = ResolveModelNameForNetlist(model);
-        if (resolvedIncludes.Count == 0)
-            output.Warning(
-                $"[warn] No include decks located for model '{model.Name}'. Spectre run may fail."
-            );
-
-        var spec = new Cascode.Bench.TestbenchSpec
-        {
-            Backend = backend.Equals("spectre", StringComparison.OrdinalIgnoreCase)
-                ? Cascode.Bench.BenchBackendType.Spectre
-                : Cascode.Bench.BenchBackendType.Ngspice,
-            Name = harness,
-            ModelName = netlistModelName,
-            IsSubckt = string.Equals(model.ModelType, "subckt", StringComparison.OrdinalIgnoreCase),
-            Corner = corner,
-            TemperatureC = 27,
-            SupplyV = 0,
-            W_M = w_m,
-            L_M = l_m,
-            Mult = multVal,
-            Nfingers = nfVal,
-            Vgs = new Cascode.Bench.SweepSpec(start, stop, step),
-            Vds = vdsVal,
-            Vsb = vsbVal,
-            Includes = resolvedIncludes,
-            Section = corner,
-            JobDir = jobRoot,
-            ResultsCsv = "results.csv",
-        };
-
-        var ctx = new Cascode.Bench.TestbenchContext
-        {
-            Spec = spec,
-            WorkspaceRoot = _state.WorkspaceRoot,
-            PdkRoot = _state.PdkRoot ?? _state.WorkspaceRoot,
-            DeckPaths = resolvedIncludes,
-            IncludePathsWithSection = decksWithSection,
-            IncludePathsWithoutSection = extraIncludes,
-            Section = corner,
-            Args = userParams.ToDictionary(
-                kv => kv.Key,
-                kv => (object?)kv.Value,
-                StringComparer.OrdinalIgnoreCase
-            ),
-        };
-
+        ILoggerFactory? localFactory = null;
         try
         {
-            var reg = Cascode.Bench.HarnessService.CreateDefault(_state.WorkspaceRoot);
-            var gen = new Cascode.Bench.TestbenchGenerator(reg);
-            var files = gen.Generate(ctx);
-            output.WriteLine($"Generated testbench: {files.NetlistPath}");
-            output.WriteLine($"Spec: {files.SpecPath}");
-            output.WriteLine("Run your simulator manually and then 'char export' to derive gm/Id.");
+            var loggerFactory =
+                _state.LoggerFactory
+                ?? (
+                    localFactory = LoggerFactory.Create(builder =>
+                    {
+                        builder.SetMinimumLevel(LogLevel.Warning);
+                        builder.AddSimpleConsole(o =>
+                        {
+                            o.SingleLine = true;
+                        });
+                    })
+                );
+
+            var result = CharGenService.GenerateAndRun(
+                Directory.GetCurrentDirectory(),
+                _state.PdkRoot ?? _state.WorkspaceRoot,
+                new CharGenService.CharGenArgs(
+                    ModelQuery: modelQuery,
+                    OutputDir: jobRoot,
+                    Corner: "tt",
+                    Backend: "ngspice",
+                    DeviceName: null,
+                    WidthM: w_m,
+                    LengthM: l_m,
+                    Mult: mult,
+                    Nf: nf,
+                    VdsV: vdsV,
+                    VsbV: vsbV,
+                    VgsStartV: startV,
+                    VgsStopV: stopV,
+                    VgsStepV: stepV
+                ),
+                loggerFactory,
+                output
+            );
+
+            if (!result.Succeeded)
+            {
+                output.Error(result.Message);
+                return CommandResult.Failure;
+            }
+
+            output.WriteLine(result.Message);
             return CommandResult.Success;
         }
         catch (Exception ex)
         {
-            output.Error($"Generation failed: {ex.Message}");
+            output.Error($"char gen failed: {ex.Message}");
             return CommandResult.Failure;
         }
-    }
-
-    private IReadOnlyList<SpectreModel>? EnsureModels()
-    {
-        var output = _output.Get();
-        try
+        finally
         {
-            var dbPath = System.IO.Path.Combine(
-                WorkspaceState.GetWorkspaceFolder(_state.WorkspaceRoot),
-                "pdk.db"
-            );
-            if (!System.IO.File.Exists(dbPath))
-            {
-                output.Error("No PDK database found. Run 'pdk scan' first.");
-                return null;
-            }
-            return PdkDatabaseReader.LoadModels(dbPath);
-        }
-        catch (Exception ex)
-        {
-            output.Error($"Failed to load models from PDK database: {ex.Message}");
-            return null;
+            localFactory?.Dispose();
         }
     }
 

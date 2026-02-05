@@ -93,4 +93,34 @@ public class CascodeWriterTests
         Assert.Contains("supply VDD = 1.8V", output);
         Assert.Contains("load OUT C=100fF", output);
     }
+
+    [Fact]
+    public void CascodeWriter_WithSweep_EmitsSweepLine()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestWithSweep",
+            Level = CascodeLevel.EL,
+            Harness = new HarnessBlock
+            {
+                Sweeps = new List<SweepCondition>
+                {
+                    new()
+                    {
+                        Name = "InputDCBias",
+                        Start = "0.3V",
+                        Step = "100mV",
+                        Stop = "1.5V",
+                        IsAuto = false,
+                    },
+                },
+            },
+        };
+        var doc = new CascodeDocument { Circuits = new List<Circuit> { circuit } };
+        using var writer = new StringWriter();
+        CascodeWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("sweep InputDCBias [0.3V:100mV:1.5V]", output);
+    }
 }

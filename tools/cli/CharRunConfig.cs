@@ -4,7 +4,7 @@ namespace Cascode.Cli;
 
 internal sealed class CharRunConfig
 {
-    public string Backend { get; set; } = "spectre"; // spectre|ngspice
+    public string Backend { get; set; } = "ngspice"; // ngspice (spectre planned)
     public string Corner { get; set; } = "tt";
     public int Limit { get; set; } = 0; // 0 = all
     public int Jobs { get; set; } = 1;
