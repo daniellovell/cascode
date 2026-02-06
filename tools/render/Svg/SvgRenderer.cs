@@ -1,12 +1,12 @@
 namespace Cascode.Render.Svg;
 
-using System.Globalization;
 using System.Text;
 using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
+using static Cascode.Render.Svg.SvgFormat;
 
 /// <summary>
 /// Options for SVG rendering.
@@ -176,8 +176,15 @@ public sealed class SvgRenderer
                 continue;
             }
 
-            var deviceType = device.DeviceType.ToLowerInvariant();
-            if (!TryGetDevicePlacement(placement, deviceId, device, out var placementInfo))
+            var deviceType = DeviceTypeHelper.Normalize(device.DeviceType);
+            if (
+                !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var placementInfo
+                )
+            )
             {
                 continue;
             }
@@ -193,7 +200,7 @@ public sealed class SvgRenderer
             }
             else
             {
-                var (w, h) = GetDeviceDimensions(deviceType);
+                var (w, h) = DevicePlacementHelper.GetDeviceDimensions(deviceType);
                 sb.AppendLine(
                     $@"<rect width=""{F(w)}"" height=""{F(h)}"" fill=""none"" stroke=""currentColor"" />"
                 );
@@ -241,7 +248,7 @@ public sealed class SvgRenderer
 
             if (options.ShowParamLabels)
             {
-                var paramText = FormatParams(device);
+                var paramText = DeviceParamFormatter.FormatParams(device);
                 if (!string.IsNullOrEmpty(paramText))
                 {
                     sb.AppendLine(
@@ -252,81 +259,6 @@ public sealed class SvgRenderer
         }
 
         sb.AppendLine("</g>");
-    }
-
-    private sealed record DevicePlacementInfo(
-        double X,
-        double Y,
-        double Width,
-        double Height,
-        DeviceOrientation Orientation
-    );
-
-    private static bool TryGetDevicePlacement(
-        CoarseGridResult placement,
-        string deviceId,
-        DeviceDeclaration device,
-        out DevicePlacementInfo info
-    )
-    {
-        info = null!;
-
-        if (!placement.DevicePlacements.TryGetValue(deviceId, out var cell))
-        {
-            return false;
-        }
-
-        var deviceType = device.DeviceType.ToLowerInvariant();
-        var orientation = cell.MirrorX ? DeviceOrientation.GateRight : DeviceOrientation.GateLeft;
-
-        double x;
-        double y;
-
-        if (deviceType is "resistor" or "capacitor" or "inductor")
-        {
-            var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-            if (isHorizontalPassive)
-            {
-                var p = DeviceGeometry.GetHorizontalPassivePlacement(
-                    cell.Row,
-                    cell.Column,
-                    placement.ColumnCount,
-                    isLeftOfAxis
-                );
-                x = p.X;
-                y = p.Y;
-                orientation = DeviceOrientation.Horizontal;
-            }
-            else
-            {
-                var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                x = p.X;
-                y = p.Y;
-                orientation = DeviceOrientation.Vertical;
-            }
-        }
-        else
-        {
-            var p = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
-            x = p.X;
-            y = p.Y;
-        }
-
-        var (w, h) = GetDeviceDimensions(deviceType);
-        if (
-            orientation
-            is DeviceOrientation.Vertical
-                or DeviceOrientation.GateUp
-                or DeviceOrientation.GateDown
-        )
-        {
-            (w, h) = (h, w);
-        }
-
-        info = new DevicePlacementInfo(x, y, w, h, orientation);
-        return true;
     }
 
     private static void RenderPortLabels(
@@ -443,7 +375,7 @@ public sealed class SvgRenderer
 
     private static string GetOrientationTransform(string deviceType, DeviceOrientation orientation)
     {
-        var (w, h) = GetDeviceDimensions(deviceType);
+        var (w, h) = DevicePlacementHelper.GetDeviceDimensions(deviceType);
 
         return orientation switch
         {
@@ -453,93 +385,5 @@ public sealed class SvgRenderer
             DeviceOrientation.Vertical => $"translate(0, {F(w)}) rotate(-90)",
             _ => string.Empty,
         };
-    }
-
-    private static (double Width, double Height) GetDeviceDimensions(string deviceType)
-    {
-        var type = deviceType.ToLowerInvariant();
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
-        }
-        return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
-    }
-
-    private static string FormatParams(DeviceDeclaration device)
-    {
-        var parts = new List<string>();
-        var type = device.DeviceType.ToLowerInvariant();
-
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            if (device.Size is not null)
-            {
-                if (device.Size.Entries.TryGetValue("W", out var w))
-                {
-                    parts.Add($"W={w}");
-                }
-                if (device.Size.Entries.TryGetValue("L", out var l))
-                {
-                    parts.Add($"L={l}");
-                }
-                if (device.Size.Entries.TryGetValue("M", out var m) && m != "1")
-                {
-                    parts.Add($"M={m}");
-                }
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "resistor")
-        {
-            if (device.Size?.Entries.TryGetValue("R", out var r) == true)
-            {
-                parts.Add($"R={r}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "capacitor")
-        {
-            if (device.Size?.Entries.TryGetValue("C", out var c) == true)
-            {
-                parts.Add($"C={c}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "inductor")
-        {
-            if (device.Size?.Entries.TryGetValue("L", out var ind) == true)
-            {
-                parts.Add($"L={ind}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-
-        return string.Join(" ", parts);
-    }
-
-    private static string F(double value)
-    {
-        return value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
-    private static string EscapeXml(string text)
-    {
-        return text.Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\"", "&quot;")
-            .Replace("'", "&apos;");
     }
 }

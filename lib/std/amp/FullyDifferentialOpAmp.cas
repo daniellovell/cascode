@@ -3,9 +3,7 @@ include lib.std.bench
 
 // Interface: Fully-differential operational amplifier.
 //
-// This is intentionally minimal: it exists to bind the standard benches for a Diff -> Diff
-// transfer function and quiescent power. Additional benches (noise, transient swing, etc.) can
-// be added once the corresponding standard benches exist for Diff outputs.
+// Binds the standard library benches for common fully-differential amplifier metrics.
 interface FullyDifferentialOpAmp {
   supply VDD
   ground GND
@@ -24,6 +22,16 @@ interface FullyDifferentialOpAmp {
       bench.OUT--dut.OUT
     }
 
+    bind DiffToDiffNoise as noise_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind DiffToDiffTran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
     bind DiffCMRejection as cmrr_bench {
       bench.CM--dut.IN.P
       bench.CM--dut.IN.N
@@ -33,6 +41,16 @@ interface FullyDifferentialOpAmp {
       // the underlying bench's `CMRR(dmGain=...)` with a default dmGain source.
       measurements {
         measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
+
+    bind SupplyToDiffRejection as psrr_bench {
+      bench.IN--dut.IN
+      bench.PWR--dut.VDD
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
       }
     }
   }

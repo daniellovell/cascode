@@ -1,12 +1,14 @@
 namespace Cascode.Render.Svg;
 
-using System.Globalization;
 using System.Text;
 using Cascode.Language;
 using Cascode.Render.Analysis;
-using Cascode.Render.Layout;
 using Cascode.Render.Placement;
+using static Cascode.Render.Svg.SvgFormat;
 
+/// <summary>
+/// Renders dashed boxes around inline instance groups for debugging and inspection.
+/// </summary>
 internal static class InlineBoundaryRenderer
 {
     public static void Render(StringBuilder sb, CoarseGridResult placement, CircuitGraph graph)
@@ -63,7 +65,14 @@ internal static class InlineBoundaryRenderer
                 continue;
             }
 
-            if (!TryGetDevicePlacement(placement, deviceId, device, out var info))
+            if (
+                !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var info
+                )
+            )
             {
                 continue;
             }
@@ -88,104 +97,5 @@ internal static class InlineBoundaryRenderer
             Width: (maxX.Value - minX.Value) + padding * 2,
             Height: (maxY.Value - minY.Value) + padding * 2
         );
-    }
-
-    private sealed record DevicePlacementInfo(
-        double X,
-        double Y,
-        double Width,
-        double Height,
-        DeviceOrientation Orientation
-    );
-
-    private static bool TryGetDevicePlacement(
-        CoarseGridResult placement,
-        string deviceId,
-        DeviceDeclaration device,
-        out DevicePlacementInfo info
-    )
-    {
-        info = null!;
-
-        if (!placement.DevicePlacements.TryGetValue(deviceId, out var cell))
-        {
-            return false;
-        }
-
-        var deviceType = device.DeviceType.ToLowerInvariant();
-        var orientation = cell.MirrorX ? DeviceOrientation.GateRight : DeviceOrientation.GateLeft;
-
-        double x;
-        double y;
-
-        if (deviceType is "resistor" or "capacitor" or "inductor")
-        {
-            var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-            if (isHorizontalPassive)
-            {
-                var p = DeviceGeometry.GetHorizontalPassivePlacement(
-                    cell.Row,
-                    cell.Column,
-                    placement.ColumnCount,
-                    isLeftOfAxis
-                );
-                x = p.X;
-                y = p.Y;
-                orientation = DeviceOrientation.Horizontal;
-            }
-            else
-            {
-                var p = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                x = p.X;
-                y = p.Y;
-                orientation = DeviceOrientation.Vertical;
-            }
-        }
-        else
-        {
-            var p = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
-            x = p.X;
-            y = p.Y;
-        }
-
-        var (w, h) = GetDeviceDimensions(deviceType);
-        if (
-            orientation
-            is DeviceOrientation.Vertical
-                or DeviceOrientation.GateUp
-                or DeviceOrientation.GateDown
-        )
-        {
-            (w, h) = (h, w);
-        }
-
-        info = new DevicePlacementInfo(x, y, w, h, orientation);
-        return true;
-    }
-
-    private static (double Width, double Height) GetDeviceDimensions(string deviceType)
-    {
-        var type = deviceType.ToLowerInvariant();
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
-        }
-        return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
-    }
-
-    private static string F(double value)
-    {
-        return value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
-    private static string EscapeXml(string text)
-    {
-        return text.Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\"", "&quot;")
-            .Replace("'", "&apos;");
     }
 }

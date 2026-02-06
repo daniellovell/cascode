@@ -127,20 +127,28 @@ public sealed class LabelPlacer
                 continue;
             }
 
-            var deviceType = device.DeviceType.ToLowerInvariant();
-            var (deviceX, deviceY) = GetDevicePosition(deviceId, cell, deviceType, placement);
-            var (deviceWidth, deviceHeight) = GetDeviceDimensions(deviceType);
+            if (
+                !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var devicePlacement
+                )
+            )
+            {
+                continue;
+            }
 
             var deviceLabelText = deviceId;
-            var paramText = FormatParams(device);
+            var paramText = DeviceParamFormatter.FormatParams(device);
             var hasParams = !string.IsNullOrEmpty(paramText);
 
             var bestPlacement = FindBestDirection(
                 deviceId,
-                deviceX,
-                deviceY,
-                deviceWidth,
-                deviceHeight,
+                devicePlacement.X,
+                devicePlacement.Y,
+                devicePlacement.Width,
+                devicePlacement.Height,
                 deviceLabelText,
                 paramText,
                 hasParams,
@@ -467,17 +475,33 @@ public sealed class LabelPlacer
             );
         }
 
-        foreach (var (deviceId, cell) in placement.DevicePlacements)
+        foreach (var (deviceId, _) in placement.DevicePlacements)
         {
             if (!graph.Devices.TryGetValue(deviceId, out var device))
             {
                 continue;
             }
 
-            var deviceType = device.DeviceType.ToLowerInvariant();
-            var (x, y) = GetDevicePosition(deviceId, cell, deviceType, placement);
-            var (w, h) = GetDeviceDimensions(deviceType);
-            devices.Add(new TextBounds(x, y, w, h));
+            if (
+                !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var devicePlacement
+                )
+            )
+            {
+                continue;
+            }
+
+            devices.Add(
+                new TextBounds(
+                    devicePlacement.X,
+                    devicePlacement.Y,
+                    devicePlacement.Width,
+                    devicePlacement.Height
+                )
+            );
         }
 
         foreach (var segment in routing.Segments)
@@ -543,115 +567,6 @@ public sealed class LabelPlacer
             var labelY = portY;
             ports.Add(new TextBounds(labelX, labelY, labelWidth, DeviceGeometry.PortHeight));
         }
-    }
-
-    private static (double X, double Y) GetDevicePosition(
-        string deviceId,
-        GridCell cell,
-        string deviceType,
-        CoarseGridResult placement
-    )
-    {
-        if (deviceType is "resistor" or "capacitor")
-        {
-            var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-            var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-            if (isHorizontalPassive)
-            {
-                var placementInfo = DeviceGeometry.GetHorizontalPassivePlacement(
-                    cell.Row,
-                    cell.Column,
-                    placement.ColumnCount,
-                    isLeftOfAxis
-                );
-                return (placementInfo.X, placementInfo.Y);
-            }
-
-            var passivePlacement = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-            return (passivePlacement.X, passivePlacement.Y);
-        }
-
-        var mosfetPlacement = DeviceGeometry.GetMosfetPlacement(
-            cell.Row,
-            cell.Column,
-            cell.MirrorX
-        );
-        return (mosfetPlacement.X, mosfetPlacement.Y);
-    }
-
-    private static (double Width, double Height) GetDeviceDimensions(string deviceType)
-    {
-        var type = deviceType.ToLowerInvariant();
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
-        }
-        return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
-    }
-
-    private static string FormatParams(Language.DeviceDeclaration device)
-    {
-        var parts = new List<string>();
-        var type = device.DeviceType.ToLowerInvariant();
-
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            if (device.Size is not null)
-            {
-                if (device.Size.Entries.TryGetValue("W", out var w))
-                {
-                    parts.Add($"W={w}");
-                }
-                if (device.Size.Entries.TryGetValue("L", out var l))
-                {
-                    parts.Add($"L={l}");
-                }
-                if (device.Size.Entries.TryGetValue("M", out var m) && m != "1")
-                {
-                    parts.Add($"M={m}");
-                }
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "resistor")
-        {
-            if (device.Size?.Entries.TryGetValue("R", out var r) == true)
-            {
-                parts.Add($"R={r}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "capacitor")
-        {
-            if (device.Size?.Entries.TryGetValue("C", out var c) == true)
-            {
-                parts.Add($"C={c}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-        else if (type == "inductor")
-        {
-            if (device.Size?.Entries.TryGetValue("L", out var ind) == true)
-            {
-                parts.Add($"L={ind}");
-            }
-            else if (!string.IsNullOrWhiteSpace(device.SizeName))
-            {
-                parts.Add($"size={device.SizeName}");
-            }
-        }
-
-        return string.Join(" ", parts);
     }
 
     private sealed record ObstacleSet(

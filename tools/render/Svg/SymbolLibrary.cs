@@ -50,7 +50,7 @@ public static partial class SymbolLibrary
     /// </summary>
     public static string GetSymbolForDevice(string deviceType)
     {
-        var type = deviceType.ToLowerInvariant();
+        var type = DeviceTypeHelper.Normalize(deviceType);
         return type switch
         {
             "nmos" => Nmos,
