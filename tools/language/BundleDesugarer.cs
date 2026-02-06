@@ -199,7 +199,9 @@ public static class BundleDesugarer
             Supplies = circuit.Supplies,
             Grounds = circuit.Grounds,
             Ports = ExpandPorts(circuit.Ports, bundlesByName),
-            Slots = circuit.Slots,
+            Slot = circuit.Slot is not null
+                ? DesugarSlotBlock(circuit.Slot, bundlesByName, circuitsByName)
+                : null,
             Fill = circuit.Fill is not null
                 ? DesugarFillBlock(
                     circuit.Fill,
@@ -300,6 +302,30 @@ public static class BundleDesugarer
         }
 
         return currentType;
+    }
+
+    /// <summary>
+    /// Desugars a slot block by expanding bundle-typed instance bindings.
+    /// </summary>
+    private static SlotBlock DesugarSlotBlock(
+        SlotBlock slot,
+        IReadOnlyDictionary<string, BundleType> bundlesByName,
+        IReadOnlyDictionary<string, Circuit> circuitsByName
+    )
+    {
+        if (slot.Nets.Count == 0 && slot.Instances.Count == 0 && slot.Connections.Count == 0)
+        {
+            return slot;
+        }
+
+        return new SlotBlock
+        {
+            Nets = slot.Nets,
+            Instances = slot
+                .Instances.Select(i => DesugarInstance(i, bundlesByName, circuitsByName))
+                .ToList(),
+            Connections = slot.Connections,
+        };
     }
 
     /// <summary>

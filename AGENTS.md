@@ -43,6 +43,20 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
   - Integration/golden: `tests/integration/cli/**`, `tests/golden/**`
   - Determinism: set `CASCODE_SEED`; normalize timestamps/paths before persisting goldens.
 
+## ANTLR Regeneration
+
+The grammar lives at `tools/language/Cascode.g4`; generated parser/lexer/visitor files live under `tools/language/Generated/`.
+After any grammar edit, regenerate with:
+
+```
+curl -O https://www.antlr.org/download/antlr-4.13.2-complete.jar
+cd tools/language
+java -jar ../../antlr-4.13.2-complete.jar -Dlanguage=CSharp -visitor -no-listener -o Generated Cascode.g4
+```
+
+You must `cd` into `tools/language` and pass a relative grammar path. ANTLR embeds the source path in every generated file; using an absolute path leaks the developer's home directory into the repository.
+Do not use the `-package` flag; the existing generated files use the global namespace.
+
 ## Spec/Documentation Writing Style
 
 Avoid commonly overused AI motifs such as excessive use of bulleted lists and bolded text.

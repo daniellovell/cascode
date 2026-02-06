@@ -250,28 +250,119 @@ circuits, terminals, and wiring.
 
 ### 2.5.5 Slots (synthesis placeholders)
 
-For high-level designs, Cascode retains `slot` declarations as explicit placeholders that are
-intended to be filled during synthesis.
+Cascode uses `slot` declarations as explicit markers for structure that synthesis must fill.
+There are two distinct forms, each suited to a different authoring pattern.
+
+#### Bare slot (circuit as synthesis target)
+
+When a circuit itself is the synthesis target, its interface contract is already declared via
+`implements`, and all its terminals are declared in the circuit header. A bare `slot` statement
+marks the circuit's implementation as a synthesis placeholder without repeating the interface or
+writing identity bindings:
 
 ```cascode
-circuit MyTop {
+circuit MyOpAmp implements SingleEndedOpAmp {
   level HL
+  supply VDD
+  ground GND
   input IN : Diff
   output OUT : analog
+  input VTAIL : bias
 
-  slot Core implements SingleEndedOpAmp {
-    param ratio = 2
-    .IN--IN
-    .OUT--OUT
+  slot
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 15pF)
+  }
+
+  constraints {
+    numeric {
+      c_gbw  = transfer_bench::GainBandwidth >= 20MHz
+      c_gain = transfer_bench::PassbandGain >= 40dB
+      c_pm   = transfer_bench::PhaseMargin >= 60deg
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+    bias VTAIL in [0.3V:0.9V]
   }
 
   synth { seed = 123 }
 }
 ```
 
-A slot declares an interface contract (`implements ...`) plus optional parameters and explicit
-bindings for the slot’s terminals. The synthesis stage (`cascode syn`) is responsible for producing
-an EL circuit in which all slots have been replaced by concrete structure.
+The circuit's terminal declarations, constraints, environment, and harness collectively form the
+synthesis specification. The bare `slot` tells the toolchain that no concrete `fill` block exists
+and that `cascode syn` must produce one. Bare `slot` is valid only at circuit body level (not
+inside `fill` blocks).
+
+#### Composition slot (`slot { ... }` block)
+
+When a circuit composes several HL sub-blocks, a `slot { ... }` block declares those sub-blocks
+and their wiring. The syntax mirrors `fill { ... }` — the same constructs are available (`net`,
+`repeat`, `pair`, `match`, wiring with `--`) — but each instantiated name resolves at the HL
+level rather than to concrete devices.
+
+Sub-block instantiation uses `name = new Type(params) { bindings }`. If `Type` names a circuit,
+that circuit's spec is used directly. If `Type` names an interface, synthesis picks any circuit
+that implements it. Parameterized instantiation works identically to fill blocks
+(`new MyLNA(stages=2)`).
+
+Each sub-block is self-contained: it carries its own environment, constraints, and harness and is
+independently testable. Constraints declared on a sub-block are minimums — a parent's system-level
+synthesis may tighten them but never relax them.
+
+Supply and ground wiring is explicit, consistent with the language's no-implicit-wiring rule.
+
+```cascode
+circuit MyReceiver {
+  level HL
+  supply VDD
+  ground GND
+  input RF_IN : analog
+  output BB_OUT : Diff
+
+  slot {
+    net mid : analog
+
+    lna = new MyLNA(stages=2) {
+      .VDD--VDD
+      .GND--GND
+      .IN--RF_IN
+      .OUT--mid
+    }
+    mixer = new MyMixer() {
+      .VDD--VDD
+      .GND--GND
+      .RF--mid
+      .BB--BB_OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_system_gain = system_bench::Gain >= 20dB
+      c_system_nf = system_bench::NoiseFigure <= 3dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}
+```
+
+A `slot { ... }` block and a `fill { ... }` block may coexist in the same circuit for mixed
+HL/EL designs. The two blocks share a single net namespace, and cross-references between them are
+permitted. Neither block must appear before the other.
+
+The synthesis stage (`cascode syn`) is responsible for replacing all slot sub-blocks with concrete
+structure to produce an EL circuit.
 
 ---
 
@@ -340,7 +431,9 @@ may optionally include a node scope such as `net::OUT` or `port::IN.P`.
 
 The `harness { ... }` block declares simulator harness elements and swept conditions for emission.
 It is intentionally explicit: values in `harness` are treated as concrete simulation configuration,
-not as requirements.
+not as requirements. Every terminal declared on the circuit MUST appear in the harness block; the
+linker rejects circuits with undeclared terminals. This prevents accidental omission from being
+silently treated as a synthesis degree of freedom.
 
 Common statements include:
 
@@ -348,7 +441,10 @@ Common statements include:
 harness {
   supply VDD = 1.8V
   ground GND = 0V
-  bias VTAIL = 0.6V
+
+  bias VTAIL = 0.6V           // pinned: use this value for simulation
+  bias VTAIL                   // unconstrained: synthesis determines value
+  bias VTAIL in [0.3V:0.9V]   // bounded: synthesis explores within range
 
   load OUT C=1pF
   source IN Z=50Ohm
@@ -361,8 +457,14 @@ harness {
 }
 ```
 
-`[Auto]` sweeps must be resolved before EL emission. EL documents that still contain `[Auto]` sweep
-specifications are rejected by the emitter.
+Bias terminals support three forms. A pinned bias (`= <quantity>`) provides a concrete value for
+simulation. A bare bias (no value) declares the terminal as an unconstrained synthesis degree of
+freedom whose value is determined during optimization. A bounded bias (`in [<low>:<high>]`) gives
+the synthesis tool a continuous range to explore. Both bare and bounded forms must be resolved
+before EL emission; the emitter rejects unresolved bias values.
+
+`[Auto]` sweeps must likewise be resolved before EL emission. EL documents that still contain
+`[Auto]` sweep specifications or unresolved bias values are rejected by the emitter.
 
 ### 2.7.3 Environment vs harness (intent vs execution)
 
@@ -460,11 +562,16 @@ the resulting terminals.
 
 ## 2.12 Synthesis and physical design (overview)
 
-### 2.12.1 Synthesis guidance (`synth {}`)
+### 2.12.1 Synthesis markers and guidance
 
-The surface language includes a `synth { ... }` block inside circuits. This block encodes synthesis
-guidance (search space, preferences, and other directives) rather than directly affecting circuit
-connectivity.
+A circuit becomes a synthesis target when it contains one or more `slot` declarations (see
+Section 2.5.5). A bare `slot` at circuit body level marks the entire circuit for synthesis; named
+slots inside `fill` blocks mark individual sub-blocks.
+
+The `synth { ... }` block encodes synthesis guidance (search space, preferences, and other
+directives) rather than directly affecting circuit connectivity. A circuit may have both a `slot`
+and a `synth` block: the slot declares that synthesis is needed, and the `synth` block provides
+guidance for how it should proceed.
 
 During linking, synthesis guidance is extracted into a sidecar `<name>.synth.yaml` file and removed
 from the linked `.cai` output. This keeps linked artifacts purely declarative and makes synthesis a
@@ -473,8 +580,10 @@ separate, explicit stage.
 ### 2.12.2 `cascode syn`
 
 `cascode syn` consumes linked designs (`.hl.cai` / `.ml.cai`) plus guidance (`.synth.yaml`) and
-produces EL outputs (`.el.cai`). The details of topology selection and sizing are out of scope for
-this specification, but the stage boundaries and file contracts are in scope.
+produces EL outputs (`.el.cai`). During this stage every slot is replaced with concrete structure,
+and any unresolved harness values (bare or bounded bias entries) are resolved to concrete quantities.
+The details of topology selection and sizing are out of scope for this specification, but the stage
+boundaries and file contracts are in scope.
 
 ### 2.12.3 `cascode par` and `.cal`
 

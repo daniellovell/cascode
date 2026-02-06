@@ -167,8 +167,8 @@ public sealed class Circuit
     /// <summary>Port declarations.</summary>
     public List<PortDeclaration> Ports { get; init; } = new();
 
-    /// <summary>Slot declarations (HL level only).</summary>
-    public List<SlotDeclaration> Slots { get; init; } = new();
+    /// <summary>Slot block (HL level only). Null means no slot; empty block means bare <c>slot</c>.</summary>
+    public SlotBlock? Slot { get; init; }
 
     /// <summary>Fill block content (ML and EL levels).</summary>
     public FillBlock? Fill { get; init; }
@@ -269,21 +269,14 @@ public static class PortDirectionExtensions
 }
 
 /// <summary>
-/// Declares a slot at HL level.
+/// Slot block at HL level. An empty block represents a bare <c>slot</c> marker;
+/// a populated block represents a composition slot with nets, instances, and connections.
 /// </summary>
-public sealed class SlotDeclaration
+public sealed class SlotBlock
 {
-    /// <summary>Slot identifier.</summary>
-    public string Id { get; init; } = string.Empty;
-
-    /// <summary>Terminal bindings for this slot.</summary>
-    public Dictionary<string, string> Bindings { get; init; } = new();
-
-    /// <summary>Required interfaces (single interface or list).</summary>
-    public List<string> Traits { get; init; } = new();
-
-    /// <summary>Parameter values.</summary>
-    public Dictionary<string, ParamValue> Params { get; init; } = new();
+    public List<NetDeclaration> Nets { get; init; } = new();
+    public List<InstanceDeclaration> Instances { get; init; } = new();
+    public List<ConnectionStatement> Connections { get; init; } = new();
 }
 
 /// <summary>

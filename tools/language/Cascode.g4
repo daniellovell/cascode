@@ -188,7 +188,8 @@ circuitMember
     | SUPPLY_KW IDENT                                               # SupplyDecl
     | GROUND_KW IDENT                                               # GroundDecl
     | direction portName COLON portType                             # PortDecl
-    | slotDecl                                                      # SlotMember
+    | SLOT_KW                                                       # BareSlotMember
+    | SLOT_KW LBRACE slotBlockStatement* RBRACE                      # SlotBlockMember
     | FILL_KW LBRACE fillStatement* RBRACE                          # FillSection
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
@@ -247,16 +248,13 @@ paramValue
     ;
 
 // ----------------------------------------------------------------------------
-// Slot declarations (HL)
+// Slot block content (HL)
 // ----------------------------------------------------------------------------
 
-slotDecl
-    : SLOT_KW IDENT implementsClause? LBRACE slotStatement* RBRACE
-    ;
-
-slotStatement
-    : PARAM_KW IDENT EQ scalarExpr                                  # SlotParam
-    | binding                                                      # SlotBinding
+slotBlockStatement
+    : NET_KW IDENT COLON portType                                   # SlotNetDecl
+    | instanceDecl                                                  # SlotInstanceDecl
+    | pinRef WIRE_OP pinRef                                         # SlotConnectDecl
     ;
 
 // ----------------------------------------------------------------------------
