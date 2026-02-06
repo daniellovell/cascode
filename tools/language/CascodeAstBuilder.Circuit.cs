@@ -27,7 +27,7 @@ internal sealed partial class CascodeAstBuilder
             Ports = memberState.Ports,
             Parameters = signature.Parameters,
             Sizes = signature.Sizes,
-            Slots = memberState.Slots,
+            Slot = memberState.Slot,
             Fill = memberState.Fill,
             Constraints = memberState.Constraints,
             Harness = memberState.Harness,
@@ -77,8 +77,12 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
-                case CascodeParser.SlotMemberContext slotCtx:
-                    state.Slots.Add(BuildSlot(slotCtx.slotDecl()));
+                case CascodeParser.BareSlotMemberContext:
+                    state.Slot = new SlotBlock();
+                    break;
+
+                case CascodeParser.SlotBlockMemberContext slotBlockCtx:
+                    state.Slot = BuildSlotBlock(slotBlockCtx);
                     break;
 
                 case CascodeParser.FillSectionContext fillCtx:
@@ -139,7 +143,7 @@ internal sealed partial class CascodeAstBuilder
         public List<string> Supplies { get; } = new();
         public List<string> Grounds { get; } = new();
         public List<PortDeclaration> Ports { get; } = new();
-        public List<SlotDeclaration> Slots { get; } = new();
+        public SlotBlock? Slot { get; set; }
     }
 
     private sealed record CircuitSignature(
@@ -258,30 +262,37 @@ internal sealed partial class CascodeAstBuilder
         return BuildScalarValue(ctx.scalarExpr());
     }
 
-    private SlotDeclaration BuildSlot(CascodeParser.SlotDeclContext ctx)
+    private SlotBlock BuildSlotBlock(CascodeParser.SlotBlockMemberContext ctx)
     {
-        var slot = new SlotDeclaration { Id = ctx.IDENT().GetText() };
-        if (ctx.implementsClause()?.interfaceList() is { } interfacesCtx)
-        {
-            slot.Traits.AddRange(interfacesCtx.IDENT().Select(i => i.GetText()));
-        }
+        var slot = new SlotBlock();
 
-        foreach (var stmtCtx in ctx.slotStatement())
+        foreach (var stmtCtx in ctx.slotBlockStatement())
         {
             switch (stmtCtx)
             {
-                case CascodeParser.SlotBindingContext bindingCtx:
-                    var binding = bindingCtx.binding();
-                    var pins = binding.pinRef();
-                    var source = BuildPinRef(pins[0]);
-                    var target = BuildPinRef(pins[1]);
-                    slot.Bindings[source] = target;
+                case CascodeParser.SlotNetDeclContext netCtx:
+                    slot.Nets.Add(
+                        new NetDeclaration
+                        {
+                            Id = netCtx.IDENT().GetText(),
+                            Domain = BuildPortType(netCtx.portType()),
+                        }
+                    );
                     break;
 
-                case CascodeParser.SlotParamContext paramCtx:
-                    var name = paramCtx.IDENT().GetText();
-                    var value = BuildScalarValue(paramCtx.scalarExpr());
-                    slot.Params[name] = value;
+                case CascodeParser.SlotInstanceDeclContext instanceCtx:
+                    slot.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                    break;
+
+                case CascodeParser.SlotConnectDeclContext connectCtx:
+                    var pins = connectCtx.pinRef();
+                    slot.Connections.Add(
+                        new ConnectionStatement
+                        {
+                            From = BuildPinRef(pins[0]),
+                            To = BuildPinRef(pins[1]),
+                        }
+                    );
                     break;
             }
         }

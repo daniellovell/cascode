@@ -397,6 +397,14 @@ public static class CascodeLinker
                 required.Benches.Add(binding.BenchName);
             }
 
+            if (c.Slot is not null)
+            {
+                foreach (var inst in c.Slot.Instances)
+                {
+                    required.Circuits.Add(inst.Type);
+                }
+            }
+
             if (c.Fill is not null)
             {
                 foreach (var dev in c.Fill.Devices)
@@ -1001,7 +1009,7 @@ public static class CascodeLinker
                         Supplies = c.Supplies,
                         Grounds = c.Grounds,
                         Ports = c.Ports,
-                        Slots = c.Slots,
+                        Slot = c.Slot,
                         Fill = c.Fill,
                         Constraints = c.Constraints,
                         Harness = c.Harness,

@@ -270,12 +270,20 @@ public static class CascodeWriter
             writer.WriteLine($"  {port.Direction.ToCascodeString()} {port.Name} : {port.Type}");
         }
 
-        // Slots (HL level)
-        if (circuit.Slots.Count > 0)
+        // Slot (HL level)
+        if (circuit.Slot is { } slot)
         {
-            foreach (var slot in circuit.Slots.OrderBy(s => s.Id, StringComparer.Ordinal))
+            bool hasContent =
+                slot.Nets.Count > 0 || slot.Instances.Count > 0 || slot.Connections.Count > 0;
+            if (hasContent)
             {
-                WriteSlot(slot, writer);
+                writer.WriteLine("  slot {");
+                WriteSlotBlock(slot, writer);
+                writer.WriteLine("  }");
+            }
+            else
+            {
+                writer.WriteLine("  slot");
             }
         }
 
@@ -333,26 +341,22 @@ public static class CascodeWriter
         writer.WriteLine("}");
     }
 
-    private static void WriteSlot(SlotDeclaration slot, TextWriter writer)
+    private static void WriteSlotBlock(SlotBlock slot, TextWriter writer)
     {
-        var header = $"  slot {slot.Id}";
-        if (slot.Traits.Count > 0)
+        foreach (var net in slot.Nets.OrderBy(n => n.Id, StringComparer.Ordinal))
         {
-            header += $" implements {string.Join(", ", slot.Traits)}";
-        }
-        writer.WriteLine($"{header} {{");
-
-        foreach (var binding in slot.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
-        {
-            writer.WriteLine($"    .{binding.Key}--{binding.Value}");
+            writer.WriteLine($"    net {net.Id} : {net.Domain}");
         }
 
-        foreach (var param in slot.Params.OrderBy(p => p.Key, StringComparer.Ordinal))
+        foreach (var inst in slot.Instances.OrderBy(i => i.Id, StringComparer.Ordinal))
         {
-            writer.WriteLine($"    param {param.Key} = {FormatParamValue(param.Value)}");
+            WriteInstance(inst, writer, indent: "    ");
         }
 
-        writer.WriteLine("  }");
+        foreach (var conn in slot.Connections.OrderBy(c => c.From, StringComparer.Ordinal))
+        {
+            writer.WriteLine($"    {conn.From}--{conn.To}");
+        }
     }
 
     private static void WriteFillBlock(FillBlock fill, TextWriter writer)

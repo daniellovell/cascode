@@ -7,13 +7,12 @@ bundle Diff {
   N : analog
 }
 
-circuit MyLNA {
+circuit MyLNA(int stages) {
   level HL
   supply VDD
   ground GND
   input IN : analog
   output OUT : analog
-  param stages : int
 
   slot
 
