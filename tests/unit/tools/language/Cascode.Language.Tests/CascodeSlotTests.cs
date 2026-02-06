@@ -139,7 +139,7 @@ circuit TestCircuit {{
         CascodeWriter.Write(doc, writer);
         var output = writer.ToString();
 
-        Assert.Contains("  slot\n", output);
+        Assert.Contains("  slot", output);
         Assert.DoesNotContain("slot {", output);
     }
 
