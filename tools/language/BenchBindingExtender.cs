@@ -68,7 +68,7 @@ public static class BenchBindingExtender
                     Supplies = circuit.Supplies,
                     Grounds = circuit.Grounds,
                     Ports = circuit.Ports,
-                    Slots = circuit.Slots,
+                    Slot = circuit.Slot,
                     Fill = circuit.Fill,
                     Constraints = circuit.Constraints,
                     Harness = circuit.Harness,
