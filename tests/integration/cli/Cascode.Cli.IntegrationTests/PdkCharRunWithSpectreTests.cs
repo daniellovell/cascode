@@ -11,6 +11,7 @@ namespace Cascode.Cli.IntegrationTests;
 public sealed class PdkCharRunWithSpectreTests
 {
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task PdkCharRun_WithNmosFilter_RunsNgspiceAndStoresLut()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
@@ -120,6 +121,7 @@ public sealed class PdkCharRunWithSpectreTests
     }
 
     [Fact]
+    [Trait("Category", "Simulation")]
     public async Task PdkCharRun_WithNmosFilter_ExcludesStdcells()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
