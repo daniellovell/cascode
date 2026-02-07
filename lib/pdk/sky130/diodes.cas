@@ -6,7 +6,7 @@ library lib.pdk.sky130.diodes
 primitive Diode diode_pd2nw_05v5(size primSize) {
   device "diode_pd2nw_05v5"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -14,7 +14,7 @@ primitive Diode diode_pd2nw_05v5(size primSize) {
 primitive Diode diode_pd2nw_05v5_hvt(size primSize) {
   device "diode_pd2nw_05v5_hvt"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -22,7 +22,7 @@ primitive Diode diode_pd2nw_05v5_hvt(size primSize) {
 primitive Diode diode_pd2nw_05v5_lvt(size primSize) {
   device "diode_pd2nw_05v5_lvt"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -30,7 +30,7 @@ primitive Diode diode_pd2nw_05v5_lvt(size primSize) {
 primitive Diode diode_pd2nw_11v0(size primSize) {
   device "diode_pd2nw_11v0"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -38,7 +38,7 @@ primitive Diode diode_pd2nw_11v0(size primSize) {
 primitive Diode diode_pw2nd_05v5_lvt(size primSize) {
   device "diode_pw2nd_05v5_lvt"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -46,7 +46,7 @@ primitive Diode diode_pw2nd_05v5_lvt(size primSize) {
 primitive Diode diode_pw2nd_05v5_nvt(size primSize) {
   device "diode_pw2nd_05v5_nvt"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -54,7 +54,7 @@ primitive Diode diode_pw2nd_05v5_nvt(size primSize) {
 primitive Diode diode_pw2nd_11v0(size primSize) {
   device "diode_pw2nd_11v0"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -62,7 +62,7 @@ primitive Diode diode_pw2nd_11v0(size primSize) {
 primitive Diode diode_pw2nd_05v5(size primSize) {
   device "sky130_fd_pr__diode_pw2nd_05v5"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -70,7 +70,7 @@ primitive Diode diode_pw2nd_05v5(size primSize) {
 primitive Diode extended_drain(size primSize) {
   device "sky130_fd_pr__diode_pw2nd_05v5__extended_drain"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -78,7 +78,7 @@ primitive Diode extended_drain(size primSize) {
 primitive Diode diode_ps2dn(size primSize) {
   device "sky130_fd_pr__model__parasitic__diode_ps2dn"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -86,7 +86,7 @@ primitive Diode diode_ps2dn(size primSize) {
 primitive Diode diode_ps2nw(size primSize) {
   device "sky130_fd_pr__model__parasitic__diode_ps2nw"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 
@@ -94,7 +94,7 @@ primitive Diode diode_ps2nw(size primSize) {
 primitive Diode diode_pw2dn(size primSize) {
   device "sky130_fd_pr__model__parasitic__diode_pw2dn"
   params {
-    AREA = 1
+    AREA = primSize.AREA
   }
 }
 

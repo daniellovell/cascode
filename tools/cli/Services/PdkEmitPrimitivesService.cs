@@ -498,7 +498,7 @@ internal static class PdkEmitPrimitivesService
                 builder.AppendLine("    C = primSize.C");
                 break;
             case "Diode":
-                builder.AppendLine("    AREA = 1");
+                builder.AppendLine("    AREA = primSize.AREA");
                 break;
             default:
                 throw new InvalidOperationException(
@@ -560,7 +560,13 @@ internal static class PdkEmitPrimitivesService
             var full = Path.GetFullPath(path);
             return File.Exists(full) ? full : null;
         }
-        catch
+        catch (Exception ex)
+            when (ex
+                    is ArgumentException
+                        or NotSupportedException
+                        or PathTooLongException
+                        or IOException
+            )
         {
             return null;
         }

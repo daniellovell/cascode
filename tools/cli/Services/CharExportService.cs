@@ -125,8 +125,15 @@ internal static class CharExportService
 
             // If the simulation did not provide gm directly, approximate it from the Id vs Vgs sweep.
             // This supports PDKs whose transistor wrappers are subckts (no stable internal device to query).
+            bool NeedsComputedGm() =>
+                Wants("gm")
+                || Wants("gm_over_id")
+                || Wants("gm_ro")
+                || Wants("vstar")
+                || Wants("ft");
+
             Dictionary<int, double>? computedGmBySourceLine = null;
-            if (iGm is null && Wants("gm"))
+            if (iGm is null && NeedsComputedGm())
             {
                 var raw = new List<RawRow>(Math.Max(0, lines.Length - 1));
                 for (var row = 1; row < lines.Length; row++)
@@ -149,50 +156,57 @@ internal static class CharExportService
 
                 if (raw.Count >= 2)
                 {
-                    var ordered = raw.OrderBy(r => r.Vgs).ToList();
-                    computedGmBySourceLine = new Dictionary<int, double>();
-                    for (var i = 0; i < ordered.Count; i++)
+                    static double Deriv(double x0, double y0, double x1, double y1)
                     {
-                        static double Deriv(double x0, double y0, double x1, double y1)
+                        var dx = x1 - x0;
+                        if (Math.Abs(dx) < 1e-30)
                         {
-                            var dx = x1 - x0;
-                            if (Math.Abs(dx) < 1e-30)
+                            return double.NaN;
+                        }
+                        return (y1 - y0) / dx;
+                    }
+
+                    // Group by Vds so the derivative is computed within each bias condition.
+                    computedGmBySourceLine = new Dictionary<int, double>();
+                    foreach (var group in raw.GroupBy(r => r.Vds))
+                    {
+                        var ordered = group.OrderBy(r => r.Vgs).ToList();
+                        for (var i = 0; i < ordered.Count; i++)
+                        {
+                            double gm;
+                            if (i == 0)
                             {
-                                return double.NaN;
+                                gm =
+                                    ordered.Count > 1
+                                        ? Deriv(
+                                            ordered[0].Vgs,
+                                            ordered[0].Id,
+                                            ordered[1].Vgs,
+                                            ordered[1].Id
+                                        )
+                                        : double.NaN;
                             }
-                            return (y1 - y0) / dx;
-                        }
+                            else if (i == ordered.Count - 1)
+                            {
+                                gm = Deriv(
+                                    ordered[^2].Vgs,
+                                    ordered[^2].Id,
+                                    ordered[^1].Vgs,
+                                    ordered[^1].Id
+                                );
+                            }
+                            else
+                            {
+                                gm = Deriv(
+                                    ordered[i - 1].Vgs,
+                                    ordered[i - 1].Id,
+                                    ordered[i + 1].Vgs,
+                                    ordered[i + 1].Id
+                                );
+                            }
 
-                        double gm;
-                        if (i == 0)
-                        {
-                            gm = Deriv(
-                                ordered[0].Vgs,
-                                ordered[0].Id,
-                                ordered[1].Vgs,
-                                ordered[1].Id
-                            );
+                            computedGmBySourceLine[ordered[i].SourceLine] = gm;
                         }
-                        else if (i == ordered.Count - 1)
-                        {
-                            gm = Deriv(
-                                ordered[^2].Vgs,
-                                ordered[^2].Id,
-                                ordered[^1].Vgs,
-                                ordered[^1].Id
-                            );
-                        }
-                        else
-                        {
-                            gm = Deriv(
-                                ordered[i - 1].Vgs,
-                                ordered[i - 1].Id,
-                                ordered[i + 1].Vgs,
-                                ordered[i + 1].Id
-                            );
-                        }
-
-                        computedGmBySourceLine[ordered[i].SourceLine] = gm;
                     }
                 }
             }

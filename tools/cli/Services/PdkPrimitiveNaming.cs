@@ -52,7 +52,7 @@ internal static partial class PdkPrimitiveNaming
         return string.Equals(modelType, "model", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
     }
 
-    private static string SanitizeIdentifier(string name)
+    internal static string SanitizeIdentifier(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {

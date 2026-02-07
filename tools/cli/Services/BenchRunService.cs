@@ -23,6 +23,21 @@ public class BenchRunService
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     };
 
+    private static readonly string[] OpParamVectorNames =
+    {
+        "op_gm",
+        "op_gds",
+        "op_vth",
+        "op_vdsat",
+        "op_cgs",
+        "op_cgd",
+        "op_cgg",
+        "op_cds",
+        "op_id",
+        "op_vgs",
+        "op_vds",
+    };
+
     private readonly ILogger<BenchRunService> _logger;
     private readonly Action<string>? _progress;
     private readonly IBenchProgressContext? _progressContext;
@@ -1488,25 +1503,11 @@ public class BenchRunService
                 }
 
                 NgspiceVectorDataset? opParamsSweep = null;
-                var opParamVectorNames = new[]
-                {
-                    "op_gm",
-                    "op_gds",
-                    "op_vth",
-                    "op_vdsat",
-                    "op_cgs",
-                    "op_cgd",
-                    "op_cgg",
-                    "op_cds",
-                    "op_id",
-                    "op_vgs",
-                    "op_vds",
-                };
                 if (plan.RequiresOpParams)
                 {
                     opParamsSweep = NgspiceWrdataVectorParser.Parse(
                         paramsWrdataPath,
-                        opParamVectorNames
+                        OpParamVectorNames
                     );
                 }
 
@@ -1554,17 +1555,7 @@ public class BenchRunService
                             );
                         }
 
-                        pointOpParams["gm"] = opParamsSweep.ValuesByName["op_gm"][i];
-                        pointOpParams["gds"] = opParamsSweep.ValuesByName["op_gds"][i];
-                        pointOpParams["vth"] = opParamsSweep.ValuesByName["op_vth"][i];
-                        pointOpParams["vdsat"] = opParamsSweep.ValuesByName["op_vdsat"][i];
-                        pointOpParams["cgs"] = opParamsSweep.ValuesByName["op_cgs"][i];
-                        pointOpParams["cgd"] = opParamsSweep.ValuesByName["op_cgd"][i];
-                        pointOpParams["cgg"] = opParamsSweep.ValuesByName["op_cgg"][i];
-                        pointOpParams["cds"] = opParamsSweep.ValuesByName["op_cds"][i];
-                        pointOpParams["id"] = opParamsSweep.ValuesByName["op_id"][i];
-                        pointOpParams["vgs"] = opParamsSweep.ValuesByName["op_vgs"][i];
-                        pointOpParams["vds"] = opParamsSweep.ValuesByName["op_vds"][i];
+                        pointOpParams = BuildOpParamsDictionary(opParamsSweep, i);
                     }
 
                     var pointAnalyses = new Dictionary<
@@ -1712,24 +1703,9 @@ public class BenchRunService
 
                 if (hasDc && plan.RequiresOpParams)
                 {
-                    var opParamVectorNames = new[]
-                    {
-                        "op_gm",
-                        "op_gds",
-                        "op_vth",
-                        "op_vdsat",
-                        "op_cgs",
-                        "op_cgd",
-                        "op_cgg",
-                        "op_cds",
-                        "op_id",
-                        "op_vgs",
-                        "op_vds",
-                    };
-
                     var parsed = NgspiceWrdataVectorParser.Parse(
                         paramsWrdataPath,
-                        opParamVectorNames
+                        OpParamVectorNames
                     );
                     if (parsed.X.Length == 0)
                     {
@@ -1739,22 +1715,7 @@ public class BenchRunService
                     }
 
                     var last = parsed.X.Length - 1;
-                    dutOpParamsByName = new Dictionary<string, double>(
-                        StringComparer.OrdinalIgnoreCase
-                    )
-                    {
-                        ["gm"] = parsed.ValuesByName["op_gm"][last],
-                        ["gds"] = parsed.ValuesByName["op_gds"][last],
-                        ["vth"] = parsed.ValuesByName["op_vth"][last],
-                        ["vdsat"] = parsed.ValuesByName["op_vdsat"][last],
-                        ["cgs"] = parsed.ValuesByName["op_cgs"][last],
-                        ["cgd"] = parsed.ValuesByName["op_cgd"][last],
-                        ["cgg"] = parsed.ValuesByName["op_cgg"][last],
-                        ["cds"] = parsed.ValuesByName["op_cds"][last],
-                        ["id"] = parsed.ValuesByName["op_id"][last],
-                        ["vgs"] = parsed.ValuesByName["op_vgs"][last],
-                        ["vds"] = parsed.ValuesByName["op_vds"][last],
-                    };
+                    dutOpParamsByName = BuildOpParamsDictionary(parsed, last);
                 }
             }
 
@@ -2158,5 +2119,20 @@ public class BenchRunService
 
             writer.WriteLine(string.Join(',', row));
         }
+    }
+
+    private static Dictionary<string, double> BuildOpParamsDictionary(
+        NgspiceVectorDataset dataset,
+        int index
+    )
+    {
+        var dict = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        foreach (var vectorName in OpParamVectorNames)
+        {
+            // Strip the "op_" prefix to get the short param name (e.g. "op_gm" → "gm").
+            var shortName = vectorName.Substring(3);
+            dict[shortName] = dataset.ValuesByName[vectorName][index];
+        }
+        return dict;
     }
 }

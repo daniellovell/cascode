@@ -28,7 +28,8 @@ internal static class CharGenService
         double VsbV,
         double VgsStartV,
         double VgsStopV,
-        double VgsStepV
+        double VgsStepV,
+        double TemperatureC = 27.0
     );
 
     public sealed record CharGenResult(bool Succeeded, string Message, string? JobDir = null);
@@ -107,7 +108,7 @@ internal static class CharGenService
         }
 
         var primitiveName = familyName;
-        var circuitName = SanitizeIdentifier("CharGmId_" + primitiveName);
+        var circuitName = PdkPrimitiveNaming.SanitizeIdentifier("CharGmId_" + primitiveName);
         var deviceKind = model.DeviceClass == DeviceClass.Nmos ? "NMOS" : "PMOS";
         var isPmos = model.DeviceClass == DeviceClass.Pmos;
         var benchName = model.DeviceClass == DeviceClass.Nmos ? "GmIdNmos" : "GmIdPmos";
@@ -270,12 +271,22 @@ internal static class CharGenService
 
     private static SpectreModel ChooseBestFamilyModel(IEnumerable<SpectreModel> models)
     {
-        return models
-            .OrderByDescending(m => PdkPrimitiveNaming.IsFamilyRepresentativeModel(m.Name))
+        ArgumentNullException.ThrowIfNull(models);
+        var list = models.ToList();
+        if (list.Count == 0)
+        {
+            throw new ArgumentException("Models collection must not be empty.", nameof(models));
+        }
+
+        return list.OrderByDescending(m => PdkPrimitiveNaming.IsFamilyRepresentativeModel(m.Name))
             .ThenBy(m => PdkPrimitiveNaming.PreferModelTypeRank(m.ModelType))
             .ThenBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
             .First();
     }
+
+    private static string FormatDouble(double v) => v.ToString("G17", CultureInfo.InvariantCulture);
+
+    private static string Volts(double v) => FormatDouble(v) + "V";
 
     private static string RenderWrapperCascode(
         CharGenArgs args,
@@ -288,10 +299,8 @@ internal static class CharGenService
         string pdkLibraryNamespace
     )
     {
-        static string F(double v) => v.ToString("G17", CultureInfo.InvariantCulture);
-
         var sizeExpr =
-            $"size(W={F(args.WidthM)}, L={F(args.LengthM)}, M={args.Mult.ToString(CultureInfo.InvariantCulture)}, NF={args.Nf.ToString(CultureInfo.InvariantCulture)})";
+            $"size(W={FormatDouble(args.WidthM)}, L={FormatDouble(args.LengthM)}, M={args.Mult.ToString(CultureInfo.InvariantCulture)}, NF={args.Nf.ToString(CultureInfo.InvariantCulture)})";
 
         var harness = isPmos ? RenderPmosHarness(args) : RenderNmosHarness(args);
 
@@ -341,22 +350,16 @@ circuit {circuitName} {{
 
     private static string RenderNmosHarness(CharGenArgs args)
     {
-        static string F(double v) => v.ToString("G17", CultureInfo.InvariantCulture);
-        static string V(double v) => F(v) + "V";
-
         return $@"    ground GND = 0V
     bias S = 0V
-    bias B = {V(args.VsbV)}
-    bias D = {V(args.VdsV)}
-    bias G = {V(args.VgsStartV)}
-    sweep G [{V(args.VgsStartV)}:{V(args.VgsStepV)}:{V(args.VgsStopV)}]";
+    bias B = {Volts(args.VsbV)}
+    bias D = {Volts(args.VdsV)}
+    bias G = {Volts(args.VgsStartV)}
+    sweep G [{Volts(args.VgsStartV)}:{Volts(args.VgsStepV)}:{Volts(args.VgsStopV)}]";
     }
 
     private static string RenderPmosHarness(CharGenArgs args)
     {
-        static string F(double v) => v.ToString("G17", CultureInfo.InvariantCulture);
-        static string V(double v) => F(v) + "V";
-
         var vdd = args.VgsStopV;
         var gateStart = vdd - args.VgsStartV;
         var gateStop = vdd - args.VgsStopV;
@@ -367,11 +370,11 @@ circuit {circuitName} {{
         var vd = vdd - args.VdsV;
 
         return $@"    ground GND = 0V
-    bias S = {V(vdd)}
-    bias B = {V(vb)}
-    bias D = {V(vd)}
-    bias G = {V(gateStart)}
-    sweep G [{V(gateStart)}:{V(gateStep)}:{V(gateStop)}]";
+    bias S = {Volts(vdd)}
+    bias B = {Volts(vb)}
+    bias D = {Volts(vd)}
+    bias G = {Volts(gateStart)}
+    sweep G [{Volts(gateStart)}:{Volts(gateStep)}:{Volts(gateStop)}]";
     }
 
     private static string RenderSpecJson(CharGenArgs args, string resolvedModelName)
@@ -386,29 +389,10 @@ circuit {circuitName} {{
             ["nf"] = args.Nf,
             ["vds_fixed"] = args.VdsV,
             ["vsb_fixed"] = args.VsbV,
-            ["temperature_c"] = 27.0,
+            ["temperature_c"] = args.TemperatureC,
             ["device_name"] = args.DeviceName,
         };
 
         return JsonSerializer.Serialize(obj, new JsonSerializerOptions { WriteIndented = true });
-    }
-
-    private static string SanitizeIdentifier(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
-
-        var chars = name.Trim()
-            .Select(c => char.IsLetterOrDigit(c) || c == '_' ? c : '_')
-            .ToArray();
-        var sanitized = new string(chars);
-        if (sanitized.Length > 0 && !char.IsLetter(sanitized[0]) && sanitized[0] != '_')
-        {
-            sanitized = "_" + sanitized;
-        }
-
-        return sanitized;
     }
 }

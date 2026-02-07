@@ -7,6 +7,9 @@ namespace Cascode.Cli.Services;
 
 internal static class SpiceSubcktOpPathResolver
 {
+    // Maximum .subckt nesting depth for DFS traversal of wrapper hierarchies.
+    private const int MaxSubcktNestingDepth = 6;
+
     public sealed record SubcktDefinition(
         IReadOnlyList<string> Terminals,
         IReadOnlyList<string> BodyLines
@@ -23,7 +26,8 @@ internal static class SpiceSubcktOpPathResolver
             {
                 IndexSubcktBodiesFromFile(path, map);
             }
-            catch
+            catch (Exception ex)
+                when (ex is IOException or UnauthorizedAccessException or ArgumentException)
             {
                 // Best-effort indexing. If a file can't be read/parsed, skip it.
             }
@@ -63,7 +67,7 @@ internal static class SpiceSubcktOpPathResolver
 
         void Dfs(string subcktName, List<string> prefix, int depth)
         {
-            if (depth > 6)
+            if (depth > MaxSubcktNestingDepth)
             {
                 return;
             }

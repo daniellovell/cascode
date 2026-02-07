@@ -10,6 +10,9 @@ namespace Cascode.Language.BenchRuntime;
 
 public static class BenchTestbenchEmitter
 {
+    // Maximum number of __op_path segments read from a primitive definition.
+    private const int MaxOpPathSegments = 16;
+
     public static IReadOnlyList<string> EmitAll(
         CascodeDocument document,
         string outputDir,
@@ -480,7 +483,7 @@ public static class BenchTestbenchEmitter
         }
 
         var segments = new List<string>();
-        for (var i = 0; i < 16; i++)
+        for (var i = 0; i < MaxOpPathSegments; i++)
         {
             if (!primitive.Params.TryGetValue($"__op_path{i}", out var segExpr))
             {

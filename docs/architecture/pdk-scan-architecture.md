@@ -29,7 +29,7 @@ Primitive emission and characterization
 
 Library layout contract:
 
-```
+```text
 lib/pdk/<pdk>/
   devices.cas
   resistors.cas

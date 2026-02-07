@@ -53,7 +53,7 @@ public static class WorkspacePaths
         return Path.Combine(GetWorkspaceFolder(workspaceRoot), "char");
     }
 
-    /// <summary>
+    /// <summary>Validates that workspaceRoot is non-null and non-empty.</summary>
     private static void ValidateWorkspaceRoot(string workspaceRoot)
     {
         if (workspaceRoot == null)

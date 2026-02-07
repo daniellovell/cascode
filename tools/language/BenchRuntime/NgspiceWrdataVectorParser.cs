@@ -90,12 +90,6 @@ public static class NgspiceWrdataVectorParser
             return (ParseDouble(parts[0]), values);
         }
 
-        // Single-vector fallback: <x> <v>
-        if (vectorCount == 1 && parts.Length == 2)
-        {
-            return (ParseDouble(parts[0]), new[] { ParseDouble(parts[1]) });
-        }
-
         return null;
     }
 

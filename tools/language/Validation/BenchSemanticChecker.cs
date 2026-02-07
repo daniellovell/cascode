@@ -1018,6 +1018,13 @@ public static class BenchSemanticChecker
                 );
                 return;
             case MeasurementConditional c:
+                ValidateBuiltinCallsInBoolExpr(
+                    c.Condition,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 ValidateBuiltinCalls(
                     c.ThenExpr,
                     scope,
@@ -1065,6 +1072,26 @@ public static class BenchSemanticChecker
                     );
                 }
                 return;
+        }
+    }
+
+    private static void ValidateBuiltinCallsInBoolExpr(
+        BoolExpr expr,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        switch (expr)
+        {
+            case BoolCompare c:
+                ValidateBuiltinCalls(c.Left, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(c.Right, scope, measurementTypes, benchesByName, diagnostics);
+                break;
+            case BoolTruthy t:
+                ValidateBuiltinCalls(t.Expr, scope, measurementTypes, benchesByName, diagnostics);
+                break;
         }
     }
 
