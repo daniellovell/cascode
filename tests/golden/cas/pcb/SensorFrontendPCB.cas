@@ -1,0 +1,496 @@
+VERSION 3.0
+
+// Sensor Frontend PCB: Wheatstone bridge pressure sensor with analog signal
+// conditioning, 16-bit ADC, and MCU. Exercises the part construct, specs system,
+// bus bundles, channel sub-bundles, and unified bench + spec constraints proposed
+// in RFC-0005.
+
+include lib.std
+
+// ============================================================================
+// Bus Bundles
+// ============================================================================
+
+bundle I2C {
+  SDA : digital
+  SCL : clock
+}
+
+bundle UART {
+  TX : digital
+  RX : digital
+}
+
+bundle SWD {
+  SWDIO : digital
+  SWCLK : clock
+}
+
+bundle OpAmpChannel {
+  INP : analog
+  INN : analog
+  OUT : analog
+}
+
+// ============================================================================
+// Part Declarations
+// ============================================================================
+
+// Dual rail-to-rail opamp, has manufacturer SPICE model
+part OpAmp OPA2376 {
+  device "OPA2376AIDDBVR"
+  package "VSSOP-8"
+  spice "OPA2376"
+
+  channel A : OpAmpChannel
+  channel B : OpAmpChannel
+  supply VDD
+  ground GND
+
+  specs {
+    GBW = 5.5MHz
+    InputOffsetVoltage = 25uV
+    CMRR = 114dB
+    InputBiasCurrent = 0.2pA
+    SlewRate = 2V/us
+    SupplyVoltageMin = 2.2V
+    SupplyVoltageMax = 5.5V
+    SupplyCurrentMax = 285uA
+  }
+}
+
+// 16-bit sigma-delta I2C ADC, no SPICE model
+part ADC ADS1115 {
+  device "ADS1115IDGSR"
+  package "MSOP-10"
+
+  input AIN0 : analog
+  input AIN1 : analog
+  input AIN2 : analog
+  input AIN3 : analog
+  input ADDR : digital
+  io SDA : digital
+  io SCL : clock
+  output ALERT : digital
+  supply VDD
+  ground GND
+
+  specs {
+    Resolution = 16 bits
+    MaxSampleRate = 860 SPS
+    INL = 0.5 LSB
+    FullScaleRange = 6.144V
+    SupplyVoltageMin = 2.0V
+    SupplyVoltageMax = 5.5V
+    SupplyCurrentMax = 200uA
+    InputLeakageCurrent = 10nA
+  }
+}
+
+// ARM Cortex-M0+ MCU, no SPICE model
+part MCU STM32G031K8 {
+  device "STM32G031K8T6"
+  package "LQFP-32"
+
+  io PA[0:15] : digital
+  io PB[0:9] : digital
+  supply VDD
+  supply VDDA
+  ground VSS
+  input NRST : digital
+  input BOOT0 : digital
+
+  specs {
+    CoreClock = 64MHz
+    FlashSize = 64kB
+    RAMSize = 8kB
+    SupplyVoltageMin = 2.0V
+    SupplyVoltageMax = 3.6V
+    SupplyCurrentMax = 10mA
+  }
+}
+
+// Parameterized passive families
+part Resistor R_0402(real R) {
+  device "generic_0402_1pct"
+  package "0402"
+  io P : analog
+  io N : analog
+  params { R = R }
+  specs {
+    Tolerance = 1pct
+    PowerRating = 63mW
+    VoltageRating = 50V
+  }
+}
+
+part Capacitor C_0402(real C) {
+  device "generic_0402_X7R"
+  package "0402"
+  io P : analog
+  io N : analog
+  params { C = C }
+  specs {
+    Tolerance = 10pct
+    VoltageRating = 16V
+  }
+}
+
+// ============================================================================
+// Interfaces
+// ============================================================================
+
+// Analog signal conditioning block: differential sensor input to clean SE output.
+// Bench-driven (simulable via opamp SPICE model).
+interface SensorConditioner {
+  supply VDD
+  ground GND
+  input SENSOR_IN : Diff
+  output SIGNAL_OUT : analog
+
+  benches {
+    bind DiffToSETransfer as transfer_bench {
+      bench.IN--dut.SENSOR_IN
+      bench.OUT--dut.SIGNAL_OUT
+    }
+
+    bind DiffToSENoise as noise_bench {
+      bench.IN--dut.SENSOR_IN
+      bench.OUT--dut.SIGNAL_OUT
+    }
+  }
+}
+
+// ADC subsystem: analog input, I2C bus, data-ready interrupt.
+// Spec-driven (no SPICE model).
+interface ADCSubsystem {
+  supply VDD
+  ground GND
+  input AIN : analog
+  io BUS : I2C
+  output DRDY : digital
+
+  specs {
+    Resolution = 16 bits
+    MaxSampleRate = 860 SPS
+  }
+}
+
+// MCU subsystem: peripheral bus, interrupt input, debug and programming ports.
+// Spec-driven (no SPICE model).
+interface ControllerSubsystem {
+  supply VDD
+  ground GND
+  io PERIPH : I2C
+  input IRQ : digital
+  output DEBUG : UART
+  io PROG : SWD
+
+  specs {
+    FlashSize = 64kB
+    CoreClock = 64MHz
+  }
+}
+
+// ============================================================================
+// HL Composition: System Architecture
+// ============================================================================
+
+circuit SensorFrontendPCB {
+  level HL
+  supply VDD_3V3
+  ground GND
+  input SENSOR : Diff
+  output DEBUG : UART
+  io PROG : SWD
+
+  slot {
+    net conditioned : analog
+    net i2c_bus : I2C
+    net drdy : digital
+
+    // Analog signal conditioning: bridge sensor to clean analog
+    frontend = new WheatstoneAmplifier() {
+      .VDD--VDD_3V3
+      .GND--GND
+      .SENSOR_IN--SENSOR
+      .SIGNAL_OUT--conditioned
+    }
+
+    // ADC: analog to digital via I2C
+    adc = new ADCStage() {
+      .VDD--VDD_3V3
+      .GND--GND
+      .AIN--conditioned
+      .BUS--i2c_bus
+      .DRDY--drdy
+    }
+
+    // MCU: reads ADC, outputs debug
+    mcu = new Controller() {
+      .VDD--VDD_3V3
+      .GND--GND
+      .PERIPH--i2c_bus
+      .IRQ--drdy
+      .DEBUG--DEBUG
+      .PROG--PROG
+    }
+  }
+
+  constraints {
+    numeric {
+      // Analog path: bench-derived (simulable via opamp SPICE model)
+      c_bw    = frontend.transfer_bench::LowpassBandwidth >= 10kHz
+      c_gain  = frontend.transfer_bench::PassbandGain >= 40dB
+      c_noise = frontend.noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz) <= 1uVrms
+
+      // ADC: spec-derived (datasheet)
+      c_adc_res  = adc.specs::Resolution >= 16 bits
+      c_adc_rate = adc.specs::MaxSampleRate >= 128 SPS
+
+      // MCU: spec-derived (datasheet)
+      c_mcu_flash = mcu.specs::FlashSize >= 64kB
+      c_mcu_clock = mcu.specs::CoreClock >= 48MHz
+    }
+  }
+
+  harness {
+    supply VDD_3V3 = 3.3V
+    ground GND = 0V
+  }
+}
+
+// ============================================================================
+// EL Implementation: Analog Frontend (Wheatstone Bridge Amplifier)
+// ============================================================================
+//
+// Topology: difference amplifier using channel A of OPA2376 with precision
+// resistor network for gain = R_F/R_G = 100k/1k = 100 (40dB), followed by
+// a first-order RC anti-alias filter. Channel B buffers a mid-rail reference
+// voltage for the difference amplifier's ground reference.
+//
+// The opamp has a SPICE model so this block is fully simulable via benches.
+
+circuit WheatstoneAmplifier implements SensorConditioner {
+  level EL
+  supply VDD
+  ground GND
+  input SENSOR_IN : Diff
+  output SIGNAL_OUT : analog
+
+  env {
+    InputCommonModeRange = 1.65V
+    SourceImpedance = 1kOhm
+    LoadImpedance = (10GOhm || 10pF)
+  }
+
+  fill {
+    net stage1_out : analog
+    net vref : analog
+    net fb_a : analog
+
+    // Mid-rail reference: resistive divider + buffer (channel B)
+    Resistor R_DIV1 = new R_0402(R=100k) {
+      .P--VDD
+      .N--vref
+    }
+    Resistor R_DIV2 = new R_0402(R=100k) {
+      .P--vref
+      .N--GND
+    }
+    Capacitor C_REF = new C_0402(C=100n) {
+      .P--vref
+      .N--GND
+    }
+
+    // Dual opamp
+    OpAmp U1 = new OPA2376() {
+      // Channel A: difference amplifier
+      .A.INP--SENSOR_IN.P
+      .A.INN--fb_a
+      .A.OUT--stage1_out
+      // Channel B: reference buffer (unity gain)
+      .B.INP--vref
+      .B.INN--U1.B.OUT
+      .B.OUT--vref
+      .VDD--VDD
+      .GND--GND
+    }
+
+    // Gain network for channel A: difference amplifier configuration
+    // Gain = R_F / R_G = 100k / 1k = 100 (40dB)
+    Resistor R_G = new R_0402(R=1k) {
+      .P--SENSOR_IN.N
+      .N--fb_a
+    }
+    Resistor R_F = new R_0402(R=100k) {
+      .P--stage1_out
+      .N--fb_a
+    }
+
+    // Anti-alias filter: 1st-order RC lowpass
+    // f_c = 1/(2*pi*R*C) = 1/(2*pi*1k*15n) ~ 10.6kHz
+    Resistor R_AA = new R_0402(R=1k) {
+      .P--stage1_out
+      .N--SIGNAL_OUT
+    }
+    Capacitor C_AA = new C_0402(C=15n) {
+      .P--SIGNAL_OUT
+      .N--GND
+    }
+
+    // Opamp supply bypass
+    Capacitor C_BYP = new C_0402(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  constraints {
+    numeric {
+      c_bw   = transfer_bench::LowpassBandwidth >= 10kHz
+      c_gain = transfer_bench::PassbandGain >= 38dB
+      c_noise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz) <= 1uVrms
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+}
+
+// ============================================================================
+// EL Implementation: ADC Stage
+// ============================================================================
+//
+// ADS1115 in single-ended mode (AIN0 vs GND), I2C address 0x48 (ADDR=GND).
+// I2C bus pull-ups, bulk and ceramic bypass caps.
+// No SPICE model: constrained entirely through specs.
+
+circuit ADCStage implements ADCSubsystem {
+  level EL
+  supply VDD
+  ground GND
+  input AIN : analog
+  io BUS : I2C
+  output DRDY : digital
+
+  specs {
+    Resolution = 16 bits
+    MaxSampleRate = 860 SPS
+  }
+
+  fill {
+    ADC U_ADC = new ADS1115() {
+      .AIN0--AIN
+      .AIN1--GND
+      .AIN2--GND
+      .AIN3--GND
+      .ADDR--GND
+      .SDA--BUS.SDA
+      .SCL--BUS.SCL
+      .ALERT--DRDY
+      .VDD--VDD
+      .GND--GND
+    }
+
+    // I2C pull-ups (sized for 400kHz fast mode at 3.3V)
+    Resistor R_SDA = new R_0402(R=4.7k) {
+      .P--VDD
+      .N--BUS.SDA
+    }
+    Resistor R_SCL = new R_0402(R=4.7k) {
+      .P--VDD
+      .N--BUS.SCL
+    }
+
+    // Bypass capacitors
+    Capacitor C_VDD = new C_0402(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+    Capacitor C_BULK = new C_0402(C=10u) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+}
+
+// ============================================================================
+// EL Implementation: MCU
+// ============================================================================
+//
+// STM32G031K8 in LQFP-32. Pin assignments:
+//   PA9  = I2C1_SDA (AF6)
+//   PA10 = I2C1_SCL (AF6)
+//   PA0  = GPIO input (ADC data-ready interrupt)
+//   PA2  = USART2_TX (AF1)
+//   PA3  = USART2_RX (AF1)
+//   PA13 = SWDIO
+//   PA14 = SWCLK
+// No SPICE model: constrained entirely through specs.
+
+circuit Controller implements ControllerSubsystem {
+  level EL
+  supply VDD
+  ground GND
+  io PERIPH : I2C
+  input IRQ : digital
+  output DEBUG : UART
+  io PROG : SWD
+
+  specs {
+    FlashSize = 64kB
+    CoreClock = 64MHz
+  }
+
+  fill {
+    net nrst : digital
+
+    MCU U_MCU = new STM32G031K8() {
+      .PA[0]--IRQ
+      .PA[2]--DEBUG.TX
+      .PA[3]--DEBUG.RX
+      .PA[9]--PERIPH.SDA
+      .PA[10]--PERIPH.SCL
+      .PA[13]--PROG.SWDIO
+      .PA[14]--PROG.SWCLK
+      .VDD--VDD
+      .VDDA--VDD
+      .VSS--GND
+      .NRST--nrst
+      .BOOT0--GND
+    }
+
+    // Reset circuit: RC filter on NRST
+    Resistor R_RST = new R_0402(R=10k) {
+      .P--VDD
+      .N--nrst
+    }
+    Capacitor C_RST = new C_0402(C=100n) {
+      .P--nrst
+      .N--GND
+    }
+
+    // Supply bypass
+    Capacitor C_VDD = new C_0402(C=100n) {
+      .P--VDD
+      .N--GND
+    }
+    Capacitor C_VDDA = new C_0402(C=1u) {
+      .P--VDD
+      .N--GND
+    }
+  }
+
+  harness {
+    supply VDD = 3.3V
+    ground GND = 0V
+  }
+}
