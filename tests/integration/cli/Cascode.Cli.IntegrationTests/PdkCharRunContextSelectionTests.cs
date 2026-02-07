@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Cascode.TestSupport;
+using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
 
@@ -27,6 +28,17 @@ public sealed class PdkCharRunContextSelectionTests
         );
         Infrastructure.CliIntegrationTestHelper.AssertSuccess(scan);
 
+        var emitPrimitives = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
+            cascodeHome,
+            "pdk",
+            "emit",
+            "primitives",
+            "--workspace",
+            "tests/fixtures/pdk/sky130"
+        );
+        Infrastructure.CliIntegrationTestHelper.AssertSuccess(emitPrimitives);
+
         // 2) Run a single-device char for 'tt' and verify the generated spec/netlist references a valid include
         var deviceNeedle = "nfet_01v8";
         var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
@@ -36,7 +48,7 @@ public sealed class PdkCharRunContextSelectionTests
             "char",
             "run",
             "--backend",
-            "spectre",
+            "ngspice",
             "--corner",
             "tt",
             "--limit",
@@ -53,7 +65,7 @@ public sealed class PdkCharRunContextSelectionTests
         var workspaceDirs = Directory.GetDirectories(workRoot);
         Assert.NotEmpty(workspaceDirs);
         var wdir = workspaceDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
-        var charRoot = Path.Combine(wdir, "char", "spectre", "tt");
+        var charRoot = Path.Combine(wdir, "char", "ngspice", "tt");
         var modelDirs = Directory.GetDirectories(charRoot);
         Assert.NotEmpty(modelDirs);
         var modelDir = modelDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
@@ -61,19 +73,9 @@ public sealed class PdkCharRunContextSelectionTests
         Assert.NotEmpty(jobDirs);
         var jobDir = jobDirs.OrderByDescending(Directory.GetLastWriteTimeUtc).First();
         var specPath = Path.Combine(jobDir, "spec.json");
-        var netlistFiles = Directory.GetFiles(jobDir, "*.scs");
-        Assert.NotEmpty(netlistFiles);
-        var netlistPath = netlistFiles.OrderByDescending(File.GetLastWriteTimeUtc).First();
         var specText = File.ReadAllText(specPath);
-        var netlistText = File.ReadAllText(netlistPath);
 
         using var spec = System.Text.Json.JsonDocument.Parse(specText);
-        Assert.True(spec.RootElement.TryGetProperty("includes", out var includesElem));
-        Assert.True(includesElem.GetArrayLength() > 0);
-        var includePath = includesElem[0].GetString();
-        Assert.False(string.IsNullOrWhiteSpace(includePath));
-        Assert.True(File.Exists(includePath!), $"Include path should exist: {includePath}");
-
         Assert.True(spec.RootElement.TryGetProperty("device_name", out var deviceNameElem));
         Assert.Contains(
             deviceNeedle,
@@ -81,6 +83,35 @@ public sealed class PdkCharRunContextSelectionTests
             StringComparison.OrdinalIgnoreCase
         );
 
-        Assert.Contains("include", netlistText, StringComparison.OrdinalIgnoreCase);
+        var netlistFiles = Directory
+            .GetFiles(jobDir, "*.cir")
+            .Concat(Directory.GetFiles(jobDir, "*.sp"))
+            .ToArray();
+        Assert.NotEmpty(netlistFiles);
+        var netlistPath = netlistFiles.OrderByDescending(File.GetLastWriteTimeUtc).First();
+        var netlistText = File.ReadAllText(netlistPath);
+
+        var includeLines = netlistText
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.StartsWith(".include", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.NotEmpty(includeLines);
+
+        static string? ExtractQuotedPath(string line)
+        {
+            var first = line.IndexOf('"');
+            var last = line.LastIndexOf('"');
+            if (first < 0 || last <= first)
+                return null;
+            return line.Substring(first + 1, last - first - 1);
+        }
+
+        var anyExistingInclude = includeLines
+            .Select(ExtractQuotedPath)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Select(p => p!)
+            .Any(p => File.Exists(p) || File.Exists(Path.Combine(jobDir, p)));
+        Assert.True(anyExistingInclude, "Expected at least one .include path to exist on disk");
     }
 }

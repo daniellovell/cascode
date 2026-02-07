@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -20,6 +21,21 @@ public class BenchRunService
     {
         WriteIndented = true,
         NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
+    };
+
+    private static readonly string[] OpParamVectorNames =
+    {
+        "op_gm",
+        "op_gds",
+        "op_vth",
+        "op_vdsat",
+        "op_cgs",
+        "op_cgd",
+        "op_cgg",
+        "op_cds",
+        "op_id",
+        "op_vgs",
+        "op_vds",
     };
 
     private readonly ILogger<BenchRunService> _logger;
@@ -130,6 +146,7 @@ public class BenchRunService
         BenchMeasurementRunner Runner,
         IReadOnlyList<NumericConstraint> ConstraintsForBench,
         IReadOnlyDictionary<string, string?> NodeByMetric,
+        IReadOnlyList<BenchResultParser.TracePoint> TracePoints,
         TimeSpan SimulationTime,
         TimeSpan ParseTime
     );
@@ -1016,9 +1033,22 @@ public class BenchRunService
                 },
                 circuit,
                 prepared.TestbenchPath,
-                new List<BenchResultParser.TracePoint>(),
+                prepared.TracePoints.ToList(),
                 results
             );
+
+            if (prepared.TracePoints.Count > 0)
+            {
+                var pointsCsvPath = Path.Combine(
+                    Path.GetDirectoryName(prepared.TestbenchPath)!,
+                    $"{circuit.Name}_{instanceName}_results.csv"
+                );
+                WriteTracePointsCsv(
+                    pointsCsvPath,
+                    prepared.TracePoints,
+                    prepared.Plan.Bench.Measurements
+                );
+            }
             swWrite.Stop();
 
             lock (circuitMeasurements)
@@ -1405,41 +1435,287 @@ public class BenchRunService
             );
 
             var hasDc = plan.Analyses.Any(a => a.Type == BenchValueType.DCAnalysis);
+            var tracePoints = new List<BenchResultParser.TracePoint>();
+
             IReadOnlyDictionary<string, double>? opNodeVoltagesByKey = null;
-            if (hasDc)
+            IReadOnlyDictionary<string, double>? opCurrentsBySourceName = null;
+            IReadOnlyDictionary<string, double>? dutOpParamsByName = null;
+
+            var harnessSweeps = circuit.Harness?.Sweeps;
+            var hasHarnessSweep = harnessSweeps is { Count: 1 };
+            if (hasHarnessSweep)
             {
-                var nodesWrdataPath = BenchRuntimePaths.GetOpNodesWrdataPath(
-                    Path.GetDirectoryName(testbenchPath)!,
-                    plan.CircuitName,
-                    plan.InstanceName
-                );
-                opNodeVoltagesByKey = NgspiceWrdataOpParser.ParseNodeVoltages(
-                    nodesWrdataPath,
-                    plan.AcNodeKeys
-                );
+                if (!hasDc)
+                {
+                    throw new InvalidOperationException(
+                        $"Circuit '{circuit.Name}' defines a harness sweep, but the bound bench has no DCAnalysis."
+                    );
+                }
+
+                if (plan.Analyses.Any(a => a.Type != BenchValueType.DCAnalysis))
+                {
+                    throw new InvalidOperationException(
+                        $"Harness sweeps are only supported for DC-only benches currently (circuit '{circuit.Name}')."
+                    );
+                }
             }
 
-            IReadOnlyDictionary<string, double>? opCurrentsBySourceName = null;
-            if (plan.RequiresCurrents)
+            var outDir = Path.GetDirectoryName(testbenchPath)!;
+
+            var vdcSources = plan
+                .HarnessElements.Where(e =>
+                    e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                )
+                .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var opWrdataPath = BenchRuntimePaths.GetOpWrdataPath(
+                outDir,
+                plan.CircuitName,
+                plan.InstanceName
+            );
+            var nodesWrdataPath = BenchRuntimePaths.GetOpNodesWrdataPath(
+                outDir,
+                plan.CircuitName,
+                plan.InstanceName
+            );
+            var paramsWrdataPath = BenchRuntimePaths.GetOpParamsWrdataPath(
+                outDir,
+                plan.CircuitName,
+                plan.InstanceName
+            );
+
+            if (hasHarnessSweep)
             {
-                var vdcSources = plan
-                    .HarnessElements.Where(e =>
-                        e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
-                    )
-                    .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                if (vdcSources.Count > 0)
+                var sweepName = harnessSweeps![0].Name;
+                var nodesSweep = NgspiceWrdataTranParser.Parse(nodesWrdataPath, plan.AcNodeKeys);
+                if (nodesSweep.TimePoints.Length == 0)
                 {
-                    var wrdataPath = BenchRuntimePaths.GetOpWrdataPath(
-                        Path.GetDirectoryName(testbenchPath)!,
-                        plan.CircuitName,
-                        plan.InstanceName
+                    throw new InvalidOperationException(
+                        $"DC sweep produced no points for '{plan.CircuitName}:{plan.InstanceName}'."
                     );
+                }
+
+                TranDataset? currentsSweep = null;
+                if (plan.RequiresCurrents && vdcSources.Count > 0)
+                {
+                    var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
+                    currentsSweep = NgspiceWrdataTranParser.Parse(opWrdataPath, sourceNames);
+                }
+
+                NgspiceVectorDataset? opParamsSweep = null;
+                if (plan.RequiresOpParams)
+                {
+                    opParamsSweep = NgspiceWrdataVectorParser.Parse(
+                        paramsWrdataPath,
+                        OpParamVectorNames
+                    );
+                }
+
+                for (var i = 0; i < nodesSweep.TimePoints.Length; i++)
+                {
+                    var harnessForPoint = new Dictionary<string, BenchValue>(
+                        plan.Harness,
+                        StringComparer.OrdinalIgnoreCase
+                    )
+                    {
+                        [sweepName] = new BenchNumber(
+                            BenchNumericKind.VoltageV,
+                            nodesSweep.TimePoints[i]
+                        ),
+                    };
+
+                    var pointNodeVoltages = new Dictionary<string, double>(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                    foreach (var key in plan.AcNodeKeys)
+                    {
+                        pointNodeVoltages[key] = nodesSweep.NodeVoltages[key][i];
+                    }
+
+                    var pointCurrentsBySource = new Dictionary<string, double>(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                    if (currentsSweep is not null)
+                    {
+                        foreach (var (source, values) in currentsSweep.NodeVoltages)
+                        {
+                            pointCurrentsBySource[source] = values[i];
+                        }
+                    }
+
+                    var pointOpParams = new Dictionary<string, double>(
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                    if (opParamsSweep is not null)
+                    {
+                        if (opParamsSweep.X.Length != nodesSweep.TimePoints.Length)
+                        {
+                            throw new InvalidOperationException(
+                                $"op_param wrdata length mismatch for '{plan.CircuitName}:{plan.InstanceName}'."
+                            );
+                        }
+
+                        pointOpParams = BuildOpParamsDictionary(opParamsSweep, i);
+                    }
+
+                    var pointAnalyses = new Dictionary<
+                        string,
+                        BenchMeasurementRunner.AnalysisContext
+                    >(StringComparer.OrdinalIgnoreCase);
+                    foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.DCAnalysis))
+                    {
+                        var f = new[] { 0.0 };
+                        var nodes = new Dictionary<string, System.Numerics.Complex[]>(
+                            StringComparer.OrdinalIgnoreCase
+                        );
+                        foreach (var (key, v) in pointNodeVoltages)
+                        {
+                            nodes[key] = new[] { new System.Numerics.Complex(v, 0) };
+                        }
+
+                        pointAnalyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                            a.Name,
+                            StartHz: 0,
+                            StopHz: 0,
+                            StartS: 0,
+                            StopS: 0,
+                            Ac: new AcDataset(f, nodes)
+                        );
+                    }
+
+                    var runnerForPoint = new BenchMeasurementRunner(
+                        plan.Bench,
+                        plan.Functions,
+                        pointAnalyses,
+                        plan.Terminals,
+                        plan.Env,
+                        harnessForPoint,
+                        plan.Constraints,
+                        harnessElements: plan.HarnessElements,
+                        sourceCurrentsByName: pointCurrentsBySource,
+                        dutNodeKeyByPinRef: plan.DutNodeKeyByPinRef,
+                        dutOpParamsByName: pointOpParams.Count == 0 ? null : pointOpParams,
+                        benchMeasurementRefResolver: benchMeasurementRefResolver
+                    );
+
+                    var valuesForPoint = runnerForPoint.RunAllValues();
+                    var measurementList = new List<MeasurementResult>();
+                    foreach (var m in plan.Bench.Measurements.Where(m => m.Parameters.Count == 0))
+                    {
+                        if (!valuesForPoint.TryGetValue(m.Name, out var v) || v is BenchMissing)
+                        {
+                            continue;
+                        }
+
+                        var value = double.NaN;
+                        string? error = null;
+                        if (v is BenchNumber n)
+                        {
+                            value = n.Value;
+                        }
+                        else if (v is BenchError err)
+                        {
+                            error = err.Message;
+                        }
+                        else
+                        {
+                            error = $"Unexpected measurement value type '{v.GetType().Name}'.";
+                        }
+
+                        measurementList.Add(
+                            new MeasurementResult
+                            {
+                                Metric = m.Name,
+                                Value = value,
+                                Unit = m.Unit,
+                                Bench = benchName,
+                                Error = error,
+                            }
+                        );
+                    }
+
+                    tracePoints.Add(
+                        new BenchResultParser.TracePoint(
+                            i,
+                            new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+                            {
+                                [sweepName] = nodesSweep.TimePoints[i],
+                            },
+                            measurementList
+                        )
+                    );
+                }
+
+                var last = nodesSweep.TimePoints.Length - 1;
+                opNodeVoltagesByKey = plan.AcNodeKeys.ToDictionary(
+                    k => k,
+                    k => nodesSweep.NodeVoltages[k][last],
+                    StringComparer.OrdinalIgnoreCase
+                );
+
+                if (currentsSweep is not null)
+                {
+                    opCurrentsBySourceName = currentsSweep.NodeVoltages.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value[last],
+                        StringComparer.OrdinalIgnoreCase
+                    );
+                }
+
+                if (opParamsSweep is not null)
+                {
+                    dutOpParamsByName = new Dictionary<string, double>(
+                        StringComparer.OrdinalIgnoreCase
+                    )
+                    {
+                        ["gm"] = opParamsSweep.ValuesByName["op_gm"][last],
+                        ["gds"] = opParamsSweep.ValuesByName["op_gds"][last],
+                        ["vth"] = opParamsSweep.ValuesByName["op_vth"][last],
+                        ["vdsat"] = opParamsSweep.ValuesByName["op_vdsat"][last],
+                        ["cgs"] = opParamsSweep.ValuesByName["op_cgs"][last],
+                        ["cgd"] = opParamsSweep.ValuesByName["op_cgd"][last],
+                        ["cgg"] = opParamsSweep.ValuesByName["op_cgg"][last],
+                        ["cds"] = opParamsSweep.ValuesByName["op_cds"][last],
+                        ["id"] = opParamsSweep.ValuesByName["op_id"][last],
+                        ["vgs"] = opParamsSweep.ValuesByName["op_vgs"][last],
+                        ["vds"] = opParamsSweep.ValuesByName["op_vds"][last],
+                    };
+                }
+            }
+            else
+            {
+                if (hasDc)
+                {
+                    opNodeVoltagesByKey = NgspiceWrdataOpParser.ParseNodeVoltages(
+                        nodesWrdataPath,
+                        plan.AcNodeKeys
+                    );
+                }
+
+                if (plan.RequiresCurrents && vdcSources.Count > 0)
+                {
                     var sourceNames = vdcSources.Select(s => "V" + s.Id).ToList();
                     opCurrentsBySourceName = NgspiceWrdataOpParser.ParseCurrents(
-                        wrdataPath,
+                        opWrdataPath,
                         sourceNames
                     );
+                }
+
+                if (hasDc && plan.RequiresOpParams)
+                {
+                    var parsed = NgspiceWrdataVectorParser.Parse(
+                        paramsWrdataPath,
+                        OpParamVectorNames
+                    );
+                    if (parsed.X.Length == 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"op_param enabled, but no operating-point parameters were parsed from '{paramsWrdataPath}'."
+                        );
+                    }
+
+                    var last = parsed.X.Length - 1;
+                    dutOpParamsByName = BuildOpParamsDictionary(parsed, last);
                 }
             }
 
@@ -1595,6 +1871,7 @@ public class BenchRunService
                 harnessElements: plan.HarnessElements,
                 sourceCurrentsByName: opCurrentsBySourceName,
                 dutNodeKeyByPinRef: plan.DutNodeKeyByPinRef,
+                dutOpParamsByName: dutOpParamsByName,
                 benchMeasurementRefResolver: benchMeasurementRefResolver
             );
 
@@ -1612,6 +1889,7 @@ public class BenchRunService
                 Runner: runner,
                 ConstraintsForBench: constraintsForBench,
                 NodeByMetric: nodeByMetric,
+                TracePoints: tracePoints,
                 SimulationTime: simulationTime,
                 ParseTime: parseTime
             );
@@ -1777,5 +2055,84 @@ public class BenchRunService
         }
 
         return false;
+    }
+
+    private static void WriteTracePointsCsv(
+        string path,
+        IReadOnlyList<BenchResultParser.TracePoint> points,
+        IReadOnlyList<MeasurementDefinition> measurementDefinitions
+    )
+    {
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        var axisNames = points
+            .SelectMany(p => p.AxisValues.Keys)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var metricNames = measurementDefinitions
+            .Where(m => m.Parameters.Count == 0)
+            .Select(m => m.Name)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        using var writer = new StreamWriter(path);
+        var header = new List<string>(1 + axisNames.Count + metricNames.Count) { "point_index" };
+        header.AddRange(axisNames);
+        header.AddRange(metricNames.Select(n => n.ToLowerInvariant()));
+        writer.WriteLine(string.Join(',', header));
+
+        foreach (var point in points)
+        {
+            var byMetric = point.Measurements.ToDictionary(
+                m => m.Metric,
+                m => m,
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            var row = new List<string>(header.Count)
+            {
+                point.Index.ToString(CultureInfo.InvariantCulture),
+            };
+
+            foreach (var axisName in axisNames)
+            {
+                var v = point.AxisValues.TryGetValue(axisName, out var axis) ? axis : double.NaN;
+                row.Add(v.ToString("G17", CultureInfo.InvariantCulture));
+            }
+
+            foreach (var metric in metricNames)
+            {
+                if (byMetric.TryGetValue(metric, out var m))
+                {
+                    row.Add(m.Value.ToString("G17", CultureInfo.InvariantCulture));
+                }
+                else
+                {
+                    row.Add(double.NaN.ToString("G17", CultureInfo.InvariantCulture));
+                }
+            }
+
+            writer.WriteLine(string.Join(',', row));
+        }
+    }
+
+    private static Dictionary<string, double> BuildOpParamsDictionary(
+        NgspiceVectorDataset dataset,
+        int index
+    )
+    {
+        var dict = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        foreach (var vectorName in OpParamVectorNames)
+        {
+            // Strip the "op_" prefix to get the short param name (e.g. "op_gm" → "gm").
+            var shortName = vectorName.Substring(3);
+            dict[shortName] = dataset.ValuesByName[vectorName][index];
+        }
+        return dict;
     }
 }

@@ -88,6 +88,7 @@ public static class BenchPlanBuilder
         var requiresCurrents =
             BenchPrimitiveCallFinder.ContainsCall(bench, "current")
             || BenchPrimitiveCallFinder.ContainsCall(bench, "quiescent_power");
+        var requiresOpParams = BenchPrimitiveCallFinder.ContainsCall(bench, "op_param");
 
         return new BenchPlan(
             circuit.Name,
@@ -105,6 +106,7 @@ public static class BenchPlanBuilder
             harnessCompilation.Constraints,
             harnessElements,
             requiresCurrents,
+            requiresOpParams,
             terminalCompilation.DutOrderedNets,
             dutSubcktName,
             terminalCompilation.AcNodeKeys,

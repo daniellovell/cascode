@@ -19,6 +19,7 @@ public sealed class BenchMeasurementRunner
     private readonly IReadOnlyDictionary<string, BenchHarnessElement> _harnessElementsById;
     private readonly IReadOnlyDictionary<string, double> _sourceCurrentsByName;
     private readonly IReadOnlyDictionary<string, string> _dutNodeKeyByPinRef;
+    private readonly IReadOnlyDictionary<string, double> _dutOpParamsByName;
     private readonly Func<MeasurementBenchMeasurementRef, BenchValue>? _benchMeasurementRefResolver;
 
     private readonly Dictionary<string, BenchValue> _measurementCache = new(
@@ -50,6 +51,7 @@ public sealed class BenchMeasurementRunner
         IReadOnlyList<BenchHarnessElement>? harnessElements = null,
         IReadOnlyDictionary<string, double>? sourceCurrentsByName = null,
         IReadOnlyDictionary<string, string>? dutNodeKeyByPinRef = null,
+        IReadOnlyDictionary<string, double>? dutOpParamsByName = null,
         Func<MeasurementBenchMeasurementRef, BenchValue>? benchMeasurementRefResolver = null
     )
     {
@@ -72,6 +74,8 @@ public sealed class BenchMeasurementRunner
             ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         _dutNodeKeyByPinRef =
             dutNodeKeyByPinRef ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        _dutOpParamsByName =
+            dutOpParamsByName ?? new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         _benchMeasurementRefResolver = benchMeasurementRefResolver;
     }
 
@@ -557,6 +561,8 @@ public sealed class BenchMeasurementRunner
                 return EvalQuiescentPower(call, locals);
             case "period":
                 return EvalPeriod(call, locals);
+            case "op_param":
+                return EvalOpParam(call, locals);
         }
 
         // Allow measurements to reference other measurements by name with explicit call syntax.
@@ -1113,6 +1119,96 @@ public sealed class BenchMeasurementRunner
         );
     }
 
+    private BenchValue EvalOpParam(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 3)
+        {
+            throw new InvalidOperationException("op_param requires exactly 3 arguments.");
+        }
+
+        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        if (!_analyses.ContainsKey(analysisName))
+        {
+            throw new InvalidOperationException(
+                $"op_param: unknown analysis '{analysisName}' (missing from plan)."
+            );
+        }
+
+        var targetName = ResolveOpParamSymbol(call.Args[1].Value, locals, isTarget: true);
+        if (!targetName.Equals("dut", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"op_param: unsupported target '{targetName}'. Only 'dut' is supported currently."
+            );
+        }
+
+        var paramName = ResolveOpParamSymbol(call.Args[2].Value, locals, isTarget: false);
+
+        var normalized = NormalizeOpParamName(paramName);
+        if (!_dutOpParamsByName.TryGetValue(normalized, out var value))
+        {
+            throw new InvalidOperationException($"op_param: missing parameter '{normalized}'.");
+        }
+
+        return new BenchNumber(BenchNumericKind.Scalar, value);
+    }
+
+    private string ResolveOpParamSymbol(
+        MeasurementExpr expr,
+        Dictionary<string, BenchValue> locals,
+        bool isTarget
+    )
+    {
+        // Important: treat bare identifiers as raw symbols even if they coincide with measurement
+        // names (e.g. measurement "Gm" and op_param(..., gm)). Evaluating those would recursively
+        // resolve to the measurement instead of yielding the intended parameter name.
+        if (expr is MeasurementPath p)
+        {
+            return p.Path;
+        }
+
+        var v = EvaluateExpr(expr, locals);
+        if (v is BenchSymbol s)
+        {
+            return s.Name;
+        }
+
+        if (isTarget)
+        {
+            throw new InvalidOperationException("op_param: target must be a symbol (e.g. dut).");
+        }
+
+        throw new InvalidOperationException("op_param: parameter name must be a symbol (e.g. gm).");
+    }
+
+    private static string NormalizeOpParamName(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0)
+        {
+            return name;
+        }
+
+        // Stable canonical keys for the op_param contract.
+        // Keep this list small and explicit so backends can remain deterministic.
+        return name.ToLowerInvariant() switch
+        {
+            "gm" => "gm",
+            "gds" => "gds",
+            "vth" => "vth",
+            "vdsat" => "vdsat",
+            "cgs" => "cgs",
+            "cgd" => "cgd",
+            "cgg" => "cgg",
+            "cds" => "cds",
+            "id" => "id",
+            "ids" => "id",
+            "vgs" => "vgs",
+            "vds" => "vds",
+            _ => throw new InvalidOperationException($"op_param: unsupported parameter '{name}'."),
+        };
+    }
+
     private BenchValue EvalVoltage(MeasurementCall call, Dictionary<string, BenchValue> locals)
     {
         if (call.Args.Count != 2)
@@ -1207,7 +1303,13 @@ public sealed class BenchMeasurementRunner
             return new BenchCurrentSpectrum(analysis.AcCurrents.FrequenciesHz, signed);
         }
 
-        throw new InvalidOperationException($"current: unsupported analysis '{analysisName}'.");
+        // DCAnalysis: return a scalar current sampled at the operating point / sweep point.
+        if (_sourceCurrentsByName.TryGetValue(sourceName, out var currentA))
+        {
+            return new BenchNumber(BenchNumericKind.CurrentA, sign * currentA);
+        }
+
+        throw new InvalidOperationException($"current: missing current for '{sourceName}'.");
     }
 
     private bool TryResolveHarnessPin(string raw, out BenchElementPinRef pin)

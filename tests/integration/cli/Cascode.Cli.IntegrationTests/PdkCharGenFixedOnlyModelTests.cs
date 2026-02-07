@@ -5,15 +5,15 @@ using Xunit;
 
 namespace Cascode.Cli.IntegrationTests;
 
-public sealed class PdkCharRunWithoutSpectreTests
+public sealed class PdkCharGenFixedOnlyModelTests
 {
     [Fact]
-    public async Task PdkCharRun_SpectreRequested_FallsBackToNgspiceWithWarning()
+    public async Task CharGen_FixedOnlyModel_FailsWithParametricPrimitiveGuidance()
     {
         var repoRoot = Infrastructure.CliIntegrationTestHelper.GetRepositoryRoot();
         using var cascodeHome = Infrastructure.CliIntegrationTestHelper.CreateCascodeHome(
             repoRoot,
-            nameof(PdkCharRunWithoutSpectreTests)
+            nameof(PdkCharGenFixedOnlyModelTests)
         );
 
         var scan = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
@@ -39,36 +39,22 @@ public sealed class PdkCharRunWithoutSpectreTests
             "PDK emit primitives should succeed"
         );
 
-        var run = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromMinutes(3),
+        var fixedOnlyModel = "sky130_fd_pr__rf_nfet_01v8_lvt_aF02W0p42L0p15";
+        var charGen = await Infrastructure.CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromMinutes(2),
             cascodeHome,
-            "pdk",
             "char",
-            "run",
-            "--backend",
-            "spectre",
-            "--corner",
-            "tt",
-            "--class",
-            "nmos",
-            "--limit",
-            "1",
+            "gen",
+            fixedOnlyModel,
             "--workspace",
             "tests/fixtures/pdk/sky130"
         );
-        Infrastructure.CliIntegrationTestHelper.AssertSuccess(
-            run,
-            "Characterization run should succeed"
-        );
 
+        Assert.NotEqual(0, charGen.ExitCode);
+        var output = charGen.Stdout + "\n" + charGen.Stderr;
         Assert.Contains(
-            "not supported by the declarative characterization flow",
-            run.Stdout,
-            StringComparison.OrdinalIgnoreCase
-        );
-        Assert.Contains(
-            "Characterization batch complete",
-            run.Stdout,
+            "No parametric primitive is available",
+            output,
             StringComparison.OrdinalIgnoreCase
         );
     }

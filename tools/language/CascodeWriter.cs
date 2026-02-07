@@ -570,6 +570,23 @@ public static class CascodeWriter
                 writer.WriteLine($"    load {load.Net} ({joined})");
             }
         }
+        foreach (var sweep in harness.Sweeps.OrderBy(s => s.Name, StringComparer.Ordinal))
+        {
+            if (sweep.IsAuto)
+            {
+                writer.WriteLine($"    sweep {sweep.Name} [Auto]");
+            }
+            else if (!string.IsNullOrWhiteSpace(sweep.Step))
+            {
+                writer.WriteLine(
+                    $"    sweep {sweep.Name} [{sweep.Start}:{sweep.Step}:{sweep.Stop}]"
+                );
+            }
+            else
+            {
+                writer.WriteLine($"    sweep {sweep.Name} [{sweep.Start}:{sweep.Stop}]");
+            }
+        }
         if (harness.Icmr is not null)
         {
             writer.WriteLine($"    icmr min={harness.Icmr.Min} max={harness.Icmr.Max}");

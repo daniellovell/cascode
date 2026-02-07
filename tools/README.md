@@ -7,7 +7,7 @@
   - `SystemCommandModule` – help, version, home, log, quit
   - `PdkCommandModule` – workspace scanning, model catalog, PDK characterization entry points
   - `CharacterizationCommandModule` – `char` commands for bench generation, reading outputs, exporting derived metrics
-  - `BenchCommandModule` – bench harness discovery and display
+  - `BenchCommandModule` – bench execution and results
   - `BuildCommandModule` – placeholder for future build tooling
 - Shared adapters reside in `tools/cli/Services/`:
   - `DeviceSummaryHelpers` – summary/detail view state utilities for the device catalog
@@ -20,7 +20,7 @@
 ## Workspace & Bench Libraries
 
 - `tools/workspace` encapsulates Cadence workspace scanning (`WorkspaceScanner`, `WorkspaceScanResult`). CLI modules call into this assembly directly or through thin adapters.
-- `tools/bench` contains harness discovery, bench generation, and helper types shared by CLI characterization commands.
+- `tools/bench` contains shared bench helper types (e.g., backend enum, results model, value formatting).
 
 ## Development Notes
 

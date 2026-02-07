@@ -1569,7 +1569,10 @@ public static class SpiceEmitter
             );
         }
 
-        var deviceParams = PrimitiveResolver.BuildParamExpressions(device, primitive, sizeBindings);
+        var deviceParams = PrimitiveResolver
+            .BuildParamExpressions(device, primitive, sizeBindings)
+            .Where(kvp => !IsReservedPrimitiveMetaParam(kvp.Key))
+            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal);
         var resolvedModel = ResolveDeviceModel(primitive.Device, deviceModelMap);
         var modelName = ResolveDeviceModelName(primitive.Device, resolvedModel);
         var useSubckt = resolvedModel?.IsSubckt ?? false;
@@ -1628,6 +1631,11 @@ public static class SpiceEmitter
             TerminalBindings = terminalBindings,
             ParamExpressions = paramExpressions,
         };
+    }
+
+    private static bool IsReservedPrimitiveMetaParam(string name)
+    {
+        return name.StartsWith("__op_", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

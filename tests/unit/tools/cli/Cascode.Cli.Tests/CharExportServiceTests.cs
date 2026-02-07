@@ -11,97 +11,15 @@ namespace Cascode.Cli.Tests;
 public sealed class CharExportServiceTests
 {
     [Fact]
-    public void ExportDerived_FromNutascii_SkipsPointIndices()
+    public void ExportDerived_FromResultsCsv_ComputesDerivedMetrics()
     {
         using var tmpDir = new TemporaryDirectory();
-        var raw = """
-Title: gm_id sample
-Date: 12:00:00 PM, Mon Jan 01, 2024
-Plotname: DC Analysis `srcSweep': VGS:dc = (0 V -> 0.02 V)
-Flags: real
-No. Variables:        9
-No. Points:      3
-Variables:	0	dc	V
-		1	s	V plot=0 grid=0
-		2	b	V plot=0 grid=0
-		3	g	V plot=0 grid=0
-		4	d	V plot=0 grid=0
-		5	VBS:p	A plot=0 grid=0
-		6	VDR:p	A plot=0 grid=0
-		7	VGS:p	A plot=0 grid=0
-		8	VSS:p	A plot=0 grid=0
-Values:
-0	0	0	0
-	0	0.9	1e-14
-	-1e-6	0	1e-6
-1	0.01	0	0
-	0.01	0.9	1e-14
-	-2e-6	0	2e-6
-2	0.02	0	0
-	0.02	0.9	1e-14
-	-3e-6	0	3e-6
+        var csv = """
+point_index,vgs,vds,id,gm,gds,cgg,cds
+0,0,0.9,1e-6,2e-3,1e-5,1e-12,3e-13
+1,0.01,0.9,2e-6,3e-3,2e-5,2e-12,4e-13
 """;
-        File.WriteAllText(Path.Combine(tmpDir.Path, "sample.raw"), raw);
-
-        var ok = CharExportService.ExportDerived(
-            tmpDir.Path,
-            metricFilter: null,
-            out var derivedPath,
-            out var message
-        );
-
-        Assert.True(ok, message);
-        Assert.True(File.Exists(derivedPath));
-
-        var lines = File.ReadAllLines(derivedPath);
-        Assert.Equal(4, lines.Length);
-
-        var header = lines[0].Split(',', StringSplitOptions.RemoveEmptyEntries);
-        var vgsIdx = Array.IndexOf(header, "vgs");
-        var vdIdx = Array.IndexOf(header, "vds");
-        var idIdx = Array.IndexOf(header, "id");
-        Assert.True(
-            vgsIdx >= 0 && vdIdx >= 0 && idIdx >= 0,
-            "Required columns missing from derived.csv"
-        );
-
-        AssertLine(lines[1], vgsIdx, vdIdx, idIdx, 0.0, 0.9, 1e-6);
-        AssertLine(lines[2], vgsIdx, vdIdx, idIdx, 0.01, 0.9, 2e-6);
-        AssertLine(lines[3], vgsIdx, vdIdx, idIdx, 0.02, 0.9, 3e-6);
-    }
-
-    [Fact]
-    public void ExportDerived_FromOppointFiles_EmitsOperatingPointMetrics()
-    {
-        using var tmpDir = new TemporaryDirectory();
-        var opp1 = """
-Element name = M1
-Element type = nmos
-Index = 0
-Values:
-vgs = 0.10
-vds = 0.90
-ids = 1e-4
-gm = 2e-3
-gmbs = 1e-4
-gds = 1e-5
-vth = 0.35
-vdsat = 0.1
-cgs = 1e-12
-cgd = 2e-13
-cgg = 1.2e-12
-gmoverid = 20
-ueff = 0.03
-ron = 1000
-rseff = 5
-rdeff = 6
-w_eff = 1e-6
-""";
-        var opp2 = opp1.Replace("vgs = 0.10", "vgs = 0.20", StringComparison.Ordinal)
-            .Replace("ids = 1e-4", "ids = 2e-4", StringComparison.Ordinal)
-            .Replace("gm = 2e-3", "gm = 3e-3", StringComparison.Ordinal);
-        File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.0"), opp1);
-        File.WriteAllText(Path.Combine(tmpDir.Path, "oppoint.1"), opp2);
+        File.WriteAllText(Path.Combine(tmpDir.Path, "results.csv"), csv);
 
         var ok = CharExportService.ExportDerived(
             tmpDir.Path,
@@ -117,35 +35,40 @@ w_eff = 1e-6
         Assert.Equal(3, lines.Length);
 
         var header = lines[0].Split(',', StringSplitOptions.RemoveEmptyEntries);
-        int idxGmPerW = Array.IndexOf(header, "gm_per_w");
-        int idxIdPerW = Array.IndexOf(header, "id_per_w");
-        int idxVstar = Array.IndexOf(header, "vstar");
-        int idxFt = Array.IndexOf(header, "ft");
+        var vgsIdx = Array.IndexOf(header, "vgs");
+        var vdIdx = Array.IndexOf(header, "vds");
+        var idIdx = Array.IndexOf(header, "id");
+        var gmOverIdIdx = Array.IndexOf(header, "gm_over_id");
+        var roIdx = Array.IndexOf(header, "ro");
+        var ftIdx = Array.IndexOf(header, "ft");
+        var cdsIdx = Array.IndexOf(header, "cds");
         Assert.True(
-            idxGmPerW >= 0 && idxIdPerW >= 0 && idxVstar >= 0 && idxFt >= 0,
-            "Missing derived metrics in header."
+            vgsIdx >= 0
+                && vdIdx >= 0
+                && idIdx >= 0
+                && gmOverIdIdx >= 0
+                && roIdx >= 0
+                && ftIdx >= 0
+                && cdsIdx >= 0,
+            "Required columns missing from derived.csv"
         );
 
-        var first = lines[1].Split(',', StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(2000, double.Parse(first[idxGmPerW], CultureInfo.InvariantCulture), 3); // gm_per_w = gm / w_eff
-        Assert.Equal(100, double.Parse(first[idxIdPerW], CultureInfo.InvariantCulture), 3); // id_per_w = id / w_eff
-        Assert.True(double.Parse(first[idxVstar], CultureInfo.InvariantCulture) > 0);
-        Assert.True(double.Parse(first[idxFt], CultureInfo.InvariantCulture) > 0);
+        var r0 = lines[1].Split(',', StringSplitOptions.None);
+        Assert.Equal(0.0, double.Parse(r0[vgsIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(0.9, double.Parse(r0[vdIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(1e-6, double.Parse(r0[idIdx], CultureInfo.InvariantCulture), 12);
+        Assert.Equal(2000, double.Parse(r0[gmOverIdIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(100000, double.Parse(r0[roIdx], CultureInfo.InvariantCulture), 6);
+        Assert.True(double.Parse(r0[ftIdx], CultureInfo.InvariantCulture) > 0);
+        Assert.Equal(3e-13, double.Parse(r0[cdsIdx], CultureInfo.InvariantCulture), 12);
+
+        var r1 = lines[2].Split(',', StringSplitOptions.None);
+        Assert.Equal(0.01, double.Parse(r1[vgsIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(0.9, double.Parse(r1[vdIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(2e-6, double.Parse(r1[idIdx], CultureInfo.InvariantCulture), 12);
+        Assert.Equal(1500, double.Parse(r1[gmOverIdIdx], CultureInfo.InvariantCulture), 6);
+        Assert.Equal(4e-13, double.Parse(r1[cdsIdx], CultureInfo.InvariantCulture), 12);
     }
 
-    private static void AssertLine(
-        string line,
-        int vgsIdx,
-        int vdIdx,
-        int idIdx,
-        double expectedVgs,
-        double expectedVd,
-        double expectedId
-    )
-    {
-        var parts = line.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        Assert.Equal(expectedVgs, double.Parse(parts[vgsIdx], CultureInfo.InvariantCulture), 6);
-        Assert.Equal(expectedVd, double.Parse(parts[vdIdx], CultureInfo.InvariantCulture), 6);
-        Assert.Equal(expectedId, double.Parse(parts[idIdx], CultureInfo.InvariantCulture), 6);
-    }
+    // Note: legacy Spectre/oppoint recovery is intentionally unsupported.
 }
