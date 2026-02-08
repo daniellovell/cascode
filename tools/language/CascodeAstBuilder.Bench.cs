@@ -38,8 +38,10 @@ internal sealed partial class CascodeAstBuilder
                     fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
                     break;
 
-                case CascodeParser.FillInstanceDeclContext instanceCtx:
-                    fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                case CascodeParser.FillInstanceStatementContext instanceCtx:
+                    fill.Instances.Add(
+                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
+                    );
                     break;
 
                 case CascodeParser.FillAttachDeclContext attachCtx:

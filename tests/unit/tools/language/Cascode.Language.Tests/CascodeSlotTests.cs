@@ -59,7 +59,7 @@ circuit Outer {{
 
   slot {{
     net mid : analog
-    sub = new Inner() {{
+    Inner sub = new Inner() {{
       .VDD--VDD
       .GND--GND
       .A--IN
@@ -81,7 +81,74 @@ circuit Outer {{
         Assert.Single(outer.Slot.Instances);
         Assert.Equal("sub", outer.Slot.Instances[0].Id);
         Assert.Equal("Inner", outer.Slot.Instances[0].Type);
+        Assert.Equal("Inner", outer.Slot.Instances[0].DeclaredType);
         Assert.Equal(4, outer.Slot.Instances[0].Bindings.Count);
+    }
+
+    [Fact]
+    public void TryRead_SlotBlockWithSome_ParsesSuccessfully()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit AnalogFrontend {{
+  level HL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  slot
+}}
+
+circuit Top {{
+  level HL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  slot {{
+    Some frontend = new AnalogFrontend() {{
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT--OUT
+    }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+
+        Assert.True(result.Success);
+        var top = result.Document!.Circuits.First(c => c.Name == "Top");
+        var instance = Assert.Single(top.Slot!.Instances);
+        Assert.Equal("frontend", instance.Id);
+        Assert.Equal("Some", instance.DeclaredType);
+        Assert.Equal("AnalogFrontend", instance.Type);
+    }
+
+    [Fact]
+    public void TryRead_FillBlockWithSome_ReturnsSyntaxError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit TestCircuit {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{
+    Some src = new VDC(V=1.8V) {{ .P--VDD, .N--GND }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
     }
 
     [Fact]
@@ -195,8 +262,44 @@ circuit TestCircuit {{
 
         Assert.Contains("slot {", output);
         Assert.Contains("net mid : analog", output);
-        Assert.Contains("lna = new MyLNA(stages=2) {", output);
+        Assert.Contains("MyLNA lna = new MyLNA(stages=2) {", output);
         Assert.Contains("a--b", output);
+    }
+
+    [Fact]
+    public void Write_SlotBlockWithSome_EmitsSomeDeclaredType()
+    {
+        var doc = new CascodeDocument
+        {
+            VersionMajor = CascodeVersion.Major,
+            VersionMinor = CascodeVersion.Minor,
+            Circuits = new List<Circuit>
+            {
+                new Circuit
+                {
+                    Name = "Test",
+                    Level = CascodeLevel.HL,
+                    Slot = new SlotBlock
+                    {
+                        Instances = new List<InstanceDeclaration>
+                        {
+                            new InstanceDeclaration
+                            {
+                                Id = "frontend",
+                                Type = "AnalogFrontend",
+                                DeclaredType = "Some",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(doc, writer);
+        var output = writer.ToString();
+
+        Assert.Contains("Some frontend = new AnalogFrontend", output);
     }
 
     [Fact]
@@ -256,7 +359,7 @@ circuit Outer {{
 
   slot {{
     net mid : analog
-    sub = new Inner() {{
+    Inner sub = new Inner() {{
       .VDD--VDD
       .GND--GND
       .A--IN
@@ -321,5 +424,39 @@ circuit Outer {{
         Assert.NotNull(receiver2.Slot);
         Assert.Equal(receiver.Slot!.Nets.Count, receiver2.Slot!.Nets.Count);
         Assert.Equal(receiver.Slot.Instances.Count, receiver2.Slot.Instances.Count);
+    }
+
+    [Fact]
+    public void RoundTrip_HLSlotSome_Golden()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var goldenPath = Path.Combine(repoRoot, "tests/golden/cas/hl/HLSlotSome.hl.cai");
+
+        using var reader = File.OpenText(goldenPath);
+        var readResult = CascodeReader.TryRead(reader, goldenPath);
+        Assert.True(
+            readResult.Success,
+            string.Join("; ", readResult.Diagnostics.Select(d => d.Message))
+        );
+
+        var top = readResult.Document!.Circuits.First(c => c.Name == "SensorTop");
+        var instance = Assert.Single(top.Slot!.Instances);
+        Assert.Equal("Some", instance.DeclaredType);
+        Assert.Equal("AnalogFrontend", instance.Type);
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(readResult.Document, writer);
+        var output = writer.ToString();
+        Assert.Contains("Some frontend = new AnalogFrontend", output);
+
+        var reReadResult = CascodeReader.TryParse(output, "roundtrip.cas");
+        Assert.True(
+            reReadResult.Success,
+            string.Join("; ", reReadResult.Diagnostics.Select(d => d.Message))
+        );
+        var top2 = reReadResult.Document!.Circuits.First(c => c.Name == "SensorTop");
+        var instance2 = Assert.Single(top2.Slot!.Instances);
+        Assert.Equal("Some", instance2.DeclaredType);
+        Assert.Equal("AnalogFrontend", instance2.Type);
     }
 }

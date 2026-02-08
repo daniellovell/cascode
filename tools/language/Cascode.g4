@@ -261,8 +261,17 @@ paramValue
 
 slotBlockStatement
     : NET_KW IDENT COLON portType                                   # SlotNetDecl
-    | instanceDecl                                                  # SlotInstanceDecl
+    | slotInstanceDecl                                              # SlotInstanceStatement
     | pinRef WIRE_OP pinRef                                         # SlotConnectDecl
+    ;
+
+slotInstanceDecl
+    : declaredType=slotDeclaredType instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
+    ;
+
+slotDeclaredType
+    : IDENT
+    | SOME_KW
     ;
 
 // ----------------------------------------------------------------------------
@@ -272,7 +281,7 @@ slotBlockStatement
 fillStatement
     : NET_KW IDENT COLON portType                                   # FillNetDecl
     | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
-    | instanceDecl                                                  # FillInstanceDecl
+    | fillInstanceDecl                                              # FillInstanceStatement
     | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
@@ -307,6 +316,10 @@ wrapMapEntry
 
 fillBlock
     : FILL_KW LBRACE fillStatement* RBRACE
+    ;
+
+fillInstanceDecl
+    : instanceDecl
     ;
 
 instanceDecl
@@ -1014,6 +1027,7 @@ SWEEP_KW        : 'sweep' ;
 ICMR_KW         : 'icmr' ;
 PVT_KW          : 'pvt' ;
 AUTO_KW         : 'Auto' ;
+SOME_KW         : 'Some' ;
 AT_KW           : 'at' ;
 Z_KW            : 'Z' ;
 ON_KW           : 'on' ;

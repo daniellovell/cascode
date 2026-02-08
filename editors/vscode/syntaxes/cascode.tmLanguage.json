@@ -2210,7 +2210,7 @@
     "special-literal": {
       "patterns": [
         {
-          "match": "\\b(Auto|None)\\b",
+          "match": "\\b(Auto|None|Some)\\b",
           "name": "constant.language.special.cascode"
         },
         {

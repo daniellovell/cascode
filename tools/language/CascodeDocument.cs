@@ -326,6 +326,9 @@ public sealed class InstanceDeclaration
     /// <summary>Motif type name.</summary>
     public string Type { get; init; } = string.Empty;
 
+    /// <summary>Declared instance type from source (for example <c>Some</c> in slot blocks).</summary>
+    public string? DeclaredType { get; init; }
+
     /// <summary>Terminal bindings.</summary>
     public Dictionary<string, string> Bindings { get; init; } = new();
 

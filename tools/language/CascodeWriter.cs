@@ -470,7 +470,10 @@ public static class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
-        writer.WriteLine($"{indent}{inst.Type} {inst.Id} = new {inst.Type}{argList} {{");
+        var declaredType = string.IsNullOrWhiteSpace(inst.DeclaredType)
+            ? inst.Type
+            : inst.DeclaredType;
+        writer.WriteLine($"{indent}{declaredType} {inst.Id} = new {inst.Type}{argList} {{");
         var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {

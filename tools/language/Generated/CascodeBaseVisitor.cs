@@ -636,7 +636,7 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <return>The visitor result.</return>
 	public virtual Result VisitSlotNetDecl([NotNull] CascodeParser.SlotNetDeclContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by the <c>SlotInstanceDecl</c>
+	/// Visit a parse tree produced by the <c>SlotInstanceStatement</c>
 	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
@@ -645,7 +645,7 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitSlotInstanceDecl([NotNull] CascodeParser.SlotInstanceDeclContext context) { return VisitChildren(context); }
+	public virtual Result VisitSlotInstanceStatement([NotNull] CascodeParser.SlotInstanceStatementContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SlotConnectDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
@@ -657,6 +657,26 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	public virtual Result VisitSlotConnectDecl([NotNull] CascodeParser.SlotConnectDeclContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.slotInstanceDecl"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitSlotInstanceDecl([NotNull] CascodeParser.SlotInstanceDeclContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.slotDeclaredType"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitSlotDeclaredType([NotNull] CascodeParser.SlotDeclaredTypeContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillNetDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
@@ -680,7 +700,7 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <return>The visitor result.</return>
 	public virtual Result VisitFillSizeDecl([NotNull] CascodeParser.FillSizeDeclContext context) { return VisitChildren(context); }
 	/// <summary>
-	/// Visit a parse tree produced by the <c>FillInstanceDecl</c>
+	/// Visit a parse tree produced by the <c>FillInstanceStatement</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
 	/// <para>
 	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
@@ -689,7 +709,7 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	public virtual Result VisitFillInstanceDecl([NotNull] CascodeParser.FillInstanceDeclContext context) { return VisitChildren(context); }
+	public virtual Result VisitFillInstanceStatement([NotNull] CascodeParser.FillInstanceStatementContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
@@ -826,6 +846,16 @@ public partial class CascodeBaseVisitor<Result> : AbstractParseTreeVisitor<Resul
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	public virtual Result VisitFillBlock([NotNull] CascodeParser.FillBlockContext context) { return VisitChildren(context); }
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.fillInstanceDecl"/>.
+	/// <para>
+	/// The default implementation returns the result of calling <see cref="AbstractParseTreeVisitor{Result}.VisitChildren(IRuleNode)"/>
+	/// on <paramref name="context"/>.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	public virtual Result VisitFillInstanceDecl([NotNull] CascodeParser.FillInstanceDeclContext context) { return VisitChildren(context); }
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.instanceDecl"/>.
 	/// <para>

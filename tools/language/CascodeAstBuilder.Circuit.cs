@@ -280,8 +280,8 @@ internal sealed partial class CascodeAstBuilder
                     );
                     break;
 
-                case CascodeParser.SlotInstanceDeclContext instanceCtx:
-                    slot.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                case CascodeParser.SlotInstanceStatementContext instanceCtx:
+                    slot.Instances.Add(BuildSlotInstance(instanceCtx.slotInstanceDecl()));
                     break;
 
                 case CascodeParser.SlotConnectDeclContext connectCtx:
@@ -333,8 +333,10 @@ internal sealed partial class CascodeAstBuilder
                     fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
                     break;
 
-                case CascodeParser.FillInstanceDeclContext instanceCtx:
-                    fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                case CascodeParser.FillInstanceStatementContext instanceCtx:
+                    fill.Instances.Add(
+                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
+                    );
                     break;
 
                 case CascodeParser.FillAttachDeclContext attachCtx:
@@ -419,25 +421,66 @@ internal sealed partial class CascodeAstBuilder
         return bindings;
     }
 
-    /// <summary>Builds an instance declaration with parameters and bindings.</summary>
-    private InstanceDeclaration BuildInstance(CascodeParser.InstanceDeclContext ctx)
+    private InstanceDeclaration BuildSlotInstance(CascodeParser.SlotInstanceDeclContext ctx)
     {
-        var declaredType = ctx.declaredType.Text;
-        var id = ctx.instanceId.Text;
-        var type = ctx.instanceTypeName().GetText();
+        return BuildInstance(
+            declaredType: ctx.slotDeclaredType().GetText(),
+            id: ctx.instanceId.Text,
+            type: ctx.instanceTypeName().GetText(),
+            argList: ctx.argList(),
+            bindingBlock: ctx.bindingBlock(),
+            diagnosticCtx: ctx,
+            allowSomeDeclaredType: true
+        );
+    }
 
-        if (!declaredType.Equals(type, StringComparison.Ordinal))
+    /// <summary>Builds an instance declaration with parameters and bindings.</summary>
+    private InstanceDeclaration BuildInstance(
+        CascodeParser.InstanceDeclContext ctx,
+        bool allowSomeDeclaredType = false
+    )
+    {
+        return BuildInstance(
+            declaredType: ctx.declaredType.Text,
+            id: ctx.instanceId.Text,
+            type: ctx.instanceTypeName().GetText(),
+            argList: ctx.argList(),
+            bindingBlock: ctx.bindingBlock(),
+            diagnosticCtx: ctx,
+            allowSomeDeclaredType: allowSomeDeclaredType
+        );
+    }
+
+    private InstanceDeclaration BuildInstance(
+        string? declaredType,
+        string id,
+        string type,
+        CascodeParser.ArgListContext? argList,
+        CascodeParser.BindingBlockContext? bindingBlock,
+        Antlr4.Runtime.ParserRuleContext diagnosticCtx,
+        bool allowSomeDeclaredType
+    )
+    {
+        var usesSomeDeclaredType =
+            allowSomeDeclaredType
+            && declaredType is not null
+            && declaredType.Equals("Some", StringComparison.Ordinal);
+        if (
+            !usesSomeDeclaredType
+            && declaredType is not null
+            && !declaredType.Equals(type, StringComparison.Ordinal)
+        )
         {
             AddDiagnostic(
-                ctx,
+                diagnosticCtx,
                 DiagnosticSeverity.Error,
                 $"CAS0036: Instance '{id}' declares type '{declaredType}' but constructs '{type}'. The declared and constructor types must match exactly."
             );
         }
 
-        var bindings = ctx.bindingBlock() is null
+        var bindings = bindingBlock is null
             ? new Dictionary<string, string>()
-            : BuildBindings(ctx.bindingBlock().bindingList());
+            : BuildBindings(bindingBlock.bindingList());
         var prefix = $"{id}.";
         var invalidKeys = bindings
             .Keys.Where(k => k.StartsWith(prefix, StringComparison.Ordinal))
@@ -445,11 +488,8 @@ internal sealed partial class CascodeAstBuilder
         foreach (var key in invalidKeys)
         {
             bindings.Remove(key);
-            Antlr4.Runtime.ParserRuleContext diagnosticCtx = ctx.bindingBlock() is null
-                ? ctx
-                : ctx.bindingBlock();
             AddDiagnostic(
-                diagnosticCtx,
+                bindingBlock ?? diagnosticCtx,
                 DiagnosticSeverity.Error,
                 $"CAS0033: Instance bindings must not be instance-qualified; use '.PORT--net' not '.{id}.PORT--net'"
             );
@@ -458,9 +498,9 @@ internal sealed partial class CascodeAstBuilder
         var instanceParams = new Dictionary<string, ParamValue>();
         var sizes = new Dictionary<string, SizePack>();
 
-        if (ctx.argList() != null)
+        if (argList != null)
         {
-            foreach (var argCtx in ctx.argList().arg())
+            foreach (var argCtx in argList.arg())
             {
                 var name = argCtx.argName()?.GetText();
                 if (string.IsNullOrWhiteSpace(name))
@@ -471,7 +511,7 @@ internal sealed partial class CascodeAstBuilder
                     if (
                         instanceParams.ContainsKey(name)
                         || sizes.ContainsKey(name)
-                        || ctx.argList().arg().Length > 1
+                        || argList.arg().Length > 1
                     )
                     {
                         AddDiagnostic(
@@ -505,6 +545,7 @@ internal sealed partial class CascodeAstBuilder
         {
             Id = id,
             Type = type,
+            DeclaredType = declaredType,
             Bindings = bindings,
             Params = instanceParams,
             Sizes = sizes,
