@@ -33,7 +33,7 @@ internal static class BenchConnectivityBuilder
 
         var instanceIds = instances.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var terminalLeaves = bench
-            .Terminals.SelectMany(t => ExpandLeaves(t.Name, t.Type, bundlesByName))
+            .Terminals.SelectMany(t => ExpandLeaves(t.Name, t.Type!, bundlesByName))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Instance pin bindings: ".P--net" in binding blocks.
@@ -69,7 +69,7 @@ internal static class BenchConnectivityBuilder
                     t.Name.Equals(map.BenchTerminal, StringComparison.OrdinalIgnoreCase)
                 );
 
-                foreach (var leaf in ExpandLeaves(term.Name, term.Type, bundlesByName))
+                foreach (var leaf in ExpandLeaves(term.Name, term.Type!, bundlesByName))
                 {
                     var suffix =
                         leaf.Length > term.Name.Length

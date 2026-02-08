@@ -98,4 +98,74 @@ public sealed class CascodeLinkerTests
         Assert.Contains(linked.BundleTypes, b => b.Name == "Diff");
         Assert.Contains(linked.BenchDefinitions, b => b.Name == "DiffToSETransfer");
     }
+
+    [Fact]
+    public void LinkFile_ResolvesBenchBaseAcrossIncludedFiles()
+    {
+        var tmp = Path.Combine(
+            Path.GetTempPath(),
+            "cascode-link-test-" + Guid.NewGuid().ToString("N")
+        );
+        var outDir = Path.Combine(tmp, "out");
+        Directory.CreateDirectory(tmp);
+
+        var basePath = Path.Combine(tmp, "base.cas");
+        File.WriteAllText(
+            basePath,
+            """
+            VERSION 3.1
+
+            abstract bench AbstractBase {
+              abstract stim IN
+              abstract resp OUT
+
+              measurements {
+                measurement Gain : dB {
+                  return 1dB
+                }
+              }
+            }
+            """
+        );
+
+        var entryPath = Path.Combine(tmp, "entry.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include base
+
+            bench Concrete extends AbstractBase {
+              stim IN : analog
+              resp OUT : analog
+              fill { }
+            }
+
+            circuit LinkBenchBase {
+              level EL
+              input IN : analog
+              output OUT : analog
+
+              benches {
+                bind Concrete as concrete {
+                  bench.IN--dut.IN
+                  bench.OUT--dut.OUT
+                }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(entryPath, outDir, tmp);
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.NotNull(result.LinkedCasPath);
+        Assert.True(File.Exists(result.LinkedCasPath!));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+
+        Assert.Contains(linked.BenchDefinitions, b => b.Name == "Concrete");
+        Assert.DoesNotContain(linked.BenchDefinitions, b => b.Name == "AbstractBase");
+    }
 }

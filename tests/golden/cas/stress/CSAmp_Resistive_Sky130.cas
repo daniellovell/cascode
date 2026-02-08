@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 // Stress test: resistively-loaded common-source amplifier using sky130 devices.
 //

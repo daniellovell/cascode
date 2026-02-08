@@ -247,7 +247,8 @@ internal sealed partial class CascodeAstBuilder
                         ? BenchTerminalRole.Stim
                         : BenchTerminalRole.Resp,
                     t.IDENT().GetText(),
-                    t.terminalType().GetText()
+                    t.terminalType()?.GetText(),
+                    t.ABSTRACT_KW() is not null
                 )
             );
         }
@@ -269,22 +270,74 @@ internal sealed partial class CascodeAstBuilder
         }
 
         FillBlock? fill = null;
-        if (body.fillBlock() is not null)
-        {
-            fill = BuildFillBlock(body.fillBlock());
-        }
+        var functions = new List<FunctionDefinition>();
+        var analyses = new List<AnalysisDeclaration>();
+        var measurements = new List<MeasurementDefinition>();
+        var overrideAnalysis = false;
 
-        var functions = body.functionDef().Select(BuildFunctionDefinition).ToList();
-        var analyses = body.analysisBlock() is null
-            ? new List<AnalysisDeclaration>()
-            : BuildAnalysisBlock(body.analysisBlock());
-        var measurements = body.measurementsBlock() is null
-            ? new List<MeasurementDefinition>()
-            : BuildMeasurementsBlock(body.measurementsBlock());
+        foreach (var member in body.benchMember())
+        {
+            if (member.fillBlock() is not null)
+            {
+                if (fill is not null)
+                {
+                    AddDiagnostic(
+                        member.fillBlock(),
+                        DiagnosticSeverity.Error,
+                        $"CAS2012: Duplicate fill block in bench '{ctx.name.Text}'."
+                    );
+                }
+                else
+                {
+                    fill = BuildFillBlock(member.fillBlock());
+                }
+
+                continue;
+            }
+
+            if (member.functionDef() is not null)
+            {
+                functions.Add(BuildFunctionDefinition(member.functionDef()));
+                continue;
+            }
+
+            if (member.analysisBlock() is not null)
+            {
+                if (analyses.Count > 0)
+                {
+                    AddDiagnostic(
+                        member.analysisBlock(),
+                        DiagnosticSeverity.Error,
+                        $"CAS2013: Duplicate analysis block in bench '{ctx.name.Text}'."
+                    );
+                }
+                else
+                {
+                    analyses.AddRange(BuildAnalysisBlock(member.analysisBlock()));
+                    overrideAnalysis = member.analysisBlock().OVERRIDE_KW() is not null;
+                }
+
+                continue;
+            }
+
+            if (member.measurementsBlock() is not null)
+            {
+                measurements.AddRange(BuildMeasurementsBlock(member.measurementsBlock()));
+                continue;
+            }
+
+            if (member.measurementDecl() is not null)
+            {
+                measurements.Add(BuildMeasurementDefinition(member.measurementDecl()));
+            }
+        }
 
         return new BenchDefinition
         {
             Name = ctx.name.Text,
+            IsAbstract = ctx.ABSTRACT_KW() is not null,
+            BaseBench = ctx.@base?.Text,
+            OverrideAnalysis = overrideAnalysis,
             Parameters = parameters,
             Terminals = terminals,
             Fill = fill,

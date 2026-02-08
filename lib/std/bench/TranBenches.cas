@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 library lib.std.bench
 
@@ -7,7 +7,28 @@ library lib.std.bench
 // Benches are parameterized by stimulus frequency. Different invocations with different
 // frequencies produce separate testbench instances (e.g., tran_bench(stim_freq=1kHz)::...).
 
-bench DiffToSETran(Frequency stim_freq = 1kHz) {
+abstract bench AbstractTran(Frequency stim_freq = 1kHz) {
+  abstract stim IN
+  abstract resp OUT
+
+  analysis {
+    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
+    TranAnalysis tran = new TranAnalysis(
+      step=period(stim_freq) / 200,
+      start=9 * period(stim_freq),
+      stop=10 * period(stim_freq)
+    )
+  }
+
+  measurements {
+    measurement OutputSwing : V {
+      VoltageWaveform vout = voltage(tran, OUT)
+      return vout.Max() - vout.Min()
+    }
+  }
+}
+
+bench DiffToSETran extends AbstractTran {
   stim IN : Diff
   resp OUT : analog
 
@@ -51,25 +72,9 @@ bench DiffToSETran(Frequency stim_freq = 1kHz) {
       .N--gnd
     }
   }
-
-  analysis {
-    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
-    TranAnalysis tran = new TranAnalysis(
-      step=period(stim_freq) / 200,
-      start=9 * period(stim_freq),
-      stop=10 * period(stim_freq)
-    )
-  }
-
-  measurements {
-    measurement OutputSwing : V {
-      VoltageWaveform vout = voltage(tran, OUT)
-      return vout.Max() - vout.Min()
-    }
-  }
 }
 
-bench DiffToDiffTran(Frequency stim_freq = 1kHz) {
+bench DiffToDiffTran extends AbstractTran {
   stim IN : Diff
   resp OUT : Diff
 
@@ -117,25 +122,9 @@ bench DiffToDiffTran(Frequency stim_freq = 1kHz) {
       .N--gnd
     }
   }
-
-  analysis {
-    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
-    TranAnalysis tran = new TranAnalysis(
-      step=period(stim_freq) / 200,
-      start=9 * period(stim_freq),
-      stop=10 * period(stim_freq)
-    )
-  }
-
-  measurements {
-    measurement OutputSwing : V {
-      VoltageWaveform vout = voltage(tran, OUT)
-      return vout.Max() - vout.Min()
-    }
-  }
 }
 
-bench SEToSETran(Frequency stim_freq = 1kHz) {
+bench SEToSETran extends AbstractTran {
   stim IN : analog
   resp OUT : analog
 
@@ -170,22 +159,6 @@ bench SEToSETran(Frequency stim_freq = 1kHz) {
     Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
       .P--OUT
       .N--gnd
-    }
-  }
-
-  analysis {
-    // Capture 10 cycles total and evaluate on the last cycle for steady-state measurement.
-    TranAnalysis tran = new TranAnalysis(
-      step=period(stim_freq) / 200,
-      start=9 * period(stim_freq),
-      stop=10 * period(stim_freq)
-    )
-  }
-
-  measurements {
-    measurement OutputSwing : V {
-      VoltageWaveform vout = voltage(tran, OUT)
-      return vout.Max() - vout.Min()
     }
   }
 }
