@@ -578,4 +578,59 @@ bench TestBench {{
         Assert.Equal(11.0, values["Mixed"].Value);
         Assert.Equal(34.0, values["WithFunction"].Value);
     }
+
+    [Fact]
+    public void OpParam_AllowsParameterNameThatMatchesMeasurementName()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench OpParamBench {{
+  analysis {{
+    DCAnalysis dc = new DCAnalysis()
+  }}
+
+  measurements {{
+    measurement Gm : S {{
+      return op_param(dc, dut, gm)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "OpParamBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["dc"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "dc",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: null
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase),
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            dutOpParamsByName: new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["gm"] = 1.23e-3,
+            }
+        );
+
+        var values = runner.RunMetrics(new[] { "Gm" });
+        Assert.Equal(1.23e-3, values["Gm"].Value, precision: 12);
+        Assert.Equal("S", values["Gm"].Unit);
+    }
 }

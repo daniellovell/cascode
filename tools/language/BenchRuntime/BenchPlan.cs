@@ -41,6 +41,7 @@ public sealed record BenchPlan(
     IReadOnlyDictionary<string, BenchValue> Constraints,
     IReadOnlyList<BenchHarnessElement> HarnessElements,
     bool RequiresCurrents,
+    bool RequiresOpParams,
     IReadOnlyList<string> DutOrderedNets,
     string DutSubcktName,
     IReadOnlyList<string> AcNodeKeys,

@@ -283,12 +283,19 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitPortDecl([NotNull] CascodeParser.PortDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>SlotMember</c>
+	/// Visit a parse tree produced by the <c>BareSlotMember</c>
 	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSlotMember([NotNull] CascodeParser.SlotMemberContext context);
+	Result VisitBareSlotMember([NotNull] CascodeParser.BareSlotMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>SlotBlockMember</c>
+	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSlotBlockMember([NotNull] CascodeParser.SlotBlockMemberContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillSection</c>
 	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
@@ -387,25 +394,26 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParamValue([NotNull] CascodeParser.ParamValueContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.slotDecl"/>.
+	/// Visit a parse tree produced by the <c>SlotNetDecl</c>
+	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSlotDecl([NotNull] CascodeParser.SlotDeclContext context);
+	Result VisitSlotNetDecl([NotNull] CascodeParser.SlotNetDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>SlotParam</c>
-	/// labeled alternative in <see cref="CascodeParser.slotStatement"/>.
+	/// Visit a parse tree produced by the <c>SlotInstanceDecl</c>
+	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSlotParam([NotNull] CascodeParser.SlotParamContext context);
+	Result VisitSlotInstanceDecl([NotNull] CascodeParser.SlotInstanceDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>SlotBinding</c>
-	/// labeled alternative in <see cref="CascodeParser.slotStatement"/>.
+	/// Visit a parse tree produced by the <c>SlotConnectDecl</c>
+	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSlotBinding([NotNull] CascodeParser.SlotBindingContext context);
+	Result VisitSlotConnectDecl([NotNull] CascodeParser.SlotConnectDeclContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillNetDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.

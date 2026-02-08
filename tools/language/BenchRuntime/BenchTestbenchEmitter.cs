@@ -10,6 +10,9 @@ namespace Cascode.Language.BenchRuntime;
 
 public static class BenchTestbenchEmitter
 {
+    // Maximum number of __op_path segments read from a primitive definition.
+    private const int MaxOpPathSegments = 16;
+
     public static IReadOnlyList<string> EmitAll(
         CascodeDocument document,
         string outputDir,
@@ -41,6 +44,10 @@ public static class BenchTestbenchEmitter
         ArgumentNullException.ThrowIfNull(designPaths);
 
         var circuitsByName = document.Circuits.ToDictionary(c => c.Name, StringComparer.Ordinal);
+        var primitivesByName = document.Primitives.ToDictionary(
+            p => p.Name,
+            StringComparer.Ordinal
+        );
         var written = new List<string>(plans.Count);
 
         foreach (var plan in plans)
@@ -58,7 +65,15 @@ public static class BenchTestbenchEmitter
             Directory.CreateDirectory(Path.GetDirectoryName(tbPath)!);
             File.WriteAllText(
                 tbPath,
-                RenderTestbench(plan, backend, designPaths, include, outputDir)
+                RenderTestbench(
+                    plan,
+                    circuit,
+                    primitivesByName,
+                    backend,
+                    designPaths,
+                    include,
+                    outputDir
+                )
             );
             written.Add(tbPath);
         }
@@ -68,6 +83,8 @@ public static class BenchTestbenchEmitter
 
     private static string RenderTestbench(
         BenchPlan plan,
+        Circuit? circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
         BenchBackendType backend,
         IReadOnlyList<string> designPaths,
         BenchIncludeResolution? includes,
@@ -126,12 +143,72 @@ public static class BenchTestbenchEmitter
             .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
         var hasDc = plan.Analyses.Any(a => a.Type == BenchValueType.DCAnalysis);
+        var sweeps = circuit?.Harness?.Sweeps ?? new List<SweepCondition>();
+        if (sweeps.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Bench runtime currently supports at most 1 harness sweep (found {sweeps.Count})."
+            );
+        }
+
+        var sweep = sweeps.Count == 1 ? sweeps[0] : null;
+        if (sweep is not null && !hasDc)
+        {
+            throw new InvalidOperationException(
+                $"Harness sweep '{sweep.Name}' requires a DCAnalysis in the bound bench."
+            );
+        }
+
         if (vdcSources.Count > 0 || hasDc)
         {
             sb.AppendLine();
-            sb.AppendLine("* operating point");
-            sb.AppendLine("op");
-            sb.AppendLine("setplot op1");
+            if (sweep is null)
+            {
+                sb.AppendLine("* operating point");
+                sb.AppendLine("op");
+                sb.AppendLine("setplot op1");
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(sweep.Step))
+                {
+                    throw new InvalidOperationException(
+                        $"Harness sweep '{sweep.Name}' is missing an explicit step size."
+                    );
+                }
+
+                var sweepSource = plan
+                    .HarnessElements.Where(e =>
+                        e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
+                    )
+                    .Where(e =>
+                        e.Id.StartsWith("hV_" + sweep.Name, StringComparison.OrdinalIgnoreCase)
+                    )
+                    .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (sweepSource is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Harness sweep '{sweep.Name}' could not be mapped to an injected VDC source (expected id prefix 'hV_{sweep.Name}')."
+                    );
+                }
+
+                var start = BenchQuantity.Parse(sweep.Start) as BenchNumber;
+                var stop = BenchQuantity.Parse(sweep.Stop) as BenchNumber;
+                var step = BenchQuantity.Parse(sweep.Step!) as BenchNumber;
+                if (start is null || stop is null || step is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Harness sweep '{sweep.Name}' start/stop/step must be numeric quantities."
+                    );
+                }
+
+                sb.AppendLine($"* dc sweep: {sweep.Name}");
+                sb.AppendLine(
+                    $"dc V{sweepSource.Id} {SiValue.FormatForBackend(start.Value, backend)} {SiValue.FormatForBackend(stop.Value, backend)} {SiValue.FormatForBackend(step.Value, backend)}"
+                );
+                sb.AppendLine("setplot dc1");
+            }
 
             if (vdcSources.Count > 0)
             {
@@ -164,6 +241,38 @@ public static class BenchTestbenchEmitter
                     sb.Append(' ');
                     sb.Append($"v({node})");
                 }
+                sb.AppendLine();
+            }
+
+            if (hasDc && plan.RequiresOpParams)
+            {
+                var mosRef = ResolveDutOpMosReference(
+                    circuit,
+                    primitivesByName,
+                    includes?.DeviceModelMap
+                );
+
+                sb.AppendLine("* device operating point params (op_param)");
+                sb.AppendLine($"let op_gm = {mosRef}[gm]");
+                sb.AppendLine($"let op_gds = {mosRef}[gds]");
+                sb.AppendLine($"let op_vth = {mosRef}[vth]");
+                sb.AppendLine($"let op_vdsat = {mosRef}[vdsat]");
+                sb.AppendLine($"let op_cgs = {mosRef}[cgs]");
+                sb.AppendLine($"let op_cgd = {mosRef}[cgd]");
+                sb.AppendLine($"let op_cgg = {mosRef}[cgg]");
+                sb.AppendLine($"let op_cds = {mosRef}[cds]");
+                sb.AppendLine($"let op_id = {mosRef}[id]");
+                sb.AppendLine($"let op_vgs = {mosRef}[vgs]");
+                sb.AppendLine($"let op_vds = {mosRef}[vds]");
+
+                var paramsWrdata = BenchRuntimePaths.GetOpParamsWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.InstanceName
+                );
+                sb.Append(
+                    $"wrdata {Path.GetFileName(paramsWrdata)} op_gm op_gds op_vth op_vdsat op_cgs op_cgd op_cgg op_cds op_id op_vgs op_vds"
+                );
                 sb.AppendLine();
             }
         }
@@ -321,6 +430,86 @@ public static class BenchTestbenchEmitter
         sb.AppendLine(".end");
 
         return sb.ToString();
+    }
+
+    private static string ResolveDutOpMosReference(
+        Circuit? circuit,
+        IReadOnlyDictionary<string, PrimitiveDefinition> primitivesByName,
+        IReadOnlyDictionary<string, DeviceModelResolution>? deviceModelMap
+    )
+    {
+        if (circuit is null)
+        {
+            throw new InvalidOperationException(
+                "op_param requires an EL circuit definition, but the circuit was not found."
+            );
+        }
+
+        var fill = circuit.Fill;
+        if (fill?.Devices is null || fill.Devices.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires circuit '{circuit.Name}' to contain a single-device fill block."
+            );
+        }
+
+        var device = fill.Devices.FirstOrDefault(d =>
+            d.Id.Equals("DUT", StringComparison.OrdinalIgnoreCase)
+        );
+        if (device is null)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires circuit '{circuit.Name}' to declare a device named 'DUT'."
+            );
+        }
+
+        if (!primitivesByName.TryGetValue(device.Primitive, out var primitive))
+        {
+            throw new InvalidOperationException(
+                $"op_param: circuit '{circuit.Name}' device '{device.Id}' references unknown primitive '{device.Primitive}'."
+            );
+        }
+
+        var resolution =
+            deviceModelMap is not null && deviceModelMap.TryGetValue(primitive.Device, out var r)
+                ? r
+                : null;
+        var useSubckt = resolution?.IsSubckt ?? false;
+
+        var dutInstName = (useSubckt ? "x" : "m") + device.Id.ToLowerInvariant();
+        if (!useSubckt)
+        {
+            return $"@m.xdut.{dutInstName}";
+        }
+
+        var segments = new List<string>();
+        for (var i = 0; i < MaxOpPathSegments; i++)
+        {
+            if (!primitive.Params.TryGetValue($"__op_path{i}", out var segExpr))
+            {
+                break;
+            }
+
+            var seg = segExpr.Trim();
+            if (string.IsNullOrWhiteSpace(seg))
+            {
+                throw new InvalidOperationException(
+                    $"op_param: primitive '{primitive.Name}' has an empty '__op_path{i}' mapping."
+                );
+            }
+
+            segments.Add(seg.ToLowerInvariant());
+        }
+
+        if (segments.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"op_param requires primitive '{primitive.Name}' to define '__op_path0' in its params block (rerun 'pdk emit primitives')."
+            );
+        }
+
+        var relative = string.Join('.', segments);
+        return $"@m.xdut.{dutInstName}.{relative}";
     }
 
     private static string FormatTerminalVoltageExpr(BenchTerminalRef terminal)

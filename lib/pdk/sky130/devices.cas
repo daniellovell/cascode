@@ -1,0 +1,334 @@
+VERSION 3.0
+
+library lib.pdk.sky130.devices
+
+// geometry: W=[3.6E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
+primitive NMOS nfet_01v8(size primSize) {
+  device "nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_01v8
+  }
+}
+
+// geometry: W=[4.2E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
+primitive NMOS nfet_01v8_lvt(size primSize) {
+  device "nfet_01v8_lvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_01v8_lvt
+  }
+}
+
+// geometry: W=[4.15E-07..1.0005E-05] L=[4.95E-07..8.05E-07] M=[-..-]
+primitive NMOS nfet_03v3_nvt(size primSize) {
+  device "nfet_03v3_nvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_03v3_nvt
+  }
+}
+
+// geometry: W=[4.15E-07..1.0005E-05] L=[8.95E-07..2.5005E-05] M=[-..-]
+primitive NMOS nfet_05v0_nvt(size primSize) {
+  device "nfet_05v0_nvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_05v0_nvt
+  }
+}
+
+// geometry: W=[4.2E-07..0.0001] L=[5E-07..0.0001] M=[-..-]
+primitive NMOS nfet_g5v0d10v5(size primSize) {
+  device "nfet_g5v0d10v5"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_g5v0d10v5
+  }
+}
+
+// geometry: W=[4.2E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
+primitive PMOS pfet_01v8(size primSize) {
+  device "pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_01v8
+  }
+}
+
+// geometry: W=[3.6E-07..0.0001] L=[1.5E-07..0.0001] M=[-..-]
+primitive PMOS pfet_01v8_hvt(size primSize) {
+  device "pfet_01v8_hvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_01v8_hvt
+  }
+}
+
+// geometry: W=[4.2E-07..0.0001] L=[3.5E-07..0.0001] M=[-..-]
+primitive PMOS pfet_01v8_lvt(size primSize) {
+  device "pfet_01v8_lvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_01v8_lvt
+  }
+}
+
+// geometry: W=[4.2E-07..0.0001] L=[5E-07..0.0001] M=[-..-]
+primitive PMOS pfet_g5v0d10v5(size primSize) {
+  device "pfet_g5v0d10v5"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_g5v0d10v5
+  }
+}
+
+// geometry: W=[5.395E-06..4.0315E-05] L=[1.6E-07..1.85E-07] M=[-..-]
+primitive NMOS esd_nfet_01v8(size primSize) {
+  device "sky130_fd_pr__esd_nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__esd_nfet_01v8
+  }
+}
+
+// geometry: W=[5.395E-06..5.0995E-05] L=[5.45E-07..1.005E-06] M=[-..-]
+primitive NMOS esd_nfet_g5v0d10v5(size primSize) {
+  device "sky130_fd_pr__esd_nfet_g5v0d10v5"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__esd_nfet_g5v0d10v5
+  }
+}
+
+// geometry: W=[1.4495E-05..2.6505E-05] L=[5.45E-07..5.55E-07] M=[-..-]
+primitive PMOS esd_pfet_g5v0d10v5(size primSize) {
+  device "sky130_fd_pr__esd_pfet_g5v0d10v5"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__esd_pfet_g5v0d10v5
+  }
+}
+
+// geometry: W=[1.9995E-05..6.0005E-05] L=[4.95E-07..3.05E-06] M=[-..-]
+primitive NMOS nfet_20v0(size primSize) {
+  device "sky130_fd_pr__nfet_20v0"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS nfet_20v0_iso(size primSize) {
+  device "sky130_fd_pr__nfet_20v0_iso"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS nfet_20v0_nvt(size primSize) {
+  device "sky130_fd_pr__nfet_20v0_nvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS nfet_20v0_reverse_iso(size primSize) {
+  device "sky130_fd_pr__nfet_20v0_reverse_iso"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[1.9995E-05..6.0005E-05] L=[4.95E-07..6.05E-06] M=[-..-]
+primitive NMOS nfet_20v0_zvt(size primSize) {
+  device "sky130_fd_pr__nfet_20v0_zvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS nfet_example_tt(size primSize) {
+  device "sky130_fd_pr__nfet_example_tt"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS nfet_g5v0d16v0(size primSize) {
+  device "sky130_fd_pr__nfet_g5v0d16v0"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = xmain1
+    __op_path1 = msky130_fd_pr__nfet_g5v0d16v0__base
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive NMOS base(size primSize) {
+  device "sky130_fd_pr__nfet_g5v0d16v0__base"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__nfet_g5v0d16v0__base
+  }
+}
+
+// geometry: W=[8.35E-07..1.685E-06] L=[1.45E-07..1.55E-07] M=[-..-]
+primitive PMOS pfet_01v8_mvt(size primSize) {
+  device "sky130_fd_pr__pfet_01v8_mvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_01v8_mvt
+  }
+}
+
+// geometry: W=[1.9995E-05..3.0005E-05] L=[4.95E-07..5.05E-07] M=[-..-]
+primitive PMOS pfet_20v0(size primSize) {
+  device "sky130_fd_pr__pfet_20v0"
+  params {
+    w = primSize.W
+    l = primSize.L
+    m = primSize.M
+    __op_path0 = m1
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive PMOS pfet_example_ff(size primSize) {
+  device "sky130_fd_pr__pfet_example_ff"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive PMOS pfet_g5v0d16v0(size primSize) {
+  device "sky130_fd_pr__pfet_g5v0d16v0"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = xmain1
+    __op_path1 = msky130_fd_pr__pfet_g5v0d16v0__base
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive PMOS base_2(size primSize) {
+  device "sky130_fd_pr__pfet_g5v0d16v0__base"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__pfet_g5v0d16v0__base
+  }
+}
+
+// geometry: W=[2.095E-07..2.105E-07] L=[7.5E-08..1.505E-07] M=[-..-]
+primitive NMOS special_nfet_latch(size primSize) {
+  device "sky130_fd_pr__special_nfet_latch"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__special_nfet_latch
+  }
+}
+
+// geometry: W=[1.395E-07..1.405E-07] L=[7.5E-08..1.505E-07] M=[-..-]
+primitive NMOS special_nfet_pass(size primSize) {
+  device "sky130_fd_pr__special_nfet_pass"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__special_nfet_pass
+  }
+}
+
+// geometry: W=[3.45E-07..4.505E-07] L=[1.49E-07..1.51E-07] M=[-..-]
+primitive NMOS special_nfet_pass_flash(size primSize) {
+  device "sky130_fd_pr__special_nfet_pass_flash"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__special_nfet_pass_flash
+  }
+}
+
+// geometry: W=[2.95E-07..3.05E-07] L=[1.45E-07..1.55E-07] M=[-..-]
+primitive NMOS special_nfet_pass_lvt(size primSize) {
+  device "sky130_fd_pr__special_nfet_pass_lvt"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__special_nfet_pass_lvt
+  }
+}
+
+// geometry: W=[1.395E-07..1.405E-07] L=[2.5E-08..1.505E-07] M=[-..-]
+primitive PMOS special_pfet_pass(size primSize) {
+  device "sky130_fd_pr__special_pfet_pass"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+    __op_path0 = msky130_fd_pr__special_pfet_pass
+  }
+}
+

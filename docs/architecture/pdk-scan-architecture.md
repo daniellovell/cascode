@@ -23,6 +23,26 @@ Emit/bench integration
 
 Emission and bench generation reuse the per-workspace pdk.db produced by pdk scan. When Cascode primitives reference PDK-backed devices via their `device "..."` directive (as opposed to built-in generic devices like `resistor` or `level1_nmos`), the CLI resolves model include paths and the preferred section for the current corner, injects those includes into the emitted netlists, and maps the device to the resolved model or subckt name. This flow never triggers a scan; if the database is missing, the CLI logs a warning and proceeds without PDK includes. For shared cluster runs, perform a single scan in a shared CASCODE_HOME and point jobs at the same workspace path (via --workspace or pdk set-dir) so they reuse the database. Corner selection comes from CASCODE_PDK_CORNER and defaults to tt.
 
+Primitive emission and characterization
+
+`pdk emit primitives` reads models from `pdk.db` and generates a structured PDK primitive library at `lib/pdk/<pdk>/`.
+
+Library layout contract:
+
+```text
+lib/pdk/<pdk>/
+  devices.cas
+  resistors.cas
+  capacitors.cas
+  diodes.cas
+```
+
+Each file declares a file-level namespace under `lib.pdk.<pdk>.*` (for example `lib.pdk.sky130.devices`). Consumers include the full emitted package with `include lib.pdk.<pdk>`.
+
+By default, emission keeps canonical parametric family names and skips fixed-only wrapper families when no parametric representative exists. The command reports skipped fixed-only families. Use `--include-fixed` to include fixed wrapper variants.
+
+`char gen` and `pdk char run` depend on parametric MOS primitives from this emitted library. If a selected model maps only to fixed wrappers and no parametric family representative exists, characterization fails fast with guidance instead of silently skipping the model.
+
 Recommended flow
 
 Set the PDK root (`pdk set-dir` or `--workspace`), run `pdk scan` once for that workspace, then run `emit`, `bench`, or `verify` as needed. Subsequent commands reuse the existing pdk.db and do not rescan.

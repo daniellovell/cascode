@@ -23,23 +23,6 @@ internal sealed class BenchCommandModule : ICommandModule
             new DelegateCliCommand("bench", "Bench and harness commands", ShowBenchUsage)
         );
         registry.Register(
-            new DelegateCliCommand("bench harness", "Harness helpers", ShowBenchHarnessUsage)
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "bench harness list",
-                "List available harnesses",
-                BenchHarnessListCommand
-            )
-        );
-        registry.Register(
-            new DelegateCliCommand(
-                "bench harness show",
-                "Show harness details",
-                BenchHarnessShowCommand
-            )
-        );
-        registry.Register(
             new DelegateCliCommand(
                 "bench run",
                 "Run a bench simulation and emit trace/results",
@@ -51,12 +34,6 @@ internal sealed class BenchCommandModule : ICommandModule
     private CommandResult ShowBenchUsage(string[] args)
     {
         _output.Get().WriteLine("Usage: bench <subcommand>");
-        return CommandResult.Success;
-    }
-
-    private CommandResult ShowBenchHarnessUsage(string[] args)
-    {
-        _output.Get().WriteLine("Usage: bench harness <list|show>");
         return CommandResult.Success;
     }
 
@@ -124,82 +101,6 @@ internal sealed class BenchCommandModule : ICommandModule
         finally
         {
             localFactory?.Dispose();
-        }
-    }
-
-    private CommandResult BenchHarnessListCommand(string[] args)
-    {
-        var output = _output.Get();
-        try
-        {
-            var registry = Cascode.Bench.HarnessService.CreateDefault(_state.WorkspaceRoot);
-            var all = registry.All.OrderBy(h => h.Id, StringComparer.OrdinalIgnoreCase).ToArray();
-            if (all.Length == 0)
-            {
-                output.WriteLine("No harnesses registered.");
-                return CommandResult.Success;
-            }
-            output.WriteLine("Harnesses:");
-            var width = all.Max(h => h.Id.Length);
-            foreach (var h in all)
-            {
-                var backends = string.Join('/', h.SupportedBackends);
-                output.WriteLine($"  {h.Id.PadRight(width)}  {backends}  {h.Description}");
-            }
-            return CommandResult.Success;
-        }
-        catch (Exception ex)
-        {
-            output.Error($"Failed to list harnesses: {ex.Message}");
-            return CommandResult.Failure;
-        }
-    }
-
-    private CommandResult BenchHarnessShowCommand(string[] args)
-    {
-        var output = _output.Get();
-        if (args.Length == 0)
-        {
-            output.WriteLine("Usage: bench harness show <id>");
-            return CommandResult.Success;
-        }
-
-        var id = args[0];
-        try
-        {
-            var registry = Cascode.Bench.HarnessService.CreateDefault(_state.WorkspaceRoot);
-            if (!registry.TryGet(id, out var h))
-            {
-                output.Error("Harness not found.");
-                return CommandResult.Failure;
-            }
-
-            output.WriteLine($"Id: {h.Id}");
-            output.WriteLine($"Description: {h.Description}");
-            output.WriteLine($"Backends: {string.Join(", ", h.SupportedBackends)}");
-            if (h.Params.Count > 0)
-            {
-                output.WriteLine("Params:");
-                var w = h.Params.Max(p => p.Name.Length);
-                foreach (var p in h.Params)
-                {
-                    var choices =
-                        p.Choices is null || p.Choices.Count == 0
-                            ? string.Empty
-                            : $" choices=[{string.Join('/', p.Choices)}]";
-                    var def = p.DefaultValue is null ? string.Empty : $" default={p.DefaultValue}";
-                    var req = p.Required ? " required" : string.Empty;
-                    output.WriteLine(
-                        $"  {p.Name.PadRight(w)}  {p.Type}{req}{def}{choices} — {p.Description}"
-                    );
-                }
-            }
-            return CommandResult.Success;
-        }
-        catch (Exception ex)
-        {
-            output.Error($"Failed to show harness: {ex.Message}");
-            return CommandResult.Failure;
         }
     }
 }

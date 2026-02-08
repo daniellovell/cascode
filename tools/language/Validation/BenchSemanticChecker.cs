@@ -521,6 +521,13 @@ public static class BenchSemanticChecker
             switch (stmt)
             {
                 case BenchVarDecl v:
+                    ValidateBuiltinCalls(
+                        v.Expr,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
                     var exprType = InferExprType(v.Expr, scope, measurementTypes, benchesByName);
                     var declaredType = MeasurementType.FromBenchValueType(v.Type);
                     if (!MeasurementType.CanAssign(declaredType, exprType))
@@ -564,6 +571,13 @@ public static class BenchSemanticChecker
                     break;
 
                 case BenchReturn r:
+                    ValidateBuiltinCalls(
+                        r.Expr,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
                     var returnType = InferExprType(r.Expr, scope, measurementTypes, benchesByName);
                     if (!MeasurementType.CanAssign(expectedReturn, returnType))
                     {
@@ -972,6 +986,8 @@ public static class BenchSemanticChecker
             case "period":
                 // period(Frequency) returns Time
                 return MeasurementType.Time();
+            case "op_param":
+                return MeasurementType.Scalar();
         }
 
         // Allow measurement calls (e.g. LowpassBandwidth() or IntegratedInputNoise(from=..., to=...)).
@@ -988,6 +1004,154 @@ public static class BenchSemanticChecker
 
         // Unknown calls treated as scalar.
         return MeasurementType.Scalar();
+    }
+
+    private static void ValidateBuiltinCalls(
+        MeasurementExpr expr,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        switch (expr)
+        {
+            case MeasurementBinary b:
+                ValidateBuiltinCalls(b.Left, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(b.Right, scope, measurementTypes, benchesByName, diagnostics);
+                return;
+            case MeasurementUnary u:
+                ValidateBuiltinCalls(
+                    u.Operand,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                return;
+            case MeasurementConditional c:
+                ValidateBuiltinCallsInBoolExpr(
+                    c.Condition,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    c.ThenExpr,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    c.ElseExpr,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                return;
+            case MeasurementCall call:
+                ValidateBuiltinCall(call, scope, measurementTypes, benchesByName, diagnostics);
+                foreach (var a in call.Args)
+                {
+                    ValidateBuiltinCalls(
+                        a.Value,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
+                }
+                return;
+            case MeasurementMethodCall m:
+                ValidateBuiltinCalls(
+                    m.Receiver,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                foreach (var a in m.Args)
+                {
+                    ValidateBuiltinCalls(
+                        a.Value,
+                        scope,
+                        measurementTypes,
+                        benchesByName,
+                        diagnostics
+                    );
+                }
+                return;
+        }
+    }
+
+    private static void ValidateBuiltinCallsInBoolExpr(
+        BoolExpr expr,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        switch (expr)
+        {
+            case BoolCompare c:
+                ValidateBuiltinCalls(c.Left, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(c.Right, scope, measurementTypes, benchesByName, diagnostics);
+                break;
+            case BoolTruthy t:
+                ValidateBuiltinCalls(t.Expr, scope, measurementTypes, benchesByName, diagnostics);
+                break;
+        }
+    }
+
+    private static void ValidateBuiltinCall(
+        MeasurementCall call,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (!call.Name.Equals("op_param", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (call.Args.Count != 3)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2008: op_param requires exactly 3 arguments, got {call.Args.Count}.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        var analysisType = InferExprType(
+            call.Args[0].Value,
+            scope,
+            measurementTypes,
+            benchesByName
+        );
+        if (analysisType.Kind != MeasurementTypeKind.DCAnalysis)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2009: op_param first argument must be a DCAnalysis, got '{analysisType}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
     }
 
     private static void ValidateAnalysisParams(
@@ -1379,14 +1543,32 @@ public static class BenchSemanticChecker
                 return left.Kind == right.Kind ? left : Scalar();
             }
 
-            // Multiplication/division with scalar preserves the other type.
-            if (left.Kind == MeasurementTypeKind.Scalar)
+            if (op == "*")
             {
-                return right;
+                // Multiplication with scalar preserves the other type.
+                if (left.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return right;
+                }
+                if (right.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return left;
+                }
             }
-            if (right.Kind == MeasurementTypeKind.Scalar)
+            else if (op == "/")
             {
-                return left;
+                // Division by scalar preserves the numerator's type.
+                if (right.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return left;
+                }
+
+                // Scalar divided by a non-scalar is not representable in this type system.
+                // Fall back to scalar to avoid spurious type errors for common expressions.
+                if (left.Kind == MeasurementTypeKind.Scalar)
+                {
+                    return Scalar();
+                }
             }
 
             // Keep common cases used in the stdlib examples.

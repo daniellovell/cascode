@@ -64,29 +64,15 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.1"
         }
       },
-      "Scriban": {
-        "type": "Transitive",
-        "resolved": "6.5.2",
-        "contentHash": "JXli/Sh1WVZs/pqnPPRJTlwEsZHPJtndzxiaPnrteXDpAqVqHxh4ifhx4puTaYKVMPJUMOp9bnCpEVBpYlt/eQ=="
-      },
-      "YamlDotNet": {
-        "type": "Transitive",
-        "resolved": "13.7.1",
-        "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
-      },
       "cascode.bench": {
-        "type": "Project",
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Scriban": "[6.5.2, )",
-          "YamlDotNet": "[13.7.1, )"
-        }
+        "type": "Project"
       },
       "cascode.language": {
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.4.0, )"
+          "Cascode.Bench": "[0.4.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       }
     }
