@@ -15,7 +15,7 @@ circuit MLLevelExample {
   fill {
     net tnode : analog
 
-    dp = new DiffPair(p=NMOS) {
+    DiffPair dp = new DiffPair(p=NMOS) {
       .IN--IN
       .OUT--OUT
       .BIAS--tnode

@@ -572,7 +572,7 @@ A binding body contains zero or more binding statements:
 |----------------|------|---------|
 | Terminal mapping | `bench.<Terminal>--dut.<Pin>` | Maps a bench terminal onto a DUT terminal |
 | DUT connection | `dut.<Pin>--<pinRef>` | Wires a DUT pin to a local net in the binding scope |
-| Instance declaration | `name = new Type(...) { ... }` | Adds binding-scoped instances (for specialization) |
+| Instance declaration | `Type name = new Type(...) { ... }` | Adds binding-scoped instances (for specialization) |
 
 Mappings and connections use the same `--` wiring operator as `fill {}` blocks. `pinRef` supports
 bundle field access and indices (for example, `IN.P`, `TAP[0]`).

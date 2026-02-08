@@ -54,10 +54,10 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp {
   input VBP2 : bias
   input VTAIL : bias
   fill {
-    dp = new DiffPair(InputPair=size(W=4u, L=500n, M=1), Tail=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
-    nl = new LoadPair_N(Cascode=size(W=4u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
-    pl1 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
-    pl2 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    DiffPair dp = new DiffPair(InputPair=size(W=4u, L=500n, M=1), Tail=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    LoadPair_N nl = new LoadPair_N(Cascode=size(W=4u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    LoadPair_P pl1 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
+    LoadPair_P pl2 = new LoadPair_P(Cascode=size(W=8u, L=500n, M=1)) { .GND--GND, .VDD--VDD }
 
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach pl2 to pl1 to nl via LoadPairLike::LoadPairLike as p_stack

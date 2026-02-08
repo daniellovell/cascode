@@ -48,14 +48,14 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   output OUT : analog
   input VTAIL : bias
   fill {
-    dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    DiffPair_Pdk dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
       .OUT.P--OUT
       .TAIL--VTAIL
     }
-    cm = new CurrentMirror_Pdk(ratio=1) {
+    CurrentMirror_Pdk cm = new CurrentMirror_Pdk(ratio=1) {
       .GND--GND
       .VDD--VDD
       // TAP[0]--OUT intentionally omitted - covered by attach statement below

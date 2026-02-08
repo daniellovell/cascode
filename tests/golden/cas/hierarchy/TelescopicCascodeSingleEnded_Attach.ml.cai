@@ -71,10 +71,10 @@ circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp {
   input VBN : bias
   input VTAIL : bias
   fill {
-    dp = new DiffPair { .GND--GND, .VDD--VDD }
-    nl = new LoadPair_N { .GND--GND, .VDD--VDD }
-    cm_lo = new CurrentMirror_P { .GND--GND, .VDD--VDD }
-    cm_hi = new CurrentMirror_P { .GND--GND, .VDD--VDD }
+    DiffPair dp = new DiffPair { .GND--GND, .VDD--VDD }
+    LoadPair_N nl = new LoadPair_N { .GND--GND, .VDD--VDD }
+    CurrentMirror_P cm_lo = new CurrentMirror_P { .GND--GND, .VDD--VDD }
+    CurrentMirror_P cm_hi = new CurrentMirror_P { .GND--GND, .VDD--VDD }
 
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach cm_lo to nl via CurrentMirrorLike::LoadPairLike as mirror_lo

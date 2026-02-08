@@ -312,7 +312,7 @@ fillBlock
     ;
 
 instanceDecl
-    : (declaredType=IDENT)? instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
+    : declaredType=IDENT instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
     ;
 
 instanceTypeName
