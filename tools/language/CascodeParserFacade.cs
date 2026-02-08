@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Antlr4.Runtime;
 using Cascode.Language.Validation;
 
@@ -64,10 +65,19 @@ public static class CascodeParserFacade
                 parsed = BundleDesugarer.Desugar(parsed);
             }
 
-            // Bench binding extensions require a complete document (no includes) to resolve.
-            if (parsed.Includes.Count == 0)
+            // Bench inheritance and binding extensions require a complete document (no includes) to resolve.
+            // Syntax-only parses used by the linker must preserve raw benches.
+            var runBenchTransforms =
+                options.RunBenchSemanticChecks || options.RunBenchBindingChecksWhenNoIncludes;
+            if (runBenchTransforms && parsed.Includes.Count == 0)
             {
+                parsed = BenchInheritanceResolver.Resolve(parsed, diagnostics);
                 parsed = BenchBindingExtender.Apply(parsed, diagnostics);
+            }
+
+            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                return new CascodeReadResult { Document = parsed, Diagnostics = diagnostics };
             }
 
             if (options.RunBenchSemanticChecks)

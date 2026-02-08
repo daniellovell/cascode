@@ -145,12 +145,28 @@ public static class CascodeWriter
                         )
                     )
                     + ")";
-        writer.WriteLine($"bench {bench.Name}{paramSig} {{");
+        var abstractPrefix = bench.IsAbstract ? "abstract " : string.Empty;
+        var extendsClause = string.IsNullOrWhiteSpace(bench.BaseBench)
+            ? string.Empty
+            : $" extends {bench.BaseBench}";
+        writer.WriteLine($"{abstractPrefix}bench {bench.Name}{paramSig}{extendsClause} {{");
 
         foreach (var t in bench.Terminals.OrderBy(t => t.Name, StringComparer.Ordinal))
         {
             var role = t.Role == BenchTerminalRole.Stim ? "stim" : "resp";
-            writer.WriteLine($"  {role} {t.Name} : {t.Type}");
+            if (t.IsAbstract)
+            {
+                var abstractTypeSuffix = t.Type is null ? string.Empty : $" : {t.Type}";
+                writer.WriteLine($"  abstract {role} {t.Name}{abstractTypeSuffix}");
+            }
+            else if (t.Type is null)
+            {
+                writer.WriteLine($"  {role} {t.Name}");
+            }
+            else
+            {
+                writer.WriteLine($"  {role} {t.Name} : {t.Type}");
+            }
         }
 
         if (bench.Fill is not null)
@@ -167,7 +183,8 @@ public static class CascodeWriter
 
         if (bench.Analyses.Count > 0)
         {
-            writer.WriteLine("  analysis {");
+            var analysisPrefix = bench.OverrideAnalysis ? "override " : string.Empty;
+            writer.WriteLine($"  {analysisPrefix}analysis {{");
             foreach (var analysis in bench.Analyses.OrderBy(a => a.Name, StringComparer.Ordinal))
             {
                 WriteAnalysisDeclaration(analysis, writer, indent: "    ");
@@ -449,7 +466,7 @@ public static class CascodeWriter
         }
 
         var argList = args.Count > 0 ? $"({string.Join(", ", args)})" : string.Empty;
-        writer.WriteLine($"{indent}{inst.Id} = new {inst.Type}{argList} {{");
+        writer.WriteLine($"{indent}{inst.Type} {inst.Id} = new {inst.Type}{argList} {{");
         var bindIndent = indent + "  ";
         foreach (var binding in inst.Bindings.OrderBy(b => b.Key, StringComparer.Ordinal))
         {
@@ -744,7 +761,8 @@ public static class CascodeWriter
                 ? measurement.Name
                 : $"{measurement.Name}({paramText})";
 
-        writer.WriteLine($"{indent}measurement {sig} : {measurement.Unit} {{");
+        var overridePrefix = measurement.IsOverride ? "override " : string.Empty;
+        writer.WriteLine($"{indent}{overridePrefix}measurement {sig} : {measurement.Unit} {{");
         foreach (var stmt in measurement.Body)
         {
             WriteBenchStatement(stmt, writer, indent: indent + "  ");

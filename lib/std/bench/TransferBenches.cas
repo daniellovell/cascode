@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 library lib.std.bench
 
@@ -78,8 +78,46 @@ function calc_highpass_bandwidth(ACAnalysis ac, stim IN, resp OUT, Frequency lpC
   return G.FindCrossing(thr, dir=rising, cross=1, from=ac.start, to=fpb)
 }
 
-// TODO: We should support bench templates/abstract benches in the future
-bench DiffToSETransfer {
+abstract bench AbstractTransfer {
+  abstract stim IN
+  abstract resp OUT
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement PassbandGain : dB {
+      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement GainBandwidth : Hz {
+      return calc_gain_bandwidth(ac, IN, OUT)
+    }
+
+    measurement PhaseMargin : deg {
+      return calc_phase_margin(ac, IN, OUT)
+    }
+
+    measurement LowpassBandwidth : Hz {
+      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement HighpassBandwidth : Hz {
+      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement BandpassBandwidth : Hz {
+      return abs(LowpassBandwidth() - HighpassBandwidth())
+    }
+  }
+}
+
+bench DiffToSETransfer extends AbstractTransfer {
   stim IN : Diff
   resp OUT : analog
 
@@ -117,45 +155,9 @@ bench DiffToSETransfer {
       .N--gnd
     }
   }
-
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement PassbandGain : dB {
-      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement GainBandwidth : Hz {
-      return calc_gain_bandwidth(ac, IN, OUT)
-    }
-
-    measurement PhaseMargin : deg {
-      return calc_phase_margin(ac, IN, OUT)
-    }
-
-    measurement LowpassBandwidth : Hz {
-      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement HighpassBandwidth : Hz {
-      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement BandpassBandwidth : Hz {
-      return abs(LowpassBandwidth() - HighpassBandwidth())
-    }
-  }
 }
 
-
-bench DiffToDiffTransfer {
+bench DiffToDiffTransfer extends AbstractTransfer {
   stim IN : Diff
   resp OUT : Diff
 
@@ -197,44 +199,9 @@ bench DiffToDiffTransfer {
       .N--gnd
     }
   }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement PassbandGain : dB {
-      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement GainBandwidth : Hz {
-      return calc_gain_bandwidth(ac, IN, OUT)
-    }
-
-    measurement PhaseMargin : deg {
-      return calc_phase_margin(ac, IN, OUT)
-    }
-
-    measurement LowpassBandwidth : Hz {
-      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement HighpassBandwidth : Hz {
-      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement BandpassBandwidth : Hz {
-      return abs(LowpassBandwidth() - HighpassBandwidth())
-    }
-  }
 }
 
-
-bench SEToSETransfer {
+bench SEToSETransfer extends AbstractTransfer {
   stim IN : analog
   resp OUT : analog
 
@@ -265,6 +232,11 @@ bench SEToSETransfer {
       .N--gnd
     }
   }
+}
+
+abstract bench AbstractCMRejection {
+  abstract stim CM
+  abstract resp OUT
 
   analysis {
     ACAnalysis ac = new ACAnalysis(
@@ -275,33 +247,18 @@ bench SEToSETransfer {
   }
 
   measurements {
-    measurement PassbandGain : dB {
-      return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    measurement CommonModeGain : dB {
+      return calc_passband_gain(ac, CM, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }
 
-    measurement GainBandwidth : Hz {
-      return calc_gain_bandwidth(ac, IN, OUT)
-    }
-
-    measurement PhaseMargin : deg {
-      return calc_phase_margin(ac, IN, OUT)
-    }
-
-    measurement LowpassBandwidth : Hz {
-      return calc_lowpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement HighpassBandwidth : Hz {
-      return calc_highpass_bandwidth(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement BandpassBandwidth : Hz {
-      return abs(LowpassBandwidth() - HighpassBandwidth())
+    measurement CMRR(VoltageRatio dmGain) : dB {
+      VoltageRatio cmGain = CommonModeGain()
+      return (dmGain - cmGain)
     }
   }
 }
 
-bench DiffCMRejection {
+bench DiffCMRejection extends AbstractCMRejection {
   stim CM : analog
   resp OUT : Diff
 
@@ -336,25 +293,6 @@ bench DiffCMRejection {
       .N--gnd
     }
   }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement CommonModeGain : dB {
-      return calc_passband_gain(ac, CM, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement CMRR(VoltageRatio dmGain) : dB {
-      VoltageRatio cmGain = CommonModeGain()
-      return (dmGain - cmGain)
-    }
-  }
 }
 
 // Common-mode rejection bench for differential-input / single-ended-output amplifiers.
@@ -362,7 +300,7 @@ bench DiffCMRejection {
 // Applies a common-mode signal to both differential inputs (inputs tied together) and measures the
 // resulting single-ended output. CommonModeGain is the CM-to-out gain (Acm).
 // CMRR takes the differential gain as a parameter and computes CMRR = Ad - Acm (in dB).
-bench DiffToSECMRejection {
+bench DiffToSECMRejection extends AbstractCMRejection {
   stim CM : analog
   resp OUT : analog
 
@@ -386,25 +324,6 @@ bench DiffToSECMRejection {
     Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
       .P--OUT
       .N--gnd
-    }
-  }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement CommonModeGain : dB {
-      return calc_passband_gain(ac, CM, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement CMRR(VoltageRatio dmGain) : dB {
-      VoltageRatio cmGain = CommonModeGain()
-      return (dmGain - cmGain)
     }
   }
 }

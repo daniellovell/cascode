@@ -19,6 +19,18 @@ public static class BenchSemanticChecker
 
         foreach (var bench in document.BenchDefinitions)
         {
+            // Bench inheritance resolver removes extends/base relationships and abstract benches
+            // from linked documents. For partial source documents (with includes), skip benches
+            // that are not fully concrete to avoid type-checking placeholders.
+            if (
+                bench.IsAbstract
+                || bench.BaseBench is not null
+                || bench.Terminals.Any(t => t.Type is null)
+            )
+            {
+                continue;
+            }
+
             CheckBenchDefinition(bench, benchesByName, globalFunctions, diagnostics);
         }
     }
@@ -40,7 +52,7 @@ public static class BenchSemanticChecker
 
         foreach (var terminal in bench.Terminals)
         {
-            if (!scope.TryAddValue(terminal.Name, MeasurementType.Terminal(terminal.Type)))
+            if (!scope.TryAddValue(terminal.Name, MeasurementType.Terminal(terminal.Type!)))
             {
                 diagnostics.Add(
                     new Diagnostic(

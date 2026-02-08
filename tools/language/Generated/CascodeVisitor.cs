@@ -151,6 +151,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBenchBody([NotNull] CascodeParser.BenchBodyContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.benchMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBenchMember([NotNull] CascodeParser.BenchMemberContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.terminalDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

@@ -411,8 +411,18 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Builds an instance declaration with parameters and bindings.</summary>
     private InstanceDeclaration BuildInstance(CascodeParser.InstanceDeclContext ctx)
     {
+        var declaredType = ctx.declaredType.Text;
         var id = ctx.instanceId.Text;
         var type = ctx.instanceTypeName().GetText();
+
+        if (!declaredType.Equals(type, StringComparison.Ordinal))
+        {
+            AddDiagnostic(
+                ctx,
+                DiagnosticSeverity.Error,
+                $"CAS0036: Instance '{id}' declares type '{declaredType}' but constructs '{type}'. The declared and constructor types must match exactly."
+            );
+        }
 
         var bindings = ctx.bindingBlock() is null
             ? new Dictionary<string, string>()

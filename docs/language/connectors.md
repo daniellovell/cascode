@@ -82,8 +82,8 @@ Applying the connector in a circuit fill block:
 
 ```cascode
 fill {
-  dp = new DiffPair(...) { .OUT--OUT /* ... */ }
-  cm = new CurrentMirror(...) { /* ... */ }
+  DiffPair dp = new DiffPair(...) { .OUT--OUT /* ... */ }
+  CurrentMirror cm = new CurrentMirror(...) { /* ... */ }
   attach cm to dp via CurrentMirrorLike::DiffPairLike
 }
 ```

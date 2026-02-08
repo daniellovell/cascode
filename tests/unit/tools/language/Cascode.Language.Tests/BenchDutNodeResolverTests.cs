@@ -14,7 +14,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.0
+            VERSION 3.1
 
             circuit Leaf {
               level EL
@@ -24,14 +24,14 @@ public sealed class BenchDutNodeResolverTests
             circuit Mid {
               level EL
               fill {
-                inst = new Leaf() { }
+                Leaf inst = new Leaf() { }
               }
             }
 
             circuit Top {
               level EL
               fill {
-                mid = new Mid() { }
+                Mid mid = new Mid() { }
               }
             }
             """
@@ -49,7 +49,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.0
+            VERSION 3.1
 
             circuit InlineLeaf {
               level EL
@@ -60,14 +60,14 @@ public sealed class BenchDutNodeResolverTests
             circuit Mid {
               level EL
               fill {
-                inl = new InlineLeaf() { }
+                InlineLeaf inl = new InlineLeaf() { }
               }
             }
 
             circuit Top {
               level EL
               fill {
-                mid = new Mid() { }
+                Mid mid = new Mid() { }
               }
             }
             """
@@ -89,7 +89,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.0
+            VERSION 3.1
 
             circuit NonInlineLeaf {
               level EL
@@ -100,14 +100,14 @@ public sealed class BenchDutNodeResolverTests
               level EL
               inline
               fill {
-                ni = new NonInlineLeaf() { }
+                NonInlineLeaf ni = new NonInlineLeaf() { }
               }
             }
 
             circuit Top {
               level EL
               fill {
-                inl = new InlineHost() { }
+                InlineHost inl = new InlineHost() { }
               }
             }
             """
@@ -125,7 +125,7 @@ public sealed class BenchDutNodeResolverTests
     {
         var doc = Read(
             """
-            VERSION 3.0
+            VERSION 3.1
 
             circuit Leaf {
               level EL
@@ -134,7 +134,7 @@ public sealed class BenchDutNodeResolverTests
 
             circuit Top {
               level EL
-              fill { inst = new Leaf() { } }
+              fill { Leaf inst = new Leaf() { } }
             }
             """
         );

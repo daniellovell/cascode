@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 library lib.std.bench
 
@@ -18,12 +18,40 @@ bench QuiescentPower {
   }
 }
 
+abstract bench AbstractPSRR {
+  abstract stim IN
+  stim PWR : supply
+  abstract resp OUT
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement SupplyGain : dB {
+      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
+    }
+
+    measurement PSRR : dB {
+      return -SupplyGain()
+    }
+
+    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
+      return (dmGain - SupplyGain())
+    }
+  }
+}
+
 // Power supply rejection ratio (PSRR) bench for single-ended output amplifiers.
 //
 // Applies AC ripple to the supply rail and measures the resulting output perturbation.
 // SupplyGain is the supply-to-output gain (Asupply). PSRR is output-referred PSRR
 // (does not depend on amplifier gain). InputReferredPSRR is gain-normalized PSRR.
-bench SupplyToSERejection {
+bench SupplyToSERejection extends AbstractPSRR {
   stim IN : Diff
   stim PWR : supply
   resp OUT : analog
@@ -68,28 +96,6 @@ bench SupplyToSERejection {
       .N--gnd
     }
   }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement SupplyGain : dB {
-      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement PSRR : dB {
-      return -SupplyGain()
-    }
-
-    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
-      return (dmGain - SupplyGain())
-    }
-  }
 }
 
 // Power supply rejection ratio (PSRR) bench for single-ended input / single-ended output amplifiers.
@@ -97,7 +103,7 @@ bench SupplyToSERejection {
 // Applies AC ripple to the supply rail and measures the resulting output perturbation.
 // SupplyGain is the supply-to-output gain (Asupply). PSRR is output-referred PSRR
 // (does not depend on amplifier gain). InputReferredPSRR is gain-normalized PSRR.
-bench SupplyToSERejectionSEInput {
+bench SupplyToSERejectionSEInput extends AbstractPSRR {
   stim IN : analog
   stim PWR : supply
   resp OUT : analog
@@ -137,28 +143,6 @@ bench SupplyToSERejectionSEInput {
       .N--gnd
     }
   }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement SupplyGain : dB {
-      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement PSRR : dB {
-      return -SupplyGain()
-    }
-
-    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
-      return (dmGain - SupplyGain())
-    }
-  }
 }
 
 // Power supply rejection ratio (PSRR) bench for fully-differential output amplifiers.
@@ -166,7 +150,7 @@ bench SupplyToSERejectionSEInput {
 // Applies AC ripple to the supply rail and measures the resulting differential output perturbation.
 // SupplyGain is the supply-to-output gain (Asupply). PSRR is output-referred PSRR
 // (does not depend on amplifier gain). InputReferredPSRR is gain-normalized PSRR.
-bench SupplyToDiffRejection {
+bench SupplyToDiffRejection extends AbstractPSRR {
   stim IN : Diff
   stim PWR : supply
   resp OUT : Diff
@@ -215,27 +199,4 @@ bench SupplyToDiffRejection {
       .N--gnd
     }
   }
-
-  analysis {
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-  }
-
-  measurements {
-    measurement SupplyGain : dB {
-      return calc_passband_gain(ac, PWR, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
-    }
-
-    measurement PSRR : dB {
-      return -SupplyGain()
-    }
-
-    measurement InputReferredPSRR(VoltageRatio dmGain) : dB {
-      return (dmGain - SupplyGain())
-    }
-  }
 }
-
