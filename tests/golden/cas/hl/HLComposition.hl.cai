@@ -70,13 +70,13 @@ circuit MyReceiver {
   slot {
     net mid : analog
 
-    lna = new MyLNA(stages=2) {
+    Some lna = new MyLNA(stages=2) {
       .VDD--VDD
       .GND--GND
       .IN--RF_IN
       .OUT--mid
     }
-    mixer = new MyMixer() {
+    Some mixer = new MyMixer() {
       .VDD--VDD
       .GND--GND
       .RF--mid

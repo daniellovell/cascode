@@ -1,14 +1,19 @@
 VERSION 3.0
 
-// Sensor Frontend PCB: Wheatstone bridge pressure sensor with analog signal
-// conditioning, 16-bit ADC, and MCU. Exercises the part construct, specs system,
-// bus bundles, channel sub-bundles, and unified bench + spec constraints proposed
-// in RFC-0005.
+// Sensor Frontend PCB example for RFC-0005.
+// Demonstrates:
+// - part declarations with implements and mpn
+// - interface metric contracts (declaration-only)
+// - channel sub-interfaces (SingleEndedOpAmp channels on DualOpAmp)
+// - metric providers from benches and parts
+// - alias-only metric forwarding in wrappers
+// - unified metric-based constraints
+// - env propagation from downstream metric values
 
-include lib.std
+include lib.pcb
 
 // ============================================================================
-// Bus Bundles
+// Bus Bundles (normally sourced from lib.pcb)
 // ============================================================================
 
 bundle I2C {
@@ -26,28 +31,36 @@ bundle SWD {
   SWCLK : clock
 }
 
-bundle OpAmpChannel {
-  INP : analog
-  INN : analog
-  OUT : analog
+// ============================================================================
+// Channel Interfaces (normally sourced from lib.pcb)
+// ============================================================================
+
+interface SingleEndedOpAmp {
+  input INP : analog
+  input INN : analog
+  output OUT : analog
 }
 
 // ============================================================================
-// Part Declarations
+// Parts (normally sourced from lib.pcb.parts.* namespaces)
 // ============================================================================
 
-// Dual rail-to-rail opamp, has manufacturer SPICE model
-part OpAmp OPA2376 {
-  device "OPA2376AIDDBVR"
+part OPA2376 implements DualOpAmp {
+  mpn "OPA2376AIDDBVR"
   package "VSSOP-8"
   spice "OPA2376"
 
-  channel A : OpAmpChannel
-  channel B : OpAmpChannel
+  pricing {
+    option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
+    option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
+  }
+
+  channel A : SingleEndedOpAmp
+  channel B : SingleEndedOpAmp
   supply VDD
   ground GND
 
-  specs {
+  metrics {
     GBW = 5.5MHz
     InputOffsetVoltage = 25uV
     CMRR = 114dB
@@ -56,13 +69,18 @@ part OpAmp OPA2376 {
     SupplyVoltageMin = 2.2V
     SupplyVoltageMax = 5.5V
     SupplyCurrentMax = 285uA
+    RecommendedLoadCapacitance = 100pF
   }
 }
 
-// 16-bit sigma-delta I2C ADC, no SPICE model
-part ADC ADS1115 {
-  device "ADS1115IDGSR"
+part ADS1115 implements ADCSubsystem {
+  mpn "ADS1115IDGSR"
   package "MSOP-10"
+
+  pricing {
+    option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
+    option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
+  }
 
   input AIN0 : analog
   input AIN1 : analog
@@ -75,7 +93,7 @@ part ADC ADS1115 {
   supply VDD
   ground GND
 
-  specs {
+  metrics {
     Resolution = 16 bits
     MaxSampleRate = 860 SPS
     INL = 0.5 LSB
@@ -84,13 +102,18 @@ part ADC ADS1115 {
     SupplyVoltageMax = 5.5V
     SupplyCurrentMax = 200uA
     InputLeakageCurrent = 10nA
+    InputCapacitance = 14pF
   }
 }
 
-// ARM Cortex-M0+ MCU, no SPICE model
-part MCU STM32G031K8 {
-  device "STM32G031K8T6"
+part STM32G031K8 implements ControllerSubsystem {
+  mpn "STM32G031K8T6"
   package "LQFP-32"
+
+  pricing {
+    option { provider = "DigiKey" sku = "497-19521-ND" priority = 10 }
+    option { provider = "Mouser" sku = "511-STM32G031K8T6" priority = 20 }
+  }
 
   io PA[0:15] : digital
   io PB[0:9] : digital
@@ -100,7 +123,7 @@ part MCU STM32G031K8 {
   input NRST : digital
   input BOOT0 : digital
 
-  specs {
+  metrics {
     CoreClock = 64MHz
     FlashSize = 64kB
     RAMSize = 8kB
@@ -110,59 +133,85 @@ part MCU STM32G031K8 {
   }
 }
 
-// Parameterized passive families
-part Resistor R_0402(real R) {
-  device "generic_0402_1pct"
+part R_0402(real R) implements Resistor {
+  mpn "RES-0402-1PCT"
   package "0402"
+
+  pricing {
+    option { provider = "DigiKey" sku = "RES-0402-1PCT" priority = 10 }
+    option { provider = "Mouser" sku = "RES-0402-1PCT" priority = 20 }
+  }
+
   io P : analog
   io N : analog
+
   params { R = R }
-  specs {
+
+  metrics {
     Tolerance = 1pct
     PowerRating = 63mW
     VoltageRating = 50V
   }
 }
 
-part Capacitor C_0402(real C) {
-  device "generic_0402_X7R"
+part C_0402(real C) implements Capacitor {
+  mpn "CAP-0402-X7R"
   package "0402"
+
+  pricing {
+    option { provider = "DigiKey" sku = "CAP-0402-X7R" priority = 10 }
+    option { provider = "Mouser" sku = "CAP-0402-X7R" priority = 20 }
+  }
+
   io P : analog
   io N : analog
+
   params { C = C }
-  specs {
+
+  metrics {
     Tolerance = 10pct
     VoltageRating = 16V
   }
 }
 
 // ============================================================================
-// Interfaces
+// Interface Contracts (metrics declaration only)
 // ============================================================================
 
-// Analog signal conditioning block: differential sensor input to clean SE output.
-// Bench-driven (simulable via opamp SPICE model).
 interface SensorConditioner {
   supply VDD
   ground GND
   input SENSOR_IN : Diff
   output SIGNAL_OUT : analog
 
+  metrics {
+    PassbandGain : dB
+    LowpassBandwidth : Hz
+    IntegratedInputNoise : Vrms
+  }
+
   benches {
     bind DiffToSETransfer as transfer_bench {
       bench.IN--dut.SENSOR_IN
       bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        PassbandGain = transfer_bench::PassbandGain
+        LowpassBandwidth = transfer_bench::LowpassBandwidth
+      }
     }
 
     bind DiffToSENoise as noise_bench {
       bench.IN--dut.SENSOR_IN
       bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        IntegratedInputNoise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz)
+      }
     }
   }
 }
 
-// ADC subsystem: analog input, I2C bus, data-ready interrupt.
-// Spec-driven (no SPICE model).
 interface ADCSubsystem {
   supply VDD
   ground GND
@@ -170,14 +219,13 @@ interface ADCSubsystem {
   io BUS : I2C
   output DRDY : digital
 
-  specs {
-    Resolution = 16 bits
-    MaxSampleRate = 860 SPS
+  metrics {
+    Resolution : bits
+    MaxSampleRate : SPS
+    InputCapacitance : F
   }
 }
 
-// MCU subsystem: peripheral bus, interrupt input, debug and programming ports.
-// Spec-driven (no SPICE model).
 interface ControllerSubsystem {
   supply VDD
   ground GND
@@ -186,14 +234,14 @@ interface ControllerSubsystem {
   output DEBUG : UART
   io PROG : SWD
 
-  specs {
-    FlashSize = 64kB
-    CoreClock = 64MHz
+  metrics {
+    FlashSize : B
+    CoreClock : Hz
   }
 }
 
 // ============================================================================
-// HL Composition: System Architecture
+// HL Composition
 // ============================================================================
 
 circuit SensorFrontendPCB {
@@ -209,16 +257,8 @@ circuit SensorFrontendPCB {
     net i2c_bus : I2C
     net drdy : digital
 
-    // Analog signal conditioning: bridge sensor to clean analog
-    frontend = new WheatstoneAmplifier() {
-      .VDD--VDD_3V3
-      .GND--GND
-      .SENSOR_IN--SENSOR
-      .SIGNAL_OUT--conditioned
-    }
-
-    // ADC: analog to digital via I2C
-    adc = new ADCStage() {
+    // Resolve the ADC first so its metrics can drive analog bench environment.
+    ADCSubsystem adc = new ADCStage() {
       .VDD--VDD_3V3
       .GND--GND
       .AIN--conditioned
@@ -226,8 +266,14 @@ circuit SensorFrontendPCB {
       .DRDY--drdy
     }
 
-    // MCU: reads ADC, outputs debug
-    mcu = new Controller() {
+    SensorConditioner frontend = new WheatstoneAmplifier(load_cap=adc::InputCapacitance) {
+      .VDD--VDD_3V3
+      .GND--GND
+      .SENSOR_IN--SENSOR
+      .SIGNAL_OUT--conditioned
+    }
+
+    ControllerSubsystem mcu = new Controller() {
       .VDD--VDD_3V3
       .GND--GND
       .PERIPH--i2c_bus
@@ -239,18 +285,16 @@ circuit SensorFrontendPCB {
 
   constraints {
     numeric {
-      // Analog path: bench-derived (simulable via opamp SPICE model)
-      c_bw    = frontend.transfer_bench::LowpassBandwidth >= 10kHz
-      c_gain  = frontend.transfer_bench::PassbandGain >= 40dB
-      c_noise = frontend.noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz) <= 1uVrms
+      // Simulable analog chain expressed through interface metrics.
+      c_bw = frontend::LowpassBandwidth >= 10kHz
+      c_gain = frontend::PassbandGain >= 40dB
+      c_noise = frontend::IntegratedInputNoise <= 1uVrms
 
-      // ADC: spec-derived (datasheet)
-      c_adc_res  = adc.specs::Resolution >= 16 bits
-      c_adc_rate = adc.specs::MaxSampleRate >= 128 SPS
-
-      // MCU: spec-derived (datasheet)
-      c_mcu_flash = mcu.specs::FlashSize >= 64kB
-      c_mcu_clock = mcu.specs::CoreClock >= 48MHz
+      // Datasheet-driven digital blocks through forwarded metrics.
+      c_adc_res = adc::Resolution >= 16 bits
+      c_adc_rate = adc::MaxSampleRate >= 128 SPS
+      c_mcu_flash = mcu::FlashSize >= 64kB
+      c_mcu_clock = mcu::CoreClock >= 48MHz
     }
   }
 
@@ -261,27 +305,22 @@ circuit SensorFrontendPCB {
 }
 
 // ============================================================================
-// EL Implementation: Analog Frontend (Wheatstone Bridge Amplifier)
+// EL Implementation: Analog Frontend
 // ============================================================================
-//
-// Topology: difference amplifier using channel A of OPA2376 with precision
-// resistor network for gain = R_F/R_G = 100k/1k = 100 (40dB), followed by
-// a first-order RC anti-alias filter. Channel B buffers a mid-rail reference
-// voltage for the difference amplifier's ground reference.
-//
-// The opamp has a SPICE model so this block is fully simulable via benches.
 
-circuit WheatstoneAmplifier implements SensorConditioner {
+circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
   level EL
   supply VDD
   ground GND
   input SENSOR_IN : Diff
   output SIGNAL_OUT : analog
 
+  // load_cap is expected to come from downstream ADC input capacitance.
+  // If metric resolution fails at composition time, validation must fail hard.
   env {
     InputCommonModeRange = 1.65V
     SourceImpedance = 1kOhm
-    LoadImpedance = (10GOhm || 10pF)
+    LoadImpedance = (10GOhm || load_cap)
   }
 
   fill {
@@ -289,7 +328,6 @@ circuit WheatstoneAmplifier implements SensorConditioner {
     net vref : analog
     net fb_a : analog
 
-    // Mid-rail reference: resistive divider + buffer (channel B)
     Resistor R_DIV1 = new R_0402(R=100k) {
       .P--VDD
       .N--vref
@@ -303,22 +341,19 @@ circuit WheatstoneAmplifier implements SensorConditioner {
       .N--GND
     }
 
-    // Dual opamp
-    OpAmp U1 = new OPA2376() {
-      // Channel A: difference amplifier
+    DualOpAmp U1 = new OPA2376() {
       .A.INP--SENSOR_IN.P
       .A.INN--fb_a
       .A.OUT--stage1_out
-      // Channel B: reference buffer (unity gain)
+
       .B.INP--vref
       .B.INN--U1.B.OUT
       .B.OUT--vref
+
       .VDD--VDD
       .GND--GND
     }
 
-    // Gain network for channel A: difference amplifier configuration
-    // Gain = R_F / R_G = 100k / 1k = 100 (40dB)
     Resistor R_G = new R_0402(R=1k) {
       .P--SENSOR_IN.N
       .N--fb_a
@@ -328,8 +363,6 @@ circuit WheatstoneAmplifier implements SensorConditioner {
       .N--fb_a
     }
 
-    // Anti-alias filter: 1st-order RC lowpass
-    // f_c = 1/(2*pi*R*C) = 1/(2*pi*1k*15n) ~ 10.6kHz
     Resistor R_AA = new R_0402(R=1k) {
       .P--stage1_out
       .N--SIGNAL_OUT
@@ -339,18 +372,40 @@ circuit WheatstoneAmplifier implements SensorConditioner {
       .N--GND
     }
 
-    // Opamp supply bypass
     Capacitor C_BYP = new C_0402(C=100n) {
       .P--VDD
       .N--GND
     }
   }
 
+  benches {
+    // Additional local bench-derived metric beyond the interface minimum.
+    bind DiffToSECMRejection as cmrr_bench {
+      bench.CM--dut.SENSOR_IN.P
+      bench.CM--dut.SENSOR_IN.N
+      bench.OUT--dut.SIGNAL_OUT
+
+      metrics {
+        CMRR = cmrr_bench::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
+  }
+
+  metrics {
+    PassbandGain = transfer_bench::PassbandGain
+    LowpassBandwidth = transfer_bench::LowpassBandwidth
+    IntegratedInputNoise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz)
+
+    // Extra implementation metric not required by SensorConditioner.
+    CMRR = cmrr_bench::CMRR(dmGain=transfer_bench::PassbandGain)
+  }
+
   constraints {
     numeric {
-      c_bw   = transfer_bench::LowpassBandwidth >= 10kHz
-      c_gain = transfer_bench::PassbandGain >= 38dB
-      c_noise = noise_bench::IntegratedInputNoise(from=1Hz, to=10kHz) <= 1uVrms
+      c_bw = metrics::LowpassBandwidth >= 10kHz
+      c_gain = metrics::PassbandGain >= 38dB
+      c_noise = metrics::IntegratedInputNoise <= 1uVrms
+      c_cmrr = metrics::CMRR >= 20dB
     }
   }
 
@@ -361,12 +416,8 @@ circuit WheatstoneAmplifier implements SensorConditioner {
 }
 
 // ============================================================================
-// EL Implementation: ADC Stage
+// EL Implementation: ADC Wrapper (alias-only metric forwarding)
 // ============================================================================
-//
-// ADS1115 in single-ended mode (AIN0 vs GND), I2C address 0x48 (ADDR=GND).
-// I2C bus pull-ups, bulk and ceramic bypass caps.
-// No SPICE model: constrained entirely through specs.
 
 circuit ADCStage implements ADCSubsystem {
   level EL
@@ -376,13 +427,8 @@ circuit ADCStage implements ADCSubsystem {
   io BUS : I2C
   output DRDY : digital
 
-  specs {
-    Resolution = 16 bits
-    MaxSampleRate = 860 SPS
-  }
-
   fill {
-    ADC U_ADC = new ADS1115() {
+    ADCSubsystem U_ADC = new ADS1115() {
       .AIN0--AIN
       .AIN1--GND
       .AIN2--GND
@@ -395,7 +441,6 @@ circuit ADCStage implements ADCSubsystem {
       .GND--GND
     }
 
-    // I2C pull-ups (sized for 400kHz fast mode at 3.3V)
     Resistor R_SDA = new R_0402(R=4.7k) {
       .P--VDD
       .N--BUS.SDA
@@ -405,7 +450,6 @@ circuit ADCStage implements ADCSubsystem {
       .N--BUS.SCL
     }
 
-    // Bypass capacitors
     Capacitor C_VDD = new C_0402(C=100n) {
       .P--VDD
       .N--GND
@@ -416,6 +460,12 @@ circuit ADCStage implements ADCSubsystem {
     }
   }
 
+  metrics {
+    Resolution = U_ADC::Resolution
+    MaxSampleRate = U_ADC::MaxSampleRate
+    InputCapacitance = U_ADC::InputCapacitance
+  }
+
   harness {
     supply VDD = 3.3V
     ground GND = 0V
@@ -423,18 +473,8 @@ circuit ADCStage implements ADCSubsystem {
 }
 
 // ============================================================================
-// EL Implementation: MCU
+// EL Implementation: MCU Wrapper (alias-only metric forwarding)
 // ============================================================================
-//
-// STM32G031K8 in LQFP-32. Pin assignments:
-//   PA9  = I2C1_SDA (AF6)
-//   PA10 = I2C1_SCL (AF6)
-//   PA0  = GPIO input (ADC data-ready interrupt)
-//   PA2  = USART2_TX (AF1)
-//   PA3  = USART2_RX (AF1)
-//   PA13 = SWDIO
-//   PA14 = SWCLK
-// No SPICE model: constrained entirely through specs.
 
 circuit Controller implements ControllerSubsystem {
   level EL
@@ -445,15 +485,10 @@ circuit Controller implements ControllerSubsystem {
   output DEBUG : UART
   io PROG : SWD
 
-  specs {
-    FlashSize = 64kB
-    CoreClock = 64MHz
-  }
-
   fill {
     net nrst : digital
 
-    MCU U_MCU = new STM32G031K8() {
+    ControllerSubsystem U_MCU = new STM32G031K8() {
       .PA[0]--IRQ
       .PA[2]--DEBUG.TX
       .PA[3]--DEBUG.RX
@@ -468,7 +503,6 @@ circuit Controller implements ControllerSubsystem {
       .BOOT0--GND
     }
 
-    // Reset circuit: RC filter on NRST
     Resistor R_RST = new R_0402(R=10k) {
       .P--VDD
       .N--nrst
@@ -478,7 +512,6 @@ circuit Controller implements ControllerSubsystem {
       .N--GND
     }
 
-    // Supply bypass
     Capacitor C_VDD = new C_0402(C=100n) {
       .P--VDD
       .N--GND
@@ -487,6 +520,14 @@ circuit Controller implements ControllerSubsystem {
       .P--VDD
       .N--GND
     }
+  }
+
+  metrics {
+    FlashSize = U_MCU::FlashSize
+    CoreClock = U_MCU::CoreClock
+
+    // Allowed extension beyond interface minimum.
+    RAMSize = U_MCU::RAMSize
   }
 
   harness {

@@ -74,8 +74,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 
 ## Hard Rules
 - ≤400 added LOC per patch; split if larger.
-- ≤500 LOC/file; ≤80 LOC/method (justify rare exceptions).
-- Documentation note: these LOC limits apply to implementation code. Markdown documentation under `docs/` and `spec/` is exempt.
+- ≤500 LOC/file; ≤80 LOC/method. Does not apply to documentation, specifications, or RFCs.
 - No dead/unreferenced code or files; remove in the same work.
 - `Directory.Build.props` enforces `TreatWarningsAsErrors`, `Nullable=enable`, and `EnableNETAnalyzers` for `tools/*`. Do not duplicate these in individual csproj files.
 - No legacy toggles/shims; migrate and delete.
