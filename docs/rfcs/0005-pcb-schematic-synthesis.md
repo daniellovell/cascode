@@ -9,7 +9,7 @@ Last Updated: 2026-02-07
 
 ## Abstract
 
-Cascode's abstractions for IC design (bundles, interfaces, circuits, primitives, benches, constraints, HL/EL levels) map naturally to PCB schematic capture and synthesis. This RFC extends the language with a `part` construct for packaged off-the-shelf components, a metrics system for datasheet-driven and simulation-driven validation, bus bundles for digital interconnect, and channel sub-interfaces for multi-channel ICs. These additions enable Cascode to represent PCB schematics at both high-level (system architecture with constraint-driven part selection) and electrical level (concrete schematic with specific component values and connections).
+Cascode's abstractions for IC design (bundles, interfaces, circuits, primitives, benches, constraints, HL/EL levels) map naturally to PCB schematic capture and synthesis. This RFC extends the language with a `part` construct for packaged off-the-shelf components, a metrics system for datasheet-driven and simulation-driven validation, and bus bundles for digital interconnect. These additions enable Cascode to represent PCB schematics at both high-level (system architecture with constraint-driven part selection) and electrical level (concrete schematic with specific component values and connections).
 
 A unifying insight drives the design: in both IC and PCB flows, the schematic symbol (pin contract and behavioral requirements) is separate from the concrete backing (a PDK device or a sourced component). This RFC formalizes that separation by making both `primitive` and the new `part` declare which interfaces they satisfy via `implements`. Reserved keyword categories (`NMOS`, `Resistor`, etc.) become library-defined interfaces in domain-specific libraries (`lib/ic/`, `lib/pcb/`), making the component taxonomy extensible without grammar changes.
 
@@ -19,7 +19,7 @@ A unifying insight drives the design: in both IC and PCB flows, the schematic sy
 
 PCB schematic capture today uses GUI tools (KiCad, Altium, OrCAD) that, like analog IC schematics, obscure design intent. A sensor frontend board requires specific noise, bandwidth, and accuracy constraints that live in the designer's head and separate notes but are not usually captured alongside the schematic. When a component goes end-of-life, the designer must manually verify whether a replacement part still meets original constraints spread across documents and datasheets.
 
-Cascode's constraint-driven, multi-level abstraction model addresses this gap. An HL design expresses system requirements (for example, the analog frontend must achieve 40 dB gain with less than 1 uVrms integrated noise). An EL design captures concrete schematic structure with explicit components and connections. Bench execution validates simulable blocks (for example, op-amp paths with SPICE models), while datasheet-backed metrics validate non-simulable blocks (for example, ADC and MCU capability constraints). Both use one constraint language.
+Cascode's constraint-driven, multi-level abstraction model addresses this gap. An HL design expresses system requirements (for example, the analog frontend must achieve 40 dB gain with less than 1 uVrms integrated noise). An EL design captures concrete schematic structure with explicit components and connections. Bench execution validates simulable blocks (for example, op-amp paths with SPICE models) through `bench` constraints, while datasheet-backed metrics validate non-simulable blocks (for example, ADC and MCU capability constraints) through `spec` constraints. Both share the same constraint language with distinct sub-blocks that make verification provenance explicit.
 
 A secondary motivation is passive-network synthesis. PCB designs contain filters, bias dividers, gain-setting networks, and decoupling structures that involve topology and discrete value selection. These can use the same synthesis framework used for IC circuits, with additional constraints that values snap to standard series and resolvable parts exist.
 
@@ -32,9 +32,9 @@ Goals:
 1. Represent complete PCB schematics in Cascode at both HL and EL abstraction levels.
 2. Introduce a `part` construct for packaged components, parallel to `primitive`, both using `implements` to satisfy interface contracts.
 3. Unify the component taxonomy: replace reserved keyword categories (`NMOS`, `Resistor`, etc.) with library-defined interfaces in `lib/ic/` and `lib/pcb/`.
-4. Enable constraint-driven part selection using guaranteed datasheet metrics unified with existing bench-derived metrics.
+4. Enable constraint-driven part selection using guaranteed datasheet metrics (`spec` constraints) alongside existing bench-derived metrics (`bench` constraints), with verification provenance explicit in the syntax.
 5. Support standard PCB signal buses (I2C, SPI, UART, SWD) as first-class bundle types.
-6. Handle multi-channel ICs (dual op-amps, quad ADCs) through channel sub-interfaces.
+6. Handle multi-unit ICs (dual op-amps, quad ADCs) through flat port naming with per-port directionality.
 7. Introduce a `Some` keyword for synthesis-inferred slot types.
 8. Provide a worked example (Wheatstone bridge sensor frontend) that stress-tests the proposed constructs.
 
@@ -54,14 +54,14 @@ The table below summarizes how existing IC Cascode concepts translate to PCB des
 | IC Cascode | PCB Cascode | Notes |
 |---|---|---|
 | `primitive nfet(size s) implements NMOS` | `part OPA2376 implements DualOpAmp` | Both use `implements` to satisfy an interface contract |
-| `lib/ic/` interfaces (`NMOS`, `Resistor`, ...) | `lib/pcb/` interfaces (`NMOS`, `DualOpAmp`, `ADC`, ...) | Domain-specific interface libraries; same name may appear in both with domain-appropriate contracts |
+| `lib/ic/` interfaces (`NMOS`, `Resistor`, ...) | `lib/pcb/` interfaces (`NMOS`, `DualOpAmp`, `ADC`, ...) | Domain-specific interface libraries; shared interfaces (`SingleEndedOpAmp`, bus bundles) live in `lib/std/` |
 | PDK (`pdk scan`) | Parts library + external pricing/availability sources | Source of available components and their operating/procurement attributes |
 | `size(W=2u, L=180n, M=1)` | `real` scalar params for passives; no value params for fixed-identity ICs | `size` remains reserved for transistor geometry on primitives |
 | `device "sky130_fd_pr__nfet_01v8"` | `mpn "OPA2376AIDDBVR"` | Distinct identity fields by declaration kind (`device` for primitive, `mpn` for part) |
-| `bench` with SPICE analysis | Bench-derived metrics plus datasheet-valued metrics | Unified constraints; metric source resolved by the evaluator |
-| `bundle Diff { P, N }` | `bundle I2C { SDA, SCL }` | Digital bus bundles for PCB interconnect |
-| `interface SingleEndedOpAmp` | `interface SensorConditioner` | Functional contracts remain interface-centric; channels reference interfaces |
-| `constraints { numeric { ... } }` | Same syntax, constraining metric references from multiple providers | One constraint language, multiple sources |
+| `bench` with SPICE analysis | Bench-derived metrics plus datasheet-valued metrics | `bench` for simulation-verified, `spec` for declaration-verified; provenance explicit in syntax |
+| `bundle Diff { P, N }` | `bundle I2C { SDA, SCL }` | Bus bundles shared in `lib/std/bus/`; domain-agnostic |
+| `interface SingleEndedOpAmp` | `interface SensorConditioner` | Functional contracts remain interface-centric |
+| `constraints { bench { ... } }` | `constraints { bench { ... } spec { ... } }` | `bench` for simulation-verified, `spec` for declaration-verified; `physical` replaces `tech` |
 | HL `slot` + synthesis | Part selection for ICs; topology/value selection for passive networks | `Some` keyword for synthesis-inferred types in slots |
 
 ---
@@ -70,7 +70,7 @@ The table below summarizes how existing IC Cascode concepts translate to PCB des
 
 ### 4.1 Unified Abstraction
 
-In both IC and PCB design, the schematic symbol — the pin contract and behavioral requirements of a component — is separate from its concrete backing. An op-amp symbol declares differential inputs, a single-ended output, and supply rails. Whether the backing is a PDK device model or a sourced part with an MPN is an implementation detail.
+In both IC and PCB design, the schematic symbol -- the pin contract and behavioral requirements of a component -- is separate from its concrete backing. An op-amp symbol declares differential inputs, a single-ended output, and supply rails. Whether the backing is a PDK device model or a sourced part with an MPN is an implementation detail.
 
 Cascode formalizes this with a single mechanism: the `implements` keyword. Circuits already use it (`circuit OTA5T implements SingleEndedOpAmp`). This RFC extends `implements` to both `primitive` and the new `part` construct, making all three declaration kinds conform to the same interface system.
 
@@ -118,10 +118,39 @@ interface Capacitor {
 // Inductor, Diode similarly.
 ```
 
-`lib/pcb/Interfaces.cas` defines PCB-domain component interfaces with PCB-standard terminal sets and metric contracts:
+Interfaces that are shared across IC and PCB domains live in `lib/std/`. The `SingleEndedOpAmp` interface already exists at `lib/std/amp/SingleEndedOpAmp.cas`, and bus bundles (`I2C`, `SPI`, `UART`, `SWD`) live under `lib/std/bus/`:
+
+```cascode
+library lib.std.bus
+
+bundle I2C {
+  SDA : digital
+  SCL : clock
+}
+
+bundle SPI {
+  MOSI : digital
+  MISO : digital
+  SCLK : clock
+  CS   : digital
+}
+
+bundle UART {
+  TX : digital
+  RX : digital
+}
+
+bundle SWD {
+  SWDIO : digital
+  SWCLK : clock
+}
+```
+
+`lib/pcb/Interfaces.cas` defines PCB-domain component interfaces with PCB-standard terminal sets and metric contracts. It imports shared interfaces as needed:
 
 ```cascode
 library lib.pcb
+include lib.std.amp
 
 interface NMOS {
   input G : analog
@@ -138,15 +167,13 @@ interface Resistor {
   }
 }
 
-interface SingleEndedOpAmp {
-  input INP : analog
-  input INN : analog
-  output OUT : analog
-}
-
 interface DualOpAmp {
-  channel A : SingleEndedOpAmp
-  channel B : SingleEndedOpAmp
+  input A_INP : analog
+  input A_INN : analog
+  output A_OUT : analog
+  input B_INP : analog
+  input B_INN : analog
+  output B_OUT : analog
   supply VDD
   ground GND
   metrics {
@@ -159,7 +186,9 @@ interface DualOpAmp {
 // ADC, MCU, Connector interfaces similarly.
 ```
 
-`Resistor` appears in both libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. `include lib.ic` or `include lib.pcb` brings the appropriate definitions into scope. Mixed IC+PCB projects can include both; the linker resolves by fully-qualified namespace.
+`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. `include lib.ic` or `include lib.pcb` brings the appropriate definitions into scope. Mixed IC+PCB projects can include both; the linker resolves by fully-qualified namespace.
+
+Concrete part declarations live in a separate `lib/parts/` tree, organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.res`, etc.). Including `lib.pcb` brings interface definitions into scope without pulling in the entire parts catalog.
 
 ### 4.3 Primitive Syntax Change
 
@@ -177,22 +206,7 @@ primitive nfet_01v8(size s) implements NMOS { device "sky130_fd_pr__nfet_01v8" p
 
 The reserved `DEVICE_TYPE` token (`NMOS`, `PMOS`, `Resistor`, `Capacitor`, `Inductor`, `Diode`) is removed from the grammar. These names become ordinary identifiers resolved from the included interface library. Terminal sets are validated against the interface contract rather than hard-coded per keyword.
 
-### 4.4 Channels as Interface References
-
-Channels on multi-unit components reference interfaces, not bundles. A channel of a dual op-amp IS a single-ended op-amp — it is a functional sub-unit with its own pin contract, not a connectable wire group.
-
-```cascode
-interface DualOpAmp {
-  channel A : SingleEndedOpAmp
-  channel B : SingleEndedOpAmp
-  supply VDD
-  ground GND
-}
-```
-
-The `channel` declaration syntax is `channel <name> : <interfaceType>`. Shared supply and ground remain part-level declarations.
-
-### 4.5 Multiple Interface Implementation
+### 4.4 Multiple Interface Implementation
 
 Parts and circuits may implement multiple interfaces, following the same model as C# multiple interface implementation:
 
@@ -205,7 +219,7 @@ part ADS1115 implements ADCSubsystem, I2CDevice {
 
 The implementation must satisfy the port and metric contracts of all declared interfaces. Missing ports or required metrics from any interface are hard validation errors.
 
-### 4.6 The `Some` Keyword
+### 4.5 The `Some` Keyword
 
 In `slot {}` blocks, the `Some` keyword declares an instance whose type will be inferred or resolved by synthesis. It is only valid in slot blocks; use in `fill` blocks is a grammar-level error.
 
@@ -247,7 +261,6 @@ part <Name> (<params>?) implements <Interface>(, <Interface>)* {
   }
 
   <terminal declarations>          // input, output, io, supply, ground
-  <channel declarations>           // for multi-channel parts
 
   metrics {
     <Metric> = <value>
@@ -262,7 +275,7 @@ The body contains:
 - `package`: physical footprint package.
 - `spice`: optional model reference for simulable parts.
 - `pricing`: checked-in external procurement pointers.
-- terminal/channel declarations: physical connectivity.
+- terminal declarations: physical connectivity.
 - `metrics {}`: guaranteed datasheet values and part attributes.
 
 For pricing options, `provider`, `sku`, and `priority` are required. `url` is optional.
@@ -282,21 +295,27 @@ part OPA2376 implements DualOpAmp {
     option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
   }
 
-  channel A : SingleEndedOpAmp
-  channel B : SingleEndedOpAmp
+  input A_INP : analog
+  input A_INN : analog
+  output A_OUT : analog
+  input B_INP : analog
+  input B_INN : analog
+  output B_OUT : analog
   supply VDD
   ground GND
 
   metrics {
     GBW = 5.5MHz
     InputOffsetVoltage = 25uV
-    CMRR = 114dB
-    InputBiasCurrent = 0.2pA
+    CMRR = 90dB
+    InputBiasCurrent = 10pA
     SlewRate = 2V/us
-    SupplyCurrentMax = 285uA
+    SupplyCurrentMax = 950uA
   }
 }
 ```
+
+Multi-unit ICs like dual op-amps use flat port naming with per-port direction qualifiers. Each port carries its own `input`, `output`, or `io` direction, preserving signal flow information that a bundle grouping cannot express.
 
 A 16-bit I2C ADC without SPICE model:
 
@@ -337,13 +356,13 @@ part ADS1115 implements ADCSubsystem {
 A parameterized passive family:
 
 ```cascode
-part R_0402(real R) implements Resistor {
-  mpn "RES-0402-1PCT"
+part RC0402FR(real R) implements Resistor {
+  mpn "RC0402FR-07"
   package "0402"
 
   pricing {
-    option { provider = "DigiKey" sku = "RES-0402-1PCT" priority = 10 }
-    option { provider = "Mouser" sku = "RES-0402-1PCT" priority = 20 }
+    option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
+    option { provider = "Mouser" sku = "603-RC0402FR-07{R}L" priority = 20 }
   }
 
   io P : analog
@@ -367,29 +386,29 @@ Parts are instantiated in `fill` blocks using unified instantiation syntax. The 
 
 ```cascode
 fill {
-  // parameterized passive — Resistor is an interface from lib.pcb
-  Resistor R1 = new R_0402(R=10k) {
+  // parameterized passive -- Resistor is an interface from lib.pcb
+  Resistor r1 = new RC0402FR(R=10k) {
     .P--IN
     .N--OUT
   }
 
-  // fixed-identity IC part — DualOpAmp is an interface from lib.pcb
-  DualOpAmp U1 = new OPA2376() {
-    .A.INP--sensor_p
-    .A.INN--ref
-    .A.OUT--stage1_out
+  // fixed-identity IC part -- DualOpAmp is an interface from lib.pcb
+  DualOpAmp u1 = new OPA2376() {
+    .A_INP--sensor_p
+    .A_INN--ref
+    .A_OUT--stage1_out
     .VDD--VDD
     .GND--GND
   }
 }
 ```
 
-IC primitive instantiation follows the same pattern — the declared type is the interface, not a reserved keyword:
+IC primitive instantiation follows the same pattern -- the declared type is the interface, not a reserved keyword:
 
 ```cascode
 fill {
-  NMOS M1 = new nfet_01v8(size(W=2u, L=180n, M=1, NF=1)) { ... }
-  PMOS M2 = new pfet_01v8(size(W=2u, L=180n, M=1, NF=1)) { ... }
+  NMOS m1 = new nfet_01v8(size(W=2u, L=180n, M=1, NF=1)) { ... }
+  PMOS m2 = new pfet_01v8(size(W=2u, L=180n, M=1, NF=1)) { ... }
 }
 ```
 
@@ -430,10 +449,10 @@ Within a part declaration:
 metrics {
   GBW = 5.5MHz
   InputOffsetVoltage = 25uV
-  CMRR = 114dB
+  CMRR = 90dB
   SupplyVoltageMin = 2.2V
   SupplyVoltageMax = 5.5V
-  SupplyCurrentMax = 285uA
+  SupplyCurrentMax = 950uA
 }
 ```
 
@@ -441,12 +460,14 @@ Each entry is `<Identifier> = <quantity>`.
 
 ### 6.3 Constraint References
 
-Constraints reference metrics on instances using the same `instance::Metric` form used for bench bindings.
+Constraints reference metrics on instances using the same `instance::Metric` form used for bench bindings. Constraints are placed in sub-blocks according to their verification method (see Section 9 for the full taxonomy).
 
 ```cascode
 constraints {
-  numeric {
+  bench {
     c_gbw = frontend::PassbandGain >= 40dB
+  }
+  spec {
     c_resolution = adc::Resolution >= 16 bits
     c_supply_min = adc::SupplyVoltageMin <= 3.3V
     c_supply_max = adc::SupplyVoltageMax >= 3.3V
@@ -454,7 +475,7 @@ constraints {
 }
 ```
 
-The left side of `::` names the source (a bench binding or a slot/instance). The resolver determines whether the metric comes from a bench or a declared `metrics {}` block on the target. Bench-native references remain valid where needed.
+The left side of `::` names the source (a bench binding or a slot/instance). `bench {}` constraints must trace to bench-derived metrics; `spec {}` constraints must trace to declared metrics. The evaluator validates this mapping.
 
 ### 6.4 Interface Metric Declarations
 
@@ -487,8 +508,8 @@ Forwarding is supported for wrappers and is alias-only in v1:
 
 ```cascode
 metrics {
-  Resolution = U_ADC::Resolution
-  MaxSampleRate = U_ADC::MaxSampleRate
+  Resolution = uAdc::Resolution
+  MaxSampleRate = uAdc::MaxSampleRate
 }
 ```
 
@@ -528,67 +549,55 @@ These bundles can be used directly on parts/circuits and connected with existing
 
 ---
 
-## 8. Channels
+## 8. Constraint Taxonomy
 
-### 8.1 Motivation
+The constraint system uses distinct sub-blocks organized by verification method. Each sub-block carries clear semantics about how the evaluator verifies the constraint and where the metric value originates.
 
-Many PCB components contain multiple functionally similar channels in one package. A dual op-amp contains two independent amplifier channels; a quad ADC contains four independent conversion channels. Channels allow explicit per-channel wiring while preserving one physical part identity.
+### 8.1 Sub-Block Types
 
-### 8.2 Syntax
+Three constraint sub-blocks are supported:
 
-Channels reference interfaces, not bundles. Each channel of a multi-unit component is a functional sub-unit that satisfies its own interface contract.
+`bench {}` constrains scalar metrics verified by bench execution (simulation). The bench planner generates a testbench, runs it, extracts a metric value, and compares the result against the stated bound. This replaces the prior `numeric {}` block from the IC-only constraint system.
 
 ```cascode
-part OPA2376 implements DualOpAmp {
-  mpn "OPA2376AIDDBVR"
-  package "VSSOP-8"
-  spice "OPA2376"
-
-  channel A : SingleEndedOpAmp
-  channel B : SingleEndedOpAmp
-  supply VDD
-  ground GND
-
-  metrics {
-    GBW = 5.5MHz
-    InputOffsetVoltage = 25uV
-    CMRR = 114dB
-    SupplyCurrentMax = 285uA
+constraints {
+  bench {
+    c_gain = frontend::PassbandGain >= 40dB
+    c_noise = frontend::IntegratedInputNoise <= 1uVrms
   }
 }
 ```
 
-In fill bindings, channel terminals are accessed via dot notation:
+`spec {}` constrains scalar metrics verified against declared or forwarded values. No simulation runs; the evaluator looks up the metric value from a `metrics {}` block on a part or circuit and compares it against the bound. This block is for component selection and datasheet-backed assertions.
 
 ```cascode
-fill {
-  DualOpAmp U1 = new OPA2376() {
-    .A.INP--sensor_p
-    .A.INN--ref
-    .A.OUT--stage1_out
-    .B.INP--stage1_out
-    .B.INN--fb_node
-    .B.OUT--final_out
-    .VDD--VDD
-    .GND--GND
+constraints {
+  spec {
+    c_res = adc::Resolution >= 16 bits
+    c_flash = mcu::FlashSize >= 64kB
   }
 }
 ```
 
-### 8.3 Semantics
+`physical {}` constrains device and component physical parameters against structural rules. This replaces the prior `tech {}` block. In IC designs, physical constraints enforce geometry rules (minimum channel length). In PCB designs, they can enforce package, operating temperature, or other physical attributes.
 
-Channels are independent signal namespaces. Shared supply and ground remain part-level declarations outside any channel.
+```cascode
+constraints {
+  physical {
+    p_lmin : L >= 180nm on *
+  }
+}
+```
 
----
+### 8.2 Verification Provenance
 
-## 9. Constraint Unification
+The evaluator validates that constraints are placed in the correct sub-block. A `bench {}` constraint must trace to a bench-derived metric (one produced by a bench binding's measurement). A `spec {}` constraint must trace to a declared or forwarded metric (one that appears in a `metrics {}` block on a part or circuit without an originating bench). Misplacement is a validation error.
 
-The constraint system supports multiple metric sources through one numeric constraint form.
+This enforcement means the designer explicitly declares the expected verification method for each constraint. If a sub-block is later swapped for one with a different metric provenance (for example, replacing a simulable frontend with a non-simulable one), the constraint block mismatch surfaces as an error rather than silently changing verification confidence.
 
-1. Bench-derived metrics: values computed from simulation.
-2. Declared part/circuit metrics: values sourced from datasheet-backed declarations or forwarded aliases.
+### 8.3 Example: Mixed Composition
 
-Example HL composition:
+An HL composition with both simulable and non-simulable sub-blocks uses both `bench` and `spec` blocks:
 
 ```cascode
 circuit SensorBoard {
@@ -601,42 +610,56 @@ circuit SensorBoard {
   }
 
   constraints {
-    numeric {
+    bench {
       c_bw = frontend::LowpassBandwidth >= 10kHz
       c_gain = frontend::PassbandGain >= 40dB
       c_noise = frontend::IntegratedInputNoise <= 1uVrms
-
-      c_res = adc::Resolution >= 16 bits
-      c_rate = adc::MaxSampleRate >= 128 SPS
-
-      c_flash = mcu::FlashSize >= 64kB
+    }
+    spec {
+      c_adc_res = adc::Resolution >= 16 bits
+      c_adc_rate = adc::MaxSampleRate >= 128 SPS
+      c_mcu_flash = mcu::FlashSize >= 64kB
     }
   }
 }
 ```
 
-This unifies user intent in one place while preserving explicit source paths.
+The separation makes verification intent visible in the source: the analog frontend will be simulation-verified, while the ADC and MCU are verified against their declared specifications.
+
+### 8.4 Hierarchical Verification
+
+Running `cascode bench run` on a composition walks the entire hierarchy tree and evaluates constraints at every level. Each circuit's constraints are checked independently, ensuring that components pass both standalone and in context.
+
+The execution model for a composition with mixed simulable and non-simulable sub-blocks:
+
+1. Walk the hierarchy. Identify circuits with bench bindings (simulable) and circuits with only declared or forwarded metrics (non-simulable).
+2. For each simulable circuit, generate and run testbenches. Extract bench-derived metric values from simulation results.
+3. For each non-simulable circuit, collect declared metric values from `metrics {}` blocks.
+4. Evaluate `bench {}` constraints against simulated metrics and `spec {}` constraints against declared metrics, at every level of the hierarchy.
+5. Report each constraint result with its verification provenance (bench-verified or spec-verified) and hierarchy level.
+
+A child circuit's constraints serve as its own design targets. A parent circuit's constraints serve as system requirements. Both are always evaluated. If a child circuit targets 38 dB passband gain as a design margin and the parent requires 40 dB for the system, the bench runner reports both results independently.
 
 ---
 
-## 10. Parts Database and Pricing Pointers
+## 9. Parts Database and Pricing Pointers
 
 This section defines language-facing expectations. Full external sync architecture remains out of scope.
 
-### 10.1 Role
+### 9.1 Role
 
 A parts ecosystem for PCB design plays the same role that `pdk.db` plays for PDK-backed primitive flows: candidate discovery and resolution against constraints.
 
-### 10.2 Library Organization
+### 9.2 Library Organization
 
 Interface definitions and part declarations are organized under domain-specific library trees:
 
-- `lib/ic/` — IC-domain interfaces (`NMOS`, `PMOS`, `Resistor`, `Capacitor`, `Inductor`, `Diode`).
-- `lib/pcb/` — PCB-domain interfaces (`NMOS`, `Resistor`, `SingleEndedOpAmp`, `DualOpAmp`, `ADC`, etc.) and bus bundles (`I2C`, `SPI`, `UART`, `SWD`).
-- `lib/pcb/parts/` — concrete part declarations organized by category (`lib.pcb.parts.opamp`, `lib.pcb.parts.adc`, `lib.pcb.parts.res.0402`).
-- `lib/std/` — shared constructs (bundles like `Diff`, benches, etc.).
+- `lib/std/` -- shared constructs: bundles (`Diff`), bus bundles (`I2C`, `SPI`, `UART`, `SWD` under `lib/std/bus/`), shared interfaces (`SingleEndedOpAmp` under `lib/std/amp/`), benches, and primitives.
+- `lib/ic/` -- IC-domain component interfaces (`NMOS`, `PMOS`, `Resistor`, `Capacitor`, `Inductor`, `Diode`).
+- `lib/pcb/` -- PCB-domain component interfaces (`NMOS`, `Resistor` with metric contracts, `DualOpAmp`, `ADCSubsystem`, `ControllerSubsystem`, etc.). Does not contain part declarations.
+- `lib/parts/` -- concrete part declarations organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.mcu`, `lib.parts.res`, `lib.parts.cap`).
 
-### 10.3 Pricing Pointer Contract
+### 9.3 Pricing Pointer Contract
 
 Each part declaration carries checked-in pricing options. Population may come from manufacturer/distributor APIs, distributor CSV exports, or curated internal catalogs, but the language-facing pointer contract is the same.
 
@@ -652,13 +675,13 @@ Optional:
 
 This allows deterministic fallback and sourcing without brittle URL parsing.
 
-### 10.4 Passive Resolution
+### 9.4 Passive Resolution
 
 Parameterized passives represent families. Concrete sourceable part resolution occurs during synthesis/selection, based on value/package/tolerance constraints and available pricing options.
 
 ---
 
-## 11. PCB Synthesis Model
+## 10. PCB Synthesis Model
 
 HL-to-EL synthesis for PCB design includes at least three activities.
 
@@ -690,34 +713,38 @@ The exact `passive_series` behavior remains an implementation concern (see open 
 
 ---
 
-## 12. Grammar Changes
+## 11. Grammar Changes
 
 This section describes expected grammar shape and semantic policy updates.
 
-### 12.1 New and Modified Lexer Tokens
+### 11.1 New and Modified Lexer Tokens
 
 New tokens:
 
 ```antlr
 PART_KW     : 'part' ;
 METRICS_KW  : 'metrics' ;
-CHANNEL_KW  : 'channel' ;
 MPN_KW      : 'mpn' ;
 PRICING_KW  : 'pricing' ;
 OPTION_KW   : 'option' ;
 SOME_KW     : 'Some' ;
+BENCH_KW    : 'bench' ;     // replaces NUMERIC_KW in constraint blocks
+SPEC_KW     : 'spec' ;      // new constraint sub-block
+PHYSICAL_KW : 'physical' ;  // replaces TECH_KW in constraint blocks
 ```
 
-Removed token:
+Removed tokens:
 
 ```antlr
 // DEVICE_TYPE is removed. NMOS, PMOS, Resistor, etc. are now ordinary
 // identifiers resolved from included interface libraries.
+// NUMERIC_KW is replaced by BENCH_KW.
+// TECH_KW is replaced by PHYSICAL_KW.
 ```
 
 `IMPLEMENTS_KW` already exists for circuit declarations and is now shared with primitive and part declarations.
 
-### 12.2 Top-Level Declaration
+### 11.2 Top-Level Declaration
 
 Add `partDef` to top-level declarations.
 
@@ -729,7 +756,7 @@ topLevelDecl
     ;
 ```
 
-### 12.3 Primitive Declaration (Modified)
+### 11.3 Primitive Declaration (Modified)
 
 ```antlr
 // Before:
@@ -743,7 +770,7 @@ primitiveDef
     ;
 ```
 
-### 12.4 Part Declaration
+### 11.4 Part Declaration
 
 ```antlr
 partDef
@@ -764,13 +791,12 @@ partMember
     | SUPPLY_KW IDENT                                         # PartSupply
     | GROUND_KW IDENT                                         # PartGround
     | metricsValueBlock                                       # PartMetrics
-    | channelDecl                                             # PartChannel
     ;
 ```
 
 Passive `part` declarations use scalar parameters (`real R`, `real C`, `real L`). `size` remains reserved for primitive geometry.
 
-### 12.5 Metrics Blocks
+### 11.5 Metrics Blocks
 
 ```antlr
 metricsValueBlock
@@ -799,17 +825,7 @@ metricDecl
     ;
 ```
 
-### 12.6 Channel Declaration
-
-Channels reference interfaces, not bundles:
-
-```antlr
-channelDecl
-    : CHANNEL_KW name=IDENT COLON interfaceType=IDENT
-    ;
-```
-
-### 12.7 Slot Instance Declaration with `Some`
+### 11.6 Slot Instance Declaration with `Some`
 
 `Some` is only valid in slot instance declarations. This is enforced at the grammar level by using separate rules for slot and fill blocks:
 
@@ -837,7 +853,7 @@ instanceDecl
 
 The formerly optional `(declaredType=IDENT)?` pattern is removed. A declared type is always required in both slot and fill blocks.
 
-### 12.8 Device Instantiation (Modified)
+### 11.7 Device Instantiation (Modified)
 
 With `DEVICE_TYPE` removed, the existing `deviceDecl` rule is unified with `instanceDecl`. The declared type is an interface name (e.g., `NMOS`, `Resistor`) resolved from scope rather than a reserved keyword:
 
@@ -850,13 +866,51 @@ deviceDecl
 // After: unified into instanceDecl (see above).
 ```
 
-### 12.9 Resolution Policy
+### 11.8 Constraint Block Changes
 
-There are no reserved keyword categories. All instantiation targets — whether for primitives, parts, or circuits — resolve semantically against declarations in scope. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
+The constraint sub-block keywords are renamed and extended:
+
+```antlr
+// Before:
+constraintsBlock
+    : CONSTRAINTS_KW LBRACE numericBlock? techBlock? RBRACE
+    ;
+
+// After:
+constraintsBlock
+    : CONSTRAINTS_KW LBRACE benchBlock? specBlock? physicalBlock? RBRACE
+    ;
+
+benchBlock
+    : BENCH_KW LBRACE constraintEntry* RBRACE
+    ;
+
+specBlock
+    : SPEC_KW LBRACE constraintEntry* RBRACE
+    ;
+
+physicalBlock
+    : PHYSICAL_KW LBRACE physicalConstraintEntry* RBRACE
+    ;
+```
+
+New and renamed tokens:
+
+```antlr
+BENCH_KW    : 'bench' ;     // replaces NUMERIC_KW
+SPEC_KW     : 'spec' ;      // new
+PHYSICAL_KW : 'physical' ;  // replaces TECH_KW
+```
+
+`constraintEntry` and `physicalConstraintEntry` retain their existing internal structure. The change is in the sub-block keywords and the addition of the `spec` block.
+
+### 11.9 Resolution Policy
+
+There are no reserved keyword categories. All instantiation targets -- whether for primitives, parts, or circuits -- resolve semantically against declarations in scope. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
 
 ---
 
-## 13. Worked Example: Sensor Frontend PCB
+## 12. Worked Example: Sensor Frontend PCB
 
 A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFrontendPCB.cas`. The example includes:
 
@@ -865,26 +919,29 @@ A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFr
 - 16-bit ADC and MCU wrappers with forwarded metrics.
 - `part` declarations with `implements` and `mpn`.
 - pricing option pointers with provider/sku/priority.
-- channel sub-interfaces referencing `SingleEndedOpAmp`.
-- unified metric-based constraints with `instance::Metric` references.
+- flat port naming for multi-unit ICs (dual op-amp with per-port directionality).
+- `bench`/`spec` constraint taxonomy separating simulation-verified and declaration-verified constraints.
+- hierarchical constraint verification (EL design targets and HL system requirements).
 - metric-driven env propagation at simulation boundaries.
 
-The example intentionally exercises both simulable and non-simulable paths within one HL composition.
+The example intentionally exercises both simulable and non-simulable paths within one HL composition, demonstrating the constraint taxonomy across verification methods and hierarchy levels.
 
 ---
 
-## 14. Implementation Plan
+## 13. Implementation Plan
 
 Implementation is split into phases.
 
 Phase 1: Grammar and AST
 
 - Remove `DEVICE_TYPE` from grammar; replace with `implements` on `primitiveDef`.
-- Add `part`, `mpn`, `metrics`, `pricing`, `channel`, `Some` grammar support.
+- Add `part`, `mpn`, `metrics`, `pricing`, `Some` grammar support.
 - Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
 - Add separate `slotInstanceDecl` with `Some` support.
+- Rename constraint sub-blocks: `numeric` → `bench`, `tech` → `physical`. Add `spec` sub-block.
 - Add AST types for part declarations, pricing options, metric declarations/assignments.
 - Add reader/writer support and tests.
+- Update all existing golden tests for the `bench`/`physical` rename.
 
 Phase 2: Interface libraries
 
@@ -902,8 +959,10 @@ Phase 3: Resolution and validation
 
 Phase 4: Constraint and runtime evaluation
 
-- Extend evaluators to consume unified metric references (`instance::Metric`).
-- Support bench-provider and declaration-provider metric resolution.
+- Extend evaluators to consume metric references (`instance::Metric`) from both bench and declared sources.
+- Implement `bench` constraint evaluation (simulation-verified) and `spec` constraint evaluation (declaration-verified).
+- Implement verification provenance validation (constraints in the correct sub-block for their metric source).
+- Implement hierarchical verification: `cascode bench run` walks the composition tree and evaluates constraints at every level.
 
 Phase 5: Parts ecosystem integration
 
@@ -917,7 +976,7 @@ Phase 6: Emission and synthesis expansion
 
 ---
 
-## 15. Open Questions
+## 14. Open Questions
 
 The following remain open:
 

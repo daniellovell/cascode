@@ -4,16 +4,16 @@ VERSION 3.0
 // Demonstrates:
 // - part declarations with implements and mpn
 // - interface metric contracts (declaration-only)
-// - channel sub-interfaces (SingleEndedOpAmp channels on DualOpAmp)
 // - metric providers from benches and parts
 // - alias-only metric forwarding in wrappers
-// - unified metric-based constraints
+// - bench/spec constraint block taxonomy
+// - hierarchical constraint verification
 // - env propagation from downstream metric values
 
 include lib.pcb
 
 // ============================================================================
-// Bus Bundles (normally sourced from lib.pcb)
+// Bus Bundles (normally sourced from lib.std.bus)
 // ============================================================================
 
 bundle I2C {
@@ -32,17 +32,7 @@ bundle SWD {
 }
 
 // ============================================================================
-// Channel Interfaces (normally sourced from lib.pcb)
-// ============================================================================
-
-interface SingleEndedOpAmp {
-  input INP : analog
-  input INN : analog
-  output OUT : analog
-}
-
-// ============================================================================
-// Parts (normally sourced from lib.pcb.parts.* namespaces)
+// Parts (normally sourced from lib.parts.* namespaces)
 // ============================================================================
 
 part OPA2376 implements DualOpAmp {
@@ -55,20 +45,24 @@ part OPA2376 implements DualOpAmp {
     option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
   }
 
-  channel A : SingleEndedOpAmp
-  channel B : SingleEndedOpAmp
+  input A_INP : analog
+  input A_INN : analog
+  output A_OUT : analog
+  input B_INP : analog
+  input B_INN : analog
+  output B_OUT : analog
   supply VDD
   ground GND
 
   metrics {
     GBW = 5.5MHz
     InputOffsetVoltage = 25uV
-    CMRR = 114dB
-    InputBiasCurrent = 0.2pA
+    CMRR = 90dB
+    InputBiasCurrent = 10pA
     SlewRate = 2V/us
     SupplyVoltageMin = 2.2V
     SupplyVoltageMax = 5.5V
-    SupplyCurrentMax = 285uA
+    SupplyCurrentMax = 950uA
     RecommendedLoadCapacitance = 100pF
   }
 }
@@ -127,19 +121,19 @@ part STM32G031K8 implements ControllerSubsystem {
     CoreClock = 64MHz
     FlashSize = 64kB
     RAMSize = 8kB
-    SupplyVoltageMin = 2.0V
+    SupplyVoltageMin = 1.7V
     SupplyVoltageMax = 3.6V
     SupplyCurrentMax = 10mA
   }
 }
 
-part R_0402(real R) implements Resistor {
-  mpn "RES-0402-1PCT"
+part RC0402FR(real R) implements Resistor {
+  mpn "RC0402FR-07"
   package "0402"
 
   pricing {
-    option { provider = "DigiKey" sku = "RES-0402-1PCT" priority = 10 }
-    option { provider = "Mouser" sku = "RES-0402-1PCT" priority = 20 }
+    option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
+    option { provider = "Mouser" sku = "603-RC0402FR-07{R}L" priority = 20 }
   }
 
   io P : analog
@@ -154,13 +148,13 @@ part R_0402(real R) implements Resistor {
   }
 }
 
-part C_0402(real C) implements Capacitor {
-  mpn "CAP-0402-X7R"
+part CL05B(real C) implements Capacitor {
+  mpn "CL05B"
   package "0402"
 
   pricing {
-    option { provider = "DigiKey" sku = "CAP-0402-X7R" priority = 10 }
-    option { provider = "Mouser" sku = "CAP-0402-X7R" priority = 20 }
+    option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
+    option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
   }
 
   io P : analog
@@ -284,13 +278,12 @@ circuit SensorFrontendPCB {
   }
 
   constraints {
-    numeric {
-      // Simulable analog chain expressed through interface metrics.
+    bench {
       c_bw = frontend::LowpassBandwidth >= 10kHz
       c_gain = frontend::PassbandGain >= 40dB
       c_noise = frontend::IntegratedInputNoise <= 1uVrms
-
-      // Datasheet-driven digital blocks through forwarded metrics.
+    }
+    spec {
       c_adc_res = adc::Resolution >= 16 bits
       c_adc_rate = adc::MaxSampleRate >= 128 SPS
       c_mcu_flash = mcu::FlashSize >= 64kB
@@ -328,51 +321,51 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
     net vref : analog
     net fb_a : analog
 
-    Resistor R_DIV1 = new R_0402(R=100k) {
+    Resistor rDiv1 = new RC0402FR(R=100k) {
       .P--VDD
       .N--vref
     }
-    Resistor R_DIV2 = new R_0402(R=100k) {
+    Resistor rDiv2 = new RC0402FR(R=100k) {
       .P--vref
       .N--GND
     }
-    Capacitor C_REF = new C_0402(C=100n) {
+    Capacitor cRef = new CL05B(C=100n) {
       .P--vref
       .N--GND
     }
 
-    DualOpAmp U1 = new OPA2376() {
-      .A.INP--SENSOR_IN.P
-      .A.INN--fb_a
-      .A.OUT--stage1_out
+    DualOpAmp u1 = new OPA2376() {
+      .A_INP--SENSOR_IN.P
+      .A_INN--fb_a
+      .A_OUT--stage1_out
 
-      .B.INP--vref
-      .B.INN--U1.B.OUT
-      .B.OUT--vref
+      .B_INP--vref
+      .B_INN--u1.B_OUT
+      .B_OUT--vref
 
       .VDD--VDD
       .GND--GND
     }
 
-    Resistor R_G = new R_0402(R=1k) {
+    Resistor rG = new RC0402FR(R=1k) {
       .P--SENSOR_IN.N
       .N--fb_a
     }
-    Resistor R_F = new R_0402(R=100k) {
+    Resistor rF = new RC0402FR(R=100k) {
       .P--stage1_out
       .N--fb_a
     }
 
-    Resistor R_AA = new R_0402(R=1k) {
+    Resistor rAa = new RC0402FR(R=1k) {
       .P--stage1_out
       .N--SIGNAL_OUT
     }
-    Capacitor C_AA = new C_0402(C=15n) {
+    Capacitor cAa = new CL05B(C=15n) {
       .P--SIGNAL_OUT
       .N--GND
     }
 
-    Capacitor C_BYP = new C_0402(C=100n) {
+    Capacitor cByp = new CL05B(C=100n) {
       .P--VDD
       .N--GND
     }
@@ -401,7 +394,7 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
   }
 
   constraints {
-    numeric {
+    bench {
       c_bw = metrics::LowpassBandwidth >= 10kHz
       c_gain = metrics::PassbandGain >= 38dB
       c_noise = metrics::IntegratedInputNoise <= 1uVrms
@@ -428,7 +421,7 @@ circuit ADCStage implements ADCSubsystem {
   output DRDY : digital
 
   fill {
-    ADCSubsystem U_ADC = new ADS1115() {
+    ADCSubsystem uAdc = new ADS1115() {
       .AIN0--AIN
       .AIN1--GND
       .AIN2--GND
@@ -441,29 +434,29 @@ circuit ADCStage implements ADCSubsystem {
       .GND--GND
     }
 
-    Resistor R_SDA = new R_0402(R=4.7k) {
+    Resistor rSda = new RC0402FR(R=4.7k) {
       .P--VDD
       .N--BUS.SDA
     }
-    Resistor R_SCL = new R_0402(R=4.7k) {
+    Resistor rScl = new RC0402FR(R=4.7k) {
       .P--VDD
       .N--BUS.SCL
     }
 
-    Capacitor C_VDD = new C_0402(C=100n) {
+    Capacitor cVdd = new CL05B(C=100n) {
       .P--VDD
       .N--GND
     }
-    Capacitor C_BULK = new C_0402(C=10u) {
+    Capacitor cBulk = new CL05B(C=10u) {
       .P--VDD
       .N--GND
     }
   }
 
   metrics {
-    Resolution = U_ADC::Resolution
-    MaxSampleRate = U_ADC::MaxSampleRate
-    InputCapacitance = U_ADC::InputCapacitance
+    Resolution = uAdc::Resolution
+    MaxSampleRate = uAdc::MaxSampleRate
+    InputCapacitance = uAdc::InputCapacitance
   }
 
   harness {
@@ -488,7 +481,7 @@ circuit Controller implements ControllerSubsystem {
   fill {
     net nrst : digital
 
-    ControllerSubsystem U_MCU = new STM32G031K8() {
+    ControllerSubsystem uMcu = new STM32G031K8() {
       .PA[0]--IRQ
       .PA[2]--DEBUG.TX
       .PA[3]--DEBUG.RX
@@ -503,31 +496,31 @@ circuit Controller implements ControllerSubsystem {
       .BOOT0--GND
     }
 
-    Resistor R_RST = new R_0402(R=10k) {
+    Resistor rRst = new RC0402FR(R=10k) {
       .P--VDD
       .N--nrst
     }
-    Capacitor C_RST = new C_0402(C=100n) {
+    Capacitor cRst = new CL05B(C=100n) {
       .P--nrst
       .N--GND
     }
 
-    Capacitor C_VDD = new C_0402(C=100n) {
+    Capacitor cVdd = new CL05B(C=100n) {
       .P--VDD
       .N--GND
     }
-    Capacitor C_VDDA = new C_0402(C=1u) {
+    Capacitor cVdda = new CL05B(C=1u) {
       .P--VDD
       .N--GND
     }
   }
 
   metrics {
-    FlashSize = U_MCU::FlashSize
-    CoreClock = U_MCU::CoreClock
+    FlashSize = uMcu::FlashSize
+    CoreClock = uMcu::CoreClock
 
     // Allowed extension beyond interface minimum.
-    RAMSize = U_MCU::RAMSize
+    RAMSize = uMcu::RAMSize
   }
 
   harness {
