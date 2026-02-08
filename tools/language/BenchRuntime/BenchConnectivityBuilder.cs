@@ -33,7 +33,9 @@ internal static class BenchConnectivityBuilder
 
         var instanceIds = instances.Select(i => i.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var terminalLeaves = bench
-            .Terminals.SelectMany(t => ExpandLeaves(t.Name, t.Type!, bundlesByName))
+            .Terminals.SelectMany(t =>
+                ExpandLeaves(t.Name, RequireTerminalType(bench, t), bundlesByName)
+            )
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         // Instance pin bindings: ".P--net" in binding blocks.
@@ -69,7 +71,8 @@ internal static class BenchConnectivityBuilder
                     t.Name.Equals(map.BenchTerminal, StringComparison.OrdinalIgnoreCase)
                 );
 
-                foreach (var leaf in ExpandLeaves(term.Name, term.Type!, bundlesByName))
+                var termType = RequireTerminalType(bench, term);
+                foreach (var leaf in ExpandLeaves(term.Name, termType, bundlesByName))
                 {
                     var suffix =
                         leaf.Length > term.Name.Length
@@ -90,6 +93,18 @@ internal static class BenchConnectivityBuilder
         }
 
         return new BenchConnectivity(uf, instanceIds, instances, terminalLeaves);
+    }
+
+    private static string RequireTerminalType(BenchDefinition bench, BenchTerminal terminal)
+    {
+        if (terminal.Type is not null)
+        {
+            return terminal.Type;
+        }
+
+        throw new InvalidOperationException(
+            $"CAS2024: Concrete bench '{bench.Name}' has terminal '{terminal.Name}' without a type."
+        );
     }
 
     public static IEnumerable<string> ExpandLeaves(

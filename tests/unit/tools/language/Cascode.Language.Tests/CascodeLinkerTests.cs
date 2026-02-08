@@ -23,7 +23,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.0
+            VERSION 3.1
 
             include lib.std
 

@@ -285,6 +285,27 @@ public sealed class BenchInheritanceResolverTests
                     """
             },
             {
+                "CAS2024",
+                """
+                    abstract bench AbstractMissingType {
+                      stim IN
+                      abstract resp OUT
+                    }
+                    """
+            },
+            {
+                "CAS2024",
+                """
+                    abstract bench Base {
+                      stim IN : analog
+                    }
+
+                    abstract bench Child extends Base {
+                      stim IN
+                    }
+                    """
+            },
+            {
                 "CAS2025",
                 """
                     abstract bench Base {

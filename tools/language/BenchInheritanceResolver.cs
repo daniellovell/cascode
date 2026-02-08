@@ -336,24 +336,24 @@ public static partial class BenchInheritanceResolver
 
                 if (local.Type is null)
                 {
-                    if (
-                        child.IsAbstract
-                        && mergedIndexByName.TryGetValue(local.Name, out var inheritedIndex)
-                    )
+                    if (!local.IsAbstract)
                     {
-                        merged[inheritedIndex] = CloneTerminal(inherited);
+                        _diagnostics.Add(
+                            new Diagnostic(
+                                $"CAS2024: Concrete bench '{child.Name}' has terminal '{local.Name}' without a type.",
+                                DiagnosticSeverity.Error,
+                                "<bench>",
+                                1,
+                                1
+                            )
+                        );
                         continue;
                     }
 
-                    _diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS2024: Concrete bench '{child.Name}' has terminal '{local.Name}' without a type.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
+                    if (mergedIndexByName.TryGetValue(local.Name, out var inheritedIndex))
+                    {
+                        merged[inheritedIndex] = CloneTerminal(inherited);
+                    }
                     continue;
                 }
 

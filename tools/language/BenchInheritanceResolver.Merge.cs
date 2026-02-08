@@ -188,7 +188,7 @@ public static partial class BenchInheritanceResolver
                     );
                 }
 
-                if (!bench.IsAbstract && terminal.Type is null)
+                if (!terminal.IsAbstract && terminal.Type is null)
                 {
                     _diagnostics.Add(
                         new Diagnostic(
