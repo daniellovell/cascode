@@ -200,6 +200,28 @@ public sealed class BenchInheritanceResolverTests
         Assert.Contains("override measurement Gain : dB", text);
     }
 
+    [Fact]
+    public void TryParse_MissingConcreteInheritedTerminal_DoesNotReportCas2025()
+    {
+        var result = Parse(
+            """
+            abstract bench Base {
+              stim IN : analog
+            }
+
+            bench Child extends Base {
+              fill { }
+            }
+            """
+        );
+
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS2025"));
+
+        var bench = Assert.Single(result.Document!.BenchDefinitions);
+        Assert.Contains(bench.Terminals, t => t.Name == "IN" && t.Type == "analog");
+    }
+
     [Theory]
     [MemberData(nameof(DiagnosticCases))]
     public void TryParse_InvalidBenchInheritance_ReportsExpectedDiagnostic(

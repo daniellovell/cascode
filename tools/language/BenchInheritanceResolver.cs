@@ -282,96 +282,151 @@ public static partial class BenchInheritanceResolver
             {
                 if (!byName.TryGetValue(inherited.Name, out var local))
                 {
-                    if (!child.IsAbstract)
-                    {
-                        _diagnostics.Add(
-                            new Diagnostic(
-                                $"CAS2025: Extending bench '{child.Name}' missing terminal for abstract terminal '{inherited.Name}' from '{baseBench.Name}'.",
-                                DiagnosticSeverity.Error,
-                                "<bench>",
-                                1,
-                                1
-                            )
-                        );
-                    }
-
-                    merged.Add(CloneTerminal(inherited));
+                    ValidateMissingLocalTerminal(inherited, baseBench, child, merged);
                     continue;
                 }
 
                 if (inherited.Role != local.Role)
                 {
-                    _diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS2026: Terminal '{local.Name}' role mismatch with base '{baseBench.Name}'.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
+                    ReportTerminalRoleMismatch(local, baseBench);
                 }
 
-                if (inherited.Type is null)
+                if (HandleInheritedNoType(inherited, local, baseBench, child))
                 {
-                    if (local.Type is null)
-                    {
-                        if (child.IsAbstract)
-                        {
-                            continue;
-                        }
-
-                        _diagnostics.Add(
-                            new Diagnostic(
-                                $"CAS2025: Extending bench '{child.Name}' missing terminal for abstract terminal '{local.Name}' from '{baseBench.Name}'.",
-                                DiagnosticSeverity.Error,
-                                "<bench>",
-                                1,
-                                1
-                            )
-                        );
-                    }
                     continue;
                 }
 
-                if (local.Type is null)
+                if (HandleLocalNoType(inherited, local, child, merged, mergedIndexByName))
                 {
-                    if (!local.IsAbstract)
-                    {
-                        _diagnostics.Add(
-                            new Diagnostic(
-                                $"CAS2024: Concrete bench '{child.Name}' has terminal '{local.Name}' without a type.",
-                                DiagnosticSeverity.Error,
-                                "<bench>",
-                                1,
-                                1
-                            )
-                        );
-                        continue;
-                    }
-
-                    if (mergedIndexByName.TryGetValue(local.Name, out var inheritedIndex))
-                    {
-                        merged[inheritedIndex] = CloneTerminal(inherited);
-                    }
                     continue;
                 }
 
-                if (!string.Equals(inherited.Type, local.Type, StringComparison.Ordinal))
-                {
-                    _diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS2031: Concrete terminal '{local.Name}' type mismatch: base has '{inherited.Type}', extending has '{local.Type}'.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                }
+                CompareTerminalTypes(inherited, local);
             }
 
             return merged;
+        }
+
+        private void ValidateMissingLocalTerminal(
+            BenchTerminal inherited,
+            BenchDefinition baseBench,
+            BenchDefinition child,
+            List<BenchTerminal> merged
+        )
+        {
+            if (!child.IsAbstract && (inherited.IsAbstract || inherited.Type is null))
+            {
+                _diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2025: Extending bench '{child.Name}' missing terminal for abstract terminal '{inherited.Name}' from '{baseBench.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            merged.Add(CloneTerminal(inherited));
+        }
+
+        private void ReportTerminalRoleMismatch(BenchTerminal local, BenchDefinition baseBench)
+        {
+            _diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2026: Terminal '{local.Name}' role mismatch with base '{baseBench.Name}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
+
+        private bool HandleInheritedNoType(
+            BenchTerminal inherited,
+            BenchTerminal local,
+            BenchDefinition baseBench,
+            BenchDefinition child
+        )
+        {
+            if (inherited.Type is not null)
+            {
+                return false;
+            }
+
+            if (local.Type is null && !child.IsAbstract)
+            {
+                _diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2025: Extending bench '{child.Name}' missing terminal for abstract terminal '{local.Name}' from '{baseBench.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+            }
+
+            return true;
+        }
+
+        private bool HandleLocalNoType(
+            BenchTerminal inherited,
+            BenchTerminal local,
+            BenchDefinition child,
+            List<BenchTerminal> merged,
+            IReadOnlyDictionary<string, int> mergedIndexByName
+        )
+        {
+            if (local.Type is not null)
+            {
+                return false;
+            }
+
+            if (!local.IsAbstract)
+            {
+                _diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2024: Concrete bench '{child.Name}' has terminal '{local.Name}' without a type.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                return true;
+            }
+
+            if (mergedIndexByName.TryGetValue(local.Name, out var inheritedIndex))
+            {
+                merged[inheritedIndex] = CloneTerminal(inherited);
+            }
+
+            return true;
+        }
+
+        private void CompareTerminalTypes(BenchTerminal inherited, BenchTerminal local)
+        {
+            if (inherited.Type is null || local.Type is null)
+            {
+                return;
+            }
+
+            if (string.Equals(inherited.Type, local.Type, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _diagnostics.Add(
+                new Diagnostic(
+                    $"CAS2031: Concrete terminal '{local.Name}' type mismatch: base has '{inherited.Type}', extending has '{local.Type}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
         }
     }
 }
