@@ -87,8 +87,8 @@ bench DiffToSELowpass {
 
   fill {
     net g0 : ground
-    g = new GND() { .GND--g0 }
-    vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
+    GND g = new GND() { .GND--g0 }
+    VAC vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
     IN.N--g0
   }
 
@@ -142,7 +142,7 @@ Cascode supports explicit primitive-backed devices and connector-driven structur
 
 ```cascode
 fill {
-  dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+  DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
     .VDD--VDD
     .GND--GND
     .IN--IN
@@ -151,7 +151,7 @@ fill {
     .TAIL--VTAIL
   }
 
-  cm = new CurrentMirror(Sense=size(W=2u, L=180n, M=1), ratio=1) {
+  CurrentMirror cm = new CurrentMirror(Sense=size(W=2u, L=180n, M=1), ratio=1) {
     .VDD--VDD
     .GND--GND
     .SENSE--mirror_gate

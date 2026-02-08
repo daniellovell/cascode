@@ -36,14 +36,14 @@ circuit OTA5T_Hierarchical implements SingleEndedOpAmp {
   input VTAIL : bias
   fill {
     net mirror_gate : analog
-    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       // We can separate by line AND comma, in arbitrary combinations
       .VDD--VDD, .GND--GND
       .IN--IN, .OUT.N--mirror_gate
       .OUT.P--OUT
       .TAIL--VTAIL
     }
-    cm = new CurrentMirror(Sense=size(W=2u, L=180n, M=1), ratio=1) {
+    CurrentMirror cm = new CurrentMirror(Sense=size(W=2u, L=180n, M=1), ratio=1) {
       .VDD--VDD
       .GND--GND
       .SENSE--mirror_gate

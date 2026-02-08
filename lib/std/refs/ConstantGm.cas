@@ -9,8 +9,8 @@ motif ConstantGm implements CurrentReference {
 
   use {
     // Two mirrors, chained by the within-interface connector (SENSE -> TAP[0]).
-    cm_p = new CurrentMirror { p=PMOS };
-    cm_n = new CurrentMirror { p=NMOS };
+    CurrentMirror cm_p = new CurrentMirror { p=PMOS };
+    CurrentMirror cm_n = new CurrentMirror { p=NMOS };
     attach cm_n to cm_p;
 
     // Degeneration resistor placement depends on polarity parameter.

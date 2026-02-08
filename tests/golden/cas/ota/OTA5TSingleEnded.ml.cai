@@ -13,9 +13,9 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
   output OUT : analog
   input VTAIL : bias
   fill {
-    cm = new CurrentMirror {
+    CurrentMirror cm = new CurrentMirror {
     }
-    dp = new DiffPair {
+    DiffPair dp = new DiffPair {
       .BASE--GND
       .BIAS--VTAIL
       .IN.N--IN.N

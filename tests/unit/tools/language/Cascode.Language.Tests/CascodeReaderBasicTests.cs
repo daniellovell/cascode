@@ -663,7 +663,7 @@ circuit TestCircuit {{
   ground GND
   input IN : analog
   fill {{
-    dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
+    DiffPair dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
     {connect}
   }}
 }}

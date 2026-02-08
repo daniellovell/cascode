@@ -66,7 +66,7 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp {
       // Instance bindings: mixed whitespace
       // no whitespace
       // spaces around operator
-    dp = new DiffPairSub {
+    DiffPairSub dp = new DiffPairSub {
       .VDD--VDD
       .GND--GND
       .IN--IN

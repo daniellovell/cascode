@@ -39,7 +39,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | `inline` | `inline` | 3.7 |
 | `slot` | `slot Core implements X { ... }` | 3.7 |
 | `synth {}` | `synth { seed = 123 }` | 3.7 |
-| `fill {}` | `fill { net n : analog  dp = new DiffPair { ... } }` | 3.10 |
+| `fill {}` | `fill { net n : analog  DiffPair dp = new DiffPair { ... } }` | 3.10 |
 | `attach` | `attach cm to dp via A::B as name` | 3.10 |
 | `benches {}` | `benches { bind X as y { ... } }` | 3.11 |
 | `constraints {}` | `constraints { numeric { c = b::M >= 1 } }` | 3.11 |
@@ -151,7 +151,7 @@ primitive Capacitor IdealC(size s) { device "capacitor" params { C = s.C } }
 bench DiffToSELowpass {
   stim IN : Diff
   resp OUT : analog
-  fill { net g0 : ground  g = new GND() { .GND--g0 }  IN.N--g0 }
+  fill { net g0 : ground  GND g = new GND() { .GND--g0 }  IN.N--g0 }
   analysis { ACAnalysis ac = new ACAnalysis(space=Log, samples=200, start=1Hz, stop=1GHz) }
   measurements { measurement LowpassBandwidth : Hz { return 1Hz } }
 }
@@ -517,7 +517,7 @@ Fill blocks contain a sequence of statements. The most common forms are:
 |----------|---------|---------|
 | Net declaration | `net out : analog` | Declares a local net and its terminal type |
 | Size declaration | `size S = size(W=2u, L=180n, M=1)` | Declares a reusable size pack |
-| Instance declaration | `dp = new DiffPair(...) { ... }` | Instantiates a circuit/bench primitive |
+| Instance declaration | `DiffPair dp = new DiffPair(...) { ... }` | Instantiates a circuit/bench primitive |
 | Device declaration | `NMOS M1 = new nfet_01v8(S) { ... }` | Instantiates a primitive-backed device |
 | Attach | `attach cm to dp via TraitA::TraitB as name` | Applies connector-driven wiring overrides |
 | Wire connection | `a--b` | Connects two pin references (joins nets) |
@@ -535,10 +535,10 @@ These are intended to reduce boilerplate for repetitive or symmetric wiring patt
 Instances use constructor syntax with `new`. Arguments are passed by name:
 
 ```cascode
-dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), hasTail=true) { ... }
+DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), hasTail=true) { ... }
 ```
 
-An explicit declared type is permitted (common for harness primitives):
+Instance declarations must include an explicit declared type, and it must match the constructor type:
 
 ```cascode
 VAC ac = new VAC(A=0.5V, phase=0deg) { .N--vcm }
@@ -549,7 +549,7 @@ VAC ac = new VAC(A=0.5V, phase=0deg) { .N--vcm }
 Bindings connect instance terminals to nets. Each binding uses the `--` wire operator:
 
 ```cascode
-dp = new DiffPair(...) {
+DiffPair dp = new DiffPair(...) {
   .IN--IN
   .OUT.P--OUT
   .OUT.N--mirror_gate

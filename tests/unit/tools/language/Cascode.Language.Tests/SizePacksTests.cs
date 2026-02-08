@@ -96,7 +96,7 @@ circuit Top {{
   ground GND
   output OUT : analog
   fill {{
-    leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
+    Leaf leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
       .VDD--VDD
       .GND--GND
       .OUT--OUT
@@ -169,7 +169,7 @@ circuit Top {{
   ground GND
   output OUT : analog
   fill {{
-    leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
+    Leaf leaf = new Leaf(InputPair=size(W=2u, L=180n, M=1)) {{
       .VDD--VDD
       .GND--GND
       .OUT--OUT
@@ -224,7 +224,7 @@ circuit Top {{
   ground GND
   output OUT : analog
   fill {{
-    leaf = new Leaf(InputPair=size(W=2u, L=180n, W=3u)) {{
+    Leaf leaf = new Leaf(InputPair=size(W=2u, L=180n, W=3u)) {{
       .VDD--VDD
       .GND--GND
       .OUT--OUT

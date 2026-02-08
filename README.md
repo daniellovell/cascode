@@ -118,8 +118,8 @@ bench DiffToSELowpass {
 
   fill {
     net g0 : ground
-    g = new GND() { .GND--g0 }
-    vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
+    GND g = new GND() { .GND--g0 }
+    VAC vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
     IN.N--g0
   }
 

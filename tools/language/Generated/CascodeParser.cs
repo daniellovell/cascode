@@ -4143,21 +4143,13 @@ public partial class CascodeParser : Parser {
 		InstanceDeclContext _localctx = new InstanceDeclContext(Context, State);
 		EnterRule(_localctx, 98, RULE_instanceDecl);
 		int _la;
-		try {
-			EnterOuterAlt(_localctx, 1);
-			{
-			State = 787;
-			ErrorHandler.Sync(this);
-			switch ( Interpreter.AdaptivePredict(TokenStream,52,Context) ) {
-			case 1:
+			try {
+				EnterOuterAlt(_localctx, 1);
 				{
 				State = 786;
 				_localctx.declaredType = Match(IDENT);
-				}
-				break;
-			}
-			State = 789;
-			_localctx.instanceId = Match(IDENT);
+				State = 789;
+				_localctx.instanceId = Match(IDENT);
 			State = 790;
 			Match(EQ);
 			State = 791;

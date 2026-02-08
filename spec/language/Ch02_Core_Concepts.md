@@ -173,7 +173,7 @@ Instances use constructor syntax with `new`. A binding block maps instance termi
 
 ```cascode
 fill {
-  dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1)) {
+  DiffPair_Pdk dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1)) {
     .IN--IN
     .OUT.P--OUT
     .OUT.N--OUT_N
