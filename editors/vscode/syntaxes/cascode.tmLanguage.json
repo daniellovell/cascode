@@ -490,12 +490,24 @@
       }
     },
     "bench-declaration": {
-      "begin": "(bench)\\s+([A-Z][a-zA-Z0-9_]*)\\s*",
+      "begin": "(abstract\\s+)?(bench)\\s+([A-Z][a-zA-Z0-9_]*)(\\s*\\([^\\)]*\\))?(?:\\s+(extends)\\s+([A-Z][a-zA-Z0-9_]*))?\\s*",
       "beginCaptures": {
         "1": {
-          "name": "storage.type.bench.cascode"
+          "name": "storage.modifier.abstract.cascode"
         },
         "2": {
+          "name": "storage.type.bench.cascode"
+        },
+        "3": {
+          "name": "entity.name.type.bench.cascode"
+        },
+        "4": {
+          "name": "meta.parameters.cascode"
+        },
+        "5": {
+          "name": "storage.modifier.extends.cascode"
+        },
+        "6": {
           "name": "entity.name.type.bench.cascode"
         }
       },
@@ -541,6 +553,9 @@
         },
         {
           "include": "#measurements-block"
+        },
+        {
+          "include": "#measurement-declaration"
         },
         {
           "include": "#function-declaration"
@@ -734,18 +749,21 @@
       "name": "storage.modifier.inline.cascode"
     },
     "terminal-declaration": {
-      "match": "\\b(stim|resp)\\s+([A-Z_][a-zA-Z0-9_]*)\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal)",
+      "match": "\\b(abstract\\s+)?(stim|resp)\\s+([A-Z_][a-zA-Z0-9_]*)(?:\\s*(:)\\s*([A-Z][a-zA-Z0-9_]*|analog|digital|bias|supply|ground|mixed|clock|rf|signal))?",
       "captures": {
         "1": {
-          "name": "keyword.other.terminal.cascode"
+          "name": "storage.modifier.abstract.cascode"
         },
         "2": {
-          "name": "entity.name.variable.terminal.cascode"
+          "name": "keyword.other.terminal.cascode"
         },
         "3": {
-          "name": "punctuation.separator.colon.cascode"
+          "name": "entity.name.variable.terminal.cascode"
         },
         "4": {
+          "name": "punctuation.separator.colon.cascode"
+        },
+        "5": {
           "name": "storage.type.cascode"
         }
       }
@@ -1626,12 +1644,15 @@
       ]
     },
     "analysis-block": {
-      "begin": "(analysis)\\s*(\\{)",
+      "begin": "(override\\s+)?(analysis)\\s*(\\{)",
       "beginCaptures": {
         "1": {
-          "name": "keyword.control.block.analysis.cascode"
+          "name": "storage.modifier.override.cascode"
         },
         "2": {
+          "name": "keyword.control.block.analysis.cascode"
+        },
+        "3": {
           "name": "punctuation.curlybrace.open.cascode"
         }
       },
@@ -1711,24 +1732,27 @@
       ]
     },
     "measurement-declaration": {
-      "begin": "\\b(measurement)\\s+([A-Z][a-zA-Z0-9_]*)(\\s*\\([^)]*\\))?\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
+      "begin": "\\b(override\\s+)?(measurement)\\s+([A-Z][a-zA-Z0-9_]*)(\\s*\\([^)]*\\))?\\s*(:)\\s*([a-zA-Z0-9_/]+)\\s*(\\{)",
       "beginCaptures": {
         "1": {
-          "name": "keyword.declaration.measurement.cascode"
+          "name": "storage.modifier.override.cascode"
         },
         "2": {
-          "name": "entity.name.function.measurement.cascode"
+          "name": "keyword.declaration.measurement.cascode"
         },
         "3": {
-          "name": "meta.parameters.cascode"
+          "name": "entity.name.function.measurement.cascode"
         },
         "4": {
-          "name": "punctuation.separator.colon.cascode"
+          "name": "meta.parameters.cascode"
         },
         "5": {
-          "name": "storage.type.unit.cascode"
+          "name": "punctuation.separator.colon.cascode"
         },
         "6": {
+          "name": "storage.type.unit.cascode"
+        },
+        "7": {
           "name": "punctuation.curlybrace.open.cascode"
         }
       },
