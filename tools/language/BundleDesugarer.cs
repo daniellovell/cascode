@@ -351,6 +351,7 @@ public static class BundleDesugarer
                     {
                         Id = desugared.Id,
                         Type = desugared.Type,
+                        DeclaredType = desugared.DeclaredType,
                         Bindings = desugared.Bindings,
                         Params = desugared.Params,
                         Sizes = desugared.Sizes,
@@ -443,6 +444,7 @@ public static class BundleDesugarer
         {
             Id = instance.Id,
             Type = instance.Type,
+            DeclaredType = instance.DeclaredType,
             Bindings = expandedBindings,
             Params = instance.Params,
             Sizes = instance.Sizes,

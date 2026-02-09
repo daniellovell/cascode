@@ -600,7 +600,7 @@ circuit TestCircuit {{
   supply VDD
   ground GND
   fill {{
-    cm = new CurrentMirror {{ .IN--inp, .OUT--outp }}
+    CurrentMirror cm = new CurrentMirror {{ .IN--inp, .OUT--outp }}
   }}
 }}
 ";

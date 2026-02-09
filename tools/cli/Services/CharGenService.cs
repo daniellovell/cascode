@@ -300,7 +300,7 @@ internal static class CharGenService
     )
     {
         var sizeExpr =
-            $"size(W={FormatDouble(args.WidthM)}, L={FormatDouble(args.LengthM)}, M={args.Mult.ToString(CultureInfo.InvariantCulture)}, NF={args.Nf.ToString(CultureInfo.InvariantCulture)})";
+            $"size(W={FormatDouble(args.WidthM)}, L={FormatDouble(args.LengthM)}, M={args.Mult.ToString(CultureInfo.InvariantCulture)})";
 
         var harness = isPmos ? RenderPmosHarness(args) : RenderNmosHarness(args);
 

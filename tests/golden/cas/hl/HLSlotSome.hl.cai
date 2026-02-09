@@ -1,0 +1,28 @@
+VERSION 3.1
+
+circuit AnalogFrontend {
+  level HL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  slot
+}
+
+circuit SensorTop {
+  level HL
+  supply VDD
+  ground GND
+  input VIN : analog
+  output VOUT : analog
+
+  slot {
+    Some frontend = new AnalogFrontend() {
+      .VDD--VDD
+      .GND--GND
+      .IN--VIN
+      .OUT--VOUT
+    }
+  }
+}

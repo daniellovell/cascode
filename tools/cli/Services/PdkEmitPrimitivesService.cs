@@ -156,6 +156,7 @@ internal static class PdkEmitPrimitivesService
                 candidate,
                 primitiveName,
                 geom,
+                subcktDefinitions,
                 subcktBodiesByName
             );
 
@@ -469,13 +470,14 @@ internal static class PdkEmitPrimitivesService
         ModelCandidate candidate,
         string primitiveName,
         PdkDatabaseReader.GeometryRow? geom,
+        IReadOnlyDictionary<string, SpiceSubcktOpPathResolver.SubcktDefinition> subcktDefinitions,
         IReadOnlyDictionary<string, IReadOnlyList<string>> subcktBodiesByName
     )
     {
         if (geom is not null)
         {
             builder.AppendLine(
-                $"// geometry: W=[{FormatNullable(geom.WMin)}..{FormatNullable(geom.WMax)}] L=[{FormatNullable(geom.LMin)}..{FormatNullable(geom.LMax)}] NF=[{FormatNullable(geom.NfMin)}..{FormatNullable(geom.NfMax)}]"
+                $"// geometry: W=[{FormatNullable(geom.WMin)}..{FormatNullable(geom.WMax)}] L=[{FormatNullable(geom.LMin)}..{FormatNullable(geom.LMax)}] M=[{FormatNullable(geom.NfMin)}..{FormatNullable(geom.NfMax)}]"
             );
         }
 
@@ -489,7 +491,7 @@ internal static class PdkEmitPrimitivesService
         {
             case "NMOS":
             case "PMOS":
-                AppendMosParams(builder, candidate.Model, subcktBodiesByName);
+                AppendMosParams(builder, candidate.Model, subcktDefinitions, subcktBodiesByName);
                 break;
             case "Resistor":
                 builder.AppendLine("    R = primSize.R");
@@ -514,6 +516,7 @@ internal static class PdkEmitPrimitivesService
     private static void AppendMosParams(
         StringBuilder builder,
         SpectreModel model,
+        IReadOnlyDictionary<string, SpiceSubcktOpPathResolver.SubcktDefinition> subcktDefinitions,
         IReadOnlyDictionary<string, IReadOnlyList<string>> subcktBodiesByName
     )
     {
@@ -522,8 +525,8 @@ internal static class PdkEmitPrimitivesService
         {
             builder.AppendLine("    w = primSize.W");
             builder.AppendLine("    l = primSize.L");
-            builder.AppendLine("    mult = primSize.M");
-            builder.AppendLine("    nf = primSize.NF");
+            var multiplicityParam = ResolveSubcktMultiplicityParam(model.Name, subcktDefinitions);
+            builder.AppendLine($"    {multiplicityParam} = primSize.M");
 
             var opSegments = SpiceSubcktOpPathResolver.TryResolveUniqueOpSegments(
                 model.Name,
@@ -543,6 +546,50 @@ internal static class PdkEmitPrimitivesService
         builder.AppendLine("    W = primSize.W");
         builder.AppendLine("    L = primSize.L");
         builder.AppendLine("    m = primSize.M");
+    }
+
+    private static string ResolveSubcktMultiplicityParam(
+        string modelName,
+        IReadOnlyDictionary<string, SpiceSubcktOpPathResolver.SubcktDefinition> subcktDefinitions
+    )
+    {
+        if (
+            !subcktDefinitions.TryGetValue(modelName, out var definition)
+            || definition.ParameterNames.Count == 0
+        )
+        {
+            return "mult";
+        }
+
+        if (HasParameter(definition.ParameterNames, "mult"))
+        {
+            return "mult";
+        }
+
+        if (HasParameter(definition.ParameterNames, "m"))
+        {
+            return "m";
+        }
+
+        if (HasParameter(definition.ParameterNames, "nf"))
+        {
+            return "nf";
+        }
+
+        return "mult";
+    }
+
+    private static bool HasParameter(IReadOnlyList<string> parameters, string name)
+    {
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (parameters[i].Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsSubcktModel(string? modelType) =>

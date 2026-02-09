@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 // Circuit at ML level - EMIT-005 violation
 // Cannot emit SPICE from non-EL level circuit
@@ -15,7 +15,7 @@ circuit MLLevelExample {
   fill {
     net tnode : analog
 
-    dp = new DiffPair(p=NMOS) {
+    DiffPair dp = new DiffPair(p=NMOS) {
       .IN--IN
       .OUT--OUT
       .BIAS--tnode

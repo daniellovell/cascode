@@ -173,7 +173,7 @@ Instances use constructor syntax with `new`. A binding block maps instance termi
 
 ```cascode
 fill {
-  dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1)) {
+  DiffPair_Pdk dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1)) {
     .IN--IN
     .OUT.P--OUT
     .OUT.N--OUT_N
@@ -307,10 +307,12 @@ and their wiring. The syntax mirrors `fill { ... }` — the same constructs are 
 `repeat`, `pair`, `match`, wiring with `--`) — but each instantiated name resolves at the HL
 level rather than to concrete devices.
 
-Sub-block instantiation uses `name = new Type(params) { bindings }`. If `Type` names a circuit,
-that circuit's spec is used directly. If `Type` names an interface, synthesis picks any circuit
-that implements it. Parameterized instantiation works identically to fill blocks
-(`new MyLNA(stages=2)`).
+Sub-block instantiation uses `DeclaredType name = new ConstructorType(params) { bindings }`.
+For normal strongly-typed composition, `DeclaredType` matches `ConstructorType`. When the declared
+type is intentionally deferred to synthesis, slot blocks may use `Some` as the declared type.
+If `ConstructorType` names a circuit, that circuit's spec is used directly. If `ConstructorType`
+names an interface, synthesis picks any circuit that implements it. Parameterized instantiation
+works identically to fill blocks (`new MyLNA(stages=2)`).
 
 Each sub-block is self-contained: it carries its own environment, constraints, and harness and is
 independently testable. Constraints declared on a sub-block are minimums — a parent's system-level
@@ -329,13 +331,13 @@ circuit MyReceiver {
   slot {
     net mid : analog
 
-    lna = new MyLNA(stages=2) {
+    MyLNA lna = new MyLNA(stages=2) {
       .VDD--VDD
       .GND--GND
       .IN--RF_IN
       .OUT--mid
     }
-    mixer = new MyMixer() {
+    MyMixer mixer = new MyMixer() {
       .VDD--VDD
       .GND--GND
       .RF--mid

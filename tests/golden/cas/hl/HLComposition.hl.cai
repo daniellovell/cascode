@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 include lib.std
 
@@ -70,13 +70,13 @@ circuit MyReceiver {
   slot {
     net mid : analog
 
-    Some lna = new MyLNA(stages=2) {
+    MyLNA lna = new MyLNA(stages=2) {
       .VDD--VDD
       .GND--GND
       .IN--RF_IN
       .OUT--mid
     }
-    Some mixer = new MyMixer() {
+    MyMixer mixer = new MyMixer() {
       .VDD--VDD
       .GND--GND
       .RF--mid

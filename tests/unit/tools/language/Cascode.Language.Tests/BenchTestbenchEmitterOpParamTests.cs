@@ -53,8 +53,7 @@ primitive NMOS Wrap(size primSize) {
   params {
     w = primSize.W
     l = primSize.L
-    mult = primSize.M
-    nf = primSize.NF
+    nf = primSize.M
     __op_path0 = mleaf
   }
 }
@@ -85,7 +84,7 @@ circuit Top {
   }
 
   fill {
-    NMOS DUT = new Wrap(size(W=1u, L=1u, M=1, NF=1)) {
+    NMOS DUT = new Wrap(size(W=1u, L=1u, M=1)) {
       .D--D
       .G--G
       .S--S

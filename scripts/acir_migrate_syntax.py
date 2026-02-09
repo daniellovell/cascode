@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Migrate ACIR 2.x indentation syntax to ACIR 3.0 (RFC 0003).
+Migrate ACIR 2.x indentation syntax to ACIR 3.0.
 
 This script focuses on common cases:
 - Converts colon-delimited blocks to braces.

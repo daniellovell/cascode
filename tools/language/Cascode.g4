@@ -92,7 +92,7 @@ connectorMapping
 // ----------------------------------------------------------------------------
 
 benchDef
-    : BENCH_KW name=IDENT benchParamList? LBRACE benchBody RBRACE
+    : ABSTRACT_KW? BENCH_KW name=IDENT benchParamList? (EXTENDS_KW base=IDENT)? LBRACE benchBody RBRACE
     ;
 
 benchParamList
@@ -104,11 +104,19 @@ benchParamDecl
     ;
 
 benchBody
-    : terminalDecl* fillBlock? functionDef* analysisBlock? measurementsBlock?
+    : terminalDecl* benchMember*
+    ;
+
+benchMember
+    : fillBlock
+    | functionDef
+    | analysisBlock
+    | measurementsBlock
+    | measurementDecl
     ;
 
 terminalDecl
-    : terminalRole IDENT COLON terminalType
+    : ABSTRACT_KW? terminalRole IDENT (COLON terminalType)?
     ;
 
 terminalRole
@@ -253,8 +261,17 @@ paramValue
 
 slotBlockStatement
     : NET_KW IDENT COLON portType                                   # SlotNetDecl
-    | instanceDecl                                                  # SlotInstanceDecl
+    | slotInstanceDecl                                              # SlotInstanceStatement
     | pinRef WIRE_OP pinRef                                         # SlotConnectDecl
+    ;
+
+slotInstanceDecl
+    : declaredType=slotDeclaredType instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
+    ;
+
+slotDeclaredType
+    : IDENT
+    | SOME_KW
     ;
 
 // ----------------------------------------------------------------------------
@@ -264,7 +281,7 @@ slotBlockStatement
 fillStatement
     : NET_KW IDENT COLON portType                                   # FillNetDecl
     | SIZE_KW sizeName=IDENT EQ sizeExpr                            # FillSizeDecl
-    | instanceDecl                                                  # FillInstanceDecl
+    | fillInstanceDecl                                              # FillInstanceStatement
     | deviceDecl                                                    # FillDeviceDecl
     | ATTACH_KW IDENT attachTargetList VIA_KW IDENT COLONCOLON IDENT (AS_KW IDENT)? attachOverrides? # FillAttachDecl
     | pinRef WIRE_OP pinRef                                         # FillConnectDecl
@@ -301,8 +318,12 @@ fillBlock
     : FILL_KW LBRACE fillStatement* RBRACE
     ;
 
+fillInstanceDecl
+    : instanceDecl
+    ;
+
 instanceDecl
-    : (declaredType=IDENT)? instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
+    : declaredType=IDENT instanceId=IDENT EQ NEW_KW instanceType=instanceTypeName (LPAREN argList? RPAREN)? bindingBlock?
     ;
 
 instanceTypeName
@@ -380,6 +401,9 @@ idPart
     | VIA_KW
     | AS_KW
     | EXTEND_KW
+    | EXTENDS_KW
+    | ABSTRACT_KW
+    | OVERRIDE_KW
     | BENCH_KW
     | BUILTIN_KW
     | OUTPUTS_KW
@@ -808,7 +832,7 @@ returnStatement
     ;
 
 analysisBlock
-    : ANALYSIS_KW LBRACE analysisDecl* RBRACE
+    : OVERRIDE_KW? ANALYSIS_KW LBRACE analysisDecl* RBRACE
     ;
 
 analysisDecl
@@ -837,7 +861,7 @@ measurementsBlock
     ;
 
 measurementDecl
-    : MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
+    : OVERRIDE_KW? MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
     ;
 
 unitType
@@ -946,6 +970,9 @@ BENCH_KW        : 'bench' ;
 BENCHES_KW      : 'benches' ;
 BIND_KW         : 'bind' ;
 EXTEND_KW       : 'extend' ;
+EXTENDS_KW      : 'extends' ;
+ABSTRACT_KW     : 'abstract' ;
+OVERRIDE_KW     : 'override' ;
 CIRCUIT_KW      : 'circuit' ;
 PRIMITIVE_KW    : 'primitive' ;
 DEVICE_KW       : 'device' ;
@@ -1000,6 +1027,7 @@ SWEEP_KW        : 'sweep' ;
 ICMR_KW         : 'icmr' ;
 PVT_KW          : 'pvt' ;
 AUTO_KW         : 'Auto' ;
+SOME_KW         : 'Some' ;
 AT_KW           : 'at' ;
 Z_KW            : 'Z' ;
 ON_KW           : 'on' ;

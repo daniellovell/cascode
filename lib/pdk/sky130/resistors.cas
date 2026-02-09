@@ -2,7 +2,7 @@ VERSION 3.0
 
 library lib.pdk.sky130.resistors
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcl1(size primSize) {
   device "mrcl1"
   params {
@@ -10,7 +10,7 @@ primitive Resistor mrcl1(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcn(size primSize) {
   device "mrcn"
   params {
@@ -18,7 +18,7 @@ primitive Resistor mrcn(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcp(size primSize) {
   device "mrcp"
   params {
@@ -26,7 +26,7 @@ primitive Resistor mrcp(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcp1(size primSize) {
   device "mrcp1"
   params {
@@ -34,7 +34,7 @@ primitive Resistor mrcp1(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcrdlcon(size primSize) {
   device "mrcrdlcon"
   params {
@@ -42,7 +42,7 @@ primitive Resistor mrcrdlcon(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcvia(size primSize) {
   device "mrcvia"
   params {
@@ -50,7 +50,7 @@ primitive Resistor mrcvia(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcvia2(size primSize) {
   device "mrcvia2"
   params {
@@ -58,7 +58,7 @@ primitive Resistor mrcvia2(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcvia3(size primSize) {
   device "mrcvia3"
   params {
@@ -66,7 +66,7 @@ primitive Resistor mrcvia3(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor mrcvia4(size primSize) {
   device "mrcvia4"
   params {
@@ -74,7 +74,7 @@ primitive Resistor mrcvia4(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor resbody(size primSize) {
   device "resbody"
   params {
@@ -82,7 +82,7 @@ primitive Resistor resbody(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor reshead(size primSize) {
   device "reshead"
   params {
@@ -90,7 +90,7 @@ primitive Resistor reshead(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_m1(size primSize) {
   device "res_generic_m1"
   params {
@@ -98,7 +98,7 @@ primitive Resistor res_generic_m1(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_m2(size primSize) {
   device "res_generic_m2"
   params {
@@ -106,7 +106,7 @@ primitive Resistor res_generic_m2(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_m3(size primSize) {
   device "res_generic_m3"
   params {
@@ -114,7 +114,7 @@ primitive Resistor res_generic_m3(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_m4(size primSize) {
   device "res_generic_m4"
   params {
@@ -122,7 +122,7 @@ primitive Resistor res_generic_m4(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_m5(size primSize) {
   device "res_generic_m5"
   params {
@@ -130,7 +130,7 @@ primitive Resistor res_generic_m5(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_nd(size primSize) {
   device "res_generic_nd"
   params {
@@ -138,7 +138,7 @@ primitive Resistor res_generic_nd(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_pd(size primSize) {
   device "res_generic_pd"
   params {
@@ -146,7 +146,7 @@ primitive Resistor res_generic_pd(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_l1(size primSize) {
   device "sky130_fd_pr__res_generic_l1"
   params {
@@ -154,7 +154,7 @@ primitive Resistor res_generic_l1(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor hv(size primSize) {
   device "sky130_fd_pr__res_generic_nd__hv"
   params {
@@ -162,7 +162,7 @@ primitive Resistor hv(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_nw(size primSize) {
   device "sky130_fd_pr__res_generic_nw"
   params {
@@ -170,7 +170,7 @@ primitive Resistor res_generic_nw(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_po(size primSize) {
   device "sky130_fd_pr__res_generic_po"
   params {
@@ -178,7 +178,7 @@ primitive Resistor res_generic_po(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor monte(size primSize) {
   device "sky130_fd_pr__res_generic_po__monte"
   params {
@@ -186,7 +186,7 @@ primitive Resistor monte(size primSize) {
   }
 }
 
-// geometry: W=[-..-] L=[-..-] NF=[-..-]
+// geometry: W=[-..-] L=[-..-] M=[-..-]
 primitive Resistor res_generic_r1(size primSize) {
   device "sky130_fd_pr__res_generic_r1"
   params {

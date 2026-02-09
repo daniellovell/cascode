@@ -48,7 +48,7 @@ internal static class BenchTerminalCompiler
         foreach (var t in bench.Terminals)
         {
             foreach (
-                var leaf in BenchConnectivityBuilder.ExpandLeaves(t.Name, t.Type, bundlesByName)
+                var leaf in BenchConnectivityBuilder.ExpandLeaves(t.Name, t.Type!, bundlesByName)
             )
             {
                 uf.Ensure(BenchNode.BenchTerminalLeaf(leaf));
@@ -99,7 +99,7 @@ internal static class BenchTerminalCompiler
         foreach (var t in bench.Terminals)
         {
             var leaves = BenchConnectivityBuilder
-                .ExpandLeaves(t.Name, t.Type, bundlesByName)
+                .ExpandLeaves(t.Name, t.Type!, bundlesByName)
                 .ToList();
             var nodes = leaves
                 .Select(l => netlist.GetSpiceNet(BenchNode.BenchTerminalLeaf(l)))

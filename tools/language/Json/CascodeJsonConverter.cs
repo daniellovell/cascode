@@ -677,6 +677,7 @@ public static class CascodeJsonConverter
                     {
                         Id = i.Id,
                         Type = i.Type,
+                        DeclaredType = i.Type,
                         Bindings = new Dictionary<string, string>(i.Bindings),
                         Params =
                             i.Params?.ToDictionary(p => p.Key, p => ParamValueParser.Parse(p.Value))
