@@ -1,9 +1,11 @@
 # RFC-0005: PCB Schematic Representation and Synthesis
 
-Status: Draft
-Authors: Daniel Lovell
-Created: 2026-02-06
-Last Updated: 2026-02-07
+| Field | Value |
+|-------|-------|
+| Status | Draft |
+| Authors | Daniel Lovell |
+| Created | 2026-02-06 |
+| Last Updated | 2026-02-07 |
 
 ---
 
