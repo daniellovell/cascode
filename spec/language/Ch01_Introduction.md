@@ -1,325 +1,205 @@
+# Chapter 1: Introduction
 
+## 1.1 Purpose and Scope
 
-## Chapter 1 - Introduction
+cascode is a concise analog description language designed for mixed structural and measurement-driven
+circuit design. The language empowers designers to express both intent (constraints and operating
+environment) and structure (instances and connectivity) within a unified source file (`.cas`),
+enabling deterministic linking and emission to simulator netlists.
 
-### 1.1 Purpose and Scope
+The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit
+from being able to express explicit structure while keeping verification intent close to the design.
+Library authors can contribute reusable building blocks, connectors, and standard benches. Automated
+tooling benefits from a typed, canonical representation of connectivity, constraints, and provenance.
 
-**cascode** is a concise, object-oriented analog description language designed for **mixed structural-behavioral** circuit design. The language empowers designers to express both **intent** (specifications and operating environment) and **structure** (motifs and interconnect) within a unified source file (`.cas`), enabling seamless synthesis and verification through a canonical intermediate representation (**ACIR**, `.cir`) and standard **SPICE** netlists.
-
-The language addresses the needs of three primary constituencies. Analog and RF IC designers benefit from the flexibility to work behaviorally with specification-driven design, structurally with schematic-style composition, or through hybrid approaches that combine both paradigms. Library authors can contribute **reusable, characterized motifs** - whether authored natively or wrapped from existing SPICE subcircuits - that integrate directly with the synthesis engine. Finally, automated tooling leverages cascode's structured representation to perform **topology selection**, **gm/Id sizing**, and comprehensive **SPICE verification**.
-
-This specification defines the language surface, core semantics, and the artifacts required by the toolchain. Detailed algorithms for topology search and sizing are out of scope; their **contracts and interfaces** are in scope.
-
----
-
-### 1.2 Motivation
-
-Analog and mixed-signal (A/MS) IP forms the foundation of high-performance systems, enabling critical functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance, analog design automation significantly lags behind RTL flows due to a fundamental issue: design **intent** is captured at inappropriate abstraction levels - through GUI schematics and raw SPICE netlists - that obscure essential **structure**, **roles**, and **constraints**. This **representation gap** systematically undermines **scalable synthesis** and optimization, prevents effective **reuse** of proven building blocks across different technologies, and inhibits **LLM-assisted** planning and diagnostics.
-
-**cascode** directly addresses these limitations through three architectural principles. First, the language elevates **intent to first-class status** by requiring explicit specifications, operating environments, and benchmark definitions. Second, it establishes **canonical structural representation** through named motifs, typed ports, well-defined roles, and recognizable patterns. Finally, it provides **ACIR**, a normalized graph representation designed for both automated tooling and machine learning applications.
+This specification defines the language surface, core semantics, and the artifacts required by the
+toolchain. Detailed algorithms for topology selection and sizing are out of scope; their contracts
+and interfaces are in scope.
 
 ---
 
-### 1.3 Design Goals and Non-Goals
+## 1.2 Motivation
 
-#### Goals
+Analog and mixed-signal IP forms the foundation of high-performance systems, enabling critical
+functions such as clocking, power management, sensing, and high-speed I/O. Despite this importance,
+analog design automation significantly lags RTL flows in part because design intent is often captured
+at inappropriate abstraction levels: GUI schematics and raw SPICE netlists obscure essential
+structure, roles, and constraints.
 
-The language design prioritizes **mixed abstraction** capabilities, supporting specification-only, guided, and fully structural design methodologies within a single framework. Syntactic familiarity draws from Java and C# conventions, employing classes, interfaces, and object initializers alongside schematic-inspired verbs that resonate with analog designers. The architecture centers on a **motif-centric** approach where circuits compose from reusable **motifs** that expose typed ports and well-defined **contracts**.
-
-Type safety extends to physical dimensions through typed units (`1.2V`, `2pF`, `100MHz`, `60deg`, `1mW`) with comprehensive compile-time checking. The language incorporates synthesis as a native construct via `slot` and `synth` directives that automatically choose, size, and verify implementations. Interoperability with existing workflows leverages `wrap spice` constructs that elevate SPICE subcircuits to first-class motifs. Throughout the design flow, traceability ensures that ACIR preserves complete provenance, constraints, and benchmark intents.
-
-#### Non-Goals
-
-Several capabilities remain explicitly outside the language scope. cascode does not replace SPICE device models or analog simulation semantics, instead leveraging these established foundations. The synthesis engine may employ heuristics and optimization modulo theories (OMT) without guaranteeing unique optimality of chosen topologies. Finally, the language avoids mandating specific PDK formats, simulators, or gm/Id table structures, maintaining flexibility across tool ecosystems.
-
----
-
-### 1.4 Source Artifacts and File Types
-
-The cascode toolchain operates on three primary file types. **`.cas`** files contain cascode source code, encompassing modules, motifs, traits, specifications, and synthesis directives. **`.cir`** files represent the **ACIR** intermediate representation as line-oriented text format according to the specification in Chapter 3. Finally, **SPICE netlists** are generated for verification purposes, formatted according to simulator-specific requirements (such as Spectre).
-
-In summary:
-
-* **`.cas`** - *cascode* source (modules, motifs, traits, specs, synth directives).
-* **`.cir`** - **ACIR** intermediate representation (line-oriented text format; see [Chapter 3](Ch03_ACIR.md)).
-* **SPICE netlists** - generated for verification (simulator-specific, e.g., Spectre).
+cascode addresses this representation gap by making intent first-class (constraints, environment, and
+benches) while preserving explicit structure (typed terminals, named instances, and deterministic
+connectivity). This enables tool-assisted verification, reuse, and diagnostics without relying on
+implicit conventions.
 
 ---
 
-### 1.5 Cascode in a few examples
+## 1.3 Design Goals and Non-Goals
 
-All examples follow the repository style convention for connectivity: binds and connects are written as `pin -> net`. The grammar continues to accept `<-` for parsing compatibility, but new code should use `->` consistently.
+### Goals
 
-#### Spec-only definition of an amplifier (engine picks topology)
+The language design prioritizes:
 
-```java
-package analog.amp; import lib.ota.*;
+- Mixed abstraction capability: structural construction with a clear path to verification.
+- Syntactic clarity: constructor-style instantiation and explicit wiring with `--`.
+- Type safety for physical quantities: literals such as `1.2V`, `2pF`, `100MHz`, `60deg`, `500uW`.
+- Deterministic, diff-friendly text artifacts suitable for golden tests.
+- Bench reuse through interface-defined bindings rather than backend templates.
 
-bundle Diff { P: analog; N: analog; }
+### Non-Goals
 
-module AmpAuto implements SingleEndedOpAmp {
-  supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: analog;
-  param CL=2pF;
+cascode does not replace SPICE device models or simulator semantics. It does not specify synthesis
+algorithms or optimization strategies, and it does not mandate a specific PDK format or simulator.
 
-  env  {
-    vdd = VDD;
-    icmr in [0.55V..0.75V];
-    load C = CL;           // mandatory bench load
-    source Z = 50;        // mandatory bench source impedance
+---
+
+## 1.4 Source Artifacts and File Types
+
+The cascode toolchain operates on three primary artifact types:
+
+- `.cas`: cascode source (may contain `include` directives).
+- `.cai`: linked cascode intermediate (self-contained; includes resolved; includes a `VERSION` header).
+- simulator outputs: emitted SPICE netlists and bench testbenches (backend-specific).
+
+In typical use, `cascode link` produces `.cai` outputs, and `cascode emit` consumes EL-level circuits
+from either source `.cas` or linked `.cai`.
+
+The `.cai` extension is intentionally distinct from simulator conventions. In particular, `.cir` is
+widely used for SPICE netlists, and Cascode-linked artifacts are Cascode-shaped rather than SPICE.
+Reserving a distinct extension reduces ambiguity and keeps `.cal` available for Cascode Layout files
+in the long-horizon flow (Chapter 2 discusses the stage boundaries; the `.cal` format is specified
+separately from this language surface).
+
+---
+
+## 1.5 Cascode in a Few Examples
+
+The examples below use current repository conventions: connectivity is expressed with `--` and
+instance bindings use `.Terminal--Net`.
+
+### A minimal bench and binding
+
+The following is excerpted and simplified from `tests/golden/cas/bench/RcLowpass.el.cai`.
+
+```cascode
+bench DiffToSELowpass {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net g0 : ground
+    GND g = new GND() { .GND--g0 }
+    VAC vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
+    IN.N--g0
   }
 
-  spec {
-    GainBandwidth>=100MHz; PhaseMargin>=60deg; PassbandGain>=70dB;
-    OutputSwing(OUT) in [0.2V..1.0V];
-    Power<=1mW;
+  analysis {
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=200, start=1Hz, stop=1GHz)
   }
 
-  slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }
-
-  // Choose topology via synthesis and **enable** comp (or disable with 'None')
-  synth {
-    from lib.ota.*;
-    fill Core;
-    prefer inputPolarity = NMOS;
-    // Optional compensation policy on the chosen Core
-    Core.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // or: Core.comp None;
-    objective minimize Power;
-  }
-
-  bench { SEOpAmpACBench; UnityUGF; Step; }
-}
-```
-
-#### Structural definition of a 5T OTA
-
-```java
-package analog.ota; import lib.motifs.*;
-
-bundle Diff { P: analog; N: analog; }
-
-module OTA5T implements SingleEndedOpAmp {
-  supply VDD=1.8V; ground GND;
-  port in IN: Diff; port out OUT: analog;
-
-  env  { vdd = VDD; load C = 1pF; source Z = 50; }
-
-  use {
-    dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> vbias_n;
-    };
-
-    cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp { SENSE -> OUT.N; TAP[0] -> OUT.P };
-    OUT -> dp.OUT.P;  // Single‑ended pickoff for illustration.
-  }
-
-  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
-}
-
-```
-
-#### Structural single-ended CS amplifier with primitive transistor
-
-```java
-package analog.ota; import lib.motifs.*;
-
-module CommonSourceAmp implements SingleEndedAmp {
-  supply VDD=1.8V; ground GND;
-  ports [ VIN: analog, VOUT: analog ]
-  bias VB1;
-
-  env  {
-    vdd = VDD;
-    load C = 1pF;
-    source Z = 50;
-  }
-
-  spec { GainBandwidth>=50MHz; PassbandGain>=40dB; PhaseMargin>=60deg; Power<=5mW; }
-
-  use {
-    // Primitive NMOS input transistor (synthesis sizes W/L from specs)
-    M_in = new NMOS { gate -> VIN; drain -> VOUT; source -> GND; bulk -> GND; };
-
-    // Generic active load motif with polarity
-    load = new ActiveLoad { polarity=PMOS } { node -> VOUT; bias -> VB1; vref -> VDD; };
+  measurements {
+    measurement LowpassBandwidth : Hz {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.FindCrossing(-3dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+    }
   }
 }
 
-```
+circuit RcLowpass {
+  level EL
+  input IN : Diff
+  output OUT : analog
+  ground GND
 
-#### Two stages in cascade with slots
+  fill { /* R/C implementation */ }
 
-Option 1: Synthesis fills both slots
-
-```java
-module TwoStageAmp implements SingleEndedOpAmp {
-  supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: analog;
-  net N1: analog;
-
-  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
-  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
-
-  synth {
-    from lib.ota.*;
-    fill S1, S2;
-    S1.comp { style=MillerRC; Cc=Auto; Rz=Auto; }   // enable comp on first stage
-    S2.comp None;                                   // no comp on second
-    objective minimize Power;
+  benches {
+    bind DiffToSELowpass as lp {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+      dut.GND--g0
+    }
   }
 }
 ```
 
-Option 2: Structural fill (no `synth` needed)
+### Constraints reference bench measurements by binding name
 
-```java
-module TwoStageAmp_Manual implements SingleEndedOpAmp {
-  supply VDD=1.2V; ground GND;
-  port in IN: Diff; port out OUT: analog;
-  net N1: analog;
-
-  slot S1: AmplifierStage bind { IN -> IN; OUT -> N1; }
-  slot S2: AmplifierStage bind { IN -> N1; OUT -> OUT; }
-
-  use {
-    fill S1 with FoldedCascodePMOS { /* params… */ };
-    S1.comp { style=MillerRC; Cc=Auto; }
-
-    fill S2 with CSStageNMOS       { /* params… */ };
-    S2.comp None;
-  }
-}
-
-```
-
-#### SPICE wrap (wide-swing NMOS mirror motif)
-
-```java
-motif WideSwingNMOSMirror implements CurrentMirror {
-  ports {
-    sense, out, ibias: analog;
-    vss: supply;
-  }
-
-  params {
-    n: int = 1;     // mirror ratio parameter
-    Wn = 2u;        // base width
-    Ln = 0.18u;     // length
-  }
-
-  wrap spice """
-    .subckt WS_NMOS_MIRROR sense out ibias vss n=1 Wn=2u Ln=0.18u
-    * M5 sized (W/L)/(n+1)^2
-    M5 ibias ibias vss vss nch   W={Wn/((n+1)*(n+1))} L={Ln}
-    * M1 and M4 sized (W/L)/n^2
-    M1 out  ibias N002 N002 nch  W={Wn/(n*n)}       L={Ln}
-    M4 sense ibias N001 N001 nch W={Wn/(n*n)}       L={Ln}
-    * M2 and M3 sized W/L
-    M2 N002 sense vss vss nch W={Wn} L={Ln}
-    M3 N001 sense vss vss nch W={Wn} L={Ln}
-    .ends
-  """ map {
-    sense = sense;
-    out = out;
-    ibias = ibias;
-    vss = vss;
+```cascode
+constraints {
+  numeric {
+    c_fc = lp::LowpassBandwidth >= 50MHz
   }
 }
 ```
 
----
+The declarative bench system and binding model are specified in Chapter 4.
 
-### 1.6 ACIR and the Toolchain (Overview)
+### Primitives and connector-driven composition
 
-The **compiler** transforms `.cas` source files into **ACIR** (`.cir`) intermediate representation, then orchestrates a comprehensive **synthesis and verification** pipeline. The compilation process encompasses seven distinct phases:
+Cascode supports explicit primitive-backed devices and connector-driven structural composition via
+`attach`. The following excerpt illustrates `attach` in a hierarchical EL circuit:
 
-1. **Parsing & Normalization** processes units, roles, and constraints while expanding syntactic sugar for constructs like `mirror`, `fb`, and `pair`. Primitive transistors (`NMOS`, `PMOS`) are recognized and emit as topology-only motif instances.
-2. **ACIR Emission** generates a typed graph containing circuits, nets, instances/devices, terminal bindings, numeric and graph constraints, and benchmark intents. All representation remains process-agnostic.
-3. **Feasibility Guards** validate headroom stacks, input common-mode range (ICMR), gain-bandwidth versus power tradeoffs, and phase margin heuristics.
-4. **Topology Selection** (when `synth {}` directives are present) employs SAT/SMT/OMT solvers over libraries of Synthesizable motifs and modules, guided by their char manifests.
-5. **Sizing Initialization** leverages gm/Id lookup tables from the active PDK and convex/geometric programming fits to determine currents, overdrive voltages ($V_{ov}$), transistor aspect ratios ($W/L$), and compensation parameters. Primitive transistors are sized using the same methodology as structured motifs.
-6. **SPICE Verification** executes automated benchmarks across AC, noise, and transient analyses with process/voltage/temperature and Monte Carlo variations, aggregating performance metrics. By EL, primitive devices in ACIR carry PDK device names, which the SPICE emitter uses directly.
-7. **Optimization & Minimal Edits** performs sizing refinements and bounded structural modifications within the selected topology family.
-
-The pipeline produces three primary outputs: **ACIR** intermediate representation, **SPICE** netlists for simulation, and a **diagnostics report** that traces specification margins to responsible circuit blocks.
-
----
-
-### 1.7 Intended Audience
-
-This specification serves three primary audiences. Designers - including analog, RF, and mixed-signal IC engineers - represent the primary users who will author `.cas` source files and interpret synthesis results. Library builders encompass motif authors, technology integrators, and PDK adapters who contribute reusable components to the cascode ecosystem. Tool developers focus on synthesis and verification backends as well as integrated development environments that support the cascode workflow.
-
----
-
-### 1.8 Normative Keywords
-
-The terms **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as in [RFC 2119](https://www.ietf.org/rfc/rfc2119.txt).
-
----
-
-### 1.9 Conformance
-
-A *cascode* implementation is conformant if it:
-
-* accepts syntactically valid `.cas` programs (Chapter 11),
-* performs unit/type checks and emits diagnostic codes specified herein,
-* produces ACIR conforming to the Chapter 3 specification,
-* respects the semantics of `slot`/`synth`/`char` and bench intents,
-* and enforces contracts and structural typing rules in this specification.
-
----
-
-### 1.10 Digital Standard Cells as Motifs (Overview)
-
-Many analog and mixed‑signal designs leverage digital standard cells (stdcells)
-for buffering, phase detection, and simple logic around analog cores. cascode
-supports this by treating stdcells as ordinary motifs with `digital` ports and
-explicit supply pins. Stdcells typically enter the system through `wrap spice`
-from PDK‑provided subcircuits and may participate in synthesis when annotated
-with `char {}` manifests.
-
-The integration follows three key architectural principles. Stdcells function as first-class motifs with standard `digital` ports and explicit `supply` and `ground` rails. Library traits communicate functional intent (such as `InverterLike`) to enable slots to be filled by either single stdcells or composite drivers interchangeably. Finally, timing and usage metrics for stdcells are expressed through digital measurements including `RiseTime`, `FallTime`, `VOH`, and `VOL`, with verification performed through standard benches.
-
-Example: Strong‑arm latch to pad with a selectable output inverter:
-
-```cas
-package analog.io; import lib.std.sky130.hd.*; import lib.comp.*;
-
-module LatchToPad {
-  supply VDD=1.8V; ground GND;
-  ports [ VIP: analog, VIN: analog, PAD: digital ]
-  net COMP_OUT: digital;
-
-  env { vdd=VDD; load C on PAD = 15pF; source Z = 50; }
-
-  use {
-    sa = new StrongArmLatch { vdd=VDD; gnd=GND } {
-      IN_P -> VIP; IN_N -> VIN; OUT -> COMP_OUT;
-    };
+```cascode
+fill {
+  DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    .VDD--VDD
+    .GND--GND
+    .IN--IN
+    .OUT.N--mirror_gate
+    .OUT.P--OUT
+    .TAIL--VTAIL
   }
 
-  // Let synthesis choose a stdcell inverter or a composite pad driver
-  slot Buf: InverterLike bind { IN -> COMP_OUT; OUT -> PAD; }
-
-  spec {
-    RiseTime(PAD, 0.1*VDD, 0.9*VDD) <= 1.2ns;
-    FallTime(PAD, 0.9*VDD, 0.1*VDD) <= 1.2ns;
-    VOH(PAD) >= 0.9*VDD; VOL(PAD) <= 0.1*VDD; Power<=2mW;
+  CurrentMirror cm = new CurrentMirror(Sense=size(W=2u, L=180n, M=1), ratio=1) {
+    .VDD--VDD
+    .GND--GND
+    .SENSE--mirror_gate
+    .TAP[0]--OUT
   }
 
-  bench { StepToggle { node=COMP_OUT; freq=50MHz; duty=50%; } }
-
-  synth {
-    from lib.std.sky130.hd.*;                 // stdcell wrappers
-    allow Buf in { INV_*, PadDriver };        // single cell or composite
-    prefer minimize DynamicPower;
-  }
+  attach cm to dp via CurrentMirrorLike::DiffPairLike
 }
 ```
 
-In this flow, the heavy pad load (15 pF) appears via `env{}` and the synthesis
-engine chooses an implementation of `InverterLike` that meets `RiseTime` /
-`FallTime` constraints at `PAD` while respecting power objectives. The choice
-may be a single strong INV or a composite `PadDriver` that implements the same
-trait.
+The intent of `attach` is to make connector mappings explicit and reusable: the wiring implied by the
+connector is part of the source, is expanded deterministically, and is visible to downstream tooling.
+
+---
+
+## 1.6 Toolchain Pipeline
+
+Cascode’s long-horizon toolchain separates dependency resolution, synthesis, physical realization,
+and verification into explicit stages. The precise algorithms for synthesis and place-and-route are
+out of scope for this specification, but the contracts between stages are in scope.
+
+### Linking (`cascode link`)
+
+Linking resolves `include` directives and produces a self-contained `.cai` file. During linking,
+`synth { ... }` blocks are extracted into a sidecar file and removed from the `.cai` output:
+
+- output: `<name>.<level>.cai`
+- optional sidecar: `<name>.synth.yaml`
+
+### Synthesis (`cascode syn`)
+
+Synthesis consumes linked inputs and produces EL-level outputs suitable for emission:
+
+- input: `.hl.cai` or `.ml.cai`
+- guidance: `.synth.yaml` (by convention or explicitly provided)
+- output: `.el.cai`
+
+Synthesis is responsible for topology selection and sizing. The synthesis interface is intended to
+be deterministic given the same inputs and guidance.
+
+### Place-and-route (`cascode par`)
+
+Place-and-route consumes EL-level circuits and produces a physical layout representation. cascode
+reserves the `.cal` extension for Cascode Layout files, but the `.cal` schema and physical design
+semantics are specified separately from the language surface described in this document.
+
+### Emission and Verification
+
+`cascode emit` emits simulator netlists from EL circuits. Benches are executed in a
+constraint-driven manner (`cascode bench run`), and numeric constraints are checked against results
+(`cascode verify`).

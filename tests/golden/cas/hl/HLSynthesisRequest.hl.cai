@@ -1,0 +1,62 @@
+VERSION 3.1
+
+include lib.std
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+circuit HLSynthesisRequest implements SingleEndedOpAmp {
+  level HL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+
+  slot
+
+  env {
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 15pF)
+  }
+
+  benches {
+    bind DiffToSECMRejection as cmrr_bench {
+      bench.CM--dut.IN.P
+      bench.CM--dut.IN.N
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gbw          = transfer_bench::GainBandwidth at net::OUT >= 20MHz
+      c_gain         = transfer_bench::PassbandGain at net::OUT >= 40dB
+      c_cmrr         = cmrr_bench::CMRR at net::OUT >= 20dB
+      c_int_noise    = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 1uVrms
+      c_pm           = transfer_bench::PhaseMargin at net::OUT >= 60deg
+      c_vdd_pwr      = vdd_pwr::QuiescentPower <= 500uW
+      c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.4V
+      c_psrr         = psrr_bench::PSRR at net::OUT >= 20dB
+      c_input_psrr   = psrr_bench::InputReferredPSRR at net::OUT >= 20dB
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+    bias VTAIL in [0.3V:0.9V]
+  }
+
+  synth {
+    seed = 42
+    objective = minimize_power
+  }
+}

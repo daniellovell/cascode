@@ -20,13 +20,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Cascode.Cli.Tests" />
+    <InternalsVisibleTo Include="Cascode.Cli.IntegrationTests" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\workspace\Cascode.Workspace.csproj" />
     <ProjectReference Include="..\bench\Cascode.Bench.csproj" />
-    <ProjectReference Include="..\acir\Cascode.ACIR.csproj" />
-    <ProjectReference Include="..\compiler\Cascode.Compiler.csproj" />
+    <ProjectReference Include="..\language\Cascode.Language.csproj" />
     <ProjectReference Include="..\render\Cascode.Render.csproj" />
   </ItemGroup>
 

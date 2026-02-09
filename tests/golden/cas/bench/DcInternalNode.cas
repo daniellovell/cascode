@@ -1,0 +1,51 @@
+VERSION 3.1
+
+include lib.std
+
+bench DcBench {
+  stim PWR : supply
+  resp RET : ground
+
+  analysis {
+    DCAnalysis dc = new DCAnalysis()
+  }
+
+  measurements {
+    measurement MidVoltage : V {
+      VoltageSpectrum v = voltage(dc, dut.mid)
+      return v.ValueAt(0Hz)
+    }
+  }
+}
+
+circuit DcInternalNode {
+  level EL
+  supply VDD
+  ground GND
+
+  benches {
+    bind DcBench as dc {
+      bench.PWR--dut.VDD
+      bench.RET--dut.GND
+    }
+  }
+
+  constraints {
+    numeric {
+      // Midpoint of a 1.8V divider should be ~0.9V.
+      c_mid = dc::MidVoltage >= 0.89V
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+
+  fill {
+    net mid : analog
+    Resistor R1 = new Ideal_Resistor(size(R=10k)) { .P--VDD, .N--mid }
+    Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--mid, .N--GND }
+  }
+}
+

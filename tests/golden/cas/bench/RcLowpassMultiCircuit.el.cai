@@ -1,0 +1,106 @@
+VERSION 3.1
+
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+primitive Resistor Ideal_Resistor(size primSize) {
+  device "resistor"
+  params {
+    R = primSize.R
+  }
+}
+
+primitive Capacitor Ideal_Capacitor(size primSize) {
+  device "capacitor"
+  params {
+    C = primSize.C
+  }
+}
+
+bench DiffToSELowpass {
+  stim IN : Diff
+  resp OUT : analog
+
+  fill {
+    net g0 : ground
+
+    GND g = new GND() {
+      .GND--g0
+    }
+
+    VAC vp = new VAC(A=1, phase=0deg) {
+      .P--IN.P
+      .N--g0
+    }
+
+    IN.N--g0
+  }
+
+  analysis {
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=100, start=1Hz, stop=1GHz)
+  }
+
+  measurements {
+    measurement LowpassBandwidth : Hz {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.FindCrossing(-3dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+    }
+  }
+}
+
+circuit RcLowpassA {
+  level EL
+  input IN : Diff
+  output OUT : analog
+  ground GND
+
+  fill {
+    Resistor R1 = new Ideal_Resistor(size(R=1k)) {
+      .P--IN.P
+      .N--OUT
+    }
+
+    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+      .P--OUT
+      .N--GND
+    }
+  }
+
+  benches {
+    bind DiffToSELowpass as lp {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+      dut.GND--g0
+    }
+  }
+}
+
+circuit RcLowpassB {
+  level EL
+  input IN : Diff
+  output OUT : analog
+  ground GND
+
+  fill {
+    Resistor R1 = new Ideal_Resistor(size(R=2k)) {
+      .P--IN.P
+      .N--OUT
+    }
+
+    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) {
+      .P--OUT
+      .N--GND
+    }
+  }
+
+  benches {
+    bind DiffToSELowpass as lp {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+      dut.GND--g0
+    }
+  }
+}

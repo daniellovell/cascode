@@ -1,12 +1,12 @@
 namespace Cascode.Render.Svg;
 
-using System.Globalization;
 using System.Text;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
+using static Cascode.Render.Svg.SvgFormat;
 
 /// <summary>
 /// Options for SVG rendering.
@@ -80,6 +80,7 @@ public sealed class SvgRenderer
         RenderWires(sb, routing);
         RenderJunctions(sb, routing, style);
         RenderDevices(sb, placement, graph, options, labelPlacements);
+        InlineBoundaryRenderer.Render(sb, placement, graph);
         RenderPortLabels(sb, placement, routing, graph);
 
         if (options.ShowNetLabels)
@@ -175,62 +176,31 @@ public sealed class SvgRenderer
                 continue;
             }
 
-            var deviceType = device.DeviceType.ToLowerInvariant();
-            var orientation = cell.MirrorX
-                ? DeviceOrientation.GateRight
-                : DeviceOrientation.GateLeft;
-
-            double x,
-                y;
-
-            if (deviceType is "resistor" or "capacitor")
+            var deviceType = DeviceTypeHelper.Normalize(device.DeviceType);
+            if (
+                !DevicePlacementHelper.TryGetDevicePlacement(
+                    placement,
+                    deviceId,
+                    device,
+                    out var placementInfo
+                )
+            )
             {
-                var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
-                var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
-
-                if (isHorizontalPassive)
-                {
-                    var placementInfo = DeviceGeometry.GetHorizontalPassivePlacement(
-                        cell.Row,
-                        cell.Column,
-                        placement.ColumnCount,
-                        isLeftOfAxis
-                    );
-                    x = placementInfo.X;
-                    y = placementInfo.Y;
-                    orientation = DeviceOrientation.Horizontal;
-                }
-                else
-                {
-                    var placementInfo = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
-                    x = placementInfo.X;
-                    y = placementInfo.Y;
-                    orientation = DeviceOrientation.Vertical;
-                }
-            }
-            else
-            {
-                var placementInfo = DeviceGeometry.GetMosfetPlacement(
-                    cell.Row,
-                    cell.Column,
-                    cell.MirrorX
-                );
-                x = placementInfo.X;
-                y = placementInfo.Y;
+                continue;
             }
 
             sb.AppendLine(
-                $@"<g id=""{EscapeXml(deviceId)}"" class=""device {deviceType}"" data-device-id=""{EscapeXml(deviceId)}"" transform=""translate({F(x)}, {F(y)})"">"
+                $@"<g id=""{EscapeXml(deviceId)}"" class=""device {deviceType}"" data-device-id=""{EscapeXml(deviceId)}"" transform=""translate({F(placementInfo.X)}, {F(placementInfo.Y)})"">"
             );
 
-            var symbolContent = GetSymbolContent(deviceType, orientation);
+            var symbolContent = GetSymbolContent(deviceType, placementInfo.Orientation);
             if (!string.IsNullOrEmpty(symbolContent))
             {
                 sb.AppendLine(symbolContent);
             }
             else
             {
-                var (w, h) = GetDeviceDimensions(deviceType);
+                var (w, h) = DevicePlacementHelper.GetDeviceDimensions(deviceType);
                 sb.AppendLine(
                     $@"<rect width=""{F(w)}"" height=""{F(h)}"" fill=""none"" stroke=""currentColor"" />"
                 );
@@ -276,9 +246,9 @@ public sealed class SvgRenderer
                 );
             }
 
-            if (options.ShowParamLabels && device.Params.Count > 0)
+            if (options.ShowParamLabels)
             {
-                var paramText = FormatParams(device);
+                var paramText = DeviceParamFormatter.FormatParams(device);
                 if (!string.IsNullOrEmpty(paramText))
                 {
                     sb.AppendLine(
@@ -405,7 +375,7 @@ public sealed class SvgRenderer
 
     private static string GetOrientationTransform(string deviceType, DeviceOrientation orientation)
     {
-        var (w, h) = GetDeviceDimensions(deviceType);
+        var (w, h) = DevicePlacementHelper.GetDeviceDimensions(deviceType);
 
         return orientation switch
         {
@@ -415,65 +385,5 @@ public sealed class SvgRenderer
             DeviceOrientation.Vertical => $"translate(0, {F(w)}) rotate(-90)",
             _ => string.Empty,
         };
-    }
-
-    private static (double Width, double Height) GetDeviceDimensions(string deviceType)
-    {
-        var type = deviceType.ToLowerInvariant();
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
-        }
-        return (DeviceGeometry.PassiveWidth, DeviceGeometry.PassiveHeight);
-    }
-
-    private static string FormatParams(DeviceDeclaration device)
-    {
-        var parts = new List<string>();
-        var type = device.DeviceType.ToLowerInvariant();
-
-        if (type is "nmos" or "pmos" or "nfet" or "pfet")
-        {
-            if (device.Params.TryGetValue("W", out var w))
-            {
-                parts.Add($"W={w}");
-            }
-            if (device.Params.TryGetValue("L", out var l))
-            {
-                parts.Add($"L={l}");
-            }
-            if (device.Params.TryGetValue("M", out var m) && m != "1")
-            {
-                parts.Add($"M={m}");
-            }
-        }
-        else if (type == "resistor" && device.Params.TryGetValue("R", out var r))
-        {
-            parts.Add($"R={r}");
-        }
-        else if (type == "capacitor" && device.Params.TryGetValue("C", out var c))
-        {
-            parts.Add($"C={c}");
-        }
-        else if (type == "inductor" && device.Params.TryGetValue("L", out var ind))
-        {
-            parts.Add($"L={ind}");
-        }
-
-        return string.Join(" ", parts);
-    }
-
-    private static string F(double value)
-    {
-        return value.ToString("0.##", CultureInfo.InvariantCulture);
-    }
-
-    private static string EscapeXml(string text)
-    {
-        return text.Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;")
-            .Replace("\"", "&quot;")
-            .Replace("'", "&apos;");
     }
 }

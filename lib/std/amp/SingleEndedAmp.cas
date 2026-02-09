@@ -1,20 +1,44 @@
-package lib.std.amp;
+library lib.std.amp
+include lib.std.bench
 
-// Interface trait: Single-ended amplifier (single-ended input, single-ended output).
-// Provides ports and bench metric mappings for Amplifier metrics.
-trait SingleEndedAmp extend Amplifier {
-  ports [ IN: analog, OUT: analog ]
-  supply VDD; ground GND;
+// Interface: Single-ended amplifier (single-ended input, single-ended output).
+//
+// Provides ports and standard bench bindings for common small-signal and time-domain metrics.
+interface SingleEndedAmp {
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
 
-  // Declarative mapping from canonical metrics to bench metrics.
-  metrics {
-    GainBandwidth from SEAmpACBench.GainBandwidth;
-    PassbandGain  from SEAmpACBench.PassbandGain;
-    PhaseMargin   from SEAmpACBench.PhaseMargin;
-    InputDCBias   from SEAmpDCBench.InputDCBias;
-    OutputDCBias  from SEAmpDCBench.OutputDCBias;
-    QuiescentPower from SEAmpDCBench.QuiescentPower;
-    // OutputSwing is handled by dedicated benches; left unspecified here.
+  benches {
+    bind QuiescentPower as vdd_pwr {
+      bench.PWR--dut.VDD
+      bench.RET--dut.GND
+    }
+
+    bind SEToSETransfer as transfer_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind SEToSENoise as noise_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind SEToSETran as tran_bench {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+    }
+
+    bind SupplyToSERejectionSEInput as psrr_bench {
+      bench.IN--dut.IN
+      bench.PWR--dut.VDD
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
   }
 }
-

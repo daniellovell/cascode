@@ -1,0 +1,54 @@
+VERSION 3.1
+
+primitive NMOS Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+primitive PMOS Level1_PMOS(size primSize) {
+  device "level1_pmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
+circuit CommonSourceAmp implements SingleEndedAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+  input VBIAS : bias
+  fill {
+    NMOS M_in = new Level1_NMOS(size(W=10u, L=180n, M=1)) {
+      .D--OUT
+      .G--IN
+      .S--GND
+      .B--GND
+    }
+    PMOS load.M = new Level1_PMOS(size(W=20u, L=180n, M=1)) {
+      .D--OUT
+      .G--VBIAS
+      .S--VDD
+      .B--VDD
+    }
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 50MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 30dB
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VBIAS = 0.7V
+    load OUT C=1pF
+  }
+}

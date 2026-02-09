@@ -42,7 +42,7 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
     [Fact]
     public async Task AllGoldenJsonFiles_ConvertBidirectionally_Succeeds()
     {
-        var jsonDir = Path.Combine(_repoRoot, "tests", "golden", "acir", "json");
+        var jsonDir = Path.Combine(_repoRoot, "tests", "golden", "cas", "json");
         Assert.True(Directory.Exists(jsonDir), $"Golden JSON directory not found: {jsonDir}");
 
         var jsonFiles = Directory.GetFiles(jsonDir, "*.json").OrderBy(Path.GetFileName).ToList();
@@ -52,61 +52,61 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
 
         foreach (var jsonFile in jsonFiles)
         {
-            var match = FindMatchingCirFile(jsonFile, failures);
+            var match = FindMatchingCasFile(jsonFile, failures);
             if (match == null)
             {
                 continue;
             }
 
-            var jsonToAcirOutput = Path.Combine(
+            var jsonToCascodeOutput = Path.Combine(
                 _outputDir,
-                $"{Path.GetFileNameWithoutExtension(jsonFile)}.roundtrip.el.cir"
+                $"{Path.GetFileNameWithoutExtension(jsonFile)}.roundtrip.el.cas"
             );
-            var jsonToAcir = await CliIntegrationTestHelper.RunCliAsync(
+            var jsonToCascode = await CliIntegrationTestHelper.RunCliAsync(
                 TimeSpan.FromSeconds(30),
                 _cascodeHome,
                 "convert",
                 jsonFile,
-                "--acir",
+                "--cascode",
                 "-o",
-                jsonToAcirOutput
+                jsonToCascodeOutput
             );
-            if (jsonToAcir.ExitCode != 0)
+            if (jsonToCascode.ExitCode != 0)
             {
                 failures.Add(
-                    $"{Path.GetFileName(jsonFile)} -> ACIR failed (Exit {jsonToAcir.ExitCode}): {jsonToAcir.Stderr}"
+                    $"{Path.GetFileName(jsonFile)} -> Cascode failed (Exit {jsonToCascode.ExitCode}): {jsonToCascode.Stderr}"
                 );
             }
-            else if (!File.Exists(jsonToAcirOutput))
+            else if (!File.Exists(jsonToCascodeOutput))
             {
                 failures.Add(
-                    $"{Path.GetFileName(jsonFile)} -> ACIR did not produce {jsonToAcirOutput}"
+                    $"{Path.GetFileName(jsonFile)} -> Cascode did not produce {jsonToCascodeOutput}"
                 );
             }
 
-            var acirToJsonOutput = Path.Combine(
+            var cascodeToJsonOutput = Path.Combine(
                 _outputDir,
                 $"{Path.GetFileNameWithoutExtension(match)}.roundtrip.el.json"
             );
-            var acirToJson = await CliIntegrationTestHelper.RunCliAsync(
+            var cascodeToJson = await CliIntegrationTestHelper.RunCliAsync(
                 TimeSpan.FromSeconds(30),
                 _cascodeHome,
                 "convert",
                 match,
                 "--json",
                 "-o",
-                acirToJsonOutput
+                cascodeToJsonOutput
             );
-            if (acirToJson.ExitCode != 0)
+            if (cascodeToJson.ExitCode != 0)
             {
                 failures.Add(
-                    $"{Path.GetFileName(match)} -> JSON failed (Exit {acirToJson.ExitCode}): {acirToJson.Stderr}"
+                    $"{Path.GetFileName(match)} -> JSON failed (Exit {cascodeToJson.ExitCode}): {cascodeToJson.Stderr}"
                 );
             }
-            else if (!File.Exists(acirToJsonOutput))
+            else if (!File.Exists(cascodeToJsonOutput))
             {
                 failures.Add(
-                    $"{Path.GetFileName(match)} -> JSON did not produce {acirToJsonOutput}"
+                    $"{Path.GetFileName(match)} -> JSON did not produce {cascodeToJsonOutput}"
                 );
             }
         }
@@ -117,33 +117,42 @@ public sealed class ConvertCommandIntegrationTests : IDisposable
         }
     }
 
-    private string? FindMatchingCirFile(string jsonFile, List<string> failures)
+    private string? FindMatchingCasFile(string jsonFile, List<string> failures)
     {
-        var acirRoot = Path.Combine(_repoRoot, "tests", "golden", "acir");
+        var cascodeRoot = Path.Combine(_repoRoot, "tests", "golden", "cas");
         var baseName = Path.GetFileNameWithoutExtension(jsonFile);
-        var targetFileName = $"{baseName}.cir";
 
-        var matches = Directory
-            .GetFiles(acirRoot, targetFileName, SearchOption.AllDirectories)
-            .Where(path =>
-                !path.Contains(
-                    $"{Path.DirectorySeparatorChar}json{Path.DirectorySeparatorChar}",
-                    StringComparison.OrdinalIgnoreCase
+        // Look for .cai files first (linked Cascode), then .cas files
+        var matches = new List<string>();
+        foreach (var ext in new[] { ".cai", ".cas" })
+        {
+            var targetFileName = $"{baseName}{ext}";
+            matches = Directory
+                .GetFiles(cascodeRoot, targetFileName, SearchOption.AllDirectories)
+                .Where(path =>
+                    !path.Contains(
+                        $"{Path.DirectorySeparatorChar}json{Path.DirectorySeparatorChar}",
+                        StringComparison.OrdinalIgnoreCase
+                    )
                 )
-            )
-            .OrderBy(Path.GetFullPath)
-            .ToList();
+                .OrderBy(Path.GetFullPath)
+                .ToList();
+            if (matches.Count > 0)
+            {
+                break;
+            }
+        }
 
         if (matches.Count == 0)
         {
-            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cir found");
+            failures.Add($"{Path.GetFileName(jsonFile)}: No matching .el.cai found");
             return null;
         }
 
         if (matches.Count > 1)
         {
             failures.Add(
-                $"{Path.GetFileName(jsonFile)}: Multiple .el.cir matches: {string.Join(", ", matches)}"
+                $"{Path.GetFileName(jsonFile)}: Multiple matches: {string.Join(", ", matches)}"
             );
             return null;
         }

@@ -1,0 +1,49 @@
+VERSION 3.1
+
+include lib.std
+
+bench TranBench {
+  stim IN : analog
+
+  analysis {
+    TranAnalysis tr = new TranAnalysis(stop=2us, step=2ns)
+  }
+
+  measurements {
+    measurement InternalNodePeak : V {
+      VoltageWaveform v = voltage(tr, dut.n)
+      return v.Max()
+    }
+
+    measurement SupplyCurrentPeak : A {
+      CurrentWaveform i = current(tr, harness.VDD.P)
+      return i.Max()
+    }
+  }
+}
+
+circuit TranInternalCurrent {
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+
+  benches {
+    bind TranBench as tran {
+      bench.IN--dut.IN
+      VSIN vin = new VSIN(DC=0V, A=100mV, freq=1MHz) { .P--IN, .N--dut.GND }
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+
+  fill {
+    net n : analog
+    Resistor R1 = new Ideal_Resistor(size(R=10k)) { .P--VDD, .N--n }
+    Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--IN, .N--n }
+    Capacitor C1 = new Ideal_Capacitor(size(C=1n)) { .P--n, .N--GND }
+  }
+}

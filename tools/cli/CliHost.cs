@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Cascode.Cli.Output;
 using Cascode.Cli.Services;
 using Cascode.Workspace;
 using Microsoft.Extensions.Logging;
@@ -37,23 +38,26 @@ internal sealed class CliHost
 
     private void RegisterCommands()
     {
-        new Commands.SystemCommandModule(_state).Register(_commands);
+        var output = new CliOutputProvider(_state, () => _isInteractive);
+
+        new Commands.SystemCommandModule(_state, output).Register(_commands);
         new Commands.PdkCommandModule(
             _state,
             _scanner,
             _config,
             _configStorage,
             _initialWorkspaceRoot,
-            () => _isInteractive
+            () => _isInteractive,
+            output
         ).Register(_commands);
-        new Commands.CharacterizationCommandModule(_state).Register(_commands);
-        new Commands.BenchCommandModule(_state).Register(_commands);
-        new Commands.BuildCommandModule(_state).Register(_commands);
-        new Commands.EmitCommandModule(_state).Register(_commands);
-        new Commands.ErcCommandModule(_state).Register(_commands);
-        new Commands.VerifyCommandModule(_state).Register(_commands);
-        new Commands.ConvertCommandModule(_state).Register(_commands);
-        new Commands.RenderCommandModule(_state).Register(_commands);
+        new Commands.CharacterizationCommandModule(_state, output).Register(_commands);
+        new Commands.BenchCommandModule(_state, output).Register(_commands);
+        new Commands.LinkCommandModule(_state, output).Register(_commands);
+        new Commands.EmitCommandModule(_state, output).Register(_commands);
+        new Commands.ErcCommandModule(_state, output).Register(_commands);
+        new Commands.VerifyCommandModule(_state, output).Register(_commands);
+        new Commands.ConvertCommandModule(_state, output).Register(_commands);
+        new Commands.RenderCommandModule(_state, output).Register(_commands);
     }
 
     public int RunInteractive()

@@ -9,9 +9,14 @@
 
 *Synthesized analog description language for rapid, portable analog/mixed-signal design*
 
-**cascode** is a concise, object-oriented language for specifying **what** an analog system must do (specs, environment) and **how** it may be built (structural motifs), with an integrated synthesis workflow that turns `.cas` into a canonical ACIR (`.cir`) and a verified SPICE netlist.
+**cascode** is a concise language for describing analog and mixed-signal circuits with explicit
+connectivity, typed physical quantities, and a declarative bench system. The toolchain links `.cas`
+source into self-contained `.cai` artifacts and emits simulator netlists plus bench runs for
+constraint checking.
 
-It's designed to be **engineer-friendly** (reads like a schematic), **LLM-friendly** (modules, traits, and clear verbs), and **tool-friendly** (typed units, canonical IR, contracts).
+It's designed to be engineer-friendly (reads like a schematic), tool-friendly (typed quantities,
+deterministic text formats), and reusable (benches bound through interfaces rather than rewritten per
+topology).
 
 ## Getting Started
 
@@ -21,10 +26,18 @@ New to Cascode? Start here to understand the core concepts through a practical O
 
 ## Language Specification
 
+- [Spec overview](spec/language/README.md)
 - [Chapter 1 – Introduction](spec/language/Ch01_Introduction.md)
 - [Chapter 2 – Core Concepts](spec/language/Ch02_Core_Concepts.md)
-- [Chapter 3 – ACIR: The Intermediate Representation](spec/language/Ch03_ACIR.md)
-- [Chapter 4 – Testbench Templates](spec/language/Ch04_Testbench_Templates.md)
+- [Chapter 3 – Syntax Reference](spec/language/Ch03_Syntax_Reference.md)
+- [Chapter 4 – Bench System](spec/language/Ch04_Bench_System.md)
+
+Practical usage guide:
+- `docs/language/README.md`
+- `docs/language/style.md`
+- `docs/language/bench-cookbook.md`
+- `docs/language/connectors.md`
+- `docs/language/troubleshooting.md`
 
 
 
@@ -65,260 +78,107 @@ cascode --help
   - dotnet tool: `dotnet tool install -g Cascode.Cli`
 
 - Pre-release (release candidates, nightly tags):
-  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.4.0-rc.1`)
-  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.4.0-rc.1`
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.5.0-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.5.0-rc.1`
   - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---
 
 ## 💡 Why cascode?
 
-* **Bridges behavior and structure.** Mix spec-only requests ("meet GainBandwidth/PhaseMargin/PassbandGain") with structural guidance ("choose from {tele-cascode, folded-cascode}").
-* **Motif-centric.** Build with well‑named blocks: `DiffPair`, `CurrentMirror`, `MillerRz`, `StrongArmLatch`, etc.
-* **Concise structural sugar.** One-liners for mirrors, feedback, symmetry, and topology attachments: `mirror`, `fb`, `pair`, `attach`.
-* **Synthesis built-in.** `slot` + `synth` select and size topologies from libraries characterized with SPICE.
-* **Typed units and contracts.** Units like `1.2V`, `2pF`, `100MHz` are first-class; contracts (`req`/`ens`) capture headroom and validity.
-* **ACIR.** A canonical typed graph that downstream tools and LLMs can reason about far better than raw SPICE.
+* **Unified, deterministic artifacts.** Link `.cas` into `.cai` (self-contained, diff-friendly).
+* **Explicit connectivity.** `--` wiring and `.Terminal--Net` bindings; no implicit connect-by-name.
+* **Typed quantities.** Literals like `1.8V`, `50Ohm`, `15pF`, `60deg`, `40dB` are first-class.
+* **Declarative benches.** Define `bench` once, bind through interfaces, constrain via `binding::Measurement`.
+* **Tooling.** `cascode link`, `emit`, `bench run`, `verify`, `erc`, `render`, plus PDK workspace tools.
 
 ---
 
 ## 📝 Language at a Glance
 
-### Spec-only amplifier
+Cascode is a unified language: circuits, benches, and primitives share a single syntax. A small,
+self-contained example (from `tests/golden/cas/bench/RcLowpass.el.cai`) looks like this:
 
-In this example, the amplifier is defined by the specification and the **synthesis will choose the topology** from available topologies.
+```cascode
+VERSION 3.0
 
-
-```java
-package analog.amp; import lib.ota.*;
-
-module AmpAuto implements SingleEndedOpAmp {
-  supply VDD; ground GND;
-  port in IN: Diff;
-  port out OUT: analog;
-
-  env {
-    vdd   = VDD;
-    icmr  in [0.55V..0.75V];
-    load  C = CL;     // mandatory bench load
-    source Z = 50;    // mandatory bench source impedance
-  }
-
-  spec {
-    GainBandwidth >= 100MHz;
-    PhaseMargin   >= 60deg;
-    PassbandGain  >= 70dB;
-    OutputSwing(OUT) in [0.2V..1.0V];
-    Power         <= 1mW;
-  }
-
-  // Stage placeholder; synthesis chooses the actual topology.
-  slot Core: AmplifierStage bind { IN -> IN; OUT -> OUT; }
-
-  synth {
-    from lib.ota.*;
-    fill Core;
-    prefer inputPolarity = NMOS;
-    objective minimize Power;
-  }
-
-  // Testbenches for this topology are inherited from
-  // the `SingleEndedOpAmp` trait, but they may 
-  // be overriden, as shown below.
-  bench { SEOpAmpACBench; UnityUGF; Step; }
+primitive Resistor Ideal_Resistor(size primSize) {
+  device "resistor"
+  params { R = primSize.R }
 }
-```
 
-### Guided selection
+primitive Capacitor Ideal_Capacitor(size primSize) {
+  device "capacitor"
+  params { C = primSize.C }
+}
 
-In this example, the amplifier is defined by the specification and the synthesis will choose the topology **from the allowed topologies**.
+bench DiffToSELowpass {
+  stim IN : Diff
+  resp OUT : analog
 
-```java
-module AmpGuided implements SingleEndedOpAmp {
-  supply VDD; ground GND;
-  port in IN: Diff;
-  port out OUT: analog;
+  fill {
+    net g0 : ground
+    GND g = new GND() { .GND--g0 }
+    VAC vp = new VAC(A=1, phase=0deg) { .P--IN.P, .N--g0 }
+    IN.N--g0
+  }
 
-  // ... Environment `env` defined same as `AmpAuto` example ...
-  // ... Specifications `spec` defined same as `AmpAuto` example ...
-  spec { GainBandwidth>=120MHz; PhaseMargin>=60deg; PassbandGain>=72dB; Power<=1mW; }
+  analysis {
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=200, start=1Hz, stop=1GHz)
+  }
 
-  slot Core : AmplifierStage; 
-  slot Comp : Compensator?;
-
-  synth {
-    from lib.ota.*;
-    fill Core;
-
-    // Constrain the search space
-    allow Core in { TeleCascodeNMOS, FoldedCascodePMOS };
-    prefer Comp in { MillerRC, MillerRz };
-    forbid GainBoosting;
-    objective minimize Power;
+  measurements {
+    measurement LowpassBandwidth : Hz {
+      TransferFunction H = transfer(ac, IN, OUT)
+      GainSpectrum G = db20(H.Mag())
+      return G.FindCrossing(-3dB, dir=falling, cross=1, from=ac.start, to=ac.stop)
+    }
   }
 }
-```
 
-### Manual 5T OTA
+circuit RcLowpass {
+  level EL
+  input IN : Diff
+  output OUT : analog
+  ground GND
 
-Here the topology is manually defined using reusable building blocks, called "motifs" from Cascode's standard library.
-
-```java
-package analog.ota; import lib.std.amp.*; import lib.std.prim.*;
-
-module OTA5T implements SingleEndedOpAmp {
-  supply VDD; ground GND;
-  port in IN: Diff;
-  port out OUT: analog;
-  bias VTAIL;
-
-  env {
-    vdd = VDD;
-    icmr in [0.55V..0.75V];
-    load C = 1pF;
-    source Z = 50;
+  fill {
+    Resistor R1 = new Ideal_Resistor(size(R=1k)) { .P--IN.P, .N--OUT }
+    Capacitor C1 = new Ideal_Capacitor(size(C=1p)) { .P--OUT, .N--GND }
   }
 
-  use {
-    // Differential pair with internal tail device
-    dp = new DiffPair { p=NMOS; hasTail=true } {
-      IN.P -> IN.P; IN.N -> IN.N; BASE -> GND; BIAS -> VTAIL;
-    };
-
-    // PMOS current mirror as active load
-    cm = new CurrentMirror { p=PMOS; taps=1 };
-    attach cm to dp;   // Uses CurrentMirrorLike → DiffPairLike connector
-
-    // Single-ended output taken from the sensed branch
-    connect dp.OUT.N -> OUT;
+  benches {
+    bind DiffToSELowpass as lp {
+      bench.IN--dut.IN
+      bench.OUT--dut.OUT
+      dut.GND--g0
+    }
   }
 
-  spec { GainBandwidth>=50MHz; PassbandGain>=55dB; PhaseMargin>=60deg; OutputSwing(OUT) in [0.2V..1.6V]; Power<=2mW; }
-  bench { SEOpAmpACBench; UnityUGF; Step; }
-}
-```
-
-#### SPICE wrap as a reusable "lego" (wide-swing mirror)
-
-```java
-motif WideSwingPMOSMirror {
-  ports { SENSE: analog; OUT: analog; VDD: supply; }
-  params { m:int=1; Wp=2u; Lp=0.18u; }
-
-  wrap spice """
-    .subckt WS_PMOS_MIRROR sense out vdd m=1 Wp=2u Lp=0.18u
-    M1 out  sense vdd vdd pch W={Wp*m} L={Lp}
-    M2 sense sense vdd vdd pch W={Wp}   L={Lp}   ; diode
-    .ends
-  """ map { SENSE=sense; OUT=out; VDD=vdd; }
-}
-```
-
-
-### System-level sense chain
-
-This example shows a system-level sense chain with a front-end block, a baseband filter, a variable gain amplifier, and an output driver. The synthesis will choose the topology from the available topologies. 
-
-It will make these choices based on the specifications of each block, each of their own `env` and `spec` blocks, and the overall `SenseChainAuto` `env` and `spec` blocks.
-
-```java
-module SenseChainAuto {
-  supply VDD; ground GND;
-  port in VIN;
-  port out VOUT;
-
-  env {
-    source { Z=10; range=[0V..1V]; }
-    load   { C=5pF; }
+  constraints {
+    numeric { c_fc = lp::LowpassBandwidth >= 50MHz }
   }
-
-  spec {
-    PassbandGain == 40dB +/- 1dB over [10kHz..2MHz];
-    NoiseIn <= 20nV/sqrtHz at 100kHz;
-    Settle(out, 1% step(0->1V)) <= 1us;
-    Power <= 10mW;
-  }
-
-  slot FrontEnd : FrontEndBlock;
-  slot Filter   : BasebandFilter?;
-  slot VGA      : VariableGainAmp?;
-  slot Driver   : OutputDriver;
-
-  synth {
-    from lib.sense.*, lib.filters.*, lib.buffers.*;
-    fill FrontEnd, Filter, VGA, Driver;
-    prefer FrontEnd in { InverterTIA, OTA_TIA };
-    objective minimize Power;
-  }
-
-  bench { ChainAC; ChainNoise; Step; }
 }
 ```
 
 ---
 
-## ⚙️ From `.cas` to `.cir` to SPICE -- The Synthesis/Verification Flow
+## ⚙️ From `.cas` to `.cai` to SPICE
 
-1. **Parse & Normalize**
+1. `cascode link` resolves `include` directives and writes self-contained `.cai` output.
+2. `cascode emit` emits simulator netlists from EL circuits (source `.cas` or linked `.cai`).
+3. `cascode bench run` runs constraint-selected benches and writes `results.json` plus per-bench traces.
+4. `cascode verify` checks numeric constraints against results.
 
-   * Read `.cas`, resolve packages, check units and types, expand sugar (`pair`, `mirror`, `fb`).
-   * Canonicalize specs and environment into inequalities.
+Optional tooling:
 
-2. **Lower to ACIR (`.cir`)**
+- `cascode erc` runs electrical rule checks.
+- `cascode render` renders an SVG schematic from an EL circuit.
 
-   * Emit a **typed graph**: circuits, nets, instances/devices, terminal bindings, constraints, harness, benches, provenance.
+Roadmap stages (vision):
 
-3. **Feasibility Guards** (fast checks)
-
-   * Headroom stacks, ICMR, GainBandwidth vs. Power, PhaseMargin (two-stage guards), device/legal limits.
-
-4. **Topology Selection (if `synth {}` present)**
-
-   * Build the **search space** from libraries (`Synthesizable` motifs/modules with `char {}` manifests).
-   * **SAT** for structure + **SMT/OMT** for mixed Boolean/real feasibility and objectives (`allow/forbid/prefer/objective`).
-
-5. **Sizing Initialization**
-
-   * gm/Id + LUT-backed fits (convex/GP where possible) to determine $V_{ov}$, currents, $W/L$, compensation values.
-
-6. **SPICE-Level Verification**
-
-   * Auto-generate benches (AC/Noise/Tran, PSS/PNOISE when relevant).
-   * Run across PVT and a limited MC budget; aggregate metrics and margins.
-
-7. **Optimization Loop**
-
-   * If misses, run sizing optimization (GP, adjoint-based gradients, or derivative-free).
-   * If still infeasible, perform **minimal topological edits** within the chosen family; else re-select topology (bounded).
-
-8. **Artifacts & Reports**
-
-   * Outputs: `.cir` (ACIR), synthesized SPICE netlist(s), bench results, constraints/margins report, and provenance (which library blocks, parameters, and fits were used).
-
-> **Why ACIR?** It's compact, unambiguous, and far easier for downstream tools to analyze than raw SPICE. It preserves intent (traits, benches) and provenance in a line-oriented text format optimized for readability and diff stability.
-
-**ACIR snippet (for `OTA5T`, illustrative)**:
-
-```firrtl
-ACIR 1
-
-circuit OTA5T : SingleEndedOpAmp
-  level ML
-
-  supply VDD
-  ground GND
-  port IN : Diff
-  port OUT : analog
-
-  fill:
-    inst dp (IN->IN, OUT.N->OUT, BASE->GND) : DiffPair
-    inst cm (SENSE->dp.OUT.P, TAP[0]->OUT) : CurrentMirror
-
-  constraints:
-    numeric:
-      c_gbw : GainBandwidth @ OUT >= 50M Hz
-      c_pm : PhaseMargin @ OUT >= 60 deg
-```
+- `cascode syn` consumes `.hl/.ml.cai` plus `<name>.synth.yaml` and produces `.el.cai` (topology selection and sizing).
+- `cascode par` consumes `.el.cai` and produces physical layout artifacts; `.cal` is reserved for Cascode Layout files (format specified separately).
 
 ---
 
@@ -330,20 +190,23 @@ cascode/
 │  └─ language/
 │     ├─ Ch01_Introduction.md
 │     ├─ Ch02_Core_Concepts.md
-│     ├─ Ch03_ACIR.md
-│     └─ Ch04_Testbench_Templates.md
+│     ├─ Ch03_Syntax_Reference.md
+│     └─ Ch04_Bench_System.md
 ├─ lib/
 │  └─ std/
-│     ├─ prim/                 # Primitive motifs + interface traits
-│     ├─ amp/                  # Amplifier traits and topologies
-│     │  ├─ ota/
-│     │  └─ benches/           # Standard testbench templates
+│     ├─ prim/                 # Primitive definitions + connector interfaces
+│     ├─ bench/                # Standard bench definitions (declarative)
+│     ├─ amp/                  # Amplifier interfaces and circuits
+│     ├─ composites/           # Multi-block composites
 │     └─ refs/                 # Reference circuits (current/voltage references)
 ├─ tools/
 │  ├─ cli/
-│  └─ parser/
+│  ├─ language/
+│  ├─ bench/
+│  ├─ workspace/
+│  └─ render/
 ├─ tests/
-│  ├─ golden/              # Canonical Cascode/ACIR/SPICE fixtures (see below)
+│  ├─ golden/              # Canonical Cascode fixtures and results (see below)
 │  ├─ integration/
 │  └─ unit/
 ├─ editors/
@@ -354,16 +217,16 @@ cascode/
 
 ### Component Responsibilities
 
-- `tools/parser`: Hosts `Cascode.g4` (ANTLR v4) and parser setup for C#.
-- `tools/compiler`: Front end that turns ADL into ACIR (name/units/type checks, trait conformance, desugaring of attach/pair/mirror/fb, IR build with provenance).
-- `tools/acir`: ACIR object model, canonical text reader/writer, SPICE emission, and constraint compliance checking.
-- `tools/workspace`: Cadence workspace scanning, PDK device/model catalog, and workspace database persistence.
-- `tools/bench`: Template discovery and rendering (Scriban-based), testbench generation, and SPICE backend adapters (Ngspice, Spectre).
+- `tools/cli`: CLI entrypoints and UX (no core semantics).
+- `tools/language`: Grammar, parsing, linking, validation, and IR for the Cascode language.
+- `tools/bench`: Bench planning/runtime and bench-oriented SPICE emission support.
+- `tools/workspace`: PDK workspace scanning and persistence (`pdk.db`).
+- `tools/render`: Schematic/layout rendering from EL circuits.
 
 ### Notes
 
 - Build artifacts go in `build/` (not committed).
-- ACIR on disk is line-oriented text format with explicit units and deterministic ordering.
+- Linked Cascode (`.cai`) is line-oriented text with explicit units and deterministic ordering.
 
 ---
 
@@ -388,7 +251,7 @@ scripts/install-dev-tool.sh
 ```
 
 This script will:
-1. Pack the CLI project into a NuGet package
+1. Pack the CLI project into a NuGet library
 2. Uninstall any existing global installation of `Cascode.Cli`
 3. Install the newly built version as a global .NET tool
 
@@ -401,7 +264,7 @@ cascode --version
 ## ♻️ Golden fixtures
 
 `tests/golden/` is the canonical store for regression assets that tie Cascode
-sources to expected ACIR/SPICE outputs.
+inputs (`*.cai`) to expected emitted outputs and constraint-checking results.
 
 ---
 
@@ -410,19 +273,18 @@ sources to expected ACIR/SPICE outputs.
 > Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
 
 ```bash
-# Compile ADL to ACIR
-cascode build tests/golden/cas/ota/OTA5TSingleEndedSimplified.cas
-# Output: build/OTA5TSingleEndedSimplified.ml.cir
+# Link source (resolve includes) to self-contained .cai
+cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build
 
-# Emit simulator netlists from an ACIR EL circuit
-cascode emit tests/golden/acir/ota/OTA5TSingleEnded.el.cir --backend ngspice --out build/ota-emit
+# Emit simulator netlists from an EL circuit (source .cas or linked .cai)
+cascode emit tests/golden/cas/bench/RcLowpass.el.cai --backend ngspice --out build/rc-emit
 
 # Run benches and write consolidated results plus a per-point trace for each bench.
 # If a bench name is omitted, all benches declared by the circuit are executed.
-cascode bench run tests/golden/acir/ota/OTA5TSingleEnded.el.cir -o build/ota-run
+cascode bench run tests/golden/cas/bench/RcLowpass.el.cai -o build/rc-run --backend ngspice
 
 # Verify constraints from either results.json or trace.jsonl
-cascode verify tests/golden/acir/ota/OTA5TSingleEnded.el.cir build/ota-run/OTA5TSingleEnded_SEOpAmpACBench_trace.jsonl
+cascode verify tests/golden/cas/bench/RcLowpass.el.cai build/rc-run/results.json
 ```
 
 ---
@@ -439,15 +301,14 @@ cd editors/vscode && ./install.sh
 cd editors\vscode; .\install.ps1
 ```
 
-Highlights keywords (`module`, `slot`, `synth`, `spec`), typed units (`1.8V`, `15pF`, `50MHz`), connection operators (`->`, `<->`), and more. The style guide standardizes bind/connect arrows as `pin -> net`. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
 ---
 
 ## 🤝 Contributing
 
 * See `CONTRIBUTING.md` for coding standards, style, and the language conformance suite.
-* Library authors: include a `char { ... }` block with benches, PVT grid, sweeps, and fitted models.
-* Please add minimal, runnable examples with each new motif or trait.
+* Library authors: add minimal, runnable examples with each new circuit or interface.
 
 ---
 

@@ -1,0 +1,265 @@
+{
+  "cascodeVersion": "3.1",
+  "primitives": [
+    {
+      "name": "Level1_NMOS",
+      "kind": "NMOS",
+      "device": "level1_nmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    },
+    {
+      "name": "Level1_PMOS",
+      "kind": "PMOS",
+      "device": "level1_pmos",
+      "sizeParam": "primSize",
+      "params": {
+        "W": "primSize.W",
+        "L": "primSize.L",
+        "m": "primSize.M"
+      }
+    }
+  ],
+  "circuit": {
+    "name": "OTA5TSingleEnded",
+  "interfaces": [
+      "SingleEndedOpAmp"
+    ],
+    "level": "EL"
+  },
+  "supplies": [
+    "VDD"
+  ],
+  "grounds": [
+    "GND"
+  ],
+  "ports": [
+    {
+      "name": "IN_P",
+      "direction": "input",
+      "kind": "analog"
+    },
+    {
+      "name": "IN_N",
+      "direction": "input",
+      "kind": "analog"
+    },
+    {
+      "name": "OUT",
+      "direction": "output",
+      "kind": "analog"
+    },
+    {
+      "name": "VTAIL",
+      "direction": "input",
+      "kind": "bias"
+    }
+  ],
+  "nets": [
+    {
+      "name": "mirror_gate",
+      "kind": "analog"
+    },
+    {
+      "name": "tnode",
+      "kind": "analog"
+    }
+  ],
+  "components": [
+    {
+      "kind": "NMOS",
+      "name": "dp.M_N",
+      "primitive": "Level1_NMOS",
+      "connections": {
+        "B": "GND",
+        "D": "mirror_gate",
+        "G": "IN_P",
+        "S": "tnode"
+      },
+      "size": {
+        "W": "2u",
+        "L": "180n",
+        "M": "1"
+      }
+    },
+    {
+      "kind": "NMOS",
+      "name": "dp.M_P",
+      "primitive": "Level1_NMOS",
+      "connections": {
+        "B": "GND",
+        "D": "OUT",
+        "G": "IN_N",
+        "S": "tnode"
+      },
+      "size": {
+        "W": "2u",
+        "L": "180n",
+        "M": "1"
+      }
+    },
+    {
+      "kind": "NMOS",
+      "name": "dp.M_TAIL",
+      "primitive": "Level1_NMOS",
+      "connections": {
+        "B": "GND",
+        "D": "tnode",
+        "G": "VTAIL",
+        "S": "GND"
+      },
+      "size": {
+        "W": "4u",
+        "L": "180n",
+        "M": "1"
+      }
+    },
+    {
+      "kind": "PMOS",
+      "name": "cm.M_SENSE",
+      "primitive": "Level1_PMOS",
+      "connections": {
+        "B": "VDD",
+        "D": "mirror_gate",
+        "G": "mirror_gate",
+        "S": "VDD"
+      },
+      "size": {
+        "W": "2u",
+        "L": "180n",
+        "M": "1"
+      }
+    },
+    {
+      "kind": "PMOS",
+      "name": "cm.M_TAP0",
+      "primitive": "Level1_PMOS",
+      "connections": {
+        "B": "VDD",
+        "D": "OUT",
+        "G": "mirror_gate",
+        "S": "VDD"
+      },
+      "size": {
+        "W": "2u",
+        "L": "180n",
+        "M": "1"
+      }
+    }
+  ],
+  "constraints": {
+    "numeric": [
+      {
+        "id": "c_gbw",
+        "bench": "ACBench",
+        "metric": "GainBandwidth",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 20000000,
+        "unit": "Hz"
+      },
+      {
+        "id": "c_gain",
+        "bench": "ACBench",
+        "metric": "PassbandGain",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 40,
+        "unit": "dB"
+      },
+      {
+        "id": "c_pm",
+        "bench": "ACBench",
+        "metric": "PhaseMargin",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 60,
+        "unit": "deg"
+      },
+      {
+        "id": "c_pwr",
+        "bench": "DCBench",
+        "metric": "QuiescentPower",
+        "op": "\u003C=",
+        "value": 0.0005,
+        "unit": "W"
+      },
+      {
+        "id": "c_swing",
+        "bench": "TranBench",
+        "metric": "SingleEndedOutputSwing",
+        "node": "net::OUT",
+        "op": "\u003E=",
+        "value": 1.2,
+        "unit": "Vpp"
+      }
+    ],
+    "tech": [
+      {
+        "id": "t_lmin",
+        "metric": "L",
+        "op": "\u003E=",
+        "value": 1.8000000000000002E-07,
+        "unit": "m",
+        "scope": "*"
+      }
+    ]
+  },
+  "harness": {
+    "supply": {
+      "net": "VDD",
+      "voltage": 1.8
+    },
+    "biases": [
+      {
+        "net": "VTAIL",
+        "voltage": 0.6
+      }
+    ],
+    "loads": [
+      {
+        "net": "OUT",
+        "capacitances": [
+          1E-12
+        ],
+        "resistances": []
+      }
+    ],
+    "sweeps": []
+  },
+  "benchDefinitions": [
+    {
+      "name": "ACBench",
+      "interface": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpACBench",
+      "outputs": [
+        "GainBandwidth",
+        "PassbandGain",
+        "PhaseMargin",
+        "LowpassBandwidth",
+        "HighpassBandwidth",
+        "BandpassBandwidth"
+      ]
+    },
+    {
+      "name": "DCBench",
+      "interface": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpDCBench",
+      "outputs": [
+        "QuiescentPower"
+      ]
+    },
+    {
+      "name": "TranBench",
+      "interface": "SingleEndedOpAmp",
+      "builtin": "SEOpAmpTranBench",
+      "outputs": [
+        "SingleEndedOutputSwing"
+      ]
+    }
+  ]
+}

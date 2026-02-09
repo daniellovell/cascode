@@ -1,0 +1,6 @@
+library lib.std
+
+bundle Diff {
+  P : analog
+  N : analog
+}

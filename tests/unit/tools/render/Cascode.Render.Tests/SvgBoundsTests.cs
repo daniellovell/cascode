@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Cascode.ACIR;
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
@@ -16,14 +16,29 @@ public class SvgBoundsTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "IN_SIGNAL", Type = "signal" },
-                new() { Name = "BIAS_VOLTAGE", Type = "bias" },
-                new() { Name = "OUT", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN_SIGNAL",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "BIAS_VOLTAGE",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {
@@ -76,14 +91,29 @@ public class SvgBoundsTests
         var circuit = new Circuit
         {
             Name = "test",
-            Level = ACIRLevel.EL,
+            Level = CascodeLevel.EL,
             Supplies = new List<string> { "VDD" },
             Grounds = new List<string> { "GND" },
             Ports = new List<PortDeclaration>
             {
-                new() { Name = "VERY_LONG_INPUT_NAME", Type = "signal" },
-                new() { Name = "ANOTHER_LONG_BIAS_PORT", Type = "bias" },
-                new() { Name = "OUTPUT_SIGNAL", Type = "signal" },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "VERY_LONG_INPUT_NAME",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "ANOTHER_LONG_BIAS_PORT",
+                    Type = "bias",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUTPUT_SIGNAL",
+                    Type = "signal",
+                },
             },
             Fill = new FillBlock
             {

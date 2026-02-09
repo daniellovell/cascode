@@ -235,11 +235,6 @@
         "resolved": "13.0.3",
         "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
       },
-      "Scriban": {
-        "type": "Transitive",
-        "resolved": "6.5.2",
-        "contentHash": "JXli/Sh1WVZs/pqnPPRJTlwEsZHPJtndzxiaPnrteXDpAqVqHxh4ifhx4puTaYKVMPJUMOp9bnCpEVBpYlt/eQ=="
-      },
       "SourceGear.sqlite3": {
         "type": "Transitive",
         "resolved": "3.50.4.2",
@@ -325,52 +320,34 @@
         "resolved": "13.7.1",
         "contentHash": "X4m1PnFcJwvAj1sCDMntg/eZcX96CJLrWMiYnq41KqhFVZPuw63ZTSxIGqgdCwHWHvCAyTxheELC/VDf1HsU2A=="
       },
-      "cascode.acir": {
-        "type": "Project",
-        "dependencies": {
-          "Cascode.Bench": "[0.4.0, )",
-          "Cascode.Parser": "[0.4.0, )"
-        }
-      },
       "cascode.bench": {
-        "type": "Project",
-        "dependencies": {
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
-          "Scriban": "[6.5.2, )",
-          "YamlDotNet": "[13.7.1, )"
-        }
+        "type": "Project"
       },
       "cascode.cli": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.4.0, )",
-          "Cascode.Bench": "[0.4.0, )",
-          "Cascode.Compiler": "[0.4.0, )",
-          "Cascode.Render": "[0.4.0, )",
-          "Cascode.Workspace": "[0.4.0, )",
+          "Cascode.Bench": "[0.5.0, )",
+          "Cascode.Language": "[0.5.0, )",
+          "Cascode.Render": "[0.5.0, )",
+          "Cascode.Workspace": "[0.5.0, )",
           "Microsoft.Extensions.Logging": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )",
           "Microsoft.Extensions.Logging.Console": "[10.0.1, )",
           "Spectre.Console": "[0.47.0, )"
         }
       },
-      "cascode.compiler": {
+      "cascode.language": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.4.0, )",
-          "Cascode.Parser": "[0.4.0, )"
-        }
-      },
-      "cascode.parser": {
-        "type": "Project",
-        "dependencies": {
-          "Antlr4.Runtime.Standard": "[4.13.1, )"
+          "Antlr4.Runtime.Standard": "[4.13.1, )",
+          "Cascode.Bench": "[0.5.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       },
       "cascode.render": {
         "type": "Project",
         "dependencies": {
-          "Cascode.ACIR": "[0.4.0, )",
+          "Cascode.Language": "[0.5.0, )",
           "Google.OrTools": "[9.10.4067, )"
         }
       },

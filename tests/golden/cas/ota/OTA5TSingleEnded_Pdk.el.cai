@@ -1,0 +1,81 @@
+VERSION 3.1
+
+primitive NMOS nfet_01v8(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+primitive PMOS pfet_01v8(size primSize) {
+  device "sky130_fd_pr__pfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+bundle Diff {
+  P : analog
+  N : analog
+}
+
+circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    net mirror_gate : analog
+    net tnode : analog
+    NMOS dp.M_N = new nfet_01v8(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--mirror_gate
+      .G--IN.P
+      .S--tnode
+    }
+    NMOS dp.M_P = new nfet_01v8(size(W=2u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT
+      .G--IN.N
+      .S--tnode
+    }
+    NMOS dp.M_TAIL = new nfet_01v8(size(W=4u, L=180n, M=1)) {
+      .B--GND
+      .D--tnode
+      .G--VTAIL
+      .S--GND
+    }
+    PMOS cm.M_SENSE = new pfet_01v8(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--mirror_gate
+      .G--mirror_gate
+      .S--VDD
+    }
+    PMOS cm.M_TAP0 = new pfet_01v8(size(W=2u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT
+      .G--mirror_gate
+      .S--VDD
+    }
+  }
+  constraints {
+    numeric {
+      c_gbw = ACBench::GainBandwidth at net::OUT >= 1MHz
+      c_gain = ACBench::PassbandGain at net::OUT >= 20dB
+      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+    }
+    tech {
+      t_lmin : L >= 180nm on *
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    bias VTAIL = 0.6V
+    load OUT C=1pF
+  }
+}

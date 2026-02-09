@@ -1,0 +1,196 @@
+VERSION 3.0
+
+library lib.pdk.sky130.resistors
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcl1(size primSize) {
+  device "mrcl1"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcn(size primSize) {
+  device "mrcn"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcp(size primSize) {
+  device "mrcp"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcp1(size primSize) {
+  device "mrcp1"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcrdlcon(size primSize) {
+  device "mrcrdlcon"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcvia(size primSize) {
+  device "mrcvia"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcvia2(size primSize) {
+  device "mrcvia2"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcvia3(size primSize) {
+  device "mrcvia3"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor mrcvia4(size primSize) {
+  device "mrcvia4"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor resbody(size primSize) {
+  device "resbody"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor reshead(size primSize) {
+  device "reshead"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_m1(size primSize) {
+  device "res_generic_m1"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_m2(size primSize) {
+  device "res_generic_m2"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_m3(size primSize) {
+  device "res_generic_m3"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_m4(size primSize) {
+  device "res_generic_m4"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_m5(size primSize) {
+  device "res_generic_m5"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_nd(size primSize) {
+  device "res_generic_nd"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_pd(size primSize) {
+  device "res_generic_pd"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_l1(size primSize) {
+  device "sky130_fd_pr__res_generic_l1"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor hv(size primSize) {
+  device "sky130_fd_pr__res_generic_nd__hv"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_nw(size primSize) {
+  device "sky130_fd_pr__res_generic_nw"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_po(size primSize) {
+  device "sky130_fd_pr__res_generic_po"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor monte(size primSize) {
+  device "sky130_fd_pr__res_generic_po__monte"
+  params {
+    R = primSize.R
+  }
+}
+
+// geometry: W=[-..-] L=[-..-] M=[-..-]
+primitive Resistor res_generic_r1(size primSize) {
+  device "sky130_fd_pr__res_generic_r1"
+  params {
+    R = primSize.R
+  }
+}
+

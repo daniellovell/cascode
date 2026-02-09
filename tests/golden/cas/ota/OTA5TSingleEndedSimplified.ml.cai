@@ -1,0 +1,26 @@
+VERSION 3.1
+
+bundle Diff {
+  N : analog
+  P : analog
+}
+
+circuit OTA5TSingleEndedSimplified implements SingleEndedOpAmp {
+  level ML
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  input VTAIL : bias
+  fill {
+    CurrentMirror cm = new CurrentMirror {
+    }
+    DiffPair dp = new DiffPair {
+      .BASE--GND
+      .BIAS--VTAIL
+      .IN.N--IN.N
+      .IN.P--IN.P
+      .OUT.N--OUT
+    }
+  }
+}

@@ -1,0 +1,66 @@
+VERSION 3.1
+
+// Stress test: resistively-loaded common-source amplifier using sky130 devices.
+//
+// Primary purpose: ensure the standard library supports SE->SE constraint coverage
+// (transfer, noise, transient swing, PSRR, quiescent power) for PDK-backed circuits.
+
+include lib.std
+
+// TODO: Cascode should append these during linking.
+primitive NMOS nfet_01v8(size primSize) {
+  device "sky130_fd_pr__nfet_01v8"
+  params {
+    w = primSize.W
+    l = primSize.L
+    mult = primSize.M
+  }
+}
+
+circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  env {
+    // Required by lib.std transfer/noise/tran/psrr benches.
+    InputCommonModeRange = 0.9V
+    SourceImpedance = 50Ohm
+    LoadImpedance = (1GOhm || 15pF)
+  }
+
+  fill {
+    NMOS M_IN = new nfet_01v8(size(W=10u, L=180n, M=1)) {
+      .B--GND
+      .D--OUT
+      .G--IN
+      .S--GND
+    }
+
+    Resistor R_LOAD = new Ideal_Resistor(size(R=10k)) {
+      .P--VDD
+      .N--OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
+      c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 5uVrms
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
+      c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
+      c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
+      c_psrr = psrr_bench::PSRR at net::OUT >= 10dB
+      c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 10dB
+      // No CMRR constraint (not possible of course).
+    }
+  }
+
+  harness {
+    supply VDD = 1.8V
+    ground GND = 0V
+  }
+}

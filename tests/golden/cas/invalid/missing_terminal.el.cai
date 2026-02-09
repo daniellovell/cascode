@@ -1,0 +1,32 @@
+VERSION 3.1
+
+primitive NMOS Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
+// Circuit with missing terminal - EMIT-001 violation
+// Device M1 is missing the bulk (B) terminal
+
+circuit MissingTerminalExample {
+  level EL
+
+  supply VDD
+  ground GND
+
+  input IN : analog
+  output OUT : analog
+
+  fill {
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n, M=1)) {
+      .G--IN
+      .D--OUT
+      .S--GND
+    }
+  }
+}

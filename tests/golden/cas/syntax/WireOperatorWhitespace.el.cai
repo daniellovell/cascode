@@ -1,0 +1,118 @@
+VERSION 3.1
+
+primitive NMOS Level1_NMOS(size primSize) {
+  device "level1_nmos"
+  params {
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }
+}
+
+
+// This file exercises the wire operator (--) contexts with deliberate whitespace
+// variations. The parser must accept any combination of leading/trailing
+// whitespace around the wire operator.
+
+bundle Diff {
+  P : analog
+  N : analog
+
+}
+interface MirrorLike {
+  input SENSE : analog
+  output TAP : analog
+  connectors {
+    to LoadLike {
+      SENSE--OUT.P
+      // no whitespace (canonical form)
+      TAP -- OUT.N
+      // spaces around operator
+
+    }
+  }
+}
+interface LoadLike {
+  output OUT : Diff
+
+}
+circuit WireOperatorWhitespace implements SingleEndedOpAmp {
+  level EL
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : analog
+  fill {
+    net mid : analog
+    // Device bindings: mixed whitespace styles within a single declaration
+    // B--GND: no whitespace
+    // D--mid: no whitespace
+    // G -- IN.P: spaces around operator
+    // S  --GND: leading space only
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n)) {
+      .B--GND
+      .D--mid
+      .G--IN.P
+      .S--GND
+    }
+    // B--  GND: trailing space only
+    // remaining: no whitespace
+    NMOS M2 = new Level1_NMOS(size(W=1u, L=180n)) {
+      .B--GND
+      .D--OUT
+      .G--IN.N
+      .S--mid
+    }
+      // Instance bindings: mixed whitespace
+      // no whitespace
+      // spaces around operator
+    DiffPairSub dp = new DiffPairSub {
+      .VDD--VDD
+      .GND--GND
+      .IN--IN
+      .OUT -- mid
+    }
+  }
+  constraints {
+    numeric {
+      c_gain = ACBench::PassbandGain >= 20dB
+    }
+  }
+  harness {
+    supply VDD = 1.8V
+    load OUT C=1pF
+
+  }
+}
+circuit DiffPairSub implements LoadLike {
+  level EL
+  inline
+  supply VDD
+  ground GND
+  input IN : Diff
+  output OUT : Diff
+  fill {
+    net tnode : analog
+    NMOS M_N = new Level1_NMOS(size(W=2u, L=180n)) {
+      .B--GND
+      .D--OUT.N
+      .G--IN.P
+      .S--tnode
+    }
+    // D  --OUT.P: leading space only
+    // S--  tnode: trailing space only
+    NMOS M_P = new Level1_NMOS(size(W=2u, L=180n)) {
+      .B--GND
+      .D--OUT.P
+      .G--IN.N
+      .S--tnode
+    }
+    // all bindings with spaces around operator
+    NMOS M_TAIL = new Level1_NMOS(size(W=4u, L=180n)) {
+      .B--GND
+      .D--tnode
+      .G--VDD
+      .S--GND
+    }
+  }
+}
