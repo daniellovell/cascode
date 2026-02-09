@@ -88,6 +88,8 @@ circuit Outer {{
     [Fact]
     public void TryRead_SlotBlockWithSome_ParsesSuccessfully()
     {
+        using var cascodeHome = CascodeHome.CreateInTemp("CascodeSlotTests");
+
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
@@ -145,6 +147,7 @@ circuit TestCircuit {{
 ";
 
         var result = CascodeReader.TryParse(cascode, "test.cas");
+        Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
             d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
