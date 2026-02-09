@@ -1,22 +1,22 @@
-# RFC: ACIR-LL (Layout Level) Specification
+# RFC: CAL (Cascode Layout) Specification
 
 | Field | Value |
 |-------|-------|
 | RFC Number | 0001 |
-| Title | ACIR-LL: Layout Assembly Language |
+| Title | CAL: Cascode Layout Assembly Language |
 | Author | Daniel Lovell |
 | Status | Draft |
 | Created | 2026-01-25 |
-| Target Version | ACIR-LL 1.0 |
+| Target Version | CAL 1.0 |
 | Supersedes | None |
 
 ---
 
 ## Abstract
 
-This RFC defines ACIR-LL (Analog Circuit Intermediate Representation - Layout Level), a language for specifying integrated circuit layout geometry. ACIR-LL provides a thin abstraction over GDS-II/OASIS that enables: (1) deterministic generation of manufacturing-ready layout data, (2) traceability from physical geometry to source ACIR-EL devices, (3) human-readable representation of layout decisions, and (4) maintainable layout descriptions through relative positioning and structured grouping.
+This RFC defines CAL (Cascode Layout), a language for specifying integrated circuit layout geometry. CAL provides a thin abstraction over GDS-II/OASIS that enables: (1) deterministic generation of manufacturing-ready layout data, (2) traceability from physical geometry to source EL Cascode circuits (`.el.cai`), (3) human-readable representation of layout decisions, and (4) maintainable layout descriptions through relative positioning and structured grouping.
 
-ACIR-LL provides primitive geometric operations (P-cell placement, rectangles, paths, and vias), augmented with anchor-based relative positioning, hierarchical grouping constructs, and explicit net attribution. This design maximizes expressiveness while maintaining a direct correspondence to physical output formats.
+CAL provides primitive geometric operations (P-cell placement, rectangles, paths, and vias), augmented with anchor-based relative positioning, hierarchical grouping constructs, and explicit net attribution. This design maximizes expressiveness while maintaining a direct correspondence to physical output formats.
 
 ---
 
@@ -41,15 +41,15 @@ Neither category provides a human-readable, semantically rich representation of 
 
 ### 1.2 Goals
 
-ACIR-LL is designed to:
+CAL is designed to:
 
-1. Provide complete geometric specification. Every construct expands deterministically to GDS-II/OASIS primitives. Given an ACIR-LL document and the PDK workspace database (`pdk.db`), the output is bit-identical across runs.
+1. Provide complete geometric specification. Every construct expands deterministically to GDS-II/OASIS primitives. Given a CAL document and the PDK workspace database (`pdk.db`), the output is bit-identical across runs.
 
-2. Maintain traceability. Every geometric element traces to an ACIR-EL device or net (or is explicitly marked as layout-only), enabling debugging, verification, and design review.
+2. Maintain traceability. Every geometric element traces to a Cascode EL device or net (or is explicitly marked as layout-only), enabling debugging, verification, and design review.
 
 3. Support practical iteration. Anchor-based relative positioning enables local changes without global coordinate recalculation. Constants and expressions reduce repetition and enable single-point-of-change modifications.
 
-4. Enable human review. An engineer can read ACIR-LL and understand what geometry will be generated without executing expansion tools or opening a layout viewer.
+4. Enable human review. An engineer can read CAL and understand what geometry will be generated without executing expansion tools or opening a layout viewer.
 
 5. Produce manufacturing-ready output. Emit GDS-II or OASIS files suitable for foundry submission.
 
@@ -57,19 +57,19 @@ ACIR-LL is designed to:
 
 ### 1.3 Non-Goals
 
-ACIR-LL explicitly does not:
+CAL explicitly does not:
 
-1. Encode layout patterns. Common-centroid, interdigitation, guard rings, and other analog layout techniques are not language constructs. ACIR-LL expresses their geometric realization; the layout engine decides which patterns to apply.
+1. Encode layout patterns. Common-centroid, interdigitation, guard rings, and other analog layout techniques are not language constructs. CAL expresses their geometric realization; the layout engine decides which patterns to apply.
 
-2. Provide constraint satisfaction. ACIR-LL describes geometry, not constraints. Constraints live in ACIR-EL or external specifications.
+2. Provide constraint satisfaction. CAL describes geometry, not constraints. Constraints live in EL Cascode circuits or external specifications.
 
-3. Abstract routing infrastructure. Track-based routing, pin access grids, and routing channels are not language constructs. ACIR-LL draws paths at explicit (absolute or relative) coordinates.
+3. Abstract routing infrastructure. Track-based routing, pin access grids, and routing channels are not language constructs. CAL draws paths at explicit (absolute or relative) coordinates.
 
-4. Guarantee DRC cleanliness. ACIR-LL can express DRC-violating geometry. Verification is performed externally.
+4. Guarantee DRC cleanliness. CAL can express DRC-violating geometry. Verification is performed externally.
 
 5. Prescribe layout methodology. The language is agnostic to how layout decisions are made, whether by human designers, automated tools, or any other means.
 
-6. Provide PDK portability. An ACIR-LL document is specific to one PDK. The layout engine that generates ACIR-LL may be portable, but the output is PDK-specific due to P-cell geometries and layer mappings.
+6. Provide PDK portability. A CAL document is specific to one PDK. The layout engine that generates CAL may be portable, but the output is PDK-specific due to P-cell geometries and layer mappings.
 
 ### 1.4 Design Principles
 
@@ -77,11 +77,11 @@ Explicit geometry: Coordinates, dimensions, and layers are stated explicitly. Th
 
 Relative positioning: Anchor references enable coordinates relative to placed devices, supporting local reasoning and maintainable layouts.
 
-Deterministic expansion: Given an ACIR-LL document and the PDK workspace database (`pdk.db`), the output GDS is bit-identical across implementations and runs.
+Deterministic expansion: Given a CAL document and the PDK workspace database (`pdk.db`), the output GDS is bit-identical across implementations and runs.
 
 Structured organization: Groups organize related geometry (device fingers, matched pairs, layout-only structures) with explicit semantic annotations.
 
-Traceability preservation: Device identifiers and net attributions link ACIR-LL geometry to ACIR-EL devices and nets, enabling LVS correspondence and design debugging.
+Traceability preservation: Device identifiers and net attributions link CAL geometry to Cascode EL devices and nets, enabling LVS correspondence and design debugging.
 
 Extensibility: Attribute annotations support tool-specific metadata without language changes.
 
@@ -91,15 +91,43 @@ Extensibility: Attribute annotations support tool-specific metadata without lang
 
 ### 2.1 Position in the Cascode Toolchain
 
-![ACIR Toolchain Architecture](resources/0001/acir-ll.svg)
+```mermaid
+flowchart LR
+  cascodeHl[CascodeHL]
+  cascodeMl[CascodeML]
+  cascodeEl[CascodeEL]
+  cal[CAL]
+  gds[GDSorOASIS]
+  drc[DRC]
+  lvs[LVS]
+  pex[PEXSim]
+  cascodeHl --> cascodeMl --> cascodeEl --> cal --> gds
+  gds --> drc
+  gds --> lvs
+  gds --> pex
+```
+
+CAL sits after electrical elaboration. `cascode par` consumes EL circuit artifacts (`.el.cai`) and produces layout descriptions in `.cal`. A CAL expander then resolves anchors and PDK catalog references from `pdk.db` to generate manufacturing formats (GDS-II/OASIS).
 
 ### 2.2 Data Flow
 
-<img src="resources/0001/data-flow.svg" alt="ACIR Toolchain Architecture" style="width:500px;"/>
+```mermaid
+flowchart TD
+  elDoc[ELDocument .el.cai]
+  par[cascodePar]
+  calDoc[CALDocument .cal]
+  expander[CALExpander]
+  gds[GDSorOASIS]
+  elDoc --> par --> calDoc --> expander --> gds
+```
+
+The data flow is intentionally staged: EL connectivity enters the layout engine, committed geometry is captured in CAL, and expansion is a deterministic, replayable step that yields final physical output.
+
+Maintained D2 sources for these diagrams live under `docs/rfcs/resources/0001/*.d2`.
 
 ### 2.3 PDK Workspace Database (`pdk.db`)
 
-ACIR-LL references PDK constructs (layers, vias, cells, and P-cells) by PDK-defined names. The PDK workspace database (`pdk.db`) provides the mapping to physical data:
+CAL references PDK constructs (layers, vias, cells, and P-cells) by PDK-defined names. The PDK workspace database (`pdk.db`) provides the mapping to physical data:
 
 | Component | Description | Example |
 |-----------|-------------|---------|
@@ -110,18 +138,18 @@ ACIR-LL references PDK constructs (layers, vias, cells, and P-cells) by PDK-defi
 | Database unit | Physical size of one GDS unit | `1nm` |
 | Manufacturing grid | Minimum coordinate resolution | `5nm` |
 
-The `pdk.db` is generated by `pdk scan` for a specific workspace root. ACIR-LL documents are specific to a particular PDK and PDK version; the expander validates that the database provenance matches the document header.
+The `pdk.db` is generated by `pdk scan` for a specific workspace root. CAL documents are specific to a particular PDK and PDK version; the expander validates that the database provenance matches the document header.
 
-### 2.4 Relationship to ACIR-EL
+### 2.4 Relationship to Cascode EL
 
-ACIR-LL implements an ACIR-EL netlist. The relationship is verified by LVS:
+CAL implements a Cascode EL (`.el.cai`) circuit netlist. The relationship is verified by LVS:
 
-| ACIR-EL Construct | ACIR-LL Realization |
+| Cascode EL Construct | CAL Realization |
 |-------------------|---------------------|
-| Device `dp.M_N` with W=2u | A `group dp.M_N : fingers` containing placements whose widths sum to 2u |
-| Net `mirror_gate` | Routing geometry (paths, vias) with `[mirror_gate]` attribution, plus `label` for LVS |
-| Port `IN : Diff` | `port IN.P` and `port IN.N` statements at cell boundary |
-| Supply `VDD` | `port VDD` plus power routing geometry |
+| `circuit`/`fill` device instances | `place` statements and `group ... : fingers` whose widths match EL intent |
+| Net declarations and connectivity | Routing geometry (`path`, `rect`, `via`) with `[net_name]` attribution |
+| Terminals (including bundle fields) | `port` statements at the cell boundary (for example `IN.P`, `IN.N`) |
+| Supply/ground terminals | Power ports and corresponding power routing geometry |
 
 ---
 
@@ -131,7 +159,7 @@ ACIR-LL implements an ACIR-EL netlist. The relationship is verified by LVS:
 
 #### 3.1.1 Character Encoding
 
-ACIR-LL files use UTF-8 encoding with LF (Unix-style) line endings. Files should not contain a byte-order mark (BOM).
+CAL files use UTF-8 encoding with LF (Unix-style) line endings. Files should not contain a byte-order mark (BOM).
 
 #### 3.1.2 Comments
 
@@ -315,7 +343,7 @@ Attribute values may be:
 The following words are reserved and must not be used as identifiers:
 
 ```
-ACIR-LL, pdk, topcell, dbu, grid, emit
+CAL, pdk, topcell, dbu, grid, emit
 place, rect, path, via, port, label, anchor
 cell, endcell, inst
 group, endgroup
@@ -331,14 +359,14 @@ midpoint, min, max, abs
 
 ### 3.2 Document Structure
 
-An ACIR-LL document consists of:
+A CAL document consists of:
 
 1. Header (required): Version, PDK, top cell name, optional settings
 2. Constants (optional): Named values for reuse
 3. Body (required): Geometry, groups, and hierarchy statements
 
 ```
-ACIR-LL <version>
+CAL <version>
 pdk <pdk_name> <pdk_version>
 topcell <cell_name>
 [dbu <unit>]
@@ -354,10 +382,10 @@ topcell <cell_name>
 #### 3.2.1 Version Declaration
 
 ```
-ACIR-LL 1.0
+CAL 1.0
 ```
 
-Required. Specifies the ACIR-LL language version.
+Required. Specifies the CAL language version.
 
 Version semantics:
 - Major version changes (e.g., 1.x -> 2.0) indicate breaking changes. Readers must reject documents with incompatible major versions.
@@ -469,7 +497,7 @@ Components:
 
 | Component | Description |
 |-----------|-------------|
-| `device_id` | Identifier linking to ACIR-EL device or layout-only purpose |
+| `device_id` | Identifier linking to a Cascode EL device or layout-only purpose |
 | `pcell_name` | PDK P-cell name as defined in the workspace `pdk.db` layout catalog |
 | `(<param>=<value>, ...)` | Comma-separated parameter assignments |
 | `<coord_expr>` | Absolute coordinate, anchor reference, or relative expression |
@@ -508,7 +536,7 @@ Semantics:
 
 P-cell width convention:
 
-The `W` parameter specifies width per finger. For multi-finger devices (NF > 1), total device width is `W * NF`. This convention is fixed by ACIR-LL; the `pdk.db` catalog must normalize any PDK-specific conventions to this interpretation.
+The `W` parameter specifies width per finger. For multi-finger devices (NF > 1), total device width is `W * NF`. This convention is fixed by CAL; the `pdk.db` catalog must normalize any PDK-specific conventions to this interpretation.
 
 Common P-cell parameters:
 
@@ -651,7 +679,7 @@ Semantics:
 
 Path end style:
 
-ACIR-LL paths use square ends (GDS pathtype 0), where the path extends by half the width beyond each endpoint.
+CAL paths use square ends (GDS pathtype 0), where the path extends by half the width beyond each endpoint.
 
 Vertex constraints:
 
@@ -726,7 +754,7 @@ Components:
 
 | Component | Description |
 |-----------|-------------|
-| `name` | Port name, must match ACIR-EL port name |
+| `name` | Port name, must match Cascode EL terminal name |
 | `layer` | Layer where the port is accessible |
 | `<coord1> <coord2>` | Rectangle defining the port shape |
 | `<attributes>` | Optional metadata |
@@ -750,10 +778,10 @@ Semantics:
 
 1. A rectangle is emitted on the pin purpose layer for the specified metal.
 2. A text label with the port name is placed at the rectangle's center.
-3. The port name establishes LVS correspondence with ACIR-EL ports.
+3. The port name establishes LVS correspondence with Cascode EL terminals.
 
 Port naming:
-- Must exactly match ACIR-EL port names
+- Must exactly match Cascode EL terminal names
 - Bundle ports use dot notation: `IN.P`, `IN.N`
 
 #### 3.3.7 Label Statement
@@ -1056,7 +1084,7 @@ document        = header constants body ;
 header          = version_decl pdk_decl topcell_decl
                   { dbu_decl | grid_decl | emit_decl } ;
 
-version_decl    = "ACIR-LL" VERSION NEWLINE ;
+version_decl    = "CAL" VERSION NEWLINE ;
 pdk_decl        = "pdk" IDENT VERSION NEWLINE ;
 topcell_decl    = "topcell" IDENT NEWLINE ;
 dbu_decl        = "dbu" PHYSICAL NEWLINE ;
@@ -1165,7 +1193,7 @@ ANY_CHAR        = (* any character except newline *) ;
 
 ### 4.1 Overview
 
-ACIR-LL expansion requires PDK-specific physical information: a layer map, via recipes, and definitions of placeable cells and P-cells (including anchors and parameter schemas). In the Cascode toolchain, this information is provided by a workspace-local SQLite database, `pdk.db`, generated by `pdk scan`.
+CAL expansion requires PDK-specific physical information: a layer map, via recipes, and definitions of placeable cells and P-cells (including anchors and parameter schemas). In the Cascode toolchain, this information is provided by a workspace-local SQLite database, `pdk.db`, generated by `pdk scan`.
 
 The database is a normalized cache over upstream PDK artifacts (layermap files, technology files, LEF macros, and P-cell libraries). Expansion MUST NOT attempt to infer missing PDK information heuristically; if required catalog entries are absent, expansion fails with an actionable error instructing the user to rerun `pdk scan` or fix the PDK workspace.
 
@@ -1186,25 +1214,25 @@ The `provenance` table (key/value) MUST include, at minimum:
 
 | Key | Description |
 |-----|-------------|
-| `pdk.name` | String matching the ACIR-LL `pdk <name> ...` header |
-| `pdk.version` | String matching the ACIR-LL `pdk ... <version>` header |
+| `pdk.name` | String matching the CAL `pdk <name> ...` header |
+| `pdk.version` | String matching the CAL `pdk ... <version>` header |
 | `layout.layermap.path` | Path to the layermap source used to populate `layout_layers` |
 | `layout.tech.path` | Optional path to a technology source used to populate `layout_units` and `layout_vias` |
 
 ### 4.5 Required layout catalog tables (normative)
 
-The tables listed below are required for ACIR-LL expansion. Tables MAY include additional columns, but the columns listed here MUST exist and preserve their meaning.
+The tables listed below are required for CAL expansion. Tables MAY include additional columns, but the columns listed here MUST exist and preserve their meaning.
 
 | Table | Purpose |
 |-------|---------|
 | `layout_units` | Default `dbu` and manufacturing `grid` for the workspace |
 | `layout_layers` | Map `(layer_name, purpose)` to `(gds_layer, gds_datatype)` |
-| `layout_vias` | Via recipes used by ACIR-LL `via <via_type> ...` |
-| `layout_cells` | Fixed (non-parameterized) placeable cells used by ACIR-LL `inst` |
+| `layout_vias` | Via recipes used by CAL `via <via_type> ...` |
+| `layout_cells` | Fixed (non-parameterized) placeable cells used by CAL `inst` |
 | `layout_cell_pins` | Pin names for fixed cells |
 | `layout_cell_pin_rects` | Pin rectangle geometry (local coordinates) |
 | `layout_cell_anchors` | Precomputed anchors for fixed cells (pins and bounding-box) |
-| `layout_pcells` | Parameterized cells used by ACIR-LL `place` |
+| `layout_pcells` | Parameterized cells used by CAL `place` |
 | `layout_pcell_parameters` | Parameter schemas for P-cells |
 | `layout_pcell_anchor_exprs` | Anchor expressions for P-cells |
 | `layout_pcell_pins` | P-cell pin metadata (pin name, layer, anchor) |
@@ -1240,7 +1268,7 @@ All length fields are stored in meters.
 | Column | Type | Nullable | Notes |
 |--------|------|----------|-------|
 | `id` | INTEGER | no | Primary key |
-| `name` | TEXT | no | Token used by ACIR-LL `via <name> ...`; unique |
+| `name` | TEXT | no | Token used by CAL `via <name> ...`; unique |
 | `lower_layer` | TEXT | no | `layout_layers.layer_name` on the lower routing layer |
 | `upper_layer` | TEXT | no | `layout_layers.layer_name` on the upper routing layer |
 | `cut_layer` | TEXT | no | `layout_layers.layer_name` for the cut shapes |
@@ -1260,14 +1288,14 @@ Constraints: `name` is unique.
 
 #### 4.5.4 `layout_cells`
 
-This table defines fixed (non-parameterized) cells used by ACIR-LL `inst`. The `origin_*` fields are the point about which the orientation transform is applied (e.g. LEF `ORIGIN`).
+This table defines fixed (non-parameterized) cells used by CAL `inst`. The `origin_*` fields are the point about which the orientation transform is applied (e.g. LEF `ORIGIN`).
 
 All length fields are stored in meters.
 
 | Column | Type | Nullable | Notes |
 |--------|------|----------|-------|
 | `id` | INTEGER | no | Primary key |
-| `name` | TEXT | no | Token used by ACIR-LL `inst <id> <name> ...`; unique |
+| `name` | TEXT | no | Token used by CAL `inst <id> <name> ...`; unique |
 | `kind` | TEXT | no | Implementation-defined origin (e.g. LEF macro, GDS cell, OA cell) |
 | `source_path` | TEXT | yes | Optional origin trace |
 | `origin_x_m` | REAL | no | Cell origin X |
@@ -1323,14 +1351,14 @@ Constraints: `UNIQUE(cell_id, name)`.
 
 #### 4.5.8 `layout_pcells`
 
-This table defines parameterized cells used by ACIR-LL `place`. The `provider` field identifies the backend mechanism used to generate geometry and anchors.
+This table defines parameterized cells used by CAL `place`. The `provider` field identifies the backend mechanism used to generate geometry and anchors.
 
 All length fields are stored in meters.
 
 | Column | Type | Nullable | Notes |
 |--------|------|----------|-------|
 | `id` | INTEGER | no | Primary key |
-| `name` | TEXT | no | Token used by ACIR-LL `place ... <name> (...)`; unique |
+| `name` | TEXT | no | Token used by CAL `place ... <name> (...)`; unique |
 | `provider` | TEXT | no | Backend identifier (implementation-defined) |
 | `library` | TEXT | yes | Backend-specific library identifier |
 | `cell` | TEXT | yes | Backend-specific cell identifier |
@@ -1387,9 +1415,9 @@ Constraints: `UNIQUE(pcell_id, name)`.
 
 Constraints: `UNIQUE(pcell_id, pin_name)`.
 
-### 4.6 Mapping ACIR-LL tokens to catalog entries
+### 4.6 Mapping CAL tokens to catalog entries
 
-Layer tokens in ACIR-LL statements are resolved as follows:
+Layer tokens in CAL statements are resolved as follows:
 
 - If the token contains a dot (e.g. `<layer>.pin`), the suffix is treated as a purpose and the prefix as `layer_name`.
 - If the token has no dot (e.g. `<layer>`), the purpose is implied by the statement:
@@ -1431,11 +1459,22 @@ WHERE name = $via_name;
 
 ### 5.1 Emission Process
 
-<img src="resources/0001/emit.svg" alt="ACIR-LL Emit to GDSII" style="width:500px;"/>
+```mermaid
+flowchart TD
+  calDoc[CALDocument]
+  parser[Parser]
+  consts[ConstantResolution]
+  anchors[AnchorResolution]
+  validator[Validator]
+  expander[Expander]
+  writer[GDSWriter]
+  gds[GDSIIFile]
+  calDoc --> parser --> consts --> anchors --> validator --> expander --> writer --> gds
+```
 
 ### 5.2 Statement to GDS Mapping
 
-| ACIR-LL Statement | GDS Record(s) |
+| CAL Statement | GDS Record(s) |
 |-------------------|---------------|
 | `place` (hierarchical) | `SREF` to P-cell structure |
 | `place` (flat) | `BOUNDARY`, `PATH` records from P-cell expansion |
@@ -1545,7 +1584,7 @@ Net attributions (`[net_name]`) are recorded for verification tools:
 
 3. Separate net file: Generate a companion file mapping geometry coordinates to net names.
 
-The specific mechanism is implementation-defined. The ACIR-LL document captures the attribution; the expander chooses the output format.
+The specific mechanism is implementation-defined. The CAL document captures the attribution; the expander chooses the output format.
 
 ---
 
@@ -1553,15 +1592,18 @@ The specific mechanism is implementation-defined. The ACIR-LL document captures 
 
 ### 6.1 Design Rule Checking (DRC)
 
-ACIR-LL output must pass foundry DRC to be manufacturable.
+CAL output must pass foundry DRC to be manufacturable.
 
 Verification flow:
-![ACIR Toolchain Architecture](resources/0001/drc.svg)
+```mermaid
+flowchart LR
+  calDoc[CALDocument] --> expander[Expander] --> gds[GDSIIFile] --> drc[DrcTool] --> drcResult[DRCResults]
+```
 
 
 DRC coordinate mapping:
 
-DRC violations are reported with coordinates. To map back to ACIR-LL:
+DRC violations are reported with coordinates. To map back to CAL:
 1. Convert DRC coordinates from DBU to physical units.
 2. Search for statements whose expanded geometry contains the violation.
 3. For geometry from `repeat` blocks, identify the iteration index.
@@ -1569,15 +1611,24 @@ DRC violations are reported with coordinates. To map back to ACIR-LL:
 
 ### 6.2 Layout vs. Schematic (LVS)
 
-ACIR-LL implements an ACIR-EL netlist. LVS verifies this correspondence.
+CAL implements a Cascode EL netlist. LVS verifies this correspondence.
 
 Verification flow:
-![ACIR Toolchain Architecture](resources/0001/lvs.svg)
+```mermaid
+flowchart LR
+  elDoc[ELDocument .el.cai] --> par[cascodePar] --> calDoc[CALDocument]
+  calDoc --> expander[Expander] --> gds[GDS]
+  elDoc --> spiceGen[SpiceGenerator] --> spice[SpiceSourceNetlist]
+  gds --> extractor[Extractor] --> layoutNet[ExtractedLayoutNetlist]
+  spice --> lvs[LvsTool]
+  layoutNet --> lvs
+  lvs --> results[LVSResults]
+```
 
 
 LVS correspondence requirements:
 
-| ACIR-EL | ACIR-LL | Verification |
+| Cascode EL | CAL | Verification |
 |---------|---------|--------------|
 | Device `M1` (W=2u, L=180n) | `group M1 : fingers` with total W=2u | Sum of finger widths; all same L |
 | Net `sig` | Paths/rects with `[sig]` attribution + connectivity | Geometry connects as declared |
@@ -1588,7 +1639,7 @@ Finger group verification:
 
 For `group M1 : fingers`:
 1. All contained `place` statements must have identical L.
-2. Sum of (W * NF) across all placements must equal ACIR-EL device W.
+2. Sum of (W * NF) across all placements must equal the Cascode EL device width.
 3. All placements must be parallel-connected (same G, D, S, B nets).
 
 Layout-only exclusion:
@@ -1596,7 +1647,7 @@ Layout-only exclusion:
 Geometry with `[lvs_ignore=true]` or within groups marked `[lvs_ignore=true]`:
 - Is emitted to GDS normally
 - Is excluded from extracted netlist
-- Does not require ACIR-EL correspondence
+- Does not require Cascode EL correspondence
 
 ### 6.3 Net Attribution Verification
 
@@ -1634,7 +1685,7 @@ Net attributions enable parasitic-to-net mapping without relying solely on extra
 
 ### 7.1 Parser Requirements
 
-A conforming ACIR-LL parser must:
+A conforming CAL parser must:
 
 1. Accept any document conforming to the grammar in Section 3.7.
 2. Reject documents with syntax errors with line numbers and messages.
@@ -1654,7 +1705,7 @@ A conforming implementation must:
 
 ### 7.3 Expander Requirements
 
-A conforming ACIR-LL expander must:
+A conforming CAL expander must:
 
 1. Load the workspace `pdk.db` and validate its provenance against the document header.
 2. Reject version mismatches between document and the available `pdk.db` catalog.
@@ -1683,7 +1734,7 @@ Warnings (report, may continue):
 - Coordinate off grid (snapped automatically)
 - Overlapping geometry on same layer
 - Net attribution inconsistency
-- Finger group width mismatch with ACIR-EL
+- Finger group width mismatch with Cascode EL
 
 Error messages must include:
 - Source file name
@@ -1722,7 +1773,7 @@ For large designs:
 ### 8.1 Minimal Example
 
 ```
-ACIR-LL 1.0
+CAL 1.0
 pdk sky130 1.0.45
 topcell inverter
 
@@ -1764,7 +1815,7 @@ port GND m1 (1.8u, 0) (2.2u, 200n)
 ### 8.2 Grouped Differential Pair
 
 ```
-ACIR-LL 1.0
+CAL 1.0
 pdk sky130 1.0.45
 topcell diff_pair
 
@@ -1819,7 +1870,7 @@ port IN.N m1 (0, in_n_tap.y - 200n) (500n, in_n_tap.y + 200n)
 ### 8.3 Using Repeat for Regular Structures
 
 ```
-ACIR-LL 1.0
+CAL 1.0
 pdk sky130 1.0.45
 topcell current_mirror
 
@@ -1870,7 +1921,7 @@ path [GND] m1 400n
 ### 8.4 Complete Five-Transistor OTA
 
 ```
-ACIR-LL 1.0
+CAL 1.0
 pdk sky130 1.0.45
 topcell OTA5TSingleEnded
 
@@ -2211,7 +2262,7 @@ For IP integration:
 
 ### 9.5 Parameterized Cells
 
-User-defined parameterized cells within ACIR-LL:
+User-defined parameterized cells within CAL:
 
 ```
 paramcell resistor_array (R: real, segments: int) {
@@ -2241,7 +2292,7 @@ This RFC specifies the minimum `pdk.db` contract needed for deterministic expans
 
 ## 10. Security Considerations
 
-ACIR-LL files may contain proprietary circuit designs. Implementations should:
+CAL files may contain proprietary circuit designs. Implementations should:
 
 1. Not transmit file contents to external services without explicit user consent.
 2. Support secure storage and access control integration.
@@ -2261,7 +2312,7 @@ The PDK workspace database and its upstream sources may reference proprietary P-
 
 ### Related Specifications
 
-- ACIR (RFC-0001): Analog Circuit Intermediate Representation, connection syntax revision.
+- RFC-0000: Cascode language unification and declarative bench system.
 - LEF/DEF: Library Exchange Format / Design Exchange Format, Cadence Design Systems.
 - OpenAccess: Si2 OpenAccess database specification.
 
@@ -2274,6 +2325,7 @@ The PDK workspace database and its upstream sources may reference proprietary P-
 | 0.1 | 2026-01-25 | Initial draft |
 | 0.2 | 2026-01-25 | Added groups, anchors, relative positioning, net attribution, constants, attributes, repeat construct. Clarified PDK-specificity. Standardized W as per-finger. Added PDK versioning. |
 | 0.3 | 2026-01-26 | Replaced “PDK binding” with `pdk.db` contract. Specified required layout catalog schema for layers/vias/cells/P-cells. Added future debug export notes. |
+| 0.4 | 2026-02-09 | Reframed ACIR-era terminology as CAL (Cascode Layout), aligned pipeline language with Cascode EL/`cascode par`, and replaced static SVG embeds with inline diagrams. |
 
 ---
 

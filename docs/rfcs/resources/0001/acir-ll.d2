@@ -6,15 +6,15 @@ vars: {
 
 direction: right
 
-acir_hl: "ACIR-HL\n(slots)"
-acir_ml: "ACIR-ML\n(motifs)"
-acir_el: "ACIR-EL\n(devices)"
-acir_ll: "ACIR-LL\n(geometry)" {
+cas_hl: "Cascode HL\n(slots)"
+cas_ml: "Cascode ML\n(motifs)"
+cas_el: "Cascode EL\n(devices)"
+cal: "CAL\n(geometry)" {
   style.stroke-width: 5
 }
 gds: "GDS/OASIS"
 
-acir_hl -> acir_ml -> acir_el -> acir_ll -> gds
+cas_hl -> cas_ml -> cas_el -> cal -> gds
 gds -> drc: "DRC"
 gds -> lvs: "LVS"
 gds -> pex: "PEX/Sim"

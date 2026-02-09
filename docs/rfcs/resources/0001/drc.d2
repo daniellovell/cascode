@@ -1,14 +1,14 @@
 direction: right
 
-pipeline: "ACIR-LL to DRC Verification" {
+pipeline: "CAL to DRC Verification" {
   grid-columns: 5
   horizontal-gap: 20
 
-  acir: "ACIR-LL document" {style.fill: "#cfd2dd"}
+  cal: "CAL document" {style.fill: "#cfd2dd"}
   expander: "Expander\nInstantiate P-cells + expand vias + snap"
   gds: "GDS-II file" {style.fill: "#cfd2dd"}
   drc: "DRC Tool\nGeometry + spacing checks"
   results: "DRC Results" {style.fill: "#cfd2dd"}
 }
 
-pipeline.acir -> pipeline.expander -> pipeline.gds -> pipeline.drc -> pipeline.results
+pipeline.cal -> pipeline.expander -> pipeline.gds -> pipeline.drc -> pipeline.results

@@ -1,14 +1,14 @@
 direction: down
 
-pipeline: "ACIR Data Flow: EL to Layout" {
+pipeline: "Cascode Data Flow: EL to CAL" {
   grid-columns: 1
   vertical-gap: 20
 
-  acir_el: "ACIR-EL document\nDevices, nets, connectivity" {style.fill: "#cfd2dd"}
-  layout: "Layout Engine\nPlacement + routing decisions"
-  acir_ll: "ACIR-LL document\nPDK-specific geometry" {style.fill: "#cfd2dd"}
-  expander: "ACIR-LL Expander\nResolve anchors + consts, instantiate P-cells, via expand, snap"
+  el_cai: "EL Cascode document (.el.cai)\nDevices, nets, connectivity" {style.fill: "#cfd2dd"}
+  par: "cascode par\nPlacement + routing decisions"
+  cal_doc: "CAL document (.cal)\nPDK-specific geometry" {style.fill: "#cfd2dd"}
+  expander: "CAL Expander\nResolve anchors + consts, instantiate P-cells, via expand, snap"
   gds: "GDS-II / OASIS" {style.fill: "#cfd2dd"}
 }
 
-pipeline.acir_el -> pipeline.layout -> pipeline.acir_ll -> pipeline.expander -> pipeline.gds
+pipeline.el_cai -> pipeline.par -> pipeline.cal_doc -> pipeline.expander -> pipeline.gds

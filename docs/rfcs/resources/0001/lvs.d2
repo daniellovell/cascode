@@ -1,11 +1,11 @@
 direction: right
 
-acir_ll: "ACIR-LL" {style.fill: "#cfd2dd"}
+cal: "CAL (.cal)" {style.fill: "#cfd2dd"}
 expander: "Expander"
 gds: "GDS" {style.fill: "#cfd2dd"}
 
-acir_el: "ACIR-EL" {style.fill: "#7fdbf8"}
-layout_engine: "Layout engine"
+el_cai: "Cascode EL (.el.cai)" {style.fill: "#7fdbf8"}
+par: "cascode par"
 spicegen: "SPICE generator"
 spice_source_netlist: "SPICE source netlist" {style.fill: "#cfd2dd"}
 
@@ -15,9 +15,9 @@ layout_netlist: "Extracted layout netlist" {style.fill: "#cfd2dd"}
 lvs: "LVS tool"
 results: "Results" {style.fill: "#e4dbff"}
 
-acir_ll -> expander -> gds
+cal -> expander -> gds
 gds -> extractor -> layout_netlist -> lvs
 
-acir_el -> layout_engine -> acir_ll
-acir_el -> spicegen -> spice_source_netlist -> lvs
+el_cai -> par -> cal
+el_cai -> spicegen -> spice_source_netlist -> lvs
 lvs -> results

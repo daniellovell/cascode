@@ -1,10 +1,10 @@
 direction: down
 
-pipeline: "ACIR-LL Emission to GDS" {
+pipeline: "CAL Emission to GDS" {
   grid-columns: 1
   vertical-gap: 16 # try 0–16
 
-  doc: "ACIR-LL document" {style.fill: "#cfd2dd"}
+  doc: "CAL document" {style.fill: "#cfd2dd"}
   parser: "Parser\nlex + syntax + AST"
   consts: "Constant Resolution\nsubstitute + expand repeat"
   anchors: "Anchor Resolution\ncompute + resolve"
