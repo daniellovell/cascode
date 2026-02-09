@@ -1,8 +1,49 @@
-VERSION 3.0
+VERSION 3.1
 
 library lib.std.bench
 
-bench DiffToSENoise {
+abstract bench AbstractNoise {
+  abstract stim IN
+  abstract resp OUT
+
+  analysis {
+    // ACAnalysis required for input_referred_noise to compute transfer function
+    ACAnalysis ac = new ACAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+
+    NoiseAnalysis noise_ac = new NoiseAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      output=OUT)
+  }
+
+  measurements {
+    measurement InputReferredNoise : V/rtHz {
+      // input_referred_noise uses paired ACAnalysis to compute transfer function
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_in.ValueAt(f_spot)
+    }
+
+    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
+      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
+      return n_in.Integrate(from, to)
+    }
+
+    measurement OutputNoise : V/rtHz {
+      NoiseSpectrum n_out = noise(noise_ac, OUT)
+      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
+      return n_out.ValueAt(f_spot)
+    }
+  }
+}
+
+bench DiffToSENoise extends AbstractNoise {
   stim IN : Diff
   resp OUT : analog
 
@@ -42,45 +83,9 @@ bench DiffToSENoise {
       .N--gnd
     }
   }
-
-  analysis {
-    // ACAnalysis required for input_referred_noise to compute transfer function
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-
-    NoiseAnalysis noise_ac = new NoiseAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
-      output=OUT)
-  }
-
-  measurements {
-    measurement InputReferredNoise : V/rtHz {
-      // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_in.ValueAt(f_spot)
-    }
-
-    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return n_in.Integrate(from, to)
-    }
-
-    measurement OutputNoise : V/rtHz {
-      NoiseSpectrum n_out = noise(noise_ac, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_out.ValueAt(f_spot)
-    }
-  }
 }
 
-bench DiffToDiffNoise {
+bench DiffToDiffNoise extends AbstractNoise {
   stim IN : Diff
   resp OUT : Diff
 
@@ -125,45 +130,9 @@ bench DiffToDiffNoise {
       .N--gnd
     }
   }
-
-  analysis {
-    // ACAnalysis required for input_referred_noise to compute transfer function
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-
-    NoiseAnalysis noise_ac = new NoiseAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
-      output=OUT)
-  }
-
-  measurements {
-    measurement InputReferredNoise : V/rtHz {
-      // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_in.ValueAt(f_spot)
-    }
-
-    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return n_in.Integrate(from, to)
-    }
-
-    measurement OutputNoise : V/rtHz {
-      NoiseSpectrum n_out = noise(noise_ac, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_out.ValueAt(f_spot)
-    }
-  }
 }
 
-bench SEToSENoise {
+bench SEToSENoise extends AbstractNoise {
   stim IN : analog
   resp OUT : analog
 
@@ -193,42 +162,6 @@ bench SEToSENoise {
     Impedor loadZ = new Impedor(Z=env.LoadImpedance) {
       .P--OUT
       .N--gnd
-    }
-  }
-
-  analysis {
-    // ACAnalysis required for input_referred_noise to compute transfer function
-    ACAnalysis ac = new ACAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
-
-    NoiseAnalysis noise_ac = new NoiseAnalysis(
-      space=Log,
-      samples=100,
-      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
-      output=OUT)
-  }
-
-  measurements {
-    measurement InputReferredNoise : V/rtHz {
-      // input_referred_noise uses paired ACAnalysis to compute transfer function
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_in.ValueAt(f_spot)
-    }
-
-    measurement IntegratedInputNoise(Frequency from, Frequency to) : Vrms {
-      NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
-      return n_in.Integrate(from, to)
-    }
-
-    measurement OutputNoise : V/rtHz {
-      NoiseSpectrum n_out = noise(noise_ac, OUT)
-      Frequency f_spot = (if constraints.SpotNoiseFrequency { constraints.SpotNoiseFrequency } else { 1kHz })
-      return n_out.ValueAt(f_spot)
     }
   }
 }

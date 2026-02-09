@@ -45,6 +45,20 @@ public static class BenchBindingChecker
                     continue;
                 }
 
+                if (bench.IsAbstract)
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS2022: Abstract bench '{bench.Name}' cannot appear in bind statements.",
+                            DiagnosticSeverity.Error,
+                            "<bench>",
+                            1,
+                            1
+                        )
+                    );
+                    continue;
+                }
+
                 CheckBinding(circuit, binding, bench, dutTerminals, bundlesByName, diagnostics);
             }
         }
@@ -231,6 +245,20 @@ public static class BenchBindingChecker
             }
 
             // Expand mapping for bundles.
+            if (benchTerminal.Type is null)
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS2024: Concrete bench '{bench.Name}' has terminal '{benchTerminal.Name}' without a type.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
             var benchLeaves = ExpandLeaves(benchTerminal.Name, benchTerminal.Type, bundlesByName)
                 .ToList();
             var dutLeaves = SelectLeaves(dutInfo.Leaves, m.DutPinRef);

@@ -259,6 +259,12 @@ public static class CascodeLinker
         // Now that the document is self-contained (no includes), run bundle expansion and bench validation.
         // This is the earliest point where bundle types and bench/interface bindings are resolvable.
         var linked = BundleDesugarer.Desugar(merged);
+        linked = BenchInheritanceResolver.Resolve(linked, diagnostics);
+        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        {
+            return new CascodeLinkResult(false, null, null, diagnostics);
+        }
+
         linked = BenchBindingExtender.Apply(linked, diagnostics);
         BenchSemanticChecker.Check(linked, diagnostics);
         BenchBindingChecker.Check(linked, diagnostics);
@@ -450,9 +456,17 @@ public static class CascodeLinker
 
         foreach (var b in doc.BenchDefinitions)
         {
+            if (!string.IsNullOrWhiteSpace(b.BaseBench))
+            {
+                required.Benches.Add(b.BaseBench);
+            }
+
             foreach (var term in b.Terminals)
             {
-                AddBundleIfNeeded(term.Type, required);
+                if (term.Type is not null)
+                {
+                    AddBundleIfNeeded(term.Type, required);
+                }
             }
 
             foreach (var fn in b.Functions)

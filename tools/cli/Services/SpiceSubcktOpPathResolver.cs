@@ -12,6 +12,7 @@ internal static class SpiceSubcktOpPathResolver
 
     public sealed record SubcktDefinition(
         IReadOnlyList<string> Terminals,
+        IReadOnlyList<string> ParameterNames,
         IReadOnlyList<string> BodyLines
     );
 
@@ -175,6 +176,7 @@ internal static class SpiceSubcktOpPathResolver
 
         string? currentName = null;
         IReadOnlyList<string> currentTerminals = Array.Empty<string>();
+        IReadOnlyList<string> currentParameterNames = Array.Empty<string>();
         var currentBody = new List<string>();
         string? currentLogical = null;
 
@@ -193,6 +195,7 @@ internal static class SpiceSubcktOpPathResolver
                 {
                     currentName = parts[1];
                     currentTerminals = ParseSubcktTerminals(parts);
+                    currentParameterNames = ParseSubcktParameterNames(parts);
                     currentBody = new List<string>();
                 }
                 return;
@@ -204,11 +207,13 @@ internal static class SpiceSubcktOpPathResolver
                 {
                     into[currentName] = new SubcktDefinition(
                         currentTerminals,
+                        currentParameterNames,
                         currentBody.ToArray()
                     );
                 }
                 currentName = null;
                 currentTerminals = Array.Empty<string>();
+                currentParameterNames = Array.Empty<string>();
                 currentBody = new List<string>();
                 return;
             }
@@ -260,7 +265,11 @@ internal static class SpiceSubcktOpPathResolver
 
         if (!string.IsNullOrWhiteSpace(currentName) && currentBody.Count > 0)
         {
-            into[currentName] = new SubcktDefinition(currentTerminals, currentBody.ToArray());
+            into[currentName] = new SubcktDefinition(
+                currentTerminals,
+                currentParameterNames,
+                currentBody.ToArray()
+            );
         }
     }
 
@@ -299,6 +308,60 @@ internal static class SpiceSubcktOpPathResolver
         }
 
         return terminals;
+    }
+
+    private static IReadOnlyList<string> ParseSubcktParameterNames(string[] tokens)
+    {
+        if (tokens.Length <= 2)
+        {
+            return Array.Empty<string>();
+        }
+
+        var parameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var inParams = false;
+
+        for (var i = 2; i < tokens.Length; i++)
+        {
+            var token = tokens[i].Trim();
+            if (token.Length == 0)
+            {
+                continue;
+            }
+
+            if (token.Equals("params:", StringComparison.OrdinalIgnoreCase))
+            {
+                inParams = true;
+                continue;
+            }
+
+            if (token.StartsWith("params:", StringComparison.OrdinalIgnoreCase))
+            {
+                inParams = true;
+                token = token.Substring("params:".Length).Trim();
+                if (token.Length == 0)
+                {
+                    continue;
+                }
+            }
+
+            if (!inParams && !token.Contains('='))
+            {
+                continue;
+            }
+
+            inParams = true;
+
+            var eq = token.IndexOf('=');
+            var name = eq >= 0 ? token[..eq] : token;
+            name = name.Trim().TrimEnd(',', ';');
+
+            if (name.Length > 0)
+            {
+                parameters.Add(name);
+            }
+        }
+
+        return parameters.OrderBy(p => p, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static string StripInlineComment(string line)

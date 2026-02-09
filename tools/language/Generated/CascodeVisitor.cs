@@ -151,6 +151,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitBenchBody([NotNull] CascodeParser.BenchBodyContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.benchMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBenchMember([NotNull] CascodeParser.BenchMemberContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.terminalDecl"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -395,12 +401,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSlotNetDecl([NotNull] CascodeParser.SlotNetDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>SlotInstanceDecl</c>
+	/// Visit a parse tree produced by the <c>SlotInstanceStatement</c>
 	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitSlotInstanceDecl([NotNull] CascodeParser.SlotInstanceDeclContext context);
+	Result VisitSlotInstanceStatement([NotNull] CascodeParser.SlotInstanceStatementContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>SlotConnectDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.slotBlockStatement"/>.
@@ -408,6 +414,18 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitSlotConnectDecl([NotNull] CascodeParser.SlotConnectDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.slotInstanceDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSlotInstanceDecl([NotNull] CascodeParser.SlotInstanceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.slotDeclaredType"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSlotDeclaredType([NotNull] CascodeParser.SlotDeclaredTypeContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillNetDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
@@ -423,12 +441,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFillSizeDecl([NotNull] CascodeParser.FillSizeDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>FillInstanceDecl</c>
+	/// Visit a parse tree produced by the <c>FillInstanceStatement</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitFillInstanceDecl([NotNull] CascodeParser.FillInstanceDeclContext context);
+	Result VisitFillInstanceStatement([NotNull] CascodeParser.FillInstanceStatementContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
@@ -513,6 +531,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitFillBlock([NotNull] CascodeParser.FillBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.fillInstanceDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillInstanceDecl([NotNull] CascodeParser.FillInstanceDeclContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.instanceDecl"/>.
 	/// </summary>

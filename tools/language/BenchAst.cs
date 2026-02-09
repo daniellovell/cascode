@@ -11,7 +11,12 @@ public enum BenchTerminalRole
     Resp,
 }
 
-public sealed record BenchTerminal(BenchTerminalRole Role, string Name, string Type);
+public sealed record BenchTerminal(
+    BenchTerminalRole Role,
+    string Name,
+    string? Type,
+    bool IsAbstract = false
+);
 
 /// <summary>
 /// Parameter declared on a bench definition (e.g., Frequency stim_freq = 1kHz).
@@ -21,6 +26,9 @@ public sealed record BenchParameter(BenchValueType Type, string Name, Measuremen
 public sealed class BenchDefinition
 {
     public required string Name { get; init; }
+    public bool IsAbstract { get; init; }
+    public string? BaseBench { get; init; }
+    public bool OverrideAnalysis { get; init; }
 
     /// <summary>
     /// Bench parameters that can be configured via constraint bench invocations.
@@ -98,6 +106,7 @@ public sealed class AnalysisDeclaration
 public sealed class MeasurementDefinition
 {
     public required string Name { get; init; }
+    public bool IsOverride { get; init; }
     public List<TypedParameter> Parameters { get; init; } = new();
     public required string Unit { get; init; }
     public List<BenchStatement> Body { get; init; } = new();

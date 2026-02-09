@@ -187,7 +187,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    cm = new CurrentMirror {{ .IN--IN, .OUT--OUT }}
+    CurrentMirror cm = new CurrentMirror {{ .IN--IN, .OUT--OUT }}
   }}
 }}
 ";
@@ -217,7 +217,7 @@ circuit TestCircuit {{
   supply VDD
   ground GND
   fill {{
-    cm = new CurrentMirror {{ }}
+    CurrentMirror cm = new CurrentMirror {{ }}
   }}
 }}
 ";
@@ -230,6 +230,52 @@ circuit TestCircuit {{
         Assert.Equal("cm", inst.Id);
         Assert.Equal("CurrentMirror", inst.Type);
         Assert.Empty(inst.Bindings);
+    }
+
+    [Fact]
+    public void TryRead_InstanceWithoutDeclaredType_ReturnsSyntaxError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit TestCircuit {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{
+    cm = new CurrentMirror {{ }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
+    }
+
+    [Fact]
+    public void TryRead_InstanceWithMismatchedDeclaredType_ReturnsError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+circuit TestCircuit {{
+  level EL
+  supply VDD
+  ground GND
+  fill {{
+    CurrentMirror cm = new DiffPair {{ }}
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(cascode, "test.cas");
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0036")
+        );
     }
 
     [Fact]
@@ -562,7 +608,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    dp = new DiffPair {{
+    DiffPair dp = new DiffPair {{
       .VDD--VDD
       .GND--GND
       .IN--IN
@@ -599,7 +645,7 @@ circuit TestCircuit {{
   output OUT : analog
   input VTAIL : bias
   fill {{
-    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {{
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {{
       .GND--GND
       .VDD--VDD
       .IN.P--IN.P
@@ -637,7 +683,7 @@ circuit TestCircuit {{
   supply VDD
   ground GND
   fill {{
-    dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
+    DiffPair dp = new DiffPair {{ .VDD--VDD, .GND--GND }}
   }}
 }}
 ";
@@ -664,7 +710,7 @@ circuit TestCircuit {{
   input IN : analog
   output OUT : analog
   fill {{
-    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1)) {{
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1)) {{
       .VDD--VDD
       .GND--GND
       .IN--IN

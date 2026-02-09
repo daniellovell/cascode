@@ -26,10 +26,10 @@ else
     SED_INPLACE=(-i)
 fi
 
-# Update .cas files (first line VERSION header)
+# Update textual Cascode golden files (first line VERSION header)
 while IFS= read -r -d '' file; do
     sed "${SED_INPLACE[@]}" -E "1s/^VERSION [0-9]+\.[0-9]+/VERSION $VERSION/" "$file"
-done < <(find "$GOLDEN_DIR" -name "*.cas" -print0)
+done < <(find "$GOLDEN_DIR" \( -name "*.cas" -o -name "*.cai" \) -print0)
 
 # Update .json files (cascodeVersion field)
 while IFS= read -r -d '' file; do

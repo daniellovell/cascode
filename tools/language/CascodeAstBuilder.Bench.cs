@@ -38,8 +38,10 @@ internal sealed partial class CascodeAstBuilder
                     fill.Devices.Add(BuildDevice(deviceCtx.deviceDecl()));
                     break;
 
-                case CascodeParser.FillInstanceDeclContext instanceCtx:
-                    fill.Instances.Add(BuildInstance(instanceCtx.instanceDecl()));
+                case CascodeParser.FillInstanceStatementContext instanceCtx:
+                    fill.Instances.Add(
+                        BuildInstance(instanceCtx.fillInstanceDecl().instanceDecl())
+                    );
                     break;
 
                 case CascodeParser.FillAttachDeclContext attachCtx:
@@ -270,34 +272,42 @@ internal sealed partial class CascodeAstBuilder
 
         foreach (var decl in ctx.measurementDecl())
         {
-            var measurement = new MeasurementDefinition
-            {
-                Name = decl.name.Text,
-                Unit = decl.unitType().GetText(),
-            };
-
-            if (decl.typedParamList() is not null)
-            {
-                foreach (var p in decl.typedParamList().typedParam())
-                {
-                    measurement.Parameters.Add(
-                        new TypedParameter(
-                            ParseTypedParamType(p.typedParamType()),
-                            p.idPart().GetText()
-                        )
-                    );
-                }
-            }
-
-            foreach (var stmt in decl.measurementBody().statement())
-            {
-                measurement.Body.Add(BuildBenchStatement(stmt));
-            }
-
-            measurements.Add(measurement);
+            measurements.Add(BuildMeasurementDefinition(decl));
         }
 
         return measurements;
+    }
+
+    private MeasurementDefinition BuildMeasurementDefinition(
+        CascodeParser.MeasurementDeclContext decl
+    )
+    {
+        var measurement = new MeasurementDefinition
+        {
+            Name = decl.name.Text,
+            IsOverride = decl.OVERRIDE_KW() is not null,
+            Unit = decl.unitType().GetText(),
+        };
+
+        if (decl.typedParamList() is not null)
+        {
+            foreach (var p in decl.typedParamList().typedParam())
+            {
+                measurement.Parameters.Add(
+                    new TypedParameter(
+                        ParseTypedParamType(p.typedParamType()),
+                        p.idPart().GetText()
+                    )
+                );
+            }
+        }
+
+        foreach (var stmt in decl.measurementBody().statement())
+        {
+            measurement.Body.Add(BuildBenchStatement(stmt));
+        }
+
+        return measurement;
     }
 
     private BenchStatement BuildBenchStatement(CascodeParser.StatementContext ctx)

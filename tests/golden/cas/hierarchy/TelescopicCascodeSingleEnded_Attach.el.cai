@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 bundle Diff {
   P : analog
@@ -68,10 +68,10 @@ circuit TelescopicCascodeSingleEnded_Attach implements SingleEndedOpAmp {
   input VBN : bias
   input VTAIL : bias
   fill {
-    dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
-    nl = new LoadPair_N(Cascode=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
-    cm_lo = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
-    cm_hi = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    LoadPair_N nl = new LoadPair_N(Cascode=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    CurrentMirror_P cm_lo = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
+    CurrentMirror_P cm_hi = new CurrentMirror_P(Mirror=size(W=2u, L=180n, M=1)) { .GND--GND, .VDD--VDD }
 
     attach nl to dp via LoadPairLike::DiffPairLike as n_stack
     attach cm_lo to nl via CurrentMirrorLike::LoadPairLike as mirror_lo
