@@ -244,8 +244,7 @@ internal sealed class CascodeLibraryIndex
         || ContainsKeywordDecl(content, "circuit", name);
 
     private static bool ContainsPrimitiveDecl(string content, string name) =>
-        content.Contains("primitive", StringComparison.OrdinalIgnoreCase)
-        && content.Contains(name, StringComparison.Ordinal);
+        ContainsKeywordDecl(content, "primitive", name);
 
     private static bool ContainsKeywordDecl(string content, string keyword, string name) =>
         content.Contains(keyword + " " + name, StringComparison.Ordinal)

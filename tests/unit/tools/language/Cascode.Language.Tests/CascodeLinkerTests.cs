@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Cascode.Language;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Language.Tests;
@@ -12,14 +13,10 @@ public sealed class CascodeLinkerTests
     public void LinkFile_ResolvesIncludes_AndExtractsSynthSidecar()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-smoke");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
-        var entryPath = Path.Combine(tmp, "entry.cas");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
         File.WriteAllText(
             entryPath,
             """
@@ -79,12 +76,8 @@ public sealed class CascodeLinkerTests
     public void LinkFile_UsesLibraryNamespaceInheritance_ForStdlibFiles()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-nsinherit");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
         // lib/std/bench/TransferBenches.cas does not include lib.std, but per the RFC
         // namespace inheritance, lib.std.bench should see lib.std (which defines Diff).
@@ -173,15 +166,11 @@ public sealed class CascodeLinkerTests
     public void LinkFile_WithBenchPruning_PrunesBenchDefinitions_AndShrinksOutput()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDirFull = Path.Combine(tmp, "out-full");
-        var outDirPruned = Path.Combine(tmp, "out-pruned");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-benchprune");
+        var outDirFull = Path.Combine(cascodeHome.Path, "out-full");
+        var outDirPruned = Path.Combine(cascodeHome.Path, "out-pruned");
 
-        var entryPath = Path.Combine(tmp, "entry.hl.cas");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.hl.cas");
         File.WriteAllText(
             entryPath,
             """
@@ -253,14 +242,10 @@ public sealed class CascodeLinkerTests
     public void LinkFile_SymbolLevelPdkInclude_PreservesPreciseInclude_WhenBenchLinkingDisabled()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-pdkinc");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
-        var entryPath = Path.Combine(tmp, "entry.el.cas");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
             """
@@ -302,14 +287,10 @@ public sealed class CascodeLinkerTests
     public void LinkFile_ExplicitOnlyPolicy_FailsForUndeclaredPrimitive_WithSuggestedInclude()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-explonly");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
-        var entryPath = Path.Combine(tmp, "entry.el.cas");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
         File.WriteAllText(
             entryPath,
             """

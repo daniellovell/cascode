@@ -51,11 +51,15 @@ internal sealed class LinkCommandModule : ICommandModule
                 continue;
             }
 
-            if (
-                TryReadOptionValue(args, ref i, "--include-policy", out var includePolicyRaw)
-                && TryParseIncludePolicy(includePolicyRaw, out includePolicy)
-            )
+            if (TryReadOptionValue(args, ref i, "--include-policy", out var includePolicyRaw))
             {
+                if (!TryParseIncludePolicy(includePolicyRaw, out includePolicy))
+                {
+                    output.Error(
+                        $"Error: invalid --include-policy value '{includePolicyRaw}'. Expected: default or explicit-only."
+                    );
+                    return new CommandResult(2, false);
+                }
                 continue;
             }
 
