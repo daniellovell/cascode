@@ -11,6 +11,7 @@ using Cascode.Bench;
 using Cascode.Cli.Output;
 using Cascode.Language;
 using Cascode.Language.BenchRuntime;
+using Cascode.Language.Validation;
 using Microsoft.Extensions.Logging;
 
 namespace Cascode.Cli.Services;
@@ -101,7 +102,8 @@ public class BenchRunService
         IReadOnlyList<CircuitBenchRunSummary> CircuitSummaries,
         string? GlobalResultsPath,
         ComplianceReport GlobalCompliance,
-        BenchRunTimingReport? Timing = null
+        BenchRunTimingReport? Timing = null,
+        IReadOnlyList<string>? ValidationErrors = null
     )
     {
         public int TotalBenchesRun => CircuitSummaries.Sum(c => c.Benches.Count);
@@ -1293,8 +1295,11 @@ public class BenchRunService
 
         if (!emit.Validation.IsValid)
         {
-            var first =
-                emit.Validation.GetErrors().FirstOrDefault()?.ToString() ?? "Emission failed.";
+            var validationErrors = emit
+                .Validation.GetErrors()
+                .Select(FormatValidationError)
+                .ToArray();
+            var first = validationErrors.FirstOrDefault() ?? "Emission failed.";
             _logger.LogError("Cascode emission validation failed: {Error}", first);
             return new MultiCircuitBenchRunResult(
                 2,
@@ -1303,12 +1308,29 @@ public class BenchRunService
                     outputDir,
                     Array.Empty<CircuitBenchRunSummary>(),
                     null,
-                    new ComplianceReport()
+                    new ComplianceReport(),
+                    ValidationErrors: validationErrors
                 )
             );
         }
 
         return null;
+    }
+
+    private static string FormatValidationError(ValidationError error)
+    {
+        var formatted = $"[{error.Code}] {error.Message}";
+        if (!string.IsNullOrWhiteSpace(error.Location))
+        {
+            formatted += $" (at {error.Location})";
+        }
+
+        if (!string.IsNullOrWhiteSpace(error.Suggestion))
+        {
+            formatted += $" Suggestion: {error.Suggestion}";
+        }
+
+        return formatted;
     }
 
     /// <summary>
