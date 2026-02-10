@@ -82,6 +82,38 @@ internal sealed class CascodeLibraryIndex
         return _pathsByLibrary.TryGetValue(key, out var list) ? list : Array.Empty<string>();
     }
 
+    public IReadOnlyList<string> FindSymbolIncludeCandidates(string symbolName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(symbolName);
+
+        var includes = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var (library, paths) in _pathsByLibrary)
+        {
+            foreach (var path in paths)
+            {
+                string content;
+                try
+                {
+                    content = File.ReadAllText(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!MightDefineAnySymbol(content, symbolName))
+                {
+                    continue;
+                }
+
+                includes.Add($"{library}.{symbolName}");
+                break;
+            }
+        }
+
+        return includes.ToList();
+    }
+
     public static string NormalizeLibraryName(string raw)
     {
         raw = raw.Trim();
@@ -202,4 +234,22 @@ internal sealed class CascodeLibraryIndex
 
         return null;
     }
+
+    private static bool MightDefineAnySymbol(string content, string name) =>
+        ContainsKeywordDecl(content, "bundle", name)
+        || ContainsKeywordDecl(content, "interface", name)
+        || ContainsKeywordDecl(content, "bench", name)
+        || ContainsKeywordDecl(content, "function", name)
+        || ContainsPrimitiveDecl(content, name)
+        || ContainsKeywordDecl(content, "circuit", name);
+
+    private static bool ContainsPrimitiveDecl(string content, string name) =>
+        content.Contains("primitive", StringComparison.OrdinalIgnoreCase)
+        && content.Contains(name, StringComparison.Ordinal);
+
+    private static bool ContainsKeywordDecl(string content, string keyword, string name) =>
+        content.Contains(keyword + " " + name, StringComparison.Ordinal)
+        || content.Contains(keyword + "\t" + name, StringComparison.Ordinal)
+        || content.Contains(keyword + "\r\n" + name, StringComparison.Ordinal)
+        || content.Contains(keyword + "\n" + name, StringComparison.Ordinal);
 }

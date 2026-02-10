@@ -14,7 +14,8 @@ declaration establishes a namespace, while `include` directives bring in depende
 during linking. Name resolution follows lexical scoping with library-qualified fallback, and
 shadowing rules are conventional unless explicitly stated.
 
-Linked outputs (`.cai`) are self-contained and include a `VERSION` header as the first line.
+Linked outputs (`.cai`) include a `VERSION` header as the first line. The default link mode is
+self-contained; include-pruned bench mode intentionally retains a minimal include set.
 
 ```cascode
 VERSION 3.0
@@ -22,8 +23,9 @@ library lib.std.amp
 include lib.std.bench
 ```
 
-Includes are resolved during linking. The output of linking is a self-contained `.cai` file with no
-remaining `include` directives.
+Includes are resolved during linking. In default mode, the output is self-contained with no
+remaining `include` directives. In include-pruned bench mode (`--no-link-benches`), bench
+definitions are omitted and represented via deterministic include rewrites.
 
 Linking also applies namespace inheritance rules for library lookups: a file in `lib.std.bench` can
 resolve symbols from `lib.std` and `lib` without requiring explicit includes for those parent

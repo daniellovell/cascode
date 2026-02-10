@@ -37,7 +37,7 @@ lib/pdk/<pdk>/
   diodes.cas
 ```
 
-Each file declares a file-level namespace under `lib.pdk.<pdk>.*` (for example `lib.pdk.sky130.devices`). Consumers include the full emitted package with `include lib.pdk.<pdk>`.
+Each file declares a file-level namespace under `lib.pdk.<pdk>.*` (for example `lib.pdk.sky130.devices`). Consumers can include the full package (`include lib.pdk.<pdk>`) or include specific symbols (`include lib.pdk.<pdk>.devices.nfet_01v8`) when tighter device-availability control is required.
 
 By default, emission keeps canonical parametric family names and skips fixed-only wrapper families when no parametric representative exists. The command reports skipped fixed-only families. Use `--include-fixed` to include fixed wrapper variants.
 

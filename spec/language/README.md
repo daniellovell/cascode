@@ -21,8 +21,10 @@ VERSION 3.0
 
 The canonical version is `tools/language/CascodeVersion.cs`.
 
-Source files use `.cas`. Linked, self-contained intermediate outputs use `.cai` and are expected to
-include a `VERSION` header. Linking also extracts synthesis guidance into `<name>.synth.yaml`.
+Source files use `.cas`. Linked intermediate outputs use `.cai` and are expected to include a
+`VERSION` header. The default linker mode emits self-contained `.cai`; include-pruned mode
+(`--no-link-benches`) intentionally preserves a minimal include surface for bench dependencies.
+Linking also extracts synthesis guidance into `<name>.synth.yaml`.
 
 ## Chapters
 

@@ -1,7 +1,8 @@
 # Chapter 3: Syntax Reference
 
 This chapter is a syntax-oriented reference for the unified Cascode language. Cascode source files
-use the `.cas` extension. Tool-linked, self-contained intermediate artifacts use `.cai`.
+use the `.cas` extension. Tool-linked intermediate artifacts use `.cai` (self-contained by default,
+or include-pruned when requested by linker mode).
 
 The authoritative grammar is `tools/language/Cascode.g4`. This chapter documents the surface syntax
 as it is used throughout the standard library (`lib/std/**`), examples, and golden tests.
@@ -99,10 +100,21 @@ Dependencies are expressed with `include`:
 ```cascode
 include lib.std
 include lib.std.bench
+include lib.pdk.sky130.devices.nfet_01v8
 ```
 
-`include` names are qualified identifiers (dot-separated). Includes are resolved during linking,
-and linked `.cai` outputs are self-contained by construction (they do not contain `include` lines).
+`include` names are qualified identifiers (dot-separated). The linker accepts both package-style
+includes (for example `include lib.std` or `include lib.pdk.sky130`) and symbol-level includes
+(for example `include lib.pdk.sky130.devices.nfet_01v8`).
+
+By default, `cascode link` produces a self-contained `.cai` and resolves includes by materializing
+required definitions into the output. With `--no-link-benches`, linking switches to an
+include-preserving mode for bench dependencies: bench bindings remain intact, bench definitions are
+omitted, and the output keeps a deterministic, pruned include set.
+
+For stricter experiments, `cascode link --include-policy=explicit-only` limits symbol availability
+to the explicit include closure (plus required transitive dependencies) and reports unresolved
+symbols with actionable include suggestions.
 
 ### 3.1.4 Strings
 

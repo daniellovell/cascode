@@ -35,7 +35,9 @@ names.
 ## Includes
 
 For examples and tests, prefer `include lib.std` unless you are intentionally testing a minimal
-include surface. For library code, include the smallest correct dependency.
+include surface. For library code, include the smallest correct dependency. For PDK experiments
+that intentionally gate device availability, prefer symbol-level includes such as
+`include lib.pdk.sky130.devices.nfet_01v8` instead of broad package includes.
 
 ## Determinism and golden friendliness
 
