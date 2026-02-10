@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Cascode.Language;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Language.Tests;
@@ -12,14 +13,10 @@ public sealed class CascodeLinkerTests
     public void LinkFile_ResolvesIncludes_AndExtractsSynthSidecar()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-smoke");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
-        var entryPath = Path.Combine(tmp, "entry.cas");
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.cas");
         File.WriteAllText(
             entryPath,
             """
@@ -79,12 +76,8 @@ public sealed class CascodeLinkerTests
     public void LinkFile_UsesLibraryNamespaceInheritance_ForStdlibFiles()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-link-test-" + Guid.NewGuid().ToString("N")
-        );
-        var outDir = Path.Combine(tmp, "out");
-        Directory.CreateDirectory(tmp);
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-nsinherit");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
 
         // lib/std/bench/TransferBenches.cas does not include lib.std, but per the RFC
         // namespace inheritance, lib.std.bench should see lib.std (which defines Diff).
@@ -167,5 +160,178 @@ public sealed class CascodeLinkerTests
 
         Assert.Contains(linked.BenchDefinitions, b => b.Name == "Concrete");
         Assert.DoesNotContain(linked.BenchDefinitions, b => b.Name == "AbstractBase");
+    }
+
+    [Fact]
+    public void LinkFile_WithBenchPruning_PrunesBenchDefinitions_AndShrinksOutput()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-benchprune");
+        var outDirFull = Path.Combine(cascodeHome.Path, "out-full");
+        var outDirPruned = Path.Combine(cascodeHome.Path, "out-pruned");
+
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.hl.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include lib.std
+
+            circuit LinkerBenchPrune implements SingleEndedOpAmp {
+              level HL
+              supply VDD
+              ground GND
+              input IN : Diff
+              output OUT : analog
+
+              slot
+
+              env {
+                InputCommonModeRange = 0.9V
+                SourceImpedance = 50Ohm
+                LoadImpedance = 1kOhm
+              }
+
+              constraints {
+                numeric {
+                  c_gbw = transfer_bench::GainBandwidth >= 1MHz
+                  c_power = vdd_pwr::QuiescentPower <= 1mW
+                }
+              }
+
+              harness {
+                supply VDD = 1.8V
+                ground GND = 0V
+              }
+            }
+            """
+        );
+
+        var full = CascodeLinker.LinkFile(entryPath, outDirFull, repoRoot);
+        Assert.True(full.Success, string.Join("\n", full.Diagnostics.Select(d => d.Message)));
+
+        var pruned = CascodeLinker.LinkFile(
+            entryPath,
+            outDirPruned,
+            repoRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+        Assert.True(pruned.Success, string.Join("\n", pruned.Diagnostics.Select(d => d.Message)));
+
+        var fullText = File.ReadAllText(full.LinkedCasPath!);
+        var prunedText = File.ReadAllText(pruned.LinkedCasPath!);
+
+        Assert.Contains("bench DiffToSETransfer", fullText);
+        Assert.DoesNotContain("bench DiffToSETransfer", prunedText);
+        Assert.Contains("transfer_bench::GainBandwidth", prunedText);
+
+        using (var reader = File.OpenText(pruned.LinkedCasPath!))
+        {
+            var linked = CascodeReader.Read(reader, pruned.LinkedCasPath!);
+            Assert.Empty(linked.BenchDefinitions);
+            Assert.Contains(linked.Includes, inc => inc.Name == "lib.std.amp.SingleEndedOpAmp");
+            Assert.Contains(linked.Includes, inc => inc.Name == "lib.std.bench.DiffToSETransfer");
+            Assert.DoesNotContain(linked.Includes, inc => inc.Name == "lib.std");
+        }
+
+        Assert.True(prunedText.Length < fullText.Length);
+    }
+
+    [Fact]
+    public void LinkFile_SymbolLevelPdkInclude_PreservesPreciseInclude_WhenBenchLinkingDisabled()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-pdkinc");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include lib.pdk.sky130.devices.nfet_01v8
+
+            circuit UsesOnlyNfet {
+              level EL
+              supply VDD
+              ground GND
+              input IN : analog
+              output OUT : analog
+
+              fill {
+                NMOS M1 = new nfet_01v8(size(W=1u, L=180n, M=1)) { .D--OUT, .G--IN, .S--GND, .B--GND }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            repoRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.ExplicitOnly)
+        );
+
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+
+        Assert.Single(linked.Includes);
+        Assert.Equal("lib.pdk.sky130.devices.nfet_01v8", linked.Includes[0].Name);
+        Assert.DoesNotContain(linked.Includes, i => i.Name == "lib.pdk.sky130");
+    }
+
+    [Fact]
+    public void LinkFile_ExplicitOnlyPolicy_FailsForUndeclaredPrimitive_WithSuggestedInclude()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-explonly");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include lib.pdk.sky130.devices.nfet_01v8
+
+            circuit UsesUndeclaredPfet {
+              level EL
+              supply VDD
+              ground GND
+              input IN : analog
+              output OUT : analog
+
+              fill {
+                PMOS M1 = new pfet_01v8(size(W=1u, L=180n, M=1)) { .D--OUT, .G--IN, .S--VDD, .B--VDD }
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            repoRoot,
+            new CascodeLinkOptions(LinkBenchMode.Full, LinkIncludePolicy.ExplicitOnly)
+        );
+        Assert.False(result.Success);
+
+        var errors = result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+        Assert.Contains(
+            errors,
+            d =>
+                d.Message.Contains(
+                    "Unresolved primitive reference 'pfet_01v8'",
+                    StringComparison.Ordinal
+                )
+                && d.Message.Contains(
+                    "include lib.pdk.sky130.devices.pfet_01v8",
+                    StringComparison.Ordinal
+                )
+        );
     }
 }

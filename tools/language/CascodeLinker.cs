@@ -22,11 +22,20 @@ public static class CascodeLinker
         string outputDir,
         string workspaceRoot,
         ILogger? logger = null
+    ) => LinkFile(entryPath, outputDir, workspaceRoot, CascodeLinkOptions.Default, logger);
+
+    public static CascodeLinkResult LinkFile(
+        string entryPath,
+        string outputDir,
+        string workspaceRoot,
+        CascodeLinkOptions options,
+        ILogger? logger = null
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(entryPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
         ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(options);
 
         entryPath = Path.GetFullPath(entryPath);
         outputDir = Path.GetFullPath(outputDir);
@@ -63,9 +72,11 @@ public static class CascodeLinker
         // Includes are resolved by file-level "library ..." headers (not by directory alone).
         // This enables namespace inheritance and avoids parsing unrelated files.
         var libraryIndex = CascodeLibraryIndex.Build(workspaceRoot);
-        var includedDocs = new List<CascodeDocument>();
+        var includedDocs = new List<LinkedDocument>();
         var parsedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var candidates = new Dictionary<string, CandidateSelection>(
+            StringComparer.OrdinalIgnoreCase
+        );
         var readCache = new Dictionary<string, CascodeReadResult>(StringComparer.OrdinalIgnoreCase);
 
         var required = new RequiredSymbols();
@@ -111,16 +122,25 @@ public static class CascodeLinker
             }
 
             diagnostics.AddRange(read.Diagnostics);
-            includedDocs.Add(read.Document);
+            var selectedDoc = ApplyIncludeSelection(read.Document, path, candidates);
+            includedDocs.Add(
+                new LinkedDocument
+                {
+                    Path = path,
+                    Document = selectedDoc,
+                    SourceDocument = read.Document,
+                }
+            );
             AddIncludeCandidates(
-                read.Document,
+                selectedDoc,
                 path,
                 workspaceRoot,
                 libraryIndex,
                 candidates,
-                diagnostics
+                diagnostics,
+                options.IncludePolicy
             );
-            CollectRequiredSymbols(read.Document, required);
+            CollectRequiredSymbols(selectedDoc, required);
             return true;
         }
 
@@ -154,14 +174,22 @@ public static class CascodeLinker
             return new CascodeLinkResult(false, null, null, diagnostics);
         }
 
-        includedDocs.Add(entryRead.Document);
+        includedDocs.Add(
+            new LinkedDocument
+            {
+                Path = entryFullPath,
+                Document = entryRead.Document,
+                SourceDocument = entryRead.Document,
+            }
+        );
         AddIncludeCandidates(
             entryRead.Document,
             entryFullPath,
             workspaceRoot,
             libraryIndex,
             candidates,
-            diagnostics
+            diagnostics,
+            options.IncludePolicy
         );
         CollectRequiredSymbols(entryRead.Document, required);
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
@@ -179,8 +207,8 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "bundle",
                 required.Bundles,
-                name => includedDocs.Any(d => d.BundleTypes.Any(b => b.Name == name)),
-                MightDefineBundle,
+                name => includedDocs.Any(d => d.Document.BundleTypes.Any(b => b.Name == name)),
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "bundle", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -190,8 +218,9 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "interface",
                 required.Traits,
-                name => includedDocs.Any(d => d.Traits.Any(t => t.Name == name)),
-                MightDefineTrait,
+                name => includedDocs.Any(d => d.Document.Traits.Any(t => t.Name == name)),
+                (content, name) =>
+                    CascodeSymbolUtils.ContainsKeywordDecl(content, "interface", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -201,8 +230,8 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "bench",
                 required.Benches,
-                name => includedDocs.Any(d => d.BenchDefinitions.Any(b => b.Name == name)),
-                MightDefineBench,
+                name => includedDocs.Any(d => d.Document.BenchDefinitions.Any(b => b.Name == name)),
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "bench", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -212,8 +241,9 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "function",
                 required.Functions,
-                name => includedDocs.Any(d => d.Functions.Any(f => f.Name == name)),
-                MightDefineFunction,
+                name => includedDocs.Any(d => d.Document.Functions.Any(f => f.Name == name)),
+                (content, name) =>
+                    CascodeSymbolUtils.ContainsKeywordDecl(content, "function", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -223,8 +253,8 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "primitive",
                 required.Primitives,
-                name => includedDocs.Any(d => d.Primitives.Any(p => p.Name == name)),
-                MightDefinePrimitive,
+                name => includedDocs.Any(d => d.Document.Primitives.Any(p => p.Name == name)),
+                CascodeSymbolUtils.ContainsPrimitiveDecl,
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -234,8 +264,8 @@ public static class CascodeLinker
             progress |= ResolveMissing(
                 "circuit",
                 required.Circuits,
-                name => includedDocs.Any(d => d.Circuits.Any(c => c.Name == name)),
-                MightDefineCircuit,
+                name => includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name)),
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "circuit", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -244,33 +274,57 @@ public static class CascodeLinker
         }
 
         // Any remaining missing symbols are link errors.
-        AddUnresolvedDiagnostics(required, includedDocs, entryPath, diagnostics);
+        AddUnresolvedDiagnostics(
+            required,
+            includedDocs,
+            entryPath,
+            diagnostics,
+            libraryIndex,
+            options.IncludePolicy
+        );
         if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
         {
             return new CascodeLinkResult(false, null, null, diagnostics);
         }
 
-        var merged = MergeDocuments(includedDocs, diagnostics, logger);
-        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        CascodeDocument linked;
+        if (options.BenchMode == LinkBenchMode.None)
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            linked = BuildIncludePrunedDocument(
+                entryRead.Document,
+                includedDocs,
+                workspaceRoot,
+                diagnostics
+            );
         }
-
-        // Now that the document is self-contained (no includes), run bundle expansion and bench validation.
-        // This is the earliest point where bundle types and bench/interface bindings are resolvable.
-        var linked = BundleDesugarer.Desugar(merged);
-        linked = BenchInheritanceResolver.Resolve(linked, diagnostics);
-        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+        else
         {
-            return new CascodeLinkResult(false, null, null, diagnostics);
-        }
+            var merged = MergeDocuments(
+                includedDocs.Select(d => d.Document).ToList(),
+                diagnostics,
+                logger
+            );
+            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                return new CascodeLinkResult(false, null, null, diagnostics);
+            }
 
-        linked = BenchBindingExtender.Apply(linked, diagnostics);
-        BenchSemanticChecker.Check(linked, diagnostics);
-        BenchBindingChecker.Check(linked, diagnostics);
-        if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
-        {
-            return new CascodeLinkResult(false, null, null, diagnostics);
+            // Now that the document is self-contained (no includes), run bundle expansion and bench validation.
+            // This is the earliest point where bundle types and bench/interface bindings are resolvable.
+            linked = BundleDesugarer.Desugar(merged);
+            linked = BenchInheritanceResolver.Resolve(linked, diagnostics);
+            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                return new CascodeLinkResult(false, null, null, diagnostics);
+            }
+
+            linked = BenchBindingExtender.Apply(linked, diagnostics);
+            BenchSemanticChecker.Check(linked, diagnostics);
+            BenchBindingChecker.Check(linked, diagnostics);
+            if (diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                return new CascodeLinkResult(false, null, null, diagnostics);
+            }
         }
 
         Directory.CreateDirectory(outputDir);
@@ -310,17 +364,46 @@ public static class CascodeLinker
         public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
     }
 
+    private sealed class LinkedDocument
+    {
+        public required string Path { get; init; }
+        public required CascodeDocument Document { get; init; }
+        public required CascodeDocument SourceDocument { get; init; }
+    }
+
+    private sealed class CandidateSelection
+    {
+        public bool AllowAll { get; set; } = true;
+        public HashSet<string> AllowedSymbols { get; } = new(StringComparer.Ordinal);
+    }
+
+    private sealed record IncludeTarget(string Path, string? SymbolName);
+
+    private enum SymbolKind
+    {
+        Bundle,
+        Trait,
+        Bench,
+        Function,
+        Primitive,
+        Circuit,
+    }
+
     private static void AddIncludeCandidates(
         CascodeDocument doc,
         string parsedFilePath,
         string workspaceRoot,
         CascodeLibraryIndex libraryIndex,
-        HashSet<string> candidates,
-        List<Diagnostic> diagnostics
+        Dictionary<string, CandidateSelection> candidates,
+        List<Diagnostic> diagnostics,
+        LinkIncludePolicy includePolicy
     )
     {
-        // Namespace inheritance: a file in "lib.std.bench" can see "lib.std" and "lib" automatically.
-        AddNamespaceInheritanceCandidates(doc.FileLibrary, libraryIndex, candidates);
+        if (includePolicy != LinkIncludePolicy.ExplicitOnly)
+        {
+            // Namespace inheritance: a file in "lib.std.bench" can see "lib.std" and "lib" automatically.
+            AddNamespaceInheritanceCandidates(doc.FileLibrary, libraryIndex, candidates);
+        }
 
         foreach (var inc in doc.Includes)
         {
@@ -346,15 +429,76 @@ public static class CascodeLinker
 
             foreach (var t in targets)
             {
-                candidates.Add(Path.GetFullPath(t));
+                AddCandidate(candidates, t.Path, t.SymbolName);
             }
         }
+    }
+
+    private static void AddCandidate(
+        Dictionary<string, CandidateSelection> candidates,
+        string path,
+        string? symbolName
+    )
+    {
+        var fullPath = Path.GetFullPath(path);
+        if (!candidates.TryGetValue(fullPath, out var selection))
+        {
+            selection = new CandidateSelection();
+            candidates[fullPath] = selection;
+        }
+
+        if (string.IsNullOrWhiteSpace(symbolName))
+        {
+            selection.AllowAll = true;
+            selection.AllowedSymbols.Clear();
+            return;
+        }
+
+        if (selection.AllowAll && selection.AllowedSymbols.Count == 0)
+        {
+            selection.AllowAll = false;
+        }
+
+        if (!selection.AllowAll)
+        {
+            selection.AllowedSymbols.Add(symbolName);
+        }
+    }
+
+    private static CascodeDocument ApplyIncludeSelection(
+        CascodeDocument source,
+        string path,
+        IReadOnlyDictionary<string, CandidateSelection> candidates
+    )
+    {
+        path = Path.GetFullPath(path);
+        if (!candidates.TryGetValue(path, out var selection) || selection.AllowAll)
+        {
+            return source;
+        }
+
+        var allowed = selection.AllowedSymbols;
+        return new CascodeDocument
+        {
+            VersionMajor = source.VersionMajor,
+            VersionMinor = source.VersionMinor,
+            Includes = source.Includes,
+            FileLibrary = source.FileLibrary,
+            Functions = source.Functions,
+            BundleTypes = source.BundleTypes.Where(b => allowed.Contains(b.Name)).ToList(),
+            Traits = source.Traits.Where(t => allowed.Contains(t.Name)).ToList(),
+            BenchDefinitions = source
+                .BenchDefinitions.Where(b => allowed.Contains(b.Name))
+                .ToList(),
+            Primitives = source.Primitives.Where(p => allowed.Contains(p.Name)).ToList(),
+            Circuits = source.Circuits.Where(c => allowed.Contains(c.Name)).ToList(),
+        };
     }
 
     private static void AddNamespaceInheritanceCandidates(
         string? fileLibrary,
         CascodeLibraryIndex libraryIndex,
-        HashSet<string> candidates
+        Dictionary<string, CandidateSelection> candidates
     )
     {
         if (string.IsNullOrWhiteSpace(fileLibrary))
@@ -375,7 +519,7 @@ public static class CascodeLinker
             var ancestor = string.Join('.', parts.Take(i));
             foreach (var p in libraryIndex.FindExact(ancestor))
             {
-                candidates.Add(Path.GetFullPath(p));
+                AddCandidate(candidates, p, symbolName: null);
             }
         }
     }
@@ -534,7 +678,7 @@ public static class CascodeLinker
         Func<string, string, bool> mightDefine,
         Func<string, bool> tryAddDoc,
         Func<string, CascodeReadResult?> tryRead,
-        HashSet<string> candidates,
+        IReadOnlyDictionary<string, CandidateSelection> candidates,
         HashSet<string> parsedPaths
     )
     {
@@ -546,7 +690,7 @@ public static class CascodeLinker
 
         foreach (var name in missing)
         {
-            foreach (var path in candidates.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+            foreach (var path in candidates.Keys.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 var full = Path.GetFullPath(path);
                 if (parsedPaths.Contains(full))
@@ -602,43 +746,13 @@ public static class CascodeLinker
         return false;
     }
 
-    private static bool MightDefineBundle(string content, string name) =>
-        ContainsKeywordDecl(content, "bundle", name);
-
-    private static bool MightDefineTrait(string content, string name) =>
-        ContainsKeywordDecl(content, "interface", name);
-
-    private static bool MightDefineBench(string content, string name) =>
-        ContainsKeywordDecl(content, "bench", name);
-
-    private static bool MightDefineFunction(string content, string name) =>
-        ContainsKeywordDecl(content, "function", name);
-
-    private static bool MightDefineCircuit(string content, string name) =>
-        ContainsKeywordDecl(content, "circuit", name);
-
-    private static bool MightDefinePrimitive(string content, string name)
-    {
-        // primitives are "primitive <DeviceType> <Name>(...)"
-        return content.Contains("primitive", StringComparison.OrdinalIgnoreCase)
-            && content.Contains(name, StringComparison.Ordinal);
-    }
-
-    private static bool ContainsKeywordDecl(string content, string keyword, string name)
-    {
-        // Quick-and-dirty text check to avoid parsing irrelevant files.
-        // We only require that the token sequence appears somewhere; the parser will validate.
-        return content.Contains(keyword + " " + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\t" + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\r\n" + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\n" + name, StringComparison.Ordinal);
-    }
-
     private static void AddUnresolvedDiagnostics(
         RequiredSymbols required,
-        IReadOnlyList<CascodeDocument> includedDocs,
+        IReadOnlyList<LinkedDocument> includedDocs,
         string entryPath,
-        List<Diagnostic> diagnostics
+        List<Diagnostic> diagnostics,
+        CascodeLibraryIndex libraryIndex,
+        LinkIncludePolicy includePolicy
     )
     {
         void AddMissing(string kind, IEnumerable<string> names, Func<string, bool> resolved)
@@ -647,9 +761,14 @@ public static class CascodeLinker
                 var name in names.Where(n => !resolved(n)).OrderBy(n => n, StringComparer.Ordinal)
             )
             {
+                var suggestion =
+                    includePolicy == LinkIncludePolicy.ExplicitOnly
+                    && TryBuildIncludeSuggestion(name, libraryIndex, out var includeHint)
+                        ? $" Add include {includeHint}."
+                        : string.Empty;
                 diagnostics.Add(
                     new Diagnostic(
-                        $"CAS1009: Unresolved {kind} reference '{name}' while linking '{entryPath}'.",
+                        $"CAS1009: Unresolved {kind} reference '{name}' while linking '{entryPath}'.{suggestion}",
                         DiagnosticSeverity.Error,
                         entryPath,
                         1,
@@ -662,36 +781,53 @@ public static class CascodeLinker
         AddMissing(
             "bundle",
             required.Bundles,
-            name => includedDocs.Any(d => d.BundleTypes.Any(b => b.Name == name))
+            name => includedDocs.Any(d => d.Document.BundleTypes.Any(b => b.Name == name))
         );
         AddMissing(
             "interface",
             required.Traits,
-            name => includedDocs.Any(d => d.Traits.Any(t => t.Name == name))
+            name => includedDocs.Any(d => d.Document.Traits.Any(t => t.Name == name))
         );
         AddMissing(
             "bench",
             required.Benches,
-            name => includedDocs.Any(d => d.BenchDefinitions.Any(b => b.Name == name))
+            name => includedDocs.Any(d => d.Document.BenchDefinitions.Any(b => b.Name == name))
         );
         AddMissing(
             "function",
             required.Functions,
-            name => includedDocs.Any(d => d.Functions.Any(f => f.Name == name))
+            name => includedDocs.Any(d => d.Document.Functions.Any(f => f.Name == name))
         );
         AddMissing(
             "primitive",
             required.Primitives,
-            name => includedDocs.Any(d => d.Primitives.Any(p => p.Name == name))
+            name => includedDocs.Any(d => d.Document.Primitives.Any(p => p.Name == name))
         );
         AddMissing(
             "circuit",
             required.Circuits,
-            name => includedDocs.Any(d => d.Circuits.Any(c => c.Name == name))
+            name => includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name))
         );
     }
 
-    private static IReadOnlyList<string> ResolveIncludeTargets(
+    private static bool TryBuildIncludeSuggestion(
+        string symbolName,
+        CascodeLibraryIndex libraryIndex,
+        out string includeHint
+    )
+    {
+        includeHint = string.Empty;
+        var candidates = libraryIndex.FindSymbolIncludeCandidates(symbolName);
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        includeHint = candidates[0];
+        return true;
+    }
+
+    private static IReadOnlyList<IncludeTarget> ResolveIncludeTargets(
         string includeName,
         string includingFilePath,
         string workspaceRoot,
@@ -703,13 +839,19 @@ public static class CascodeLinker
         //
         // This mirrors the historical directory-based behavior (lib/std/**) while decoupling
         // resolution from folder structure and avoiding full parses of unrelated files.
-        var normalized = CascodeLibraryIndex.NormalizeLibraryName(includeName);
+        var normalized = includeName.Trim();
         if (normalized.Contains('.', StringComparison.Ordinal))
         {
             var byLibrary = libraryIndex.FindByPrefix(normalized);
             if (byLibrary.Count > 0)
             {
-                return byLibrary;
+                return byLibrary.Select(p => new IncludeTarget(p, null)).ToList();
+            }
+
+            var symbolTargets = TryResolveSymbolInclude(normalized, libraryIndex);
+            if (symbolTargets.Count > 0)
+            {
+                return symbolTargets;
             }
         }
 
@@ -745,21 +887,21 @@ public static class CascodeLinker
             );
             if (File.Exists(local))
             {
-                return new[] { local };
+                return new[] { new IncludeTarget(local, null) };
             }
 
             var root = Path.Combine(workspaceRoot, includeName + ".cas");
             if (File.Exists(root))
             {
-                return new[] { root };
+                return new[] { new IncludeTarget(root, null) };
             }
         }
 
         // Missing include is reported as a link-time error.
-        return Array.Empty<string>();
+        return Array.Empty<IncludeTarget>();
     }
 
-    private static List<string> TryResolveIncludeAsDirectoryOrFile(
+    private static List<IncludeTarget> TryResolveIncludeAsDirectoryOrFile(
         string workspaceRoot,
         string name
     )
@@ -772,19 +914,20 @@ public static class CascodeLinker
             return Directory
                 .GetFiles(dir, "*.cas", SearchOption.AllDirectories)
                 .OrderBy(Path.GetFullPath, StringComparer.OrdinalIgnoreCase)
+                .Select(path => new IncludeTarget(path, null))
                 .ToList();
         }
 
         var file = dir + ".cas";
         if (File.Exists(file))
         {
-            return new List<string> { file };
+            return new List<IncludeTarget> { new(file, null) };
         }
 
-        return new List<string>();
+        return new List<IncludeTarget>();
     }
 
-    private static List<string> TryResolveIncludeWithLastSegmentRewrite(
+    private static List<IncludeTarget> TryResolveIncludeWithLastSegmentRewrite(
         string workspaceRoot,
         string includeName,
         string fromLast,
@@ -794,14 +937,395 @@ public static class CascodeLinker
         // Split on both '.' and '_' while preserving overall intent.
         var parts = includeName.Split(new[] { '.', '_' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 0)
-            return new List<string>();
+            return new List<IncludeTarget>();
 
         if (!parts[^1].Equals(fromLast, StringComparison.OrdinalIgnoreCase))
-            return new List<string>();
+            return new List<IncludeTarget>();
 
         parts[^1] = toLast;
         var rewritten = string.Join(Path.DirectorySeparatorChar, parts);
         return TryResolveIncludeAsDirectoryOrFile(workspaceRoot, rewritten);
+    }
+
+    private static List<IncludeTarget> TryResolveSymbolInclude(
+        string normalizedIncludeName,
+        CascodeLibraryIndex libraryIndex
+    )
+    {
+        var parts = normalizedIncludeName.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2)
+        {
+            return new List<IncludeTarget>();
+        }
+
+        for (var split = parts.Length - 1; split >= 1; split--)
+        {
+            if (parts.Length - split != 1)
+            {
+                continue;
+            }
+
+            var libraryName = string.Join('.', parts.Take(split));
+            var symbolName = parts[split];
+
+            var files = libraryIndex.FindExact(libraryName);
+            if (files.Count == 0)
+            {
+                continue;
+            }
+
+            var matches = new List<IncludeTarget>();
+            foreach (var path in files)
+            {
+                string content;
+                try
+                {
+                    content = File.ReadAllText(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!CascodeSymbolUtils.MightDefineAnySymbol(content, symbolName))
+                {
+                    continue;
+                }
+
+                matches.Add(new IncludeTarget(path, symbolName));
+            }
+
+            if (matches.Count > 0)
+            {
+                return matches.OrderBy(m => m.Path, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+        }
+
+        return new List<IncludeTarget>();
+    }
+
+    private sealed record SymbolSource<T>(T Definition, string IncludePath)
+        where T : class;
+
+    private sealed class LocalSymbols
+    {
+        public HashSet<string> Bundles { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Traits { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Benches { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Functions { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Primitives { get; } = new(StringComparer.Ordinal);
+        public HashSet<string> Circuits { get; } = new(StringComparer.Ordinal);
+    }
+
+    private static CascodeDocument BuildIncludePrunedDocument(
+        CascodeDocument entryDoc,
+        IReadOnlyList<LinkedDocument> includedDocs,
+        string workspaceRoot,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var bundleSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.BundleTypes,
+            d => d.Name
+        );
+        var traitSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.Traits,
+            d => d.Name
+        );
+        var benchSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.BenchDefinitions,
+            d => d.Name
+        );
+        var functionSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.Functions,
+            d => d.Name
+        );
+        var primitiveSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.Primitives,
+            d => d.Name
+        );
+        var circuitSources = BuildSymbolSources(
+            includedDocs,
+            workspaceRoot,
+            d => d.Document.Circuits,
+            d => d.Name
+        );
+
+        var localSymbols = CollectLocalSymbols(entryDoc);
+        var seed = new RequiredSymbols();
+        CollectRequiredSymbols(entryDoc, seed);
+
+        var queue = new Queue<(SymbolKind Kind, string Name)>();
+        EnqueueRequired(seed, queue);
+
+        var external = new HashSet<(SymbolKind Kind, string Name)>();
+        while (queue.Count > 0)
+        {
+            var symbol = queue.Dequeue();
+            if (IsLocalSymbol(symbol.Kind, symbol.Name, localSymbols))
+            {
+                continue;
+            }
+
+            if (!external.Add(symbol))
+            {
+                continue;
+            }
+
+            var deps = CollectSymbolDependencies(
+                symbol.Kind,
+                symbol.Name,
+                traitSources,
+                benchSources,
+                circuitSources
+            );
+            EnqueueRequired(deps, queue);
+        }
+
+        var includes = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (
+            var symbol in external.OrderBy(s => s.Kind).ThenBy(s => s.Name, StringComparer.Ordinal)
+        )
+        {
+            if (
+                TryGetIncludePath(
+                    symbol.Kind,
+                    symbol.Name,
+                    bundleSources,
+                    traitSources,
+                    benchSources,
+                    functionSources,
+                    primitiveSources,
+                    circuitSources,
+                    out var includePath
+                )
+            )
+            {
+                includes.Add(includePath);
+            }
+            else
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS1010: Could not determine include path for {symbol.Kind.ToString().ToLowerInvariant()} '{symbol.Name}'.",
+                        DiagnosticSeverity.Warning,
+                        "<link>",
+                        1,
+                        1
+                    )
+                );
+            }
+        }
+
+        return new CascodeDocument
+        {
+            VersionMajor = entryDoc.VersionMajor,
+            VersionMinor = entryDoc.VersionMinor,
+            Includes = includes.Select(name => new IncludeDirective(name)).ToList(),
+            FileLibrary = entryDoc.FileLibrary,
+            Functions = entryDoc.Functions,
+            BundleTypes = entryDoc.BundleTypes,
+            Traits = entryDoc.Traits,
+            BenchDefinitions = new List<BenchDefinition>(),
+            Primitives = entryDoc.Primitives,
+            Circuits = entryDoc.Circuits,
+        };
+    }
+
+    private static Dictionary<string, SymbolSource<T>> BuildSymbolSources<T>(
+        IReadOnlyList<LinkedDocument> docs,
+        string workspaceRoot,
+        Func<LinkedDocument, IEnumerable<T>> selectSymbols,
+        Func<T, string> selectName
+    )
+        where T : class
+    {
+        var map = new Dictionary<string, SymbolSource<T>>(StringComparer.Ordinal);
+        foreach (var doc in docs)
+        {
+            foreach (var symbol in selectSymbols(doc))
+            {
+                var name = selectName(symbol);
+                if (map.ContainsKey(name))
+                {
+                    continue;
+                }
+
+                map[name] = new SymbolSource<T>(
+                    symbol,
+                    BuildSymbolIncludePath(doc, workspaceRoot, name)
+                );
+            }
+        }
+
+        return map;
+    }
+
+    private static string BuildSymbolIncludePath(
+        LinkedDocument document,
+        string workspaceRoot,
+        string symbolName
+    )
+    {
+        if (!string.IsNullOrWhiteSpace(document.SourceDocument.FileLibrary))
+        {
+            var library = CascodeLibraryIndex.NormalizeLibraryName(
+                document.SourceDocument.FileLibrary
+            );
+            return $"{library}.{symbolName}";
+        }
+
+        var relativePath = Path.GetRelativePath(workspaceRoot, document.Path);
+        var withoutExtension = relativePath.EndsWith(".cas", StringComparison.OrdinalIgnoreCase)
+            ? relativePath[..^".cas".Length]
+            : relativePath;
+        return withoutExtension
+            .Replace(Path.DirectorySeparatorChar, '.')
+            .Replace(Path.AltDirectorySeparatorChar, '.');
+    }
+
+    private static LocalSymbols CollectLocalSymbols(CascodeDocument document)
+    {
+        var symbols = new LocalSymbols();
+        symbols.Bundles.UnionWith(document.BundleTypes.Select(b => b.Name));
+        symbols.Traits.UnionWith(document.Traits.Select(t => t.Name));
+        symbols.Benches.UnionWith(document.BenchDefinitions.Select(b => b.Name));
+        symbols.Functions.UnionWith(document.Functions.Select(f => f.Name));
+        symbols.Primitives.UnionWith(document.Primitives.Select(p => p.Name));
+        symbols.Circuits.UnionWith(document.Circuits.Select(c => c.Name));
+        return symbols;
+    }
+
+    private static bool IsLocalSymbol(SymbolKind kind, string name, LocalSymbols symbols) =>
+        kind switch
+        {
+            SymbolKind.Bundle => symbols.Bundles.Contains(name),
+            SymbolKind.Trait => symbols.Traits.Contains(name),
+            SymbolKind.Bench => symbols.Benches.Contains(name),
+            SymbolKind.Function => symbols.Functions.Contains(name),
+            SymbolKind.Primitive => symbols.Primitives.Contains(name),
+            SymbolKind.Circuit => symbols.Circuits.Contains(name),
+            _ => false,
+        };
+
+    private static void EnqueueRequired(
+        RequiredSymbols required,
+        Queue<(SymbolKind Kind, string Name)> queue
+    )
+    {
+        foreach (var name in required.Bundles)
+        {
+            queue.Enqueue((SymbolKind.Bundle, name));
+        }
+
+        foreach (var name in required.Traits)
+        {
+            queue.Enqueue((SymbolKind.Trait, name));
+        }
+
+        foreach (var name in required.Benches)
+        {
+            queue.Enqueue((SymbolKind.Bench, name));
+        }
+
+        foreach (var name in required.Functions)
+        {
+            queue.Enqueue((SymbolKind.Function, name));
+        }
+
+        foreach (var name in required.Primitives)
+        {
+            queue.Enqueue((SymbolKind.Primitive, name));
+        }
+
+        foreach (var name in required.Circuits)
+        {
+            queue.Enqueue((SymbolKind.Circuit, name));
+        }
+    }
+
+    private static RequiredSymbols CollectSymbolDependencies(
+        SymbolKind kind,
+        string name,
+        IReadOnlyDictionary<string, SymbolSource<TraitDefinition>> traitSources,
+        IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
+        IReadOnlyDictionary<string, SymbolSource<Circuit>> circuitSources
+    )
+    {
+        var temp = new CascodeDocument();
+        switch (kind)
+        {
+            case SymbolKind.Trait:
+                if (traitSources.TryGetValue(name, out var trait))
+                {
+                    temp.Traits.Add(trait.Definition);
+                }
+                break;
+            case SymbolKind.Bench:
+                if (benchSources.TryGetValue(name, out var bench))
+                {
+                    temp.BenchDefinitions.Add(bench.Definition);
+                }
+                break;
+            case SymbolKind.Circuit:
+                if (circuitSources.TryGetValue(name, out var circuit))
+                {
+                    temp.Circuits.Add(circuit.Definition);
+                }
+                break;
+        }
+
+        var required = new RequiredSymbols();
+        CollectRequiredSymbols(temp, required);
+        return required;
+    }
+
+    private static bool TryGetIncludePath(
+        SymbolKind kind,
+        string name,
+        IReadOnlyDictionary<string, SymbolSource<BundleType>> bundleSources,
+        IReadOnlyDictionary<string, SymbolSource<TraitDefinition>> traitSources,
+        IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
+        IReadOnlyDictionary<string, SymbolSource<FunctionDefinition>> functionSources,
+        IReadOnlyDictionary<string, SymbolSource<PrimitiveDefinition>> primitiveSources,
+        IReadOnlyDictionary<string, SymbolSource<Circuit>> circuitSources,
+        out string includePath
+    )
+    {
+        includePath = string.Empty;
+        switch (kind)
+        {
+            case SymbolKind.Bundle when bundleSources.TryGetValue(name, out var bundle):
+                includePath = bundle.IncludePath;
+                return true;
+            case SymbolKind.Trait when traitSources.TryGetValue(name, out var trait):
+                includePath = trait.IncludePath;
+                return true;
+            case SymbolKind.Bench when benchSources.TryGetValue(name, out var bench):
+                includePath = bench.IncludePath;
+                return true;
+            case SymbolKind.Function when functionSources.TryGetValue(name, out var function):
+                includePath = function.IncludePath;
+                return true;
+            case SymbolKind.Primitive when primitiveSources.TryGetValue(name, out var primitive):
+                includePath = primitive.IncludePath;
+                return true;
+            case SymbolKind.Circuit when circuitSources.TryGetValue(name, out var circuit):
+                includePath = circuit.IncludePath;
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static CascodeDocument MergeDocuments(

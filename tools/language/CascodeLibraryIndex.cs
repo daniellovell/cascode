@@ -82,6 +82,38 @@ internal sealed class CascodeLibraryIndex
         return _pathsByLibrary.TryGetValue(key, out var list) ? list : Array.Empty<string>();
     }
 
+    public IReadOnlyList<string> FindSymbolIncludeCandidates(string symbolName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(symbolName);
+
+        var includes = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var (library, paths) in _pathsByLibrary)
+        {
+            foreach (var path in paths)
+            {
+                string content;
+                try
+                {
+                    content = File.ReadAllText(path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!CascodeSymbolUtils.MightDefineAnySymbol(content, symbolName))
+                {
+                    continue;
+                }
+
+                includes.Add($"{library}.{symbolName}");
+                break;
+            }
+        }
+
+        return includes.ToList();
+    }
+
     public static string NormalizeLibraryName(string raw)
     {
         raw = raw.Trim();

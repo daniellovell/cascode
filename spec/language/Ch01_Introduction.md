@@ -57,7 +57,7 @@ algorithms or optimization strategies, and it does not mandate a specific PDK fo
 The cascode toolchain operates on three primary artifact types:
 
 - `.cas`: cascode source (may contain `include` directives).
-- `.cai`: linked cascode intermediate (self-contained; includes resolved; includes a `VERSION` header).
+- `.cai`: linked cascode intermediate (includes a `VERSION` header; self-contained by default, or include-pruned in link bench-prune mode).
 - simulator outputs: emitted SPICE netlists and bench testbenches (backend-specific).
 
 In typical use, `cascode link` produces `.cai` outputs, and `cascode emit` consumes EL-level circuits
@@ -175,7 +175,9 @@ out of scope for this specification, but the contracts between stages are in sco
 
 ### Linking (`cascode link`)
 
-Linking resolves `include` directives and produces a self-contained `.cai` file. During linking,
+Linking resolves `include` directives and writes a `.cai` artifact. In the default mode, the output
+is self-contained. In include-pruned mode (`--no-link-benches`), bench bindings are preserved but
+bench definitions are omitted and represented through a minimal include closure. During linking,
 `synth { ... }` blocks are extracted into a sidecar file and removed from the `.cai` output:
 
 - output: `<name>.<level>.cai`
