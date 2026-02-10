@@ -208,7 +208,7 @@ public static class CascodeLinker
                 "bundle",
                 required.Bundles,
                 name => includedDocs.Any(d => d.Document.BundleTypes.Any(b => b.Name == name)),
-                MightDefineBundle,
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "bundle", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -219,7 +219,8 @@ public static class CascodeLinker
                 "interface",
                 required.Traits,
                 name => includedDocs.Any(d => d.Document.Traits.Any(t => t.Name == name)),
-                MightDefineTrait,
+                (content, name) =>
+                    CascodeSymbolUtils.ContainsKeywordDecl(content, "interface", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -230,7 +231,7 @@ public static class CascodeLinker
                 "bench",
                 required.Benches,
                 name => includedDocs.Any(d => d.Document.BenchDefinitions.Any(b => b.Name == name)),
-                MightDefineBench,
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "bench", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -241,7 +242,8 @@ public static class CascodeLinker
                 "function",
                 required.Functions,
                 name => includedDocs.Any(d => d.Document.Functions.Any(f => f.Name == name)),
-                MightDefineFunction,
+                (content, name) =>
+                    CascodeSymbolUtils.ContainsKeywordDecl(content, "function", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -252,7 +254,7 @@ public static class CascodeLinker
                 "primitive",
                 required.Primitives,
                 name => includedDocs.Any(d => d.Document.Primitives.Any(p => p.Name == name)),
-                MightDefinePrimitive,
+                CascodeSymbolUtils.ContainsPrimitiveDecl,
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -263,7 +265,7 @@ public static class CascodeLinker
                 "circuit",
                 required.Circuits,
                 name => includedDocs.Any(d => d.Document.Circuits.Any(c => c.Name == name)),
-                MightDefineCircuit,
+                (content, name) => CascodeSymbolUtils.ContainsKeywordDecl(content, "circuit", name),
                 TryAddDoc,
                 TryRead,
                 candidates,
@@ -744,46 +746,6 @@ public static class CascodeLinker
         return false;
     }
 
-    private static bool MightDefineBundle(string content, string name) =>
-        ContainsKeywordDecl(content, "bundle", name);
-
-    private static bool MightDefineTrait(string content, string name) =>
-        ContainsKeywordDecl(content, "interface", name);
-
-    private static bool MightDefineBench(string content, string name) =>
-        ContainsKeywordDecl(content, "bench", name);
-
-    private static bool MightDefineFunction(string content, string name) =>
-        ContainsKeywordDecl(content, "function", name);
-
-    private static bool MightDefineCircuit(string content, string name) =>
-        ContainsKeywordDecl(content, "circuit", name);
-
-    private static bool MightDefinePrimitive(string content, string name)
-    {
-        // primitives are "primitive <DeviceType> <Name>(...)"
-        return content.Contains("primitive", StringComparison.OrdinalIgnoreCase)
-            && content.Contains(name, StringComparison.Ordinal);
-    }
-
-    private static bool MightDefineAnySymbol(string content, string name) =>
-        MightDefineBundle(content, name)
-        || MightDefineTrait(content, name)
-        || MightDefineBench(content, name)
-        || MightDefineFunction(content, name)
-        || MightDefinePrimitive(content, name)
-        || MightDefineCircuit(content, name);
-
-    private static bool ContainsKeywordDecl(string content, string keyword, string name)
-    {
-        // Quick-and-dirty text check to avoid parsing irrelevant files.
-        // We only require that the token sequence appears somewhere; the parser will validate.
-        return content.Contains(keyword + " " + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\t" + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\r\n" + name, StringComparison.Ordinal)
-            || content.Contains(keyword + "\n" + name, StringComparison.Ordinal);
-    }
-
     private static void AddUnresolvedDiagnostics(
         RequiredSymbols required,
         IReadOnlyList<LinkedDocument> includedDocs,
@@ -1025,7 +987,7 @@ public static class CascodeLinker
                     continue;
                 }
 
-                if (!MightDefineAnySymbol(content, symbolName))
+                if (!CascodeSymbolUtils.MightDefineAnySymbol(content, symbolName))
                 {
                     continue;
                 }

@@ -136,12 +136,14 @@ internal sealed class LinkCommandModule : ICommandModule
             return false;
         }
 
-        if (
-            args[index].Length > optionName.Length
-            && args[index][optionName.Length] == '='
-            && args[index].Length > optionName.Length + 1
-        )
+        if (args[index].Length > optionName.Length && args[index][optionName.Length] == '=')
         {
+            if (args[index].Length == optionName.Length + 1)
+            {
+                value = string.Empty;
+                return true;
+            }
+
             value = args[index][(optionName.Length + 1)..];
             return true;
         }
