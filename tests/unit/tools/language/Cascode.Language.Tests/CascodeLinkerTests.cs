@@ -239,6 +239,80 @@ public sealed class CascodeLinkerTests
     }
 
     [Fact]
+    public void LinkFile_WithBenchPruning_IncludesOnlyConstrainedBenchFamilies()
+    {
+        var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();
+        using var cascodeHome = CascodeHome.CreateInTemp("cascode-link-fd-bench-scope");
+        var outDir = Path.Combine(cascodeHome.Path, "out");
+
+        var entryPath = Path.Combine(cascodeHome.Path, "entry.el.cas");
+        File.WriteAllText(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include lib.std.Diff
+            include lib.std.amp.FullyDifferentialOpAmp
+
+            circuit BenchScopeFdOpAmp implements FullyDifferentialOpAmp {
+              level EL
+              supply VDD
+              ground GND
+              input IN : Diff
+              output OUT : Diff
+              input VTAIL : bias
+
+              fill { }
+
+              constraints {
+                numeric {
+                  c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
+                  c_pwr = vdd_pwr::QuiescentPower <= 1mW
+                }
+              }
+
+              harness {
+                supply VDD = 1.8V
+                ground GND = 0V
+                bias VTAIL = 0.6V
+              }
+
+              env {
+                InputCommonModeRange = 0.9V
+                LoadImpedance = (10kOhm||1fF)
+                SourceImpedance = 50Ohm
+              }
+            }
+            """
+        );
+
+        var result = CascodeLinker.LinkFile(
+            entryPath,
+            outDir,
+            repoRoot,
+            new CascodeLinkOptions(LinkBenchMode.None, LinkIncludePolicy.Default)
+        );
+        Assert.True(result.Success, string.Join("\n", result.Diagnostics.Select(d => d.Message)));
+
+        using var reader = File.OpenText(result.LinkedCasPath!);
+        var linked = CascodeReader.Read(reader, result.LinkedCasPath!);
+        var includeNames = linked.Includes.Select(inc => inc.Name).ToList();
+
+        Assert.Contains("lib.std.bench.AbstractTransfer", includeNames);
+        Assert.Contains("lib.std.bench.DiffToDiffTransfer", includeNames);
+        Assert.Contains("lib.std.bench.QuiescentPower", includeNames);
+
+        Assert.DoesNotContain("lib.std.bench.AbstractTran", includeNames);
+        Assert.DoesNotContain("lib.std.bench.DiffToDiffTran", includeNames);
+        Assert.DoesNotContain("lib.std.bench.AbstractNoise", includeNames);
+        Assert.DoesNotContain("lib.std.bench.DiffToDiffNoise", includeNames);
+        Assert.DoesNotContain("lib.std.bench.AbstractCMRejection", includeNames);
+        Assert.DoesNotContain("lib.std.bench.DiffCMRejection", includeNames);
+        Assert.DoesNotContain("lib.std.bench.AbstractPSRR", includeNames);
+        Assert.DoesNotContain("lib.std.bench.SupplyToDiffRejection", includeNames);
+    }
+
+    [Fact]
     public void LinkFile_SymbolLevelPdkInclude_PreservesPreciseInclude_WhenBenchLinkingDisabled()
     {
         var repoRoot = Cascode.TestSupport.TestPathUtilities.GetRepositoryRoot();

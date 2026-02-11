@@ -48,7 +48,7 @@ internal sealed class BenchCommandModule : ICommandModule
                 "Usage: bench run <cascode_file> [<bench>] [-b|--bench <name>] [-c|--circuit <name>] [-o|--out <dir>] [--backend <ngspice>] [--parallel <n>] [-v|--verbose] [--strict]"
             );
             output.WriteLine(
-                "Runs all benches for all circuits with benches (in dependency order)."
+                "Runs benches required by numeric constraints for all circuits with benches (in dependency order)."
             );
             output.WriteLine("Use --circuit to run benches for a specific circuit only.");
             output.WriteLine(

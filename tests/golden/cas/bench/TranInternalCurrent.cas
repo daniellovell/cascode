@@ -35,6 +35,13 @@ circuit TranInternalCurrent {
     }
   }
 
+  constraints {
+    numeric {
+      c_internal = tran::InternalNodePeak >= 0V
+      c_supply = tran::SupplyCurrentPeak >= 0A
+    }
+  }
+
   harness {
     supply VDD = 1.8V
     ground GND = 0V
