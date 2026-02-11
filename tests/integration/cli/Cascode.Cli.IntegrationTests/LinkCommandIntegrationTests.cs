@@ -124,6 +124,83 @@ public sealed class LinkCommandIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task Emit_RelinksIncludeBearingCai_FromNoLinkBenchesOutput()
+    {
+        var entryPath = Path.Combine(_workDir, "emit-relink.el.cas");
+        await File.WriteAllTextAsync(
+            entryPath,
+            """
+            VERSION 3.1
+
+            include lib.pdk.sky130.devices.nfet_01v8
+
+            circuit CliRelinkEmit {
+              level EL
+              supply VDD
+              ground GND
+              input IN : analog
+              output OUT : analog
+
+              fill {
+                NMOS M1 = new nfet_01v8(size(W=1u, L=180n, M=1)) {
+                  .D--OUT
+                  .G--IN
+                  .S--GND
+                  .B--GND
+                }
+              }
+            }
+            """
+        );
+
+        var prunedOutDir = Path.Combine(_workDir, "emit-relink-pruned");
+        var pruned = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "link",
+            entryPath,
+            "--out",
+            prunedOutDir,
+            "--no-link-benches"
+        );
+        CliIntegrationTestHelper.AssertSuccess(pruned, "link --no-link-benches failed");
+
+        var prunedPath = Directory
+            .GetFiles(prunedOutDir, "*.cai", SearchOption.TopDirectoryOnly)
+            .Single();
+        using (var reader = File.OpenText(prunedPath))
+        {
+            var linked = CascodeReader.Read(reader, prunedPath);
+            Assert.NotEmpty(linked.Includes);
+            Assert.Empty(linked.Primitives);
+        }
+
+        var emitOutDir = Path.Combine(_workDir, "emit-relink-out");
+        var emit = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(30),
+            _cascodeHome,
+            "emit",
+            prunedPath,
+            "--out",
+            emitOutDir,
+            "--backend",
+            "ngspice"
+        );
+        CliIntegrationTestHelper.AssertSuccess(
+            emit,
+            "emit failed for include-bearing .cai from --no-link-benches output"
+        );
+
+        Assert.True(File.Exists(Path.Combine(emitOutDir, "CliRelinkEmit.sp")));
+        var combinedOutput = emit.Stdout + Environment.NewLine + emit.Stderr;
+        Assert.Contains(
+            "still contains include directives",
+            combinedOutput,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task Link_WithDeprecatedLinkBenchesOption_FailsAsUnknownOption()
     {
         var entryPath = Path.Combine(_workDir, "deprecated-option.el.cas");

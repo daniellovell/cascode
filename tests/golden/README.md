@@ -13,7 +13,7 @@ Layout (intended)
 - `tests/golden/cas/…` — Cascode text snapshots (`*.cai`) emitted by the
   compiler for those sources (HL/ML/EL where applicable).
   - Files are named `{circuit}.{level}.cai` (e.g., `OTA5TSingleEnded.ml.cai`).
-  - The `.cai` extension indicates linked Cascode files (self-contained, no includes).
+  - The `.cai` extension indicates linked Cascode files (default mode is self-contained; include-pruned mode may retain a minimal include set).
 - `tests/golden/results/…` — simulation results (JSON) used to verify constraint compliance.
 
 For the v0 OTA slice the Cascode "golden" already lives under
