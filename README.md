@@ -276,7 +276,7 @@ inputs (`*.cai`) to expected emitted outputs and constraint-checking results.
 # Link source (resolve includes) to self-contained .cai (default mode)
 cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build
 
-# Link in include-pruned bench mode (preserve bench bindings, omit bench definitions)
+# Link in include-pruned bench mode (preserve bench bindings, omit bench definitions, keep a minimal include set)
 cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build --no-link-benches
 
 # Emit simulator netlists from an EL circuit (source .cas or linked .cai)

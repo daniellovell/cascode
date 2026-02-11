@@ -20,7 +20,7 @@ public static class CascodeWriter
         writer.WriteLine($"VERSION {CascodeVersion.Current}");
         writer.WriteLine();
 
-        // Include directives (source documents only; linked documents must not contain includes).
+        // Include directives (source docs and include-pruned linked outputs).
         foreach (var inc in document.Includes.OrderBy(i => i.Name, StringComparer.Ordinal))
         {
             writer.WriteLine($"include {inc.Name}");
