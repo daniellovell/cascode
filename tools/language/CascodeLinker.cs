@@ -1064,6 +1064,12 @@ public static class CascodeLinker
         var localSymbols = CollectLocalSymbols(entryDoc);
         var seed = new RequiredSymbols();
         CollectRequiredSymbols(entryDoc, seed);
+        RestrictBenchRequirementsToConstraintReachability(
+            entryDoc,
+            traitSources,
+            benchSources,
+            seed
+        );
 
         var queue = new Queue<(SymbolKind Kind, string Name)>();
         EnqueueRequired(seed, queue);
@@ -1089,6 +1095,10 @@ public static class CascodeLinker
                 benchSources,
                 circuitSources
             );
+            if (symbol.Kind is SymbolKind.Trait or SymbolKind.Circuit)
+            {
+                deps.Benches.Clear();
+            }
             EnqueueRequired(deps, queue);
         }
 
@@ -1140,6 +1150,34 @@ public static class CascodeLinker
             Primitives = entryDoc.Primitives,
             Circuits = entryDoc.Circuits,
         };
+    }
+
+    private static void RestrictBenchRequirementsToConstraintReachability(
+        CascodeDocument entryDoc,
+        IReadOnlyDictionary<string, SymbolSource<TraitDefinition>> traitSources,
+        IReadOnlyDictionary<string, SymbolSource<BenchDefinition>> benchSources,
+        RequiredSymbols required
+    )
+    {
+        var planningDoc = new CascodeDocument
+        {
+            Traits = traitSources.Values.Select(s => s.Definition).ToList(),
+            BenchDefinitions = benchSources.Values.Select(s => s.Definition).ToList(),
+        };
+
+        required.Benches.Clear();
+        foreach (var circuit in entryDoc.Circuits)
+        {
+            foreach (
+                var invocation in BenchRuntime.BenchInvocationPlanner.CollectInvocations(
+                    planningDoc,
+                    circuit
+                )
+            )
+            {
+                required.Benches.Add(invocation.Binding.BenchName);
+            }
+        }
     }
 
     private static Dictionary<string, SymbolSource<T>> BuildSymbolSources<T>(

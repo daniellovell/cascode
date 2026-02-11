@@ -14,10 +14,6 @@ public static class BenchCompiler
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        var interfacesByName = document.Traits.ToDictionary(
-            t => t.Name,
-            StringComparer.OrdinalIgnoreCase
-        );
         var benchesByName = document.BenchDefinitions.ToDictionary(
             b => b.Name,
             StringComparer.OrdinalIgnoreCase
@@ -29,120 +25,28 @@ public static class BenchCompiler
             var circuit in document.Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
         )
         {
-            var bindings = ResolveBenchBindings(circuit, interfacesByName);
-            var invocations = CollectBenchInvocations(circuit, bindings);
-
-            foreach (var (binding, instanceName, args) in invocations)
+            var invocations = BenchInvocationPlanner.CollectInvocations(document, circuit);
+            foreach (var invocation in invocations)
             {
+                var binding = invocation.Binding;
                 if (!benchesByName.ContainsKey(binding.BenchName))
                 {
                     // Reported by bench binding checker; skip emission.
                     continue;
                 }
 
-                plans.Add(BenchPlanBuilder.Build(document, circuit, binding, instanceName, args));
-            }
-        }
-
-        return plans;
-    }
-
-    /// <summary>
-    /// Collects unique bench invocations for a circuit by examining constraints.
-    /// Each unique (bindingName, args) pair produces a separate bench instance.
-    /// Bindings not referenced by any constraint get a single instance with empty args.
-    /// </summary>
-    private static IReadOnlyList<(
-        BenchBinding Binding,
-        string InstanceName,
-        IReadOnlyList<MetricCallArg> Args
-    )> CollectBenchInvocations(Circuit circuit, IReadOnlyList<BenchBinding> bindings)
-    {
-        var bindingsByName = bindings.ToDictionary(
-            b => b.BindingName,
-            StringComparer.OrdinalIgnoreCase
-        );
-
-        // Collect unique invocations from constraints, keyed by computed instance name.
-        var invocationsByInstance = new Dictionary<
-            string,
-            (BenchBinding, string, IReadOnlyList<MetricCallArg>)
-        >(StringComparer.OrdinalIgnoreCase);
-
-        if (circuit.Constraints?.Numeric is { Count: > 0 })
-        {
-            foreach (var constraint in circuit.Constraints.Numeric)
-            {
-                if (!bindingsByName.TryGetValue(constraint.BenchBase, out var binding))
-                {
-                    continue; // Unknown binding, reported by validation.
-                }
-
-                var instanceName = constraint.Bench; // Already computed by AST builder.
-                if (!invocationsByInstance.ContainsKey(instanceName))
-                {
-                    invocationsByInstance[instanceName] = (
+                plans.Add(
+                    BenchPlanBuilder.Build(
+                        document,
+                        circuit,
                         binding,
-                        instanceName,
-                        constraint.BenchArgs
-                    );
-                }
-            }
-        }
-
-        // For bindings not referenced by any constraint, add a default invocation with empty args.
-        foreach (var binding in bindings)
-        {
-            if (
-                !invocationsByInstance.Values.Any(i =>
-                    i.Item1.BindingName.Equals(
-                        binding.BindingName,
-                        StringComparison.OrdinalIgnoreCase
+                        invocation.InstanceName,
+                        invocation.InvocationArgs
                     )
-                )
-            )
-            {
-                invocationsByInstance[binding.BindingName] = (
-                    binding,
-                    binding.BindingName,
-                    Array.Empty<MetricCallArg>()
                 );
             }
         }
 
-        return invocationsByInstance
-            .Values.OrderBy(i => i.Item2, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
-    private static IReadOnlyList<BenchBinding> ResolveBenchBindings(
-        Circuit circuit,
-        IReadOnlyDictionary<string, TraitDefinition> interfacesByName
-    )
-    {
-        var map = new Dictionary<string, BenchBinding>(StringComparer.OrdinalIgnoreCase);
-
-        if (circuit.Traits is { Count: > 0 })
-        {
-            foreach (var iface in circuit.Traits)
-            {
-                if (!interfacesByName.TryGetValue(iface, out var interfaceDef))
-                {
-                    continue;
-                }
-
-                foreach (var b in interfaceDef.BenchBindings)
-                {
-                    map.TryAdd(b.BindingName, b);
-                }
-            }
-        }
-
-        foreach (var b in circuit.BenchBindings)
-        {
-            map[b.BindingName] = b;
-        }
-
-        return map.Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase).ToList();
+        return plans;
     }
 }

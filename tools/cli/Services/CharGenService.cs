@@ -326,6 +326,12 @@ circuit {circuitName} {{
     }}
   }}
 
+  constraints {{
+    numeric {{
+      c_seed = {bindingAlias}::Gm >= 0S
+    }}
+  }}
+
   harness {{
 {harness}
   }}

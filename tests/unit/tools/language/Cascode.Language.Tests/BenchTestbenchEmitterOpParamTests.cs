@@ -43,6 +43,27 @@ public sealed class BenchTestbenchEmitterOpParamTests
     }
 
     [Fact]
+    public void CompileAllPlans_SkipsUnconstrainedBenchBindings()
+    {
+        var cascode = """
+VERSION 3.1
+bench UnusedBench { stim IN : analog measurements { measurement Dummy : V { return 1V } } }
+circuit Top {
+  level EL
+  input IN : analog
+  benches { bind UnusedBench as unused { bench.IN--dut.IN } }
+  fill { }
+}
+""";
+
+        var parsed = CascodeReader.TryParse(cascode, "unused_bench.cas");
+        Assert.True(parsed.Success, parsed.Diagnostics.ToString());
+
+        var plans = BenchCompiler.CompileAllPlans(parsed.Document!);
+        Assert.Empty(plans);
+    }
+
+    [Fact]
     public void EmitPlans_UsesPrimitiveOpPath_ForWrapperSubckt()
     {
         var cascode = """
@@ -77,6 +98,12 @@ circuit Top {
   input G : bias
   input S : bias
   input B : bias
+
+  constraints {
+    numeric {
+      c_gm = op::Gm >= 0S
+    }
+  }
 
   benches {
     bind OpBench as op {
