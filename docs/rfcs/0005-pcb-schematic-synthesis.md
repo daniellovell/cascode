@@ -5,7 +5,7 @@
 | Status | Draft |
 | Authors | Daniel Lovell |
 | Created | 2026-02-06 |
-| Last Updated | 2026-02-07 |
+| Last Updated | 2026-02-11 |
 
 ---
 
@@ -59,7 +59,7 @@ The table below summarizes how existing IC Cascode concepts translate to PCB des
 | `lib/ic/` interfaces (`NMOS`, `Resistor`, ...) | `lib/pcb/` interfaces (`NMOS`, `DualOpAmp`, `ADC`, ...) | Domain-specific interface libraries; shared interfaces (`SingleEndedOpAmp`, bus bundles) live in `lib/std/` |
 | PDK (`pdk scan`) | Parts library + external pricing/availability sources | Source of available components and their operating/procurement attributes |
 | `size(W=2u, L=180n, M=1)` | `real` scalar params for passives; no value params for fixed-identity ICs | `size` remains reserved for transistor geometry on primitives |
-| `device "sky130_fd_pr__nfet_01v8"` | `mpn "OPA2376AIDDBVR"` | Distinct identity fields by declaration kind (`device` for primitive, `mpn` for part) |
+| `device "sky130_fd_pr__nfet_01v8"` | `catalog { mpn = "OPA2376AIDDBVR" ... }` | `device` directive for primitives; `catalog` block for parts |
 | `bench` with SPICE analysis | Bench-derived metrics plus datasheet-valued metrics | `bench` for simulation-verified, `spec` for declaration-verified; provenance explicit in syntax |
 | `bundle Diff { P, N }` | `bundle I2C { SDA, SCL }` | Bus bundles shared in `lib/std/bus/`; domain-agnostic |
 | `interface SingleEndedOpAmp` | `interface SensorConditioner` | Functional contracts remain interface-centric |
@@ -148,6 +148,8 @@ bundle SWD {
 }
 ```
 
+A note on token naming: the existing `PACKAGE_KW` token (bound to the keyword `library`) is renamed to `LIBRARY_KW` to better reflect its purpose. Source files continue to use `library` for library declarations — only the internal token name changes. The word `package` appears only as a field name inside `catalog` blocks on part declarations, so no `PACKAGE_KW` token is needed.
+
 `lib/pcb/Interfaces.cas` defines PCB-domain component interfaces with PCB-standard terminal sets and metric contracts. It imports shared interfaces as needed:
 
 ```cascode
@@ -188,7 +190,7 @@ interface DualOpAmp {
 // ADC, MCU, Connector interfaces similarly.
 ```
 
-`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. `include lib.ic` or `include lib.pcb` brings the appropriate definitions into scope. Mixed IC+PCB projects can include both; the linker resolves by fully-qualified namespace.
+`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. `include lib.ic` or `include lib.pcb` brings the appropriate definitions into scope. A single `.cas` file should include one domain library, not both. Mixed IC+PCB projects use separate files per domain; cross-domain references use fully-qualified names.
 
 Concrete part declarations live in a separate `lib/parts/` tree, organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.res`, etc.). Including `lib.pcb` brings interface definitions into scope without pulling in the entire parts catalog.
 
@@ -214,7 +216,10 @@ Parts and circuits may implement multiple interfaces, following the same model a
 
 ```cascode
 part ADS1115 implements ADCSubsystem, I2CDevice {
-  mpn "ADS1115IDGSR"
+  catalog {
+    mpn = "ADS1115IDGSR"
+    ...
+  }
   ...
 }
 ```
@@ -253,11 +258,11 @@ A `part` declaration is a new top-level construct, parallel to `primitive`. It d
 
 ```
 part <Name> (<params>?) implements <Interface>(, <Interface>)* {
-  mpn "<manufacturer_part_number_or_family_id>"
-  package "<footprint>"
-  spice "<model_ref>"            // optional: present when manufacturer provides a usable model
+  catalog {
+    mpn = "<manufacturer_part_number_or_family_id>"
+    package = "<footprint>"
+    spice = "<model_ref>"          // optional: present when manufacturer provides a usable model
 
-  pricing {
     option { provider = "<provider>" sku = "<sku>" priority = <int> url = "<optional-url>" }
     ...
   }
@@ -273,14 +278,9 @@ part <Name> (<params>?) implements <Interface>(, <Interface>)* {
 
 The body contains:
 
-- `mpn`: identity for part lookup and traceability in PCB contexts.
-- `package`: physical footprint package.
-- `spice`: optional model reference for simulable parts.
-- `pricing`: checked-in external procurement pointers.
+- `catalog {}`: sourcing and physical identity, using assignment-style fields within a single block. Contains `mpn` (part lookup and traceability), `package` (physical footprint), optional `spice` (model reference for simulable parts), and zero or more `option` entries for procurement pointers. Each `option` must contain `provider`, `sku`, and `priority` fields; `url` is optional.
 - terminal declarations: physical connectivity.
 - `metrics {}`: guaranteed datasheet values and part attributes.
-
-For pricing options, `provider`, `sku`, and `priority` are required. `url` is optional.
 
 ### 5.2 Examples
 
@@ -288,11 +288,11 @@ A dual op-amp with SPICE model:
 
 ```cascode
 part OPA2376 implements DualOpAmp {
-  mpn "OPA2376AIDDBVR"
-  package "VSSOP-8"
-  spice "OPA2376"
+  catalog {
+    mpn = "OPA2376AIDDBVR"
+    package = "VSSOP-8"
+    spice = "OPA2376"
 
-  pricing {
     option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
     option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
   }
@@ -323,10 +323,10 @@ A 16-bit I2C ADC without SPICE model:
 
 ```cascode
 part ADS1115 implements ADCSubsystem {
-  mpn "ADS1115IDGSR"
-  package "MSOP-10"
+  catalog {
+    mpn = "ADS1115IDGSR"
+    package = "MSOP-10"
 
-  pricing {
     option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
     option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
   }
@@ -359,10 +359,10 @@ A parameterized passive family:
 
 ```cascode
 part RC0402FR(real R) implements Resistor {
-  mpn "RC0402FR-07"
-  package "0402"
+  catalog {
+    mpn = "RC0402FR-07"
+    package = "0402"
 
-  pricing {
     option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
     option { provider = "Mouser" sku = "603-RC0402FR-07{R}L" priority = 20 }
   }
@@ -419,7 +419,7 @@ fill {
 `primitive` and `part` are siblings, not parent-child. Both use `implements` to satisfy interface contracts. The difference is in backing:
 
 - `primitive` declarations carry a `device` directive referencing a simulator model from a foundry PDK.
-- `part` declarations carry an `mpn` field referencing a sourced component from a parts ecosystem.
+- `part` declarations carry a `catalog` block with sourcing identity (`mpn`, `package`, optional `spice`) and procurement pointers.
 
 A Cascode project may contain both when modeling mixed IC + PCB systems.
 
@@ -460,26 +460,42 @@ metrics {
 
 Each entry is `<Identifier> = <quantity>`.
 
-### 6.3 Constraint References
+### 6.3 Metric Reference Syntax
 
-Constraints reference metrics on instances using the same `instance::Metric` form used for bench bindings. Constraints are placed in sub-blocks according to their verification method (see Section 9 for the full taxonomy).
+Two syntactic forms distinguish metric access by origin:
+
+The dot operator (`instance.Metric`) performs declared metric property lookup on an instance. It is used in constraints, forwarding, and parameter propagation whenever the value comes from a metric declared or bound on a sub-component.
+
+The double-colon operator (`bench::Measurement`) performs bench measurement extraction. It is used exclusively inside metric binding blocks to name a value produced by a bench run. Arguments may follow in parentheses when the measurement requires parameters.
+
+These two forms define the named metric kinds:
+
+A **bench-derived metric binding** has the form `MetricName = benchBinding::Measurement(args?)`. The value is produced by simulation: the bench planner generates a testbench, runs it, and extracts the named measurement. The `::` operator appears only on the right-hand side of a metric assignment inside a `metrics {}` block that sits within a bench bind.
+
+A **forwarded metric alias** has the form `MetricName = instance.Metric`. The value is aliased from a sub-component's declared metric. No simulation runs; the evaluator resolves the value by looking up the named metric on the target instance.
+
+Within a circuit's own constraint block, metrics bound on the same circuit are referenced by bare name (unqualified). The `metrics::` self-reference prefix is not supported.
+
+### 6.4 Constraint References
+
+Constraints reference metrics on instances using the dot operator. Constraints are placed in sub-blocks according to their verification method (see Section 8 for the full taxonomy).
 
 ```cascode
 constraints {
   bench {
-    c_gbw = frontend::PassbandGain >= 40dB
+    c_gbw = frontend.PassbandGain >= 40dB
   }
   spec {
-    c_resolution = adc::Resolution >= 16 bits
-    c_supply_min = adc::SupplyVoltageMin <= 3.3V
-    c_supply_max = adc::SupplyVoltageMax >= 3.3V
+    c_resolution = adc.Resolution >= 16 bits
+    c_supply_min = adc.SupplyVoltageMin <= 3.3V
+    c_supply_max = adc.SupplyVoltageMax >= 3.3V
   }
 }
 ```
 
-The left side of `::` names the source (a bench binding or a slot/instance). `bench {}` constraints must trace to bench-derived metrics; `spec {}` constraints must trace to declared metrics. The evaluator validates this mapping.
+`bench {}` constraints must trace to bench-derived metrics; `spec {}` constraints must trace to declared metrics. The evaluator validates this mapping.
 
-### 6.4 Interface Metric Declarations
+### 6.5 Interface Metric Declarations
 
 Interfaces may declare metrics as contracts with declaration-only entries.
 
@@ -499,23 +515,32 @@ Rules:
 2. Implementations may expose additional metrics.
 3. Missing required metrics are hard validation errors.
 
-### 6.5 Metric Providers and Forwarding
+### 6.6 Metric Providers and Forwarding
 
-Metric values come from explicit providers.
+Metric values come from two explicit provider kinds: bench-derived (simulation) and declared/datasheet. The provider kind is determined by how the metric is bound, not where it is referenced.
 
-- Bench-derived provider for simulable blocks.
-- Datasheet/declared metrics for non-simulable blocks.
-
-Forwarding is supported for wrappers and is alias-only in v1:
+Forwarding is supported for wrappers and is alias-only in v1. Forwarded metrics use the dot operator:
 
 ```cascode
 metrics {
-  Resolution = uAdc::Resolution
-  MaxSampleRate = uAdc::MaxSampleRate
+  Resolution = uAdc.Resolution
+  MaxSampleRate = uAdc.MaxSampleRate
 }
 ```
 
 Transform expressions in forwarding are deferred.
+
+### 6.7 PCB-Domain Units
+
+The PCB domain extends the unit system with the following units:
+
+- `pct` — percentage (e.g., `1pct` for 1% tolerance)
+- `SPS` — samples per second (e.g., `860 SPS`)
+- `bits` — bit count (e.g., `16 bits`)
+- `LSB` — least significant bit (e.g., `0.5 LSB`)
+- `B` — bytes, with standard SI prefixes (e.g., `64kB`, `8kB`)
+
+These will be formally added to the unit tables in spec chapters Ch02 and Ch03 as part of implementation. Existing units (`Hz`, `V`, `A`, `F`, `Ohm`, `dB`, `W`, `Vrms`, `V/us`, etc.) continue to apply to PCB-domain metrics.
 
 ---
 
@@ -553,7 +578,7 @@ These bundles can be used directly on parts/circuits and connected with existing
 
 ## 8. Constraint Taxonomy
 
-The constraint system uses distinct sub-blocks organized by verification method. Each sub-block carries clear semantics about how the evaluator verifies the constraint and where the metric value originates.
+The constraint system uses distinct sub-blocks organized by verification method. Each sub-block carries clear semantics about how the evaluator verifies the constraint and where the metric value originates. Graph constraints (`graph {}` blocks) were considered during design and are explicitly excluded; structural connectivity requirements are expressed through existing connection and interface mechanisms.
 
 ### 8.1 Sub-Block Types
 
@@ -564,8 +589,8 @@ Three constraint sub-blocks are supported:
 ```cascode
 constraints {
   bench {
-    c_gain = frontend::PassbandGain >= 40dB
-    c_noise = frontend::IntegratedInputNoise <= 1uVrms
+    c_gain = frontend.PassbandGain >= 40dB
+    c_noise = frontend.IntegratedInputNoise <= 1uVrms
   }
 }
 ```
@@ -575,8 +600,8 @@ constraints {
 ```cascode
 constraints {
   spec {
-    c_res = adc::Resolution >= 16 bits
-    c_flash = mcu::FlashSize >= 64kB
+    c_res = adc.Resolution >= 16 bits
+    c_flash = mcu.FlashSize >= 64kB
   }
 }
 ```
@@ -613,14 +638,14 @@ circuit SensorBoard {
 
   constraints {
     bench {
-      c_bw = frontend::LowpassBandwidth >= 10kHz
-      c_gain = frontend::PassbandGain >= 40dB
-      c_noise = frontend::IntegratedInputNoise <= 1uVrms
+      c_bw = frontend.LowpassBandwidth >= 10kHz
+      c_gain = frontend.PassbandGain >= 40dB
+      c_noise = frontend.IntegratedInputNoise <= 1uVrms
     }
     spec {
-      c_adc_res = adc::Resolution >= 16 bits
-      c_adc_rate = adc::MaxSampleRate >= 128 SPS
-      c_mcu_flash = mcu::FlashSize >= 64kB
+      c_adc_res = adc.Resolution >= 16 bits
+      c_adc_rate = adc.MaxSampleRate >= 128 SPS
+      c_mcu_flash = mcu.FlashSize >= 64kB
     }
   }
 }
@@ -661,9 +686,9 @@ Interface definitions and part declarations are organized under domain-specific 
 - `lib/pcb/` -- PCB-domain component interfaces (`NMOS`, `Resistor` with metric contracts, `DualOpAmp`, `ADCSubsystem`, `ControllerSubsystem`, etc.). Does not contain part declarations.
 - `lib/parts/` -- concrete part declarations organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.mcu`, `lib.parts.res`, `lib.parts.cap`).
 
-### 9.3 Pricing Pointer Contract
+### 9.3 Catalog Option Contract
 
-Each part declaration carries checked-in pricing options. Population may come from manufacturer/distributor APIs, distributor CSV exports, or curated internal catalogs, but the language-facing pointer contract is the same.
+Each part declaration carries checked-in procurement options inside its `catalog` block. Population may come from manufacturer/distributor APIs, distributor CSV exports, or curated internal catalogs, but the language-facing pointer contract is the same.
 
 Required fields per option:
 
@@ -679,7 +704,7 @@ This allows deterministic fallback and sourcing without brittle URL parsing.
 
 ### 9.4 Passive Resolution
 
-Parameterized passives represent families. Concrete sourceable part resolution occurs during synthesis/selection, based on value/package/tolerance constraints and available pricing options.
+Parameterized passives represent families. Concrete sourceable part resolution occurs during synthesis/selection, based on value/package/tolerance constraints and available catalog options.
 
 ---
 
@@ -726,13 +751,14 @@ New tokens:
 ```antlr
 PART_KW     : 'part' ;
 METRICS_KW  : 'metrics' ;
-MPN_KW      : 'mpn' ;
-PRICING_KW  : 'pricing' ;
+CATALOG_KW  : 'catalog' ;
 OPTION_KW   : 'option' ;
 SOME_KW     : 'Some' ;
 BENCH_KW    : 'bench' ;     // replaces NUMERIC_KW in constraint blocks
 SPEC_KW     : 'spec' ;      // new constraint sub-block
 PHYSICAL_KW : 'physical' ;  // replaces TECH_KW in constraint blocks
+LIBRARY_KW  : 'library' ;   // renamed from PACKAGE_KW
+BENCHES_KW  : 'benches' ;   // bench binding block on interfaces/circuits
 ```
 
 Removed tokens:
@@ -742,6 +768,7 @@ Removed tokens:
 // identifiers resolved from included interface libraries.
 // NUMERIC_KW is replaced by BENCH_KW.
 // TECH_KW is replaced by PHYSICAL_KW.
+// GRAPH_KW is removed. Graph constraints are not supported.
 ```
 
 `IMPLEMENTS_KW` already exists for circuit declarations and is now shared with primitive and part declarations.
@@ -784,10 +811,7 @@ implementsList
     ;
 
 partMember
-    : MPN_KW STRING                                           # PartMpn
-    | SPICE_KW STRING                                         # PartSpice
-    | PACKAGE_KW STRING                                       # PartPackage
-    | pricingBlock                                            # PartPricing
+    : catalogBlock                                            # PartCatalog
     | paramsBlock                                             # PartParams
     | direction portName COLON portType                       # PartPort
     | SUPPLY_KW IDENT                                         # PartSupply
@@ -798,7 +822,50 @@ partMember
 
 Passive `part` declarations use scalar parameters (`real R`, `real C`, `real L`). `size` remains reserved for primitive geometry.
 
-### 11.5 Metrics Blocks
+The catalog block groups sourcing and physical identity fields using assignment syntax, with zero or more procurement option entries:
+
+```antlr
+catalogBlock
+    : CATALOG_KW LBRACE catalogEntry* RBRACE
+    ;
+
+catalogEntry
+    : IDENT EQ (STRING | NUMBER)                              # CatalogField
+    | catalogOption                                           # CatalogOptionEntry
+    ;
+
+catalogOption
+    : OPTION_KW LBRACE catalogOptionField+ RBRACE
+    ;
+
+catalogOptionField
+    : IDENT EQ (STRING | NUMBER)
+    ;
+```
+
+Each `catalogOption` must contain at minimum `provider`, `sku`, and `priority` fields. The `url` field is optional.
+
+### 11.5 Array Port Syntax
+
+Array ports support ranged declarations and indexed references for multi-pin components (MCUs, FPGAs, connectors):
+
+```antlr
+portDecl
+    : direction portName (LBRACKET range RBRACKET)? COLON portType
+    ;
+
+range
+    : INT_LITERAL COLON INT_LITERAL
+    ;
+
+portIndexRef
+    : IDENT LBRACKET INT_LITERAL RBRACKET
+    ;
+```
+
+Array ports are declared with an inclusive range (`io PA[0:15] : digital`) and indexed in connection bindings (`.PA[2]--DEBUG.TX`). The range is inclusive on both ends.
+
+### 11.6 Metrics Blocks
 
 ```antlr
 metricsValueBlock
@@ -811,7 +878,7 @@ metricAssign
 
 metricValue
     : signedQuantity
-    | metricRef
+    | metricSource
     ;
 ```
 
@@ -827,7 +894,40 @@ metricDecl
     ;
 ```
 
-### 11.6 Slot Instance Declaration with `Some`
+Bench bind blocks may contain their own metrics block to bind measurement results to named metrics:
+
+```antlr
+benchBindingMetrics
+    : METRICS_KW LBRACE metricBind* RBRACE
+    ;
+
+metricBind
+    : IDENT EQ metricSource
+    ;
+
+metricSource
+    : benchMetricRef       // bench-derived: benchName::Measurement(args?)
+    | instanceMetricRef    // forwarded: instance.Metric
+    ;
+```
+
+### 11.7 Metric Reference Grammar
+
+Two distinct reference forms distinguish property lookup from bench extraction:
+
+```antlr
+instanceMetricRef
+    : IDENT DOT IDENT                                    // instance.Metric (property lookup)
+    ;
+
+benchMetricRef
+    : IDENT COLONCOLON IDENT (LPAREN argList? RPAREN)?   // bench::Measurement (extraction)
+    ;
+```
+
+The dot form (`instance.Metric`) is used in constraints, forwarding, and parameter propagation. The double-colon form (`bench::Measurement`) is used exclusively in bench-derived metric bindings. The evaluator enforces that `benchMetricRef` appears only inside `benchBindingMetrics` blocks or in bench-derived metric assignments.
+
+### 11.8 Slot Instance Declaration with `Some`
 
 `Some` is only valid in slot instance declarations. This is enforced at the grammar level by using separate rules for slot and fill blocks:
 
@@ -855,7 +955,7 @@ instanceDecl
 
 The formerly optional `(declaredType=IDENT)?` pattern is removed. A declared type is always required in both slot and fill blocks.
 
-### 11.7 Device Instantiation (Modified)
+### 11.9 Device Instantiation (Modified)
 
 With `DEVICE_TYPE` removed, the existing `deviceDecl` rule is unified with `instanceDecl`. The declared type is an interface name (e.g., `NMOS`, `Resistor`) resolved from scope rather than a reserved keyword:
 
@@ -868,7 +968,7 @@ deviceDecl
 // After: unified into instanceDecl (see above).
 ```
 
-### 11.8 Constraint Block Changes
+### 11.10 Constraint Block Changes
 
 The constraint sub-block keywords are renamed and extended:
 
@@ -904,9 +1004,11 @@ SPEC_KW     : 'spec' ;      // new
 PHYSICAL_KW : 'physical' ;  // replaces TECH_KW
 ```
 
-`constraintEntry` and `physicalConstraintEntry` retain their existing internal structure. The change is in the sub-block keywords and the addition of the `spec` block.
+`constraintEntry` references instance metrics with the dot operator (`instance.Metric`) and bench metrics with the double-colon operator (`bench::Measurement`). Within a circuit's own constraint block, self-metrics are referenced by bare name. `physicalConstraintEntry` retains its existing internal structure.
 
-### 11.9 Resolution Policy
+The `graph {}` sub-block is not supported; no `graphBlock` appears in the constraint grammar.
+
+### 11.11 Resolution Policy
 
 There are no reserved keyword categories. All instantiation targets -- whether for primitives, parts, or circuits -- resolve semantically against declarations in scope. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
 
@@ -918,13 +1020,15 @@ A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFr
 
 - Wheatstone-bridge sensor frontend topology.
 - Dual op-amp analog path with bench-derived metrics.
-- 16-bit ADC and MCU wrappers with forwarded metrics.
-- `part` declarations with `implements` and `mpn`.
-- pricing option pointers with provider/sku/priority.
-- flat port naming for multi-unit ICs (dual op-amp with per-port directionality).
-- `bench`/`spec` constraint taxonomy separating simulation-verified and declaration-verified constraints.
-- hierarchical constraint verification (EL design targets and HL system requirements).
-- metric-driven env propagation at simulation boundaries.
+- 16-bit ADC and MCU wrappers with forwarded metrics using dot syntax (`uAdc.Resolution`).
+- `part` declarations with `implements` and `catalog` blocks.
+- Catalog option pointers with provider/sku/priority.
+- Array ports on MCU (`io PA[0:15] : digital`) with indexed connection bindings.
+- Flat port naming for multi-unit ICs (dual op-amp with per-port directionality).
+- `bench`/`spec` constraint taxonomy separating simulation-verified and declaration-verified constraints, using dot syntax for instance metric references (`frontend.PassbandGain`, `adc.Resolution`, `mcu.FlashSize`).
+- Hierarchical constraint verification (EL design targets with bare metric names, HL system requirements with instance-qualified references).
+- Metric-driven parameter propagation (`load_cap=adc.InputCapacitance`), resolved during bench planning via an ordering pass.
+- Bench-derived metric bindings (`PassbandGain = transfer_bench::PassbandGain`) using `::` exclusively for bench extraction.
 
 The example intentionally exercises both simulable and non-simulable paths within one HL composition, demonstrating the constraint taxonomy across verification methods and hierarchy levels.
 
@@ -932,24 +1036,37 @@ The example intentionally exercises both simulable and non-simulable paths withi
 
 ## 13. Implementation Plan
 
-Implementation is split into phases.
+Implementation is split into phases. Phase 1 is further divided into additive-first (1a) and breaking-removal (1b) sub-phases to minimize disruption.
 
-Phase 1: Grammar and AST
+Phase 1a: Additive grammar and AST
+
+- Add `part`, `catalog`, `metrics`, `Some` grammar support.
+- Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
+- Add `spec` constraint sub-block.
+- Add `benchBindingMetrics` rule for metrics inside bench bind blocks.
+- Add array port declaration and indexing syntax.
+- Add `LIBRARY_KW`, `CATALOG_KW`, `OPTION_KW`, `BENCHES_KW` tokens.
+- Add AST types for part declarations, catalog entries, metric declarations/assignments.
+- Add separate `slotInstanceDecl` with `Some` support.
+- Add reader/writer support and tests.
+
+Verification checkpoint: all existing tests pass; new constructs parse and round-trip correctly.
+
+Phase 1b: Breaking grammar changes and library migration
 
 - Remove `DEVICE_TYPE` from grammar; replace with `implements` on `primitiveDef`.
-- Add `part`, `mpn`, `metrics`, `pricing`, `Some` grammar support.
-- Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
-- Add separate `slotInstanceDecl` with `Some` support.
-- Rename constraint sub-blocks: `numeric` → `bench`, `tech` → `physical`. Add `spec` sub-block.
-- Add AST types for part declarations, pricing options, metric declarations/assignments.
-- Add reader/writer support and tests.
+- Rename constraint sub-blocks: `numeric` → `bench`, `tech` → `physical`. Remove `GRAPH_KW`.
+- Rename `PACKAGE_KW` (was `'library'`) to `LIBRARY_KW`.
 - Update all existing golden tests for the `bench`/`physical` rename.
+- Migrate `lib/std/prim/Devices.cas` and `lib/std/prim/Passives.cas` to new `implements` syntax. Note: `Passives.cas` currently has a bug where `Ideal_Inductor` declares `implements Capacitor`; fix in this phase.
+- Bump Cascode version to 3.1.
+
+Verification checkpoint: full test suite passes with renamed tokens and migrated libraries.
 
 Phase 2: Interface libraries
 
 - Create `lib/ic/Interfaces.cas` with IC-domain component interfaces.
 - Create `lib/pcb/Interfaces.cas` with PCB-domain component interfaces and bus bundles.
-- Migrate `lib/std/prim/Devices.cas` and `lib/std/prim/Passives.cas` to new `implements` syntax.
 - Update all golden tests and examples.
 
 Phase 3: Resolution and validation
@@ -961,14 +1078,15 @@ Phase 3: Resolution and validation
 
 Phase 4: Constraint and runtime evaluation
 
-- Extend evaluators to consume metric references (`instance::Metric`) from both bench and declared sources.
+- Extend evaluators to consume metric references (`instance.Metric` for property lookup, `bench::Measurement` for extraction) from both bench and declared sources.
 - Implement `bench` constraint evaluation (simulation-verified) and `spec` constraint evaluation (declaration-verified).
 - Implement verification provenance validation (constraints in the correct sub-block for their metric source).
+- Implement metric-driven parameter propagation ordering pass during bench planning.
 - Implement hierarchical verification: `cascode bench run` walks the composition tree and evaluates constraints at every level.
 
 Phase 5: Parts ecosystem integration
 
-- Wire pricing pointers to provider adapters/cache.
+- Wire catalog option pointers to provider adapters/cache.
 - Implement deterministic option ordering/fallback via `priority`.
 
 Phase 6: Emission and synthesis expansion
@@ -988,6 +1106,8 @@ The following remain open:
 4. Connector and mechanical modeling depth in language core versus libraries.
 5. Whether interfaces should support inheritance for shared contracts across IC/PCB domains (e.g., a base `Resistor` that both `lib.ic.Resistor` and `lib.pcb.Resistor` extend).
 6. Slot synthesis semantics when `Some` is used: does the solver infer the required interface set from constraint metric references, or must the designer provide explicit interface hints?
+7. Interface metric polarity: should interfaces support behavioral contracts with min/max annotations (e.g., `GBW : Hz >= 1MHz`), or should polarity/bounds live exclusively in constraint blocks? The current recommendation is constraints-only; interfaces declare existence and unit.
+8. Metric-driven parameter propagation ordering: when metric values flow between instances (e.g., `load_cap=adc.InputCapacitance`), the bench planner must determine a resolution order. Circular dependency detection and the exact ordering algorithm remain to be specified.
 
 ---
 

@@ -1,4 +1,4 @@
-VERSION 3.0
+VERSION 3.1
 
 // Sensor Frontend PCB example for RFC-0005.
 // Demonstrates:
@@ -260,7 +260,7 @@ circuit SensorFrontendPCB {
       .DRDY--drdy
     }
 
-    SensorConditioner frontend = new WheatstoneAmplifier(load_cap=adc::InputCapacitance) {
+    SensorConditioner frontend = new WheatstoneAmplifier(load_cap=adc.InputCapacitance) {
       .VDD--VDD_3V3
       .GND--GND
       .SENSOR_IN--SENSOR
@@ -279,15 +279,15 @@ circuit SensorFrontendPCB {
 
   constraints {
     bench {
-      c_bw = frontend::LowpassBandwidth >= 10kHz
-      c_gain = frontend::PassbandGain >= 40dB
-      c_noise = frontend::IntegratedInputNoise <= 1uVrms
+      c_bw = frontend.LowpassBandwidth >= 10kHz
+      c_gain = frontend.PassbandGain >= 40dB
+      c_noise = frontend.IntegratedInputNoise <= 1uVrms
     }
     spec {
-      c_adc_res = adc::Resolution >= 16 bits
-      c_adc_rate = adc::MaxSampleRate >= 128 SPS
-      c_mcu_flash = mcu::FlashSize >= 64kB
-      c_mcu_clock = mcu::CoreClock >= 48MHz
+      c_adc_res = adc.Resolution >= 16 bits
+      c_adc_rate = adc.MaxSampleRate >= 128 SPS
+      c_mcu_flash = mcu.FlashSize >= 64kB
+      c_mcu_clock = mcu.CoreClock >= 48MHz
     }
   }
 
@@ -395,10 +395,10 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
 
   constraints {
     bench {
-      c_bw = metrics::LowpassBandwidth >= 10kHz
-      c_gain = metrics::PassbandGain >= 38dB
-      c_noise = metrics::IntegratedInputNoise <= 1uVrms
-      c_cmrr = metrics::CMRR >= 20dB
+      c_bw = LowpassBandwidth >= 10kHz
+      c_gain = PassbandGain >= 38dB
+      c_noise = IntegratedInputNoise <= 1uVrms
+      c_cmrr = CMRR >= 20dB
     }
   }
 
@@ -454,9 +454,9 @@ circuit ADCStage implements ADCSubsystem {
   }
 
   metrics {
-    Resolution = uAdc::Resolution
-    MaxSampleRate = uAdc::MaxSampleRate
-    InputCapacitance = uAdc::InputCapacitance
+    Resolution = uAdc.Resolution
+    MaxSampleRate = uAdc.MaxSampleRate
+    InputCapacitance = uAdc.InputCapacitance
   }
 
   harness {
@@ -516,11 +516,11 @@ circuit Controller implements ControllerSubsystem {
   }
 
   metrics {
-    FlashSize = uMcu::FlashSize
-    CoreClock = uMcu::CoreClock
+    FlashSize = uMcu.FlashSize
+    CoreClock = uMcu.CoreClock
 
     // Allowed extension beyond interface minimum.
-    RAMSize = uMcu::RAMSize
+    RAMSize = uMcu.RAMSize
   }
 
   harness {
