@@ -12,9 +12,10 @@ interface FullyDifferentialOpAmp {
   input VTAIL : bias
 
   benches {
-    bind QuiescentPower as vdd_pwr {
+    bind DiffQuiescentPower as vdd_pwr {
       bench.PWR--dut.VDD
       bench.RET--dut.GND
+      bench.OUT--dut.OUT
     }
 
     bind DiffToDiffTransfer as transfer_bench {

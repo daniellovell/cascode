@@ -82,9 +82,9 @@ circuit OTA5TFullyDiff_DCSwept implements FullyDiffOpAmp {
   }
   constraints {
     numeric {
-      c_out_cm_min = DCBench::OutputDCCommonMode_min >= 0.3V
-      c_out_cm_max = DCBench::OutputDCCommonMode_max <= 1.5V
-      c_power = DCBench::QuiescentPower <= 800uW
+      c_out_cm_min = vdd_pwr::OutputDCCommonMode >= 0.3V
+      c_out_cm_max = vdd_pwr::OutputDCCommonMode <= 1.5V
+      c_power = vdd_pwr::QuiescentPower <= 800uW
     }
   }
   harness {

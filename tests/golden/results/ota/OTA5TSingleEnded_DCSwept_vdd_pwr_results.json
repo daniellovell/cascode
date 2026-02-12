@@ -1,6 +1,6 @@
 {
   "circuit": "OTA5TSingleEnded_DCSwept",
-  "bench": "DCBench",
+  "bench": "vdd_pwr",
   "measurements": {
     "out_bias": {
       "metric": "OutputDCBias",

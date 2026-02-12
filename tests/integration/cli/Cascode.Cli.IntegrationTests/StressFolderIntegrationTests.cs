@@ -200,6 +200,81 @@ public sealed class StressFolderIntegrationTests : IDisposable
         );
     }
 
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task CSAmpResistiveSky130_AllConstraintsPass()
+    {
+        var cascodePath = Path.Combine(
+            _repoRoot,
+            "tests",
+            "golden",
+            "cas",
+            "stress",
+            "CSAmp_Resistive_Sky130.cas"
+        );
+
+        var doc = LoadAndLinkIfNeededForTest(cascodePath);
+        Assert.True(RequiresPdkWorkspace(doc, out _, out var pdkRoot), "expected sky130 workspace");
+
+        var pdkSet = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "pdk",
+            "set-dir",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
+
+        var scan = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(90),
+            _cascodeHome,
+            "pdk",
+            "scan",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(120),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
+
+        var circuit = Assert.Single(
+            doc.Circuits,
+            c => c.Name.Equals("CSAmp_Resistive_Sky130", StringComparison.Ordinal)
+        );
+        var combinedResultsPath = Path.Combine(_outputDir, $"{circuit.Name}_results.json");
+        Assert.True(
+            File.Exists(combinedResultsPath),
+            $"combined results not found: {combinedResultsPath}"
+        );
+
+        var combinedResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(combinedResultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(combinedResults);
+
+        var report = ComplianceChecker.Check(circuit, combinedResults!);
+        var failures = report
+            .Results.Where(r => !r.Passed)
+            .Select(r => $"{r.Id}: {r.Message}")
+            .ToArray();
+
+        Assert.True(report.TotalCount > 0, "expected at least one numeric constraint");
+        Assert.True(
+            report.FailedCount == 0,
+            "expected CSAmp_Resistive_Sky130 to satisfy all numeric constraints, failures: "
+                + string.Join(", ", failures)
+        );
+    }
+
     private CascodeDocument LoadAndLinkIfNeededForTest(string inputPath)
     {
         // This helper does not “cheat” the CLI run; it only produces the same in-memory model

@@ -1,0 +1,24 @@
+{
+  "circuit": "OTA5TFullyDiff",
+  "bench": "transfer_bench",
+  "measurements": {
+    "gain": {
+      "metric": "PassbandGain",
+      "value": 42.5,
+      "unit": "dB",
+      "node": null
+    },
+    "gbw": {
+      "metric": "GainBandwidth",
+      "value": 120000000,
+      "unit": "Hz",
+      "node": null
+    },
+    "pm": {
+      "metric": "PhaseMargin",
+      "value": 68.2,
+      "unit": "deg",
+      "node": null
+    }
+  }
+}
