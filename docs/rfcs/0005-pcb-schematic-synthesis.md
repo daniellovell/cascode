@@ -5,7 +5,7 @@
 | Status | Draft |
 | Authors | Daniel Lovell |
 | Created | 2026-02-06 |
-| Last Updated | 2026-02-11 |
+| Last Updated | 2026-02-12 |
 
 ---
 
@@ -1034,9 +1034,61 @@ The example intentionally exercises both simulable and non-simulable paths withi
 
 ---
 
-## 13. Implementation Plan
+## 13. Language Specification Deliverables
 
-Implementation is split into phases. Phase 1 is further divided into additive-first (1a) and breaking-removal (1b) sub-phases to minimize disruption.
+This section mandates updates to the Cascode language specification (`spec/language/`) for the constructs and conventions introduced by this RFC. The deliverables comprise updates to existing spec chapters for new and renamed constructs, and a new domain-application chapter for PCB design.
+
+### 13.1 Rationale for a Dedicated Chapter
+
+The constructs this RFC introduces — `part`, metrics, `spec {}` constraints, array ports, the `implements` migration on primitives — are general-purpose language mechanisms whose normative definitions belong in Chapters 2 and 3. The PCB domain, however, introduces enough workflow, conventions, and domain-specific patterns that scattering the material across general-purpose sections would not serve PCB designers well. A dedicated Chapter 5 provides the domain-application guide: how these constructs compose for PCB schematic capture, PCB-specific conventions, and topics unique to the domain (parts ecosystem, pricing, passive network synthesis, mixed simulable/non-simulable verification).
+
+### 13.2 New Chapter: Ch05_PCB_Design.md
+
+The chapter covers the following topics:
+
+Section 5.0 (Summary) establishes the chapter's purpose and relates Cascode's existing abstractions to PCB schematic capture and synthesis.
+
+Section 5.1 (Conceptual Mapping) expands the IC-to-PCB mapping table from Section 3 of this RFC into prose. Key themes: schematic symbol vs concrete backing, `implements` as the unifying mechanism, and where IC and PCB flows diverge in identity, parameters, and metric sources.
+
+Section 5.2 (Domain Libraries and Namespace Convention) describes the organization of `lib/ic/`, `lib/pcb/`, `lib/std/`, and `lib/parts/`. Covers the single-domain-per-file convention and cross-references Ch02 Section 2.1 for the underlying resolution model.
+
+Section 5.3 (The `part` Construct) gives a domain-focused treatment of the `part` declaration, cross-referencing Ch02 and Ch03 for normative definitions. Covers the relationship to `primitive`, the `mpn`/`package`/`spice` fields, parameterized passives vs fixed-identity ICs, multi-unit ICs with flat port naming, array ports on high-pin-count components, and worked examples.
+
+Section 5.4 (The Metrics System in PCB Context) describes how metrics enable datasheet-driven and simulation-driven validation. Covers datasheet metric polarity conventions, interface metric contracts, the two named metric kinds (bench-derived and forwarded), metric-driven parameter propagation, and PCB-domain units.
+
+Section 5.5 (Constraint Taxonomy for Mixed Designs) explains how `bench {}`, `spec {}`, and `physical {}` sub-blocks partition constraints by verification method. Covers the bench-to-spec distinction, verification provenance enforcement, mixed compositions with simulable and non-simulable sub-blocks, hierarchical constraint verification, and self-metric references by bare name.
+
+Section 5.6 (Bus Bundles and Digital Interconnect) treats standard PCB buses (I2C, SPI, UART, SWD) as ordinary bundles. Points to `lib/std/bus/` and shows connection patterns, cross-referencing Ch02 Section 2.3 for the bundle mechanism.
+
+Section 5.7 (Parts Ecosystem and Pricing) describes the parts database role, `lib/parts/` tree structure organized by category, the `catalog` block's `option` contract (required fields: `provider`, `sku`, `priority`; optional: `url`), and passive resolution with standard series snapping.
+
+Section 5.8 (PCB Synthesis Model) covers HL-to-EL synthesis for PCB designs: IC selection against metric constraints, passive network topology and value sizing with series snapping, and mixed-block synthesis. Describes the `synth {}` block's PCB-specific directives (`passive_series`, `objective`), cross-referencing Ch02 Section 2.12.
+
+Section 5.9 (Worked Example: Sensor Frontend PCB) walks through the `SensorFrontendPCB.cas` golden test section by section, covering file structure and includes, part declarations, interface contracts with metric declarations, HL composition with mixed bench/spec constraints and metric-driven parameter propagation, EL implementations with bench-derived and forwarded metrics, and the hierarchical verification flow.
+
+### 13.3 Updates to Existing Spec Chapters
+
+The specification already covers HL composition slots (2.5.5), the `Some` keyword (3.10.3), bench bindings with measurement exports (4.8.5), `implements` on circuits (2.4), and the `synth {}` block (2.12). The updates below target only what is genuinely new or renamed.
+
+Ch01: add a brief note in Section 1.5 (Cascode in a Few Examples) that PCB design is covered in Ch05, or include a minimal PCB example. In Section 1.6 (Toolchain Pipeline), note that the pipeline extends to PCB schematic capture and constraint-driven part selection.
+
+Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.6.2 for parts (`mpn`, `package`, `spice`, `catalog` fields, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, the two named metric kinds, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
+
+Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `numeric {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `tech {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
+
+Ch03 new syntax: update Section 3.1 to include `partDef`. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics`), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
+
+Ch03 renames: rewrite Section 3.8 primitive header to `implements`. Merge Section 3.9 (Device Declarations) into instance declarations (3.10.2). Update Section 3.11 (Constraints) for `bench`/`spec`/`physical` renames, dot-operator constraint references, `LIBRARY_KW` rename, and `GRAPH_KW` removal.
+
+Ch04: add a note at Section 4.8.x about `metrics {}` blocks inside bench bindings, distinct from the existing `measurements {}` exports (4.8.5). The `metrics {}` block maps interface-level metric names to bench measurements; `measurements {}` defines computed derived measurements; both may appear in a single binding.
+
+`spec/language/README.md`: add Chapter 5 to the chapter listing.
+
+---
+
+## 14. Implementation Plan
+
+Implementation is split into phases. Phase 1 covers grammar and AST changes in three sub-phases: additive (1a), breaking (1b), and core spec updates (1c). Phase 2 covers interface libraries (2a) and the PCB spec chapter (2b).
 
 Phase 1a: Additive grammar and AST
 
@@ -1063,11 +1115,34 @@ Phase 1b: Breaking grammar changes and library migration
 
 Verification checkpoint: full test suite passes with renamed tokens and migrated libraries.
 
-Phase 2: Interface libraries
+Phase 1c: Core spec updates
+
+Grammar is stable after Phase 1b. Update existing spec chapters for renames and new constructs:
+
+- Ch02: add `part` to 2.2 declaration list; add Section 2.6.2 (Parts); add metrics section; rewrite 2.6 primitives to `implements`; rename constraint sub-blocks in 2.7; add `spec {}` sub-block; add PCB units to 2.9.
+- Ch03: add `partDef` to 3.1; new sections for part declarations, metrics blocks, metric references, array ports; rewrite 3.8 primitives; merge 3.9 into 3.10.2; update 3.11 constraints.
+- Ch04: add `metrics {}` in bindings note to 4.8.x.
+- Ch01: brief PCB mention in 1.5 or 1.6.
+- Update `spec/language/README.md` to add Ch05.
+
+This phase can proceed in parallel with Phase 2a.
+
+Verification checkpoint: existing spec cross-references resolve; new syntax sections align with grammar.
+
+Phase 2a: Interface libraries
 
 - Create `lib/ic/Interfaces.cas` with IC-domain component interfaces.
 - Create `lib/pcb/Interfaces.cas` with PCB-domain component interfaces and bus bundles.
 - Update all golden tests and examples.
+
+Phase 2b: PCB spec chapter
+
+Interface libraries (`lib/ic/`, `lib/pcb/`, `lib/parts/`) exist after Phase 2a. The worked example can reference real library paths:
+
+- Draft `spec/language/Ch05_PCB_Design.md` with sections 5.0–5.9.
+- Ensure Section 5.9 worked example matches `tests/golden/cas/pcb/SensorFrontendPCB.cas`.
+
+Verification checkpoint: spec chapter cross-references resolve end-to-end; worked example walkthrough is accurate against the golden test.
 
 Phase 3: Resolution and validation
 
@@ -1096,7 +1171,7 @@ Phase 6: Emission and synthesis expansion
 
 ---
 
-## 14. Open Questions
+## 15. Open Questions
 
 The following remain open:
 
@@ -1116,7 +1191,7 @@ The following remain open:
 - RFC-0000: Cascode Language Unification and Declarative Bench System
 - RFC-0002: ACIR Terminal Directionality
 - RFC-0003: ACIR Syntax Overhaul
-- `spec/language/Ch01_Introduction.md` through `Ch04_BenchSystem.md`
+- `spec/language/Ch01_Introduction.md` through `Ch05_PCB_Design.md`
 - `lib/std/prim/Devices.cas`, `lib/std/prim/Passives.cas` (to be migrated to `implements` syntax)
 - `lib/std/amp/SingleEndedOpAmp.cas`
 - `lib/std/amp/FullyDifferentialOpAmp.cas`
