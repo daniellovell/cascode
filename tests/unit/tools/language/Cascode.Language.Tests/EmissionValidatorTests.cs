@@ -285,6 +285,69 @@ public class EmissionValidatorTests
     }
 
     [Fact]
+    public void Validate_BundleMemberCaseMismatch_ReturnsEMIT002()
+    {
+        var circuit = new Circuit
+        {
+            Name = "TestCircuit",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT.P",
+                    Type = "analog",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT.N",
+                    Type = "analog",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        DeviceType = "nmos",
+                        Id = "M1",
+                        Primitive = "Level1_NMOS",
+                        Bindings = new Dictionary<string, string>
+                        {
+                            { "D", "OUT.p" },
+                            { "G", "OUT.N" },
+                            { "S", "GND" },
+                            { "B", "GND" },
+                        },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string>
+                            {
+                                { "W", "1u" },
+                                { "L", "180n" },
+                                { "M", "1" },
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        var result = EmissionValidator.Validate(circuit);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Diagnostics,
+            e => e.Code == "EMIT-002" && e.Message.Contains("OUT.p")
+        );
+    }
+
+    [Fact]
     public void Validate_MissingSizeReference_ReturnsEMIT007()
     {
         var circuit = new Circuit

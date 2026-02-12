@@ -13,8 +13,9 @@ Files are named with the pattern `{circuit}.{level}.cai` where level is one of:
 - `ml` - Mid Level (instances)
 - `el` - Electrical Level (devices)
 
-The `.cai` extension indicates these are linked Cascode files (self-contained,
-no `include` statements), as specified in RFC-0000.
+The `.cai` extension indicates these are linked Cascode files. Default link
+mode is self-contained (no `include` statements); include-pruned mode may
+retain a minimal include set.
 
 The v0 implementation validates Cascode for the OTA motif in code (see
 `OtaCompilerTests`) and compares compiler output to these snapshots.
