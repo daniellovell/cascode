@@ -2,7 +2,7 @@ VERSION 3.1
 
 // Sensor Frontend PCB example for RFC-0005.
 // Demonstrates:
-// - part declarations with implements and mpn
+// - part declarations with implements and catalog blocks
 // - interface metric contracts (declaration-only)
 // - metric providers from benches and parts
 // - alias-only metric forwarding in wrappers
@@ -36,11 +36,11 @@ bundle SWD {
 // ============================================================================
 
 part OPA2376 implements DualOpAmp {
-  mpn "OPA2376AIDDBVR"
-  package "VSSOP-8"
-  spice "OPA2376"
+  catalog {
+    mpn = "OPA2376AIDDBVR"
+    package = "VSSOP-8"
+    spice = "OPA2376"
 
-  pricing {
     option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
     option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
   }
@@ -68,10 +68,10 @@ part OPA2376 implements DualOpAmp {
 }
 
 part ADS1115 implements ADCSubsystem {
-  mpn "ADS1115IDGSR"
-  package "MSOP-10"
+  catalog {
+    mpn = "ADS1115IDGSR"
+    package = "MSOP-10"
 
-  pricing {
     option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
     option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
   }
@@ -101,10 +101,10 @@ part ADS1115 implements ADCSubsystem {
 }
 
 part STM32G031K8 implements ControllerSubsystem {
-  mpn "STM32G031K8T6"
-  package "LQFP-32"
+  catalog {
+    mpn = "STM32G031K8T6"
+    package = "LQFP-32"
 
-  pricing {
     option { provider = "DigiKey" sku = "497-19521-ND" priority = 10 }
     option { provider = "Mouser" sku = "511-STM32G031K8T6" priority = 20 }
   }
@@ -128,10 +128,10 @@ part STM32G031K8 implements ControllerSubsystem {
 }
 
 part RC0402FR(real R) implements Resistor {
-  mpn "RC0402FR-07"
-  package "0402"
+  catalog {
+    mpn = "RC0402FR-07"
+    package = "0402"
 
-  pricing {
     option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
     option { provider = "Mouser" sku = "603-RC0402FR-07{R}L" priority = 20 }
   }
@@ -149,10 +149,10 @@ part RC0402FR(real R) implements Resistor {
 }
 
 part CL05B(real C) implements Capacitor {
-  mpn "CL05B"
-  package "0402"
+  catalog {
+    mpn = "CL05B"
+    package = "0402"
 
-  pricing {
     option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
     option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
   }
