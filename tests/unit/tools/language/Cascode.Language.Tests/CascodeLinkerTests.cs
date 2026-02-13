@@ -300,12 +300,14 @@ public sealed class CascodeLinkerTests
 
         Assert.Contains("lib.std.bench.AbstractTransfer", includeNames);
         Assert.Contains("lib.std.bench.DiffToDiffTransfer", includeNames);
-        Assert.Contains("lib.std.bench.DiffQuiescentPower", includeNames);
+        Assert.Contains("lib.std.bench.QuiescentPower", includeNames);
 
         Assert.DoesNotContain("lib.std.bench.AbstractTran", includeNames);
         Assert.DoesNotContain("lib.std.bench.DiffToDiffTran", includeNames);
         Assert.DoesNotContain("lib.std.bench.AbstractNoise", includeNames);
         Assert.DoesNotContain("lib.std.bench.DiffToDiffNoise", includeNames);
+        Assert.DoesNotContain("lib.std.bench.AbstractDCBias", includeNames);
+        Assert.DoesNotContain("lib.std.bench.DiffDCBias", includeNames);
         Assert.DoesNotContain("lib.std.bench.AbstractCMRejection", includeNames);
         Assert.DoesNotContain("lib.std.bench.DiffCMRejection", includeNames);
         Assert.DoesNotContain("lib.std.bench.AbstractPSRR", includeNames);

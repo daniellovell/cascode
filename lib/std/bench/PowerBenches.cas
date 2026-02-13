@@ -18,61 +18,6 @@ bench QuiescentPower {
   }
 }
 
-// Quiescent-power + output operating-point bench for single-ended outputs.
-//
-// This bench extends the basic static power metric with a DC operating-point
-// output voltage metric so DC-swept constraints can target output bias directly.
-bench SEQuiescentPower {
-  stim PWR : supply
-  resp RET : ground
-  resp OUT : analog
-
-  analysis {
-    DCAnalysis dc = new DCAnalysis()
-  }
-
-  measurements {
-    measurement QuiescentPower : W {
-      return quiescent_power(PWR, RET)
-    }
-
-    measurement OutputDCBias : V {
-      VoltageSpectrum vout = voltage(dc, OUT)
-      return vout.ValueAt(0Hz)
-    }
-
-    measurement OutputDCCommonMode : V {
-      VoltageSpectrum vout = voltage(dc, OUT)
-      return vout.ValueAt(0Hz)
-    }
-  }
-}
-
-// Quiescent-power + output operating-point bench for fully-differential outputs.
-//
-// OutputDCCommonMode reports the average of the two output nodes at the DC operating point.
-bench DiffQuiescentPower {
-  stim PWR : supply
-  resp RET : ground
-  resp OUT : Diff
-
-  analysis {
-    DCAnalysis dc = new DCAnalysis()
-  }
-
-  measurements {
-    measurement QuiescentPower : W {
-      return quiescent_power(PWR, RET)
-    }
-
-    measurement OutputDCCommonMode : V {
-      VoltageSpectrum outp = voltage(dc, OUT.P)
-      VoltageSpectrum outn = voltage(dc, OUT.N)
-      return (outp.ValueAt(0Hz) + outn.ValueAt(0Hz)) / 2
-    }
-  }
-}
-
 abstract bench AbstractPSRR {
   abstract stim IN
   stim PWR : supply

@@ -2,12 +2,6 @@
   "circuit": "OTA5TSingleEnded_DCSwept",
   "bench": "vdd_pwr",
   "measurements": {
-    "out_bias": {
-      "metric": "OutputDCBias",
-      "value": 0.72,
-      "unit": "V",
-      "node": "net::OUT"
-    },
     "QuiescentPower": {
       "metric": "QuiescentPower",
       "value": 0.00028,
