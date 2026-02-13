@@ -430,19 +430,34 @@ public sealed class StressFolderIntegrationTests : IDisposable
         pdkMarker = string.Empty;
         pdkRoot = string.Empty;
 
-        // Today we only allow/ship sky130 and gpdk045 fixtures. If a stress file uses a PDK primitive,
-        // it must be one of these.
-        var deviceKeys = doc
-            .Primitives.Select(p => p.Device)
-            .Where(s => !string.IsNullOrWhiteSpace(s));
-        if (deviceKeys.Any(d => d.Contains("sky130_", StringComparison.OrdinalIgnoreCase)))
+        // Today we only allow/ship sky130 and gpdk045 fixtures. Prefer include-based detection
+        // (stable across primitive model naming), then fall back to primitive metadata.
+        var includeNames = doc
+            .Includes.Select(i => i.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToArray();
+        if (
+            includeNames.Any(n =>
+                n.StartsWith("lib.pdk.sky130", StringComparison.OrdinalIgnoreCase)
+            )
+            || doc.Primitives.Any(p =>
+                p.Params.Values.Any(v => v.Contains("sky130_", StringComparison.OrdinalIgnoreCase))
+            )
+        )
         {
             pdkMarker = "sky130.lib.spice";
             pdkRoot = Path.Combine(_repoRoot, "tests", "fixtures", "pdk", "sky130");
             return true;
         }
 
-        if (deviceKeys.Any(d => d.Contains("gpdk045", StringComparison.OrdinalIgnoreCase)))
+        if (
+            includeNames.Any(n =>
+                n.StartsWith("lib.pdk.gpdk045", StringComparison.OrdinalIgnoreCase)
+            )
+            || doc.Primitives.Any(p =>
+                p.Params.Values.Any(v => v.Contains("gpdk045", StringComparison.OrdinalIgnoreCase))
+            )
+        )
         {
             // TODO: add gpdk045 fixture and marker once we have a first-class stress case for it.
             // For now, treat as unsupported rather than silently skipping.
