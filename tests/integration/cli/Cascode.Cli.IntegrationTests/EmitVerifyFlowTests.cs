@@ -84,7 +84,7 @@ public sealed class EmitVerifyFlowTests : IDisposable
 
         CliIntegrationTestHelper.AssertSuccess(result, "emit command failed");
         Assert.True(File.Exists(Path.Combine(_outputDir, "CSAmpResistive.sp")));
-        Assert.False(File.Exists(Path.Combine(_outputDir, "CSAmpResistive_lp.sp")));
+        Assert.False(File.Exists(Path.Combine(_outputDir, "CSAmpResistive_transfer_bench.sp")));
         Assert.Contains("Emitted 1 design(s) and 0 testbench(es)", result.Stdout);
     }
 

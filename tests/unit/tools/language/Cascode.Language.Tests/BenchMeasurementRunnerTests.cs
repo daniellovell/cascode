@@ -148,6 +148,65 @@ bench PowerBench {{
     }
 
     [Fact]
+    public void RunMetrics_VoltageDc_ReturnsScalarVoltageFromOperatingPoint()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench DcVoltageBench {{
+  resp OUT : analog
+
+  analysis {{
+    DCAnalysis dc = new DCAnalysis()
+  }}
+
+  measurements {{
+    measurement OutputDCBias : V {{
+      return voltage(dc, OUT)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "DcVoltageBench");
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["dc"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "dc",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 0,
+                    Op: new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        ["OUT"] = 0.72,
+                    }
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "OutputDCBias" });
+        Assert.Equal(0.72, values["OutputDCBias"].Value, precision: 12);
+        Assert.Equal("V", values["OutputDCBias"].Unit);
+    }
+
+    [Fact]
     public void RunAll_AllowsZeroArgMeasurementCalls()
     {
         var cascode =

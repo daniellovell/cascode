@@ -24,10 +24,10 @@ circuit CommonSourceAmp_MultiBench implements SingleEndedAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 1kHz
-      c_gain = ACBench::PassbandGain at net::OUT >= 0dB
-      c_out_bias = DCBench::OutputDCBias at net::OUT >= 0V
-      c_power = DCBench::QuiescentPower <= 1W
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 1kHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 0dB
+      c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0V
+      c_power = vdd_pwr::QuiescentPower <= 1W
     }
   }
   harness {
