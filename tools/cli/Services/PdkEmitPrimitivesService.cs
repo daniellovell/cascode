@@ -487,10 +487,16 @@ internal static class PdkEmitPrimitivesService
                 File.Move(tempPath, fullPath, overwrite: true);
                 return;
             }
-            catch (IOException ex) when (IsSharingViolation(ex) && attempt < maxAttempts)
+            catch (IOException ex)
             {
                 TryDeleteFile(tempPath);
-                Thread.Sleep(Math.Min(25 * attempt, 250));
+                if (IsSharingViolation(ex) && attempt < maxAttempts)
+                {
+                    Thread.Sleep(Math.Min(25 * attempt, 250));
+                    continue;
+                }
+
+                throw;
             }
             catch
             {
@@ -520,10 +526,7 @@ internal static class PdkEmitPrimitivesService
     {
         try
         {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            File.Delete(path);
         }
         catch { }
     }
