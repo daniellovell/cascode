@@ -466,6 +466,9 @@ internal static class PdkEmitPrimitivesService
         );
     }
 
+    /// <summary>
+    /// Writes text to <paramref name="path" /> using a temp-file swap and retries on sharing violations.
+    /// </summary>
     private static void WriteAllTextAtomicWithRetry(string path, string content)
     {
         const int maxAttempts = 40;
@@ -501,12 +504,18 @@ internal static class PdkEmitPrimitivesService
         );
     }
 
+    /// <summary>
+    /// Returns true when the IOException maps to Windows sharing/lock violations.
+    /// </summary>
     private static bool IsSharingViolation(IOException ex)
     {
         var code = ex.HResult & 0xFFFF;
         return code is 32 or 33;
     }
 
+    /// <summary>
+    /// Best-effort cleanup for temporary files created during atomic writes.
+    /// </summary>
     private static void TryDeleteFile(string path)
     {
         try

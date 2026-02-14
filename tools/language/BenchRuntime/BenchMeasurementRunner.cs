@@ -27,6 +27,20 @@ public sealed class BenchMeasurementRunner
     );
     private readonly HashSet<string> _measurementStack = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Captures analysis datasets available while evaluating bench measurements.
+    /// </summary>
+    /// <param name="Name">Analysis name as referenced by measurement expressions.</param>
+    /// <param name="StartHz">Frequency-domain start value (Hz).</param>
+    /// <param name="StopHz">Frequency-domain stop value (Hz).</param>
+    /// <param name="StartS">Time-domain start value (s).</param>
+    /// <param name="StopS">Time-domain stop value (s).</param>
+    /// <param name="Ac">AC analysis dataset when available.</param>
+    /// <param name="Noise">Noise analysis dataset when available.</param>
+    /// <param name="Tran">Transient analysis dataset when available.</param>
+    /// <param name="TranCurrents">Transient current dataset when available.</param>
+    /// <param name="AcCurrents">AC current dataset when available.</param>
+    /// <param name="Op">DC operating-point node voltages keyed by node name.</param>
     public sealed record AnalysisContext(
         string Name,
         double StartHz,
@@ -1670,6 +1684,9 @@ public sealed class BenchMeasurementRunner
         return tran.NodeVoltages[t.LeafNodes[0]][index] - tran.NodeVoltages[t.LeafNodes[1]][index];
     }
 
+    /// <summary>
+    /// Resolves a terminal voltage from DC operating-point node voltages.
+    /// </summary>
     private static double TerminalVoltage(
         IReadOnlyDictionary<string, double> op,
         BenchTerminalRef t
