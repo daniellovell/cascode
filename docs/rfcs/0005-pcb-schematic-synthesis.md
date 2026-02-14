@@ -57,7 +57,7 @@ The table below summarizes how existing IC Cascode concepts translate to PCB des
 | `primitive nfet(size s) implements NMOS` | `part OPA2376 implements DualOpAmp` | Both use `implements` to satisfy an interface contract |
 | `lib/ic/` interfaces (`NMOS`, `Resistor`, ...) | `lib/pcb/` interfaces (`NMOS`, `DualOpAmp`, `ADC`, ...) | Domain-specific interface libraries; shared interfaces (`SingleEndedOpAmp`, bus bundles) live in `lib/std/` |
 | PDK (`pdk scan`) | Parts library + external pricing/availability sources | Source of available components and their operating/procurement attributes |
-| `size(W=2u, L=180n, M=1)` | `real` scalar params for passives; no value params for fixed-identity ICs | `size` remains reserved for transistor geometry on primitives |
+| `size(W=2u, L=180n, M=1)` | E-series params for passives (`e96 R`, `e12 C`); no value params for fixed-identity ICs | `size` remains reserved for transistor geometry on primitives |
 | `device "sky130_fd_pr__nfet_01v8"` | `catalog { mpn = "OPA2376AIDDBVR" ... }` | `device` directive for primitives; `catalog` block for parts; parts may use variant blocks and `extends` for families |
 | `bench` with SPICE analysis | Bench-derived metrics plus datasheet-valued metrics | `bench` for simulation-verified, `spec` for declaration-verified; provenance explicit in syntax |
 | `bundle Diff { P, N }` | `bundle I2C { SDA, SCL }` | Bus bundles shared in `lib/std/bus/`; domain-agnostic |
@@ -293,9 +293,11 @@ A part must have either `extends`, `implements`, or both. Parts with `extends` i
 
 Three mechanisms address three concerns:
 
-1. Constructor parameters (`real R`, `real C`): continuous electrical values. Passed in parentheses at instantiation.
+1. Constructor parameters (`e96 R`, `e12 C`): discrete passive component values constrained to a preferred number series. Continuous parameters (`real`) remain available for non-discrete values. Passed in parentheses at instantiation.
 2. Variant blocks (`variant body { ... }`): discrete configuration options (package, tolerance grade, flash size). Selected in square brackets at instantiation.
 3. Part inheritance (`extends`): shared electrical identity (ports, base metrics, SPICE model, interface conformance). Declared at the part level.
+
+Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`). The series constrains the parameter to values in the named IEC 60063 preferred number set. Continuous `real` parameters remain valid for non-discrete values. `size` remains reserved for primitive geometry.
 
 The body contains:
 
@@ -378,7 +380,7 @@ The effective catalog/metrics for a selected configuration is computed by mergin
 Multi-axis parts declare multiple independent variant blocks. The following passive family has body size and tolerance grade as separate axes:
 
 ```cascode
-part YageoRC(real R) implements Resistor {
+part YageoRC(e96 R) implements Resistor {
   variant body {
     _0402 {
       footprint = "0402"
@@ -412,7 +414,32 @@ part YageoRC(real R) implements Resistor {
 }
 ```
 
-### 5.3 Part Inheritance
+### 5.3 E-Series Parameter Types
+
+Passive component values (resistance, capacitance, inductance) are not continuous — they come from discrete preferred number series defined by IEC 60063. E-series types make this constraint explicit in the parameter type system, catching invalid values at compile time rather than deferring to the parts resolver.
+
+Six E-series types are supported:
+
+| Type | Values per decade | Typical tolerance | Example values (one decade) |
+|------|------------------|-------------------|-----------------------------|
+| `e6` | 6 | 20% | 1.0, 1.5, 2.2, 3.3, 4.7, 6.8 |
+| `e12` | 12 | 10% | adds 1.2, 1.8, 2.7, 3.9, 5.6, 8.2 |
+| `e24` | 24 | 5% | adds 1.1, 1.3, 1.6, 2.0, 2.4, 3.0, 3.6, 4.3, 5.1, 6.2, 7.5, 9.1 |
+| `e48` | 48 | 2% | finer subdivision |
+| `e96` | 96 | 1% | finer subdivision |
+| `e192` | 192 | 0.5% / 0.25% / 0.1% | finest standard subdivision |
+
+The types form a subtype hierarchy: e6 ⊂ e12 ⊂ e24 ⊂ e48 ⊂ e96 ⊂ e192. Every value in a coarser series is also a member of every finer series. A 10kΩ value is E6 and therefore valid as E12, E24, E96, or any finer series.
+
+A value of type `eN` must be a member of the E-N series at some decade. The validator rejects non-member values as compile-time errors. For instance, declaring `e12 C` and passing `C=15n` is valid (15 is an E12 value), while passing `C=13n` would be rejected (13 is not in E12).
+
+By convention, the type on a part's constructor parameter reflects the finest series the part family supports. A resistor family available in 1% tolerance uses `e96 R`; an MLCC family with standard E12 values uses `e12 C`. Coarser-series values are always valid when passed to a finer-series parameter — passing an E24 value to an `e96` parameter is accepted, since e24 ⊂ e96.
+
+E-series types apply uniformly to resistance, capacitance, and inductance. The series defines preferred numbers, not component type; the same `e24` type constrains 10kΩ resistors and 100nF capacitors alike. The `real` type remains valid for circuit-level parameters that are not discrete component values (e.g., `real load_cap=10pF` on a circuit, which is an environmental parameter, not an orderable value).
+
+Tolerance-grade variants may further narrow the available series at resolution time. A part declared with `e96 R` supports values up to E96, but a tolerance-grade variant selecting 5% tolerance only manufactures E24 values. This series-tolerance interaction is a resolver concern: the language-level type catches the broadest class of errors (non-standard values), while the parts resolver validates that the specific value exists at the selected tolerance grade.
+
+### 5.4 Part Inheritance
 
 Parts support `extends` for sharing electrical identity. The `abstract` keyword marks a base part that cannot be directly instantiated. Concrete parts inherit ports, metrics, catalog fields, and interface conformance from their base.
 
@@ -467,7 +494,7 @@ Inheritance rules:
 
 The designer chooses the boundary between inheritance and variants based on what the synthesizer should search. Variant axes are synthesis degrees of freedom: a single `YageoRC` with `variant body { _0402, _0603 }` lets the synthesizer explore both body sizes within one candidate. Separate declarations via `extends` are independent synthesis candidates: `YageoRC0402` and `YageoRC0603` appear independently — the synthesizer does not know they share a base. Both patterns produce the same BOM output (fully resolved MPNs). The difference is in search space structure.
 
-### 5.4 MPN Template Strings
+### 5.5 MPN Template Strings
 
 The `mpn` field (and `sku` fields in option entries) can contain `{...}` interpolation references. The language parser treats these as opaque string literals. The parts resolver at tooling level interprets them:
 
@@ -495,7 +522,7 @@ Instance: rDiv1 = new YageoRC[body=_0402, grade=F](R=100k)
 BOM line: RC0402FR-07100KL | 0402 | 1 | 100kΩ 1% | 311-100KLRCT-ND
 ```
 
-### 5.5 Examples
+### 5.6 Examples
 
 A dual op-amp with single-axis variant (two package options sharing all other attributes):
 
@@ -650,7 +677,7 @@ part USB_C_Receptacle implements USBConnector {
 }
 ```
 
-### 5.6 Instantiation
+### 5.7 Instantiation
 
 Parts are instantiated using a three-delimiter syntax that distinguishes variant selection from constructor parameters from connectivity:
 
@@ -696,7 +723,7 @@ fill {
 }
 ```
 
-### 5.7 Relationship to `primitive`
+### 5.8 Relationship to `primitive`
 
 `primitive` and `part` are siblings, not parent-child. Both use `implements` to satisfy interface contracts. The difference is in backing:
 
@@ -705,7 +732,7 @@ fill {
 
 The `extends`/`abstract` mechanism and variant blocks apply to parts only. Primitives continue to use `implements` without inheritance — PDK devices do not form part families in the same way as sourced components. A Cascode project may contain both primitives and parts when modeling mixed IC + PCB systems.
 
-### 5.8 Resolution Policy
+### 5.9 Resolution Policy
 
 All instantiation targets resolve semantically against declarations in scope (`circuit`, `interface`, `part`, `primitive`). There are no reserved keyword categories. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
 
@@ -832,7 +859,7 @@ The PCB domain extends the unit system with the following units:
 - `LSB` — least significant bit (e.g., `0.5 LSB`)
 - `B` — bytes, with standard SI prefixes (e.g., `64kB`, `8kB`)
 
-These will be formally added to the unit tables in spec chapters Ch02 and Ch03 as part of implementation. Existing units (`Hz`, `V`, `A`, `F`, `Ohm`, `dB`, `W`, `Vrms`, `V/us`, etc.) continue to apply to PCB-domain metrics.
+These will be formally added to the unit tables in spec chapters Ch02 and Ch03 as part of implementation. Existing units (`Hz`, `V`, `A`, `F`, `Ohm`, `dB`, `W`, `Vrms`, `V/us`, etc.) continue to apply to PCB-domain metrics. E-series parameter types (`e6` through `e192`) are part of the parameter type system defined in Section 5.3, not the unit system.
 
 ---
 
@@ -1060,7 +1087,7 @@ Each entry in the `bom` array represents an aggregated line item: instances shar
 
 ### 9.5 Passive Resolution
 
-Parameterized passives represent families rather than concrete components. A declaration like `part YageoRC(real R) implements Resistor` defines a family; concrete resolution to a sourceable MPN occurs during synthesis or explicit fill-block instantiation. The resolution considers value, variant selections (body size, tolerance grade), and available catalog options. Variant selections are discrete decision variables alongside the continuous value parameter in the synthesis search space.
+Parameterized passives represent families rather than concrete components. A declaration like `part YageoRC(e96 R) implements Resistor` defines a family whose value domain is constrained to the declared E-series (Section 5.3). Concrete resolution to a sourceable MPN occurs during synthesis or explicit fill-block instantiation. The E-series type ensures that only standard preferred values enter the resolution pipeline. The resolution then considers the validated value, variant selections (body size, tolerance grade), and available catalog options. Variant selections are discrete decision variables alongside the E-series-constrained value parameter in the synthesis search space.
 
 ---
 
@@ -1076,7 +1103,7 @@ IC selection:
 Passive network design:
 
 - Choose topology.
-- Size and snap values to preferred standard series.
+- Size values within the declared E-series parameter type.
 
 Mixed-block synthesis:
 
@@ -1119,6 +1146,12 @@ BENCHES_KW  : 'benches' ;   // bench binding block on interfaces/circuits
 VARIANT_KW  : 'variant' ;
 ABSTRACT_KW : 'abstract' ;
 EXTENDS_KW  : 'extends' ;
+E6_KW       : 'e6' ;
+E12_KW      : 'e12' ;
+E24_KW      : 'e24' ;
+E48_KW      : 'e48' ;
+E96_KW      : 'e96' ;
+E192_KW     : 'e192' ;
 ```
 
 Removed tokens:
@@ -1193,7 +1226,22 @@ mechanicalField
     ;
 ```
 
-A part must have either `extends`, `implements`, or both. Abstract parts must have `implements` (they define the contract). Passive `part` declarations use scalar parameters (`real R`, `real C`, `real L`). `size` remains reserved for primitive geometry.
+A part must have either `extends`, `implements`, or both. Abstract parts must have `implements` (they define the contract). Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`) to constrain values to a preferred number series. `size` remains reserved for primitive geometry.
+
+The `paramType` rule in parameter lists accepts E-series types alongside the existing scalar types:
+
+```antlr
+paramType
+    : REAL_KW
+    | INT_KW
+    | BOOL_KW
+    | eSeriesType
+    ;
+
+eSeriesType
+    : E6_KW | E12_KW | E24_KW | E48_KW | E96_KW | E192_KW
+    ;
+```
 
 ### 11.5 Variant Block
 
@@ -1485,11 +1533,11 @@ The specification already covers HL composition slots (2.5.5), the `Some` keywor
 
 Ch01: add a brief note in Section 1.5 (Cascode in a Few Examples) that PCB design is covered in Ch05, or include a minimal PCB example. In Section 1.6 (Toolchain Pipeline), note that the pipeline extends to PCB schematic capture and constraint-driven part selection.
 
-Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
+Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.5.3 for E-series parameter types (`e6` through `e192`) in the parameter type system, covering the subtype hierarchy and compile-time validation. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
 
 Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `numeric {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `tech {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
 
-Ch03 new syntax: update Section 3.1 to include `partDef`. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics`), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
+Ch03 new syntax: update Section 3.1 to include `partDef`. Add `eSeriesType` grammar rule in the parameter declarations section. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics`), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
 
 Ch03 renames: rewrite Section 3.8 primitive header to `implements`. Merge Section 3.9 (Device Declarations) into instance declarations (3.10.2). Update Section 3.11 (Constraints) for `bench`/`spec`/`physical` renames, dot-operator constraint references, `LIBRARY_KW` rename, and `GRAPH_KW` removal.
 
@@ -1506,6 +1554,7 @@ Implementation is split into phases. Phase 1 covers grammar and AST changes in t
 Phase 1a: Additive grammar and AST
 
 - Add `part`, `catalog`, `metrics`, `Some` grammar support.
+- Add `eSeriesType` tokens (`E6_KW` through `E192_KW`) and `eSeriesType` grammar rule; extend `paramType` to accept E-series types.
 - Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
 - Add `variant`, `abstract`, `extends` grammar support: `VARIANT_KW`, `ABSTRACT_KW`, `EXTENDS_KW` tokens; `variantBlock`, `variantOption`, `variantOptionMember` rules (including `excludeDirective`); modified `partDef` with optional `ABSTRACT_KW`, optional `EXTENDS_KW` clause.
 - Add bracket variant selection syntax on `instanceDecl` and `slotInstanceDecl`: `variantArgList`, `variantArg` rules with `LBRACKET`/`RBRACKET` delimiters.
@@ -1573,6 +1622,7 @@ Phase 3: Resolution and validation
 - Add interface metric contract validation (including variant-dependent metrics must cover all options).
 - Add alias-only forwarding resolution and cycle detection.
 - Validate `Some` only appears in slot blocks (grammar-enforced).
+- Add E-series value validation: check that a literal value passed to an E-series parameter is a member of the declared series at some decade.
 
 Phase 4: Constraint and runtime evaluation
 

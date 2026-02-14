@@ -114,7 +114,7 @@ part ADS1115 implements ADCSubsystem {
 }
 
 // Part inheritance: abstract base for STM32G0 family.
-part abstract STM32G0 implements ControllerSubsystem {
+part abstract STM32G0 implements IMicrocontroller {
   supply VDD
   supply VDDA
   ground VSS
@@ -156,7 +156,7 @@ part STM32G031K extends STM32G0 {
 
 // Multi-axis passive family: body size and tolerance grade as independent variant
 // axes. MPN is a template resolved from axis fields and constructor parameters.
-part YageoRC(real R) implements Resistor {
+part YageoRC(e96 R) implements Resistor {
   variant body {
     _0402 {
       footprint = "0402"
@@ -189,7 +189,7 @@ part YageoRC(real R) implements Resistor {
   params { R = R }
 }
 
-part CL05B(real C) implements Capacitor {
+part CL05B(e12 C) implements Capacitor {
   catalog {
     mpn = "CL05B"
     footprint = "0402"
@@ -261,7 +261,7 @@ interface ADCSubsystem {
   }
 }
 
-interface ControllerSubsystem {
+interface IMicrocontroller {
   supply VDD
   ground GND
   io PERIPH : I2C
@@ -308,7 +308,7 @@ circuit SensorFrontendPCB {
       .SIGNAL_OUT--conditioned
     }
 
-    ControllerSubsystem mcu = new Controller() {
+    IMicrocontroller mcu = new Controller() {
       .VDD--VDD_3V3
       .GND--GND
       .PERIPH--i2c_bus
@@ -513,7 +513,7 @@ circuit ADCStage implements ADCSubsystem {
 // EL Implementation: MCU Wrapper (alias-only metric forwarding)
 // ============================================================================
 
-circuit Controller implements ControllerSubsystem {
+circuit Controller implements IMicrocontroller {
   level EL
   supply VDD
   ground GND
@@ -526,7 +526,7 @@ circuit Controller implements ControllerSubsystem {
     net nrst : digital
 
     // Inheritance + multi-axis variant: all axes selected in fill block.
-    ControllerSubsystem uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
+    IMicrocontroller uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
       .PA[0]--IRQ
       .PA[2]--DEBUG.TX
       .PA[3]--DEBUG.RX
