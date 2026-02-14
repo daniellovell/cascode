@@ -2,7 +2,10 @@ VERSION 3.1
 
 // Sensor Frontend PCB example for RFC-0005.
 // Demonstrates:
-// - part declarations with implements and catalog blocks
+// - part declarations with variant blocks and implements
+// - part inheritance with abstract base and extends
+// - variant-aware instantiation with bracket syntax [axis=option]
+// - MPN template strings with {axis}, {axis.field}, and {param} references
 // - interface metric contracts (declaration-only)
 // - metric providers from benches and parts
 // - alias-only metric forwarding in wrappers
@@ -35,15 +38,24 @@ bundle SWD {
 // Parts (normally sourced from lib.parts.* namespaces)
 // ============================================================================
 
+// Single-axis variant: one IC in two packages.
 part OPA2376 implements DualOpAmp {
-  catalog {
-    mpn = "OPA2376AIDDBVR"
-    package = "VSSOP-8"
-    spice = "OPA2376"
-
-    option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
-    option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
+  variant form {
+    VSSOP8 {
+      mpn = "OPA2376AIDDBVR"
+      footprint = "VSSOP-8"
+      option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
+    }
+    SOIC8 {
+      mpn = "OPA2376AIDGKR"
+      footprint = "SOIC-8"
+      option { provider = "DigiKey" sku = "296-28004-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDGKR" priority = 20 }
+    }
   }
+
+  catalog { spice = "OPA2376" }
 
   input A_INP : analog
   input A_INN : analog
@@ -67,10 +79,11 @@ part OPA2376 implements DualOpAmp {
   }
 }
 
+// No-variant part: ADC with no package alternatives modeled.
 part ADS1115 implements ADCSubsystem {
   catalog {
     mpn = "ADS1115IDGSR"
-    package = "MSOP-10"
+    footprint = "MSOP-10"
 
     option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
     option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
@@ -100,17 +113,8 @@ part ADS1115 implements ADCSubsystem {
   }
 }
 
-part STM32G031K8 implements ControllerSubsystem {
-  catalog {
-    mpn = "STM32G031K8T6"
-    package = "LQFP-32"
-
-    option { provider = "DigiKey" sku = "497-19521-ND" priority = 10 }
-    option { provider = "Mouser" sku = "511-STM32G031K8T6" priority = 20 }
-  }
-
-  io PA[0:15] : digital
-  io PB[0:9] : digital
+// Part inheritance: abstract base for STM32G0 family.
+part abstract STM32G0 implements ControllerSubsystem {
   supply VDD
   supply VDDA
   ground VSS
@@ -118,40 +122,77 @@ part STM32G031K8 implements ControllerSubsystem {
   input BOOT0 : digital
 
   metrics {
-    CoreClock = 64MHz
-    FlashSize = 64kB
-    RAMSize = 8kB
     SupplyVoltageMin = 1.7V
     SupplyVoltageMax = 3.6V
+  }
+}
+
+// Concrete sub-part: inherits ports and metrics from STM32G0, adds flash/package
+// variant axes and device-specific ports and metrics.
+part STM32G031K extends STM32G0 {
+  variant flash {
+    _8 { code = "8"  metrics { FlashSize = 64kB  RAMSize = 8kB } }
+    B  { code = "B"  metrics { FlashSize = 128kB  RAMSize = 16kB } }
+  }
+  variant pkg {
+    LQFP32   { footprint = "LQFP-32"  suffix = "T6" }
+    UFQFPN32 { footprint = "UFQFPN-32"  suffix = "U6" }
+  }
+
+  catalog {
+    mpn = "STM32G031K{flash.code}{pkg.suffix}"
+    option { provider = "DigiKey" sku = "497-STM32G031K{flash.code}{pkg.suffix}-ND" priority = 10 }
+    option { provider = "Mouser" sku = "511-STM32G031K{flash.code}{pkg.suffix}" priority = 20 }
+  }
+
+  io PA[0:15] : digital
+  io PB[0:9] : digital
+
+  metrics {
+    CoreClock = 64MHz
     SupplyCurrentMax = 10mA
   }
 }
 
-part RC0402FR(real R) implements Resistor {
-  catalog {
-    mpn = "RC0402FR-07"
-    package = "0402"
+// Multi-axis passive family: body size and tolerance grade as independent variant
+// axes. MPN is a template resolved from axis fields and constructor parameters.
+part YageoRC(real R) implements Resistor {
+  variant body {
+    _0402 {
+      footprint = "0402"
+      metrics { PowerRating = 63mW  VoltageRating = 50V }
+      option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
+    }
+    _0603 {
+      footprint = "0603"
+      metrics { PowerRating = 100mW  VoltageRating = 75V }
+      option { provider = "DigiKey" sku = "311-{R}HRCT-ND" priority = 10 }
+    }
+    _0805 {
+      footprint = "0805"
+      metrics { PowerRating = 125mW  VoltageRating = 150V }
+      option { provider = "DigiKey" sku = "311-{R}GRCT-ND" priority = 10 }
+    }
+  }
 
-    option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
-    option { provider = "Mouser" sku = "603-RC0402FR-07{R}L" priority = 20 }
+  variant grade {
+    F { code = "FR-07"  metrics { Tolerance = 1pct } }
+    J { code = "JR-05"  metrics { Tolerance = 5pct } }
+  }
+
+  catalog {
+    mpn = "RC{body.footprint}{grade.code}{R}L"
   }
 
   io P : analog
   io N : analog
-
   params { R = R }
-
-  metrics {
-    Tolerance = 1pct
-    PowerRating = 63mW
-    VoltageRating = 50V
-  }
 }
 
 part CL05B(real C) implements Capacitor {
   catalog {
     mpn = "CL05B"
-    package = "0402"
+    footprint = "0402"
 
     option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
     option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
@@ -321,11 +362,12 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
     net vref : analog
     net fb_a : analog
 
-    Resistor rDiv1 = new RC0402FR(R=100k) {
+    // Multi-axis variant: named selection required in fill blocks.
+    Resistor rDiv1 = new YageoRC[body=_0402, grade=F](R=100k) {
       .P--VDD
       .N--vref
     }
-    Resistor rDiv2 = new RC0402FR(R=100k) {
+    Resistor rDiv2 = new YageoRC[body=_0402, grade=F](R=100k) {
       .P--vref
       .N--GND
     }
@@ -334,7 +376,8 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
       .N--GND
     }
 
-    DualOpAmp u1 = new OPA2376() {
+    // Single-axis variant: positional selection.
+    DualOpAmp u1 = new OPA2376[VSSOP8]() {
       .A_INP--SENSOR_IN.P
       .A_INN--fb_a
       .A_OUT--stage1_out
@@ -347,16 +390,16 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
       .GND--GND
     }
 
-    Resistor rG = new RC0402FR(R=1k) {
+    Resistor rG = new YageoRC[body=_0402, grade=F](R=1k) {
       .P--SENSOR_IN.N
       .N--fb_a
     }
-    Resistor rF = new RC0402FR(R=100k) {
+    Resistor rF = new YageoRC[body=_0402, grade=F](R=100k) {
       .P--stage1_out
       .N--fb_a
     }
 
-    Resistor rAa = new RC0402FR(R=1k) {
+    Resistor rAa = new YageoRC[body=_0402, grade=F](R=1k) {
       .P--stage1_out
       .N--SIGNAL_OUT
     }
@@ -421,6 +464,7 @@ circuit ADCStage implements ADCSubsystem {
   output DRDY : digital
 
   fill {
+    // No-variant part: brackets omitted.
     ADCSubsystem uAdc = new ADS1115() {
       .AIN0--AIN
       .AIN1--GND
@@ -434,11 +478,11 @@ circuit ADCStage implements ADCSubsystem {
       .GND--GND
     }
 
-    Resistor rSda = new RC0402FR(R=4.7k) {
+    Resistor rSda = new YageoRC[body=_0402, grade=F](R=4.7k) {
       .P--VDD
       .N--BUS.SDA
     }
-    Resistor rScl = new RC0402FR(R=4.7k) {
+    Resistor rScl = new YageoRC[body=_0402, grade=F](R=4.7k) {
       .P--VDD
       .N--BUS.SCL
     }
@@ -481,7 +525,8 @@ circuit Controller implements ControllerSubsystem {
   fill {
     net nrst : digital
 
-    ControllerSubsystem uMcu = new STM32G031K8() {
+    // Inheritance + multi-axis variant: all axes selected in fill block.
+    ControllerSubsystem uMcu = new STM32G031K[flash=_8, pkg=LQFP32]() {
       .PA[0]--IRQ
       .PA[2]--DEBUG.TX
       .PA[3]--DEBUG.RX
@@ -496,7 +541,7 @@ circuit Controller implements ControllerSubsystem {
       .BOOT0--GND
     }
 
-    Resistor rRst = new RC0402FR(R=10k) {
+    Resistor rRst = new YageoRC[body=_0402, grade=F](R=10k) {
       .P--VDD
       .N--nrst
     }
