@@ -1586,22 +1586,13 @@ public class BenchRunService
                     >(StringComparer.OrdinalIgnoreCase);
                     foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.DCAnalysis))
                     {
-                        var f = new[] { 0.0 };
-                        var nodes = new Dictionary<string, System.Numerics.Complex[]>(
-                            StringComparer.OrdinalIgnoreCase
-                        );
-                        foreach (var (key, v) in pointNodeVoltages)
-                        {
-                            nodes[key] = new[] { new System.Numerics.Complex(v, 0) };
-                        }
-
                         pointAnalyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
                             a.Name,
                             StartHz: 0,
                             StopHz: 0,
                             StartS: 0,
                             StopS: 0,
-                            Ac: new AcDataset(f, nodes)
+                            Op: pointNodeVoltages
                         );
                     }
 
@@ -1752,22 +1743,13 @@ public class BenchRunService
                         );
                     }
 
-                    var f = new[] { 0.0 };
-                    var nodes = new Dictionary<string, System.Numerics.Complex[]>(
-                        StringComparer.OrdinalIgnoreCase
-                    );
-                    foreach (var (key, v) in opNodeVoltagesByKey)
-                    {
-                        nodes[key] = new[] { new System.Numerics.Complex(v, 0) };
-                    }
-
                     analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
                         a.Name,
                         StartHz: 0,
                         StopHz: 0,
                         StartS: 0,
                         StopS: 0,
-                        Ac: new AcDataset(f, nodes)
+                        Op: opNodeVoltagesByKey
                     );
                     continue;
                 }

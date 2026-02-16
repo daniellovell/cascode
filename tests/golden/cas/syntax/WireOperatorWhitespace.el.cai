@@ -75,7 +75,7 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp {
   }
   constraints {
     numeric {
-      c_gain = ACBench::PassbandGain >= 20dB
+      c_gain = transfer_bench::PassbandGain >= 20dB
     }
   }
   harness {

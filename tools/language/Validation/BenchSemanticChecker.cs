@@ -925,7 +925,7 @@ public static class BenchSemanticChecker
                     return a.Kind switch
                     {
                         MeasurementTypeKind.ACAnalysis => MeasurementType.VoltageSpectrum(),
-                        MeasurementTypeKind.DCAnalysis => MeasurementType.VoltageSpectrum(),
+                        MeasurementTypeKind.DCAnalysis => MeasurementType.Voltage(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.VoltageWaveform(),
                         _ => MeasurementType.Scalar(),
                     };

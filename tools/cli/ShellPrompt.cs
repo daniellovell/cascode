@@ -35,6 +35,11 @@ internal static class ShellPrompt
                     return null;
                 }
 
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0 && key.Key == ConsoleKey.D)
+                {
+                    return null;
+                }
+
                 if (
                     (key.Modifiers & ConsoleModifiers.Control) != 0
                     && key.Key == ConsoleKey.LeftArrow

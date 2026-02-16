@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Cascode.Workspace;
 
 namespace Cascode.Cli.Services;
@@ -447,22 +448,93 @@ internal static class PdkEmitPrimitivesService
         IReadOnlyDictionary<PrimitiveCategory, StringBuilder> builders
     )
     {
-        File.WriteAllText(
+        WriteAllTextAtomicWithRetry(
             Path.Combine(outputDirectory, PdkPrimitiveLibraryLayout.DevicesFileName),
             builders[PrimitiveCategory.Devices].ToString()
         );
-        File.WriteAllText(
+        WriteAllTextAtomicWithRetry(
             Path.Combine(outputDirectory, PdkPrimitiveLibraryLayout.ResistorsFileName),
             builders[PrimitiveCategory.Resistors].ToString()
         );
-        File.WriteAllText(
+        WriteAllTextAtomicWithRetry(
             Path.Combine(outputDirectory, PdkPrimitiveLibraryLayout.CapacitorsFileName),
             builders[PrimitiveCategory.Capacitors].ToString()
         );
-        File.WriteAllText(
+        WriteAllTextAtomicWithRetry(
             Path.Combine(outputDirectory, PdkPrimitiveLibraryLayout.DiodesFileName),
             builders[PrimitiveCategory.Diodes].ToString()
         );
+    }
+
+    /// <summary>
+    /// Writes text to <paramref name="path" /> using a temp-file swap and retries on sharing violations.
+    /// </summary>
+    private static void WriteAllTextAtomicWithRetry(string path, string content)
+    {
+        const int maxAttempts = 40;
+        var fullPath = Path.GetFullPath(path);
+        var directory = Path.GetDirectoryName(fullPath) ?? ".";
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var tempPath = Path.Combine(
+                directory,
+                $".{Path.GetFileName(fullPath)}.{Environment.ProcessId}.{Guid.NewGuid():N}.tmp"
+            );
+            try
+            {
+                File.WriteAllText(tempPath, content);
+                File.Move(tempPath, fullPath, overwrite: true);
+                return;
+            }
+            catch (IOException ex)
+            {
+                TryDeleteFile(tempPath);
+                if (IsSharingViolation(ex) && attempt < maxAttempts)
+                {
+                    Thread.Sleep(Math.Min(25 * attempt, 250));
+                    continue;
+                }
+
+                throw;
+            }
+            catch (UnauthorizedAccessException)
+                when (OperatingSystem.IsWindows() && attempt < maxAttempts)
+            {
+                TryDeleteFile(tempPath);
+                Thread.Sleep(Math.Min(25 * attempt, 250));
+            }
+            catch
+            {
+                TryDeleteFile(tempPath);
+                throw;
+            }
+        }
+
+        throw new IOException(
+            $"Failed to write '{fullPath}' after multiple retries due to file locking."
+        );
+    }
+
+    /// <summary>
+    /// Returns true when the IOException maps to Windows sharing/lock violations.
+    /// </summary>
+    private static bool IsSharingViolation(IOException ex)
+    {
+        var code = ex.HResult & 0xFFFF;
+        return code is 32 or 33;
+    }
+
+    /// <summary>
+    /// Best-effort cleanup for temporary files created during atomic writes.
+    /// </summary>
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch { }
     }
 
     private static void AppendPrimitive(

@@ -127,8 +127,8 @@ public class CascodeJsonConverterRoundTripTests
         var roundTripped = result.Document!;
 
         Assert.Equal(2, roundTripped.BenchDefinitions.Count);
-        Assert.Equal("DCBench", roundTripped.BenchDefinitions[0].Name);
-        Assert.Equal("ACBench", roundTripped.BenchDefinitions[1].Name);
+        Assert.Equal("vdd_pwr", roundTripped.BenchDefinitions[0].Name);
+        Assert.Equal("transfer_bench", roundTripped.BenchDefinitions[1].Name);
     }
 
     [Fact]
@@ -141,8 +141,8 @@ public class CascodeJsonConverterRoundTripTests
 
         var benches = parsed.RootElement.GetProperty("benchDefinitions");
         Assert.Equal(2, benches.GetArrayLength());
-        Assert.Equal("DCBench", benches[0].GetProperty("name").GetString());
-        Assert.Equal("ACBench", benches[1].GetProperty("name").GetString());
+        Assert.Equal("vdd_pwr", benches[0].GetProperty("name").GetString());
+        Assert.Equal("transfer_bench", benches[1].GetProperty("name").GetString());
     }
 
     [Fact]
@@ -252,7 +252,7 @@ public class CascodeJsonConverterRoundTripTests
                             new NumericConstraint
                             {
                                 Id = "c_gbw",
-                                Bench = "ACBench",
+                                Bench = "transfer_bench",
                                 Metric = "GainBandwidth",
                                 Node = new NodeRef { Scope = "net", Path = "OUT" },
                                 Op = ">=",
@@ -276,7 +276,7 @@ public class CascodeJsonConverterRoundTripTests
             [
                 new BenchDefinition
                 {
-                    Name = "DCBench",
+                    Name = "vdd_pwr",
                     Terminals =
                     [
                         new BenchTerminal(BenchTerminalRole.Stim, "IN", "analog"),
@@ -308,7 +308,7 @@ public class CascodeJsonConverterRoundTripTests
                 },
                 new BenchDefinition
                 {
-                    Name = "ACBench",
+                    Name = "transfer_bench",
                     Terminals =
                     [
                         new BenchTerminal(BenchTerminalRole.Stim, "IN", "analog"),
