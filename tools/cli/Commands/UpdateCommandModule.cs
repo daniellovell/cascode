@@ -105,8 +105,8 @@ internal sealed class UpdateCommandModule : ICommandModule
             return null;
         }
 
-        var latestTag = release.TagName.TrimStart('v');
-        if (!Version.TryParse(latestTag, out var latestVersion))
+        var latestVersion = ParseVersion(release.TagName.TrimStart('v'));
+        if (latestVersion is null)
         {
             output.Error($"Could not parse release version '{release.TagName}'.");
             return null;
