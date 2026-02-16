@@ -4,9 +4,9 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Cascode.Cli.Output;
 
@@ -14,7 +14,7 @@ namespace Cascode.Cli.Commands;
 
 internal sealed class UpdateCommandModule : ICommandModule
 {
-    private static readonly HttpClient Http = new();
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
     private readonly CliOutputProvider _output;
 
     public UpdateCommandModule(CliOutputProvider output)
@@ -37,7 +37,17 @@ internal sealed class UpdateCommandModule : ICommandModule
     {
         var output = _output.Get();
 
-        var currentVersion = GetCurrentVersion();
+        var rawVersion = GetRawVersion();
+        if (string.Equals(rawVersion, "dev", StringComparison.OrdinalIgnoreCase))
+        {
+            output.Error(
+                "Self-update is not available for dev builds. "
+                    + "Rebuild from source with ./scripts/install-dev-tool.sh to pick up changes."
+            );
+            return CommandResult.Failure;
+        }
+
+        var currentVersion = ParseVersion(rawVersion);
         if (currentVersion is null)
         {
             output.Error("Could not determine current version.");
@@ -57,104 +67,148 @@ internal sealed class UpdateCommandModule : ICommandModule
             "Checking for updates...",
             updateStatus =>
             {
-                var release = FetchLatestRelease();
-                if (release is null)
-                {
-                    output.Error("Failed to fetch latest release from GitHub.");
+                var target = ResolveUpdateTarget(output, currentVersion);
+                if (target is null)
                     return CommandResult.Failure;
-                }
 
-                var latestTag = release.TagName.TrimStart('v');
-                if (!Version.TryParse(latestTag, out var latestVersion))
-                {
-                    output.Error($"Could not parse release version '{release.TagName}'.");
-                    return CommandResult.Failure;
-                }
-
-                if (currentVersion >= latestVersion)
+                if (target.Value.AlreadyCurrent)
                 {
                     output.Success($"Already up to date ({currentVersion}).");
                     return CommandResult.Success;
                 }
 
-                var rid = GetRuntimeIdentifier();
-                if (rid is null)
-                {
-                    output.Error("Unsupported platform. Cannot determine download target.");
-                    return CommandResult.Failure;
-                }
-
-                var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
-                var suffix = isWindows ? ".zip" : ".tar.gz";
-                var assetName = $"cascode-{rid}{suffix}";
-                var asset = release.Assets?.FirstOrDefault(a =>
-                    string.Equals(a.Name, assetName, StringComparison.OrdinalIgnoreCase)
+                return DownloadAndInstall(
+                    output,
+                    updateStatus,
+                    target.Value,
+                    processPath!,
+                    currentVersion
                 );
-
-                if (asset is null)
-                {
-                    output.Error($"No release asset found for '{assetName}'.");
-                    return CommandResult.Failure;
-                }
-
-                updateStatus($"Downloading {assetName}...");
-                var tempDir = Path.Combine(
-                    Path.GetTempPath(),
-                    $"cascode-update-{Guid.NewGuid():N}"
-                );
-                Directory.CreateDirectory(tempDir);
-
-                try
-                {
-                    var archivePath = Path.Combine(tempDir, assetName);
-                    DownloadFile(asset.BrowserDownloadUrl, archivePath);
-
-                    updateStatus("Extracting...");
-                    var extractDir = Path.Combine(tempDir, "extract");
-                    Directory.CreateDirectory(extractDir);
-
-                    if (isWindows)
-                        ZipFile.ExtractToDirectory(archivePath, extractDir);
-                    else
-                        ExtractTarGz(archivePath, extractDir);
-
-                    var binaryName = isWindows ? "cascode.exe" : "cascode";
-                    var newBinary = FindBinary(extractDir, binaryName);
-                    if (newBinary is null)
-                    {
-                        output.Error("Could not find binary in downloaded archive.");
-                        return CommandResult.Failure;
-                    }
-
-                    updateStatus("Installing...");
-                    ReplaceBinary(processPath!, newBinary, isWindows);
-
-                    output.Success($"Updated {currentVersion} → {latestVersion}");
-                    return CommandResult.Success;
-                }
-                finally
-                {
-                    try
-                    {
-                        Directory.Delete(tempDir, true);
-                    }
-                    catch
-                    { /* best effort cleanup */
-                    }
-                }
             }
         );
     }
 
-    private static Version? GetCurrentVersion()
+    private record struct UpdateTarget(
+        GitHubAsset Asset,
+        string AssetName,
+        Version LatestVersion,
+        bool IsWindows,
+        bool AlreadyCurrent
+    );
+
+    private static UpdateTarget? ResolveUpdateTarget(ICliOutput output, Version currentVersion)
+    {
+        var release = FetchLatestRelease();
+        if (release is null)
+        {
+            output.Error("Failed to fetch latest release from GitHub.");
+            return null;
+        }
+
+        var latestTag = release.TagName.TrimStart('v');
+        if (!Version.TryParse(latestTag, out var latestVersion))
+        {
+            output.Error($"Could not parse release version '{release.TagName}'.");
+            return null;
+        }
+
+        if (currentVersion >= latestVersion)
+            return new UpdateTarget(default!, "", latestVersion, false, AlreadyCurrent: true);
+
+        var rid = GetRuntimeIdentifier();
+        if (rid is null)
+        {
+            output.Error("Unsupported platform. Cannot determine download target.");
+            return null;
+        }
+
+        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        var suffix = isWindows ? ".zip" : ".tar.gz";
+        var assetName = $"cascode-{rid}{suffix}";
+        var asset = release.Assets?.FirstOrDefault(a =>
+            string.Equals(a.Name, assetName, StringComparison.OrdinalIgnoreCase)
+        );
+
+        if (asset is null)
+        {
+            output.Error($"No release asset found for '{assetName}'.");
+            return null;
+        }
+
+        return new UpdateTarget(asset, assetName, latestVersion, isWindows, AlreadyCurrent: false);
+    }
+
+    private static CommandResult DownloadAndInstall(
+        ICliOutput output,
+        Action<string> updateStatus,
+        UpdateTarget target,
+        string processPath,
+        Version currentVersion
+    )
+    {
+        updateStatus($"Downloading {target.AssetName}...");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"cascode-update-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+
+        try
+        {
+            var archivePath = Path.Combine(tempDir, target.AssetName);
+            DownloadFile(target.Asset.BrowserDownloadUrl, archivePath);
+
+            updateStatus("Extracting...");
+            var extractDir = Path.Combine(tempDir, "extract");
+            Directory.CreateDirectory(extractDir);
+
+            if (target.IsWindows)
+                ZipFile.ExtractToDirectory(archivePath, extractDir);
+            else
+                ExtractTarGz(archivePath, extractDir);
+
+            var binaryName = target.IsWindows ? "cascode.exe" : "cascode";
+            var newBinary = FindBinary(extractDir, binaryName);
+            if (newBinary is null)
+            {
+                output.Error("Could not find binary in downloaded archive.");
+                return CommandResult.Failure;
+            }
+
+            updateStatus("Installing...");
+            ReplaceBinary(processPath, newBinary, target.IsWindows);
+
+            output.Success($"Updated {currentVersion} → {target.LatestVersion}");
+            return CommandResult.Success;
+        }
+        catch (Exception ex)
+        {
+            output.Error($"Update failed: {ex.Message}");
+            return CommandResult.Failure;
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(tempDir, true);
+            }
+            catch { }
+        }
+    }
+
+    private static string? GetRawVersion()
     {
         var asm = typeof(UpdateCommandModule).Assembly;
         var info =
             asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        var raw = string.IsNullOrWhiteSpace(info)
-            ? asm.GetName().Version?.ToString()
-            : info.Split('+', 2)[0];
-        return raw is not null && Version.TryParse(raw, out var v) ? v : null;
+        if (string.IsNullOrWhiteSpace(info))
+            return asm.GetName().Version?.ToString();
+        return info.Split('+', 2)[0];
+    }
+
+    private static Version? ParseVersion(string? raw)
+    {
+        if (raw is null)
+            return null;
+        var numeric = raw.Split('-', 2)[0];
+        return Version.TryParse(numeric, out var v) ? v : null;
     }
 
     private static string? GetRuntimeIdentifier()
@@ -181,25 +235,26 @@ internal sealed class UpdateCommandModule : ICommandModule
 
     private static GitHubRelease? FetchLatestRelease()
     {
-        var request = new HttpRequestMessage(
+        using var request = new HttpRequestMessage(
             HttpMethod.Get,
             "https://api.github.com/repos/daniellovell/cascode/releases/latest"
         );
         request.Headers.Add("User-Agent", "cascode-cli");
         request.Headers.Add("Accept", "application/vnd.github+json");
 
-        var response = Http.Send(request);
+        using var response = Http.Send(request);
         if (!response.IsSuccessStatusCode)
             return null;
 
-        return response.Content.ReadFromJsonAsync<GitHubRelease>().GetAwaiter().GetResult();
+        using var stream = response.Content.ReadAsStream();
+        return JsonSerializer.Deserialize<GitHubRelease>(stream);
     }
 
     private static void DownloadFile(string url, string destination)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Add("User-Agent", "cascode-cli");
-        var response = Http.Send(request, HttpCompletionOption.ResponseHeadersRead);
+        using var response = Http.Send(request, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
         using var stream = response.Content.ReadAsStream();
         using var file = File.Create(destination);
@@ -230,7 +285,15 @@ internal sealed class UpdateCommandModule : ICommandModule
             if (File.Exists(oldPath))
                 File.Delete(oldPath);
             File.Move(currentPath, oldPath);
-            File.Copy(newBinaryPath, currentPath);
+            try
+            {
+                File.Copy(newBinaryPath, currentPath);
+            }
+            catch
+            {
+                File.Move(oldPath, currentPath);
+                throw;
+            }
         }
         else
         {
