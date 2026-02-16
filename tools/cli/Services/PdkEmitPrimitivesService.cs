@@ -498,6 +498,12 @@ internal static class PdkEmitPrimitivesService
 
                 throw;
             }
+            catch (UnauthorizedAccessException)
+                when (OperatingSystem.IsWindows() && attempt < maxAttempts)
+            {
+                TryDeleteFile(tempPath);
+                Thread.Sleep(Math.Min(25 * attempt, 250));
+            }
             catch
             {
                 TryDeleteFile(tempPath);
