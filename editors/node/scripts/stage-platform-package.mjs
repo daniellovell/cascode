@@ -63,24 +63,41 @@ async function run() {
   await ensureExists(nativeSrcDir, "published native runtime directory");
   await ensureExists(expectedLibPath, "expected runtime shared library");
 
-  await fs.rm(outDir, { recursive: true, force: true });
-  await fs.mkdir(outDir, { recursive: true });
-  await fs.cp(templateDir, outDir, { recursive: true });
+  const resolvedRepoRoot = path.resolve(repoRoot);
+  const resolvedOutDir = path.resolve(outDir);
+  const outDirRoot = path.parse(resolvedOutDir).root;
+  const outDirIsDescendantOfRepoRoot = resolvedOutDir.startsWith(
+    `${resolvedRepoRoot}${path.sep}`
+  );
 
-  const pkgPath = path.join(outDir, "package.json");
+  if (
+    resolvedOutDir === outDirRoot ||
+    resolvedOutDir === resolvedRepoRoot ||
+    !outDirIsDescendantOfRepoRoot
+  ) {
+    throw new Error(
+      `Unsafe delete target in run(): outDir="${resolvedOutDir}" must be a descendant of repoRoot="${resolvedRepoRoot}" and must not be filesystem root or repoRoot.`
+    );
+  }
+
+  await fs.rm(resolvedOutDir, { recursive: true, force: true });
+  await fs.mkdir(resolvedOutDir, { recursive: true });
+  await fs.cp(templateDir, resolvedOutDir, { recursive: true });
+
+  const pkgPath = path.join(resolvedOutDir, "package.json");
   const pkg = JSON.parse(await fs.readFile(pkgPath, "utf8"));
   pkg.version = version;
   await fs.writeFile(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 
-  const prebuildDir = path.join(outDir, "prebuilds");
+  const prebuildDir = path.join(resolvedOutDir, "prebuilds");
   await fs.mkdir(prebuildDir, { recursive: true });
   await fs.copyFile(addonSrc, path.join(prebuildDir, "cascode_native_addon.node"));
 
-  const nativeOutDir = path.join(outDir, "native", rid);
+  const nativeOutDir = path.join(resolvedOutDir, "native", rid);
   await fs.mkdir(path.dirname(nativeOutDir), { recursive: true });
   await copyRuntimeFiles(nativeSrcDir, nativeOutDir);
 
-  console.log(`Staged ${packageName}@${version} at ${outDir}`);
+  console.log(`Staged ${packageName}@${version} at ${resolvedOutDir}`);
 }
 
 await run();

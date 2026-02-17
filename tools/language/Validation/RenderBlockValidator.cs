@@ -7,7 +7,14 @@ namespace Cascode.Language.Validation;
 public sealed class RenderBlockValidationResult
 {
     public required RenderBlock? Render { get; init; }
-    public required IReadOnlyList<string> Messages { get; init; }
+    public required IReadOnlyList<RenderValidationMessage> Messages { get; init; }
+}
+
+public sealed class RenderValidationMessage
+{
+    public required string Text { get; init; }
+    public int? Line { get; init; }
+    public int? Column { get; init; }
 }
 
 /// <summary>
@@ -29,11 +36,11 @@ public static class RenderBlockValidator
             return new RenderBlockValidationResult
             {
                 Render = null,
-                Messages = Array.Empty<string>(),
+                Messages = Array.Empty<RenderValidationMessage>(),
             };
         }
 
-        var messages = new List<string>();
+        var messages = new List<RenderValidationMessage>();
         var devicesByName =
             circuit.Fill?.Devices.ToDictionary(d => d.Id, StringComparer.Ordinal)
             ?? new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
@@ -47,12 +54,24 @@ public static class RenderBlockValidator
             if (kind == RenderEntityKind.Unknown)
             {
                 messages.Add(
-                    $"Stale render entry '{entry.Name}' was removed because the entity no longer exists."
+                    new RenderValidationMessage
+                    {
+                        Text =
+                            $"Stale render entry '{entry.Name}' was removed because the entity no longer exists.",
+                        Line = entry.SourceLine,
+                        Column = entry.SourceColumn,
+                    }
                 );
                 continue;
             }
 
-            var normalized = new RenderEntity { Name = entry.Name, Kind = kind };
+            var normalized = new RenderEntity
+            {
+                Name = entry.Name,
+                Kind = kind,
+                SourceLine = entry.SourceLine,
+                SourceColumn = entry.SourceColumn,
+            };
 
             switch (kind)
             {
@@ -63,7 +82,7 @@ public static class RenderBlockValidator
                         ports,
                         allowRelative: false,
                         messages,
-                        entry.Name
+                        entry
                     );
                     normalized.Orientation = entry.Orientation;
                     normalized.ZIndex = entry.ZIndex;
@@ -76,7 +95,7 @@ public static class RenderBlockValidator
                         ports,
                         allowRelative: false,
                         messages,
-                        entry.Name
+                        entry
                     );
                     normalized.Side = entry.Side;
                     break;
@@ -88,7 +107,7 @@ public static class RenderBlockValidator
                         devicesByName,
                         ports,
                         messages,
-                        entry.Name
+                        entry
                     );
                     normalized.Waypoints.AddRange(points);
                     break;
@@ -172,8 +191,8 @@ public static class RenderBlockValidator
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
         IReadOnlySet<string> ports,
         bool allowRelative,
-        List<string> messages,
-        string entityName
+        List<RenderValidationMessage> messages,
+        RenderEntity entry
     )
     {
         if (place is null)
@@ -184,7 +203,13 @@ public static class RenderBlockValidator
         if (!TryValidatePoint(place.Point, devicesByName, ports, allowRelative))
         {
             messages.Add(
-                $"Render place for '{entityName}' was removed due to an invalid anchor or point expression."
+                new RenderValidationMessage
+                {
+                    Text =
+                        $"Render place for '{entry.Name}' was removed due to an invalid anchor or point expression.",
+                    Line = entry.SourceLine,
+                    Column = entry.SourceColumn,
+                }
             );
             return null;
         }
@@ -196,8 +221,8 @@ public static class RenderBlockValidator
         IReadOnlyList<RenderPointExpression> points,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
         IReadOnlySet<string> ports,
-        List<string> messages,
-        string entityName
+        List<RenderValidationMessage> messages,
+        RenderEntity entry
     )
     {
         if (points.Count == 0)
@@ -211,7 +236,13 @@ public static class RenderBlockValidator
             if (!TryValidatePoint(point, devicesByName, ports, allowRelative: true))
             {
                 messages.Add(
-                    $"A waypoint for net '{entityName}' was removed due to an invalid anchor."
+                    new RenderValidationMessage
+                    {
+                        Text =
+                            $"A waypoint for net '{entry.Name}' was removed due to an invalid anchor.",
+                        Line = entry.SourceLine,
+                        Column = entry.SourceColumn,
+                    }
                 );
                 continue;
             }

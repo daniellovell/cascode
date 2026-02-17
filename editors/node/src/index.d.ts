@@ -16,14 +16,20 @@ export function lastErrorJson(session: number): string | null;
 export function apiVersion(): string;
 export function schemaVersion(): string;
 
-export function open(native: CascodeNative, session: number, req: unknown): unknown;
-export function updateText(native: CascodeNative, session: number, req: unknown): unknown;
-export function close(native: CascodeNative, session: number, req: unknown): unknown;
-export function render(native: CascodeNative, session: number, req: unknown): unknown;
-export function applyOps(native: CascodeNative, session: number, req: unknown): unknown;
-export function erc(native: CascodeNative, session: number, req: unknown): unknown;
-export function emit(native: CascodeNative, session: number, req: unknown): unknown;
-export function verify(native: CascodeNative, session: number, req: unknown): unknown;
-export function jobStart(native: CascodeNative, session: number, req: unknown): unknown;
-export function jobPoll(native: CascodeNative, session: number, req: unknown): unknown;
-export function jobCancel(native: CascodeNative, session: number, req: unknown): unknown;
+export type NativeMethodCall = <Req extends object, Res>(
+  native: CascodeNative,
+  session: number,
+  req: Req
+) => Res;
+
+export const open: NativeMethodCall;
+export const updateText: NativeMethodCall;
+export const close: NativeMethodCall;
+export const render: NativeMethodCall;
+export const applyOps: NativeMethodCall;
+export const erc: NativeMethodCall;
+export const emit: NativeMethodCall;
+export const verify: NativeMethodCall;
+export const jobStart: NativeMethodCall;
+export const jobPoll: NativeMethodCall;
+export const jobCancel: NativeMethodCall;

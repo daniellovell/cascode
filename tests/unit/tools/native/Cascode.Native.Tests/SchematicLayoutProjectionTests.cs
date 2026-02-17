@@ -2,6 +2,7 @@ using Cascode.Language;
 using Cascode.Native;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
+using Cascode.TestSupport;
 
 namespace Cascode.Native.Tests;
 
@@ -10,6 +11,8 @@ public sealed class SchematicLayoutProjectionTests
     [Fact]
     public void BuildLayout_ScopesJunctionsPerNet()
     {
+        using var cascodeHome = CascodeHome.CreateInTemp("schematic-layout-projection");
+
         var circuit = new Circuit
         {
             Name = "Amp",

@@ -7,7 +7,7 @@ internal static class SchematicOperationApplier
 {
     public static void Apply(DocumentState state, JsonElement operation, HashSet<string> changed)
     {
-        var opType = RequireString(operation, "type");
+        var opType = operation.RequireString("type");
         switch (opType)
         {
             case "moveDevice":
@@ -60,9 +60,9 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var deviceId = RequireString(op, "deviceId");
-        var x = RequireInt(op, "x");
-        var y = RequireInt(op, "y");
+        var deviceId = op.RequireString("deviceId");
+        var x = op.RequireInt("x");
+        var y = op.RequireInt("y");
         var circuit = FindCircuit(state);
 
         var entry = UpsertRenderEntity(circuit, deviceId, RenderEntityKind.Device);
@@ -80,8 +80,8 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var deviceId = RequireString(op, "deviceId");
-        var angle = RequireInt(op, "angle");
+        var deviceId = op.RequireString("deviceId");
+        var angle = op.RequireInt("angle");
 
         var entry = UpsertRenderEntity(FindCircuit(state), deviceId, RenderEntityKind.Device);
         entry.Orientation = new RenderOrientation
@@ -98,7 +98,7 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var deviceId = RequireString(op, "deviceId");
+        var deviceId = op.RequireString("deviceId");
         var entry = UpsertRenderEntity(FindCircuit(state), deviceId, RenderEntityKind.Device);
         var current = entry.Orientation;
         entry.Orientation = new RenderOrientation
@@ -111,9 +111,9 @@ internal static class SchematicOperationApplier
 
     private static void ApplyMovePort(DocumentState state, JsonElement op, HashSet<string> changed)
     {
-        var portName = RequireString(op, "port");
-        var x = RequireInt(op, "x");
-        var y = RequireInt(op, "y");
+        var portName = op.RequireString("port");
+        var x = op.RequireInt("x");
+        var y = op.RequireInt("y");
         var circuit = FindCircuit(state);
 
         var entry = UpsertRenderEntity(circuit, portName, RenderEntityKind.Port);
@@ -131,7 +131,7 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var netName = RequireString(op, "net");
+        var netName = op.RequireString("net");
         var circuit = FindCircuit(state);
         var entry = UpsertRenderEntity(circuit, netName, RenderEntityKind.Net);
 
@@ -152,8 +152,8 @@ internal static class SchematicOperationApplier
 
         foreach (var point in waypoints.EnumerateArray())
         {
-            var x = RequireInt(point, "x");
-            var y = RequireInt(point, "y");
+            var x = point.RequireInt("x");
+            var y = point.RequireInt("y");
             entry.Waypoints.Add(CanonicalizePoint(state, circuit, netName, point, x, y));
         }
 
@@ -166,7 +166,7 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var netName = RequireString(op, "net");
+        var netName = op.RequireString("net");
         var entry = UpsertRenderEntity(FindCircuit(state), netName, RenderEntityKind.Net);
         entry.Waypoints.Clear();
         entry.Route = null;
@@ -180,7 +180,7 @@ internal static class SchematicOperationApplier
         RenderConstraintStrength strength
     )
     {
-        var name = RequireString(op, "entity");
+        var name = op.RequireString("entity");
         var entry = UpsertRenderEntity(FindCircuit(state), name, RenderEntityKind.Unknown);
 
         if (entry.Place is not null)
@@ -202,7 +202,7 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var value = RequireString(op, "strength").ToLowerInvariant();
+        var value = op.RequireString("strength").ToLowerInvariant();
         var strength = value switch
         {
             "hard" => RenderConstraintStrength.Hard,
@@ -220,9 +220,9 @@ internal static class SchematicOperationApplier
         HashSet<string> changed
     )
     {
-        var deviceId = RequireString(op, "deviceId");
-        var param = RequireString(op, "param");
-        var value = RequireString(op, "value");
+        var deviceId = op.RequireString("deviceId");
+        var param = op.RequireString("param");
+        var value = op.RequireString("value");
 
         var fill = FindCircuit(state).Fill;
         var index = fill?.Devices.FindIndex(d => d.Id == deviceId) ?? -1;
@@ -256,8 +256,8 @@ internal static class SchematicOperationApplier
         bool disconnect
     )
     {
-        var from = RequireString(op, "from");
-        var to = RequireString(op, "to");
+        var from = op.RequireString("from");
+        var to = op.RequireString("to");
         var fill =
             FindCircuit(state).Fill
             ?? throw new ApiException("CASAPI-INVALID-REQUEST", "Circuit has no fill block.");
@@ -335,7 +335,7 @@ internal static class SchematicOperationApplier
             return new RenderAbsPoint(x, y);
         }
 
-        var explicitAnchor = TryGetString(payload, "anchor");
+        var explicitAnchor = payload.TryGetString("anchor");
         if (TryBuildRefPoint(anchors, explicitAnchor, x, y, out var explicitPoint))
         {
             return explicitPoint;
@@ -432,33 +432,5 @@ internal static class SchematicOperationApplier
     {
         var dot = anchor.IndexOf('.');
         return dot < 0 ? (anchor, string.Empty) : (anchor[..dot], anchor[(dot + 1)..]);
-    }
-
-    private static string RequireString(JsonElement element, string name)
-    {
-        if (element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String)
-        {
-            return child.GetString()!;
-        }
-
-        throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing string field '{name}'.");
-    }
-
-    private static int RequireInt(JsonElement element, string name)
-    {
-        if (element.TryGetProperty(name, out var child) && child.TryGetInt32(out var value))
-        {
-            return value;
-        }
-
-        throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing integer field '{name}'.");
-    }
-
-    private static string? TryGetString(JsonElement element, string name)
-    {
-        return
-            element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String
-            ? child.GetString()
-            : null;
     }
 }

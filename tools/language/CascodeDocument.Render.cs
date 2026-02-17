@@ -17,6 +17,8 @@ public sealed class RenderEntity
 {
     public string Name { get; init; } = string.Empty;
     public RenderEntityKind Kind { get; set; } = RenderEntityKind.Unknown;
+    public int? SourceLine { get; set; }
+    public int? SourceColumn { get; set; }
     public RenderPlacement? Place { get; set; }
     public RenderOrientation? Orientation { get; set; }
     public int? ZIndex { get; set; }

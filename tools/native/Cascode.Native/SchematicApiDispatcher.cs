@@ -38,9 +38,9 @@ internal static class SchematicApiDispatcher
         using var doc = JsonDocument.Parse(requestJson);
         var root = doc.RootElement;
 
-        var documentId = TryGetString(root, "documentId") ?? "doc_1";
-        var sourceText = RequireString(root, "text");
-        var circuitName = TryGetString(root, "circuit");
+        var documentId = root.TryGetString("documentId") ?? "doc_1";
+        var sourceText = root.RequireString("text");
+        var circuitName = root.TryGetString("circuit");
 
         var read = CascodeReader.TryParse(sourceText, "<api>");
         EnsureParseSuccess(read);
@@ -59,7 +59,7 @@ internal static class SchematicApiDispatcher
 
         session.Documents[documentId] = state;
 
-        var mode = ParseRenderMode(TryGetString(root, "mode"));
+        var mode = ParseRenderMode(root.TryGetString("mode"));
         var render = SchematicDocumentBuilder.Build(state, mode, allowRelaxation: false);
         return ApiJson.SerializeDocument(render);
     }
@@ -69,17 +69,17 @@ internal static class SchematicApiDispatcher
         using var doc = JsonDocument.Parse(requestJson);
         var root = doc.RootElement;
 
-        var state = GetDocumentState(session, RequireString(root, "documentId"));
+        var state = GetDocumentState(session, root.RequireString("documentId"));
         var baseRevision = TryGetInt(root, "baseRevision");
         EnsureRevision(state, baseRevision);
 
-        var sourceText = RequireString(root, "text");
+        var sourceText = root.RequireString("text");
         var read = CascodeReader.TryParse(sourceText, "<api>");
         EnsureParseSuccess(read);
 
         var selectedCircuit = SelectCircuit(
             read.Document!,
-            TryGetString(root, "circuit") ?? state.CircuitName
+            root.TryGetString("circuit") ?? state.CircuitName
         );
 
         state.SourceText = sourceText;
@@ -106,7 +106,7 @@ internal static class SchematicApiDispatcher
     private static string DocumentClose(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
-        var documentId = RequireString(doc.RootElement, "documentId");
+        var documentId = doc.RootElement.RequireString("documentId");
         session.Documents.Remove(documentId);
 
         return new JsonObject
@@ -119,7 +119,7 @@ internal static class SchematicApiDispatcher
     private static string ConvertToStructural(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, RequireString(doc.RootElement, "documentId"));
+        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
 
         var render = SchematicDocumentBuilder.Build(
             state,
@@ -140,7 +140,7 @@ internal static class SchematicApiDispatcher
     private static string ConvertToCas(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
-        var state = GetDocumentState(session, RequireString(doc.RootElement, "documentId"));
+        var state = GetDocumentState(session, doc.RootElement.RequireString("documentId"));
 
         return new JsonObject
         {
@@ -156,8 +156,8 @@ internal static class SchematicApiDispatcher
         using var doc = JsonDocument.Parse(requestJson);
         var root = doc.RootElement;
 
-        var state = GetDocumentState(session, RequireString(root, "documentId"));
-        var mode = ParseRenderMode(TryGetString(root, "mode"));
+        var state = GetDocumentState(session, root.RequireString("documentId"));
+        var mode = ParseRenderMode(root.TryGetString("mode"));
         var allowRelaxation = TryGetBool(root, "allowConstraintRelaxation") ?? false;
         var persist = TryGetBool(root, "persist") ?? false;
 
@@ -185,7 +185,7 @@ internal static class SchematicApiDispatcher
         using var doc = JsonDocument.Parse(requestJson);
         var root = doc.RootElement;
 
-        var state = GetDocumentState(session, RequireString(root, "documentId"));
+        var state = GetDocumentState(session, root.RequireString("documentId"));
         EnsureRevision(state, TryGetInt(root, "baseRevision"));
 
         var changed = new HashSet<string>(StringComparer.Ordinal);
@@ -240,7 +240,7 @@ internal static class SchematicApiDispatcher
     private static string JobPoll(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
-        var jobId = RequireString(doc.RootElement, "jobId");
+        var jobId = doc.RootElement.RequireString("jobId");
         if (!session.Jobs.TryGetValue(jobId, out var job))
         {
             throw new ApiException("CASAPI-INVALID-REQUEST", $"Unknown job '{jobId}'.");
@@ -268,7 +268,7 @@ internal static class SchematicApiDispatcher
     private static string JobCancel(SessionState session, string requestJson)
     {
         using var doc = JsonDocument.Parse(requestJson);
-        var jobId = RequireString(doc.RootElement, "jobId");
+        var jobId = doc.RootElement.RequireString("jobId");
         if (session.Jobs.TryGetValue(jobId, out var job) && job.State == JobState.Running)
         {
             job.State = JobState.Cancelled;
@@ -439,24 +439,6 @@ internal static class SchematicApiDispatcher
             "rerenderfromscratch" => RenderSchematicMode.RerenderFromScratch,
             _ => RenderSchematicMode.RespectRenderBlock,
         };
-    }
-
-    private static string RequireString(JsonElement element, string name)
-    {
-        if (element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String)
-        {
-            return child.GetString()!;
-        }
-
-        throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing string field '{name}'.");
-    }
-
-    private static string? TryGetString(JsonElement element, string name)
-    {
-        return
-            element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String
-            ? child.GetString()
-            : null;
     }
 
     private static int? TryGetInt(JsonElement element, string name)
