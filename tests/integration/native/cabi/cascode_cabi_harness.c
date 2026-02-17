@@ -36,17 +36,37 @@ typedef struct exports_s {
   cascode_version_fn schema_version;
 } exports_t;
 
+/**
+ * Terminate the process after printing a failure message to standard error.
+ * @param message Human-readable failure message to print.
+ */
 static void failf(const char* message) {
   fprintf(stderr, "harness failure: %s\n", message);
   exit(1);
 }
 
+/**
+ * Abort the program with an error message when a condition is false.
+ *
+ * If `condition` is false, prints `message` to standard error and exits with status 1.
+ *
+ * @param condition Condition that must be true to continue execution.
+ * @param message Error message to print if `condition` is false.
+ */
 static void require(bool condition, const char* message) {
   if (!condition) {
     failf(message);
   }
 }
 
+/**
+ * Resolve a symbol from a dynamic library and store its address.
+ *
+ * @param handle Dynamic library handle returned by dlopen.
+ * @param out Pointer to receive the symbol address; set to NULL if the symbol is not found.
+ * @param name Nul-terminated symbol name to look up.
+ * @returns `true` if the symbol was found and stored in `*out`, `false` otherwise.
+ */
 static bool resolve_symbol(void* handle, void** out, const char* name) {
   *out = dlsym(handle, name);
   if (*out == NULL) {
@@ -57,6 +77,16 @@ static bool resolve_symbol(void* handle, void** out, const char* name) {
   return true;
 }
 
+/**
+ * Load a Cascode-compatible shared library and populate an exports_t with all required API symbols.
+ *
+ * Attempts to open the library at library_path and resolve the expected Cascode API symbols into
+ * the returned exports_t. On failure to open the library or to resolve any required symbol, the
+ * function prints an error and terminates the process.
+ *
+ * @param library_path Path to the shared library file to load (e.g., a .so file).
+ * @returns An exports_t instance whose fields are set to the library handle and resolved function pointers.
+ */
 static exports_t load_exports(const char* library_path) {
   exports_t e;
   memset(&e, 0, sizeof(e));
@@ -91,6 +121,16 @@ static exports_t load_exports(const char* library_path) {
   return e;
 }
 
+/**
+ * Extracts an integer value for a top-level JSON field from a simple JSON-like string.
+ *
+ * Searches for the pattern "<field>": and parses the following characters as an integer,
+ * skipping spaces, tabs, and newlines between the colon and the number.
+ *
+ * @param json Null-terminated JSON-like string to search.
+ * @param field Field name to locate (without surrounding quotes).
+ * @returns Parsed integer value for the field, or -1 if the field is not present.
+ */
 static int parse_int_field(const char* json, const char* field) {
   char pattern[96];
   snprintf(pattern, sizeof(pattern), "\"%s\":", field);
@@ -107,6 +147,18 @@ static int parse_int_field(const char* json, const char* field) {
   return atoi(start);
 }
 
+/**
+ * Extract a JSON string value for a given field and copy it into a provided buffer.
+ *
+ * Searches the input `json` for the first occurrence of the pattern "\"field\":\"<value>\"".
+ * If found, copies the `<value>` (characters between the quotes) into `out`, null-terminating it.
+ *
+ * @param json Null-terminated JSON-like input to search.
+ * @param field Name of the field whose string value to extract (without quotes).
+ * @param out Buffer to receive the extracted string; will be null-terminated on success.
+ * @param out_size Size of `out` in bytes.
+ * @returns `true` if the field was found and the value fit into `out`, `false` otherwise.
+ */
 static bool extract_string_field(const char* json, const char* field, char* out, size_t out_size) {
   char pattern[96];
   snprintf(pattern, sizeof(pattern), "\"%s\":\"", field);
@@ -131,6 +183,16 @@ static bool extract_string_field(const char* json, const char* field, char* out,
   return true;
 }
 
+/**
+ * Escape backslashes, double quotes, newline, carriage return, and tab characters for embedding in a JSON string (test-harness only).
+ *
+ * This routine performs a limited JSON-style escaping suitable for the test harness; it does not emit `\uXXXX` escapes for other
+ * control characters or for non-ASCII code points, so passing input that contains other control or non-ASCII characters may
+ * produce invalid JSON.
+ *
+ * @param input Input C string to escape.
+ * @returns A newly malloc'd null-terminated C string containing the escaped text, or `NULL` if allocation fails. The caller is
+ *          responsible for freeing the returned buffer. */
 static char* json_escape(const char* input) {
   // Test-harness-only escaping: handles backslash, quotes, and \n/\r/\t.
   // It intentionally does not emit \uXXXX escapes for other control chars
@@ -176,6 +238,13 @@ static char* json_escape(const char* input) {
   return escaped;
 }
 
+/**
+ * Verify that `text` contains `needle`; print an error and exit on failure.
+ *
+ * @param text The string to search.
+ * @param needle The substring to look for inside `text`.
+ * @param label A short label used in the error message to identify `text`.
+ */
 static void expect_contains(const char* text, const char* needle, const char* label) {
   if (strstr(text, needle) == NULL) {
     fprintf(stderr, "expected '%s' to contain '%s'\n", label, needle);
@@ -183,6 +252,16 @@ static void expect_contains(const char* text, const char* needle, const char* la
   }
 }
 
+/**
+ * Call a CAS API function and return its response; on NULL response print the last error and exit.
+ *
+ * @param e Pointer to resolved exports (library function table and helpers).
+ * @param fn Function pointer to invoke (takes session and request JSON).
+ * @param session Session handle to pass to the API function.
+ * @param request_json JSON request string to pass to the API function.
+ * @param label Human-readable label used in error messages when the call fails.
+ * @returns The API response string on success.
+ */
 static char* must_call(
     exports_t* e,
     cascode_session_call_fn fn,
@@ -204,6 +283,18 @@ static char* must_call(
   exit(1);
 }
 
+/**
+ * Execute the cascode C ABI test harness against a cascode shared library.
+ *
+ * Loads the specified shared library, resolves required API symbols, creates a session,
+ * exercises document lifecycle operations, conversions, rendering modes, runs (erc/emit/verify),
+ * command execution, and job control, validates responses for expected fields and revisions,
+ * verifies error reporting for an invalid request, then cleans up and prints success.
+ *
+ * @param argc Number of command-line arguments; the program expects exactly 2.
+ * @param argv Command-line arguments; argv[1] must be the path to the cascode shared library.
+ * @returns 0 on success, 2 when the argument count is incorrect, or a non-zero status on failure. 
+ */
 int main(int argc, char** argv) {
   if (argc != 2) {
     fprintf(stderr, "usage: %s <path-to-libcascode-shared-library>\n", argv[0]);

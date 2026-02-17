@@ -9,6 +9,10 @@ internal static class SessionManager
     private static readonly ConcurrentDictionary<int, SessionState> Sessions = new();
     private static int _nextId;
 
+    /// <summary>
+    /// Creates and registers a new session and assigns a unique session id.
+    /// </summary>
+    /// <returns>The newly assigned session id.</returns>
     public static int CreateSession(string? _)
     {
         var id = Interlocked.Increment(ref _nextId);
@@ -24,16 +28,32 @@ internal static class SessionManager
         return id;
     }
 
+    /// <summary>
+    /// Retrieve the session state for the specified session id.
+    /// </summary>
+    /// <param name="id">The session identifier.</param>
+    /// <param name="state">When the method returns `true`, contains the session's <see cref="SessionState"/>; otherwise `null`.</param>
+    /// <returns>`true` if a session with the specified id was found, `false` otherwise.</returns>
     public static bool TryGetSession(int id, [NotNullWhen(true)] out SessionState? state)
     {
         return Sessions.TryGetValue(id, out state);
     }
 
+    /// <summary>
+    /// Removes the session with the specified session id from the manager.
+    /// </summary>
+    /// <param name="id">The identifier of the session to remove.</param>
+    /// <returns>`true` if a session with the specified id was removed; `false` if no such session existed.</returns>
     public static bool DestroySession(int id)
     {
         return Sessions.TryRemove(id, out _);
     }
 
+    /// <summary>
+    /// Records the provided JSON error payload as the last error for the session with the specified id.
+    /// </summary>
+    /// <param name="id">The session identifier whose last error will be set.</param>
+    /// <param name="errorJson">A JSON-formatted error payload to store as the session's last error.</param>
     public static void SetLastError(int id, string errorJson)
     {
         if (Sessions.TryGetValue(id, out var session))
@@ -42,6 +62,11 @@ internal static class SessionManager
         }
     }
 
+    /// <summary>
+    /// Get the last recorded error payload for a session.
+    /// </summary>
+    /// <param name="id">Session identifier.</param>
+    /// <returns>The last error JSON for the session, or null if the session does not exist or no error is recorded.</returns>
     public static string? GetLastError(int id)
     {
         return Sessions.TryGetValue(id, out var session) ? session.LastErrorJson : null;

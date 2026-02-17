@@ -15,11 +15,26 @@ public sealed class RenderBlockValidationResult
 /// </summary>
 public static class RenderBlockValidator
 {
+    /// <summary>
+    /// Get the validated and pruned render block for a circuit.
+    /// </summary>
+    /// <param name="circuit">The circuit whose render block will be validated and pruned.</param>
+    /// <returns>The validated RenderBlock with stale or invalid entries removed, or <c>null</c> if no valid render entities remain.</returns>
+    /// <exception cref="System.Exception">Thrown if <paramref name="circuit"/> is <c>null</c>.</exception>
     public static RenderBlock? Prune(Circuit circuit)
     {
         return Validate(circuit).Render;
     }
 
+    /// <summary>
+    /// Validate and prune the Render block of a circuit, producing a validated render and any validation messages.
+    /// </summary>
+    /// <param name="circuit">The circuit whose Render block will be validated and pruned.</param>
+    /// <returns>
+    /// A <see cref="RenderBlockValidationResult"/> whose <see cref="RenderBlockValidationResult.Render"/> is a pruned RenderBlock
+    /// (or <c>null</c> if no entities remain) and whose <see cref="RenderBlockValidationResult.Messages"/> contains validation messages.
+    /// </returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="circuit"/> is <c>null</c>.</exception>
     public static RenderBlockValidationResult Validate(Circuit circuit)
     {
         ArgumentNullException.ThrowIfNull(circuit);
@@ -107,6 +122,19 @@ public static class RenderBlockValidator
         };
     }
 
+    /// <summary>
+    /// Determine the RenderEntityKind for a given render entity name.
+    /// </summary>
+    /// <param name="name">The render entity identifier to classify.</param>
+    /// <param name="devicesByName">Mapping of device identifiers to their declarations.</param>
+    /// <param name="ports">Set of known port names.</param>
+    /// <param name="nets">Set of known net names.</param>
+    /// <returns>
+    /// `RenderEntityKind.Device` if <paramref name="name"/> is a device id,
+    /// `RenderEntityKind.Port` if it is a port name,
+    /// `RenderEntityKind.Net` if it is a net name, or
+    /// `RenderEntityKind.Unknown` if none match.
+    /// </returns>
     private static RenderEntityKind ResolveKind(
         string name,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
@@ -132,6 +160,11 @@ public static class RenderBlockValidator
         return RenderEntityKind.Unknown;
     }
 
+    /// <summary>
+    /// Builds a set of all net identifiers referenced by the given circuit.
+    /// </summary>
+    /// <param name="circuit">The circuit to extract net identifiers from.</param>
+    /// <returns>A set containing net IDs declared in circuit.Fill.Nets, supply names, ground names, port names, and net names from device bindings.</returns>
     private static IReadOnlySet<string> BuildNetSet(Circuit circuit)
     {
         var nets = new HashSet<string>(StringComparer.Ordinal);
@@ -167,6 +200,16 @@ public static class RenderBlockValidator
         return nets;
     }
 
+    /// <summary>
+    /// Validate a render placement and return it if it is valid; otherwise record a validation message and return null.
+    /// </summary>
+    /// <param name="place">The placement expression to validate.</param>
+    /// <param name="devicesByName">Map of device identifiers to declarations used to validate device anchors.</param>
+    /// <param name="ports">Set of valid port names used to validate port anchors.</param>
+    /// <param name="allowRelative">Whether relative point expressions are permitted.</param>
+    /// <param name="messages">List to append validation messages to when the placement is removed.</param>
+    /// <param name="entityName">Name of the entity being validated; included in any appended messages.</param>
+    /// <returns>The original <paramref name="place"/> if valid; otherwise <c>null</c>.</returns>
     private static RenderPlacement? ValidatePlacement(
         RenderPlacement? place,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
@@ -192,6 +235,15 @@ public static class RenderBlockValidator
         return place;
     }
 
+    /// <summary>
+    /// Filter and validate a sequence of waypoint expressions, removing any points with invalid anchors.
+    /// </summary>
+    /// <param name="points">Waypoint expressions to validate.</param>
+    /// <param name="devicesByName">Device declarations keyed by device id, used to validate reference anchors.</param>
+    /// <param name="ports">Set of valid port names used to validate reference anchors.</param>
+    /// <param name="messages">List to append validation messages describing removed waypoints.</param>
+    /// <param name="entityName">Name of the render entity (used in validation messages).</param>
+    /// <returns>A list containing only the waypoint expressions that passed validation; if <paramref name="points"/> was empty, the same empty list is returned.</returns>
     private static IReadOnlyList<RenderPointExpression> ValidateWaypoints(
         IReadOnlyList<RenderPointExpression> points,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
@@ -222,6 +274,14 @@ public static class RenderBlockValidator
         return valid;
     }
 
+    /// <summary>
+    /// Determines whether a render point expression is valid in the context of known devices/ports and relative-point policy.
+    /// </summary>
+    /// <param name="point">The render point expression to validate.</param>
+    /// <param name="devicesByName">Mapping of device identifiers to their declarations used to validate device-based anchors.</param>
+    /// <param name="ports">Set of known port names used to validate port-based anchors.</param>
+    /// <param name="allowRelative">If <c>true</c>, relative points are considered valid; otherwise they are invalid.</param>
+    /// <returns><c>true</c> if the point is valid given the available anchors and the relative-point policy, <c>false</c> otherwise.</returns>
     private static bool TryValidatePoint(
         RenderPointExpression point,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
@@ -245,6 +305,13 @@ public static class RenderBlockValidator
         }
     }
 
+    /// <summary>
+    /// Determines whether a render anchor string refers to a valid canvas point, port, device, or device terminal.
+    /// </summary>
+    /// <param name="anchor">The anchor expression to validate (examples: "canvas origin", "canvas center", "portName", "deviceName", or "deviceName.terminal").</param>
+    /// <param name="devicesByName">Mapping of device identifiers to their declarations used to resolve device names and types.</param>
+    /// <param name="ports">Set of known port names used to validate port anchors.</param>
+    /// <returns>`true` if the anchor is valid according to canvas keywords, known ports, known device names, or a device terminal allowed for the device's type; `false` otherwise.</returns>
     private static bool ValidateAnchor(
         string anchor,
         IReadOnlyDictionary<string, DeviceDeclaration> devicesByName,
@@ -291,6 +358,11 @@ public static class RenderBlockValidator
             .Contains(parts[1], StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Get the allowed terminal labels for a given device type.
+    /// </summary>
+    /// <param name="deviceType">The device type name (comparison is case-insensitive).</param>
+    /// <returns>An array of valid terminal identifiers for the device type (e.g., "G","D","S" for FETs; "P","N" for passive two-terminal devices), or an empty array if the type has no defined terminals.</returns>
     private static IReadOnlyList<string> GetAllowedTerminals(string deviceType)
     {
         return deviceType.ToLowerInvariant() switch
@@ -301,6 +373,11 @@ public static class RenderBlockValidator
         };
     }
 
+    /// <summary>
+    /// Determine whether a render entity contains any meaningful rendering data.
+    /// </summary>
+    /// <param name="entity">The render entity to inspect.</param>
+    /// <returns>`true` if the entity has a placement, orientation, Z-index, side, route, or one or more waypoints; `false` otherwise.</returns>
     private static bool HasEffectiveData(RenderEntity entity)
     {
         return entity.Place is not null

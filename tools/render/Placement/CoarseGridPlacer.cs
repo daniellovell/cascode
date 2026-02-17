@@ -50,7 +50,14 @@ public static class CoarseGridPlacer
 
     /// <summary>
     /// Places devices on a coarse grid based on topology analysis.
+    /// <summary>
+    /// Computes a coarse grid placement for devices described by topology and circuit graph, producing device row/column assignments and symmetry information.
     /// </summary>
+    /// <param name="topology">Topology rows, device-to-row mapping, symmetric groups, and passive orientations used to determine valid grid positions and fill rows.</param>
+    /// <param name="graph">Circuit connectivity used for symmetry decisions and terminal-aware wire-length evaluation.</param>
+    /// <param name="constraints">Optional render placement constraints (hard, soft, hints) that fix or bias device positions; may be null to disable constraint-based placement.</param>
+    /// <returns>A CoarseGridResult containing row and column counts, per-device GridCell placements, symmetry axis index, and the set of horizontal passive device IDs.</returns>
+    /// <exception cref="RenderConstraintUnsatException">Thrown when provided hard render placement constraints cannot be satisfied and constraint relaxation is not allowed.</exception>
     public static CoarseGridResult Place(
         TopologyResult topology,
         CircuitGraph graph,
@@ -268,6 +275,18 @@ public static class CoarseGridPlacer
         };
     }
 
+    /// <summary>
+    /// Applies render-placement constraints from the given PlacementConstraintSet to the CP-SAT model, adding hard fixes or penalty terms as appropriate and recording any hard-constrained device IDs.
+    /// </summary>
+    /// <param name="model">The CP-SAT model to modify.</param>
+    /// <param name="deviceRow">Map from device ID to row IntVar used by the model.</param>
+    /// <param name="deviceColumn">Map from device ID to column IntVar used by the model.</param>
+    /// <param name="totalRows">Number of rows in the placement grid (used to clamp and bound penalties).</param>
+    /// <param name="totalColumns">Number of columns in the placement grid (used to clamp and bound penalties).</param>
+    /// <param name="constraints">Optional placement constraints containing device render coordinates and strengths; if null or empty no constraints are applied.</param>
+    /// <param name="hardConstraintEntities">List to which device IDs fixed by hard constraints will be appended.</param>
+    /// <param name="objectives">List of objective terms to which soft and hint penalty expressions will be appended.</param>
+    /// <returns>`true` if at least one hard render-placement constraint was applied, `false` otherwise.</returns>
     private static bool AddRenderPlacementConstraints(
         CpModel model,
         Dictionary<string, IntVar> deviceRow,

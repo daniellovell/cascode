@@ -5,6 +5,13 @@ namespace Cascode.Native;
 
 internal static class SchematicOperationApplier
 {
+    /// <summary>
+    /// Apply a schematic operation described by the JSON `operation` to the given document `state` by dispatching on the operation's "type" field.
+    /// </summary>
+    /// <param name="state">Current document state to update.</param>
+    /// <param name="operation">JSON object describing the operation; must include a required string property "type".</param>
+    /// <param name="changed">Set that will be populated with identifiers of entities modified by the operation.</param>
+    /// <exception cref="ApiException">Thrown when the operation "type" is not recognized.</exception>
     public static void Apply(DocumentState state, JsonElement operation, HashSet<string> changed)
     {
         var opType = RequireString(operation, "type");
@@ -54,6 +61,12 @@ internal static class SchematicOperationApplier
         }
     }
 
+    /// <summary>
+    /// Apply a move operation by setting the device's render placement to the given coordinates.
+    /// </summary>
+    /// <param name="state">Current document state used to locate the circuit and resolve anchors.</param>
+    /// <param name="op">JSON operation object; must contain string "deviceId" and integers "x" and "y".</param>
+    /// <param name="changed">Set of identifiers to record the deviceId that was modified.</param>
     private static void ApplyMoveDevice(
         DocumentState state,
         JsonElement op,
@@ -74,6 +87,12 @@ internal static class SchematicOperationApplier
         changed.Add(deviceId);
     }
 
+    /// <summary>
+    /// Apply a rotation to the specified device's render orientation and record it as changed.
+    /// </summary>
+    /// <param name="state">The current document state containing circuits and render data.</param>
+    /// <param name="op">A JSON operation object that must include "deviceId" and "angle".</param>
+    /// <param name="changed">A set that will receive the deviceId of the modified device.</param>
     private static void ApplyRotateDevice(
         DocumentState state,
         JsonElement op,
@@ -92,6 +111,12 @@ internal static class SchematicOperationApplier
         changed.Add(deviceId);
     }
 
+    /// <summary>
+    /// Toggle the horizontal (X) mirror flag for a device's render orientation, preserving its rotation and ensuring a render entry exists.
+    /// </summary>
+    /// <param name="state">The current document state to modify.</param>
+    /// <param name="op">The JSON operation object containing a required "deviceId" field.</param>
+    /// <param name="changed">A set that will receive the deviceId to indicate the device was modified.</param>
     private static void ApplyMirrorDevice(
         DocumentState state,
         JsonElement op,
@@ -109,6 +134,9 @@ internal static class SchematicOperationApplier
         changed.Add(deviceId);
     }
 
+    /// <summary>
+    /// Updates the render placement of the specified port to the given coordinates and records the port as changed.
+    /// </summary>
     private static void ApplyMovePort(DocumentState state, JsonElement op, HashSet<string> changed)
     {
         var portName = RequireString(op, "port");
@@ -125,6 +153,12 @@ internal static class SchematicOperationApplier
         changed.Add(portName);
     }
 
+    /// <summary>
+    /// Replace the render route waypoints for the specified net and set the route's strength to Hard.
+    /// </summary>
+    /// <param name="state">Current document state containing the target circuit.</param>
+    /// <param name="op">Operation JSON object. Must contain a string property "net" and may contain "waypoints" — an array of objects with integer "x" and "y" properties.</param>
+    /// <param name="changed">Set that will receive the net name to indicate the net's render state was modified.</param>
     private static void ApplySetNetWaypoints(
         DocumentState state,
         JsonElement op,
@@ -160,6 +194,12 @@ internal static class SchematicOperationApplier
         changed.Add(netName);
     }
 
+    /// <summary>
+    /// Removes all route waypoints for the specified net, clears its Route, and records the net as changed.
+    /// </summary>
+    /// <param name="state">Current document state containing the target circuit.</param>
+    /// <param name="op">JSON operation object containing a required "net" string field identifying the net.</param>
+    /// <param name="changed">Set to which the net name will be added to indicate it was modified.</param>
     private static void ApplyClearNetWaypoints(
         DocumentState state,
         JsonElement op,
@@ -173,6 +213,13 @@ internal static class SchematicOperationApplier
         changed.Add(netName);
     }
 
+    /// <summary>
+    /// Apply the given pinning strength to the render entity named in the operation's "entity" field.
+    /// </summary>
+    /// <param name="state">Current document state used to locate the target circuit.</param>
+    /// <param name="op">JSON operation object; must contain an "entity" string identifying the render entity.</param>
+    /// <param name="changed">Set that will receive the entity name to indicate it was modified.</param>
+    /// <param name="strength">The render constraint strength to apply. If the entity has a Place, its Strength is set to this value; if it has a Route, its Strength is set to this value.</param>
     private static void ApplyPinEntity(
         DocumentState state,
         JsonElement op,
@@ -196,6 +243,13 @@ internal static class SchematicOperationApplier
         changed.Add(name);
     }
 
+    /// <summary>
+    /// Parse the "strength" field from the operation and apply that placement/route strength to the target entity.
+    /// </summary>
+    /// <param name="state">Current document state containing the circuit and render data.</param>
+    /// <param name="op">JSON operation object that must include a "strength" string and identify the target entity.</param>
+    /// <param name="changed">Set to record identifiers of entities that were modified.</param>
+    /// <exception cref="ApiException">Thrown when the "strength" value is not one of "hard", "soft", or "hint".</exception>
     private static void ApplySetStrength(
         DocumentState state,
         JsonElement op,
@@ -214,6 +268,11 @@ internal static class SchematicOperationApplier
         ApplyPinEntity(state, op, changed, strength);
     }
 
+    /// <summary>
+    /// Set or update a size parameter for the specified device in the current circuit and record that the device changed.
+    /// </summary>
+    /// <param name="op">Operation object that must contain string fields "deviceId", "param", and "value".</param>
+    /// <exception cref="ApiException">Thrown when the specified deviceId does not exist in the circuit.</exception>
     private static void ApplySetDeviceParam(
         DocumentState state,
         JsonElement op,
@@ -249,6 +308,15 @@ internal static class SchematicOperationApplier
         changed.Add(deviceId);
     }
 
+    /// <summary>
+    /// Adds or removes a connection between two terminals specified in the operation.
+    /// </summary>
+    /// <param name="op">A JSON operation that must contain string fields "from" and "to" identifying the endpoints.</param>
+    /// <param name="changed">A set that will be updated with the two endpoint identifiers after the change.</param>
+    /// <param name="disconnect">If true, removes any matching connection (in either direction); if false, adds the connection if it does not already exist.</param>
+    /// <exception cref="ApiException">
+    /// Thrown if the operation is missing required fields, the named circuit cannot be found, or the circuit has no Fill block.
+    /// </exception>
     private static void ApplyConnectionChange(
         DocumentState state,
         JsonElement op,
@@ -283,6 +351,12 @@ internal static class SchematicOperationApplier
         changed.Add(to);
     }
 
+    /// <summary>
+    /// Locate the circuit in the state's document that matches the current CircuitName.
+    /// </summary>
+    /// <param name="state">The document state containing Document, DocumentId, and CircuitName.</param>
+    /// <returns>The matching <see cref="Circuit"/>.</returns>
+    /// <exception cref="ApiException">Thrown when no circuit with <c>state.CircuitName</c> exists in the document.</exception>
     private static Circuit FindCircuit(DocumentState state)
     {
         var circuit = state.Document.Circuits.FirstOrDefault(c => c.Name == state.CircuitName);
@@ -297,6 +371,13 @@ internal static class SchematicOperationApplier
         return circuit;
     }
 
+    /// <summary>
+    /// Ensure the circuit has a RenderBlock and return a RenderEntity with the given name, creating one if necessary.
+    /// </summary>
+    /// <param name="circuit">The circuit to inspect or modify.</param>
+    /// <param name="name">The name of the render entity to retrieve or create.</param>
+    /// <param name="kind">The desired kind for the entity; if an existing entity is found and <c>kind</c> is not <c>RenderEntityKind.Unknown</c>, the entity's Kind is updated.</param>
+    /// <returns>The existing or newly created <see cref="RenderEntity"/> with the specified name.</returns>
     private static RenderEntity UpsertRenderEntity(
         Circuit circuit,
         string name,
@@ -320,6 +401,18 @@ internal static class SchematicOperationApplier
         return created;
     }
 
+    /// <summary>
+    /// Determine a canonical render point for a subject, resolving an explicit anchor or the nearest semantic anchor when available and falling back to absolute coordinates.
+    /// </summary>
+    /// <param name="state">Current document state (used to compute anchor maps).</param>
+    /// <param name="circuit">Circuit containing anchors and render context.</param>
+    /// <param name="subjectName">Name of the subject for which the point is being computed (used to avoid self anchors).</param>
+    /// <param name="payload">JSON payload that may include an optional "anchor" string specifying an explicit anchor name.</param>
+    /// <param name="x">Absolute X coordinate supplied by the operation.</param>
+    /// <param name="y">Absolute Y coordinate supplied by the operation.</param>
+    /// <returns>
+    /// A RenderRefPoint when an explicit anchor is provided or when a nearest semantic anchor is found (the point is expressed as an offset from that anchor); otherwise a RenderAbsPoint with the given absolute coordinates.
+    /// </returns>
     private static RenderPointExpression CanonicalizePoint(
         DocumentState state,
         Circuit circuit,
@@ -347,6 +440,12 @@ internal static class SchematicOperationApplier
             : new RenderRefPoint(nearest, x - anchors[nearest].X, y - anchors[nearest].Y);
     }
 
+    /// <summary>
+    /// Attempt to compute a mapping of anchor names to render points for the given circuit using the schematic constraint resolver.
+    /// </summary>
+    /// <param name="state">Current document state used as context for constraint computation.</param>
+    /// <param name="circuit">Circuit whose anchors and placements will be analyzed.</param>
+    /// <returns>A dictionary mapping anchor identifiers to their computed PointValue when successful; otherwise <c>null</c> if constraint computation fails.</returns>
     private static IReadOnlyDictionary<string, PointValue>? TryBuildAnchorMap(
         DocumentState state,
         Circuit circuit
@@ -372,6 +471,15 @@ internal static class SchematicOperationApplier
         }
     }
 
+    /// <summary>
+    /// Builds a reference render point relative to a named anchor when that anchor exists.
+    /// </summary>
+    /// <param name="anchors">Map of anchor names to their coordinates.</param>
+    /// <param name="anchorName">Name of the anchor to reference; may be null or empty.</param>
+    /// <param name="x">Absolute x coordinate to convert relative to the anchor.</param>
+    /// <param name="y">Absolute y coordinate to convert relative to the anchor.</param>
+    /// <param name="point">When the method returns `true`, contains a RenderRefPoint whose offset is (x - anchor.X, y - anchor.Y); otherwise unspecified.</param>
+    /// <returns>`true` if <paramref name="anchorName"/> names an entry in <paramref name="anchors"/> and <paramref name="point"/> was produced, `false` otherwise.</returns>
     private static bool TryBuildRefPoint(
         IReadOnlyDictionary<string, PointValue> anchors,
         string? anchorName,
@@ -393,6 +501,14 @@ internal static class SchematicOperationApplier
         return false;
     }
 
+    /// <summary>
+    /// Selects the nearest semantic anchor (excluding anchors that refer to the subject) to the given point using Manhattan distance, with a maximum snap distance of 2.
+    /// </summary>
+    /// <param name="anchors">Mapping of anchor names to their positions.</param>
+    /// <param name="subjectName">Name of the entity for which anchors referring to itself should be ignored.</param>
+    /// <param name="x">X coordinate of the query point.</param>
+    /// <param name="y">Y coordinate of the query point.</param>
+    /// <returns>The name of the closest anchor within a Manhattan distance of 2, or null if none is found.</returns>
     private static string? FindNearestAnchor(
         IReadOnlyDictionary<string, PointValue> anchors,
         string subjectName,
@@ -417,23 +533,46 @@ internal static class SchematicOperationApplier
         return candidates?.Anchor;
     }
 
+    /// <summary>
+    /// Determines whether an anchor name represents a semantic anchor rather than a canvas anchor.
+    /// </summary>
+    /// <param name="anchor">The anchor name to test.</param>
+    /// <returns>`true` if the anchor does not start with "canvas ", `false` otherwise.</returns>
     private static bool IsSemanticAnchor(string anchor)
     {
         return !anchor.StartsWith("canvas ", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Determines whether an anchor name refers to the subject itself.
+    /// </summary>
+    /// <param name="subjectName">The subject entity's name.</param>
+    /// <param name="anchor">The anchor name to test.</param>
+    /// <returns>`true` if <c>anchor</c> equals <c>subjectName</c> or starts with "<c>subjectName.</c>", `false` otherwise.</returns>
     private static bool IsSelfAnchor(string subjectName, string anchor)
     {
         return anchor == subjectName
             || anchor.StartsWith($"{subjectName}.", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Split an anchor name into its entity and terminal components.
+    /// </summary>
+    /// <param name="anchor">Anchor identifier, optionally containing a '.' that separates entity and terminal.</param>
+    /// <returns>A tuple where <c>Entity</c> is the substring before the first '.', and <c>Terminal</c> is the substring after the first '.' or an empty string if none.</returns>
     private static (string Entity, string Terminal) BuildAnchorSortKey(string anchor)
     {
         var dot = anchor.IndexOf('.');
         return dot < 0 ? (anchor, string.Empty) : (anchor[..dot], anchor[(dot + 1)..]);
     }
 
+    /// <summary>
+    /// Retrieve a required string property from a JSON element.
+    /// </summary>
+    /// <param name="element">The JSON element to read from.</param>
+    /// <param name="name">The property name to retrieve.</param>
+    /// <returns>The string value of the specified property.</returns>
+    /// <exception cref="ApiException">Thrown with code "CASAPI-INVALID-REQUEST" if the property is missing or is not a string.</exception>
     private static string RequireString(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String)
@@ -444,6 +583,13 @@ internal static class SchematicOperationApplier
         throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing string field '{name}'.");
     }
 
+    /// <summary>
+    /// Retrieve a required integer property from the specified JSON element.
+    /// </summary>
+    /// <param name="element">The JSON element to read the property from.</param>
+    /// <param name="name">The name of the required integer property.</param>
+    /// <returns>The integer value of the specified property.</returns>
+    /// <exception cref="ApiException">Thrown when the property is missing or not an integer.</exception>
     private static int RequireInt(JsonElement element, string name)
     {
         if (element.TryGetProperty(name, out var child) && child.TryGetInt32(out var value))
@@ -454,6 +600,12 @@ internal static class SchematicOperationApplier
         throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing integer field '{name}'.");
     }
 
+    /// <summary>
+    /// Gets the string value of a named JSON property if it exists and is a JSON string.
+    /// </summary>
+    /// <param name="element">The JSON element to read the property from.</param>
+    /// <param name="name">The property name to look up.</param>
+    /// <returns>The property's string value if present and a JSON string, otherwise <c>null</c>.</returns>
     private static string? TryGetString(JsonElement element, string name)
     {
         return

@@ -224,6 +224,14 @@ public static partial class CascodeWriter
         writer.WriteLine("}");
     }
 
+    /// <summary>
+    /// Writes a Circuit to the provided TextWriter using the canonical Cascode textual representation.
+    /// </summary>
+    /// <remarks>
+    /// Emits the circuit header (name, size parameters, parameters, implemented traits) and then writes the circuit body sections in canonical order, including level/inline/library, supplies, grounds, ports, slot, fill, constraints, harness, env, any pruned render block, bench bindings/extensions, synth entries, and provenance.
+    /// </remarks>
+    /// <param name="circuit">The Circuit model to serialize.</param>
+    /// <param name="writer">The TextWriter to which the circuit text will be written.</param>
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header

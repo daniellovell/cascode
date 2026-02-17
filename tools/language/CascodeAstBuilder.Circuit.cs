@@ -40,6 +40,14 @@ internal sealed partial class CascodeAstBuilder
         };
     }
 
+    /// <summary>
+    /// Aggregates circuit-level members from a parse context into a CircuitMemberState.
+    /// </summary>
+    /// <param name="ctx">The parse tree context representing a circuit.</param>
+    /// <returns>
+    /// A CircuitMemberState populated with parsed members such as level, inline flag, package, supplies, grounds, ports,
+    /// slot, fill, constraints, harness, env, render, bench bindings and extensions, synth, and provenance blocks.
+    /// </returns>
     private CircuitMemberState ProcessCircuitMembers(CascodeParser.CircuitContext ctx)
     {
         var state = new CircuitMemberState();
