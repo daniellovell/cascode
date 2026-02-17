@@ -48,8 +48,9 @@ function prependLibrarySearchPath(directory) {
     return;
   }
 
-  const existingPath = process.env.LD_LIBRARY_PATH ?? "";
-  process.env.LD_LIBRARY_PATH = `${directory}${path.delimiter}${existingPath}`;
+  const key = process.platform === "darwin" ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
+  const existingPath = process.env[key] ?? "";
+  process.env[key] = `${directory}${path.delimiter}${existingPath}`;
 }
 
 function tryLoadAddonFromPath(addonPath) {

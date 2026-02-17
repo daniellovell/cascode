@@ -179,6 +179,14 @@ static bool load_exports(void) {
   if (!preload_dependency(library_dir, "google-ortools-native.dll")) {
     goto done;
   }
+#elif defined(__APPLE__)
+  if (!preload_dependency(library_dir, "libortools.9.dylib")) {
+    goto done;
+  }
+
+  if (!preload_dependency(library_dir, "google-ortools-native.dylib")) {
+    goto done;
+  }
 #else
   if (!preload_dependency(library_dir, "libortools.so.9")) {
     goto done;

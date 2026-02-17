@@ -63,10 +63,12 @@ test("dual-worker sessions stay isolated across edit and bench flows", async () 
     "CASCODE_NATIVE_LIB must point at the published libcascode shared library."
   );
   const libraryDir = path.dirname(libraryPath);
+  const librarySearchPathKey = process.platform === "darwin" ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH";
+  const existingLibrarySearchPath = process.env[librarySearchPathKey] ?? "";
   const workerEnv = {
     ...process.env,
     CASCODE_NATIVE_LIB: libraryPath,
-    LD_LIBRARY_PATH: `${libraryDir}:${process.env.LD_LIBRARY_PATH ?? ""}`
+    [librarySearchPathKey]: `${libraryDir}${path.delimiter}${existingLibrarySearchPath}`
   };
 
   const [editResult, benchResult] = await Promise.all([
