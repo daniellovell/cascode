@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 primitive NMOS nfet_01v8(size primSize) {
   device "sky130_fd_pr__nfet_01v8"
@@ -42,8 +42,8 @@ circuit CommonSourceAmp_Pdk implements SingleEndedAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 50MHz
-      c_gain = ACBench::PassbandGain at net::OUT >= 30dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 50MHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 30dB
     }
   }
   harness {

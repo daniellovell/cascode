@@ -1,0 +1,12 @@
+{
+  "circuit": "OTA5TSingleEnded_DCSwept",
+  "bench": "dc_bias",
+  "measurements": {
+    "out_bias": {
+      "metric": "OutputDCBias",
+      "value": 0.72,
+      "unit": "V",
+      "node": "net::OUT"
+    }
+  }
+}

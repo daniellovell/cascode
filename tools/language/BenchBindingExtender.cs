@@ -34,53 +34,7 @@ public static class BenchBindingExtender
                 continue;
             }
 
-            var merged = ResolveBaseBenchBindings(circuit, interfacesByName, diagnostics);
-
-            foreach (var ext in circuit.BenchBindingExtensions)
-            {
-                if (!merged.TryGetValue(ext.BindingName, out var binding))
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"CAS3010: Bench binding extension targets unknown binding '{ext.BindingName}' in circuit '{circuit.Name}'.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                    continue;
-                }
-
-                binding.Statements.AddRange(ext.Statements);
-            }
-
-            updatedCircuits.Add(
-                new Circuit
-                {
-                    Name = circuit.Name,
-                    Traits = circuit.Traits,
-                    Level = circuit.Level,
-                    Inline = circuit.Inline,
-                    Package = circuit.Package,
-                    Parameters = circuit.Parameters,
-                    Sizes = circuit.Sizes,
-                    Supplies = circuit.Supplies,
-                    Grounds = circuit.Grounds,
-                    Ports = circuit.Ports,
-                    Slot = circuit.Slot,
-                    Fill = circuit.Fill,
-                    Constraints = circuit.Constraints,
-                    Harness = circuit.Harness,
-                    Env = circuit.Env,
-                    BenchBindings = merged
-                        .Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase)
-                        .ToList(),
-                    BenchBindingExtensions = new List<BenchBindingExtension>(),
-                    Synth = circuit.Synth,
-                    Provenance = circuit.Provenance,
-                }
-            );
+            updatedCircuits.Add(BuildUpdatedCircuit(circuit, interfacesByName, diagnostics));
         }
 
         return new CascodeDocument
@@ -96,6 +50,68 @@ public static class BenchBindingExtender
             Primitives = document.Primitives,
             Circuits = updatedCircuits,
         };
+    }
+
+    private static Circuit BuildUpdatedCircuit(
+        Circuit circuit,
+        IReadOnlyDictionary<string, TraitDefinition> interfacesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var merged = ResolveBaseBenchBindings(circuit, interfacesByName, diagnostics);
+        ApplyExtensionsToBindings(merged, circuit.BenchBindingExtensions, circuit, diagnostics);
+        return new Circuit
+        {
+            Name = circuit.Name,
+            Traits = circuit.Traits,
+            Level = circuit.Level,
+            Inline = circuit.Inline,
+            Package = circuit.Package,
+            Parameters = circuit.Parameters,
+            Sizes = circuit.Sizes,
+            Supplies = circuit.Supplies,
+            Grounds = circuit.Grounds,
+            Ports = circuit.Ports,
+            Slot = circuit.Slot,
+            Fill = circuit.Fill,
+            Constraints = circuit.Constraints,
+            Harness = circuit.Harness,
+            Env = circuit.Env,
+            Render = circuit.Render,
+            BenchBindings = merged
+                .Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            BenchBindingExtensions = new List<BenchBindingExtension>(),
+            Synth = circuit.Synth,
+            Provenance = circuit.Provenance,
+        };
+    }
+
+    private static void ApplyExtensionsToBindings(
+        IDictionary<string, BenchBinding> merged,
+        IEnumerable<BenchBindingExtension> extensions,
+        Circuit circuit,
+        List<Diagnostic> diagnostics
+    )
+    {
+        foreach (var ext in extensions)
+        {
+            if (!merged.TryGetValue(ext.BindingName, out var binding))
+            {
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"CAS3010: Bench binding extension targets unknown binding '{ext.BindingName}' in circuit '{circuit.Name}'.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
+                continue;
+            }
+
+            binding.Statements.AddRange(ext.Statements);
+        }
     }
 
     private static Dictionary<string, BenchBinding> ResolveBaseBenchBindings(

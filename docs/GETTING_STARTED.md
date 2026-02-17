@@ -100,6 +100,7 @@ These concepts are expanded in:
 Today, the core stages are:
 
 1. `cascode link`: resolve `include` directives and write a self-contained `.cai`.
+   Use `--no-link-benches` when you want a smaller, include-pruned linked artifact for prompt workflows.
 2. `cascode emit`: emit simulator netlists from EL circuits.
 3. `cascode bench run` and `cascode verify`: execute and check constrained benches.
 

@@ -1,0 +1,46 @@
+{
+  "name": "@cascode/native",
+  "version": "0.5.0",
+  "description": "Synchronous Node binding for libcascode",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "license": "BSD-3-Clause",
+  "private": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daniellovell/cascode.git",
+    "directory": "editors/node"
+  },
+  "files": [
+    "src/**/*",
+    "native/**/*",
+    "binding.gyp",
+    "README.md",
+    "platform-packages/**/*",
+    "scripts/**/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "gypfile": false,
+  "optionalDependencies": {
+    "@cascode/native-darwin-arm64": "0.5.0",
+    "@cascode/native-darwin-x64": "0.5.0",
+    "@cascode/native-linux-x64": "0.5.0",
+    "@cascode/native-win32-x64": "0.5.0"
+  },
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "stage:platform": "node ./scripts/stage-platform-package.mjs",
+    "test:integration": "node --test test/integration.test.mjs",
+    "test:types": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:integration && npm run test:types"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.1.0",
+    "typescript": "^5.9.2"
+  }
+}

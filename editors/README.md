@@ -10,6 +10,14 @@ This directory contains syntax highlighting support for the Cascode language (`.
 - **Installation**: See [vscode/README.md](vscode/README.md)
 - **Features**: Full syntax highlighting, auto-closing pairs, smart indentation
 
+### Node Native API (`@cascode/native`)
+
+- **Location**: `node/`
+- **Package**: `@cascode/native`
+- **Purpose**: Synchronous Node binding to the Cascode native C ABI for editor integrations.
+- **Docs**: See [node/README.md](node/README.md)
+- **Maintainer note**: Keep `node/package.json` and `node/platform-packages/*/package.json` versions aligned with release tags and workflow checks in `.github/workflows/release.yml`.
+
 ### GitHub & GitHub Linguist
 
 - **Configuration**: `.gitattributes` in repo root + `linguist/cascode.yml`

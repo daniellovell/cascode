@@ -27,17 +27,32 @@ public sealed class BenchMeasurementRunner
     );
     private readonly HashSet<string> _measurementStack = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Captures analysis datasets available while evaluating bench measurements.
+    /// </summary>
+    /// <param name="Name">Analysis name as referenced by measurement expressions.</param>
+    /// <param name="StartHz">Frequency-domain start value (Hz).</param>
+    /// <param name="StopHz">Frequency-domain stop value (Hz).</param>
+    /// <param name="StartS">Time-domain start value (s).</param>
+    /// <param name="StopS">Time-domain stop value (s).</param>
+    /// <param name="Ac">AC analysis dataset when available.</param>
+    /// <param name="Noise">Noise analysis dataset when available.</param>
+    /// <param name="Tran">Transient analysis dataset when available.</param>
+    /// <param name="TranCurrents">Transient current dataset when available.</param>
+    /// <param name="AcCurrents">AC current dataset when available.</param>
+    /// <param name="Op">DC operating-point node voltages keyed by node name.</param>
     public sealed record AnalysisContext(
         string Name,
         double StartHz,
         double StopHz,
         double StartS,
         double StopS,
-        AcDataset? Ac,
+        AcDataset? Ac = null,
         NoiseDataset? Noise = null,
         TranDataset? Tran = null,
         TranDataset? TranCurrents = null,
-        AcDataset? AcCurrents = null
+        AcDataset? AcCurrents = null,
+        IReadOnlyDictionary<string, double>? Op = null
     );
 
     public BenchMeasurementRunner(
@@ -1224,6 +1239,14 @@ public sealed class BenchMeasurementRunner
 
         var terminal = RequireTerminal(EvaluateExpr(call.Args[1].Value, locals), "terminal");
 
+        if (analysis.Op is not null)
+        {
+            return new BenchNumber(
+                BenchNumericKind.VoltageV,
+                TerminalVoltage(analysis.Op, terminal)
+            );
+        }
+
         if (analysis.Tran is not null)
         {
             var t = analysis.Tran.TimePoints;
@@ -1659,6 +1682,27 @@ public sealed class BenchMeasurementRunner
         }
 
         return tran.NodeVoltages[t.LeafNodes[0]][index] - tran.NodeVoltages[t.LeafNodes[1]][index];
+    }
+
+    /// <summary>
+    /// Resolves a terminal voltage from DC operating-point node voltages.
+    /// </summary>
+    private static double TerminalVoltage(
+        IReadOnlyDictionary<string, double> op,
+        BenchTerminalRef t
+    )
+    {
+        if (t.LeafNodes.Count == 0)
+        {
+            return 0;
+        }
+
+        if (t.LeafNodes.Count == 1)
+        {
+            return op[t.LeafNodes[0]];
+        }
+
+        return op[t.LeafNodes[0]] - op[t.LeafNodes[1]];
     }
 
     private BenchGainSpectrum EvalDb20(MeasurementCall call, Dictionary<string, BenchValue> locals)

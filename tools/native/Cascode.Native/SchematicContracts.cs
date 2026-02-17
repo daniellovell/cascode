@@ -1,0 +1,135 @@
+namespace Cascode.Native;
+
+internal enum RenderSchematicMode
+{
+    RespectRenderBlock,
+    ReflowUnlocked,
+    RerenderFromScratch,
+}
+
+internal sealed class SchematicDocumentResponse
+{
+    public string Schema { get; init; } = "cascode.schematic/1.0";
+    public required string DocumentId { get; init; }
+    public required int Revision { get; init; }
+    public required string Circuit { get; init; }
+    public required RenderSourceInfo RenderSource { get; init; }
+    public required StructuralInfo Structural { get; init; }
+    public required LayoutInfo Layout { get; init; }
+    public required RenderCacheInfo RenderCache { get; init; }
+    public required IReadOnlyList<ApiDiagnostic> Diagnostics { get; init; }
+}
+
+internal sealed class RenderSourceInfo
+{
+    public required bool HasRenderBlock { get; init; }
+    public required string Mode { get; init; }
+}
+
+internal sealed class StructuralInfo
+{
+    public required IReadOnlyList<StructuralDevice> Devices { get; init; }
+    public required IReadOnlyList<StructuralPort> Ports { get; init; }
+    public required IReadOnlyList<StructuralNet> Nets { get; init; }
+    public required IReadOnlyList<string> Supplies { get; init; }
+    public required IReadOnlyList<string> Grounds { get; init; }
+}
+
+internal sealed class StructuralDevice
+{
+    public required string Id { get; init; }
+    public required string Type { get; init; }
+    public required IReadOnlyList<string> Terminals { get; init; }
+}
+
+internal sealed class StructuralPort
+{
+    public required string Name { get; init; }
+    public required string Direction { get; init; }
+    public required string Type { get; init; }
+}
+
+internal sealed class StructuralNet
+{
+    public required string Name { get; init; }
+    public required IReadOnlyList<string[]> Connections { get; init; }
+}
+
+internal sealed class LayoutInfo
+{
+    public required IReadOnlyList<LayoutDevice> Devices { get; init; }
+    public required IReadOnlyList<LayoutPort> Ports { get; init; }
+    public required IReadOnlyList<LayoutNet> Nets { get; init; }
+}
+
+internal sealed class LayoutDevice
+{
+    public required string Id { get; init; }
+    public required PointValue Position { get; init; }
+    public required OrientationValue Orientation { get; init; }
+    public required BboxValue Bbox { get; init; }
+}
+
+internal sealed class OrientationValue
+{
+    public required int Rotate { get; init; }
+    public required bool MirrorX { get; init; }
+}
+
+internal sealed class LayoutPort
+{
+    public required string Name { get; init; }
+    public required PointValue Position { get; init; }
+    public required string Side { get; init; }
+}
+
+internal sealed class LayoutNet
+{
+    public required string Name { get; init; }
+    public required IReadOnlyList<SegmentValue> Segments { get; init; }
+    public required IReadOnlyList<PointValue> Junctions { get; init; }
+}
+
+internal sealed class SegmentValue
+{
+    public required PointValue From { get; init; }
+    public required PointValue To { get; init; }
+}
+
+internal sealed class PointValue
+{
+    public required int X { get; init; }
+    public required int Y { get; init; }
+}
+
+internal sealed class BboxValue
+{
+    public required int X { get; init; }
+    public required int Y { get; init; }
+    public required int Width { get; init; }
+    public required int Height { get; init; }
+}
+
+internal sealed class RenderCacheInfo
+{
+    public required IReadOnlyDictionary<
+        string,
+        IReadOnlyDictionary<string, PointValue>
+    > TerminalPoints { get; init; }
+
+    public required IReadOnlyDictionary<string, BboxValue> ComputedBboxes { get; init; }
+}
+
+internal sealed class ApiDiagnostic
+{
+    public required string Code { get; init; }
+    public required string Message { get; init; }
+}
+
+internal sealed class RenderComputationState
+{
+    public required Cascode.Render.Analysis.CircuitGraph Graph { get; init; }
+    public required Cascode.Render.Placement.CoarseGridResult Placement { get; init; }
+    public required Cascode.Render.Routing.RoutingResult Routing { get; init; }
+    public required IReadOnlyList<string> Diagnostics { get; init; }
+}

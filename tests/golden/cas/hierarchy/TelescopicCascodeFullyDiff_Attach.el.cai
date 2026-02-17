@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 bundle Diff {
   P : analog
@@ -72,10 +72,10 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth >= 500kHz
-      c_gain = ACBench::PassbandGain >= 2dB
-      c_pm = ACBench::PhaseMargin >= 60deg
-      c_pwr = DCBench::QuiescentPower <= 1mW
+      c_gbw = transfer_bench::GainBandwidth >= 500kHz
+      c_gain = transfer_bench::PassbandGain >= 2dB
+      c_pm = transfer_bench::PhaseMargin >= 60deg
+      c_pwr = vdd_pwr::QuiescentPower <= 1mW
     }
     tech {
       t_lmin : L >= 500nm on *

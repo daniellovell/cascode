@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
@@ -67,8 +67,8 @@ circuit OTA5TSingleEnded_DCSwept implements SingleEndedOpAmp {
   }
   constraints {
     numeric {
-      c_out_bias = DCBench::OutputDCBias at net::OUT >= 0.4V
-      c_power = DCBench::QuiescentPower <= 500uW
+      c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0.4V
+      c_power = vdd_pwr::QuiescentPower <= 500uW
     }
   }
   harness {

@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 primitive Resistor Ideal_Resistor(size primSize) {
   device "resistor"
@@ -37,8 +37,8 @@ circuit CSAmpResistive_DCSwept implements SingleEndedAmp {
   }
   constraints {
     numeric {
-      c_out_bias = DCBench::OutputDCBias at net::OUT >= 0.4V
-      c_power = DCBench::QuiescentPower <= 500uW
+      c_out_bias = dc_bias::OutputDCBias at net::OUT >= 0.4V
+      c_power = vdd_pwr::QuiescentPower <= 500uW
     }
   }
   harness {

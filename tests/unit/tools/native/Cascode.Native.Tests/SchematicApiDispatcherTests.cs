@@ -1,0 +1,613 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Cascode.Language;
+using Cascode.Native;
+
+namespace Cascode.Native.Tests;
+
+public sealed class SchematicApiDispatcherTests
+{
+    [Fact]
+    public void ApplyOperations_UpdatesRenderAndPreservesUntouchedEntries()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: true),
+            }
+        );
+        var m1Position = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1")
+            .GetProperty("position");
+
+        var applyMove = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M1",
+                        ["x"] = m1Position.GetProperty("x").GetInt32(),
+                        ["y"] = m1Position.GetProperty("y").GetInt32(),
+                    }
+                ),
+            }
+        );
+
+        Assert.Equal(
+            2,
+            applyMove.RootElement.GetProperty("document").GetProperty("revision").GetInt32()
+        );
+        var sourceText = applyMove.RootElement.GetProperty("sourceText").GetString()!;
+        var circuit = ParseCircuit(sourceText);
+        var m1 = Assert.Single(circuit.Render!.Entities, entry => entry.Name == "M1");
+        Assert.IsType<RenderAbsPoint>(m1.Place!.Point);
+        Assert.Equal(RenderConstraintStrength.Hard, m1.Place.Strength);
+
+        var m2 = Assert.Single(circuit.Render.Entities, entry => entry.Name == "M2");
+        Assert.NotNull(m2.Place);
+        Assert.Equal(RenderConstraintStrength.Hint, m2.Place!.Strength);
+    }
+
+    [Fact]
+    public void UpdateText_PrunesStaleRenderEntries()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var m1Position = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1")
+            .GetProperty("position");
+        var m2Position = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M2")
+            .GetProperty("position");
+
+        var sourceWithRender = BuildSourceWithRender(
+            m1DeviceId: "M1",
+            includeM2Device: true,
+            includeM1Render: true,
+            includeM2Render: true,
+            m1X: m1Position.GetProperty("x").GetInt32(),
+            m1Y: m1Position.GetProperty("y").GetInt32(),
+            m2X: m2Position.GetProperty("x").GetInt32(),
+            m2Y: m2Position.GetProperty("y").GetInt32()
+        );
+        Dispatch(
+            session.State,
+            "document.updateText",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["text"] = sourceWithRender,
+            }
+        );
+
+        var renamedSource = BuildSourceWithRender(
+            m1DeviceId: "M1_RENAMED",
+            includeM2Device: true,
+            includeM1Render: true,
+            includeM2Render: true,
+            m1X: m1Position.GetProperty("x").GetInt32(),
+            m1Y: m1Position.GetProperty("y").GetInt32(),
+            m2X: m2Position.GetProperty("x").GetInt32(),
+            m2Y: m2Position.GetProperty("y").GetInt32()
+        );
+        var updateRenamed = Dispatch(
+            session.State,
+            "document.updateText",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["text"] = renamedSource,
+            }
+        );
+
+        var renamedCircuit = ParseCircuit(
+            updateRenamed.RootElement.GetProperty("sourceText").GetString()!
+        );
+        Assert.DoesNotContain(renamedCircuit.Render!.Entities, entry => entry.Name == "M1");
+
+        var deletedSource = BuildSourceWithRender(
+            m1DeviceId: "M1_RENAMED",
+            includeM2Device: false,
+            includeM1Render: true,
+            includeM2Render: true,
+            m1X: m1Position.GetProperty("x").GetInt32(),
+            m1Y: m1Position.GetProperty("y").GetInt32(),
+            m2X: m2Position.GetProperty("x").GetInt32(),
+            m2Y: m2Position.GetProperty("y").GetInt32()
+        );
+        var updateDeleted = Dispatch(
+            session.State,
+            "document.updateText",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 3,
+                ["text"] = deletedSource,
+            }
+        );
+
+        var deletedCircuit = ParseCircuit(
+            updateDeleted.RootElement.GetProperty("sourceText").GetString()!
+        );
+        Assert.True(
+            deletedCircuit.Render is null
+                || deletedCircuit.Render.Entities.All(entry => entry.Name != "M2")
+        );
+    }
+
+    [Fact]
+    public void RevisionConflict_ReportsCurrentRevisionAndChangedEntities()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+        var m1Position = opened
+            .RootElement.GetProperty("layout")
+            .GetProperty("devices")
+            .EnumerateArray()
+            .Single(device => device.GetProperty("id").GetString() == "M1")
+            .GetProperty("position");
+
+        Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M1",
+                        ["x"] = m1Position.GetProperty("x").GetInt32(),
+                        ["y"] = m1Position.GetProperty("y").GetInt32(),
+                    }
+                ),
+            }
+        );
+
+        var ex = Assert.Throws<ApiException>(() =>
+            SchematicApiDispatcher.Dispatch(
+                session.State,
+                "schematic.applyOperations",
+                new JsonObject
+                {
+                    ["documentId"] = "doc1",
+                    ["baseRevision"] = 1,
+                    ["operations"] = new JsonArray(
+                        new JsonObject
+                        {
+                            ["opId"] = "op-2",
+                            ["type"] = "rotateDevice",
+                            ["deviceId"] = "M1",
+                            ["angle"] = 90,
+                        }
+                    ),
+                }.ToJsonString()
+            )
+        );
+
+        Assert.Equal("CASAPI-REVISION-CONFLICT", ex.Code);
+        Assert.NotNull(ex.Details);
+        Assert.Equal(2, ex.Details!["currentRevision"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void Canonicalization_PrefersExplicitAndNearbyAnchorsBeforeAbs()
+    {
+        using var session = ApiSession.Create();
+        var opened = Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        var gate = opened
+            .RootElement.GetProperty("renderCache")
+            .GetProperty("terminalPoints")
+            .GetProperty("M1")
+            .GetProperty("G");
+        var gx = gate.GetProperty("x").GetInt32();
+        var gy = gate.GetProperty("y").GetInt32();
+
+        var movePort = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "movePort",
+                        ["port"] = "IN",
+                        ["x"] = gx + 1,
+                        ["y"] = gy,
+                    }
+                ),
+            }
+        );
+
+        var circuitAfterPortMove = ParseCircuit(
+            movePort.RootElement.GetProperty("sourceText").GetString()!
+        );
+        var inEntry = Assert.Single(
+            circuitAfterPortMove.Render!.Entities,
+            entry => entry.Name == "IN"
+        );
+        var inPoint = Assert.IsType<RenderRefPoint>(inEntry.Place!.Point);
+        Assert.StartsWith("M1", inPoint.Anchor, StringComparison.Ordinal);
+
+        var moveWithExplicitAnchor = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-2",
+                        ["type"] = "moveDevice",
+                        ["deviceId"] = "M2",
+                        ["x"] = opened
+                            .RootElement.GetProperty("layout")
+                            .GetProperty("devices")
+                            .EnumerateArray()
+                            .Single(device => device.GetProperty("id").GetString() == "M2")
+                            .GetProperty("position")
+                            .GetProperty("x")
+                            .GetInt32(),
+                        ["y"] = opened
+                            .RootElement.GetProperty("layout")
+                            .GetProperty("devices")
+                            .EnumerateArray()
+                            .Single(device => device.GetProperty("id").GetString() == "M2")
+                            .GetProperty("position")
+                            .GetProperty("y")
+                            .GetInt32(),
+                        ["anchor"] = "M1.G",
+                    }
+                ),
+            }
+        );
+
+        var circuitAfterExplicit = ParseCircuit(
+            moveWithExplicitAnchor.RootElement.GetProperty("sourceText").GetString()!
+        );
+        var m2Ref = Assert.IsType<RenderRefPoint>(
+            Assert
+                .Single(circuitAfterExplicit.Render!.Entities, entry => entry.Name == "M2")
+                .Place!.Point
+        );
+        Assert.Equal("M1.G", m2Ref.Anchor);
+
+        var farMove = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 3,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-3",
+                        ["type"] = "movePort",
+                        ["port"] = "IN",
+                        ["x"] = 1000,
+                        ["y"] = 1000,
+                    }
+                ),
+            }
+        );
+
+        var circuitAfterFarMove = ParseCircuit(
+            farMove.RootElement.GetProperty("sourceText").GetString()!
+        );
+        Assert.IsType<RenderAbsPoint>(
+            Assert
+                .Single(circuitAfterFarMove.Render!.Entities, entry => entry.Name == "IN")
+                .Place!.Point
+        );
+    }
+
+    [Fact]
+    public void ApplyOperations_ConnectTerminals_DeduplicatesBidirectionalConnections()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "connectTerminals",
+                        ["from"] = "M1.G",
+                        ["to"] = "M2.G",
+                    }
+                ),
+            }
+        );
+
+        var second = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-2",
+                        ["type"] = "connectTerminals",
+                        ["from"] = "M2.G",
+                        ["to"] = "M1.G",
+                    }
+                ),
+            }
+        );
+
+        var circuit = ParseCircuit(second.RootElement.GetProperty("sourceText").GetString()!);
+        var duplicateCount = circuit.Fill!.Connections.Count(conn =>
+            (conn.From == "M1.G" && conn.To == "M2.G") || (conn.From == "M2.G" && conn.To == "M1.G")
+        );
+        Assert.Equal(1, duplicateCount);
+    }
+
+    [Fact]
+    public void RenderSchematic_ThrowsApiExceptionWhenSelectedCircuitIsMissing()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        session.State.Documents["doc1"].CircuitName = "MissingCircuit";
+        var ex = Assert.Throws<ApiException>(() =>
+            Dispatch(session.State, "render.schematic", new JsonObject { ["documentId"] = "doc1" })
+        );
+        Assert.Contains("MissingCircuit", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void JobPoll_UsesInjectedClockForDeterministicProgress()
+    {
+        var originalClock = SchematicApiDispatcher.UtcNowProvider;
+        var now = DateTimeOffset.Parse("2026-01-01T00:00:00+00:00");
+        SchematicApiDispatcher.UtcNowProvider = () => now;
+        try
+        {
+            using var session = ApiSession.Create();
+            var started = Dispatch(session.State, "job.start", new JsonObject());
+            var jobId = started.RootElement.GetProperty("jobId").GetString();
+            Assert.NotNull(jobId);
+
+            now = now.AddMilliseconds(2600);
+            var polled = Dispatch(session.State, "job.poll", new JsonObject { ["jobId"] = jobId });
+
+            Assert.Equal("completed", polled.RootElement.GetProperty("state").GetString());
+            Assert.Equal(100, polled.RootElement.GetProperty("progress").GetInt32());
+        }
+        finally
+        {
+            SchematicApiDispatcher.UtcNowProvider = originalClock;
+        }
+    }
+
+    private static JsonDocument Dispatch(SessionState session, string method, JsonObject payload)
+    {
+        var response = SchematicApiDispatcher.Dispatch(session, method, payload.ToJsonString());
+        return JsonDocument.Parse(response);
+    }
+
+    private static Circuit ParseCircuit(string sourceText)
+    {
+        var read = CascodeReader.TryParse(sourceText, "<native-test>");
+        Assert.True(
+            read.Success,
+            string.Join(Environment.NewLine, read.Diagnostics.Select(d => d.Message))
+        );
+        return read.Document!.Circuits.Single(circuit => circuit.Name == "Amp");
+    }
+
+    private static string BuildSampleSource(bool withRenderBlock)
+    {
+        var renderBlock = withRenderBlock
+            ? @"
+  render {
+    M1 place abs 0 0 soft
+    M2 place abs 20 20 hint
+  }
+"
+            : string.Empty;
+
+        return $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Amp {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  ground GND
+  fill {{
+    net n1 : analog
+    size Unit = size(W=1u, L=180n, M=1)
+    NMOS M1 = new Level1_NMOS(Unit) {{
+      .D--OUT
+      .G--IN
+      .S--n1
+      .B--GND
+    }}
+    NMOS M2 = new Level1_NMOS(Unit) {{
+      .D--OUT
+      .G--n1
+      .S--GND
+      .B--GND
+    }}
+  }}
+{renderBlock}}}
+";
+    }
+
+    private static string BuildSourceWithRender(
+        string m1DeviceId,
+        bool includeM2Device,
+        bool includeM1Render,
+        bool includeM2Render,
+        int m1X,
+        int m1Y,
+        int m2X,
+        int m2Y
+    )
+    {
+        var m2Device = includeM2Device
+            ? @"
+    NMOS M2 = new Level1_NMOS(Unit) {
+      .D--OUT
+      .G--n1
+      .S--GND
+      .B--GND
+    }"
+            : string.Empty;
+        var m1Render = includeM1Render
+            ? $"    M1 place abs {m1X} {m1Y} hard{Environment.NewLine}"
+            : string.Empty;
+        var m2Render = includeM2Render
+            ? $"    M2 place abs {m2X} {m2Y} hard{Environment.NewLine}"
+            : string.Empty;
+
+        return $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit Amp {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  ground GND
+  fill {{
+    net n1 : analog
+    size Unit = size(W=1u, L=180n, M=1)
+    NMOS {m1DeviceId} = new Level1_NMOS(Unit) {{
+      .D--OUT
+      .G--IN
+      .S--n1
+      .B--GND
+    }}
+{m2Device}
+  }}
+  render {{
+{m1Render}{m2Render}  }}
+}}
+";
+    }
+
+    private sealed class ApiSession : IDisposable
+    {
+        private readonly int _id;
+
+        private ApiSession(int id, SessionState state)
+        {
+            _id = id;
+            State = state;
+        }
+
+        public SessionState State { get; }
+
+        public static ApiSession Create()
+        {
+            var id = SessionManager.CreateSession(null);
+            Assert.True(SessionManager.TryGetSession(id, out var state));
+            return new ApiSession(id, state);
+        }
+
+        public void Dispose()
+        {
+            SessionManager.DestroySession(_id);
+        }
+    }
+}

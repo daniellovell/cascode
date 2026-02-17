@@ -17,6 +17,10 @@ interface FullyDifferentialOpAmp {
       bench.RET--dut.GND
     }
 
+    bind DiffDCBias as dc_bias {
+      bench.OUT--dut.OUT
+    }
+
     bind DiffToDiffTransfer as transfer_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT

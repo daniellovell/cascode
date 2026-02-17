@@ -1,24 +1,24 @@
 {
-  "circuit": "OTA5TFullyDiff",
-  "bench": "ACBench",
+  "circuit": "OTA5TSingleEnded",
+  "bench": "transfer_bench",
   "measurements": {
     "gain": {
       "metric": "PassbandGain",
-      "value": 42.5,
+      "value": 45.2,
       "unit": "dB",
-      "node": null
+      "node": "net::OUT"
     },
     "gbw": {
       "metric": "GainBandwidth",
-      "value": 120000000,
+      "value": 150000000,
       "unit": "Hz",
-      "node": null
+      "node": "net::OUT"
     },
     "pm": {
       "metric": "PhaseMargin",
-      "value": 68.2,
+      "value": 65.3,
       "unit": "deg",
-      "node": null
+      "node": "net::OUT"
     }
   }
 }

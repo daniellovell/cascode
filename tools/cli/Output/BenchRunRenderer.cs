@@ -67,6 +67,7 @@ internal static class BenchRunRenderer
             $"Circuit: {circuitSummary.CircuitName} ({summary.Backend.ToString().ToLowerInvariant()})"
         );
         writeLine($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
+        RenderValidationErrorsPlain(summary.ValidationErrors, writeLine);
 
         var succeeded = circuitSummary
             .Benches.Where(b => b.Succeeded)
@@ -96,6 +97,7 @@ internal static class BenchRunRenderer
         writeLine($"Backend: {summary.Backend.ToString().ToLowerInvariant()}");
         writeLine($"Artifacts: {FormatDir(summary.OutputDir, verbose)}");
         writeLine($"Circuits: {summary.CircuitSummaries.Count}");
+        RenderValidationErrorsPlain(summary.ValidationErrors, writeLine);
         writeLine("");
 
         foreach (var circuitSummary in summary.CircuitSummaries)
@@ -225,6 +227,7 @@ internal static class BenchRunRenderer
         console.MarkupLine(
             $"[grey]Artifacts:[/] {Markup.Escape(Path.GetFullPath(summary.OutputDir))}"
         );
+        RenderValidationErrorsSpectre(summary.ValidationErrors, console);
 
         var succeeded = circuitSummary
             .Benches.Where(b => b.Succeeded)
@@ -268,6 +271,7 @@ internal static class BenchRunRenderer
             $"[grey]Artifacts:[/] {Markup.Escape(Path.GetFullPath(summary.OutputDir))}"
         );
         console.MarkupLine($"[grey]Circuits:[/] {summary.CircuitSummaries.Count}");
+        RenderValidationErrorsSpectre(summary.ValidationErrors, console);
         console.WriteLine();
 
         var circuitsTable = new Table().Border(TableBorder.Simple);
@@ -301,6 +305,40 @@ internal static class BenchRunRenderer
         console.MarkupLine(
             $"[grey]Global:[/] {global.PassedCount}/{global.TotalCount} ({globalPct}% PASS)"
         );
+    }
+
+    private static void RenderValidationErrorsPlain(
+        IReadOnlyList<string>? validationErrors,
+        Action<string> writeLine
+    )
+    {
+        if (validationErrors is null || validationErrors.Count == 0)
+        {
+            return;
+        }
+
+        writeLine("Validation errors:");
+        foreach (var error in validationErrors)
+        {
+            writeLine($"  - {error}");
+        }
+    }
+
+    private static void RenderValidationErrorsSpectre(
+        IReadOnlyList<string>? validationErrors,
+        IAnsiConsole console
+    )
+    {
+        if (validationErrors is null || validationErrors.Count == 0)
+        {
+            return;
+        }
+
+        console.MarkupLine("[red]Validation errors:[/]");
+        foreach (var error in validationErrors)
+        {
+            console.MarkupLine($"[red]-[/] {Markup.Escape(error)}");
+        }
     }
 
     private static void RenderComplianceTable(ComplianceReport compliance, IAnsiConsole console)

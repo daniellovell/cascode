@@ -79,34 +79,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         // will automatically get the required workspace DB.
         if (RequiresPdkWorkspace(doc, out var pdkName, out var pdkRoot))
         {
-            var pdkSet = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(10),
-                _cascodeHome,
-                "pdk",
-                "set-dir",
-                pdkRoot
-            );
-            CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
-
-            var scan = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(90),
-                _cascodeHome,
-                "pdk",
-                "scan",
-                pdkRoot
-            );
-            CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
-
-            var runWithPdk = await CliIntegrationTestHelper.RunCliAsync(
-                TimeSpan.FromSeconds(120),
-                _cascodeHome,
-                "bench",
-                "run",
-                cascodePath,
-                "-o",
-                _outputDir
-            );
-            CliIntegrationTestHelper.AssertSuccess(runWithPdk, "bench run failed");
+            await SetupPdkAndRunBench(pdkRoot, cascodePath);
 
             await AssertRunArtifactsAndResults(doc, plans, pdkName);
             return;
@@ -198,6 +171,89 @@ public sealed class StressFolderIntegrationTests : IDisposable
             linked.Primitives,
             primitive => primitive.Name.Equals("pfet_01v8", StringComparison.Ordinal)
         );
+    }
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task CSAmpResistiveSky130_AllConstraintsPass()
+    {
+        var cascodePath = Path.Combine(
+            _repoRoot,
+            "tests",
+            "golden",
+            "cas",
+            "stress",
+            "CSAmp_Resistive_Sky130.cas"
+        );
+
+        var doc = LoadAndLinkIfNeededForTest(cascodePath);
+        Assert.True(RequiresPdkWorkspace(doc, out _, out var pdkRoot), "expected sky130 workspace");
+
+        await SetupPdkAndRunBench(pdkRoot, cascodePath);
+
+        var circuit = Assert.Single(
+            doc.Circuits,
+            c => c.Name.Equals("CSAmp_Resistive_Sky130", StringComparison.Ordinal)
+        );
+        var combinedResultsPath = Path.Combine(_outputDir, $"{circuit.Name}_results.json");
+        Assert.True(
+            File.Exists(combinedResultsPath),
+            $"combined results not found: {combinedResultsPath}"
+        );
+
+        var combinedResults = JsonSerializer.Deserialize<BenchResult>(
+            await File.ReadAllTextAsync(combinedResultsPath),
+            s_jsonOptions
+        );
+        Assert.NotNull(combinedResults);
+
+        var report = ComplianceChecker.Check(circuit, combinedResults!);
+        var failures = report
+            .Results.Where(r => !r.Passed)
+            .Select(r => $"{r.Id}: {r.Message}")
+            .ToArray();
+
+        Assert.True(report.TotalCount > 0, "expected at least one numeric constraint");
+        Assert.True(
+            report.FailedCount == 0,
+            "expected CSAmp_Resistive_Sky130 to satisfy all numeric constraints, failures: "
+                + string.Join(", ", failures)
+        );
+    }
+
+    /// <summary>
+    /// Initializes the workspace PDK and executes bench run for a stress-case input.
+    /// </summary>
+    private async Task SetupPdkAndRunBench(string pdkRoot, string cascodePath)
+    {
+        var pdkSet = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            _cascodeHome,
+            "pdk",
+            "set-dir",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
+
+        var scan = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(90),
+            _cascodeHome,
+            "pdk",
+            "scan",
+            pdkRoot
+        );
+        CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
+
+        var run = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(120),
+            _cascodeHome,
+            "bench",
+            "run",
+            cascodePath,
+            "-o",
+            _outputDir
+        );
+        CliIntegrationTestHelper.AssertSuccess(run, "bench run failed");
     }
 
     private CascodeDocument LoadAndLinkIfNeededForTest(string inputPath)
@@ -355,19 +411,34 @@ public sealed class StressFolderIntegrationTests : IDisposable
         pdkMarker = string.Empty;
         pdkRoot = string.Empty;
 
-        // Today we only allow/ship sky130 and gpdk045 fixtures. If a stress file uses a PDK primitive,
-        // it must be one of these.
-        var deviceKeys = doc
-            .Primitives.Select(p => p.Device)
-            .Where(s => !string.IsNullOrWhiteSpace(s));
-        if (deviceKeys.Any(d => d.Contains("sky130_", StringComparison.OrdinalIgnoreCase)))
+        // Today we only allow/ship sky130 and gpdk045 fixtures. Prefer include-based detection
+        // (stable across primitive model naming), then fall back to primitive metadata.
+        var includeNames = doc
+            .Includes.Select(i => i.Name)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToArray();
+        if (
+            includeNames.Any(n =>
+                n.StartsWith("lib.pdk.sky130", StringComparison.OrdinalIgnoreCase)
+            )
+            || doc.Primitives.Any(p =>
+                p.Params.Values.Any(v => v.Contains("sky130_", StringComparison.OrdinalIgnoreCase))
+            )
+        )
         {
             pdkMarker = "sky130.lib.spice";
             pdkRoot = Path.Combine(_repoRoot, "tests", "fixtures", "pdk", "sky130");
             return true;
         }
 
-        if (deviceKeys.Any(d => d.Contains("gpdk045", StringComparison.OrdinalIgnoreCase)))
+        if (
+            includeNames.Any(n =>
+                n.StartsWith("lib.pdk.gpdk045", StringComparison.OrdinalIgnoreCase)
+            )
+            || doc.Primitives.Any(p =>
+                p.Params.Values.Any(v => v.Contains("gpdk045", StringComparison.OrdinalIgnoreCase))
+            )
+        )
         {
             // TODO: add gpdk045 fixture and marker once we have a first-class stress case for it.
             // For now, treat as unsupported rather than silently skipping.

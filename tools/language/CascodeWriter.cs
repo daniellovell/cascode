@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language;
 
 /// <summary>
 /// Writes Cascode documents to text format following canonical writer rules.
 /// </summary>
-public static class CascodeWriter
+public static partial class CascodeWriter
 {
     /// <summary>
     /// Writes an Cascode document to a text writer.
@@ -20,7 +21,7 @@ public static class CascodeWriter
         writer.WriteLine($"VERSION {CascodeVersion.Current}");
         writer.WriteLine();
 
-        // Include directives (source documents only; linked documents must not contain includes).
+        // Include directives (source docs and include-pruned linked outputs).
         foreach (var inc in document.Includes.OrderBy(i => i.Name, StringComparer.Ordinal))
         {
             writer.WriteLine($"include {inc.Name}");
@@ -332,6 +333,12 @@ public static class CascodeWriter
                 writer.WriteLine($"    {entry.Key} = {entry.Value}");
             }
             writer.WriteLine("  }");
+        }
+
+        var prunedRender = RenderBlockValidator.Prune(circuit);
+        if (prunedRender is not null && prunedRender.Entities.Count > 0)
+        {
+            WriteRenderBlock(prunedRender, writer);
         }
 
         if (circuit.BenchBindings.Count > 0 || circuit.BenchBindingExtensions.Count > 0)

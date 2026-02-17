@@ -1,21 +1,13 @@
-VERSION 3.1
+VERSION 3.2
 
-// Stress test: resistively-loaded common-source amplifier using sky130 devices.
+// Stress test: single-ended common-source amplifier using sky130 devices.
 //
 // Primary purpose: ensure the standard library supports SE->SE constraint coverage
 // (transfer, noise, transient swing, PSRR, quiescent power) for PDK-backed circuits.
 
 include lib.std
-
-// TODO: Cascode should append these during linking.
-primitive NMOS nfet_01v8(size primSize) {
-  device "sky130_fd_pr__nfet_01v8"
-  params {
-    w = primSize.W
-    l = primSize.L
-    mult = primSize.M
-  }
-}
+include lib.pdk.sky130.devices.pfet_01v8
+include lib.pdk.sky130.devices.nfet_01v8
 
 circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   level EL
@@ -23,6 +15,7 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   ground GND
   input IN : analog
   output OUT : analog
+  input VBIAS : bias
 
   env {
     // Required by lib.std transfer/noise/tran/psrr benches.
@@ -39,9 +32,11 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
       .S--GND
     }
 
-    Resistor R_LOAD = new Ideal_Resistor(size(R=10k)) {
-      .P--VDD
-      .N--OUT
+    PMOS M_LOAD = new pfet_01v8(size(W=20u, L=180n, M=1)) {
+      .B--VDD
+      .D--OUT
+      .G--VBIAS
+      .S--VDD
     }
   }
 
@@ -49,12 +44,12 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
     numeric {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
-      c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 5uVrms
+      c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100uVrms
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
       c_vdd_pwr = vdd_pwr::QuiescentPower <= 500uW
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
-      c_psrr = psrr_bench::PSRR at net::OUT >= 10dB
-      c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 10dB
+      c_psrr = psrr_bench::PSRR at net::OUT >= -25dB
+      c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 0dB
       // No CMRR constraint (not possible of course).
     }
   }
@@ -62,5 +57,6 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   harness {
     supply VDD = 1.8V
     ground GND = 0V
+    bias VBIAS = 0.7V
   }
 }

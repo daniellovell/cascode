@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 primitive NMOS Level1_NMOS(size primSize) {
   device "level1_nmos"
@@ -75,7 +75,7 @@ circuit WireOperatorWhitespace implements SingleEndedOpAmp {
   }
   constraints {
     numeric {
-      c_gain = ACBench::PassbandGain >= 20dB
+      c_gain = transfer_bench::PassbandGain >= 20dB
     }
   }
   harness {

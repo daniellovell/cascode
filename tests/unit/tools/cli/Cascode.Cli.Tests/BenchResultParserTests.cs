@@ -20,7 +20,7 @@ RESULT: PassbandGain =   dB
 RESULT: GainBandwidth = 1e6 Hz
 ";
 
-        var result = BenchResultParser.ParseResults(stdout, circuit, "ACBench");
+        var result = BenchResultParser.ParseResults(stdout, circuit, "transfer_bench");
 
         // Should have both measurements
         Assert.Equal(2, result.Measurements.Count);
@@ -47,7 +47,7 @@ RESULT: PassbandGain = 42.5 dB
 RESULT: PhaseMargin = 65.2 deg
 ";
 
-        var result = BenchResultParser.ParseResults(stdout, circuit, "ACBench");
+        var result = BenchResultParser.ParseResults(stdout, circuit, "transfer_bench");
 
         Assert.Equal(2, result.Measurements.Count);
         Assert.Equal(42.5, result.Measurements["PassbandGain"].Value);
@@ -68,7 +68,7 @@ RESULT: GainBandwidth =   Hz
 RESULT: PhaseMargin = 60.5 deg
 ";
 
-        var result = BenchResultParser.ParseResults(stdout, circuit, "ACBench");
+        var result = BenchResultParser.ParseResults(stdout, circuit, "transfer_bench");
 
         Assert.Equal(3, result.Measurements.Count);
         Assert.Equal(40.2, result.Measurements["PassbandGain"].Value);

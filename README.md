@@ -165,7 +165,7 @@ circuit RcLowpass {
 
 ## ⚙️ From `.cas` to `.cai` to SPICE
 
-1. `cascode link` resolves `include` directives and writes self-contained `.cai` output.
+1. `cascode link` resolves `include` directives and writes `.cai` output.
 2. `cascode emit` emits simulator netlists from EL circuits (source `.cas` or linked `.cai`).
 3. `cascode bench run` runs constraint-selected benches and writes `results.json` plus per-bench traces.
 4. `cascode verify` checks numeric constraints against results.
@@ -273,8 +273,11 @@ inputs (`*.cai`) to expected emitted outputs and constraint-checking results.
 > Architecture, command modules, and snapshot testing workflow are documented in [tools/README.md](tools/README.md).
 
 ```bash
-# Link source (resolve includes) to self-contained .cai
+# Link source (resolve includes) to self-contained .cai (default mode)
 cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build
+
+# Link in include-pruned bench mode (preserve bench bindings, omit bench definitions, keep a minimal include set)
+cascode link tests/golden/cas/stress/OTA5T_Sky130.cas -o build --no-link-benches
 
 # Emit simulator netlists from an EL circuit (source .cas or linked .cai)
 cascode emit tests/golden/cas/bench/RcLowpass.el.cai --backend ngspice --out build/rc-emit
@@ -302,6 +305,14 @@ cd editors\vscode; .\install.ps1
 ```
 
 Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+
+For native editor/runtime integrations, see `@cascode/native` in `editors/node`:
+
+- Package docs: `editors/node/README.md`
+- Runtime package: `editors/node/package.json`
+- Platform package templates: `editors/node/platform-packages/`
+
+Maintainers: native npm package versions are release-tag aligned and validated in `.github/workflows/release.yml`.
 
 ---
 

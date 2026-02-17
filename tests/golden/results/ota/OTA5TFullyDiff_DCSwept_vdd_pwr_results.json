@@ -1,0 +1,12 @@
+{
+  "circuit": "OTA5TFullyDiff_DCSwept",
+  "bench": "vdd_pwr",
+  "measurements": {
+    "QuiescentPower": {
+      "metric": "QuiescentPower",
+      "value": 0.00042,
+      "unit": "W",
+      "node": null
+    }
+  }
+}

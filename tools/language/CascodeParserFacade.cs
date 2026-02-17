@@ -93,6 +93,8 @@ public static class CascodeParserFacade
                 BenchBindingChecker.Check(parsed, diagnostics);
             }
 
+            parsed = ApplyRenderValidation(path, parsed, diagnostics);
+
             return new CascodeReadResult { Document = parsed, Diagnostics = diagnostics };
         }
         catch (Exception ex)
@@ -108,5 +110,69 @@ public static class CascodeParserFacade
             );
             return new CascodeReadResult { Document = null, Diagnostics = diagnostics };
         }
+    }
+
+    private static CascodeDocument ApplyRenderValidation(
+        string path,
+        CascodeDocument doc,
+        List<Diagnostic> diagnostics
+    )
+    {
+        if (doc.Circuits.Count == 0)
+        {
+            return doc;
+        }
+
+        var updatedCircuits = new List<Circuit>(doc.Circuits.Count);
+        foreach (var circuit in doc.Circuits)
+        {
+            var validation = RenderBlockValidator.Validate(circuit);
+            foreach (var message in validation.Messages)
+            {
+                diagnostics.Add(
+                    new Diagnostic($"CAS3200: {message}", DiagnosticSeverity.Warning, path, 1, 1)
+                );
+            }
+
+            updatedCircuits.Add(
+                new Circuit
+                {
+                    Name = circuit.Name,
+                    Traits = circuit.Traits,
+                    Level = circuit.Level,
+                    Inline = circuit.Inline,
+                    Package = circuit.Package,
+                    Parameters = circuit.Parameters,
+                    Sizes = circuit.Sizes,
+                    Supplies = circuit.Supplies,
+                    Grounds = circuit.Grounds,
+                    Ports = circuit.Ports,
+                    Slot = circuit.Slot,
+                    Fill = circuit.Fill,
+                    Constraints = circuit.Constraints,
+                    Harness = circuit.Harness,
+                    Env = circuit.Env,
+                    Render = validation.Render,
+                    BenchBindings = circuit.BenchBindings,
+                    BenchBindingExtensions = circuit.BenchBindingExtensions,
+                    Synth = circuit.Synth,
+                    Provenance = circuit.Provenance,
+                }
+            );
+        }
+
+        return new CascodeDocument
+        {
+            VersionMajor = doc.VersionMajor,
+            VersionMinor = doc.VersionMinor,
+            Includes = doc.Includes,
+            FileLibrary = doc.FileLibrary,
+            Functions = doc.Functions,
+            BundleTypes = doc.BundleTypes,
+            Traits = doc.Traits,
+            BenchDefinitions = doc.BenchDefinitions,
+            Primitives = doc.Primitives,
+            Circuits = updatedCircuits,
+        };
     }
 }

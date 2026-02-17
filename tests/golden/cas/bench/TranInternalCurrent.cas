@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 include lib.std
 
@@ -32,6 +32,13 @@ circuit TranInternalCurrent {
     bind TranBench as tran {
       bench.IN--dut.IN
       VSIN vin = new VSIN(DC=0V, A=100mV, freq=1MHz) { .P--IN, .N--dut.GND }
+    }
+  }
+
+  constraints {
+    numeric {
+      c_internal = tran::InternalNodePeak >= 0V
+      c_supply = tran::SupplyCurrentPeak >= 0A
     }
   }
 
