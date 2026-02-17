@@ -196,7 +196,7 @@ public static class BenchInvocationPlanner
                 new BenchInvocationPlan(
                     binding,
                     invocation.BenchInstanceName,
-                    Array.Empty<MetricCallArg>()
+                    invocation.Args.Select(arg => new MetricCallArg(arg.Name, arg.Text)).ToList()
                 )
             );
         }
