@@ -69,24 +69,24 @@ circuit OTA5T {
   ...
 
   render {
-    device M1 {
-      place ref port INP anchor offset 120 0
-      orient rotate 0 mirror-x false
-      strength placement hard
+    M1 {
+      place ref INP 120 0 hard
+      orient 0
     }
 
-    net gate_net {
-      route orthogonal
-      waypoint ref device M1 terminal G
-      waypoint rel 0 60
-      waypoint ref device M2 terminal G
-      strength route soft
+    gate_net {
+      route ortho soft
+      wp ref M1.G
+      wp rel 0 60
+      wp ref M2.G
     }
   }
 }
 ```
 
-The syntax uses keyword-based declarations consistent with Cascode conventions. `place` and `orient` are keyword statements rather than function calls. `strength` is a keyword statement with a target and level. Waypoints are individual statements rather than an array literal. No `version` statement appears inside `render {}` because the file-level `VERSION` declaration already governs format compatibility.
+Entity names in `render {}` are bare identifiers — the parser does not require `device`, `net`, or `port` prefixes. Semantic validation resolves the entity kind from the circuit's structural declarations, matching how fill-block connections (`M1.G--INP`) are parsed without syntactic type annotations. Anchor references use Cascode's standard dot notation (`M1.G` for terminal G of device M1). Constraint strength is a trailing modifier on the statement it qualifies rather than a separate `strength` statement. No `version` statement appears inside `render {}` because the file-level `VERSION` declaration already governs format compatibility.
+
+Entities with a single `place` override can use a one-liner form without braces: `M1 place ref INP 120 0 hard`. Entities with multiple properties use block form. Each entity name may appear at most once in a render block.
 
 ### 5.2 Block Scope
 
@@ -112,31 +112,31 @@ At current dimensions a MOSFET symbol occupies roughly 2 x 3 ru, a coarse grid c
 
 ### 6.3 Allowed Entities in `render {}` v1
 
-Three entity kinds are writable in render blocks: `device <id> { ... }` for placement, orientation, and constraint strength of a fill-block device; `port <name> { ... }` for placement, side assignment, and constraint strength of a circuit port; and `net <name> { ... }` for routing mode, waypoints, and constraint strength of a fill-block net.
+Three entity kinds are writable in render blocks: fill-block devices (placement, orientation, constraint strength), circuit ports (placement, side assignment, constraint strength), and fill-block nets (routing mode, waypoints, constraint strength). Entity names are bare identifiers — the parser uses a unified `renderEntity` rule and defers kind resolution to the semantic validation pass, which checks the identifier against the circuit's structural declarations.
 
 Group constraints (align, distribute, symmetry) are deferred to v1.1. No electrical declarations are permitted inside `render {}`.
 
 ### 6.4 Device Overrides (v1)
 
-A device entry supports `place <pointExpr>` for position override; `orient rotate <int> mirror-x <bool>` for orientation where rotation is in degrees (0, 90, 180, 270) and mirror-x defaults to false; `strength placement <level>` and `strength orientation <level>` for constraint strength; and an optional `zindex <int>` for rendering z-order override.
+A device entry supports `place <pointExpr> <strength?>` for position override with optional trailing strength; `orient <int> mirror?` for orientation where the integer is rotation in degrees (0, 90, 180, 270) and the optional `mirror` keyword enables mirror-x (omit for no mirror); and an optional `zindex <int>` for rendering z-order override. Constraint strength is a trailing keyword (`hard`, `soft`, or `hint`) on the `place` statement.
 
 Device parameter edits, connectivity changes, and symbol overrides are not allowed in render blocks.
 
 ### 6.5 Port Overrides (v1)
 
-A port entry supports `place <pointExpr>` for position override, `side <left|right|top|bottom|auto>` for preferred edge of the schematic boundary, and `strength placement <level>` for constraint strength.
+A port entry supports `place <pointExpr> <strength?>` for position override with optional trailing strength, and `side <left|right|top|bottom|auto>` for preferred edge of the schematic boundary. The `place` syntax is identical to device placement.
 
 ### 6.6 Net Route Overrides (v1)
 
-A net entry supports `route <orthogonal|auto>` for routing strategy, one or more `waypoint <pointExpr>` statements listed in order, and `strength route <level>` for constraint strength.
+A net entry supports `route <ortho|auto> <strength?>` for routing strategy with optional trailing strength, and one or more `wp <pointExpr>` statements listed in order for waypoints.
 
 Net endpoints are derived from connectivity; waypoints represent interior path preferences. The router may insert additional segments between waypoints unless the route strength is `hard` and solvable, in which case the exact waypoint sequence is enforced (see section 15, resolved question on hard net routes).
 
 ### 6.7 Constraint Strength
 
-The `strength` keyword takes a target (placement, orientation, or route) and one of three levels. `hard` means the constraint must be satisfied or the engine returns a diagnostic error. `soft` means the engine prefers the constraint strongly but may violate it with a warning. `hint` is a low-priority preference that the engine readily overrides.
+Constraint strength is a trailing keyword on `place` and `route` statements. Three levels are supported: `hard` means the constraint must be satisfied or the engine returns a diagnostic error; `soft` means the engine prefers the constraint strongly but may violate it with a warning; `hint` is a low-priority preference that the engine readily overrides.
 
-Default strengths: the engine generates render intent at `hint` level, and user direct manipulations are recorded as `hard`.
+When strength is omitted, defaults apply: engine-generated entries default to `hint`, user direct manipulations (via editor back-annotation) default to `hard`, and source-authored entries with no explicit strength default to `soft`.
 
 ---
 
@@ -148,15 +148,15 @@ Relative anchoring is the preferred representation because it survives reflow be
 
 Three forms of point expression are supported.
 
-`abs <x> <y>` places at absolute render-unit coordinates. `ref <anchorRef> offset <dx> <dy>` places relative to a semantic anchor with an integer offset; the `offset` clause is optional and defaults to 0 0. `rel <dx> <dy>` is a relative offset from the previous waypoint, valid only inside net route waypoint sequences.
+`abs <x> <y>` places at absolute render-unit coordinates. `ref <anchorRef> <dx> <dy>` places relative to a semantic anchor with an integer offset; the offset pair is optional and defaults to 0 0. `rel <dx> <dy>` is a relative offset from the previous waypoint, valid only inside net route `wp` sequences.
 
-All coordinate values are integers in render units.
+All coordinate values are signed integers in render units.
 
 ### 7.2 Anchor References
 
-An anchor reference identifies a semantic point in the schematic. `device <id> center` refers to the device bounding box center. `device <id> terminal <name>` refers to a specific terminal (G, D, S for MOSFETs; P, N for passives). `port <name> anchor` refers to the port symbol anchor point. `canvas origin` is the top-left of the canvas at (0, 0). `canvas center` is the computed center of the canvas.
+An anchor reference identifies a semantic point in the schematic using Cascode's standard dot notation. `M1` refers to the device bounding box center. `M1.G` refers to a specific terminal (G, D, S for MOSFETs; P, N for passives). `INP` refers to the port symbol anchor point (ports have exactly one anchor). `canvas origin` is the top-left of the canvas at (0, 0). `canvas center` is the computed center of the canvas.
 
-The `rail` anchor form from the initial draft is removed. Rails are derived from supply and ground declarations and do not need independent render references in v1.
+The anchor kind (device center, device terminal, port anchor) is determined by semantic resolution against the circuit's structural declarations, not by syntactic form. This matches how pin references work throughout the rest of the language.
 
 ### 7.3 Canonicalization Policy
 
@@ -204,7 +204,7 @@ Because `CascodeWriter` produces deterministic output, unchanged regions of the 
 
 ### 9.2 Operation Mapping
 
-WYSIWYG operations map to render block updates. Moving a device creates or updates `device <id> { place ... }` and sets `strength placement hard`. Rotating or mirroring a device updates `orient` and optionally sets `strength orientation hard`. Moving a port creates or updates `port <name> { place ... }` and sets `strength placement hard`. Drawing or adjusting a wire updates `net <name>` waypoint entries and sets `strength route hard`. Clearing a manual route removes waypoints but may keep `route <mode>`. Unlocking an item degrades `hard` to `soft` or removes the entry entirely.
+WYSIWYG operations map to render block updates. Moving a device creates or updates the entity's `place` statement with trailing `hard`. Rotating or mirroring a device updates `orient`. Moving a port creates or updates the entity's `place` statement with trailing `hard`. Drawing or adjusting a wire updates the net entity's `wp` entries and sets `route` strength to `hard`. Clearing a manual route removes `wp` statements but may keep `route <mode>`. Unlocking an item degrades `hard` to `soft` or removes the entry entirely.
 
 ### 9.3 Sparse Update Rules
 
@@ -502,6 +502,8 @@ Performance tests must cover incremental edit latency (target under 50ms for sin
 
 **Coordinate precision:** Integer render units (1 ru = 1 routing pitch = 10px). No floating-point coordinates appear in `render {}` blocks, so no precision policy is needed.
 
+**Render data storage model:** `render {}` remains in-language as a circuit member block. Visual layout intent is design intent and belongs in the source file alongside structural and constraint declarations. Render blocks are sparse by design (only user overrides), minimizing file size and git noise. Full computed layout is ephemeral and returned in API responses per section 6.1.
+
 **Node addon concurrency model:** The `@cascode/native` addon exposes synchronous bindings. Async dispatch and process isolation are the consumer's responsibility. The recommended topology uses two dedicated background processes: `cascode-editor` for interactive operations and `cascode-bench` for simulation jobs. This two-process topology keeps the edit loop responsive during bench runs without requiring worker threads within the addon.
 
 ---
@@ -509,36 +511,35 @@ Performance tests must cover incremental edit latency (target under 50ms for sin
 ## Appendix A: Grammar Sketch
 
 ```ebnf
-renderBlock       := "render" "{" renderStmt* "}"
-renderStmt        := deviceRenderStmt | portRenderStmt | netRenderStmt
+renderBlock       := "render" "{" renderEntity* "}"
 
-deviceRenderStmt  := "device" IDENT "{" deviceRenderField* "}"
-deviceRenderField := "place" pointExpr
-                   | "orient" "rotate" INT "mirror-x" BOOL
-                   | "strength" ("placement" | "orientation") strengthLevel
+renderEntity      := renderIdRef renderOneLiner
+                   | renderIdRef "{" renderField* "}"
+
+renderIdRef       := idPart ("." idPart)*
+
+renderOneLiner    := "place" pointExpr strengthLevel?
+
+renderField       := "place" pointExpr strengthLevel?
+                   | "orient" INT "mirror"?
+                   | "side" sideValue
+                   | "route" routeMode strengthLevel?
+                   | "wp" pointExpr
                    | "zindex" INT
 
-portRenderStmt    := "port" IDENT "{" portRenderField* "}"
-portRenderField   := "place" pointExpr
-                   | "side" ("left" | "right" | "top" | "bottom" | "auto")
-                   | "strength" "placement" strengthLevel
-
-netRenderStmt     := "net" IDENT "{" netRenderField* "}"
-netRenderField    := "route" ("orthogonal" | "auto")
-                   | "waypoint" pointExpr
-                   | "strength" "route" strengthLevel
-
 strengthLevel     := "hard" | "soft" | "hint"
+routeMode         := "ortho" | "auto"
+sideValue         := "left" | "right" | "top" | "bottom" | "auto"
 
 pointExpr         := absPoint | refPoint | relPoint
-absPoint          := "abs" INT INT
-refPoint          := "ref" anchorRef ("offset" INT INT)?
-relPoint          := "rel" INT INT
+absPoint          := "abs" signedInt signedInt
+refPoint          := "ref" anchorRef (signedInt signedInt)?
+relPoint          := "rel" signedInt signedInt
 
-anchorRef         := "device" IDENT "center"
-                   | "device" IDENT "terminal" IDENT
-                   | "port" IDENT "anchor"
-                   | "canvas" ("origin" | "center")
+anchorRef         := "canvas" ("origin" | "center")
+                   | renderIdRef
+
+signedInt         := "-"? INT
 ```
 
 ---
@@ -568,22 +569,15 @@ circuit DiffPair {
   }
 
   render {
-    device M1 {
-      place ref port INP anchor offset 80 0
-      strength placement hard
-    }
+    M1 place ref INP 80 0 hard
 
-    device M2 {
-      place ref device M1 center offset 120 0
-      strength placement hard
-    }
+    M2 place ref M1 120 0 hard
 
-    net tail {
-      route orthogonal
-      waypoint ref device M1 terminal S
-      waypoint rel 0 60
-      waypoint ref device M2 terminal S
-      strength route soft
+    tail {
+      route ortho soft
+      wp ref M1.S
+      wp rel 0 60
+      wp ref M2.S
     }
   }
 }
