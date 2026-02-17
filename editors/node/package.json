@@ -1,0 +1,19 @@
+{
+  "name": "@cascode/native",
+  "version": "0.1.0",
+  "description": "Synchronous Node binding for libcascode",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "private": true,
+  "gypfile": true,
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "test:integration": "node --test test/integration.test.mjs",
+    "test:types": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run test:integration && npm run test:types"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.1.0",
+    "typescript": "^5.9.2"
+  }
+}

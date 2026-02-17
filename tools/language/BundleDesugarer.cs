@@ -216,6 +216,7 @@ public static class BundleDesugarer
                 ? DesugarHarness(circuit.Harness, portTypes, bundlesByName)
                 : null,
             Env = circuit.Env,
+            Render = circuit.Render,
             BenchBindings = circuit.BenchBindings,
             BenchBindingExtensions = circuit.BenchBindingExtensions,
             Synth = circuit.Synth,

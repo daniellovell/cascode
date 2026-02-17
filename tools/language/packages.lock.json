@@ -8,6 +8,12 @@
         "resolved": "4.13.1",
         "contentHash": "Da5+i4kFHUseJRZGcBG5fmZGpA/Ns180ibrQMxgZzjpQOnENVvSL5gi5HZ8Ncz8/AR2WsKbOg2lMBzjz0HUQcA=="
       },
+      "Microsoft.DotNet.ILCompiler": {
+        "type": "Direct",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "FdeoIQNhYHZ9wcK8RygoBT/L0KADFaErLten4vSmxyI9oDElkD519zUXh9V0MA5h+fnFDVsmglvFdsOvGdmZ/g=="
+      },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "Direct",
         "requested": "[10.0.1, )",
@@ -17,6 +23,12 @@
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.1"
         }
       },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.3, )",
+        "resolved": "10.0.3",
+        "contentHash": "xyaYM6s1/+pt0a1EmykvD8ryJ2UVxI6hulz/BIMkUJE+nrmMLbTPTo6pU6T+TPFCJQ9UZtkc0E18CMFgz871Tw=="
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.1",
@@ -25,6 +37,7 @@
       "cascode.bench": {
         "type": "Project"
       }
-    }
+    },
+    "net10.0/osx-x64": {}
   }
 }

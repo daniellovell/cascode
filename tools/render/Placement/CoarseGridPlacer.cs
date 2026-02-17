@@ -1,5 +1,6 @@
 namespace Cascode.Render.Placement;
 
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.OrTools;
@@ -38,7 +39,11 @@ public static class CoarseGridPlacer
     /// <summary>
     /// Places devices on a coarse grid based on topology analysis.
     /// </summary>
-    public static CoarseGridResult Place(TopologyResult topology, CircuitGraph graph)
+    public static CoarseGridResult Place(
+        TopologyResult topology,
+        CircuitGraph graph,
+        PlacementConstraintSet? constraints = null
+    )
     {
         if (topology.DeviceRows.Count == 0)
         {
@@ -96,6 +101,7 @@ public static class CoarseGridPlacer
         var totalRows = topology.RowCount + cumulativeOffset;
 
         var model = new CpModel();
+        var hardConstraintEntities = new List<string>();
 
         // Create column variables for all devices
         var deviceColumn = new Dictionary<string, IntVar>();
@@ -148,6 +154,18 @@ public static class CoarseGridPlacer
             symmetryAxis
         );
 
+        var renderConstraintObjectives = new List<LinearExpr>();
+        var hasHardPlacementConstraints = AddRenderPlacementConstraints(
+            model,
+            deviceRow,
+            deviceColumn,
+            totalRows,
+            estimatedColumns,
+            constraints,
+            hardConstraintEntities,
+            renderConstraintObjectives
+        );
+
         // Add constraints for column placement based on device type
         // These ensure MOSFETs go to edge columns and passives go to interior columns
         if (horizontalPassiveIds.Count > 0)
@@ -182,6 +200,7 @@ public static class CoarseGridPlacer
             estimatedColumns,
             objectives
         );
+        objectives.AddRange(renderConstraintObjectives);
         AddCompactnessObjective(model, deviceColumn, objectives);
 
         if (objectives.Count > 0)
@@ -195,6 +214,18 @@ public static class CoarseGridPlacer
 
         if (status != CpSolverStatus.Optimal && status != CpSolverStatus.Feasible)
         {
+            if (
+                hasHardPlacementConstraints
+                && constraints is { AllowConstraintRelaxation: false }
+                && hardConstraintEntities.Count > 0
+            )
+            {
+                throw new RenderConstraintUnsatException(
+                    "Hard render placement constraints are unsatisfiable.",
+                    hardConstraintEntities
+                );
+            }
+
             return FallbackPlacement(
                 topology,
                 estimatedColumns,
@@ -223,6 +254,74 @@ public static class CoarseGridPlacer
             SymmetryAxis = symmetryAxis,
             HorizontalPassiveIds = horizontalPassiveIds,
         };
+    }
+
+    private static bool AddRenderPlacementConstraints(
+        CpModel model,
+        Dictionary<string, IntVar> deviceRow,
+        Dictionary<string, IntVar> deviceColumn,
+        int totalRows,
+        int totalColumns,
+        PlacementConstraintSet? constraints,
+        List<string> hardConstraintEntities,
+        List<LinearExpr> objectives
+    )
+    {
+        if (constraints is null || constraints.DevicePlacements.Count == 0)
+        {
+            return false;
+        }
+
+        var hasHardConstraints = false;
+        foreach (var entry in constraints.DevicePlacements)
+        {
+            if (
+                !deviceRow.TryGetValue(entry.DeviceId, out var rowVar)
+                || !deviceColumn.TryGetValue(entry.DeviceId, out var colVar)
+            )
+            {
+                continue;
+            }
+
+            var (targetRow, targetCol) = RenderCoordinateMapper.MapRenderUnitsToCell(
+                entry.XRu,
+                entry.YRu
+            );
+            targetRow = Math.Clamp(targetRow, 0, totalRows - 1);
+            targetCol = Math.Clamp(targetCol, 0, totalColumns - 1);
+
+            switch (entry.Strength)
+            {
+                case RenderConstraintStrength.Hard:
+                    model.Add(rowVar == targetRow);
+                    model.Add(colVar == targetCol);
+                    hasHardConstraints = true;
+                    hardConstraintEntities.Add(entry.DeviceId);
+                    break;
+
+                case RenderConstraintStrength.Soft:
+                {
+                    var rowPenalty = model.NewIntVar(0, totalRows, $"rsoft_{entry.DeviceId}");
+                    var colPenalty = model.NewIntVar(0, totalColumns, $"csoft_{entry.DeviceId}");
+                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
+                    model.AddAbsEquality(colPenalty, colVar - targetCol);
+                    objectives.Add((rowPenalty + colPenalty) * 40);
+                    break;
+                }
+
+                case RenderConstraintStrength.Hint:
+                {
+                    var rowPenalty = model.NewIntVar(0, totalRows, $"rhint_{entry.DeviceId}");
+                    var colPenalty = model.NewIntVar(0, totalColumns, $"chint_{entry.DeviceId}");
+                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
+                    model.AddAbsEquality(colPenalty, colVar - targetCol);
+                    objectives.Add((rowPenalty + colPenalty) * 8);
+                    break;
+                }
+            }
+        }
+
+        return hasHardConstraints;
     }
 
     /// <summary>

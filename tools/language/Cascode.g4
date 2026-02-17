@@ -202,6 +202,7 @@ circuitMember
     | CONSTRAINTS_KW LBRACE constraintSection* RBRACE               # ConstraintsSection
     | HARNESS_KW LBRACE harnessStatement* RBRACE                    # HarnessSection
     | ENV_KW LBRACE envStatement* RBRACE                            # EnvSection
+    | RENDER_KW LBRACE renderEntity* RBRACE                         # RenderSection
     | circuitBenchesSection                                         # CircuitBenches
     | SYNTH_KW LBRACE synthEntry* RBRACE                            # SynthSection
     | PROVENANCE_KW LBRACE provenanceEntry* RBRACE                  # ProvenanceSection
@@ -452,6 +453,23 @@ idPart
     | REPEAT_KW
     | IN_KW
     | PAIR_KW
+    | RENDER_KW
+    | PLACE_KW
+    | ORIENT_KW
+    | MIRROR_KW
+    | SIDE_KW
+    | ROUTE_KW
+    | WP_KW
+    | ZINDEX_KW
+    | HARD_KW
+    | SOFT_KW
+    | HINT_KW
+    | ABS_KW
+    | REF_KW
+    | REL_KW
+    | CANVAS_KW
+    | ORIGIN_KW
+    | CENTER_KW
     | AC_ANALYSIS_TYPE
     | DC_ANALYSIS_TYPE
     | TRAN_ANALYSIS_TYPE
@@ -482,6 +500,65 @@ idPart
 // Pin references can contain keywords as parts (e.g., load.D).
 pinRef
     : idPart ((DOT idPart) | (LBRACK NUMBER RBRACK))*
+    ;
+
+// ----------------------------------------------------------------------------
+// Render block content
+// ----------------------------------------------------------------------------
+
+renderEntity
+    : renderEntityRef renderOneLiner
+    | renderEntityRef LBRACE renderField* RBRACE
+    ;
+
+renderEntityRef
+    : idPart (DOT idPart)*
+    ;
+
+renderOneLiner
+    : PLACE_KW pointExpr strengthLevel?
+    ;
+
+renderField
+    : PLACE_KW pointExpr strengthLevel?
+    | ORIENT_KW signedInt MIRROR_KW?
+    | SIDE_KW IDENT
+    | ROUTE_KW IDENT strengthLevel?
+    | WP_KW LBRACK pointExpr (COMMA pointExpr)* RBRACK
+    | ZINDEX_KW signedInt
+    ;
+
+strengthLevel
+    : HARD_KW
+    | SOFT_KW
+    | HINT_KW
+    ;
+
+pointExpr
+    : absPoint
+    | refPoint
+    | relPoint
+    ;
+
+absPoint
+    : ABS_KW signedInt signedInt
+    ;
+
+refPoint
+    : REF_KW renderAnchorRef (signedInt signedInt)?
+    ;
+
+relPoint
+    : REL_KW signedInt signedInt
+    ;
+
+renderAnchorRef
+    : CANVAS_KW (ORIGIN_KW | CENTER_KW)
+    | pinRef
+    ;
+
+signedInt
+    : MINUS? NUMBER
     ;
 
 // ----------------------------------------------------------------------------
@@ -922,7 +999,7 @@ benchMeasurementRef
     ;
 
 measurementFunctionCall
-    : IDENT LPAREN measurementArgList? RPAREN
+    : idPart LPAREN measurementArgList? RPAREN
     ;
 
 measurementArgList
@@ -988,6 +1065,23 @@ CASE_KW         : 'case' ;
 REPEAT_KW       : 'repeat' ;
 IN_KW           : 'in' ;
 PAIR_KW         : 'pair' ;
+RENDER_KW       : 'render' ;
+PLACE_KW        : 'place' ;
+ORIENT_KW       : 'orient' ;
+MIRROR_KW       : 'mirror' ;
+SIDE_KW         : 'side' ;
+ROUTE_KW        : 'route' ;
+WP_KW           : 'wp' ;
+ZINDEX_KW       : 'zindex' ;
+HARD_KW         : 'hard' ;
+SOFT_KW         : 'soft' ;
+HINT_KW         : 'hint' ;
+ABS_KW          : 'abs' ;
+REF_KW          : 'ref' ;
+REL_KW          : 'rel' ;
+CANVAS_KW       : 'canvas' ;
+ORIGIN_KW       : 'origin' ;
+CENTER_KW       : 'center' ;
 
 PORT_KW         : 'port' ;
 INPUT_KW        : 'input' ;

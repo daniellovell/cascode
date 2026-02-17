@@ -558,7 +558,7 @@ internal sealed partial class CascodeAstBuilder
                 }
             }
 
-            return new MeasurementCall(call.IDENT().GetText(), args);
+            return new MeasurementCall(call.idPart().GetText(), args);
         }
 
         if (ctx.scopedAccess() is not null)

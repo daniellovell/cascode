@@ -1028,6 +1028,7 @@ public static class CascodeLinker
                         Constraints = c.Constraints,
                         Harness = c.Harness,
                         Env = c.Env,
+                        Render = c.Render,
                         BenchBindings = c.BenchBindings,
                         BenchBindingExtensions = c.BenchBindingExtensions,
                         Synth = null,

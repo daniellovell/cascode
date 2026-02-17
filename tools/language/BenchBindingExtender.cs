@@ -73,6 +73,7 @@ public static class BenchBindingExtender
                     Constraints = circuit.Constraints,
                     Harness = circuit.Harness,
                     Env = circuit.Env,
+                    Render = circuit.Render,
                     BenchBindings = merged
                         .Values.OrderBy(b => b.BindingName, StringComparer.OrdinalIgnoreCase)
                         .ToList(),

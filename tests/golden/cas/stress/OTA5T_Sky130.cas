@@ -1,4 +1,4 @@
-VERSION 3.1
+VERSION 3.2
 
 // This file is intentionally names .cas 
 // During e2e tests, `cascode emit OTA5T_Sky130.cas` should function
