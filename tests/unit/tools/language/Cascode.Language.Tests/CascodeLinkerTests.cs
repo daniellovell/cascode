@@ -20,7 +20,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.std
 
@@ -106,7 +106,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             basePath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             abstract bench AbstractBase {
               abstract stim IN
@@ -125,7 +125,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include base
 
@@ -174,7 +174,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.std
 
@@ -249,7 +249,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.std.Diff
             include lib.std.amp.FullyDifferentialOpAmp
@@ -325,7 +325,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -370,7 +370,7 @@ public sealed class CascodeLinkerTests
         File.WriteAllText(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.pdk.sky130.devices.nfet_01v8
 

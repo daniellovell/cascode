@@ -287,7 +287,8 @@ public static class RenderBlockValidator
             return false;
         }
 
-        return GetAllowedTerminals(device.DeviceType).Contains(parts[1], StringComparer.Ordinal);
+        return GetAllowedTerminals(device.DeviceType)
+            .Contains(parts[1], StringComparer.OrdinalIgnoreCase);
     }
 
     private static IReadOnlyList<string> GetAllowedTerminals(string deviceType)

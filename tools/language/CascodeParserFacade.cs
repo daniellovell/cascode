@@ -93,12 +93,7 @@ public static class CascodeParserFacade
                 BenchBindingChecker.Check(parsed, diagnostics);
             }
 
-            parsed = ApplyRenderValidation(parsed, diagnostics);
-
-            if (options.CompatibilityMinor < 2)
-            {
-                parsed = StripRenderBlocks(parsed);
-            }
+            parsed = ApplyRenderValidation(path, parsed, diagnostics);
 
             return new CascodeReadResult { Document = parsed, Diagnostics = diagnostics };
         }
@@ -118,6 +113,7 @@ public static class CascodeParserFacade
     }
 
     private static CascodeDocument ApplyRenderValidation(
+        string path,
         CascodeDocument doc,
         List<Diagnostic> diagnostics
     )
@@ -134,13 +130,7 @@ public static class CascodeParserFacade
             foreach (var message in validation.Messages)
             {
                 diagnostics.Add(
-                    new Diagnostic(
-                        $"CAS3200: {message}",
-                        DiagnosticSeverity.Warning,
-                        "<render>",
-                        1,
-                        1
-                    )
+                    new Diagnostic($"CAS3200: {message}", DiagnosticSeverity.Warning, path, 1, 1)
                 );
             }
 
@@ -183,52 +173,6 @@ public static class CascodeParserFacade
             BenchDefinitions = doc.BenchDefinitions,
             Primitives = doc.Primitives,
             Circuits = updatedCircuits,
-        };
-    }
-
-    private static CascodeDocument StripRenderBlocks(CascodeDocument doc)
-    {
-        if (doc.Circuits.All(c => c.Render is null))
-        {
-            return doc;
-        }
-
-        return new CascodeDocument
-        {
-            VersionMajor = doc.VersionMajor,
-            VersionMinor = doc.VersionMinor,
-            Includes = doc.Includes,
-            FileLibrary = doc.FileLibrary,
-            Functions = doc.Functions,
-            BundleTypes = doc.BundleTypes,
-            Traits = doc.Traits,
-            BenchDefinitions = doc.BenchDefinitions,
-            Primitives = doc.Primitives,
-            Circuits = doc
-                .Circuits.Select(circuit => new Circuit
-                {
-                    Name = circuit.Name,
-                    Traits = circuit.Traits,
-                    Level = circuit.Level,
-                    Inline = circuit.Inline,
-                    Package = circuit.Package,
-                    Parameters = circuit.Parameters,
-                    Sizes = circuit.Sizes,
-                    Supplies = circuit.Supplies,
-                    Grounds = circuit.Grounds,
-                    Ports = circuit.Ports,
-                    Slot = circuit.Slot,
-                    Fill = circuit.Fill,
-                    Constraints = circuit.Constraints,
-                    Harness = circuit.Harness,
-                    Env = circuit.Env,
-                    Render = null,
-                    BenchBindings = circuit.BenchBindings,
-                    BenchBindingExtensions = circuit.BenchBindingExtensions,
-                    Synth = circuit.Synth,
-                    Provenance = circuit.Provenance,
-                })
-                .ToList(),
         };
     }
 }

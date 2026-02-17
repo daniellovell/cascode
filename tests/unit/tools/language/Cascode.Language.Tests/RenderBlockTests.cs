@@ -64,7 +64,7 @@ circuit Test {{
     }
 
     [Fact]
-    public void Compatibility31Reader_IgnoresRenderBlock()
+    public void Parse_WithCompatibilityMinorOption_KeepsRenderBlock()
     {
         var source =
             $@"VERSION {CascodeVersion.Current}
@@ -87,10 +87,19 @@ circuit Compat {{
 }}
 ";
 
-        var result = CascodeReader.TryParseCompatibility31(source, "compat.cas");
+        var result = CascodeParserFacade.Parse(
+            "compat.cas",
+            source,
+            new CascodeParseOptions(
+                DesugarBundles: true,
+                RunBenchSemanticChecks: true,
+                RunBenchBindingChecksWhenNoIncludes: false,
+                CompatibilityMinor: 1
+            )
+        );
         Assert.True(result.Success);
         Assert.NotNull(result.Document);
-        Assert.Null(result.Document!.Circuits.Single().Render);
+        Assert.NotNull(result.Document!.Circuits.Single().Render);
     }
 
     [Fact]
@@ -126,11 +135,54 @@ circuit Prune {{
         Assert.Single(circuit.Render!.Entities);
         Assert.Equal("M1", circuit.Render.Entities[0].Name);
         Assert.Contains(result.Diagnostics, d => d.Message.Contains("CAS3200"));
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("CAS3200") && d.FilePath == "prune.cas"
+        );
 
         using var writer = new StringWriter();
         CascodeWriter.Write(result.Document, writer);
         var output = writer.ToString();
         Assert.Contains("M1 place ref IN 1 0 hard", output);
         Assert.DoesNotContain("Missing", output);
+    }
+
+    [Fact]
+    public void Parse_RenderAnchorTerminal_AllowsLowercaseTerminal()
+    {
+        var source =
+            $@"VERSION {CascodeVersion.Current}
+
+primitive NMOS Level1_NMOS(size primSize) {{
+  device ""level1_nmos""
+  params {{
+    W = primSize.W
+    L = primSize.L
+    m = primSize.M
+  }}
+}}
+
+circuit LowercaseAnchor {{
+  level EL
+  input IN : analog
+  output OUT : analog
+  ground GND
+  fill {{
+    NMOS M1 = new Level1_NMOS(size(W=1u, L=180n, M=1)) {{
+      .D--OUT
+      .G--IN
+      .S--GND
+      .B--GND
+    }}
+  }}
+  render {{
+    M1 place ref M1.g 0 0 hard
+  }}
+}}
+";
+
+        var result = CascodeReader.TryParse(source, "lowercase-anchor.cas");
+        Assert.True(result.Success);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Message.Contains("CAS3200"));
     }
 }

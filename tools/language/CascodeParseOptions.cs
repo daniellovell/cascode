@@ -27,11 +27,4 @@ public sealed record CascodeParseOptions(
         RunBenchBindingChecksWhenNoIncludes: false,
         CompatibilityMinor: CascodeVersion.Minor
     );
-
-    public static readonly CascodeParseOptions Compatibility31 = new(
-        DesugarBundles: true,
-        RunBenchSemanticChecks: true,
-        RunBenchBindingChecksWhenNoIncludes: false,
-        CompatibilityMinor: 1
-    );
 }

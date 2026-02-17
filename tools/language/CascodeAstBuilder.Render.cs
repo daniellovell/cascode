@@ -29,93 +29,151 @@ internal sealed partial class CascodeAstBuilder
 
             if (entityCtx.renderOneLiner() is { } oneLiner)
             {
-                entity.Place = BuildRenderPlacement(oneLiner.pointExpr(), oneLiner.strengthLevel());
+                HandleRenderOneLiner(entity, oneLiner);
                 block.Entities.Add(entity);
                 continue;
             }
 
             foreach (var fieldCtx in entityCtx.renderField())
             {
-                if (fieldCtx.PLACE_KW() is not null)
-                {
-                    entity.Place = BuildRenderPlacement(
-                        fieldCtx.pointExpr(0),
-                        fieldCtx.strengthLevel()
-                    );
-                    continue;
-                }
-
-                if (fieldCtx.ORIENT_KW() is not null)
-                {
-                    var rotate = ParseSignedInt(
-                        fieldCtx.signedInt(),
-                        fieldCtx,
-                        "orientation rotation"
-                    );
-                    entity.Orientation = new RenderOrientation
-                    {
-                        Rotate = rotate,
-                        MirrorX = fieldCtx.MIRROR_KW() is not null,
-                    };
-                    continue;
-                }
-
-                if (fieldCtx.ZINDEX_KW() is not null)
-                {
-                    entity.ZIndex = ParseSignedInt(fieldCtx.signedInt(), fieldCtx, "zindex");
-                    continue;
-                }
-
-                if (fieldCtx.SIDE_KW() is not null)
-                {
-                    if (!TryParsePortSide(fieldCtx.IDENT().GetText(), out var side))
-                    {
-                        AddDiagnostic(
-                            fieldCtx,
-                            DiagnosticSeverity.Error,
-                            $"CAS3202: Invalid render side '{fieldCtx.IDENT().GetText()}'."
-                        );
-                        continue;
-                    }
-
-                    entity.Side = side;
-                    continue;
-                }
-
-                if (fieldCtx.ROUTE_KW() is not null)
-                {
-                    if (!TryParseRouteMode(fieldCtx.IDENT().GetText(), out var routeMode))
-                    {
-                        AddDiagnostic(
-                            fieldCtx,
-                            DiagnosticSeverity.Error,
-                            $"CAS3203: Invalid render route mode '{fieldCtx.IDENT().GetText()}'."
-                        );
-                        continue;
-                    }
-
-                    entity.Route = new RenderRoute
-                    {
-                        Mode = routeMode,
-                        Strength = BuildStrength(fieldCtx.strengthLevel()),
-                    };
-                    continue;
-                }
-
-                if (fieldCtx.WP_KW() is not null)
-                {
-                    entity.Waypoints.Clear();
-                    foreach (var pointCtx in fieldCtx.pointExpr())
-                    {
-                        entity.Waypoints.Add(BuildPointExpression(pointCtx));
-                    }
-                }
+                ProcessRenderField(entity, fieldCtx);
             }
 
             block.Entities.Add(entity);
         }
 
         return block;
+    }
+
+    private void HandleRenderOneLiner(
+        RenderEntity entity,
+        CascodeParser.RenderOneLinerContext oneLiner
+    )
+    {
+        entity.Place = BuildRenderPlacement(oneLiner.pointExpr(), oneLiner.strengthLevel());
+    }
+
+    private void ProcessRenderField(RenderEntity entity, CascodeParser.RenderFieldContext fieldCtx)
+    {
+        if (fieldCtx.PLACE_KW() is not null)
+        {
+            ApplyPlace(entity, fieldCtx.pointExpr(0), fieldCtx.strengthLevel());
+            return;
+        }
+
+        if (fieldCtx.ORIENT_KW() is not null)
+        {
+            ApplyOrientation(
+                entity,
+                fieldCtx.signedInt(),
+                fieldCtx.MIRROR_KW() is not null,
+                fieldCtx
+            );
+            return;
+        }
+
+        if (fieldCtx.ZINDEX_KW() is not null)
+        {
+            ApplyZIndex(entity, fieldCtx.signedInt(), fieldCtx);
+            return;
+        }
+
+        if (fieldCtx.SIDE_KW() is not null)
+        {
+            ApplySide(entity, fieldCtx.IDENT().GetText(), fieldCtx);
+            return;
+        }
+
+        if (fieldCtx.ROUTE_KW() is not null)
+        {
+            ApplyRoute(entity, fieldCtx.IDENT().GetText(), fieldCtx.strengthLevel(), fieldCtx);
+            return;
+        }
+
+        if (fieldCtx.WP_KW() is not null)
+        {
+            ApplyWaypoints(entity, fieldCtx.pointExpr());
+        }
+    }
+
+    private void ApplyPlace(
+        RenderEntity entity,
+        CascodeParser.PointExprContext pointCtx,
+        CascodeParser.StrengthLevelContext? strengthCtx
+    )
+    {
+        entity.Place = BuildRenderPlacement(pointCtx, strengthCtx);
+    }
+
+    private void ApplyOrientation(
+        RenderEntity entity,
+        CascodeParser.SignedIntContext signedIntCtx,
+        bool mirrorX,
+        Antlr4.Runtime.ParserRuleContext diagCtx
+    )
+    {
+        var rotate = ParseSignedInt(signedIntCtx, diagCtx, "orientation rotation");
+        entity.Orientation = new RenderOrientation { Rotate = rotate, MirrorX = mirrorX };
+    }
+
+    private void ApplyZIndex(
+        RenderEntity entity,
+        CascodeParser.SignedIntContext signedIntCtx,
+        Antlr4.Runtime.ParserRuleContext diagCtx
+    )
+    {
+        entity.ZIndex = ParseSignedInt(signedIntCtx, diagCtx, "zindex");
+    }
+
+    private void ApplySide(
+        RenderEntity entity,
+        string rawSide,
+        Antlr4.Runtime.ParserRuleContext diagCtx
+    )
+    {
+        if (!TryParsePortSide(rawSide, out var side))
+        {
+            AddDiagnostic(
+                diagCtx,
+                DiagnosticSeverity.Error,
+                $"CAS3202: Invalid render side '{rawSide}'."
+            );
+            return;
+        }
+
+        entity.Side = side;
+    }
+
+    private void ApplyRoute(
+        RenderEntity entity,
+        string rawRouteMode,
+        CascodeParser.StrengthLevelContext? strengthCtx,
+        Antlr4.Runtime.ParserRuleContext diagCtx
+    )
+    {
+        if (!TryParseRouteMode(rawRouteMode, out var routeMode))
+        {
+            AddDiagnostic(
+                diagCtx,
+                DiagnosticSeverity.Error,
+                $"CAS3203: Invalid render route mode '{rawRouteMode}'."
+            );
+            return;
+        }
+
+        entity.Route = new RenderRoute { Mode = routeMode, Strength = BuildStrength(strengthCtx) };
+    }
+
+    private void ApplyWaypoints(
+        RenderEntity entity,
+        IEnumerable<CascodeParser.PointExprContext> pointExprs
+    )
+    {
+        entity.Waypoints.Clear();
+        foreach (var pointCtx in pointExprs)
+        {
+            entity.Waypoints.Add(BuildPointExpression(pointCtx));
+        }
     }
 
     private static string BuildRenderEntityRef(CascodeParser.RenderEntityRefContext ctx)

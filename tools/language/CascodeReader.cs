@@ -88,18 +88,6 @@ public static class CascodeReader
     }
 
     /// <summary>
-    /// Parses Cascode text content using a 3.1 compatibility reader path.
-    /// In this mode, <c>render {}</c> blocks are ignored without diagnostics.
-    /// </summary>
-    public static CascodeReadResult TryParseCompatibility31(
-        string content,
-        string filePath = "<unknown>"
-    )
-    {
-        return CascodeParserFacade.Parse(filePath, content, CascodeParseOptions.Compatibility31);
-    }
-
-    /// <summary>
     /// Reads a Cascode document using explicit parse options (used by the linker for syntax-only parsing).
     /// </summary>
     public static CascodeReadResult TryRead(
@@ -109,21 +97,5 @@ public static class CascodeReader
     )
     {
         return CascodeParserFacade.Parse(filePath, reader.ReadToEnd(), options);
-    }
-
-    /// <summary>
-    /// Reads a Cascode document using a 3.1 compatibility reader path.
-    /// In this mode, <c>render {}</c> blocks are ignored without diagnostics.
-    /// </summary>
-    public static CascodeReadResult TryReadCompatibility31(
-        TextReader reader,
-        string filePath = "<unknown>"
-    )
-    {
-        return CascodeParserFacade.Parse(
-            filePath,
-            reader.ReadToEnd(),
-            CascodeParseOptions.Compatibility31
-        );
     }
 }
