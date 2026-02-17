@@ -6,12 +6,16 @@ VERSION 3.1
 // - part inheritance with abstract base and extends
 // - variant-aware instantiation with bracket syntax [axis=option]
 // - MPN template strings with {axis}, {axis.field}, and {param} references
+// - concrete part pin mapping via pins { ... }
+// - multi-unit package grouping via units { ... }
 // - interface metric contracts (declaration-only)
 // - metric providers from benches and parts
 // - alias-only metric forwarding in wrappers
 // - bench/spec constraint block taxonomy
 // - hierarchical constraint verification
 // - env propagation from downstream metric values
+// - qualified metrics with optional condition profiles (north star)
+// - harness omitted on spec-only EL wrappers (north star)
 
 include lib.pcb
 
@@ -57,6 +61,10 @@ part OPA2376 implements DualOpAmp {
 
   catalog { spice = "OPA2376" }
 
+  conditionProfiles {
+    Room_3V3_25C { TemperatureC = 25  Supply = 3.3V }
+  }
+
   input A_INP : analog
   input A_INN : analog
   output A_OUT : analog
@@ -66,16 +74,37 @@ part OPA2376 implements DualOpAmp {
   supply VDD
   ground GND
 
+  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+  pins {
+    A_OUT = P1
+    A_INN = P2
+    A_INP = P3
+    GND = P4
+    B_INP = P5
+    B_INN = P6
+    B_OUT = P7
+    VDD = P8
+  }
+
+  units {
+    A { pads = (P1, P2, P3) terminals = (A_OUT, A_INN, A_INP) }
+    B { pads = (P5, P6, P7) terminals = (B_INP, B_INN, B_OUT) }
+    Rails { pads = (P4, P8) terminals = (GND, VDD) }
+  }
+
   metrics {
     GBW = 5.5MHz
+    GBW min @ Room_3V3_25C = 5.5MHz
     InputOffsetVoltage = 25uV
+    InputOffsetVoltage max @ Room_3V3_25C = 25uV
     CMRR = 90dB
-    InputBiasCurrent = 10pA
-    SlewRate = 2V/us
-    SupplyVoltageMin = 2.2V
-    SupplyVoltageMax = 5.5V
-    SupplyCurrentMax = 950uA
-    RecommendedLoadCapacitance = 100pF
+    CMRR min @ Room_3V3_25C = 90dB
+    InputBiasCurrent max @ Room_3V3_25C = 10pA
+    SlewRate min @ Room_3V3_25C = 2V/us
+    SupplyVoltage min = 2.2V
+    SupplyVoltage max = 5.5V
+    SupplyCurrent max @ Room_3V3_25C = 950uA
+    RecommendedLoadCapacitance typ = 100pF
   }
 }
 
@@ -100,15 +129,29 @@ part ADS1115 implements ADCSubsystem {
   supply VDD
   ground GND
 
+  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+  pins {
+    AIN0 = P1
+    AIN1 = P2
+    AIN2 = P3
+    AIN3 = P4
+    ADDR = P5
+    SDA = P6
+    SCL = P7
+    ALERT = P8
+    VDD = P9
+    GND = P10
+  }
+
   metrics {
     Resolution = 16 bits
     MaxSampleRate = 860 SPS
     INL = 0.5 LSB
     FullScaleRange = 6.144V
-    SupplyVoltageMin = 2.0V
-    SupplyVoltageMax = 5.5V
-    SupplyCurrentMax = 200uA
-    InputLeakageCurrent = 10nA
+    SupplyVoltage min = 2.0V
+    SupplyVoltage max = 5.5V
+    SupplyCurrent max = 200uA
+    InputLeakageCurrent max = 10nA
     InputCapacitance = 14pF
   }
 }
@@ -122,8 +165,8 @@ part abstract STM32G0 implements IMicrocontroller {
   input BOOT0 : digital
 
   metrics {
-    SupplyVoltageMin = 1.7V
-    SupplyVoltageMax = 3.6V
+    SupplyVoltage min = 1.7V
+    SupplyVoltage max = 3.6V
   }
 }
 
@@ -148,9 +191,46 @@ part STM32G031K extends STM32G0 {
   io PA[0:15] : digital
   io PB[0:9] : digital
 
+  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+  pins {
+    VDD = P1
+    VDDA = P2
+    VSS = P3
+    NRST = P4
+    BOOT0 = P5
+
+    PA[0] = P6
+    PA[1] = P7
+    PA[2] = P8
+    PA[3] = P9
+    PA[4] = P10
+    PA[5] = P11
+    PA[6] = P12
+    PA[7] = P13
+    PA[8] = P14
+    PA[9] = P15
+    PA[10] = P16
+    PA[11] = P17
+    PA[12] = P18
+    PA[13] = P19
+    PA[14] = P20
+    PA[15] = P21
+
+    PB[0] = P22
+    PB[1] = P23
+    PB[2] = P24
+    PB[3] = P25
+    PB[4] = P26
+    PB[5] = P27
+    PB[6] = P28
+    PB[7] = P29
+    PB[8] = P30
+    PB[9] = P31
+  }
+
   metrics {
     CoreClock = 64MHz
-    SupplyCurrentMax = 10mA
+    SupplyCurrent max = 10mA
   }
 }
 
@@ -160,24 +240,24 @@ part YageoRC(e96 R) implements Resistor {
   variant body {
     _0402 {
       footprint = "0402"
-      metrics { PowerRating = 63mW  VoltageRating = 50V }
+      metrics { PowerRating min = 63mW  VoltageRating min = 50V }
       option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
     }
     _0603 {
       footprint = "0603"
-      metrics { PowerRating = 100mW  VoltageRating = 75V }
+      metrics { PowerRating min = 100mW  VoltageRating min = 75V }
       option { provider = "DigiKey" sku = "311-{R}HRCT-ND" priority = 10 }
     }
     _0805 {
       footprint = "0805"
-      metrics { PowerRating = 125mW  VoltageRating = 150V }
+      metrics { PowerRating min = 125mW  VoltageRating min = 150V }
       option { provider = "DigiKey" sku = "311-{R}GRCT-ND" priority = 10 }
     }
   }
 
   variant grade {
-    F { code = "FR-07"  metrics { Tolerance = 1pct } }
-    J { code = "JR-05"  metrics { Tolerance = 5pct } }
+    F { code = "FR-07"  metrics { Tolerance max = 1pct } }
+    J { code = "JR-05"  metrics { Tolerance max = 5pct } }
   }
 
   catalog {
@@ -186,6 +266,12 @@ part YageoRC(e96 R) implements Resistor {
 
   io P : analog
   io N : analog
+
+  pins {
+    P = P1
+    N = P2
+  }
+
   params { R = R }
 }
 
@@ -201,11 +287,16 @@ part CL05B(e12 C) implements Capacitor {
   io P : analog
   io N : analog
 
+  pins {
+    P = P1
+    N = P2
+  }
+
   params { C = C }
 
   metrics {
-    Tolerance = 10pct
-    VoltageRating = 16V
+    Tolerance max = 10pct
+    VoltageRating min = 16V
   }
 }
 
@@ -503,10 +594,7 @@ circuit ADCStage implements ADCSubsystem {
     InputCapacitance = uAdc.InputCapacitance
   }
 
-  harness {
-    supply VDD = 3.3V
-    ground GND = 0V
-  }
+  // Spec-only wrapper: harness omitted under the bench-executability rule.
 }
 
 // ============================================================================
@@ -568,8 +656,5 @@ circuit Controller implements IMicrocontroller {
     RAMSize = uMcu.RAMSize
   }
 
-  harness {
-    supply VDD = 3.3V
-    ground GND = 0V
-  }
+  // Spec-only wrapper: harness omitted under the bench-executability rule.
 }

@@ -5,13 +5,15 @@
 | Status | Draft |
 | Authors | Daniel Lovell |
 | Created | 2026-02-06 |
-| Last Updated | 2026-02-13 |
+| Last Updated | 2026-02-17 |
 
 ---
 
 ## Abstract
 
 Cascode's abstractions for IC design (bundles, interfaces, circuits, primitives, benches, constraints, HL/EL levels) map naturally to PCB schematic capture and synthesis. This RFC extends the language with a `part` construct for packaged off-the-shelf components, a metrics system for datasheet-driven and simulation-driven validation, and bus bundles for digital interconnect. Parts support variant blocks for discrete configuration axes (package, tolerance, flash size) and part inheritance (`extends`/`abstract`) for sharing electrical identity across related families. A bracket syntax at the instantiation site (`new Part[axis=option](params)`) visually distinguishes variant selection from constructor parameters, ensuring BOM-readiness is explicit. These additions enable Cascode to represent PCB schematics at both high-level (system architecture with constraint-driven part selection) and electrical level (concrete schematic with specific component values and connections).
+
+This RFC defines Tier 1 coverage: schematic capture, synthesis intent, mixed bench/spec verification, and emission targets (SPICE netlists and BOM JSON). Procurement depth and physical-layout intent are intentionally bounded and advanced in follow-on stages.
 
 A unifying insight drives the design: in both IC and PCB flows, the schematic symbol (pin contract and behavioral requirements) is separate from the concrete backing (a PDK device or a sourced component). This RFC formalizes that separation by making both `primitive` and the new `part` declare which interfaces they satisfy via `implements`. Reserved keyword categories (`NMOS`, `Resistor`, etc.) become library-defined interfaces in domain-specific libraries (`lib/ic/`, `lib/pcb/`), making the component taxonomy extensible without grammar changes.
 
@@ -31,13 +33,13 @@ A secondary motivation is passive-network synthesis. PCB designs contain filters
 
 Goals:
 
-1. Represent complete PCB schematics in Cascode at both HL and EL abstraction levels.
+1. Define Tier 1 PCB coverage in Cascode: complete schematic capture at HL and EL, constraint-driven synthesis intent, mixed bench/spec verification, and deterministic BOM + SPICE emission.
 2. Introduce a `part` construct for packaged components, parallel to `primitive`, both using `implements` to satisfy interface contracts.
 3. Unify the component taxonomy: replace reserved keyword categories (`NMOS`, `Resistor`, etc.) with library-defined interfaces in `lib/ic/` and `lib/pcb/`.
 4. Enable constraint-driven part selection using guaranteed datasheet metrics (`spec` constraints) alongside existing bench-derived metrics (`bench` constraints), with verification provenance explicit in the syntax.
 5. Support standard PCB signal buses (I2C, SPI, UART, SWD) as first-class bundle types.
-6. Handle multi-unit ICs (dual op-amps, quad ADCs) through flat port naming with per-port directionality.
-7. Introduce a `Some` keyword for synthesis-inferred slot types.
+6. Add mandatory pin-map contracts on concrete parts and unit grouping support for multi-unit packages.
+7. Add conditioned metric declarations (`min|max|typ` + `conditionProfile`) while keeping forwarding and provenance explicit.
 8. Provide a worked example (Wheatstone bridge sensor frontend) that stress-tests the proposed constructs.
 
 Non-goals:
@@ -45,6 +47,12 @@ Non-goals:
 1. PCB layout, physical placement, pick-and-place data, or gerber generation. This RFC addresses schematic capture and synthesis intent only. BOM generation is in scope as a first-class emit target alongside SPICE netlists; Cascode replaces KiCad/Altium for schematic capture and does not emit artifacts in their formats.
 2. Defining the complete external parts sync pipeline implementation. This RFC defines language-facing contracts and pointers.
 3. Solving MCU alternate-function/pin-mux firmware configuration in-language.
+
+Coverage envelope:
+
+- Tier 1 (this RFC): schematic DSL, part modeling, synthesis intent, bench/spec verification, BOM + SPICE emission.
+- Tier 2 (follow-on): deeper procurement-aware synthesis policy.
+- Tier 3 (follow-on): richer PCB physical-intent handoff to downstream layout flows.
 
 ---
 
@@ -189,7 +197,7 @@ interface DualOpAmp {
 // ADC, MCU, Connector interfaces similarly.
 ```
 
-`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. `include lib.ic` or `include lib.pcb` brings the appropriate definitions into scope. A single `.cas` file should include one domain library, not both. Mixed IC+PCB projects use separate files per domain; cross-domain references use fully-qualified names.
+`Resistor` appears in both IC and PCB libraries with domain-appropriate contracts. The IC version declares only terminals; the PCB version adds metric requirements for tolerance and power rating. These are separate interfaces in separate namespaces. A source file may include `lib.ic`, `lib.pcb`, or both. When both are included, any ambiguous symbol reference must be fully qualified; unresolved or ambiguous references are hard validation errors.
 
 Concrete part declarations live in a separate `lib/parts/` tree, organized by category (`lib.parts.opamp`, `lib.parts.adc`, `lib.parts.res`, etc.). Including `lib.pcb` brings interface definitions into scope without pulling in the entire parts catalog.
 
@@ -275,6 +283,19 @@ abstract? part <Name> (<params>?)
 
   <terminal declarations>
 
+  pins {
+    <terminal_or_leaf_ref> = <pad_ref>(, <pad_ref>)*
+    ...
+  }
+
+  units {
+    <UnitName> {
+      pads = (<pad_ref>, <pad_ref>, ...)
+      terminals = (<terminal_or_leaf_ref>, <terminal_or_leaf_ref>, ...)
+    }
+    ...
+  }
+
   metrics {
     <Metric> = <value>
     ...
@@ -304,10 +325,25 @@ The body contains:
 - `variant` blocks: discrete configuration axes. Each block declares named options with per-option catalog field overrides, procurement entries, and metric overrides.
 - `catalog {}`: sourcing and physical identity. Contains `mpn` (part lookup and traceability, may be a template string with `{...}` references), `footprint` (physical land pattern), optional `spice` (model reference for simulable parts), and zero or more `option` entries for procurement pointers. Each `option` must contain `provider`, `sku`, and `priority` fields; `url` is optional.
 - terminal declarations: physical connectivity.
+- `pins {}`: terminal-to-pad mapping contract for netlist/symbol correctness.
+- `units {}` (optional): named groups for multi-unit packages. A unit defines the subset of pads and terminals that form one logical sub-unit (for example, op-amp A and op-amp B in a dual package).
 - `metrics {}`: guaranteed datasheet values and part attributes.
 - `mechanical {}` (optional): physical geometry and assembly data. Contains `step` (path or URL to a STEP 3D model file), `dimensions` (W × L × H tuple, e.g., `dimensions = (5.0mm, 3.2mm, 1.5mm)`), `mass` (component mass, e.g., `mass = 0.5g`), and `mating_force` (insertion force for connectors, e.g., `mating_force = 30N`). All fields are optional. Keep-out zones are layout concerns and are out of scope.
 
 The catalog field previously named `package` is renamed to `footprint`. This avoids confusion with variant axis naming and better describes the field's purpose — it identifies the physical land pattern, not a software package.
+
+Pin mapping requirements:
+
+- Every concrete (non-abstract) part declaration MUST include a `pins {}` block.
+- Every declared terminal leaf MUST map to one or more pads.
+- A pad MUST NOT be mapped to conflicting terminal leaves in the same concrete configuration.
+- Inherited `pins` mappings may be extended or overridden only when the resulting concrete mapping remains complete and conflict-free.
+
+Unit grouping requirements:
+
+- `units {}` is optional for single-unit packages.
+- For multi-unit packages, `units {}` SHOULD be present and SHOULD partition logical sub-units explicitly.
+- If `units {}` is present, every listed terminal/pad reference MUST be valid in the effective declaration and MUST agree with `pins {}`.
 
 ### 5.2 Variant Blocks
 
@@ -496,13 +532,18 @@ The designer chooses the boundary between inheritance and variants based on what
 
 ### 5.5 MPN Template Strings
 
-The `mpn` field (and `sku` fields in option entries) can contain `{...}` interpolation references. The language parser treats these as opaque string literals. The parts resolver at tooling level interprets them:
+The `mpn` field (and `sku` fields in option entries) can contain `{...}` interpolation references. Parsing remains string-literal based, but reference validation is split across compile time and resolution time:
+
+- Compile-time validation MUST verify that every placeholder reference is well-formed and resolvable by name (`axis`, `axis.field`, or `param` exists in the declaration context).
+- Resolution-time logic computes encoded values and concrete strings for a selected configuration.
+
+The parts resolver interprets placeholders as:
 
 - `{axis}` resolves to the selected option's name as a string (e.g., `{flash}` → `"_8"` or `"B"`).
 - `{axis.field}` resolves to a named field on the selected option (e.g., `{pkg.suffix}` → `"T6"`, `{grade.code}` → `"FR-07"`).
 - `{param}` resolves to the constructor parameter value, with encoding handled by the parts resolver (e.g., `{R}` for 10 kOhm → resolver applies RKM encoding to produce `"10K"`).
 
-No language-level expression evaluation. The compiler treats template strings as string literals; validation of template references is deferred to the parts resolver.
+No language-level expression evaluation is supported inside templates. Placeholder payloads are identifiers only, not expressions.
 
 Example resolution:
 
@@ -523,6 +564,8 @@ BOM line: RC0402FR-07100KL | 0402 | 1 | 100kΩ 1% | 311-100KLRCT-ND
 ```
 
 ### 5.6 Examples
+
+The examples in this section focus on catalog/variant/metric shape and may omit `pins {}` and `units {}` blocks for brevity. Normative requirements in Section 5.1 still apply to concrete part declarations.
 
 A dual op-amp with single-axis variant (two package options sharing all other attributes):
 
@@ -736,21 +779,29 @@ The `extends`/`abstract` mechanism and variant blocks apply to parts only. Primi
 
 All instantiation targets resolve semantically against declarations in scope (`circuit`, `interface`, `part`, `primitive`). There are no reserved keyword categories. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
 
+When both IC and PCB domain libraries are in scope, ambiguous short names must be replaced by fully-qualified references. Name ambiguity is never resolved by heuristic preference.
+
 ---
 
 ## 6. The Metrics System
 
 ### 6.1 Semantics
 
-A `metrics` block on `part` or `circuit` declares guaranteed scalar values. For datasheet-derived metrics, values represent worst-case guarantees, not typical values.
+A `metrics` block on `part` or `circuit` declares scalar values with explicit statistic qualifiers and optional condition profiles.
 
-This means:
+Statistic qualifiers:
 
-- For “at least” specs (GBW, CMRR, slew rate), store guaranteed minimums.
-- For “at most” specs (offset voltage, supply current, noise), store guaranteed maximums.
-- For ranges (supply voltage), use separate min/max metrics.
+- `min` for guaranteed lower bounds.
+- `max` for guaranteed upper bounds.
+- `typ` for nominal values.
 
-The language intentionally avoids full condition-matrix modeling (temperature/load/supply axes) in v1. It also avoids storing separate typical, minimum, and maximum tags for each entry. When needed, designers can define multiple explicitly named metrics per condition.
+Condition profiles:
+
+- A condition profile is a named operating context (for example, supply, temperature, and load assumptions).
+- Metric entries may reference a profile with `@ProfileName`.
+- Unprofiled entries are interpreted as global defaults for the declaration.
+
+This RFC does not introduce full matrix algebra across all condition dimensions. It introduces named profiles and explicit qualifiers so datasheet intent remains machine-readable without requiring a full condition-system solver in Tier 1.
 
 ### 6.2 Syntax
 
@@ -758,16 +809,28 @@ Within a part declaration:
 
 ```cascode
 metrics {
-  GBW = 5.5MHz
-  InputOffsetVoltage = 25uV
-  CMRR = 90dB
-  SupplyVoltageMin = 2.2V
-  SupplyVoltageMax = 5.5V
-  SupplyCurrentMax = 950uA
+  GBW min @ Room_3V3_25C = 5.5MHz
+  GBW typ @ Room_3V3_25C = 7MHz
+  InputOffsetVoltage max @ Room_3V3_25C = 25uV
+  CMRR min @ Room_3V3_25C = 90dB
+  SupplyCurrent max @ Room_3V3_25C = 950uA
+  SupplyVoltage min = 2.2V
+  SupplyVoltage max = 5.5V
 }
 ```
 
-Each entry is `<Identifier> = <quantity>`.
+Each entry is `<Identifier> <qualifier>? (@ <ConditionProfile>)? = <metricValue>`.
+
+Condition profile declarations are optional metadata blocks on parts/circuits:
+
+```cascode
+conditionProfiles {
+  Room_3V3_25C { Temperature = 25  Supply = 3.3V }
+  Hot_3V3_85C  { Temperature = 85  Supply = 3.3V }
+}
+```
+
+Profile contents are declaration metadata. Tier 1 tools treat profile values as labeled context for resolution and reporting, not as a numeric interpolation space.
 
 ### 6.3 Metric Reference Syntax
 
@@ -821,7 +884,7 @@ interface ADCSubsystem {
 Rules:
 
 1. Interface metrics are the minimum required set.
-2. Implementations may expose additional metrics.
+2. Implementations may expose additional metrics, qualifiers, and condition-profile variants.
 3. Missing required metrics are hard validation errors.
 
 ### 6.6 Metric Providers and Forwarding
@@ -841,13 +904,13 @@ Transform expressions in forwarding are deferred.
 
 ### 6.7 Variant-Dependent Metrics
 
-When a part declares variant blocks, metric values may come from the base `metrics {}` block, from a variant option's `metrics {}` block, or from both. The effective metric set for a given configuration is computed by merging base metrics with all selected variant option metrics. Variant-provided metrics override base metrics of the same name.
+When a part declares variant blocks, metric values may come from the base `metrics {}` block, from a variant option's `metrics {}` block, or from both. The effective metric set for a given configuration is computed by merging base metrics with all selected variant option metrics. Variant-provided entries override base entries only when `(MetricName, qualifier, conditionProfile)` keys match.
 
 For example, in the `YageoRC` passive family, `PowerRating` and `VoltageRating` depend on the `body` axis, while `Tolerance` depends on the `grade` axis. The base `metrics {}` block is empty; all metrics come from variant options. In `OPA2376`, the base `metrics {}` block provides all values (shared across packages) and no variant options carry metric overrides.
 
-Every interface-required metric must be provided either by the base `metrics {}` block, by inherited metrics via `extends`, or by all variant options across all variant axes collectively. If a metric is provided by some options of an axis but not others, it is a validation error — every valid configuration must produce a complete metric set.
+Every interface-required metric must be provided either by the base `metrics {}` block, by inherited metrics via `extends`, or by all variant options across all variant axes collectively. Required coverage is checked per required metric key and per required qualifier/profile combination. If a required key is provided by some options of an axis but not others, it is a validation error — every valid configuration must produce a complete metric set.
 
-The merge order is: inherited metrics (from `extends` chain), overridden by the part's own base metrics, overridden by selected variant option metrics. When constraints reference variant-dependent metrics (`spec { c_pwr = r.PowerRating >= 50mW }`), the evaluator traces through the instance's selected variant to look up the concrete value.
+The merge order is: inherited metrics (from `extends` chain), overridden by the part's own base metrics, overridden by selected variant option metrics. When constraints reference variant-dependent metrics (`spec { c_pwr = r.PowerRating >= 50mW }`), the evaluator traces through the instance's selected variant and requested qualifier/profile to look up the concrete value.
 
 ### 6.8 PCB-Domain Units
 
@@ -897,7 +960,7 @@ These bundles can be used directly on parts/circuits and connected with existing
 
 ## 8. Constraint Taxonomy
 
-The constraint system uses distinct sub-blocks organized by verification method. Each sub-block carries clear semantics about how the evaluator verifies the constraint and where the metric value originates. Graph constraints (`graph {}` blocks) were considered during design and are explicitly excluded; structural connectivity requirements are expressed through existing connection and interface mechanisms.
+The constraint system uses distinct sub-blocks organized by verification method. Each sub-block carries clear semantics about how the evaluator verifies the constraint and where the metric value originates. Tier 1 defines only `bench {}`, `spec {}`, and `physical {}`.
 
 ### 8.1 Sub-Block Types
 
@@ -1015,6 +1078,15 @@ The execution model for a composition with mixed simulable and non-simulable sub
 
 A child circuit's constraints serve as its own design targets. A parent circuit's constraints serve as system requirements. Both are always evaluated. If a child circuit targets 38 dB passband gain as a design margin and the parent requires 40 dB for the system, the bench runner reports both results independently.
 
+### 8.7 Harness Applicability
+
+Harness requirements are tied to executability:
+
+- A circuit that is bench-executable (declares bench bindings directly or via implemented interfaces, or is transitively required by `bench {}` constraints) MUST satisfy harness requirements for simulation.
+- A circuit that is not bench-executable and is verified only through `spec {}` or `physical {}` constraints MAY omit `harness {}`.
+
+This keeps Tier 1 non-simulable compositions concise while preserving explicit harness contracts for simulated paths.
+
 ---
 
 ## 9. Parts Database and Pricing Pointers
@@ -1036,7 +1108,7 @@ Interface definitions and part declarations are organized under domain-specific 
 
 ### 9.3 Catalog Option Contract
 
-Each part declaration carries checked-in procurement options inside its `catalog` block or inside variant option bodies. Population may come from manufacturer/distributor APIs, distributor CSV exports, or curated internal catalogs, but the language-facing pointer contract is the same.
+Each part declaration carries checked-in procurement pointers inside its `catalog` block or inside variant option bodies. Population may come from manufacturer/distributor APIs, distributor CSV exports, or curated internal catalogs, but the language-facing pointer contract is the same.
 
 Required fields per option:
 
@@ -1047,8 +1119,12 @@ Required fields per option:
 Optional:
 
 - `url`
+- `approved`
+- additional non-lookup-able project metadata as key/value fields
 
-This allows deterministic fallback and sourcing without brittle URL parsing.
+The resolver performs volatile data lookup (availability, lead time, and pricing) on demand using these pointers. Those volatile fields are not required to be checked into source. Any policy data that cannot be reliably looked up (for example, internal approval status or qualification notes) should be stored in source metadata.
+
+This model preserves deterministic fallback order while avoiding mandatory mirrored distributor caches in the language surface.
 
 When a part has variant blocks, procurement options may appear in either the base catalog or inside variant options. Package-specific SKUs naturally live inside the variant option that determines the package (e.g., body size determines the DigiKey suffix). SKUs that depend on multiple axes use template strings in the base catalog that reference axis fields.
 
@@ -1058,9 +1134,10 @@ Parts with variant blocks and constructor parameters may use template strings in
 
 1. Walk the EL hierarchy. For each part instance, collect: reference designator path, part family, constructor params, variant selections.
 2. Merge base catalog with variant option overrides. Resolve all `{...}` template references using params and variant selections. Produce: concrete MPN, footprint, SPICE model ref, resolved procurement options.
-3. Merge base metrics with variant metric overrides. All interface-required metrics must resolve.
-4. Aggregate by resolved MPN. Sum quantities. Collect reference designator lists.
-5. Emit BOM as structured JSON alongside SPICE netlists.
+3. Optionally enrich procurement options via provider lookups (availability, lead time, and pricing) at resolution time.
+4. Merge base metrics with variant metric overrides. All interface-required metrics must resolve.
+5. Aggregate by resolved MPN. Sum quantities. Collect reference designator lists.
+6. Emit BOM as structured JSON alongside SPICE netlists.
 
 BOM output is a first-class emit target. The JSON schema for a BOM line item:
 
@@ -1111,6 +1188,8 @@ Mixed-block synthesis:
 
 Variant selections are synthesis degrees of freedom alongside part selection and value sizing. When a slot block omits variant axes, the synthesizer explores all valid variant combinations for each candidate part. Each (part, variant-combination) pair yields a metric vector; constraints filter infeasible configurations and objectives rank the rest. For a `Resistor` slot, the search space is the Cartesian product of candidate part families, their variant axes (body size, tolerance grade), and the continuous value parameter.
 
+Synthesis and resolution should be deterministic for identical inputs. This RFC requires stable outcomes but does not prescribe a single global tie-break algorithm.
+
 The existing `synth {}` block remains the synthesis guidance carrier:
 
 ```cascode
@@ -1137,6 +1216,12 @@ PART_KW     : 'part' ;
 METRICS_KW  : 'metrics' ;
 CATALOG_KW  : 'catalog' ;
 OPTION_KW   : 'option' ;
+PINS_KW     : 'pins' ;
+UNITS_KW    : 'units' ;
+CONDITION_PROFILES_KW : 'conditionProfiles' ;
+MIN_KW      : 'min' ;
+MAX_KW      : 'max' ;
+TYP_KW      : 'typ' ;
 SOME_KW     : 'Some' ;
 BENCH_KW    : 'bench' ;     // replaces NUMERIC_KW in constraint blocks
 SPEC_KW     : 'spec' ;      // new constraint sub-block
@@ -1161,7 +1246,7 @@ Removed tokens:
 // identifiers resolved from included interface libraries.
 // NUMERIC_KW is replaced by BENCH_KW.
 // TECH_KW is replaced by PHYSICAL_KW.
-// GRAPH_KW is removed. Graph constraints are not supported.
+// GRAPH_KW is removed in this taxonomy.
 ```
 
 `IMPLEMENTS_KW` already exists for circuit declarations and is now shared with primitive and part declarations.
@@ -1212,6 +1297,9 @@ partMember
     | direction portName COLON portType                       # PartPort
     | SUPPLY_KW IDENT                                         # PartSupply
     | GROUND_KW IDENT                                         # PartGround
+    | pinsBlock                                               # PartPins
+    | unitsBlock                                              # PartUnits
+    | conditionProfilesBlock                                  # PartConditionProfiles
     | metricsValueBlock                                       # PartMetrics
     | variantBlock                                            # PartVariant
     | mechanicalBlock                                         # PartMechanical
@@ -1224,9 +1312,45 @@ mechanicalBlock
 mechanicalField
     : IDENT EQ (STRING | signedQuantity | tupleLiteral)
     ;
+
+pinsBlock
+    : PINS_KW LBRACE pinMapEntry+ RBRACE
+    ;
+
+pinMapEntry
+    : pinRef EQ padRef (COMMA padRef)*
+    ;
+
+padRef
+    : IDENT (LBRACKET INT_LITERAL RBRACKET)?
+    ;
+
+unitsBlock
+    : UNITS_KW LBRACE unitDef+ RBRACE
+    ;
+
+unitDef
+    : IDENT LBRACE unitField+ RBRACE
+    ;
+
+unitField
+    : IDENT EQ tupleLiteral
+    ;
+
+conditionProfilesBlock
+    : CONDITION_PROFILES_KW LBRACE conditionProfileDef+ RBRACE
+    ;
+
+conditionProfileDef
+    : IDENT LBRACE conditionProfileField+ RBRACE
+    ;
+
+conditionProfileField
+    : IDENT EQ (signedQuantity | NUMBER | STRING)
+    ;
 ```
 
-A part must have either `extends`, `implements`, or both. Abstract parts must have `implements` (they define the contract). Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`) to constrain values to a preferred number series. `size` remains reserved for primitive geometry.
+A part must have either `extends`, `implements`, or both. Abstract parts must have `implements` (they define the contract). Concrete parts must include `pinsBlock` either directly or via inheritance such that the effective declaration has complete terminal-leaf coverage. Passive `part` declarations use E-series parameters (`e96 R`, `e12 C`, `e24 L`) to constrain values to a preferred number series. `size` remains reserved for primitive geometry.
 
 The `paramType` rule in parameter lists accepts E-series types alongside the existing scalar types:
 
@@ -1291,7 +1415,7 @@ catalogOptionField
     ;
 ```
 
-Each `catalogOption` must contain at minimum `provider`, `sku`, and `priority` fields. The `url` field is optional. The `package` field is renamed to `footprint` in all catalog contexts.
+Each `catalogOption` must contain at minimum `provider`, `sku`, and `priority` fields. Optional fields include `url`, `approved`, and project-specific non-lookup-able metadata keys. The `package` field is renamed to `footprint` in all catalog contexts.
 
 ### 11.7 Array Port Syntax
 
@@ -1321,12 +1445,22 @@ metricsValueBlock
     ;
 
 metricAssign
-    : IDENT EQ metricValue
+    : IDENT metricQualifier? conditionProfileRef? EQ metricValue
     ;
 
 metricValue
     : signedQuantity
     | metricSource
+    ;
+
+metricQualifier
+    : MIN_KW
+    | MAX_KW
+    | TYP_KW
+    ;
+
+conditionProfileRef
+    : AT_KW IDENT
     ;
 ```
 
@@ -1350,7 +1484,7 @@ benchBindingMetrics
     ;
 
 metricBind
-    : IDENT EQ metricSource
+    : IDENT metricQualifier? conditionProfileRef? EQ metricSource
     ;
 
 metricSource
@@ -1470,23 +1604,26 @@ The `graph {}` sub-block is not supported; no `graphBlock` appears in the constr
 
 ### 11.13 Resolution Policy
 
-There are no reserved keyword categories. All instantiation targets -- whether for primitives, parts, or circuits -- resolve semantically against declarations in scope. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors.
+There are no reserved keyword categories. All instantiation targets -- whether for primitives, parts, or circuits -- resolve semantically against declarations in scope. The `include` directives determine which interfaces are available. Ambiguous or unresolved targets are hard validation errors. If both IC and PCB domains are included and a short symbol name is ambiguous, the source must use a fully-qualified name.
 
 ---
 
 ## 12. Worked Example: Sensor Frontend PCB
 
-A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFrontendPCB.cas`. The example includes:
+A complete worked example accompanies this RFC at `tests/golden/cas/pcb/SensorFrontendPCB.cas` and is updated as implementation phases land. The current example and planned extensions include:
 
 - Single-axis variant on OPA2376 (`variant form { VSSOP8, SOIC8 }`) with positional bracket selection (`[VSSOP8]`).
 - Multi-axis variant on YageoRC (`variant body`, `variant grade`) with named bracket selection (`[body=_0402, grade=F]`).
 - Part inheritance: abstract `STM32G0` base with concrete `STM32G031K extends STM32G0`, carrying `variant flash` and `variant pkg` axes.
+- Concrete-part pin mapping via `pins {}` and multi-unit grouping via `units {}`.
 - MPN template strings (`"STM32G031K{flash.code}{pkg.suffix}"`, `"RC{body.footprint}{grade.code}{R}L"`) with field and parameter interpolation.
 - No-variant part (ADS1115) demonstrating that brackets are optional when no variant axes exist.
 - Fill-block variant enforcement: all axes explicitly selected in every fill-block instantiation.
 - `footprint` catalog field (renamed from `package`).
 - 16-bit ADC and MCU wrappers with forwarded metrics using dot syntax (`uAdc.Resolution`).
+- Qualified metrics with optional condition profiles (`min|max|typ @ profile`).
 - `bench`/`spec` constraint taxonomy separating simulation-verified and declaration-verified constraints, using dot syntax for instance metric references (`frontend.PassbandGain`, `adc.Resolution`, `mcu.FlashSize`).
+- Harness applicability based on bench executability (simulable paths require harness; spec-only paths may omit).
 - Hierarchical constraint verification (EL design targets with bare metric names, HL system requirements with instance-qualified references).
 - Metric-driven parameter propagation (`load_cap=adc.InputCapacitance`), resolved during bench planning via an ordering pass.
 - Bench-derived metric bindings (`PassbandGain = transfer_bench::PassbandGain`) using `::` exclusively for bench extraction.
@@ -1511,17 +1648,17 @@ Section 5.0 (Summary) establishes the chapter's purpose and relates Cascode's ex
 
 Section 5.1 (Conceptual Mapping) expands the IC-to-PCB mapping table from Section 3 of this RFC into prose. Key themes: schematic symbol vs concrete backing, `implements` as the unifying mechanism, and where IC and PCB flows diverge in identity, parameters, and metric sources.
 
-Section 5.2 (Domain Libraries and Namespace Convention) describes the organization of `lib/ic/`, `lib/pcb/`, `lib/std/`, and `lib/parts/`. Covers the single-domain-per-file convention and cross-references Ch02 Section 2.1 for the underlying resolution model.
+Section 5.2 (Domain Libraries and Namespace Convention) describes the organization of `lib/ic/`, `lib/pcb/`, `lib/std/`, and `lib/parts/`. Covers mixed-domain includes with explicit qualification on ambiguity and cross-references Ch02 Section 2.1 for the underlying resolution model.
 
-Section 5.3 (The `part` Construct) gives a domain-focused treatment of the `part` declaration, cross-referencing Ch02 and Ch03 for normative definitions. Covers the relationship to `primitive`, the `mpn`/`footprint`/`spice` fields, variant blocks for discrete configuration axes, part inheritance (`extends`/`abstract`) for part families, MPN template strings, bracket instantiation syntax, parameterized passives vs fixed-identity ICs, multi-unit ICs with flat port naming, array ports on high-pin-count components, and worked examples.
+Section 5.3 (The `part` Construct) gives a domain-focused treatment of the `part` declaration, cross-referencing Ch02 and Ch03 for normative definitions. Covers the relationship to `primitive`, the `mpn`/`footprint`/`spice` fields, variant blocks for discrete configuration axes, part inheritance (`extends`/`abstract`) for part families, mandatory `pins {}` mapping for concrete parts, optional `units {}` grouping for multi-unit packages, MPN template strings, bracket instantiation syntax, parameterized passives vs fixed-identity ICs, array ports on high-pin-count components, and worked examples.
 
-Section 5.4 (The Metrics System in PCB Context) describes how metrics enable datasheet-driven and simulation-driven validation. Covers datasheet metric polarity conventions, interface metric contracts, the two named metric kinds (bench-derived and forwarded), metric-driven parameter propagation, and PCB-domain units.
+Section 5.4 (The Metrics System in PCB Context) describes how metrics enable datasheet-driven and simulation-driven validation. Covers qualifier semantics (`min|max|typ`), condition profiles, interface metric contracts, the two named metric kinds (bench-derived and forwarded), metric-driven parameter propagation, and PCB-domain units.
 
 Section 5.5 (Constraint Taxonomy for Mixed Designs) explains how `bench {}`, `spec {}`, and `physical {}` sub-blocks partition constraints by verification method. Covers the bench-to-spec distinction, verification provenance enforcement, mixed compositions with simulable and non-simulable sub-blocks, hierarchical constraint verification, and self-metric references by bare name.
 
 Section 5.6 (Bus Bundles and Digital Interconnect) treats standard PCB buses (I2C, SPI, UART, SWD) as ordinary bundles. Points to `lib/std/bus/` and shows connection patterns, cross-referencing Ch02 Section 2.3 for the bundle mechanism.
 
-Section 5.7 (Parts Ecosystem and Pricing) describes the parts database role, `lib/parts/` tree structure organized by category (including `lib/parts/power/` for regulators and decoupling, `lib/parts/conn/` for connectors), the `catalog` block's `option` contract (required fields: `provider`, `sku`, `priority`; optional: `url`), the `mechanical {}` block for physical geometry and assembly data, and passive resolution.
+Section 5.7 (Parts Ecosystem and Pricing) describes the parts database role, `lib/parts/` tree structure organized by category (including `lib/parts/power/` for regulators and decoupling, `lib/parts/conn/` for connectors), the `catalog` block's pointer contract, on-demand provider lookup for volatile fields (availability/pricing), source-authored metadata for non-lookup-able policy fields, the `mechanical {}` block for physical geometry and assembly data, and passive resolution.
 
 Section 5.8 (PCB Synthesis Model) covers HL-to-EL synthesis for PCB designs: IC selection against metric constraints, passive network topology and value sizing, and mixed-block synthesis. Describes the `synth {}` block's `objective` directive and extensibility for future synthesis directives, cross-referencing Ch02 Section 2.12.
 
@@ -1533,11 +1670,11 @@ The specification already covers HL composition slots (2.5.5), the `Some` keywor
 
 Ch01: add a brief note in Section 1.5 (Cascode in a Few Examples) that PCB design is covered in Ch05, or include a minimal PCB example. In Section 1.6 (Toolchain Pipeline), note that the pipeline extends to PCB schematic capture and constraint-driven part selection.
 
-Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.5.3 for E-series parameter types (`e6` through `e192`) in the parameter type system, covering the subtype hierarchy and compile-time validation. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
+Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.5.3 for E-series parameter types (`e6` through `e192`) in the parameter type system, covering the subtype hierarchy and compile-time validation. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, mandatory concrete `pins {}` mapping, optional `units {}`, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, qualifiers and condition profiles, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
 
 Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `numeric {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `tech {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
 
-Ch03 new syntax: update Section 3.1 to include `partDef`. Add `eSeriesType` grammar rule in the parameter declarations section. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics`), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
+Ch03 new syntax: update Section 3.1 to include `partDef`. Add `eSeriesType` grammar rule in the parameter declarations section. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`, `pinsBlock`, `unitsBlock`, `conditionProfilesBlock`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics` with qualifiers/profile tags), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
 
 Ch03 renames: rewrite Section 3.8 primitive header to `implements`. Merge Section 3.9 (Device Declarations) into instance declarations (3.10.2). Update Section 3.11 (Constraints) for `bench`/`spec`/`physical` renames, dot-operator constraint references, `LIBRARY_KW` rename, and `GRAPH_KW` removal.
 
@@ -1554,6 +1691,8 @@ Implementation is split into phases. Phase 1 covers grammar and AST changes in t
 Phase 1a: Additive grammar and AST
 
 - Add `part`, `catalog`, `metrics`, `Some` grammar support.
+- Add `pins {}` and `units {}` grammar support for parts.
+- Add `conditionProfiles {}` and metric qualifiers (`min`, `max`, `typ`) with optional `@Profile` tags.
 - Add `eSeriesType` tokens (`E6_KW` through `E192_KW`) and `eSeriesType` grammar rule; extend `paramType` to accept E-series types.
 - Add `implementsList` rule shared by `primitiveDef`, `partDef`, and `circuitDef`.
 - Add `variant`, `abstract`, `extends` grammar support: `VARIANT_KW`, `ABSTRACT_KW`, `EXTENDS_KW` tokens; `variantBlock`, `variantOption`, `variantOptionMember` rules (including `excludeDirective`); modified `partDef` with optional `ABSTRACT_KW`, optional `EXTENDS_KW` clause.
@@ -1564,6 +1703,7 @@ Phase 1a: Additive grammar and AST
 - Add array port declaration and indexing syntax.
 - Add `LIBRARY_KW`, `CATALOG_KW`, `OPTION_KW`, `BENCHES_KW` tokens.
 - Add AST types for part declarations, catalog entries, metric declarations/assignments, variant blocks, variant options.
+- Add AST types for pin maps, unit groupings, condition profiles, and qualified metric entries.
 - Add separate `slotInstanceDecl` with `Some` support.
 - Add reader/writer support and tests.
 
@@ -1590,6 +1730,8 @@ Grammar is stable after Phase 1b. Update existing spec chapters for renames and 
 - Ch04: add `metrics {}` in bindings note to 4.8.x.
 - Ch01: brief PCB mention in 1.5 or 1.6.
 - Update `spec/language/README.md` to add Ch05.
+- Specify mixed-domain include policy: both `lib.ic` and `lib.pcb` allowed, ambiguity requires qualification.
+- Specify harness applicability by bench executability (simulable paths require harness; spec-only paths may omit).
 
 This phase can proceed in parallel with Phase 2a.
 
@@ -1613,16 +1755,20 @@ Verification checkpoint: spec chapter cross-references resolve end-to-end; worke
 Phase 3: Resolution and validation
 
 - Implement unified semantic instantiation resolution policy (no reserved keyword categories).
+- Implement mixed-domain symbol ambiguity reporting and require fully-qualified references when ambiguous.
 - Implement variant selection validation: fill blocks require all axes selected; slot blocks allow omission.
 - Implement catalog/metric merge: base + variant option overrides with conflict detection (two axes providing the same non-template catalog field).
 - Implement variant exclusion validation: reject instantiations and synthesis candidates selecting combinations marked by `exclude` directives.
 - Implement `abstract` part enforcement: cannot appear in fill blocks or be instantiated directly.
 - Implement inheritance chain resolution: collect ports, metrics, catalog fields, `implements` conformance from base chain.
-- Implement MPN template string validation: verify all `{...}` references resolve to known axes, axis fields, or constructor parameters.
+- Implement MPN template string validation: verify all `{...}` references resolve to known axes, axis fields, or constructor parameters at compile time.
 - Add interface metric contract validation (including variant-dependent metrics must cover all options).
 - Add alias-only forwarding resolution and cycle detection.
 - Validate `Some` only appears in slot blocks (grammar-enforced).
 - Add E-series value validation: check that a literal value passed to an E-series parameter is a member of the declared series at some decade.
+- Add pin-map validation: concrete parts must provide a complete mapping for every declared terminal leaf; mapping conflicts are errors.
+- Add unit-group validation: unit group references must be valid and consistent with pin maps.
+- Add condition-profile validation: referenced profiles must exist; qualified metric keys must merge deterministically.
 
 Phase 4: Constraint and runtime evaluation
 
@@ -1631,12 +1777,13 @@ Phase 4: Constraint and runtime evaluation
 - Implement verification provenance validation (constraints in the correct sub-block for their metric source).
 - Implement metric-driven parameter propagation ordering pass during bench planning.
 - Implement hierarchical verification: `cascode bench run` walks the composition tree and evaluates constraints at every level.
+- Implement harness applicability enforcement based on bench executability.
 
 Phase 5: Parts ecosystem integration
 
 - Implement MPN template resolution: `{axis}`, `{axis.field}`, `{param}` interpolation with value encoding (RKM for resistance, pF codes for capacitance).
 - Implement BOM resolution pipeline: instance collection → catalog merge → template resolution → metric merge → aggregation → JSON emission (per schema in Section 9.4).
-- Wire catalog option pointers to provider adapters/cache.
+- Wire catalog option pointers to provider adapters. Volatile fields (availability, lead time, pricing) are lookup-on-demand and are not required to be persisted.
 - Implement deterministic option ordering/fallback via `priority`.
 
 Phase 6: Emission and synthesis expansion
