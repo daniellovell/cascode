@@ -149,12 +149,12 @@ public static partial class CascodeWriter
     }
 
     /// <summary>
-        /// Map a RenderRouteMode value to the textual route mode used in the output.
-        /// </summary>
-        /// <param name="mode">The route mode to format.</param>
-        /// <returns>"auto" for <see cref="RenderRouteMode.Auto"/>, "ortho" for <see cref="RenderRouteMode.Ortho"/>.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when <paramref name="mode"/> is not a recognized route mode.</exception>
-        private static string FormatRouteMode(RenderRouteMode mode) =>
+    /// Map a RenderRouteMode value to the textual route mode used in the output.
+    /// </summary>
+    /// <param name="mode">The route mode to format.</param>
+    /// <returns>"auto" for <see cref="RenderRouteMode.Auto"/>, "ortho" for <see cref="RenderRouteMode.Ortho"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when <paramref name="mode"/> is not a recognized route mode.</exception>
+    private static string FormatRouteMode(RenderRouteMode mode) =>
         mode switch
         {
             RenderRouteMode.Auto => "auto",
@@ -163,12 +163,12 @@ public static partial class CascodeWriter
         };
 
     /// <summary>
-        /// Converts a RenderPortSide value to its textual representation used in render output.
-        /// </summary>
-        /// <param name="side">The port side enum to convert.</param>
-        /// <returns>"left", "right", "top", "bottom", or "auto" corresponding to the provided side.</returns>
-        /// <exception cref="InvalidOperationException">Thrown when <paramref name="side"/> has an unhandled value.</exception>
-        private static string FormatPortSide(RenderPortSide side) =>
+    /// Converts a RenderPortSide value to its textual representation used in render output.
+    /// </summary>
+    /// <param name="side">The port side enum to convert.</param>
+    /// <returns>"left", "right", "top", "bottom", or "auto" corresponding to the provided side.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when <paramref name="side"/> has an unhandled value.</exception>
+    private static string FormatPortSide(RenderPortSide side) =>
         side switch
         {
             RenderPortSide.Left => "left",
