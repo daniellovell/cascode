@@ -289,6 +289,7 @@ function parseCall(native, session, method, request) {
  * @param {*} session - The native session handle.
  * @param {*} req - The request payload (object or JSON string) to send to the native call.
  * @returns {object} The parsed JSON response from the native call.
+ */
 function open(native, session, req) {
   return parseCall(native, session, "document.open", req);
 }
