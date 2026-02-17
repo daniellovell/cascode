@@ -1,0 +1,28 @@
+{
+  "name": "@cascode/native-darwin-arm64",
+  "version": "0.5.0",
+  "description": "Prebuilt macOS arm64 runtime bundle for @cascode/native",
+  "license": "BSD-3-Clause",
+  "private": false,
+  "main": "index.js",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "index.js",
+    "README.md",
+    "prebuilds/**/*",
+    "native/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/daniellovell/cascode.git",
+    "directory": "editors/node/platform-packages/native-darwin-arm64"
+  }
+}

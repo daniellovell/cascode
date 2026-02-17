@@ -5,13 +5,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <io.h>
+#define ACCESS _access
+#define READ_OK 4
+typedef HMODULE dylib_handle_t;
+static SRWLOCK g_load_mutex = SRWLOCK_INIT;
+static void lock_load_mutex(void) { AcquireSRWLockExclusive(&g_load_mutex); }
+static void unlock_load_mutex(void) { ReleaseSRWLockExclusive(&g_load_mutex); }
+#elif defined(__linux__) || defined(__APPLE__)
+#include <dlfcn.h>
 #include <pthread.h>
 #include <unistd.h>
-
-#if defined(__linux__) || defined(__APPLE__)
-#include <dlfcn.h>
+#define ACCESS access
+#define READ_OK R_OK
+typedef void* dylib_handle_t;
+static pthread_mutex_t g_load_mutex = PTHREAD_MUTEX_INITIALIZER;
+static void lock_load_mutex(void) { pthread_mutex_lock(&g_load_mutex); }
+static void unlock_load_mutex(void) { pthread_mutex_unlock(&g_load_mutex); }
 #else
-#error "cascode_native_addon currently supports linux and macOS only."
+#error "cascode_native_addon currently supports linux, macOS, and Windows."
 #endif
 
 typedef int32_t (*cascode_create_session_fn)(const char* options_json_utf8);
@@ -22,7 +38,7 @@ typedef char* (*cascode_session_call_fn)(int32_t session, const char* request_js
 typedef char* (*cascode_version_fn)(void);
 
 typedef struct cascode_exports_s {
-  void* handle;
+  dylib_handle_t handle;
   cascode_create_session_fn create_session;
   cascode_destroy_session_fn destroy_session;
   cascode_free_string_fn free_string;
@@ -53,7 +69,6 @@ typedef struct method_entry_s {
 static cascode_exports_t g_exports;
 static bool g_attempted_load = false;
 static char g_load_error[512];
-static pthread_mutex_t g_load_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void set_load_error(const char* message) {
   if (message == NULL) {
@@ -65,7 +80,12 @@ static void set_load_error(const char* message) {
 }
 
 static void extract_directory(const char* path, char* out, size_t out_size) {
-  const char* slash = strrchr(path, '/');
+  const char* slash_forward = strrchr(path, '/');
+  const char* slash_backward = strrchr(path, '\\');
+  const char* slash = slash_forward;
+  if (slash == NULL || (slash_backward != NULL && slash_backward > slash)) {
+    slash = slash_backward;
+  }
   if (slash == NULL) {
     snprintf(out, out_size, ".");
     return;
@@ -83,10 +103,23 @@ static void extract_directory(const char* path, char* out, size_t out_size) {
 static bool preload_dependency(const char* directory, const char* file_name) {
   char full_path[1024];
   snprintf(full_path, sizeof(full_path), "%s/%s", directory, file_name);
-  if (access(full_path, R_OK) != 0) {
+  if (ACCESS(full_path, READ_OK) != 0) {
     return true;
   }
 
+#if defined(_WIN32)
+  HMODULE handle = LoadLibraryA(full_path);
+  if (handle == NULL) {
+    DWORD code = GetLastError();
+    char windows_error[256];
+    snprintf(windows_error, sizeof(windows_error), "Windows error code %lu", (unsigned long)code);
+
+    char buffer[512];
+    snprintf(buffer, sizeof(buffer), "Failed to preload '%s': %s", full_path, windows_error);
+    set_load_error(buffer);
+    return false;
+  }
+#else
   void* handle = dlopen(full_path, RTLD_NOW | RTLD_GLOBAL);
   if (handle == NULL) {
     const char* dl_error = dlerror();
@@ -99,12 +132,17 @@ static bool preload_dependency(const char* directory, const char* file_name) {
     set_load_error(buffer);
     return false;
   }
+#endif
 
   return true;
 }
 
 static bool resolve_symbol(void** target, const char* name) {
+#if defined(_WIN32)
+  *target = (void*)GetProcAddress(g_exports.handle, name);
+#else
   *target = dlsym(g_exports.handle, name);
+#endif
   if (*target == NULL) {
     char buffer[512];
     snprintf(buffer, sizeof(buffer), "Failed to resolve symbol '%s'.", name);
@@ -117,11 +155,11 @@ static bool resolve_symbol(void** target, const char* name) {
 
 static bool load_exports(void) {
   bool success = false;
-  pthread_mutex_lock(&g_load_mutex);
+  lock_load_mutex();
 
   if (g_attempted_load) {
     success = g_exports.handle != NULL;
-    pthread_mutex_unlock(&g_load_mutex);
+    unlock_load_mutex();
     return success;
   }
 
@@ -136,6 +174,12 @@ static bool load_exports(void) {
 
   char library_dir[1024];
   extract_directory(library_path, library_dir, sizeof(library_dir));
+#if defined(_WIN32)
+  SetDllDirectoryA(library_dir);
+  if (!preload_dependency(library_dir, "google-ortools-native.dll")) {
+    goto done;
+  }
+#else
   if (!preload_dependency(library_dir, "libortools.so.9")) {
     goto done;
   }
@@ -143,16 +187,31 @@ static bool load_exports(void) {
   if (!preload_dependency(library_dir, "google-ortools-native.so")) {
     goto done;
   }
+#endif
 
+#if defined(_WIN32)
+  g_exports.handle = LoadLibraryA(library_path);
+#else
   g_exports.handle = dlopen(library_path, RTLD_NOW | RTLD_LOCAL);
+#endif
   if (g_exports.handle == NULL) {
+#if defined(_WIN32)
+    DWORD code = GetLastError();
+    char windows_error[256];
+    snprintf(windows_error, sizeof(windows_error), "Windows error code %lu", (unsigned long)code);
+#else
     const char* dl_error = dlerror();
     if (dl_error == NULL) {
       dl_error = "Unknown dlopen error.";
     }
+#endif
 
     char buffer[512];
+#if defined(_WIN32)
+    snprintf(buffer, sizeof(buffer), "Failed to load '%s': %s", library_path, windows_error);
+#else
     snprintf(buffer, sizeof(buffer), "Failed to load '%s': %s", library_path, dl_error);
+#endif
     set_load_error(buffer);
     goto done;
   }
@@ -180,7 +239,7 @@ static bool load_exports(void) {
   success = true;
 
 done:
-  pthread_mutex_unlock(&g_load_mutex);
+  unlock_load_mutex();
   return success;
 }
 
