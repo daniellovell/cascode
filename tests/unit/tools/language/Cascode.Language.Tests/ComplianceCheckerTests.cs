@@ -457,7 +457,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -467,7 +467,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "PassbandGain",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -477,7 +477,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -490,7 +490,7 @@ public class ComplianceCheckerTests
         var acResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "ACBench",
+            Bench = "transfer_bench",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["gbw"] = new()
@@ -516,13 +516,13 @@ public class ComplianceCheckerTests
         Assert.Equal(2, report.PassedCount);
         Assert.Equal(0, report.FailedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
-        Assert.Single(report.UncheckedByBench["DCBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
+        Assert.True(report.UncheckedByBench.ContainsKey("vdd_pwr"));
+        Assert.Single(report.UncheckedByBench["vdd_pwr"]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["vdd_pwr"][0].Id);
     }
 
     [Fact]
-    public void Check_BenchAwareFiltering_DCBenchOnlyChecksPowerConstraint()
+    public void Check_BenchAwareFiltering_VddPwrOnlyChecksPowerConstraint()
     {
         var circuit = new Circuit
         {
@@ -534,7 +534,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -544,7 +544,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -557,7 +557,7 @@ public class ComplianceCheckerTests
         var dcResults = new BenchResult
         {
             Circuit = "TestCircuit",
-            Bench = "DCBench",
+            Bench = "vdd_pwr",
             Measurements = new Dictionary<string, MeasurementResult>
             {
                 ["pwr"] = new()
@@ -574,7 +574,7 @@ public class ComplianceCheckerTests
         Assert.Equal(1, report.TotalCount);
         Assert.Equal(1, report.PassedCount);
         Assert.Single(report.UncheckedByBench);
-        Assert.True(report.UncheckedByBench.ContainsKey("ACBench"));
+        Assert.True(report.UncheckedByBench.ContainsKey("transfer_bench"));
     }
 
     [Fact]
@@ -591,7 +591,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gbw",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "GainBandwidth",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -601,7 +601,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_gain",
-                        Bench = "ACBench",
+                        Bench = "transfer_bench",
                         Metric = "PassbandGain",
                         Node = new NodeRef { Scope = "net", Path = "OUT" },
                         Op = ">=",
@@ -611,7 +611,7 @@ public class ComplianceCheckerTests
                     new()
                     {
                         Id = "c_pwr",
-                        Bench = "DCBench",
+                        Bench = "vdd_pwr",
                         Metric = "QuiescentPower",
                         Op = "<=",
                         Value = "500u",
@@ -718,13 +718,13 @@ public class ComplianceCheckerTests
     }
 
     [Fact]
-    public void Check_WithGoldenCascode_BenchAwareFiltering_ACBenchReturns3of3()
+    public void Check_WithGoldenCascode_BenchAwareFiltering_TransferBenchReturns3of3()
     {
         var repoRoot = TestPathUtilities.GetRepositoryRoot();
         var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cai");
         var resultsPath = Path.Combine(
             repoRoot,
-            "tests/golden/results/ota/OTA5TSingleEnded_ACBench_results.json"
+            "tests/golden/results/ota/OTA5TSingleEnded_transfer_bench_results.json"
         );
 
         using var reader = File.OpenText(cascodePath);
@@ -737,18 +737,21 @@ public class ComplianceCheckerTests
 
         var report = ComplianceChecker.Check(circuit, results);
 
-        // AC bench should only check 3 constraints (gain, gbw, pm)
+        // transfer_bench should only check 3 constraints (gain, gbw, pm)
         Assert.Equal(3, report.TotalCount);
         Assert.Equal(3, report.PassedCount);
         Assert.Equal(0, report.FailedCount);
 
         // Power constraint should be tracked as unchecked
         Assert.Equal(2, report.UncheckedByBench.Count);
-        Assert.True(report.UncheckedByBench.ContainsKey("DCBench"));
-        Assert.True(report.UncheckedByBench.ContainsKey("TranBench"));
-        Assert.Single(report.UncheckedByBench["DCBench"]);
-        Assert.Single(report.UncheckedByBench["TranBench"]);
-        Assert.Equal("c_pwr", report.UncheckedByBench["DCBench"][0].Id);
-        Assert.Equal("c_swing", report.UncheckedByBench["TranBench"][0].Id);
+        Assert.True(report.UncheckedByBench.ContainsKey("vdd_pwr"));
+        var tranBenchKey = report.UncheckedByBench.Keys.Single(k =>
+            k.StartsWith("tran_bench", StringComparison.OrdinalIgnoreCase)
+        );
+
+        Assert.Single(report.UncheckedByBench["vdd_pwr"]);
+        Assert.Single(report.UncheckedByBench[tranBenchKey]);
+        Assert.Equal("c_pwr", report.UncheckedByBench["vdd_pwr"][0].Id);
+        Assert.Equal("c_swing", report.UncheckedByBench[tranBenchKey][0].Id);
     }
 }

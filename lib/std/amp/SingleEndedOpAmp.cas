@@ -16,6 +16,10 @@ interface SingleEndedOpAmp {
       bench.RET--dut.GND
     }
 
+    bind SEDCBias as dc_bias {
+      bench.OUT--dut.OUT
+    }
+
     bind DiffToSETransfer as transfer_bench {
       bench.IN--dut.IN
       bench.OUT--dut.OUT

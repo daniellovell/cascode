@@ -63,10 +63,10 @@ circuit OTA5TSingleEnded_Commented implements SingleEndedOpAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 100MHz  // assumed target metric for the gain response
-      c_gain = ACBench::PassbandGain at net::OUT >= 40dB  // assumed target metric for the gain response
-      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg  // assumed target metric for the phase response
-      c_pwr = DCBench::QuiescentPower <= 500uW
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 100MHz  // assumed target metric for the gain response
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB  // assumed target metric for the gain response
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg  // assumed target metric for the phase response
+      c_pwr = vdd_pwr::QuiescentPower <= 500uW
     }
     tech {
       t_lmin : L >= 180nm on *  // tech rule for minimum length

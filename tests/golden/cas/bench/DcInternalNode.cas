@@ -12,8 +12,7 @@ bench DcBench {
 
   measurements {
     measurement MidVoltage : V {
-      VoltageSpectrum v = voltage(dc, dut.mid)
-      return v.ValueAt(0Hz)
+      return voltage(dc, dut.mid)
     }
   }
 }
@@ -48,4 +47,3 @@ circuit DcInternalNode {
     Resistor R2 = new Ideal_Resistor(size(R=10k)) { .P--mid, .N--GND }
   }
 }
-

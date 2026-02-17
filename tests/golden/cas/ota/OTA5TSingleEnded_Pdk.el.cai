@@ -65,9 +65,9 @@ circuit OTA5TSingleEnded_Pdk implements SingleEndedOpAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 1MHz
-      c_gain = ACBench::PassbandGain at net::OUT >= 20dB
-      c_pm = ACBench::PhaseMargin at net::OUT >= 60deg
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 1MHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
+      c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
     }
     tech {
       t_lmin : L >= 180nm on *

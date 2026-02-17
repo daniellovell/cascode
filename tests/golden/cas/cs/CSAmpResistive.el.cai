@@ -37,8 +37,8 @@ circuit CSAmpResistive implements SingleEndedAmp {
   }
   constraints {
     numeric {
-      c_gbw = ACBench::GainBandwidth at net::OUT >= 10MHz
-      c_gain = ACBench::PassbandGain at net::OUT >= 20dB
+      c_gbw = transfer_bench::GainBandwidth at net::OUT >= 10MHz
+      c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
     }
   }
   harness {
