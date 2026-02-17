@@ -47,26 +47,32 @@ function runWorker(filename, workerData, env) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(filename, { workerData, env });
     let settled = false;
-    worker.once("message", (message) => {
+    const settle = (onDone) => {
+      if (settled) {
+        return;
+      }
+
       settled = true;
-      resolve(message);
+      void worker.terminate().catch(() => {}).finally(onDone);
+    };
+
+    worker.once("message", (message) => {
+      settle(() => resolve(message));
     });
     worker.once("error", (error) => {
-      settled = true;
-      reject(error);
+      settle(() => reject(error));
     });
     worker.once("exit", (code) => {
       if (settled) {
         return;
       }
 
-      settled = true;
       if (code !== 0) {
-        reject(new Error(`Worker '${filename}' exited with code ${code}.`));
+        settle(() => reject(new Error(`Worker '${filename}' exited with code ${code}.`)));
         return;
       }
 
-      reject(new Error(`Worker '${filename}' exited without sending a message.`));
+      settle(() => reject(new Error(`Worker '${filename}' exited without sending a message.`)));
     });
   });
 }

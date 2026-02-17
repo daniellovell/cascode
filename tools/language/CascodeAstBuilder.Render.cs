@@ -30,7 +30,12 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
-            var entity = new RenderEntity { Name = entityName };
+            var entity = new RenderEntity
+            {
+                Name = entityName,
+                SourceLine = entityCtx.Start?.Line,
+                SourceColumn = (entityCtx.Start?.Column ?? 0) + 1,
+            };
 
             if (entityCtx.renderOneLiner() is { } oneLiner)
             {

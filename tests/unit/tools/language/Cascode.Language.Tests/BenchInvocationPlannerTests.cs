@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cascode.Language;
 using Cascode.Language.BenchRuntime;
+using Cascode.TestSupport;
 
 namespace Cascode.Language.Tests;
 
@@ -10,6 +11,8 @@ public sealed class BenchInvocationPlannerTests
     [Fact]
     public void CollectInvocations_PreservesDependencyInvocationArgs()
     {
+        using var cascodeHome = CascodeHome.CreateInTemp("bench-invocation-planner");
+
         var document = new CascodeDocument
         {
             BenchDefinitions =

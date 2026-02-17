@@ -1,9 +1,17 @@
-#include <dlfcn.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+typedef HMODULE dylib_handle_t;
+#else
+#include <dlfcn.h>
+typedef void* dylib_handle_t;
+#endif
 
 typedef int32_t (*cascode_create_session_fn)(const char* options_json_utf8);
 typedef void (*cascode_destroy_session_fn)(int32_t session);
@@ -13,7 +21,7 @@ typedef char* (*cascode_session_call_fn)(int32_t session, const char* request_js
 typedef char* (*cascode_version_fn)(void);
 
 typedef struct exports_s {
-  void* handle;
+  dylib_handle_t handle;
   cascode_create_session_fn create_session;
   cascode_destroy_session_fn destroy_session;
   cascode_free_string_fn free_string;
@@ -68,9 +76,35 @@ static void require(bool condition, const char* message) {
  * @returns `true` if the symbol was found and stored in `*out`, `false` otherwise.
  */
 static bool resolve_symbol(void* handle, void** out, const char* name) {
+#if defined(_WIN32)
+  *out = (void*)GetProcAddress((HMODULE)handle, name);
+#else
   *out = dlsym(handle, name);
+#endif
   if (*out == NULL) {
+#if defined(_WIN32)
+    DWORD code = GetLastError();
+    char windows_error[256];
+    DWORD chars = FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        code,
+        0,
+        windows_error,
+        (DWORD)sizeof(windows_error),
+        NULL);
+    if (chars == 0) {
+      snprintf(windows_error, sizeof(windows_error), "Windows error code %lu", (unsigned long)code);
+    } else {
+      while (chars > 0 && (windows_error[chars - 1] == '\n' || windows_error[chars - 1] == '\r')) {
+        windows_error[chars - 1] = '\0';
+        chars--;
+      }
+    }
+    fprintf(stderr, "missing symbol: %s (%s)\n", name, windows_error);
+#else
     fprintf(stderr, "missing symbol: %s\n", name);
+#endif
     return false;
   }
 
@@ -91,9 +125,35 @@ static exports_t load_exports(const char* library_path) {
   exports_t e;
   memset(&e, 0, sizeof(e));
 
+#if defined(_WIN32)
+  e.handle = LoadLibraryA(library_path);
+#else
   e.handle = dlopen(library_path, RTLD_NOW | RTLD_LOCAL);
+#endif
   if (e.handle == NULL) {
+#if defined(_WIN32)
+    DWORD code = GetLastError();
+    char windows_error[256];
+    DWORD chars = FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+        NULL,
+        code,
+        0,
+        windows_error,
+        (DWORD)sizeof(windows_error),
+        NULL);
+    if (chars == 0) {
+      snprintf(windows_error, sizeof(windows_error), "Windows error code %lu", (unsigned long)code);
+    } else {
+      while (chars > 0 && (windows_error[chars - 1] == '\n' || windows_error[chars - 1] == '\r')) {
+        windows_error[chars - 1] = '\0';
+        chars--;
+      }
+    }
+    fprintf(stderr, "LoadLibrary failed: %s\n", windows_error);
+#else
     fprintf(stderr, "dlopen failed: %s\n", dlerror());
+#endif
     exit(1);
   }
 
