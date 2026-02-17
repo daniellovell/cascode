@@ -5,6 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NativeLib>Shared</NativeLib>
     <PublishAot>true</PublishAot>
+    <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
