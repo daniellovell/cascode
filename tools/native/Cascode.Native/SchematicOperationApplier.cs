@@ -270,7 +270,13 @@ internal static class SchematicOperationApplier
         }
         else
         {
-            fill.Connections.Add(new ConnectionStatement { From = from, To = to });
+            var exists = fill.Connections.Any(conn =>
+                (conn.From == from && conn.To == to) || (conn.From == to && conn.To == from)
+            );
+            if (!exists)
+            {
+                fill.Connections.Add(new ConnectionStatement { From = from, To = to });
+            }
         }
 
         changed.Add(from);
@@ -279,7 +285,16 @@ internal static class SchematicOperationApplier
 
     private static Circuit FindCircuit(DocumentState state)
     {
-        return state.Document.Circuits.First(c => c.Name == state.CircuitName);
+        var circuit = state.Document.Circuits.FirstOrDefault(c => c.Name == state.CircuitName);
+        if (circuit is null)
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Circuit '{state.CircuitName}' was not found in document '{state.DocumentId}'."
+            );
+        }
+
+        return circuit;
     }
 
     private static RenderEntity UpsertRenderEntity(

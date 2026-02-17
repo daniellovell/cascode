@@ -270,8 +270,14 @@ public static partial class MazeRouter
         var rawSegments = new List<WireSegment>();
         var overlay = new OverlayOccupiedSegments(occupied);
 
-        var startTerminal = SelectClosestTerminal(terminals, waypoints[0], null);
-        var endTerminal = SelectClosestTerminal(terminals, waypoints[^1], startTerminal);
+        var startTerminalIndex = SelectClosestTerminalIndex(terminals, waypoints[0], null);
+        var endTerminalIndex = SelectClosestTerminalIndex(
+            terminals,
+            waypoints[^1],
+            startTerminalIndex
+        );
+        var startTerminal = ToGridPoint(terminals[startTerminalIndex]);
+        var endTerminal = ToGridPoint(terminals[endTerminalIndex]);
 
         var routePoints = new List<GridPoint> { startTerminal };
         routePoints.AddRange(waypoints);
@@ -295,16 +301,19 @@ public static partial class MazeRouter
         }
 
         // Attach any remaining terminals to the nearest routed waypoint.
-        var anchored = new HashSet<GridPoint> { startTerminal, endTerminal };
-        foreach (
-            var terminal in terminals
-                .Select(t => new GridPoint(t.X, t.Y))
-                .Where(t => !anchored.Contains(t))
-        )
+        var anchoredIndices = new HashSet<int> { startTerminalIndex, endTerminalIndex };
+        for (var terminalIndex = 0; terminalIndex < terminals.Count; terminalIndex++)
         {
-            var attachPoint = routePoints
-                .OrderBy(point => ManhattanDistance(point, terminal))
-                .FirstOrDefault();
+            if (anchoredIndices.Contains(terminalIndex))
+            {
+                continue;
+            }
+
+            var terminal = ToGridPoint(terminals[terminalIndex]);
+            var attachPoint =
+                routePoints.Count > 0
+                    ? routePoints.OrderBy(point => ManhattanDistance(point, terminal)).First()
+                    : terminal;
             var segmentPath = PathFinder.FindPath(
                 terminal,
                 attachPoint,
@@ -325,19 +334,41 @@ public static partial class MazeRouter
         return EliminateRedundantParallelPaths(merged, netName, terminalPoints);
     }
 
-    private static GridPoint SelectClosestTerminal(
+    private static int SelectClosestTerminalIndex(
         IReadOnlyList<TerminalPosition> terminals,
         GridPoint target,
-        GridPoint? excluded
+        int? excludedIndex
     )
     {
-        var candidates = terminals.Select(t => new GridPoint(t.X, t.Y));
-        if (excluded is not null)
+        var bestIndex = -1;
+        var bestDistance = int.MaxValue;
+        for (var i = 0; i < terminals.Count; i++)
         {
-            candidates = candidates.Where(point => point != excluded.Value);
+            if (excludedIndex.HasValue && i == excludedIndex.Value)
+            {
+                continue;
+            }
+
+            var point = ToGridPoint(terminals[i]);
+            var distance = ManhattanDistance(point, target);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = i;
+            }
         }
 
-        return candidates.OrderBy(point => ManhattanDistance(point, target)).First();
+        if (bestIndex >= 0)
+        {
+            return bestIndex;
+        }
+
+        return terminals.Count > 0 ? 0 : -1;
+    }
+
+    private static GridPoint ToGridPoint(TerminalPosition terminal)
+    {
+        return new GridPoint(terminal.X, terminal.Y);
     }
 
     private static int ManhattanDistance(GridPoint a, GridPoint b)

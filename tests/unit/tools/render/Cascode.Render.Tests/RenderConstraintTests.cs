@@ -82,7 +82,6 @@ public sealed class RenderConstraintTests
 
         var routing = MazeRouter.Route(placement, graph, routeConstraints);
         Assert.True(routing.SegmentsByNet.TryGetValue("IN", out var segments));
-        Assert.True(segments.Count > 0);
         Assert.Contains(segments, segment => IsPointOnSegment(waypoint, segment));
     }
 

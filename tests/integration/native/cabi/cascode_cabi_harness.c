@@ -132,6 +132,9 @@ static bool extract_string_field(const char* json, const char* field, char* out,
 }
 
 static char* json_escape(const char* input) {
+  // Test-harness-only escaping: handles backslash, quotes, and \n/\r/\t.
+  // It intentionally does not emit \uXXXX escapes for other control chars
+  // or non-ASCII code points, so non-ASCII input may produce invalid JSON.
   size_t input_len = strlen(input);
   size_t max_len = (input_len * 2) + 1;
   char* escaped = (char*)malloc(max_len);

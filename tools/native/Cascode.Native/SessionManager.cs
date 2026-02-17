@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace Cascode.Native;
@@ -23,9 +24,9 @@ internal static class SessionManager
         return id;
     }
 
-    public static bool TryGetSession(int id, out SessionState state)
+    public static bool TryGetSession(int id, [NotNullWhen(true)] out SessionState? state)
     {
-        return Sessions.TryGetValue(id, out state!);
+        return Sessions.TryGetValue(id, out state);
     }
 
     public static bool DestroySession(int id)

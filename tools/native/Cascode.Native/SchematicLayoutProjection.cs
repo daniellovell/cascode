@@ -102,7 +102,10 @@ internal static class SchematicLayoutProjection
                     })
                     .ToArray(),
                 Junctions = routing
-                    .Junctions.Select(junction => new PointValue
+                    .Junctions.Where(junction =>
+                        entry.Value.Any(segment => IsPointOnSegment(junction, segment))
+                    )
+                    .Select(junction => new PointValue
                     {
                         X = ToRenderUnits(junction.X),
                         Y = ToRenderUnits(junction.Y),
@@ -197,7 +200,17 @@ internal static class SchematicLayoutProjection
         RoutingResult routing
     )
     {
-        var terminal = routing.TerminalPositions.First(t => t.DeviceId == $"PORT_{portName}");
+        var terminal = routing.TerminalPositions.FirstOrDefault(t =>
+            t.DeviceId == $"PORT_{portName}"
+        );
+        if (terminal is null)
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Missing routed terminal for port '{portName}' in circuit '{circuit.Name}'."
+            );
+        }
+
         var side =
             renderByName.TryGetValue(portName, out var render) && render.Side is not null
                 ? render.Side.Value.ToString().ToLowerInvariant()
@@ -213,6 +226,35 @@ internal static class SchematicLayoutProjection
             },
             Side = side,
         };
+    }
+
+    private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
+    {
+        if (segment.From.X == segment.To.X)
+        {
+            if (point.X != segment.From.X)
+            {
+                return false;
+            }
+
+            var minY = Math.Min(segment.From.Y, segment.To.Y);
+            var maxY = Math.Max(segment.From.Y, segment.To.Y);
+            return point.Y >= minY && point.Y <= maxY;
+        }
+
+        if (segment.From.Y == segment.To.Y)
+        {
+            if (point.Y != segment.From.Y)
+            {
+                return false;
+            }
+
+            var minX = Math.Min(segment.From.X, segment.To.X);
+            var maxX = Math.Max(segment.From.X, segment.To.X);
+            return point.X >= minX && point.X <= maxX;
+        }
+
+        return false;
     }
 
     private static string InferPortSide(Circuit circuit, string portName)

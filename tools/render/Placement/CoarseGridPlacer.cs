@@ -37,6 +37,18 @@ public static class CoarseGridPlacer
     private const double MaxSolveTimeSeconds = 2.0;
 
     /// <summary>
+    /// Objective multiplier for <see cref="RenderConstraintStrength.Soft"/> placement penalties.
+    /// Keeps soft constraints strong relative to wire-length minimization.
+    /// </summary>
+    private const int SoftConstraintWeight = 40;
+
+    /// <summary>
+    /// Objective multiplier for <see cref="RenderConstraintStrength.Hint"/> placement penalties.
+    /// Hints influence placement but remain weaker than soft constraints.
+    /// </summary>
+    private const int HintConstraintWeight = 8;
+
+    /// <summary>
     /// Places devices on a coarse grid based on topology analysis.
     /// </summary>
     public static CoarseGridResult Place(
@@ -305,7 +317,7 @@ public static class CoarseGridPlacer
                     var colPenalty = model.NewIntVar(0, totalColumns, $"csoft_{entry.DeviceId}");
                     model.AddAbsEquality(rowPenalty, rowVar - targetRow);
                     model.AddAbsEquality(colPenalty, colVar - targetCol);
-                    objectives.Add((rowPenalty + colPenalty) * 40);
+                    objectives.Add((rowPenalty + colPenalty) * SoftConstraintWeight);
                     break;
                 }
 
@@ -315,7 +327,7 @@ public static class CoarseGridPlacer
                     var colPenalty = model.NewIntVar(0, totalColumns, $"chint_{entry.DeviceId}");
                     model.AddAbsEquality(rowPenalty, rowVar - targetRow);
                     model.AddAbsEquality(colPenalty, colVar - targetCol);
-                    objectives.Add((rowPenalty + colPenalty) * 8);
+                    objectives.Add((rowPenalty + colPenalty) * HintConstraintWeight);
                     break;
                 }
             }

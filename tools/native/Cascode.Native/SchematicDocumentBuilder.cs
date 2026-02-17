@@ -10,7 +10,15 @@ internal static class SchematicDocumentBuilder
         bool allowRelaxation
     )
     {
-        var circuit = state.Document.Circuits.First(c => c.Name == state.CircuitName);
+        var circuit = state.Document.Circuits.FirstOrDefault(c => c.Name == state.CircuitName);
+        if (circuit is null)
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Circuit '{state.CircuitName}' was not found in document '{state.DocumentId}'."
+            );
+        }
+
         var effectiveRender = BuildEffectiveRender(circuit.Render, mode);
 
         var render = SchematicConstraintResolver.ComputeRender(
@@ -22,6 +30,8 @@ internal static class SchematicDocumentBuilder
 
         if (mode == RenderSchematicMode.ReflowUnlocked)
         {
+            // ReflowUnlocked intentionally mutates the shared circuit.Render reference so
+            // downstream consumers of state.Document observe the immediate reflow update.
             circuit.Render = effectiveRender;
         }
 

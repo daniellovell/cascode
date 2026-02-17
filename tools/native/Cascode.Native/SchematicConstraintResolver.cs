@@ -252,7 +252,13 @@ internal static class SchematicConstraintResolver
 
         foreach (var port in circuit.Ports)
         {
-            map.TryAdd(port.Name, new PointValue { X = 0, Y = 0 });
+            if (!map.ContainsKey(port.Name))
+            {
+                throw new ApiException(
+                    "CASAPI-INVALID-REQUEST",
+                    $"Missing routed terminal position for port '{port.Name}'."
+                );
+            }
         }
 
         return map;

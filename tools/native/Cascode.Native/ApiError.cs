@@ -4,7 +4,9 @@ namespace Cascode.Native;
 
 internal sealed class ApiError
 {
-    public string Schema { get; init; } = "cascode.error/1.0";
+    private const string SchemaValue = "cascode.error/1.0";
+
+    public string Schema { get; init; } = SchemaValue;
     public string Code { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
     public JsonNode? Details { get; init; }
@@ -13,7 +15,7 @@ internal sealed class ApiError
     {
         var root = new JsonObject
         {
-            ["schema"] = "cascode.error/1.0",
+            ["schema"] = SchemaValue,
             ["code"] = code,
             ["message"] = message,
         };

@@ -6,6 +6,8 @@ namespace Cascode.Native;
 
 internal static class SchematicApiDispatcher
 {
+    internal static Func<DateTimeOffset> UtcNowProvider { get; set; } = () => DateTimeOffset.UtcNow;
+
     public static string Dispatch(SessionState session, string method, string requestJson)
     {
         return method switch
@@ -161,8 +163,8 @@ internal static class SchematicApiDispatcher
 
         if (mode == RenderSchematicMode.RerenderFromScratch && persist)
         {
-            var circuit = FindCircuit(state);
-            circuit.Render = null;
+            var updated = CopyCircuitWithRender(FindCircuit(state), render: null);
+            state.Document = ReplaceCircuit(state.Document, updated);
             state.SourceText = SerializeSource(state.Document);
             state.Revision++;
         }
@@ -223,7 +225,7 @@ internal static class SchematicApiDispatcher
         session.Jobs[id] = new BenchJob
         {
             JobId = id,
-            StartedAt = DateTimeOffset.UtcNow,
+            StartedAt = UtcNowProvider(),
             ProgressPercent = 0,
         };
 
@@ -246,7 +248,7 @@ internal static class SchematicApiDispatcher
 
         if (job.State == JobState.Running)
         {
-            var elapsedMs = (DateTimeOffset.UtcNow - job.StartedAt).TotalMilliseconds;
+            var elapsedMs = (UtcNowProvider() - job.StartedAt).TotalMilliseconds;
             job.ProgressPercent = Math.Clamp((int)(elapsedMs / 25), 0, 100);
             if (job.ProgressPercent >= 100)
             {
@@ -312,7 +314,62 @@ internal static class SchematicApiDispatcher
 
     private static Circuit FindCircuit(DocumentState state)
     {
-        return state.Document.Circuits.First(c => c.Name == state.CircuitName);
+        var circuit = state.Document.Circuits.FirstOrDefault(c => c.Name == state.CircuitName);
+        if (circuit is null)
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Circuit '{state.CircuitName}' was not found in document '{state.DocumentId}'."
+            );
+        }
+
+        return circuit;
+    }
+
+    private static CascodeDocument ReplaceCircuit(CascodeDocument document, Circuit updatedCircuit)
+    {
+        return new CascodeDocument
+        {
+            VersionMajor = document.VersionMajor,
+            VersionMinor = document.VersionMinor,
+            Includes = document.Includes,
+            FileLibrary = document.FileLibrary,
+            Functions = document.Functions,
+            BundleTypes = document.BundleTypes,
+            Traits = document.Traits,
+            BenchDefinitions = document.BenchDefinitions,
+            Primitives = document.Primitives,
+            Circuits = document
+                .Circuits.Select(c => c.Name == updatedCircuit.Name ? updatedCircuit : c)
+                .ToList(),
+        };
+    }
+
+    private static Circuit CopyCircuitWithRender(Circuit source, RenderBlock? render)
+    {
+        return new Circuit
+        {
+            Name = source.Name,
+            Traits = source.Traits,
+            Level = source.Level,
+            Inline = source.Inline,
+            Package = source.Package,
+            Parameters = source.Parameters,
+            Sizes = source.Sizes,
+            Supplies = source.Supplies,
+            Grounds = source.Grounds,
+            Ports = source.Ports,
+            Slot = source.Slot,
+            Fill = source.Fill,
+            Constraints = source.Constraints,
+            Harness = source.Harness,
+            Env = source.Env,
+            Render = render,
+            BenchBindings = source.BenchBindings,
+            BenchBindingExtensions = source.BenchBindingExtensions,
+            Synth = source.Synth,
+            Provenance = source.Provenance,
+        };
     }
 
     private static DocumentState GetDocumentState(SessionState session, string documentId)
@@ -400,16 +457,6 @@ internal static class SchematicApiDispatcher
             element.TryGetProperty(name, out var child) && child.ValueKind == JsonValueKind.String
             ? child.GetString()
             : null;
-    }
-
-    private static int RequireInt(JsonElement element, string name)
-    {
-        if (element.TryGetProperty(name, out var child) && child.TryGetInt32(out var value))
-        {
-            return value;
-        }
-
-        throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing integer field '{name}'.");
     }
 
     private static int? TryGetInt(JsonElement element, string name)

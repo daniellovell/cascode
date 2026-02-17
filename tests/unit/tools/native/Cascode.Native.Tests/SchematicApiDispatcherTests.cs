@@ -358,6 +358,111 @@ public sealed class SchematicApiDispatcherTests
         );
     }
 
+    [Fact]
+    public void ApplyOperations_ConnectTerminals_DeduplicatesBidirectionalConnections()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 1,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-1",
+                        ["type"] = "connectTerminals",
+                        ["from"] = "M1.G",
+                        ["to"] = "M2.G",
+                    }
+                ),
+            }
+        );
+
+        var second = Dispatch(
+            session.State,
+            "schematic.applyOperations",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["baseRevision"] = 2,
+                ["operations"] = new JsonArray(
+                    new JsonObject
+                    {
+                        ["opId"] = "op-2",
+                        ["type"] = "connectTerminals",
+                        ["from"] = "M2.G",
+                        ["to"] = "M1.G",
+                    }
+                ),
+            }
+        );
+
+        var circuit = ParseCircuit(second.RootElement.GetProperty("sourceText").GetString()!);
+        var duplicateCount = circuit.Fill!.Connections.Count(conn =>
+            (conn.From == "M1.G" && conn.To == "M2.G") || (conn.From == "M2.G" && conn.To == "M1.G")
+        );
+        Assert.Equal(1, duplicateCount);
+    }
+
+    [Fact]
+    public void RenderSchematic_ThrowsApiExceptionWhenSelectedCircuitIsMissing()
+    {
+        using var session = ApiSession.Create();
+        Dispatch(
+            session.State,
+            "document.open",
+            new JsonObject
+            {
+                ["documentId"] = "doc1",
+                ["text"] = BuildSampleSource(withRenderBlock: false),
+            }
+        );
+
+        session.State.Documents["doc1"].CircuitName = "MissingCircuit";
+        var ex = Assert.Throws<ApiException>(() =>
+            Dispatch(session.State, "render.schematic", new JsonObject { ["documentId"] = "doc1" })
+        );
+        Assert.Contains("MissingCircuit", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void JobPoll_UsesInjectedClockForDeterministicProgress()
+    {
+        var originalClock = SchematicApiDispatcher.UtcNowProvider;
+        var now = DateTimeOffset.Parse("2026-01-01T00:00:00+00:00");
+        SchematicApiDispatcher.UtcNowProvider = () => now;
+        try
+        {
+            using var session = ApiSession.Create();
+            var started = Dispatch(session.State, "job.start", new JsonObject());
+            var jobId = started.RootElement.GetProperty("jobId").GetString();
+            Assert.NotNull(jobId);
+
+            now = now.AddMilliseconds(2600);
+            var polled = Dispatch(session.State, "job.poll", new JsonObject { ["jobId"] = jobId });
+
+            Assert.Equal("completed", polled.RootElement.GetProperty("state").GetString());
+            Assert.Equal(100, polled.RootElement.GetProperty("progress").GetInt32());
+        }
+        finally
+        {
+            SchematicApiDispatcher.UtcNowProvider = originalClock;
+        }
+    }
+
     private static JsonDocument Dispatch(SessionState session, string method, JsonObject payload)
     {
         var response = SchematicApiDispatcher.Dispatch(session, method, payload.ToJsonString());
