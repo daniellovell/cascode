@@ -90,6 +90,9 @@ jobs:
           - os: macos-15-intel
             rid: osx-x64
             lib_name: Cascode.Native.dylib
+          - os: macos-15
+            rid: osx-arm64
+            lib_name: Cascode.Native.dylib
           - os: windows-latest
             rid: win-x64
             lib_name: Cascode.Native.dll
