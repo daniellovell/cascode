@@ -2,9 +2,9 @@ VERSION 3.1
 
 // Sensor Frontend PCB example for RFC-0005.
 // Demonstrates:
-// - part declarations with variant blocks and implements
+// - part declarations with catalog (explicit entries and variant-generated entries) and implements
 // - part inheritance with abstract base and extends
-// - variant-aware instantiation with bracket syntax [axis=option]
+// - selection-aware instantiation with bracket syntax ([Entry] or [axis=option])
 // - MPN template strings with {axis}, {axis.field}, and {param} references
 // - concrete part pin mapping via pins { ... }
 // - multi-unit package grouping via units { ... }
@@ -14,7 +14,7 @@ VERSION 3.1
 // - bench/spec constraint block taxonomy
 // - hierarchical constraint verification
 // - env propagation from downstream metric values
-// - qualified metrics with optional condition profiles (north star)
+// - corner-scoped metrics aligned with harness PVT (north star)
 // - harness omitted on spec-only EL wrappers (north star)
 
 include lib.pcb
@@ -42,29 +42,8 @@ bundle SWD {
 // Parts (normally sourced from lib.parts.* namespaces)
 // ============================================================================
 
-// Single-axis variant: one IC in two packages.
+// Two entries: one IC in two packages.
 part OPA2376 implements DualOpAmp {
-  variant form {
-    VSSOP8 {
-      mpn = "OPA2376AIDDBVR"
-      footprint = "VSSOP-8"
-      option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
-      option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
-    }
-    SOIC8 {
-      mpn = "OPA2376AIDGKR"
-      footprint = "SOIC-8"
-      option { provider = "DigiKey" sku = "296-28004-1-ND" priority = 10 }
-      option { provider = "Mouser" sku = "595-OPA2376AIDGKR" priority = 20 }
-    }
-  }
-
-  catalog { spice = "OPA2376" }
-
-  conditionProfiles {
-    Room_3V3_25C { TemperatureC = 25  Supply = 3.3V }
-  }
-
   input A_INP : analog
   input A_INN : analog
   output A_OUT : analog
@@ -74,50 +53,67 @@ part OPA2376 implements DualOpAmp {
   supply VDD
   ground GND
 
-  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
-  pins {
-    A_OUT = P1
-    A_INN = P2
-    A_INP = P3
-    GND = P4
-    B_INP = P5
-    B_INN = P6
-    B_OUT = P7
-    VDD = P8
+  corners {
+    Room_3V3_25C { TemperatureC = 25  Supply = 3.3V }
   }
 
-  units {
-    A { pads = (P1, P2, P3) terminals = (A_OUT, A_INN, A_INP) }
-    B { pads = (P5, P6, P7) terminals = (B_INP, B_INN, B_OUT) }
-    Rails { pads = (P4, P8) terminals = (GND, VDD) }
-  }
+  catalog {
+    defaults {
+      spice = "OPA2376"
 
-  metrics {
-    GBW = 5.5MHz
-    GBW min @ Room_3V3_25C = 5.5MHz
-    InputOffsetVoltage = 25uV
-    InputOffsetVoltage max @ Room_3V3_25C = 25uV
-    CMRR = 90dB
-    CMRR min @ Room_3V3_25C = 90dB
-    InputBiasCurrent max @ Room_3V3_25C = 10pA
-    SlewRate min @ Room_3V3_25C = 2V/us
-    SupplyVoltage min = 2.2V
-    SupplyVoltage max = 5.5V
-    SupplyCurrent max @ Room_3V3_25C = 950uA
-    RecommendedLoadCapacitance typ = 100pF
+      // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+      pins {
+        A_OUT = P1
+        A_INN = P2
+        A_INP = P3
+        GND = P4
+        B_INP = P5
+        B_INN = P6
+        B_OUT = P7
+        VDD = P8
+      }
+
+      units {
+        A { pads = (P1, P2, P3) terminals = (A_OUT, A_INN, A_INP) }
+        B { pads = (P5, P6, P7) terminals = (B_INP, B_INN, B_OUT) }
+        Rails { pads = (P4, P8) terminals = (GND, VDD) }
+      }
+
+      metrics {
+        SupplyVoltage min = 2.2V
+        SupplyVoltage max = 5.5V
+        RecommendedLoadCapacitance = 100pF
+
+        at Room_3V3_25C {
+          GBW min = 5.5MHz
+          GBW = 7MHz
+          InputOffsetVoltage max = 25uV
+          CMRR min = 90dB
+          InputBiasCurrent max = 10pA
+          SlewRate min = 2V/us
+          SupplyCurrent max = 950uA
+        }
+      }
+    }
+
+    entry VSSOP8 {
+      mpn = "OPA2376AIDDBVR"
+      footprint = "VSSOP-8"
+      option { provider = "DigiKey" sku = "296-28003-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDDBVR" priority = 20 }
+    }
+
+    entry SOIC8 {
+      mpn = "OPA2376AIDGKR"
+      footprint = "SOIC-8"
+      option { provider = "DigiKey" sku = "296-28004-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-OPA2376AIDGKR" priority = 20 }
+    }
   }
 }
 
-// No-variant part: ADC with no package alternatives modeled.
+// Single-entry part: ADC with no package alternatives modeled.
 part ADS1115 implements ADCSubsystem {
-  catalog {
-    mpn = "ADS1115IDGSR"
-    footprint = "MSOP-10"
-
-    option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
-    option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
-  }
-
   input AIN0 : analog
   input AIN1 : analog
   input AIN2 : analog
@@ -129,30 +125,39 @@ part ADS1115 implements ADCSubsystem {
   supply VDD
   ground GND
 
-  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
-  pins {
-    AIN0 = P1
-    AIN1 = P2
-    AIN2 = P3
-    AIN3 = P4
-    ADDR = P5
-    SDA = P6
-    SCL = P7
-    ALERT = P8
-    VDD = P9
-    GND = P10
-  }
+  catalog {
+    entry MSOP10 {
+      mpn = "ADS1115IDGSR"
+      footprint = "MSOP-10"
+      option { provider = "DigiKey" sku = "296-38714-1-ND" priority = 10 }
+      option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
 
-  metrics {
-    Resolution = 16 bits
-    MaxSampleRate = 860 SPS
-    INL = 0.5 LSB
-    FullScaleRange = 6.144V
-    SupplyVoltage min = 2.0V
-    SupplyVoltage max = 5.5V
-    SupplyCurrent max = 200uA
-    InputLeakageCurrent max = 10nA
-    InputCapacitance = 14pF
+      // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+      pins {
+        AIN0 = P1
+        AIN1 = P2
+        AIN2 = P3
+        AIN3 = P4
+        ADDR = P5
+        SDA = P6
+        SCL = P7
+        ALERT = P8
+        VDD = P9
+        GND = P10
+      }
+
+      metrics {
+        Resolution = 16 bits
+        MaxSampleRate = 860 SPS
+        INL = 0.5 LSB
+        FullScaleRange = 6.144V
+        SupplyVoltage min = 2.0V
+        SupplyVoltage max = 5.5V
+        SupplyCurrent max = 200uA
+        InputLeakageCurrent max = 10nA
+        InputCapacitance = 14pF
+      }
+    }
   }
 }
 
@@ -164,139 +169,124 @@ part abstract STM32G0 implements IMicrocontroller {
   input NRST : digital
   input BOOT0 : digital
 
-  metrics {
-    SupplyVoltage min = 1.7V
-    SupplyVoltage max = 3.6V
+  catalog {
+    defaults {
+      metrics {
+        SupplyVoltage min = 1.7V
+        SupplyVoltage max = 3.6V
+      }
+    }
   }
 }
 
 // Concrete sub-part: inherits ports and metrics from STM32G0, adds flash/package
 // variant axes and device-specific ports and metrics.
 part STM32G031K extends STM32G0 {
-  variant flash {
-    _8 { code = "8"  metrics { FlashSize = 64kB  RAMSize = 8kB } }
-    B  { code = "B"  metrics { FlashSize = 128kB  RAMSize = 16kB } }
-  }
-  variant pkg {
-    LQFP32   { footprint = "LQFP-32"  suffix = "T6" }
-    UFQFPN32 { footprint = "UFQFPN-32"  suffix = "U6" }
-  }
-
-  catalog {
-    mpn = "STM32G031K{flash.code}{pkg.suffix}"
-    option { provider = "DigiKey" sku = "497-STM32G031K{flash.code}{pkg.suffix}-ND" priority = 10 }
-    option { provider = "Mouser" sku = "511-STM32G031K{flash.code}{pkg.suffix}" priority = 20 }
-  }
-
   io PA[0:15] : digital
   io PB[0:9] : digital
 
-  // Pin numbering is illustrative. Production libraries should verify against the datasheet.
-  pins {
-    VDD = P1
-    VDDA = P2
-    VSS = P3
-    NRST = P4
-    BOOT0 = P5
+  catalog {
+    defaults {
+      mpn = "STM32G031K{flash.code}{pkg.suffix}"
+      option { provider = "DigiKey" sku = "497-STM32G031K{flash.code}{pkg.suffix}-ND" priority = 10 }
+      option { provider = "Mouser" sku = "511-STM32G031K{flash.code}{pkg.suffix}" priority = 20 }
 
-    PA[0] = P6
-    PA[1] = P7
-    PA[2] = P8
-    PA[3] = P9
-    PA[4] = P10
-    PA[5] = P11
-    PA[6] = P12
-    PA[7] = P13
-    PA[8] = P14
-    PA[9] = P15
-    PA[10] = P16
-    PA[11] = P17
-    PA[12] = P18
-    PA[13] = P19
-    PA[14] = P20
-    PA[15] = P21
+      // Pin numbering is illustrative. Production libraries should verify against the datasheet.
+      pins {
+        VDD = P1
+        VDDA = P2
+        VSS = P3
+        NRST = P4
+        BOOT0 = P5
 
-    PB[0] = P22
-    PB[1] = P23
-    PB[2] = P24
-    PB[3] = P25
-    PB[4] = P26
-    PB[5] = P27
-    PB[6] = P28
-    PB[7] = P29
-    PB[8] = P30
-    PB[9] = P31
-  }
+        PA[0:15] = P6..P21
+        PB[0:9]  = P22..P31
+      }
 
-  metrics {
-    CoreClock = 64MHz
-    SupplyCurrent max = 10mA
+      metrics {
+        CoreClock = 64MHz
+        SupplyCurrent max = 10mA
+      }
+    }
+
+    variant flash {
+      _8 { code = "8"  metrics { FlashSize = 64kB  RAMSize = 8kB } }
+      B  { code = "B"  metrics { FlashSize = 128kB  RAMSize = 16kB } }
+    }
+
+    variant pkg {
+      LQFP32   { footprint = "LQFP-32"  suffix = "T6" }
+      UFQFPN32 { footprint = "UFQFPN-32"  suffix = "U6" }
+    }
   }
 }
 
 // Multi-axis passive family: body size and tolerance grade as independent variant
 // axes. MPN is a template resolved from axis fields and constructor parameters.
 part YageoRC(e96 R) implements Resistor {
-  variant body {
-    _0402 {
-      footprint = "0402"
-      metrics { PowerRating min = 63mW  VoltageRating min = 50V }
-      option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
-    }
-    _0603 {
-      footprint = "0603"
-      metrics { PowerRating min = 100mW  VoltageRating min = 75V }
-      option { provider = "DigiKey" sku = "311-{R}HRCT-ND" priority = 10 }
-    }
-    _0805 {
-      footprint = "0805"
-      metrics { PowerRating min = 125mW  VoltageRating min = 150V }
-      option { provider = "DigiKey" sku = "311-{R}GRCT-ND" priority = 10 }
-    }
-  }
-
-  variant grade {
-    F { code = "FR-07"  metrics { Tolerance max = 1pct } }
-    J { code = "JR-05"  metrics { Tolerance max = 5pct } }
-  }
-
-  catalog {
-    mpn = "RC{body.footprint}{grade.code}{R}L"
-  }
-
   io P : analog
   io N : analog
 
-  pins {
-    P = P1
-    N = P2
-  }
-
   params { R = R }
+
+  catalog {
+    defaults {
+      mpn = "RC{body.footprint}{grade.code}{R}L"
+
+      pins {
+        P = P1
+        N = P2
+      }
+    }
+
+    variant body {
+      _0402 {
+        footprint = "0402"
+        metrics { PowerRating min = 63mW  VoltageRating min = 50V }
+        option { provider = "DigiKey" sku = "311-{R}LRCT-ND" priority = 10 }
+      }
+      _0603 {
+        footprint = "0603"
+        metrics { PowerRating min = 100mW  VoltageRating min = 75V }
+        option { provider = "DigiKey" sku = "311-{R}HRCT-ND" priority = 10 }
+      }
+      _0805 {
+        footprint = "0805"
+        metrics { PowerRating min = 125mW  VoltageRating min = 150V }
+        option { provider = "DigiKey" sku = "311-{R}GRCT-ND" priority = 10 }
+      }
+    }
+
+    variant grade {
+      F { code = "FR-07"  metrics { Tolerance max = 1pct } }
+      J { code = "JR-05"  metrics { Tolerance max = 5pct } }
+    }
+  }
 }
 
 part CL05B(e12 C) implements Capacitor {
-  catalog {
-    mpn = "CL05B"
-    footprint = "0402"
-
-    option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
-    option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
-  }
-
   io P : analog
   io N : analog
 
-  pins {
-    P = P1
-    N = P2
-  }
-
   params { C = C }
 
-  metrics {
-    Tolerance max = 10pct
-    VoltageRating min = 16V
+  catalog {
+    entry _0402 {
+      mpn = "CL05B"
+      footprint = "0402"
+      option { provider = "DigiKey" sku = "1276-{C}-ND" priority = 10 }
+      option { provider = "Mouser" sku = "187-CL05B{C}KO5NNNC" priority = 20 }
+
+      pins {
+        P = P1
+        N = P2
+      }
+
+      metrics {
+        Tolerance max = 10pct
+        VoltageRating min = 16V
+      }
+    }
   }
 }
 
@@ -349,6 +339,8 @@ interface ADCSubsystem {
     Resolution : bits
     MaxSampleRate : SPS
     InputCapacitance : F
+    SupplyVoltage : V { min, max }
+    SupplyCurrent : A { max }
   }
 }
 
@@ -363,6 +355,8 @@ interface IMicrocontroller {
   metrics {
     FlashSize : B
     CoreClock : Hz
+    SupplyVoltage : V { min, max }
+    SupplyCurrent : A { max }
   }
 }
 
@@ -467,7 +461,7 @@ circuit WheatstoneAmplifier(real load_cap=10pF) implements SensorConditioner {
       .N--GND
     }
 
-    // Single-axis variant: positional selection.
+    // Explicit entry: positional selection by entry name.
     DualOpAmp u1 = new OPA2376[VSSOP8]() {
       .A_INP--SENSOR_IN.P
       .A_INN--fb_a
