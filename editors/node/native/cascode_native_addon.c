@@ -14,7 +14,17 @@
 #define READ_OK 4
 typedef HMODULE dylib_handle_t;
 static SRWLOCK g_load_mutex = SRWLOCK_INIT;
+/**
+ * Acquire the exclusive mutex used to serialize loading and unloading of the native library.
+ *
+ * Blocks until the lock is obtained. Protects the global load state (g_exports, g_attempted_load, g_load_error).
+ */
 static void lock_load_mutex(void) { AcquireSRWLockExclusive(&g_load_mutex); }
+/**
+ * Release exclusive ownership of the global load mutex used for library loading.
+ *
+ * Allows other threads to acquire the mutex and proceed with loading or accessing the cached exports.
+ */
 static void unlock_load_mutex(void) { ReleaseSRWLockExclusive(&g_load_mutex); }
 #elif defined(__linux__) || defined(__APPLE__)
 #include <dlfcn.h>
@@ -24,7 +34,18 @@ static void unlock_load_mutex(void) { ReleaseSRWLockExclusive(&g_load_mutex); }
 #define READ_OK R_OK
 typedef void* dylib_handle_t;
 static pthread_mutex_t g_load_mutex = PTHREAD_MUTEX_INITIALIZER;
+/**
+ * Acquire the global load mutex to serialize dynamic library load/unload operations.
+ *
+ * Blocks the calling thread until the mutex protecting export loading is obtained.
+ */
 static void lock_load_mutex(void) { pthread_mutex_lock(&g_load_mutex); }
+/**
+ * Release the global mutex that protects one-time library loading.
+ *
+ * This function unlocks the mutex guarding the load/unload sequence for the
+ * native cascode library so other threads may proceed with load-related work.
+ */
 static void unlock_load_mutex(void) { pthread_mutex_unlock(&g_load_mutex); }
 #else
 #error "cascode_native_addon currently supports linux, macOS, and Windows."
@@ -70,6 +91,14 @@ static cascode_exports_t g_exports;
 static bool g_attempted_load = false;
 static char g_load_error[512];
 
+/**
+ * Set or clear the module load error message stored in the internal buffer.
+ *
+ * If `message` is NULL the stored load error is cleared; otherwise the provided
+ * message is copied into the internal `g_load_error` buffer (truncated to fit).
+ *
+ * @param message Error message to store, or NULL to clear the stored error.
+ */
 static void set_load_error(const char* message) {
   if (message == NULL) {
     g_load_error[0] = '\0';
@@ -79,6 +108,18 @@ static void set_load_error(const char* message) {
   snprintf(g_load_error, sizeof(g_load_error), "%s", message);
 }
 
+/**
+ * Extract the directory component from a filesystem path.
+ *
+ * Copies the directory part of `path` into `out`. If `path` contains no
+ * directory separator ('/' or '\'), writes "." into `out`. The result is
+ * always NUL-terminated; if the directory component is longer than
+ * `out_size - 1`, it is truncated to fit.
+ *
+ * @param path Input filesystem path (may use '/' or '\' separators).
+ * @param out Destination buffer to receive the directory component.
+ * @param out_size Size of `out` in bytes; must be greater than 0.
+ */
 static void extract_directory(const char* path, char* out, size_t out_size) {
   const char* slash_forward = strrchr(path, '/');
   const char* slash_backward = strrchr(path, '\\');
@@ -100,6 +141,18 @@ static void extract_directory(const char* path, char* out, size_t out_size) {
   out[length] = '\0';
 }
 
+/**
+ * Attempt to preload a native dependency file from the given directory.
+ *
+ * Constructs a full path from `directory` and `file_name` and, if the file is accessible,
+ * tries to load it into the process (platform-specific). On load failure records a
+ * human-readable message via set_load_error().
+ *
+ * @param directory Directory containing the dependency; may be a relative or absolute path.
+ * @param file_name File name of the dependency to preload.
+ * @returns `true` if the dependency is either not present/readable or was successfully loaded;
+ *          `false` if the file was present but failed to load (and a load error was recorded).
+ */
 static bool preload_dependency(const char* directory, const char* file_name) {
   char full_path[1024];
   snprintf(full_path, sizeof(full_path), "%s/%s", directory, file_name);
@@ -137,6 +190,16 @@ static bool preload_dependency(const char* directory, const char* file_name) {
   return true;
 }
 
+/**
+ * Resolve a symbol by name from the currently loaded native library and store its address.
+ *
+ * On success writes the resolved pointer into `*target`. On failure records a load error
+ * message via set_load_error and leaves `*target` set to NULL.
+ *
+ * @param target Pointer to receive the resolved symbol address (stores NULL on failure).
+ * @param name   NUL-terminated symbol name to resolve.
+ * @returns `true` if the symbol was resolved and stored in `*target`, `false` otherwise.
+ */
 static bool resolve_symbol(void** target, const char* name) {
 #if defined(_WIN32)
   *target = (void*)GetProcAddress(g_exports.handle, name);
@@ -153,6 +216,12 @@ static bool resolve_symbol(void** target, const char* name) {
   return true;
 }
 
+/**
+ * Unload the currently loaded cascode native library and clear the cached exports.
+ *
+ * If no library is loaded, this function does nothing. After it returns the global
+ * g_exports structure is zeroed, removing the stored library handle and function pointers.
+ */
 static void unload_exports(void) {
   if (g_exports.handle != NULL) {
 #if defined(_WIN32)
@@ -165,6 +234,18 @@ static void unload_exports(void) {
   memset(&g_exports, 0, sizeof(g_exports));
 }
 
+/**
+ * Attempt to load the Cascode native library and resolve all required symbols.
+ *
+ * Loads the library specified by the CASCODE_NATIVE_LIB environment variable,
+ * preloads platform-specific dependencies, resolves required exported symbols
+ * into g_exports, and records any load or symbol resolution error in g_load_error.
+ * This function is mutex-protected and performs the load operation at most once;
+ * subsequent calls return the cached result.
+ *
+ * @returns `true` if the library was loaded and all required symbols were resolved,
+ *          `false` otherwise.
+ */
 static bool load_exports(void) {
   bool success = false;
   lock_load_mutex();
@@ -266,6 +347,13 @@ done:
   return success;
 }
 
+/**
+ * Ensure the Cascode native library exports are loaded and available to call.
+ *
+ * If loading fails, throws a N-API error `CASCODE_NATIVE_LOAD_FAILED` with a recorded diagnostic message.
+ *
+ * @returns `true` if the exports are loaded, `false` otherwise.
+ */
 static bool ensure_loaded(napi_env env) {
   if (load_exports()) {
     return true;
@@ -276,6 +364,19 @@ static bool ensure_loaded(napi_env env) {
   return false;
 }
 
+/**
+ * Read a JavaScript string and return a newly allocated UTF-8 NUL-terminated C string.
+ *
+ * The function converts the provided napi_value string into a heap-allocated
+ * UTF-8 C string and stores the pointer in *out_text. On success the caller
+ * owns the returned buffer and must free() it. On failure the function throws
+ * a N-API error and returns false.
+ *
+ * @param value JavaScript string value to read.
+ * @param out_text Receives a pointer to the newly allocated NUL-terminated UTF-8 string.
+ *                 Caller must free() this buffer when no longer needed.
+ * @returns `true` if the string was read and allocated successfully, `false` otherwise.
+ */
 static bool read_utf8_arg(napi_env env, napi_value value, char** out_text) {
   size_t length = 0;
   napi_status status = napi_get_value_string_utf8(env, value, NULL, 0, &length);
@@ -303,17 +404,41 @@ static bool read_utf8_arg(napi_env env, napi_value value, char** out_text) {
   return true;
 }
 
+/**
+ * Convert a JavaScript value to a 32-bit integer and store it in the provided output pointer.
+ * @param env The N-API environment.
+ * @param value The JavaScript value to convert.
+ * @param out_value Pointer to an int32_t that receives the converted value on success.
+ * @returns `true` if the value was successfully converted to a 32-bit integer, `false` otherwise.
+ */
 static bool read_int32_arg(napi_env env, napi_value value, int32_t* out_value) {
   napi_status status = napi_get_value_int32(env, value, out_value);
   return status == napi_ok;
 }
 
+/**
+ * Create a JavaScript string from a null-terminated UTF-8 C string.
+ * @param text Null-terminated UTF-8 text to convert to a JS string.
+ * @returns A `napi_value` representing the newly created JavaScript string.
+ */
 static napi_value make_string(napi_env env, const char* text) {
   napi_value result;
   napi_create_string_utf8(env, text, NAPI_AUTO_LENGTH, &result);
   return result;
 }
 
+/**
+ * Create a new Cascode session and return its session identifier to JavaScript.
+ *
+ * Reads an optional JSON options string from the first argument (defaults to "{}"),
+ * calls the native cascode create_session function, and returns the resulting session id.
+ *
+ * @param env N-API environment.
+ * @param info Callback info containing arguments and this-value.
+ * @returns A JavaScript Number containing the non-zero session id.
+ * @throws Throws a N-API error `CASCODE_NATIVE_LOAD_FAILED` if the native library cannot be loaded.
+ * @throws Throws a N-API error `CASCODE_CREATE_SESSION_FAILED` if the native create_session returns 0.
+ */
 static napi_value js_create_session(napi_env env, napi_callback_info info) {
   if (!ensure_loaded(env)) {
     return NULL;
@@ -353,6 +478,17 @@ static napi_value js_create_session(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Destroy a cascode session identified by its integer session handle.
+ *
+ * Validates a single numeric argument (session). On success calls the native
+ * destroy_session implementation and returns JavaScript `undefined`.
+ *
+ * @param env N-API environment.
+ * @param info N-API callback info containing the arguments.
+ * @returns A napi_value representing JavaScript `undefined`.
+ * @throws TypeError if the argument count is not 1 or if the session is not an integer.
+ */
 static napi_value js_destroy_session(napi_env env, napi_callback_info info) {
   if (!ensure_loaded(env)) {
     return NULL;
@@ -378,6 +514,12 @@ static napi_value js_destroy_session(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Retrieve the last error JSON for a session.
+ *
+ * @param session Session identifier returned by create_session.
+ * @returns Pointer to a NUL-terminated JSON string describing the last error for the session, or NULL if no error information is available.
+ */
 static char* call_last_error_json(int32_t session) {
   if (g_exports.last_error_json == NULL) {
     return NULL;
@@ -386,6 +528,12 @@ static char* call_last_error_json(int32_t session) {
   return g_exports.last_error_json(session);
 }
 
+/**
+ * Throw a JavaScript CASCODE_CALL_FAILED exception using the session's last error JSON if available; otherwise throw a generic CASCODE_CALL_FAILED error.
+ * @param env N-API environment.
+ * @param session Cascode session identifier used to query the last error JSON.
+ * @returns NULL; the function always throws a JavaScript exception and does not return a normal value.
+ */
 static napi_value throw_call_error(napi_env env, int32_t session) {
   char* error_json = call_last_error_json(session);
   if (error_json != NULL) {
@@ -398,6 +546,16 @@ static napi_value throw_call_error(napi_env env, int32_t session) {
   return NULL;
 }
 
+/**
+ * Map a cascode method name to its corresponding session-call function.
+ *
+ * Looks up the exact, case-sensitive method name and returns the associated
+ * function pointer that implements that session call.
+ *
+ * @param method_name Null-terminated UTF-8 method name to resolve.
+ * @returns The `cascode_session_call_fn` for the given method name, or `NULL`
+ *          if the method name is not recognized.
+ */
 static cascode_session_call_fn resolve_method_fn(const char* method_name) {
   const method_entry_t table[] = {
       {"document.open", g_exports.document_open},
@@ -426,6 +584,15 @@ static cascode_session_call_fn resolve_method_fn(const char* method_name) {
   return NULL;
 }
 
+/**
+ * Invoke a named Cascode session method with a JSON request and return its JSON response as a JavaScript string.
+ *
+ * Expects three JavaScript arguments: `session` (int32), `method` (string), and `requestJson` (string).
+ * Throws a JS TypeError for missing/invalid arguments or unknown method names. If the native method call
+ * returns NULL, throws an error containing the session's last error JSON (when available) or a generic message.
+ *
+ * @returns A `napi_value` containing the response JSON as a JavaScript string, or `NULL` if an exception was thrown.
+ */
 static napi_value js_call(napi_env env, napi_callback_info info) {
   if (!ensure_loaded(env)) {
     return NULL;
@@ -477,6 +644,16 @@ static napi_value js_call(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Return the last error JSON for a Cascode session as a JavaScript string or `null` if none exists.
+ *
+ * Expects one integer argument: the session id. If the native library is not loaded this function
+ * will propagate the load error.
+ *
+ * @returns napi_value string containing the last error JSON for the session, or `null` if there is no error.
+ * @throws JS TypeError with code "CASCODE_INVALID_ARGUMENT" if the session argument is missing or not an integer.
+ * @throws JS Error "CASCODE_NATIVE_LOAD_FAILED" if the native Cascode library cannot be loaded.
+ */
 static napi_value js_last_error_json(napi_env env, napi_callback_info info) {
   if (!ensure_loaded(env)) {
     return NULL;
@@ -508,6 +685,13 @@ static napi_value js_last_error_json(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Retrieve the cascode library API version string.
+ *
+ * @param env The N-API environment.
+ * @returns A JavaScript string containing the API version, or NULL if an exception was thrown.
+ * @throws CASCODE_VERSION_FAILED if the cascode api_version call returns NULL.
+ */
 static napi_value js_api_version(napi_env env, napi_callback_info info) {
   (void)info;
   if (!ensure_loaded(env)) {
@@ -525,6 +709,16 @@ static napi_value js_api_version(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Return the Cascode schema version as a JavaScript string.
+ *
+ * Calls the loaded Cascode library's schema_version function and converts
+ * the returned UTF-8 C string into a napi_value JavaScript string.
+ *
+ * @returns napi_value A JavaScript string containing the schema version, or NULL if an error was thrown.
+ * @throws CASCODE_NATIVE_LOAD_FAILED if the native library could not be loaded.
+ * @throws CASCODE_VERSION_FAILED if the Cascode `schema_version` call returned NULL.
+ */
 static napi_value js_schema_version(napi_env env, napi_callback_info info) {
   (void)info;
   if (!ensure_loaded(env)) {
@@ -542,6 +736,16 @@ static napi_value js_schema_version(napi_env env, napi_callback_info info) {
   return result;
 }
 
+/**
+ * Attach the native addon methods to the provided module exports object.
+ *
+ * Defines and binds the following functions on `exports`: createSession,
+ * destroySession, call, lastErrorJson, apiVersion, and schemaVersion.
+ *
+ * @param env The N-API environment.
+ * @param exports The target exports object to receive the addon properties.
+ * @returns The same `exports` object with the native functions defined on it.
+ */
 static napi_value init(napi_env env, napi_value exports) {
   napi_property_descriptor descriptors[] = {
       {"createSession", NULL, js_create_session, NULL, NULL, NULL, napi_default, NULL},

@@ -2,6 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+/**
+ * Retrieve the value for a command-line argument provided in the form `--name=value`.
+ * @param {string} name - Argument name without leading dashes.
+ * @returns {string} The value after the `=` for the matching argument, or an empty string if not found.
+ */
 function readArg(name) {
   const prefix = `--${name}=`;
   const value = process.argv.find((arg) => arg.startsWith(prefix));
@@ -32,6 +37,13 @@ const addonSrc = path.join(nodeRoot, "build", "Release", "cascode_native_addon.n
 const nativeSrcDir = path.join(repoRoot, "build", "native", rid);
 const expectedLibPath = path.join(nativeSrcDir, libName);
 
+/**
+ * Ensure the given filesystem path exists.
+ *
+ * @param {string} targetPath - Path to check for existence.
+ * @param {string} label - Human-readable label used in the error message if the path is missing.
+ * @throws {Error} If the path does not exist.
+ */
 async function ensureExists(targetPath, label) {
   const stat = await fs.stat(targetPath).catch(() => null);
   if (!stat) {
@@ -39,6 +51,11 @@ async function ensureExists(targetPath, label) {
   }
 }
 
+/**
+ * Recursively copies files and directories from sourceDir into targetDir, excluding files that end with `.pdb` (case-insensitive).
+ * @param {string} sourceDir - Path to the source directory to copy from.
+ * @param {string} targetDir - Path to the destination directory to copy into; created recursively if it does not exist.
+ */
 async function copyRuntimeFiles(sourceDir, targetDir) {
   await fs.mkdir(targetDir, { recursive: true });
   const entries = await fs.readdir(sourceDir, { withFileTypes: true });
@@ -57,6 +74,14 @@ async function copyRuntimeFiles(sourceDir, targetDir) {
   }
 }
 
+/**
+ * Prepare and stage a platform package into the configured output directory.
+ *
+ * Validates required resources, recreates the output directory, copies the package
+ * template, updates the package.json version, installs the built native addon into
+ * a prebuilds folder, copies native runtime files for the target RID, and logs the
+ * final staged location.
+ */
 async function run() {
   await ensureExists(templateDir, "template directory");
   await ensureExists(addonSrc, "built addon");

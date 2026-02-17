@@ -8,6 +8,18 @@ namespace Cascode.Native;
 
 internal static class SchematicLayoutProjection
 {
+    /// <summary>
+    /// Builds a structural representation of the circuit containing devices, ports, nets, supplies, and grounds.
+    /// </summary>
+    /// <param name="circuit">The circuit providing ports, supplies, and grounds.</param>
+    /// <param name="graph">The circuit graph providing devices and net connections.</param>
+    /// <returns>
+    /// A <see cref="StructuralInfo"/> containing:
+    /// - Devices: ordered by device id; each device has a lowercased Type and Terminals sorted by name.
+    /// - Ports: ordered by name; each port's Direction is converted to the Cascode string and its Type is preserved.
+    /// - Nets: ordered by net name; each net's Connections are arrays of [DeviceId, Terminal].
+    /// - Supplies and Grounds: ordered lists taken from the circuit.
+    /// </returns>
     public static StructuralInfo BuildStructural(Circuit circuit, CircuitGraph graph)
     {
         var devices = graph
@@ -53,6 +65,19 @@ internal static class SchematicLayoutProjection
         };
     }
 
+    /// <summary>
+    /// Builds layout data for rendering by combining circuit metadata, optional render entities, placement, and routing results.
+    /// </summary>
+    /// <param name="circuit">The source circuit definition used to resolve device and port metadata.</param>
+    /// <param name="render">Optional render block whose Entities provide per-entity orientation and side hints; may be null.</param>
+    /// <param name="placement">Coarse placement result describing grid cell positions for devices.</param>
+    /// <param name="routing">Routing result containing wire segments, junctions, and terminal positions.</param>
+    /// <returns>
+    /// A <see cref="LayoutInfo"/> containing:
+    /// - Devices: layout entries for each placed device with position, orientation, and bounding box;
+    /// - Ports: layout entries for ports routed as terminals whose DeviceId starts with "PORT_";
+    /// - Nets: nets with their segments converted to render units and junction points lying on those segments.
+    /// </returns>
     public static LayoutInfo BuildLayout(
         Circuit circuit,
         RenderBlock? render,
@@ -122,6 +147,16 @@ internal static class SchematicLayoutProjection
         };
     }
 
+    /// <summary>
+    /// Builds a cache of rendering data for devices, including per-terminal render positions and computed bounding boxes.
+    /// </summary>
+    /// <param name="circuit">The circuit containing device definitions and fill data used to determine device types.</param>
+    /// <param name="placement">Placement results used to compute device bounding boxes.</param>
+    /// <param name="routing">Routing results providing terminal positions; only non-port terminals are included.</param>
+    /// <returns>
+    /// A RenderCacheInfo whose <c>TerminalPoints</c> maps device IDs to dictionaries of terminal name → position (in render units),
+    /// and whose <c>ComputedBboxes</c> maps device IDs to their computed bounding boxes.
+    /// </returns>
     public static RenderCacheInfo BuildRenderCache(
         Circuit circuit,
         CoarseGridResult placement,
@@ -161,6 +196,15 @@ internal static class SchematicLayoutProjection
         return new RenderCacheInfo { TerminalPoints = terminals, ComputedBboxes = bboxes };
     }
 
+    /// <summary>
+    /// Constructs a LayoutDevice for the specified placed device, including its position, orientation, and bounding box.
+    /// </summary>
+    /// <param name="circuit">The circuit data used to look up device metadata.</param>
+    /// <param name="deviceId">The identifier of the device to build layout for.</param>
+    /// <param name="cell">The grid cell where the device is placed.</param>
+    /// <param name="placement">Coarse placement results used to compute device bounding boxes and orientation defaults.</param>
+    /// <param name="renderByName">Lookup of render entities by name; when present for the device, its orientation overrides defaults.</param>
+    /// <returns>A LayoutDevice with Id, Position (cell center in render units), Orientation (from render entity or cell), and computed Bbox.</returns>
     private static LayoutDevice BuildLayoutDevice(
         Circuit circuit,
         string deviceId,
@@ -193,6 +237,15 @@ internal static class SchematicLayoutProjection
         };
     }
 
+    /// <summary>
+    /// Builds a LayoutPort for the given port by locating its routed terminal and determining the port side and position in render units.
+    /// </summary>
+    /// <param name="portName">The name of the port to build.</param>
+    /// <param name="circuit">The circuit containing port metadata (used for side inference if not provided by render data).</param>
+    /// <param name="renderByName">Mapping from render entity names to RenderEntity objects; if an entry for the port contains a Side, that side is used.</param>
+    /// <param name="routing">Routing result containing terminal positions used to locate the port's routed terminal.</param>
+    /// <returns>A LayoutPort containing the port's Name, Position (converted to render units), and Side.</returns>
+    /// <exception cref="ApiException">Thrown with code "CASAPI-INVALID-REQUEST" when no routed terminal exists for the specified port.</exception>
     private static LayoutPort BuildLayoutPort(
         string portName,
         Circuit circuit,
@@ -228,6 +281,12 @@ internal static class SchematicLayoutProjection
         };
     }
 
+    /// <summary>
+    /// Determines whether a point lies on an axis-aligned wire segment (inclusive of the segment endpoints).
+    /// </summary>
+    /// <param name="point">The point to test, given in grid coordinates.</param>
+    /// <param name="segment">The wire segment with From and To endpoints; only horizontal or vertical segments are considered.</param>
+    /// <returns>`true` if the point lies on the segment (including endpoints), `false` otherwise.</returns>
     private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
     {
         if (segment.From.X == segment.To.X)
@@ -257,6 +316,12 @@ internal static class SchematicLayoutProjection
         return false;
     }
 
+    /// <summary>
+    /// Determine which side of the schematic a port should be placed for rendering.
+    /// </summary>
+    /// <param name="circuit">The circuit that contains the port definitions.</param>
+    /// <param name="portName">The name of the port to infer the side for.</param>
+    /// <returns>`right` if the named port exists and its direction is Output, `left` if it exists and is not Output, or `auto` if the port is not found.</returns>
     private static string InferPortSide(Circuit circuit, string portName)
     {
         var port = circuit.Ports.FirstOrDefault(p => p.Name == portName);
@@ -268,6 +333,14 @@ internal static class SchematicLayoutProjection
         return port.Direction == PortDirection.Output ? "right" : "left";
     }
 
+    /// <summary>
+    /// Compute the device bounding box in render units using the device type and placement information.
+    /// </summary>
+    /// <param name="deviceType">Device type string (e.g., "resistor", "capacitor", or other types such as MOSFET).</param>
+    /// <param name="cell">Grid cell specifying the device's row, column, and mirror flag.</param>
+    /// <param name="placement">Coarse placement result used to determine orientation, symmetry, and horizontal passive membership.</param>
+    /// <param name="deviceId">Identifier of the device; used to look up placement-specific decisions (for example, horizontal passive placement).</param>
+    /// <returns>A <see cref="BboxValue"/> whose X, Y, Width, and Height are expressed in render units.</returns>
     private static BboxValue BuildDeviceBbox(
         string deviceType,
         GridCell cell,
@@ -316,6 +389,10 @@ internal static class SchematicLayoutProjection
         };
     }
 
+    /// <summary>
+    /// Convert a pixel measurement to render units using the routing pitch.
+    /// </summary>
+    /// <returns>The number of render units corresponding to the given pixel value, rounded to the nearest integer with midpoint values rounded away from zero.</returns>
     private static int ToRenderUnits(int pixels)
     {
         return (int)

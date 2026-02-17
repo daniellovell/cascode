@@ -168,7 +168,13 @@ public static class BundleDesugarer
 
     /// <summary>
     /// Desugars a circuit by expanding bundle-typed ports, connections, and device bindings.
+    /// <summary>
+    /// Desugars a circuit by expanding bundle-typed ports, instance bindings, connections, and related blocks into their canonical, leaf-level form.
     /// </summary>
+    /// <param name="circuit">The input circuit to desugar.</param>
+    /// <param name="bundlesByName">Lookup of bundle type definitions keyed by bundle name, used to expand bundle-typed ports and bindings.</param>
+    /// <param name="circuitsByName">Lookup of circuit definitions keyed by circuit name, used to resolve child instance port types during expansion.</param>
+    /// <returns>A new <see cref="Circuit"/> with bundle-typed ports, slot/fill/harness contents, and instance bindings expanded to terminal paths while preserving other circuit properties.</returns>
     private static Circuit DesugarCircuit(
         Circuit circuit,
         IReadOnlyDictionary<string, BundleType> bundlesByName,

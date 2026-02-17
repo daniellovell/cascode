@@ -7,6 +7,11 @@ namespace Cascode.Language;
 
 internal sealed partial class CascodeAstBuilder
 {
+    /// <summary>
+    /// Builds a RenderBlock from a render section parse context.
+    /// </summary>
+    /// <param name="ctx">Parser context for a render section containing one or more render entities.</param>
+    /// <returns>A RenderBlock whose Entities list contains the parsed RenderEntity objects in source order; duplicate entity names are skipped and corresponding diagnostics are emitted.</returns>
     private RenderBlock BuildRenderBlock(CascodeParser.RenderSectionContext ctx)
     {
         var block = new RenderBlock();
@@ -50,6 +55,11 @@ internal sealed partial class CascodeAstBuilder
         return block;
     }
 
+    /// <summary>
+    /// Sets the entity's placement using the one-liner's point expression and strength level.
+    /// </summary>
+    /// <param name="entity">The render entity to modify.</param>
+    /// <param name="oneLiner">The one-liner parse context containing the point expression and optional strength level.</param>
     private void HandleRenderOneLiner(
         RenderEntity entity,
         CascodeParser.RenderOneLinerContext oneLiner
@@ -58,6 +68,11 @@ internal sealed partial class CascodeAstBuilder
         entity.Place = BuildRenderPlacement(oneLiner.pointExpr(), oneLiner.strengthLevel());
     }
 
+    /// <summary>
+    /// Applies the render field described by <paramref name="fieldCtx"/> to the specified <paramref name="entity"/>.
+    /// </summary>
+    /// <param name="entity">The render entity to modify.</param>
+    /// <param name="fieldCtx">Parser context for a single render field; recognized field kinds include place, orient, z-index, side, route, and waypoints.</param>
     private void ProcessRenderField(RenderEntity entity, CascodeParser.RenderFieldContext fieldCtx)
     {
         if (fieldCtx.PLACE_KW() is not null)
@@ -101,6 +116,12 @@ internal sealed partial class CascodeAstBuilder
         }
     }
 
+    /// <summary>
+    /// Set the entity's placement using the specified point expression and optional strength level.
+    /// </summary>
+    /// <param name="entity">The render entity to update.</param>
+    /// <param name="pointCtx">The point expression context used to build the placement.</param>
+    /// <param name="strengthCtx">Optional strength level context that influences the placement constraint.</param>
     private void ApplyPlace(
         RenderEntity entity,
         CascodeParser.PointExprContext pointCtx,
@@ -110,6 +131,13 @@ internal sealed partial class CascodeAstBuilder
         entity.Place = BuildRenderPlacement(pointCtx, strengthCtx);
     }
 
+    /// <summary>
+    /// Set the entity's orientation by parsing a rotation value from the provided signed-int context and applying the horizontal mirror flag.
+    /// </summary>
+    /// <param name="entity">The render entity whose <c>Orientation</c> will be assigned.</param>
+    /// <param name="signedIntCtx">Parser context that contains the rotation value to parse.</param>
+    /// <param name="mirrorX">Whether the entity should be mirrored horizontally.</param>
+    /// <param name="diagCtx">Parser context used as the location for reporting diagnostics if the rotation cannot be parsed.</param>
     private void ApplyOrientation(
         RenderEntity entity,
         CascodeParser.SignedIntContext signedIntCtx,
@@ -121,6 +149,12 @@ internal sealed partial class CascodeAstBuilder
         entity.Orientation = new RenderOrientation { Rotate = rotate, MirrorX = mirrorX };
     }
 
+    /// <summary>
+    /// Assigns the entity's ZIndex by parsing the provided signed integer context.
+    /// </summary>
+    /// <param name="entity">The render entity to update.</param>
+    /// <param name="signedIntCtx">Parser context containing the z-index integer literal.</param>
+    /// <param name="diagCtx">Parser context used as the diagnostic location if parsing fails.</param>
     private void ApplyZIndex(
         RenderEntity entity,
         CascodeParser.SignedIntContext signedIntCtx,
@@ -130,6 +164,12 @@ internal sealed partial class CascodeAstBuilder
         entity.ZIndex = ParseSignedInt(signedIntCtx, diagCtx, "zindex");
     }
 
+    /// <summary>
+    /// Validates a raw side identifier and assigns the parsed port side to the render entity or reports an error.
+    /// </summary>
+    /// <param name="entity">The render entity to update.</param>
+    /// <param name="rawSide">The raw side string to parse (e.g., "left", "right", "top", "bottom", "auto").</param>
+    /// <param name="diagCtx">Parser context used to report a diagnostic if parsing fails.</param>
     private void ApplySide(
         RenderEntity entity,
         string rawSide,
@@ -149,6 +189,13 @@ internal sealed partial class CascodeAstBuilder
         entity.Side = side;
     }
 
+    /// <summary>
+    /// Sets the RenderEntity's Route based on a route mode string and optional strength, and reports an error if the mode is invalid.
+    /// </summary>
+    /// <param name="entity">The render entity to modify.</param>
+    /// <param name="rawRouteMode">The raw route mode identifier text to parse (e.g., "auto", "ortho").</param>
+    /// <param name="strengthCtx">Optional parse context for the strength level used to build the route's Strength; may be null.</param>
+    /// <param name="diagCtx">Parser context used to locate diagnostics if the route mode is invalid.</param>
     private void ApplyRoute(
         RenderEntity entity,
         string rawRouteMode,
@@ -169,6 +216,11 @@ internal sealed partial class CascodeAstBuilder
         entity.Route = new RenderRoute { Mode = routeMode, Strength = BuildStrength(strengthCtx) };
     }
 
+    /// <summary>
+    /// Populate the entity's Waypoints by converting each provided point expression into a RenderPointExpression.
+    /// </summary>
+    /// <param name="entity">The RenderEntity whose Waypoints will be replaced.</param>
+    /// <param name="pointExprs">Sequence of point expression contexts to convert into waypoint expressions, applied in order.</param>
     private void ApplyWaypoints(
         RenderEntity entity,
         IEnumerable<CascodeParser.PointExprContext> pointExprs
@@ -181,11 +233,22 @@ internal sealed partial class CascodeAstBuilder
         }
     }
 
+    /// <summary>
+    /// Constructs a fully qualified render-entity name by joining the identifier parts with dots.
+    /// </summary>
+    /// <param name="ctx">Parser context containing one or more identifier parts for the render entity.</param>
+    /// <returns>The concatenated render entity name, with id parts separated by '.'</returns>
     private static string BuildRenderEntityRef(CascodeParser.RenderEntityRefContext ctx)
     {
         return string.Join(".", ctx.idPart().Select(part => part.GetText()));
     }
 
+    /// <summary>
+    /// Create a RenderPlacement from a point expression and an optional strength level.
+    /// </summary>
+    /// <param name="pointCtx">The parse context for the point expression used to build the placement's Point.</param>
+    /// <param name="strengthCtx">Optional parse context for the strength level; when null the placement's Strength will be null.</param>
+    /// <returns>A RenderPlacement with Point and Strength derived from the provided contexts.</returns>
     private RenderPlacement BuildRenderPlacement(
         CascodeParser.PointExprContext pointCtx,
         CascodeParser.StrengthLevelContext? strengthCtx
@@ -198,6 +261,13 @@ internal sealed partial class CascodeAstBuilder
         };
     }
 
+    /// <summary>
+    /// Builds a RenderPointExpression from the given point expression parse context.
+    /// </summary>
+    /// <param name="ctx">The parse context containing an absolute, reference, or relative point expression.</param>
+    /// <returns>
+    /// A RenderPointExpression representing the parsed point. If the context is invalid, emits diagnostic CAS3204 and returns a RenderAbsPoint at (0, 0).
+    /// </returns>
     private RenderPointExpression BuildPointExpression(CascodeParser.PointExprContext ctx)
     {
         if (ctx.absPoint() is { } abs)
@@ -227,6 +297,15 @@ internal sealed partial class CascodeAstBuilder
         return new RenderAbsPoint(0, 0);
     }
 
+    /// <summary>
+    /// Builds a textual anchor reference from a render anchor parse context.
+    /// </summary>
+    /// <param name="ctx">The parse context representing a render anchor reference.</param>
+    /// <returns>
+    /// The anchor reference string: "canvas origin" when the canvas origin keyword is present,
+    /// "canvas center" when the canvas keyword is present without origin, or a pin reference string
+    /// derived from the pin reference in the context.
+    /// </returns>
     private static string BuildRenderAnchorRef(CascodeParser.RenderAnchorRefContext ctx)
     {
         if (ctx.CANVAS_KW() is not null)
@@ -237,6 +316,13 @@ internal sealed partial class CascodeAstBuilder
         return BuildPinRef(ctx.pinRef());
     }
 
+    /// <summary>
+    /// Maps a parsed strength-level context to a corresponding RenderConstraintStrength value.
+    /// </summary>
+    /// <returns>
+    /// `RenderConstraintStrength.Hard`, `RenderConstraintStrength.Soft`, or `RenderConstraintStrength.Hint` for recognized tokens; `null` if <paramref name="ctx"/> is null or the token is unrecognized.
+    /// In the unrecognized-token case a CAS3205 diagnostic is emitted.
+    /// </returns>
     private RenderConstraintStrength? BuildStrength(CascodeParser.StrengthLevelContext? ctx)
     {
         if (ctx is null)
@@ -263,6 +349,12 @@ internal sealed partial class CascodeAstBuilder
         return null;
     }
 
+    /// <summary>
+    /// Parses a port-side identifier string into a <see cref="RenderPortSide"/> value.
+    /// </summary>
+    /// <param name="raw">The input identifier to parse (case-insensitive). Valid values: "left", "right", "top", "bottom", "auto".</param>
+    /// <param name="side">On success, receives the corresponding <see cref="RenderPortSide"/> value; otherwise receives the default value.</param>
+    /// <returns>`true` if <paramref name="raw"/> matches one of the valid values; `false` otherwise.</returns>
     private static bool TryParsePortSide(string raw, out RenderPortSide side)
     {
         var normalized = raw.ToLowerInvariant();
@@ -279,6 +371,12 @@ internal sealed partial class CascodeAstBuilder
         return normalized is "left" or "right" or "top" or "bottom" or "auto";
     }
 
+    /// <summary>
+    /// Attempts to parse a route mode from the given string value.
+    /// </summary>
+    /// <param name="raw">The input string representing a route mode (case-insensitive).</param>
+    /// <param name="mode">When this method returns, contains the parsed <see cref="RenderRouteMode"/> if parsing succeeded; otherwise the default value.</param>
+    /// <returns>`true` if <paramref name="raw"/> corresponds to a supported mode (`"auto"` or `"ortho"`, case-insensitive); `false` otherwise.</returns>
     private static bool TryParseRouteMode(string raw, out RenderRouteMode mode)
     {
         var normalized = raw.ToLowerInvariant();
@@ -292,6 +390,13 @@ internal sealed partial class CascodeAstBuilder
         return normalized is "auto" or "ortho";
     }
 
+    /// <summary>
+    /// Parses an integer from the given signed-int parser context and reports a diagnostic if parsing fails.
+    /// </summary>
+    /// <param name="ctx">The parser context containing the signed integer token.</param>
+    /// <param name="diagCtx">The parser context used as the location for any emitted diagnostic.</param>
+    /// <param name="label">A human-readable label included in the diagnostic message on failure.</param>
+    /// <returns>The parsed integer value, or 0 if parsing failed (a CAS3206 diagnostic is emitted).</returns>
     private int ParseSignedInt(
         CascodeParser.SignedIntContext ctx,
         Antlr4.Runtime.ParserRuleContext diagCtx,

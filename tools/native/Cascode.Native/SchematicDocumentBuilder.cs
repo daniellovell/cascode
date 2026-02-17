@@ -4,6 +4,16 @@ namespace Cascode.Native;
 
 internal static class SchematicDocumentBuilder
 {
+    /// <summary>
+    /// Builds a SchematicDocumentResponse for the current circuit in the provided DocumentState using the specified render mode and relaxation setting.
+    /// </summary>
+    /// <param name="state">The current DocumentState containing the document, circuits, selected circuit name, document id, and revision.</param>
+    /// <param name="mode">Controls how existing render information is treated when computing the schematic (e.g., respect, reflow, or re-render from scratch).</param>
+    /// <param name="allowRelaxation">If true, permits the constraint resolver to relax placement/routing constraints to produce a valid render.</param>
+    /// <returns>
+    /// A SchematicDocumentResponse containing document identifiers, the circuit name, render source metadata, structural projection, layout projection, render cache, and diagnostics.
+    /// </returns>
+    /// <exception cref="ApiException">Thrown with code "CASAPI-INVALID-REQUEST" when the circuit named by state.CircuitName is not found in state.Document.</exception>
     public static SchematicDocumentResponse Build(
         DocumentState state,
         RenderSchematicMode mode,
@@ -67,6 +77,10 @@ internal static class SchematicDocumentBuilder
         };
     }
 
+    /// <summary>
+    /// Map a <see cref="RenderSchematicMode"/> value to the string used in the API.
+    /// </summary>
+    /// <returns>A string representing the mode: "respectRenderBlock", "reflowUnlocked", or "rerenderFromScratch".</returns>
     private static string FormatMode(RenderSchematicMode mode)
     {
         return mode switch
@@ -78,6 +92,14 @@ internal static class SchematicDocumentBuilder
         };
     }
 
+    /// <summary>
+    /// Produces an effective render block filtered according to the requested render mode.
+    /// </summary>
+    /// <param name="render">The existing render block to filter; may be null.</param>
+    /// <param name="mode">The render mode that determines how the render block is treated.</param>
+    /// <returns>
+    /// A RenderBlock containing only entities that preserve hard placement or routing constraints (and their waypoints), or null if the mode forces a full re-render, the input is null, or no entities remain after filtering.
+    /// </returns>
     private static RenderBlock? BuildEffectiveRender(RenderBlock? render, RenderSchematicMode mode)
     {
         if (mode == RenderSchematicMode.RerenderFromScratch)

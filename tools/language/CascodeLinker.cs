@@ -1543,6 +1543,14 @@ public static class CascodeLinker
         return Path.GetFileNameWithoutExtension(entryPath);
     }
 
+    /// <summary>
+    /// Extracts synth entries from circuits into a YAML sidecar and produces a document with those synths removed.
+    /// </summary>
+    /// <param name="doc">The source document to scan for circuit synth entries.</param>
+    /// <returns>
+    /// A tuple where the first element is the updated document with all circuit <c>Synth</c> fields cleared,
+    /// and the second element is the YAML string containing extracted synth data, or <c>null</c> if no synths were found.
+    /// </returns>
     private static (CascodeDocument LinkedDoc, string? SynthYaml) ExtractSynthToYaml(
         CascodeDocument doc
     )
