@@ -153,6 +153,18 @@ static bool resolve_symbol(void** target, const char* name) {
   return true;
 }
 
+static void unload_exports(void) {
+  if (g_exports.handle != NULL) {
+#if defined(_WIN32)
+    FreeLibrary(g_exports.handle);
+#else
+    dlclose(g_exports.handle);
+#endif
+  }
+
+  memset(&g_exports, 0, sizeof(g_exports));
+}
+
 static bool load_exports(void) {
   bool success = false;
   lock_load_mutex();
@@ -247,6 +259,9 @@ static bool load_exports(void) {
   success = true;
 
 done:
+  if (!success) {
+    unload_exports();
+  }
   unlock_load_mutex();
   return success;
 }
@@ -265,6 +280,7 @@ static bool read_utf8_arg(napi_env env, napi_value value, char** out_text) {
   size_t length = 0;
   napi_status status = napi_get_value_string_utf8(env, value, NULL, 0, &length);
   if (status != napi_ok) {
+    napi_throw_type_error(env, "CASCODE_INVALID_ARGUMENT", "Expected a string.");
     return false;
   }
 
@@ -277,6 +293,7 @@ static bool read_utf8_arg(napi_env env, napi_value value, char** out_text) {
   size_t copied = 0;
   status = napi_get_value_string_utf8(env, value, text, length + 1, &copied);
   if (status != napi_ok) {
+    napi_throw_type_error(env, "CASCODE_INVALID_ARGUMENT", "Expected a string.");
     free(text);
     return false;
   }
@@ -356,7 +373,9 @@ static napi_value js_destroy_session(napi_env env, napi_callback_info info) {
   }
 
   g_exports.destroy_session(session);
-  return NULL;
+  napi_value result;
+  napi_get_undefined(env, &result);
+  return result;
 }
 
 static char* call_last_error_json(int32_t session) {

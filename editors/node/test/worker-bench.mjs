@@ -3,6 +3,7 @@ import { parentPort, workerData } from "node:worker_threads";
 
 const require = createRequire(import.meta.url);
 const cascode = require(workerData.packageRoot);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const session = cascode.createSession("{}");
 try {
@@ -18,11 +19,20 @@ try {
     if (polled.state !== "running") {
       break;
     }
+
+    await sleep(75);
   }
 
   if (polled.state === "running") {
     cascode.jobCancel(cascode.native, session, { jobId: started.jobId });
-    polled = cascode.jobPoll(cascode.native, session, { jobId: started.jobId });
+    for (let i = 0; i < 20; i++) {
+      polled = cascode.jobPoll(cascode.native, session, { jobId: started.jobId });
+      if (polled.state !== "running") {
+        break;
+      }
+
+      await sleep(75);
+    }
   }
 
   parentPort.postMessage({

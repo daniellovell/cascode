@@ -46,12 +46,27 @@ circuit Amp {
 function runWorker(filename, workerData, env) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(filename, { workerData, env });
-    worker.once("message", resolve);
-    worker.once("error", reject);
+    let settled = false;
+    worker.once("message", (message) => {
+      settled = true;
+      resolve(message);
+    });
+    worker.once("error", (error) => {
+      settled = true;
+      reject(error);
+    });
     worker.once("exit", (code) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
       if (code !== 0) {
         reject(new Error(`Worker '${filename}' exited with code ${code}.`));
+        return;
       }
+
+      reject(new Error(`Worker '${filename}' exited without sending a message.`));
     });
   });
 }

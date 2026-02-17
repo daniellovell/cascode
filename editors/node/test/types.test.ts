@@ -15,10 +15,12 @@ const schema: string = schemaVersion();
 const err: string | null = lastErrorJson(session);
 void err;
 
-const opened = open(native, session, { documentId: "doc", text: "VERSION 3.2\n" });
+const opened = open(native, session, { documentId: "doc", text: "VERSION 3.2\n" }) as {
+  revision: number;
+};
 const applied = applyOps(native, session, {
   documentId: "doc",
-  baseRevision: 1,
+  baseRevision: opened.revision,
   operations: [{ opId: "op1", type: "movePort", port: "IN", x: 1, y: 1 }]
 });
 void opened;

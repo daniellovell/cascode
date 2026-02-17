@@ -18,7 +18,7 @@ export function schemaVersion(): string;
 
 export function open(native: CascodeNative, session: number, req: unknown): unknown;
 export function updateText(native: CascodeNative, session: number, req: unknown): unknown;
-export function close(native: CascodeNative, session: number, req: unknown): void;
+export function close(native: CascodeNative, session: number, req: unknown): unknown;
 export function render(native: CascodeNative, session: number, req: unknown): unknown;
 export function applyOps(native: CascodeNative, session: number, req: unknown): unknown;
 export function erc(native: CascodeNative, session: number, req: unknown): unknown;

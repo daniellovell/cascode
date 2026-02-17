@@ -199,7 +199,7 @@ function updateText(native, session, req) {
 }
 
 function close(native, session, req) {
-  parseCall(native, session, "document.close", req);
+  return parseCall(native, session, "document.close", req);
 }
 
 function render(native, session, req) {
