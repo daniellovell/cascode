@@ -3,7 +3,7 @@
 Status: Draft
 Authors: Codex (proposed), Daniel Lovell (review)
 Created: 2026-02-10
-Last Updated: 2026-02-10
+Last Updated: 2026-02-16
 Target Version: Cascode 0.6.x (package); format version 3.2
 Related: ide/designer WYSIWYG editing, Node bindings for Cascode toolchain
 
@@ -361,7 +361,9 @@ All mutation methods require `baseRevision`. If the submitted revision does not 
 
 ## 12. Native Embedding Architecture
 
-The primary embedding path is C# core compiled as a NativeAOT shared library (`libcascode`), exposing C ABI functions via `[UnmanagedCallersOnly]`, wrapped by a Node N-API addon (`@cascode/native`). A stdio server may exist for diagnostics and testing but is non-primary.
+The native embedding architecture has three layers. The stable contract is the C ABI: C# core compiled as a NativeAOT shared library (`libcascode`), exposing functions via `[UnmanagedCallersOnly]`. The `@cascode/native` package is a thin synchronous N-API wrapper that mirrors the C ABI one-to-one — it handles UTF-8 string marshalling and memory lifecycle but introduces no concurrency, threading, or event machinery. Editor integrations build their own async and isolation layer on top, using worker threads, dedicated background processes, child processes, or direct synchronous calls as appropriate for their architecture. A stdio server may exist for diagnostics and testing but is non-primary.
+
+The recommended topology uses two isolated processes for Cascode work. `cascode-editor` handles interactive operations (document open, render, edit, ERC) where low latency matters. `cascode-bench` handles long-running simulation jobs where blocking is expected. This separation ensures bench runs never stall the edit loop.
 
 ### 12.1 C ABI Exports
 
@@ -404,48 +406,53 @@ Session handles are opaque integer IDs mapped to managed objects via a static `C
 
 Package: `@cascode/native`, located under `editors/node/`.
 
+The core binding is a synchronous interface that mirrors the C ABI one-to-one. Each method maps directly to a `cascode_*` export, handling UTF-8 string conversion and `cascode_free_string` cleanup internally.
+
 ```ts
 export interface CascodeNative {
-  open(req: DocumentOpenRequest): Promise<DocumentOpenResponse>
-  updateText(req: DocumentUpdateTextRequest): Promise<DocumentUpdateTextResponse>
-  close(req: DocumentCloseRequest): Promise<void>
-
-  toStructural(req: ConvertToStructuralRequest): Promise<ConvertToStructuralResponse>
-  toCas(req: ConvertToCasRequest): Promise<ConvertToCasResponse>
-
-  render(req: RenderSchematicRequest): Promise<RenderSchematicResponse>
-  applyOps(req: ApplyOperationsRequest): Promise<ApplyOperationsResponse>
-
-  erc(req: ErcRunRequest): Promise<ErcRunResponse>
-  emit(req: EmitRunRequest): Promise<EmitRunResponse>
-  verify(req: VerifyRunRequest): Promise<VerifyRunResponse>
-
-  startJob(req: JobStartRequest): Promise<JobHandle>
-  cancelJob(req: JobCancelRequest): Promise<void>
-
-  execute(req: CommandExecuteRequest): Promise<CommandExecuteResponse>
-}
-
-export interface JobHandle extends EventEmitter {
-  readonly jobId: string
-  cancel(): Promise<void>
-  // Events: 'progress', 'complete', 'error'
+  createSession(optionsJson?: string): number
+  destroySession(session: number): void
+  call(session: number, method: string, requestJson: string): string
+  lastErrorJson(session: number): string | null
+  apiVersion(): string
+  schemaVersion(): string
 }
 ```
 
+`call()` dispatches to the corresponding C ABI function by method name (e.g., `"document.open"` calls `cascode_document_open`). It returns the response JSON string on success or throws on NULL return, attaching the structured error from `lastErrorJson`. `createSession` and `destroySession` map to `cascode_create_session` and `cascode_destroy_session`.
+
+The package also exports typed convenience wrappers that parse the JSON response into TypeScript types:
+
+```ts
+export function open(native: CascodeNative, session: number, req: DocumentOpenRequest): DocumentOpenResponse
+export function updateText(native: CascodeNative, session: number, req: DocumentUpdateTextRequest): DocumentUpdateTextResponse
+export function close(native: CascodeNative, session: number, req: DocumentCloseRequest): void
+export function render(native: CascodeNative, session: number, req: RenderSchematicRequest): RenderSchematicResponse
+export function applyOps(native: CascodeNative, session: number, req: ApplyOperationsRequest): ApplyOperationsResponse
+export function erc(native: CascodeNative, session: number, req: ErcRunRequest): ErcRunResponse
+export function emit(native: CascodeNative, session: number, req: EmitRunRequest): EmitRunResponse
+export function jobStart(native: CascodeNative, session: number, req: JobStartRequest): JobStartResponse
+export function jobPoll(native: CascodeNative, session: number, req: JobPollRequest): JobPollResponse
+export function jobCancel(native: CascodeNative, session: number, req: JobCancelRequest): void
+```
+
+Each wrapper calls `native.call()`, parses the JSON result, and returns a typed object. These are pure functions with no state or side effects beyond the session mutation.
+
 ### 12.6 Node Addon Architecture
 
-The addon is built with prebuildify using N-API version 9 (stable ABI). Prebuilt binaries are provided for darwin-arm64, darwin-x64, and linux-x64.
+The addon is a synchronous N-API binding built with prebuildify using N-API version 9 (stable ABI). Prebuilt binaries are provided for darwin-arm64, darwin-x64, and linux-x64. All C ABI calls are blocking within the addon; it introduces no threads, event emitters, or async machinery. Consumers choose their own concurrency model.
 
-All methods return `Promise<T>`. The addon dispatches C ABI calls to a worker thread so they never block the Node.js event loop. JSON serialization and deserialization happen on the worker thread.
+In a desktop designer, the addon loads inside a dedicated background process — for example, an Electron utility process or equivalent runtime with full Node.js capabilities and crash isolation, connected to the UI process via MessagePort-based IPC with cross-process callback marshalling. Blocking calls are acceptable in this context because the process exists solely for Cascode work. The process's message handler serializes access to the session — one `call()` at a time — which satisfies the C ABI's single-threaded session requirement from section 12.3.
 
-Job-based methods (`startJob`) return a `JobHandle` that extends `EventEmitter`. The addon polls the C ABI's `cascode_job_poll` on the worker thread at a configurable interval (default 100ms) and emits `progress` events. On completion it emits `complete` with the result. The handle exposes a `cancel()` method that calls `cascode_job_cancel`.
+The recommended topology runs two background processes. `cascode-editor` hosts a session for interactive operations: document open, render, schematic edits, and ERC. These calls are fast (target under 50ms for single-device moves) and return results directly to the UI. `cascode-bench` hosts a separate session for bench simulation jobs, which may run for seconds or minutes. This separation ensures bench work never blocks edit responsiveness.
 
 ### 12.7 Bench as Editor Primitive
 
-Bench runs are modeled as jobs within the editor API. Designers need in-editor run, cancel, progress, and results for bench executions, and bench runs are inherently long-running and must not block the edit loop. The job model maps cleanly to a bottom-panel UX with cancellation support.
+Bench runs are modeled as jobs within the editor API. Designers need in-editor run, cancel, progress, and results for bench executions, and bench runs are inherently long-running and must not block the edit loop. The C ABI job model (`job_start`/`job_poll`/`job_cancel`) provides the mechanism.
 
-A bench run is started via `job.start` with `{ "type": "bench", "benchName": "...", "circuit": "..." }` and managed through the standard `job.poll`/`job.cancel` methods. The `JobHandle` in the Node addon emits `progress` events as simulation proceeds, allowing the editor to display intermediate results.
+Bench execution runs in the `cascode-bench` background process. The UI invokes a function to start a bench run, passing the bench name, circuit, and a progress callback. Inside the background process, the function calls `job_start` on the C ABI, then enters a poll loop calling `job_poll` at a regular interval. Each poll that returns progress data invokes the callback, which cross-process callback marshalling delivers to the UI for display.
+
+Cancellation is a separate call from the UI to the `cascode-bench` process. It calls `job_cancel` on the C ABI, which signals the running job to terminate. The poll loop observes the cancellation on its next iteration and returns. Because cancellation is a distinct call rather than shared state, there is no race between the UI's cancel request and the background process's poll loop — the C ABI handles the coordination internally.
 
 ---
 
@@ -469,7 +476,7 @@ Add `Cascode.Native` NativeAOT project. Expose C ABI functions with the memory a
 
 ### Phase 5: Node Addon
 
-Implement N-API wrapper with worker-thread dispatch and TypeScript declarations. Build with prebuildify for target platforms. Implement `JobHandle` with EventEmitter-based progress polling. Add worker-context integration tests.
+Implement synchronous N-API wrapper with TypeScript declarations. Build with prebuildify for target platforms. Verify addon loads and operates correctly in background process isolation. Add integration tests for boundary round-trip latency and callback-based progress reporting.
 
 ---
 
@@ -481,7 +488,7 @@ Integration tests must cover the full edit to back-annotate to reopen to visual 
 
 ABI tests must cover UTF-8 payload ownership (callee-allocates, caller-frees), session lifecycle (create, use, destroy, leaked sessions), error model (last-error, exception containment), and version mismatch behavior.
 
-Performance tests must cover incremental edit latency (target under 50ms for single-device move), repeated solve with mixed hard/soft constraints, and worker-thread throughput for concurrent editor sessions.
+Performance tests must cover incremental edit latency (target under 50ms for single-device move), repeated solve with mixed hard/soft constraints, boundary-process round-trip latency for edit operations, and callback-based progress reporting for bench jobs.
 
 ---
 
@@ -494,6 +501,8 @@ Performance tests must cover incremental edit latency (target under 50ms for sin
 **Automatic abs-to-ref conversion:** This happens only during back-annotation (edit operations), not during `cas format`. Formatting is a pure syntactic normalization; it does not resolve anchors or compute geometric relationships.
 
 **Coordinate precision:** Integer render units (1 ru = 1 routing pitch = 10px). No floating-point coordinates appear in `render {}` blocks, so no precision policy is needed.
+
+**Node addon concurrency model:** The `@cascode/native` addon exposes synchronous bindings. Async dispatch and process isolation are the consumer's responsibility. The recommended topology uses two dedicated background processes: `cascode-editor` for interactive operations and `cascode-bench` for simulation jobs. This two-process topology keeps the edit loop responsive during bench runs without requiring worker threads within the addon.
 
 ---
 
