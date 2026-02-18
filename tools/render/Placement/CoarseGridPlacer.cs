@@ -210,6 +210,8 @@ public static class CoarseGridPlacer
             deviceRow,
             graph,
             horizontalPassiveIds,
+            estimatedColumns,
+            totalRows,
             objectives
         );
         AddPortStraightnessObjectives(
@@ -695,9 +697,14 @@ public static class CoarseGridPlacer
         Dictionary<string, IntVar> deviceRow,
         CircuitGraph graph,
         IReadOnlySet<string> horizontalPassiveIds,
+        int columnCount,
+        int rowCount,
         List<LinearExpr> objectives
     )
     {
+        var maxColDiffPixels = columnCount * DeviceGeometry.CellWidth;
+        var maxRowDiffCells = rowCount;
+
         foreach (var (netName, connections) in graph.NetConnections)
         {
             if (graph.IsSupplyOrGround(netName))
@@ -748,7 +755,11 @@ public static class CoarseGridPlacer
                             MidpointRounding.AwayFromZero
                         );
 
-                    var colDiffPixels = model.NewIntVar(0, 5000, $"coldiff_{netName}_{i}_{j}");
+                    var colDiffPixels = model.NewIntVar(
+                        0,
+                        maxColDiffPixels,
+                        $"coldiff_{netName}_{i}_{j}"
+                    );
                     model.AddAbsEquality(
                         colDiffPixels,
                         deviceColumn[conn1.DeviceId] * DeviceGeometry.CellWidth
@@ -756,13 +767,17 @@ public static class CoarseGridPlacer
                             + colOffsetPixels
                     );
 
-                    var rowDiffCells = model.NewIntVar(0, 200, $"rowdiff_{netName}_{i}_{j}");
+                    var rowDiffCells = model.NewIntVar(
+                        0,
+                        maxRowDiffCells,
+                        $"rowdiff_{netName}_{i}_{j}"
+                    );
                     model.AddAbsEquality(
                         rowDiffCells,
                         deviceRow[conn1.DeviceId] - deviceRow[conn2.DeviceId] + rowOffsetCells
                     );
 
-                    objectives.Add(colDiffPixels + rowDiffCells * DeviceGeometry.RoutingPitch);
+                    objectives.Add(colDiffPixels + rowDiffCells * DeviceGeometry.CellHeight);
                 }
             }
         }
@@ -982,6 +997,7 @@ public static class CoarseGridPlacer
                 {
                     if (
                         conn.DeviceId == passiveId
+                        || railConnectedVerticalPassiveIds.Contains(conn.DeviceId)
                         || !deviceRow.TryGetValue(conn.DeviceId, out var otherRow)
                     )
                     {

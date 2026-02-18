@@ -191,7 +191,7 @@ public sealed class SvgRenderer
 
             if (DeviceTypeHelper.IsInstanceBlock(deviceType))
             {
-                RenderInstanceBlock(sb, deviceId, placementInfo);
+                RenderInstanceBlock(sb, deviceId, placementInfo, options.ShowDeviceLabels);
                 continue;
             }
 
@@ -250,7 +250,8 @@ public sealed class SvgRenderer
                 continue;
             }
 
-            if (options.ShowDeviceLabels)
+            var deviceType = DeviceTypeHelper.Normalize(device.DeviceType);
+            if (options.ShowDeviceLabels && !DeviceTypeHelper.IsInstanceBlock(deviceType))
             {
                 sb.AppendLine(
                     $@"<text class=""device-label"" x=""{F(labelPlacement.DeviceLabelX)}"" y=""{F(labelPlacement.DeviceLabelY)}"" text-anchor=""{labelPlacement.TextAnchor}"">{EscapeXml(deviceId)}</text>"
@@ -372,7 +373,8 @@ public sealed class SvgRenderer
     private static void RenderInstanceBlock(
         StringBuilder sb,
         string deviceId,
-        DevicePlacementHelper.DevicePlacementInfo placementInfo
+        DevicePlacementHelper.DevicePlacementInfo placementInfo,
+        bool showDeviceLabel
     )
     {
         var w = placementInfo.Width;
@@ -381,9 +383,12 @@ public sealed class SvgRenderer
             $@"<g id=""{EscapeXml(deviceId)}"" class=""device instance"" data-device-id=""{EscapeXml(deviceId)}"" transform=""translate({F(placementInfo.X)}, {F(placementInfo.Y)})"">"
         );
         sb.AppendLine($@"<rect class=""block"" width=""{F(w)}"" height=""{F(h)}"" />");
-        sb.AppendLine(
-            $@"<text class=""block-label"" x=""{F(w / 2)}"" y=""{F(h / 2 + 3)}"" text-anchor=""middle"">{EscapeXml(deviceId)}</text>"
-        );
+        if (showDeviceLabel)
+        {
+            sb.AppendLine(
+                $@"<text class=""block-label"" x=""{F(w / 2)}"" y=""{F(h / 2 + 3)}"" text-anchor=""middle"">{EscapeXml(deviceId)}</text>"
+            );
+        }
         sb.AppendLine("</g>");
     }
 

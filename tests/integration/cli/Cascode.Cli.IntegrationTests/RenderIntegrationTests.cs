@@ -235,6 +235,8 @@ public class RenderIntegrationTests
             "OUT must connect horizontally at the right boundary"
         );
         Assert.False(outBoundary.HasVertical, "OUT must not jog vertically at the right boundary");
+        Assert.NotNull(inBoundary.HorizontalY);
+        Assert.NotNull(outBoundary.HorizontalY);
         Assert.Equal(inBoundary.HorizontalY, outBoundary.HorizontalY);
     }
 
@@ -284,15 +286,17 @@ public class RenderIntegrationTests
 
     private static BoundaryAnalysis AnalyzeBoundary(List<SvgWireSegment> segments, double boundaryX)
     {
-        var touching = segments.Where(s => s.X1 == boundaryX || s.X2 == boundaryX).ToList();
+        const double epsilon = 1e-9;
+        var touching = segments
+            .Where(s =>
+                Math.Abs(s.X1 - boundaryX) < epsilon || Math.Abs(s.X2 - boundaryX) < epsilon
+            )
+            .ToList();
         var horizontal = touching.Where(s => s.Y1 == s.Y2).ToList();
         var hasVertical = touching.Any(s => s.X1 == s.X2);
+        var horizontalY = horizontal.Count > 0 ? horizontal[0].Y1 : (double?)null;
 
-        return new BoundaryAnalysis(
-            horizontal.Count > 0,
-            hasVertical,
-            horizontal.FirstOrDefault().Y1
-        );
+        return new BoundaryAnalysis(horizontal.Count > 0, hasVertical, horizontalY);
     }
 
     private readonly record struct SvgWireSegment(double X1, double Y1, double X2, double Y2);
@@ -300,6 +304,6 @@ public class RenderIntegrationTests
     private readonly record struct BoundaryAnalysis(
         bool HasHorizontal,
         bool HasVertical,
-        double HorizontalY
+        double? HorizontalY
     );
 }

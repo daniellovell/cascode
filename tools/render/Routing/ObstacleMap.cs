@@ -77,12 +77,11 @@ public static class ObstacleMap
             var cy = DeviceGeometry.GetCellCenterY(cell.Row);
             var x = cx - DeviceGeometry.InstanceBlockWidth / 2.0;
             var y = cy - DeviceGeometry.InstanceBlockHeight / 2.0;
-            return new Obstacle(
-                MinX: (int)x + Margin,
-                MinY: (int)y + Margin,
-                MaxX: (int)(x + DeviceGeometry.InstanceBlockWidth) - Margin,
-                MaxY: (int)(y + DeviceGeometry.InstanceBlockHeight) - Margin
-            );
+            var minX = (int)Math.Floor(x) + Margin;
+            var minY = (int)Math.Floor(y) + Margin;
+            var maxX = (int)Math.Ceiling(x + DeviceGeometry.InstanceBlockWidth) - Margin;
+            var maxY = (int)Math.Ceiling(y + DeviceGeometry.InstanceBlockHeight) - Margin;
+            return new Obstacle(MinX: minX, MinY: minY, MaxX: maxX, MaxY: maxY);
         }
 
         return null;

@@ -130,9 +130,11 @@ public static class CircuitFlattener
 
         var signalPorts = targetCircuit
             .Ports.Select(p => p.Name)
-            .Where(n =>
-                !parentCircuit.Supplies.Contains(substitutions.GetValueOrDefault(n, string.Empty))
-                && !parentCircuit.Grounds.Contains(substitutions.GetValueOrDefault(n, string.Empty))
+            .Where(portName =>
+                bindings.TryGetValue(portName, out var mappedNet)
+                && !string.IsNullOrWhiteSpace(mappedNet)
+                && !parentCircuit.Supplies.Contains(mappedNet)
+                && !parentCircuit.Grounds.Contains(mappedNet)
             )
             .ToList();
 

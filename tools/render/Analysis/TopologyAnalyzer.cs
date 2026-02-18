@@ -216,8 +216,8 @@ public static class TopologyAnalyzer
                 continue;
             }
 
-            var upwardTerminals = new List<string>();
-            var downwardTerminals = new List<string>();
+            var upwardTerminals = new HashSet<string>(StringComparer.Ordinal);
+            var downwardTerminals = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var conn in connections)
             {
@@ -283,7 +283,7 @@ public static class TopologyAnalyzer
                     {
                         downwardTerminals.Add(conn.DeviceId);
                     }
-                    else if (hasGround)
+                    if (hasGround)
                     {
                         upwardTerminals.Add(conn.DeviceId);
                     }
