@@ -67,7 +67,7 @@ internal sealed class RenderCommandModule : ICommandModule
 
         var inputDir = Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory();
         var loadLogger = _state.LoggerFactory?.CreateLogger("CascodeLinker") ?? NullLogger.Instance;
-        var linkArtifactsDir = ResolveLinkArtifactsDirectory(inputPath);
+        var linkArtifactsDir = Path.Combine(inputDir, "build", "render");
         if (
             !CascodeLoadLinkService.TryLoadAndLinkIfNeeded(
                 inputPath,
@@ -275,14 +275,6 @@ internal sealed class RenderCommandModule : ICommandModule
         }
 
         return outputPath;
-    }
-
-    private static string ResolveLinkArtifactsDirectory(string inputPath)
-    {
-        var inputDir = Path.GetDirectoryName(inputPath) ?? Directory.GetCurrentDirectory();
-        var stem = Path.GetFileNameWithoutExtension(inputPath);
-        var invocationId = $"{Environment.ProcessId}_{Guid.NewGuid():N}";
-        return Path.Combine(inputDir, "build", "render", $"{stem}_{invocationId}");
     }
 
     private static bool IsSvgFilePath(string? path)
