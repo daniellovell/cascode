@@ -116,6 +116,9 @@ public sealed class StressFolderIntegrationTests : IDisposable
     [MemberData(nameof(StressCases))]
     public async Task StressFolder_AllCasFiles_RenderSucceeds_AndProducesDevices(string cascodePath)
     {
+        using var sandbox = new TemporaryDirectory();
+        var sandboxedPath = StageStressRenderInput(cascodePath, sandbox.Path);
+
         var renderDir = Path.Combine(_outputDir, "render");
         Directory.CreateDirectory(renderDir);
 
@@ -123,13 +126,14 @@ public sealed class StressFolderIntegrationTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "render",
-            cascodePath,
+            sandboxedPath,
             "--output",
             renderDir
         );
         CliIntegrationTestHelper.AssertSuccess(render, "render failed");
 
-        var doc = LoadAndLinkIfNeededForTest(cascodePath);
+        var doc = LoadAndLinkIfNeededForTest(sandboxedPath);
+
         foreach (
             var circuit in doc
                 .Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
@@ -143,6 +147,23 @@ public sealed class StressFolderIntegrationTests : IDisposable
             Assert.Contains("<svg", content);
             Assert.Matches(new Regex("class=\"device\\b", RegexOptions.CultureInvariant), content);
         }
+    }
+
+    private static string StageStressRenderInput(string sourceCasPath, string sandboxRoot)
+    {
+        var sourceDir = Path.GetDirectoryName(sourceCasPath) ?? Directory.GetCurrentDirectory();
+        var sandboxDir = Path.Combine(sandboxRoot, "stress");
+        Directory.CreateDirectory(sandboxDir);
+
+        foreach (
+            var sourcePath in Directory.GetFiles(sourceDir, "*", SearchOption.TopDirectoryOnly)
+        )
+        {
+            var destinationPath = Path.Combine(sandboxDir, Path.GetFileName(sourcePath));
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+        }
+
+        return Path.Combine(sandboxDir, Path.GetFileName(sourceCasPath));
     }
 
     [Fact]

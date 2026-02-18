@@ -216,8 +216,8 @@ public static class TopologyAnalyzer
                 continue;
             }
 
-            var upwardTerminals = new List<string>();
-            var downwardTerminals = new List<string>();
+            var upwardTerminals = new HashSet<string>(StringComparer.Ordinal);
+            var downwardTerminals = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var conn in connections)
             {
@@ -248,15 +248,15 @@ public static class TopologyAnalyzer
                         downwardTerminals.Add(conn.DeviceId);
                     }
                 }
-                else if (deviceType == "resistor")
+                else if (deviceType is "resistor" or "capacitor")
                 {
-                    // Only include vertical resistors in the chain graph
+                    // Only include vertical passives in the chain graph
                     if (
                         !passiveOrientations.TryGetValue(conn.DeviceId, out var orientation)
                         || orientation != PassiveOrientation.Vertical
                     )
                     {
-                        continue; // Horizontal resistor - handled separately
+                        continue; // Horizontal passive - handled separately
                     }
 
                     var otherTerminal = terminal == "P" ? "N" : "P";
@@ -271,6 +271,20 @@ public static class TopologyAnalyzer
                     else if (otherNet != null && graph.Grounds.Contains(otherNet))
                     {
                         // Other terminal on GND, this terminal points up
+                        upwardTerminals.Add(conn.DeviceId);
+                    }
+                }
+                else if (deviceType == "instance")
+                {
+                    var hasSupply = device.Bindings.Values.Any(graph.Supplies.Contains);
+                    var hasGround = device.Bindings.Values.Any(graph.Grounds.Contains);
+
+                    if (hasSupply)
+                    {
+                        downwardTerminals.Add(conn.DeviceId);
+                    }
+                    if (hasGround)
+                    {
                         upwardTerminals.Add(conn.DeviceId);
                     }
                 }
@@ -423,7 +437,7 @@ public static class TopologyAnalyzer
                     devices.Add(deviceId);
                 }
             }
-            else if (deviceType == "resistor")
+            else if (deviceType is "resistor" or "capacitor")
             {
                 var pNet = graph.GetNetForTerminal(deviceId, "P");
                 var nNet = graph.GetNetForTerminal(deviceId, "N");
@@ -432,6 +446,13 @@ public static class TopologyAnalyzer
                     (pNet != null && railNets.Contains(pNet))
                     || (nNet != null && railNets.Contains(nNet))
                 )
+                {
+                    devices.Add(deviceId);
+                }
+            }
+            else if (deviceType == "instance")
+            {
+                if (device.Bindings.Values.Any(railNets.Contains))
                 {
                     devices.Add(deviceId);
                 }

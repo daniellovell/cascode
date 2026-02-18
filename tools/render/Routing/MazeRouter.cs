@@ -314,6 +314,15 @@ public static partial class MazeRouter
             return manhattan / 2;
         }
 
+        // Prefer horizontal lanes when one endpoint is an external port.
+        // This helps feedthrough paths stay straight at the circuit boundary.
+        var aIsPort = a.DeviceId.StartsWith("PORT_", StringComparison.Ordinal);
+        var bIsPort = b.DeviceId.StartsWith("PORT_", StringComparison.Ordinal);
+        if (a.Y == b.Y && (aIsPort || bIsPort))
+        {
+            return manhattan / 2;
+        }
+
         return manhattan;
     }
 

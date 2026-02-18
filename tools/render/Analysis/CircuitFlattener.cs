@@ -8,11 +8,21 @@ public sealed record InlineInstanceGroup(
     IReadOnlyList<string> DeviceIds
 );
 
+/// <summary>
+/// Metadata for a non-inline instance rendered as an opaque block.
+/// </summary>
+public sealed record InstanceBlockInfo(
+    string InstanceId,
+    string CircuitType,
+    IReadOnlyList<string> SignalPortNames
+);
+
 public sealed record FlattenedCircuit(
     Circuit RootCircuit,
     IReadOnlyDictionary<string, DeviceDeclaration> Devices,
     IReadOnlySet<string> InternalNets,
-    IReadOnlyList<InlineInstanceGroup> InlineInstanceGroups
+    IReadOnlyList<InlineInstanceGroup> InlineInstanceGroups,
+    IReadOnlyList<InstanceBlockInfo> InstanceBlocks
 );
 
 public static class CircuitFlattener
@@ -30,10 +40,11 @@ public static class CircuitFlattener
         var devices = new Dictionary<string, DeviceDeclaration>(StringComparer.Ordinal);
         var internalNets = new HashSet<string>(StringComparer.Ordinal);
         var groups = new List<InlineInstanceGroup>();
+        var instanceBlocks = new List<InstanceBlockInfo>();
 
         if (circuit.Fill is null)
         {
-            return new FlattenedCircuit(circuit, devices, internalNets, groups);
+            return new FlattenedCircuit(circuit, devices, internalNets, groups, instanceBlocks);
         }
 
         foreach (var net in circuit.Fill.Nets)
@@ -55,6 +66,14 @@ public static class CircuitFlattener
 
             if (!targetCircuit.Inline)
             {
+                CollectInstanceBlock(
+                    instance,
+                    targetCircuit,
+                    circuit,
+                    resolution,
+                    devices,
+                    instanceBlocks
+                );
                 continue;
             }
 
@@ -82,7 +101,44 @@ public static class CircuitFlattener
             }
         }
 
-        return new FlattenedCircuit(circuit, devices, internalNets, groups);
+        return new FlattenedCircuit(circuit, devices, internalNets, groups, instanceBlocks);
+    }
+
+    private static void CollectInstanceBlock(
+        InstanceDeclaration instance,
+        Circuit targetCircuit,
+        Circuit parentCircuit,
+        CircuitResolutionResult? resolution,
+        Dictionary<string, DeviceDeclaration> devices,
+        List<InstanceBlockInfo> instanceBlocks
+    )
+    {
+        var substitutions = BuildNetSubstitutions(instance, targetCircuit, resolution);
+
+        var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (portName, netName) in substitutions)
+        {
+            bindings[portName] = netName;
+        }
+
+        devices[instance.Id] = new DeviceDeclaration
+        {
+            Id = instance.Id,
+            DeviceType = "instance",
+            Bindings = bindings,
+        };
+
+        var signalPorts = targetCircuit
+            .Ports.Select(p => p.Name)
+            .Where(portName =>
+                bindings.TryGetValue(portName, out var mappedNet)
+                && !string.IsNullOrWhiteSpace(mappedNet)
+                && !parentCircuit.Supplies.Contains(mappedNet)
+                && !parentCircuit.Grounds.Contains(mappedNet)
+            )
+            .ToList();
+
+        instanceBlocks.Add(new InstanceBlockInfo(instance.Id, instance.Type, signalPorts));
     }
 
     private static List<string> ExpandInlineCircuit(

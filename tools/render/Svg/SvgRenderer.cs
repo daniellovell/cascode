@@ -189,6 +189,12 @@ public sealed class SvgRenderer
                 continue;
             }
 
+            if (DeviceTypeHelper.IsInstanceBlock(deviceType))
+            {
+                RenderInstanceBlock(sb, deviceId, placementInfo, options.ShowDeviceLabels);
+                continue;
+            }
+
             sb.AppendLine(
                 $@"<g id=""{EscapeXml(deviceId)}"" class=""device {deviceType}"" data-device-id=""{EscapeXml(deviceId)}"" transform=""translate({F(placementInfo.X)}, {F(placementInfo.Y)})"">"
             );
@@ -227,6 +233,11 @@ public sealed class SvgRenderer
     {
         sb.AppendLine(@"<g id=""device-labels"">");
 
+        var blockInfoLookup = graph.InstanceBlocks.ToDictionary(
+            b => b.InstanceId,
+            StringComparer.Ordinal
+        );
+
         foreach (var (deviceId, _) in placement.DevicePlacements)
         {
             if (!graph.Devices.TryGetValue(deviceId, out var device))
@@ -239,7 +250,8 @@ public sealed class SvgRenderer
                 continue;
             }
 
-            if (options.ShowDeviceLabels)
+            var deviceType = DeviceTypeHelper.Normalize(device.DeviceType);
+            if (options.ShowDeviceLabels && !DeviceTypeHelper.IsInstanceBlock(deviceType))
             {
                 sb.AppendLine(
                     $@"<text class=""device-label"" x=""{F(labelPlacement.DeviceLabelX)}"" y=""{F(labelPlacement.DeviceLabelY)}"" text-anchor=""{labelPlacement.TextAnchor}"">{EscapeXml(deviceId)}</text>"
@@ -248,7 +260,9 @@ public sealed class SvgRenderer
 
             if (options.ShowParamLabels)
             {
-                var paramText = DeviceParamFormatter.FormatParams(device);
+                var paramText = blockInfoLookup.TryGetValue(deviceId, out var blockInfo)
+                    ? blockInfo.CircuitType
+                    : DeviceParamFormatter.FormatParams(device);
                 if (!string.IsNullOrEmpty(paramText))
                 {
                     sb.AppendLine(
@@ -353,6 +367,28 @@ public sealed class SvgRenderer
             );
         }
 
+        sb.AppendLine("</g>");
+    }
+
+    private static void RenderInstanceBlock(
+        StringBuilder sb,
+        string deviceId,
+        DevicePlacementHelper.DevicePlacementInfo placementInfo,
+        bool showDeviceLabel
+    )
+    {
+        var w = placementInfo.Width;
+        var h = placementInfo.Height;
+        sb.AppendLine(
+            $@"<g id=""{EscapeXml(deviceId)}"" class=""device instance"" data-device-id=""{EscapeXml(deviceId)}"" transform=""translate({F(placementInfo.X)}, {F(placementInfo.Y)})"">"
+        );
+        sb.AppendLine($@"<rect class=""block"" width=""{F(w)}"" height=""{F(h)}"" />");
+        if (showDeviceLabel)
+        {
+            sb.AppendLine(
+                $@"<text class=""block-label"" x=""{F(w / 2)}"" y=""{F(h / 2 + 3)}"" text-anchor=""middle"">{EscapeXml(deviceId)}</text>"
+            );
+        }
         sb.AppendLine("</g>");
     }
 
