@@ -35,3 +35,6 @@ editors/node/native/
 
 # Scratch / temp
 tmp/
+
+# macOS Finder metadata
+.DS_Store

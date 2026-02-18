@@ -28,4 +28,9 @@ internal static class DeviceTypeHelper
     {
         return normalizedDeviceType is "resistor" or "capacitor" or "inductor";
     }
+
+    internal static bool IsInstanceBlock(string normalizedDeviceType)
+    {
+        return normalizedDeviceType == "instance";
+    }
 }

@@ -25,6 +25,13 @@ public sealed class CoarseGridResult
     /// Device IDs that are placed as horizontal passives (interior fill columns).
     /// </summary>
     public required IReadOnlySet<string> HorizontalPassiveIds { get; init; }
+
+    /// <summary>
+    /// Optional SAT-derived Y positions for signal ports.
+    /// Empty when the solver does not provide hints.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> PortYHints { get; init; } =
+        new Dictionary<string, int>(StringComparer.Ordinal);
 }
 
 /// <summary>
@@ -35,6 +42,10 @@ public sealed class CoarseGridResult
 public static class CoarseGridPlacer
 {
     private const double MaxSolveTimeSeconds = 2.0;
+    private const int StraightLaneWeight = 3;
+    private const int HorizontalRowAnchorWeight = 25;
+    private const int VerticalRowAnchorWeight = 2;
+    private const int RailTerminalWeight = 2;
 
     /// <summary>
     /// Objective multiplier for <see cref="RenderConstraintStrength.Soft"/> placement penalties.
@@ -82,6 +93,12 @@ public static class CoarseGridPlacer
                 .PassiveOrientations.Where(kv => kv.Value == PassiveOrientation.Horizontal)
                 .Select(kv => kv.Key)
         );
+        var railConnectedVerticalPassiveIds = new HashSet<string>(
+            topology
+                .PassiveOrientations.Where(kv => kv.Value == PassiveOrientation.Vertical)
+                .Select(kv => kv.Key)
+                .Where(deviceId => IsPassiveConnectedToRail(graph, deviceId))
+        );
 
         // Detect symmetric passive pairs (e.g., CMFB resistors)
         var symmetricPassivePairs = TopologyAnalyzer.DetectSymmetricPassivePairs(graph, topology);
@@ -116,8 +133,12 @@ public static class CoarseGridPlacer
         }
         fillRowOffset[maxTopoRow + 1] = cumulativeOffset;
 
-        var hasHorizontalPassives = horizontalPassiveIds.Count > 0;
-        var totalRows = topology.RowCount + cumulativeOffset;
+        var totalRows =
+            topology.RowCount
+            + cumulativeOffset
+            + (railConnectedVerticalPassiveIds.Count > 0 ? 2 : 0);
+        var canvasHeight = totalRows * DeviceGeometry.CellHeight + 2 * DeviceGeometry.RailMargin;
+        var signalPorts = GetSignalPorts(graph);
 
         var model = new CpModel();
         var hardConstraintEntities = new List<string>();
@@ -132,21 +153,33 @@ public static class CoarseGridPlacer
         // Create row variables
         // Vertical-path devices get offset rows; horizontal passives are optimized
         var deviceRow = new Dictionary<string, IntVar>();
+        var rowAnchorTargets = new Dictionary<string, (int TargetRow, int Weight)>(
+            StringComparer.Ordinal
+        );
         foreach (var deviceId in deviceIds)
         {
             var topoRow = topology.DeviceRows.GetValueOrDefault(deviceId, 0);
+            var offsetRow = topoRow + fillRowOffset[topoRow];
             if (horizontalPassiveIds.Contains(deviceId))
             {
                 // Horizontal passive rows are SAT variables - can be any row
                 deviceRow[deviceId] = model.NewIntVar(0, totalRows - 1, $"row_{deviceId}");
+                rowAnchorTargets[deviceId] = (offsetRow, HorizontalRowAnchorWeight);
+            }
+            else if (railConnectedVerticalPassiveIds.Contains(deviceId))
+            {
+                deviceRow[deviceId] = model.NewIntVar(0, totalRows - 1, $"row_{deviceId}");
+                rowAnchorTargets[deviceId] = (offsetRow, VerticalRowAnchorWeight);
             }
             else
             {
                 // Vertical-path devices get row = topoRow + offset for fill rows before it
-                var offsetRow = topoRow + fillRowOffset[topoRow];
                 deviceRow[deviceId] = model.NewConstant(offsetRow);
             }
         }
+
+        var portYVariables = CreatePortYVariables(model, signalPorts, canvasHeight);
+        AddRailSideOrderingConstraints(model, deviceRow, railConnectedVerticalPassiveIds, graph);
 
         AddNoOverlapConstraints(model, deviceColumn, deviceRow, deviceIds);
         AddSymmetryConstraints(model, deviceColumn, symmetricGroups, symmetryAxis, graph);
@@ -213,10 +246,28 @@ public static class CoarseGridPlacer
             deviceColumn,
             deviceRow,
             graph,
-            topology,
             horizontalPassiveIds,
-            symmetryAxis,
             estimatedColumns,
+            totalRows,
+            objectives
+        );
+        AddPortStraightnessObjectives(
+            model,
+            deviceRow,
+            graph,
+            horizontalPassiveIds,
+            portYVariables,
+            canvasHeight,
+            objectives
+        );
+        AddRowAnchorObjectives(model, deviceRow, rowAnchorTargets, objectives);
+        AddRailProximityObjectives(
+            model,
+            deviceRow,
+            railConnectedVerticalPassiveIds,
+            graph,
+            horizontalPassiveIds,
+            canvasHeight,
             objectives
         );
         objectives.AddRange(renderConstraintObjectives);
@@ -262,6 +313,7 @@ public static class CoarseGridPlacer
             graph,
             horizontalPassiveIds
         );
+        var portYHints = ExtractPortYHints(solver, portYVariables, graph, deviceRow);
         var actualColumnCount = placements.Count > 0 ? placements.Values.Max(c => c.Column) + 1 : 1;
         var actualRowCount = placements.Count > 0 ? placements.Values.Max(c => c.Row) + 1 : 1;
 
@@ -272,6 +324,7 @@ public static class CoarseGridPlacer
             DevicePlacements = placements,
             SymmetryAxis = symmetryAxis,
             HorizontalPassiveIds = horizontalPassiveIds,
+            PortYHints = portYHints,
         };
     }
 
@@ -773,13 +826,15 @@ public static class CoarseGridPlacer
         Dictionary<string, IntVar> deviceColumn,
         Dictionary<string, IntVar> deviceRow,
         CircuitGraph graph,
-        TopologyResult topology,
         IReadOnlySet<string> horizontalPassiveIds,
-        int symmetryAxis,
         int columnCount,
+        int rowCount,
         List<LinearExpr> objectives
     )
     {
+        var maxColDiffPixels = columnCount * DeviceGeometry.CellWidth;
+        var maxRowDiffCells = rowCount;
+
         foreach (var (netName, connections) in graph.NetConnections)
         {
             if (graph.IsSupplyOrGround(netName))
@@ -806,120 +861,428 @@ public static class CoarseGridPlacer
                         continue;
                     }
 
-                    // Get terminal offsets for terminal-aware wire length
-                    var offset1 = GetTerminalColumnOffset(
+                    var offset1 = GetTerminalOffsetInCells(
                         device1.DeviceType,
                         conn1.Terminal,
                         conn1.DeviceId,
-                        horizontalPassiveIds,
-                        symmetryAxis,
-                        deviceColumn
+                        horizontalPassiveIds
                     );
-
-                    var offset2 = GetTerminalColumnOffset(
+                    var offset2 = GetTerminalOffsetInCells(
                         device2.DeviceType,
                         conn2.Terminal,
                         conn2.DeviceId,
-                        horizontalPassiveIds,
-                        symmetryAxis,
-                        deviceColumn
+                        horizontalPassiveIds
                     );
 
-                    // Column distance with terminal offsets
-                    var colDiff = model.NewIntVar(0, 100, $"coldiff_{netName}_{i}_{j}");
-                    if (offset1.HasValue && offset2.HasValue)
-                    {
-                        // Both have fixed offsets - round to integer for CP-SAT
-                        var fixedOffset = (int)Math.Round(offset1.Value - offset2.Value);
-                        model.AddAbsEquality(
-                            colDiff,
-                            deviceColumn[conn1.DeviceId]
-                                - deviceColumn[conn2.DeviceId]
-                                + fixedOffset
+                    var colOffsetPixels = (int)
+                        Math.Round(
+                            (offset1.DeltaCol - offset2.DeltaCol) * DeviceGeometry.CellWidth,
+                            MidpointRounding.AwayFromZero
                         );
-                    }
-                    else
-                    {
-                        // Use cell-to-cell distance (simplified)
-                        model.AddAbsEquality(
-                            colDiff,
-                            deviceColumn[conn1.DeviceId] - deviceColumn[conn2.DeviceId]
+                    var rowOffsetCells = (int)
+                        Math.Round(
+                            offset1.DeltaRow - offset2.DeltaRow,
+                            MidpointRounding.AwayFromZero
                         );
-                    }
 
-                    // Row distance
-                    var rowDiff = model.NewIntVar(0, 100, $"rowdiff_{netName}_{i}_{j}");
+                    var colDiffPixels = model.NewIntVar(
+                        0,
+                        maxColDiffPixels,
+                        $"coldiff_{netName}_{i}_{j}"
+                    );
                     model.AddAbsEquality(
-                        rowDiff,
-                        deviceRow[conn1.DeviceId] - deviceRow[conn2.DeviceId]
+                        colDiffPixels,
+                        deviceColumn[conn1.DeviceId] * DeviceGeometry.CellWidth
+                            - deviceColumn[conn2.DeviceId] * DeviceGeometry.CellWidth
+                            + colOffsetPixels
                     );
 
-                    objectives.Add(colDiff + rowDiff);
+                    var rowDiffCells = model.NewIntVar(
+                        0,
+                        maxRowDiffCells,
+                        $"rowdiff_{netName}_{i}_{j}"
+                    );
+                    model.AddAbsEquality(
+                        rowDiffCells,
+                        deviceRow[conn1.DeviceId] - deviceRow[conn2.DeviceId] + rowOffsetCells
+                    );
+
+                    objectives.Add(colDiffPixels + rowDiffCells * DeviceGeometry.CellHeight);
                 }
             }
         }
     }
 
     /// <summary>
-    /// Gets the terminal column offset in cell units for wire length calculation.
-    /// For horizontal passives, P terminal is toward outer edge, N toward center.
+    /// Gets terminal offsets in cell units using the shared geometry model.
     /// </summary>
-    private static double? GetTerminalColumnOffset(
+    private static (double DeltaCol, double DeltaRow) GetTerminalOffsetInCells(
         string deviceType,
         string terminal,
         string deviceId,
-        IReadOnlySet<string> horizontalPassiveIds,
-        int symmetryAxis,
-        Dictionary<string, IntVar> deviceColumn
+        IReadOnlySet<string> horizontalPassiveIds
     )
     {
-        var type = deviceType.ToLowerInvariant();
+        var isHorizontalPassive = horizontalPassiveIds.Contains(deviceId);
+        var isLeftOfAxis = !IsRightNamedDevice(deviceId);
+        return DeviceGeometry.GetTerminalOffset(
+            deviceType,
+            terminal,
+            mirrorX: false,
+            isHorizontalPassive,
+            isLeftOfAxis
+        );
+    }
 
-        if (type is "resistor" or "capacitor" && horizontalPassiveIds.Contains(deviceId))
+    private static bool IsRightNamedDevice(string deviceId)
+    {
+        return deviceId.EndsWith("R", StringComparison.OrdinalIgnoreCase)
+            || deviceId.Contains("_R", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static List<string> GetSignalPorts(CircuitGraph graph)
+    {
+        return graph
+            .InputPorts.Concat(graph.BiasPorts)
+            .Concat(graph.OutputPorts)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static Dictionary<string, IntVar> CreatePortYVariables(
+        CpModel model,
+        IEnumerable<string> signalPorts,
+        int canvasHeight
+    )
+    {
+        var variables = new Dictionary<string, IntVar>(StringComparer.Ordinal);
+        foreach (var port in signalPorts)
         {
-            // For horizontal passives, compute terminal offset in cell units
-            var halfWidth = DeviceGeometry.PassiveWidth / (2.0 * DeviceGeometry.CellWidth);
+            variables[port] = model.NewIntVar(0, canvasHeight, $"portY_{ToVarToken(port)}");
+        }
 
-            // Determine which side of axis this device is expected to be on
-            // Use device ID naming heuristics (e.g., R1L vs R1R)
-            int side;
-            if (
-                deviceId.EndsWith("R", StringComparison.OrdinalIgnoreCase)
-                || deviceId.Contains("_R", StringComparison.OrdinalIgnoreCase)
-            )
-            {
-                side = 1; // Right of axis
-            }
-            else if (
-                deviceId.EndsWith("L", StringComparison.OrdinalIgnoreCase)
-                || deviceId.Contains("_L", StringComparison.OrdinalIgnoreCase)
-            )
-            {
-                side = -1; // Left of axis
-            }
-            else
-            {
-                side = -1; // Default to left
-            }
+        return variables;
+    }
 
-            terminal = terminal.ToUpperInvariant();
-            if (terminal == "P")
+    private static void AddPortStraightnessObjectives(
+        CpModel model,
+        Dictionary<string, IntVar> deviceRow,
+        CircuitGraph graph,
+        IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlyDictionary<string, IntVar> portYVariables,
+        int canvasHeight,
+        List<LinearExpr> objectives
+    )
+    {
+        var baseTerminalY = DeviceGeometry.RailMargin + DeviceGeometry.CellHeight / 2;
+
+        foreach (var (portName, portYVar) in portYVariables)
+        {
+            if (!graph.NetConnections.TryGetValue(portName, out var connections))
             {
-                // P terminal is on outer edge - offset away from axis
-                // Left side (side=-1): negative offset, right side (side=1): positive offset
-                return side * halfWidth;
+                continue;
             }
 
-            if (terminal == "N")
+            var connIndex = 0;
+            foreach (var conn in connections)
             {
-                // N terminal is toward center - opposite direction from P
-                // Left side (side=-1): positive offset, right side (side=1): negative offset
-                return -side * halfWidth;
+                if (!deviceRow.ContainsKey(conn.DeviceId))
+                {
+                    continue;
+                }
+
+                if (!graph.Devices.TryGetValue(conn.DeviceId, out var device))
+                {
+                    continue;
+                }
+
+                var offsets = GetTerminalOffsetInCells(
+                    device.DeviceType,
+                    conn.Terminal,
+                    conn.DeviceId,
+                    horizontalPassiveIds
+                );
+                var terminalYOffset = (int)
+                    Math.Round(
+                        offsets.DeltaRow * DeviceGeometry.CellHeight,
+                        MidpointRounding.AwayFromZero
+                    );
+                var terminalYExpr =
+                    deviceRow[conn.DeviceId] * DeviceGeometry.CellHeight
+                    + baseTerminalY
+                    + terminalYOffset;
+
+                var diffVar = model.NewIntVar(
+                    0,
+                    canvasHeight,
+                    $"portdiff_{ToVarToken(portName)}_{ToVarToken(conn.DeviceId)}_{ToVarToken(conn.Terminal)}_{connIndex}"
+                );
+                model.AddAbsEquality(diffVar, portYVar - terminalYExpr);
+                objectives.Add(diffVar);
+                connIndex++;
             }
         }
 
-        // For MOSFETs and vertical passives, terminal offset is small relative to cell size
-        return null;
+        foreach (var (leftPort, rightPort) in DetectPassiveFeedthroughPortPairs(graph))
+        {
+            if (
+                !portYVariables.TryGetValue(leftPort, out var leftY)
+                || !portYVariables.TryGetValue(rightPort, out var rightY)
+            )
+            {
+                continue;
+            }
+
+            var laneDiff = model.NewIntVar(
+                0,
+                canvasHeight,
+                $"lanediff_{ToVarToken(leftPort)}_{ToVarToken(rightPort)}"
+            );
+            model.AddAbsEquality(laneDiff, leftY - rightY);
+            objectives.Add(laneDiff * StraightLaneWeight);
+        }
+    }
+
+    private static IReadOnlyCollection<(
+        string LeftPort,
+        string RightPort
+    )> DetectPassiveFeedthroughPortPairs(CircuitGraph graph)
+    {
+        var pairs = new HashSet<(string LeftPort, string RightPort)>();
+
+        foreach (var (_, device) in graph.Devices)
+        {
+            var type = device.DeviceType.ToLowerInvariant();
+            if (type is not ("resistor" or "capacitor"))
+            {
+                continue;
+            }
+
+            if (
+                !device.Bindings.TryGetValue("P", out var pNet)
+                || !device.Bindings.TryGetValue("N", out var nNet)
+            )
+            {
+                continue;
+            }
+
+            TryAddFeedthroughPair(pNet, nNet);
+            TryAddFeedthroughPair(nNet, pNet);
+        }
+
+        return pairs;
+
+        void TryAddFeedthroughPair(string leftCandidate, string rightCandidate)
+        {
+            var isLeftPort =
+                graph.InputPorts.Contains(leftCandidate) || graph.BiasPorts.Contains(leftCandidate);
+            var isRightPort = graph.OutputPorts.Contains(rightCandidate);
+            if (isLeftPort && isRightPort)
+            {
+                pairs.Add((leftCandidate, rightCandidate));
+            }
+        }
+    }
+
+    private static void AddRailSideOrderingConstraints(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> deviceRow,
+        IReadOnlySet<string> railConnectedVerticalPassiveIds,
+        CircuitGraph graph
+    )
+    {
+        foreach (var passiveId in railConnectedVerticalPassiveIds)
+        {
+            if (!deviceRow.TryGetValue(passiveId, out var passiveRow))
+            {
+                continue;
+            }
+
+            var pNet = graph.GetNetForTerminal(passiveId, "P");
+            var nNet = graph.GetNetForTerminal(passiveId, "N");
+            var leansToGround =
+                (pNet != null && graph.Grounds.Contains(pNet))
+                || (nNet != null && graph.Grounds.Contains(nNet));
+            var leansToSupply =
+                (pNet != null && graph.Supplies.Contains(pNet))
+                || (nNet != null && graph.Supplies.Contains(nNet));
+            if (!leansToGround && !leansToSupply)
+            {
+                continue;
+            }
+
+            foreach (var net in new[] { pNet, nNet })
+            {
+                if (net == null || graph.IsSupplyOrGround(net))
+                {
+                    continue;
+                }
+
+                if (!graph.NetConnections.TryGetValue(net, out var connections))
+                {
+                    continue;
+                }
+
+                foreach (var conn in connections)
+                {
+                    if (
+                        conn.DeviceId == passiveId
+                        || railConnectedVerticalPassiveIds.Contains(conn.DeviceId)
+                        || !deviceRow.TryGetValue(conn.DeviceId, out var otherRow)
+                    )
+                    {
+                        continue;
+                    }
+
+                    if (leansToGround)
+                    {
+                        model.Add(passiveRow >= otherRow + 1);
+                    }
+                    else if (leansToSupply)
+                    {
+                        model.Add(passiveRow <= otherRow - 1);
+                    }
+                }
+            }
+        }
+    }
+
+    private static IReadOnlyDictionary<string, int> ExtractPortYHints(
+        CpSolver solver,
+        IReadOnlyDictionary<string, IntVar> portYVariables,
+        CircuitGraph graph,
+        IReadOnlyDictionary<string, IntVar> deviceRow
+    )
+    {
+        var hints = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (portName, varRef) in portYVariables)
+        {
+            if (!graph.NetConnections.TryGetValue(portName, out var connections))
+            {
+                continue;
+            }
+
+            var hasDeviceTerminal = connections.Any(c => deviceRow.ContainsKey(c.DeviceId));
+            if (!hasDeviceTerminal)
+            {
+                continue;
+            }
+
+            hints[portName] = (int)solver.Value(varRef);
+        }
+
+        return hints;
+    }
+
+    private static void AddRowAnchorObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> deviceRow,
+        IReadOnlyDictionary<string, (int TargetRow, int Weight)> rowAnchorTargets,
+        List<LinearExpr> objectives
+    )
+    {
+        foreach (var (deviceId, anchor) in rowAnchorTargets)
+        {
+            if (!deviceRow.TryGetValue(deviceId, out var rowVar))
+            {
+                continue;
+            }
+
+            var anchorDiff = model.NewIntVar(0, 200, $"rowanchor_{ToVarToken(deviceId)}");
+            model.AddAbsEquality(anchorDiff, rowVar - anchor.TargetRow);
+            objectives.Add(anchorDiff * anchor.Weight);
+        }
+    }
+
+    private static void AddRailProximityObjectives(
+        CpModel model,
+        IReadOnlyDictionary<string, IntVar> deviceRow,
+        IReadOnlySet<string> railConnectedVerticalPassiveIds,
+        CircuitGraph graph,
+        IReadOnlySet<string> horizontalPassiveIds,
+        int canvasHeight,
+        List<LinearExpr> objectives
+    )
+    {
+        var baseTerminalY = DeviceGeometry.RailMargin + DeviceGeometry.CellHeight / 2;
+
+        foreach (var deviceId in railConnectedVerticalPassiveIds)
+        {
+            if (!deviceRow.TryGetValue(deviceId, out var rowVar))
+            {
+                continue;
+            }
+
+            if (!graph.Devices.TryGetValue(deviceId, out var device))
+            {
+                continue;
+            }
+
+            foreach (var (terminal, netName) in device.Bindings)
+            {
+                var isSupply = graph.Supplies.Contains(netName);
+                var isGround = graph.Grounds.Contains(netName);
+                if (!isSupply && !isGround)
+                {
+                    continue;
+                }
+
+                var offsets = GetTerminalOffsetInCells(
+                    device.DeviceType,
+                    terminal,
+                    deviceId,
+                    horizontalPassiveIds
+                );
+                var terminalYOffset = (int)
+                    Math.Round(
+                        offsets.DeltaRow * DeviceGeometry.CellHeight,
+                        MidpointRounding.AwayFromZero
+                    );
+                var terminalYExpr =
+                    rowVar * DeviceGeometry.CellHeight + baseTerminalY + terminalYOffset;
+                var railY = isSupply
+                    ? DeviceGeometry.RailMargin / 2
+                    : canvasHeight - DeviceGeometry.RailMargin / 2;
+
+                var railDiff = model.NewIntVar(
+                    0,
+                    canvasHeight,
+                    $"raildiff_{ToVarToken(deviceId)}_{ToVarToken(terminal)}"
+                );
+                model.AddAbsEquality(railDiff, terminalYExpr - railY);
+                objectives.Add(railDiff * RailTerminalWeight);
+            }
+        }
+    }
+
+    private static bool IsPassiveConnectedToRail(CircuitGraph graph, string deviceId)
+    {
+        if (!graph.Devices.TryGetValue(deviceId, out var device))
+        {
+            return false;
+        }
+
+        var type = device.DeviceType.ToLowerInvariant();
+        if (type is not ("resistor" or "capacitor"))
+        {
+            return false;
+        }
+
+        if (
+            !device.Bindings.TryGetValue("P", out var pNet)
+            || !device.Bindings.TryGetValue("N", out var nNet)
+        )
+        {
+            return false;
+        }
+
+        return graph.IsSupplyOrGround(pNet) || graph.IsSupplyOrGround(nNet);
+    }
+
+    private static string ToVarToken(string value)
+    {
+        var chars = value.Select(c => char.IsLetterOrDigit(c) ? c : '_').ToArray();
+        return new string(chars);
     }
 
     /// <summary>

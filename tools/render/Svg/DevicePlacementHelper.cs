@@ -43,7 +43,15 @@ internal static class DevicePlacementHelper
         double x;
         double y;
 
-        if (DeviceTypeHelper.IsPassive(deviceType))
+        if (DeviceTypeHelper.IsInstanceBlock(deviceType))
+        {
+            var baseX = DeviceGeometry.GetCellCenterX(cell.Column);
+            var baseY = DeviceGeometry.GetCellCenterY(cell.Row);
+            x = baseX - DeviceGeometry.InstanceBlockWidth / 2.0;
+            y = baseY - DeviceGeometry.InstanceBlockHeight / 2.0;
+            orientation = DeviceOrientation.GateLeft;
+        }
+        else if (DeviceTypeHelper.IsPassive(deviceType))
         {
             var isHorizontalPassive = placement.HorizontalPassiveIds.Contains(deviceId);
             var isLeftOfAxis = cell.Column < placement.SymmetryAxis;
@@ -96,6 +104,10 @@ internal static class DevicePlacementHelper
     internal static (double Width, double Height) GetDeviceDimensions(string deviceType)
     {
         var type = DeviceTypeHelper.Normalize(deviceType);
+        if (DeviceTypeHelper.IsInstanceBlock(type))
+        {
+            return (DeviceGeometry.InstanceBlockWidth, DeviceGeometry.InstanceBlockHeight);
+        }
         if (DeviceTypeHelper.IsMosfet(type))
         {
             return (DeviceGeometry.MosfetWidth, DeviceGeometry.MosfetHeight);
