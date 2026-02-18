@@ -20,6 +20,9 @@ public static class DeviceGeometry
     public const double PortPinX = 13.0;
     public const double PortPinY = 2.5;
 
+    public const double InstanceBlockWidth = 30.0;
+    public const double InstanceBlockHeight = 30.0;
+
     private const double MosfetGateX = 0.5;
     private const double MosfetGateY = 12.5;
     private const double MosfetDrainX = 16.5;
@@ -48,6 +51,51 @@ public static class DeviceGeometry
         int NX,
         int NY
     );
+
+    public sealed record InstanceBlockPlacement(
+        double X,
+        double Y,
+        IReadOnlyDictionary<string, (int X, int Y)> Terminals
+    );
+
+    /// <summary>
+    /// Computes placement for an instance block.
+    /// Supply/ground bindings map to top/bottom center.
+    /// Signal ports are distributed along the edge facing the connected devices:
+    /// bottom edge for VDD-side blocks, top edge for GND-side blocks.
+    /// </summary>
+    public static InstanceBlockPlacement GetInstanceBlockPlacement(
+        int row,
+        int col,
+        IReadOnlyList<string> signalPorts,
+        IReadOnlySet<string> supplyNames,
+        IReadOnlySet<string> groundNames,
+        IReadOnlyDictionary<string, string> bindings
+    )
+    {
+        var baseX = GetCellCenterX(col);
+        var baseY = GetCellCenterY(row);
+        var topLeftX = baseX - InstanceBlockWidth / 2.0;
+        var topLeftY = baseY - InstanceBlockHeight / 2.0;
+
+        var terminals = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal);
+        var topY = RoundToInt(topLeftY);
+        var bottomY = RoundToInt(topLeftY + InstanceBlockHeight);
+
+        var isVddSide = bindings.Values.Any(supplyNames.Contains);
+
+        var signalPortsToPlace = signalPorts.ToList();
+        var edgeY = isVddSide ? bottomY : topY;
+        var spacing = InstanceBlockWidth / (signalPortsToPlace.Count + 1);
+
+        for (var i = 0; i < signalPortsToPlace.Count; i++)
+        {
+            var portX = SnapToRoutingGrid(topLeftX + spacing * (i + 1));
+            terminals[signalPortsToPlace[i]] = (portX, edgeY);
+        }
+
+        return new InstanceBlockPlacement(topLeftX, topLeftY, terminals);
+    }
 
     /// <summary>
     /// Terminal positions for any device type, used for terminal-aware wire length calculations.
@@ -234,9 +282,13 @@ public static class DeviceGeometry
                 terminals["N"] = (p.NX, p.NY);
             }
         }
+        else if (type == "instance")
+        {
+            x = GetCellCenterX(col) - InstanceBlockWidth / 2.0;
+            y = GetCellCenterY(row) - InstanceBlockHeight / 2.0;
+        }
         else
         {
-            // Unknown device type - use cell center
             x = GetCellCenterX(col);
             y = GetCellCenterY(row);
         }
