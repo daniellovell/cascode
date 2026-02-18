@@ -16,9 +16,14 @@ internal static class JsonElementExtensions
 
     internal static int RequireInt(this JsonElement element, string name)
     {
-        if (element.TryGetProperty(name, out var child) && child.TryGetInt32(out var value))
+        if (element.TryGetProperty(name, out var child))
         {
-            return value;
+            if (child.TryGetInt32(out var intValue))
+                return intValue;
+            // Accept floating-point numbers and round — the layout API returns
+            // exact double positions but the language only supports integers.
+            if (child.TryGetDouble(out var doubleValue))
+                return (int)Math.Round(doubleValue);
         }
 
         throw new ApiException("CASAPI-INVALID-REQUEST", $"Missing integer field '{name}'.");

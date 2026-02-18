@@ -40,8 +40,9 @@ public sealed class SchematicApiDispatcherTests
                         ["opId"] = "op-1",
                         ["type"] = "moveDevice",
                         ["deviceId"] = "M1",
-                        ["x"] = m1Position.GetProperty("x").GetInt32(),
-                        ["y"] = m1Position.GetProperty("y").GetInt32(),
+                        // moveDevice expects integer render-unit positions
+                        ["x"] = (int)Math.Round(m1Position.GetProperty("x").GetDouble()),
+                        ["y"] = (int)Math.Round(m1Position.GetProperty("y").GetDouble()),
                     }
                 ),
             }
@@ -93,10 +94,10 @@ public sealed class SchematicApiDispatcherTests
             includeM2Device: true,
             includeM1Render: true,
             includeM2Render: true,
-            m1X: m1Position.GetProperty("x").GetInt32(),
-            m1Y: m1Position.GetProperty("y").GetInt32(),
-            m2X: m2Position.GetProperty("x").GetInt32(),
-            m2Y: m2Position.GetProperty("y").GetInt32()
+            m1X: m1Position.GetProperty("x").GetDouble(),
+            m1Y: m1Position.GetProperty("y").GetDouble(),
+            m2X: m2Position.GetProperty("x").GetDouble(),
+            m2Y: m2Position.GetProperty("y").GetDouble()
         );
         Dispatch(
             session.State,
@@ -114,10 +115,10 @@ public sealed class SchematicApiDispatcherTests
             includeM2Device: true,
             includeM1Render: true,
             includeM2Render: true,
-            m1X: m1Position.GetProperty("x").GetInt32(),
-            m1Y: m1Position.GetProperty("y").GetInt32(),
-            m2X: m2Position.GetProperty("x").GetInt32(),
-            m2Y: m2Position.GetProperty("y").GetInt32()
+            m1X: m1Position.GetProperty("x").GetDouble(),
+            m1Y: m1Position.GetProperty("y").GetDouble(),
+            m2X: m2Position.GetProperty("x").GetDouble(),
+            m2Y: m2Position.GetProperty("y").GetDouble()
         );
         var updateRenamed = Dispatch(
             session.State,
@@ -140,10 +141,10 @@ public sealed class SchematicApiDispatcherTests
             includeM2Device: false,
             includeM1Render: true,
             includeM2Render: true,
-            m1X: m1Position.GetProperty("x").GetInt32(),
-            m1Y: m1Position.GetProperty("y").GetInt32(),
-            m2X: m2Position.GetProperty("x").GetInt32(),
-            m2Y: m2Position.GetProperty("y").GetInt32()
+            m1X: m1Position.GetProperty("x").GetDouble(),
+            m1Y: m1Position.GetProperty("y").GetDouble(),
+            m2X: m2Position.GetProperty("x").GetDouble(),
+            m2Y: m2Position.GetProperty("y").GetDouble()
         );
         var updateDeleted = Dispatch(
             session.State,
@@ -198,8 +199,8 @@ public sealed class SchematicApiDispatcherTests
                         ["opId"] = "op-1",
                         ["type"] = "moveDevice",
                         ["deviceId"] = "M1",
-                        ["x"] = m1Position.GetProperty("x").GetInt32(),
-                        ["y"] = m1Position.GetProperty("y").GetInt32(),
+                        ["x"] = (int)Math.Round(m1Position.GetProperty("x").GetDouble()),
+                        ["y"] = (int)Math.Round(m1Position.GetProperty("y").GetDouble()),
                     }
                 ),
             }
@@ -250,8 +251,8 @@ public sealed class SchematicApiDispatcherTests
             .GetProperty("terminalPoints")
             .GetProperty("M1")
             .GetProperty("G");
-        var gx = gate.GetProperty("x").GetInt32();
-        var gy = gate.GetProperty("y").GetInt32();
+        var gx = gate.GetProperty("x").GetDouble();
+        var gy = gate.GetProperty("y").GetDouble();
 
         var movePort = Dispatch(
             session.State,
@@ -303,7 +304,7 @@ public sealed class SchematicApiDispatcherTests
                             .Single(device => device.GetProperty("id").GetString() == "M2")
                             .GetProperty("position")
                             .GetProperty("x")
-                            .GetInt32(),
+                            .GetDouble(),
                         ["y"] = opened
                             .RootElement.GetProperty("layout")
                             .GetProperty("devices")
@@ -311,7 +312,7 @@ public sealed class SchematicApiDispatcherTests
                             .Single(device => device.GetProperty("id").GetString() == "M2")
                             .GetProperty("position")
                             .GetProperty("y")
-                            .GetInt32(),
+                            .GetDouble(),
                         ["anchor"] = "M1.G",
                     }
                 ),
@@ -531,12 +532,19 @@ circuit Amp {{
         bool includeM2Device,
         bool includeM1Render,
         bool includeM2Render,
-        int m1X,
-        int m1Y,
-        int m2X,
-        int m2Y
+        double m1X,
+        double m1Y,
+        double m2X,
+        double m2Y
     )
     {
+        // Cascode language only supports integer render-unit positions,
+        // so round the exact layout coordinates when writing source text.
+        var m1Xi = (int)Math.Round(m1X);
+        var m1Yi = (int)Math.Round(m1Y);
+        var m2Xi = (int)Math.Round(m2X);
+        var m2Yi = (int)Math.Round(m2Y);
+
         var m2Device = includeM2Device
             ? @"
     NMOS M2 = new Level1_NMOS(Unit) {
@@ -547,10 +555,10 @@ circuit Amp {{
     }"
             : string.Empty;
         var m1Render = includeM1Render
-            ? $"    M1 place abs {m1X} {m1Y} hard{Environment.NewLine}"
+            ? $"    M1 place abs {m1Xi} {m1Yi} hard{Environment.NewLine}"
             : string.Empty;
         var m2Render = includeM2Render
-            ? $"    M2 place abs {m2X} {m2Y} hard{Environment.NewLine}"
+            ? $"    M2 place abs {m2Xi} {m2Yi} hard{Environment.NewLine}"
             : string.Empty;
 
         return $@"VERSION {CascodeVersion.Current}

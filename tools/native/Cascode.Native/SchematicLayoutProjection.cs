@@ -1,12 +1,16 @@
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.Placement;
 using Cascode.Render.Routing;
+using Cascode.Render.Svg;
 
 namespace Cascode.Native;
 
-internal static class SchematicLayoutProjection
+internal static partial class SchematicLayoutProjection
 {
     /// <summary>
     /// Builds a structural representation of the circuit containing devices, ports, nets, supplies, and grounds.
@@ -89,10 +93,29 @@ internal static class SchematicLayoutProjection
             render?.Entities.ToDictionary(entity => entity.Name, StringComparer.Ordinal)
             ?? new Dictionary<string, RenderEntity>(StringComparer.Ordinal);
 
+        // Group routing terminal positions by device for centroid-based positioning
+        var terminalsByDevice = routing
+            .TerminalPositions.Where(t =>
+                !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+            )
+            .GroupBy(t => t.DeviceId, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToArray(),
+                StringComparer.Ordinal
+            );
+
         var devices = placement
             .DevicePlacements.OrderBy(entry => entry.Key, StringComparer.Ordinal)
             .Select(entry =>
-                BuildLayoutDevice(circuit, entry.Key, entry.Value, placement, renderByName)
+                BuildLayoutDevice(
+                    circuit,
+                    entry.Key,
+                    entry.Value,
+                    placement,
+                    renderByName,
+                    terminalsByDevice
+                )
             )
             .ToArray();
 
@@ -116,13 +139,13 @@ internal static class SchematicLayoutProjection
                     {
                         From = new PointValue
                         {
-                            X = ToRenderUnits(segment.From.X),
-                            Y = ToRenderUnits(segment.From.Y),
+                            X = ToRenderUnitsExact(segment.From.X),
+                            Y = ToRenderUnitsExact(segment.From.Y),
                         },
                         To = new PointValue
                         {
-                            X = ToRenderUnits(segment.To.X),
-                            Y = ToRenderUnits(segment.To.Y),
+                            X = ToRenderUnitsExact(segment.To.X),
+                            Y = ToRenderUnitsExact(segment.To.Y),
                         },
                     })
                     .ToArray(),
@@ -132,8 +155,8 @@ internal static class SchematicLayoutProjection
                     )
                     .Select(junction => new PointValue
                     {
-                        X = ToRenderUnits(junction.X),
-                        Y = ToRenderUnits(junction.Y),
+                        X = ToRenderUnitsExact(junction.X),
+                        Y = ToRenderUnitsExact(junction.Y),
                     })
                     .ToArray(),
             })
@@ -178,8 +201,8 @@ internal static class SchematicLayoutProjection
                 terminal => terminal.Terminal,
                 terminal => new PointValue
                 {
-                    X = ToRenderUnits(terminal.X),
-                    Y = ToRenderUnits(terminal.Y),
+                    X = ToRenderUnitsExact(terminal.X),
+                    Y = ToRenderUnitsExact(terminal.Y),
                 },
                 StringComparer.Ordinal
             );
@@ -197,6 +220,308 @@ internal static class SchematicLayoutProjection
     }
 
     /// <summary>
+    /// Builds a symbol catalog containing vector paths, viewBox, and terminal positions
+    /// for each unique device type in the structural info plus ports.
+    /// </summary>
+    /// <param name="structural">The structural info containing device type references.</param>
+    /// <returns>A dictionary mapping device type names to their symbol catalog entries.</returns>
+    public static IReadOnlyDictionary<string, SymbolCatalogEntry> BuildSymbolCatalog(
+        StructuralInfo structural
+    )
+    {
+        var catalog = new Dictionary<string, SymbolCatalogEntry>(StringComparer.Ordinal);
+
+        // Collect unique device types from structural devices
+        var deviceTypes = structural
+            .Devices.Select(d => d.Type)
+            .Distinct(StringComparer.Ordinal);
+
+        foreach (var deviceType in deviceTypes)
+        {
+            if (catalog.ContainsKey(deviceType))
+            {
+                continue;
+            }
+
+            var parsed = SymbolLibrary.GetParsedSymbol(deviceType);
+            if (parsed is null)
+            {
+                continue;
+            }
+
+            catalog[deviceType] = ConvertParsedSymbol(parsed);
+        }
+
+        // Include port symbol if there are any ports
+        if (structural.Ports.Count > 0 && !catalog.ContainsKey("port"))
+        {
+            var portParsed = SymbolLibrary.GetParsedSymbol("port");
+            if (portParsed is not null)
+            {
+                catalog["port"] = ConvertParsedSymbol(portParsed);
+            }
+        }
+
+        return catalog;
+    }
+
+    /// <summary>
+    /// Converts a <see cref="ParsedSymbol"/> from the render library into the API response type.
+    /// Paths and terminals are pre-scaled from SVG-local coordinates to device-centered render-unit
+    /// coordinates so the client renderer only needs to translate by device position + apply orientation.
+    /// </summary>
+    private static SymbolCatalogEntry ConvertParsedSymbol(ParsedSymbol parsed)
+    {
+        // Scale factor: SVG units → render units (pixels / RoutingPitch)
+        double sx = 1.0 / DeviceGeometry.RoutingPitch;
+        double sy = 1.0 / DeviceGeometry.RoutingPitch;
+
+        // Center at terminal centroid so that catalog offsets align exactly with
+        // routing terminal positions when added to the device position (also a
+        // terminal centroid). Falls back to viewBox center for symbols without terminals.
+        double cx = parsed.Terminals.Count > 0
+            ? parsed.Terminals.Values.Average(t => t.X)
+            : parsed.ViewBox[2] / 2.0;
+        double cy = parsed.Terminals.Count > 0
+            ? parsed.Terminals.Values.Average(t => t.Y)
+            : parsed.ViewBox[3] / 2.0;
+
+        return new SymbolCatalogEntry
+        {
+            ViewBox = [0, 0, parsed.ViewBox[2] * sx, parsed.ViewBox[3] * sy],
+            Paths = parsed
+                .Paths.Select(p => new SymbolPathEntry
+                {
+                    D = ScalePathD(p.D, sx, sy, cx, cy),
+                    Style = p.Style,
+                })
+                .ToArray(),
+            Terminals = parsed.Terminals.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new SymbolTerminalEntry
+                {
+                    X = (kvp.Value.X - cx) * sx,
+                    Y = (kvp.Value.Y - cy) * sy,
+                },
+                StringComparer.Ordinal
+            ),
+        };
+    }
+
+    /// <summary>
+    /// Transforms an SVG path <c>d</c> string by centering on <paramref name="cx"/>,<paramref name="cy"/>
+    /// and scaling by <paramref name="sx"/>,<paramref name="sy"/>.
+    /// Absolute coordinates are mapped as <c>(x-cx)*sx</c>; relative coordinates are scaled without offset.
+    /// </summary>
+    internal static string ScalePathD(
+        string d,
+        double sx,
+        double sy,
+        double cx,
+        double cy
+    )
+    {
+        // Tokenize into command letters and numbers
+        var tokens = new List<object>(); // string for commands, double for numbers
+        foreach (Match m in SvgPathTokenRegex().Matches(d))
+        {
+            if (m.Groups[1].Success)
+                tokens.Add(m.Groups[1].Value);
+            else
+                tokens.Add(
+                    double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)
+                );
+        }
+
+        var result = new StringBuilder();
+        var i = 0;
+
+        double Num() => (double)tokens[i++];
+
+        static string Fmt(double v) =>
+            Math.Round(v, 4).ToString("G", CultureInfo.InvariantCulture);
+
+        void Emit(string s)
+        {
+            if (result.Length > 0)
+                result.Append(' ');
+            result.Append(s);
+        }
+
+        while (i < tokens.Count)
+        {
+            if (tokens[i] is not string cmd)
+            {
+                i++;
+                continue;
+            }
+            i++;
+
+            var isRel = char.IsLower(cmd[0]);
+            Emit(cmd);
+
+            switch (cmd.ToUpperInvariant())
+            {
+                case "M":
+                case "L":
+                case "T":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var x = Num();
+                        var y = Num();
+                        if (isRel)
+                        {
+                            x *= sx;
+                            y *= sy;
+                        }
+                        else
+                        {
+                            x = (x - cx) * sx;
+                            y = (y - cy) * sy;
+                        }
+                        Emit($"{Fmt(x)} {Fmt(y)}");
+                    }
+                    break;
+
+                case "H":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var x = Num();
+                        x = isRel ? x * sx : (x - cx) * sx;
+                        Emit(Fmt(x));
+                    }
+                    break;
+
+                case "V":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var y = Num();
+                        y = isRel ? y * sy : (y - cy) * sy;
+                        Emit(Fmt(y));
+                    }
+                    break;
+
+                case "C":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var x1 = Num();
+                        var y1 = Num();
+                        var x2 = Num();
+                        var y2 = Num();
+                        var x = Num();
+                        var y = Num();
+                        if (isRel)
+                        {
+                            x1 *= sx;
+                            y1 *= sy;
+                            x2 *= sx;
+                            y2 *= sy;
+                            x *= sx;
+                            y *= sy;
+                        }
+                        else
+                        {
+                            x1 = (x1 - cx) * sx;
+                            y1 = (y1 - cy) * sy;
+                            x2 = (x2 - cx) * sx;
+                            y2 = (y2 - cy) * sy;
+                            x = (x - cx) * sx;
+                            y = (y - cy) * sy;
+                        }
+                        Emit(
+                            $"{Fmt(x1)} {Fmt(y1)} {Fmt(x2)} {Fmt(y2)} {Fmt(x)} {Fmt(y)}"
+                        );
+                    }
+                    break;
+
+                case "S":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var x2 = Num();
+                        var y2 = Num();
+                        var x = Num();
+                        var y = Num();
+                        if (isRel)
+                        {
+                            x2 *= sx;
+                            y2 *= sy;
+                            x *= sx;
+                            y *= sy;
+                        }
+                        else
+                        {
+                            x2 = (x2 - cx) * sx;
+                            y2 = (y2 - cy) * sy;
+                            x = (x - cx) * sx;
+                            y = (y - cy) * sy;
+                        }
+                        Emit($"{Fmt(x2)} {Fmt(y2)} {Fmt(x)} {Fmt(y)}");
+                    }
+                    break;
+
+                case "Q":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var x1 = Num();
+                        var y1 = Num();
+                        var x = Num();
+                        var y = Num();
+                        if (isRel)
+                        {
+                            x1 *= sx;
+                            y1 *= sy;
+                            x *= sx;
+                            y *= sy;
+                        }
+                        else
+                        {
+                            x1 = (x1 - cx) * sx;
+                            y1 = (y1 - cy) * sy;
+                            x = (x - cx) * sx;
+                            y = (y - cy) * sy;
+                        }
+                        Emit($"{Fmt(x1)} {Fmt(y1)} {Fmt(x)} {Fmt(y)}");
+                    }
+                    break;
+
+                case "A":
+                    while (i < tokens.Count && tokens[i] is double)
+                    {
+                        var rx = Num();
+                        var ry = Num();
+                        var rotation = Num();
+                        var largeArc = Num();
+                        var sweep = Num();
+                        var x = Num();
+                        var y = Num();
+                        rx *= sx;
+                        ry *= sy;
+                        if (isRel)
+                        {
+                            x *= sx;
+                            y *= sy;
+                        }
+                        else
+                        {
+                            x = (x - cx) * sx;
+                            y = (y - cy) * sy;
+                        }
+                        Emit(
+                            $"{Fmt(rx)} {Fmt(ry)} {Fmt(rotation)} {Fmt(largeArc)} {Fmt(sweep)} {Fmt(x)} {Fmt(y)}"
+                        );
+                    }
+                    break;
+
+                case "Z":
+                    // No parameters
+                    break;
+            }
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
     /// Constructs a LayoutDevice for the specified placed device, including its position, orientation, and bounding box.
     /// </summary>
     /// <param name="circuit">The circuit data used to look up device metadata.</param>
@@ -204,13 +529,15 @@ internal static class SchematicLayoutProjection
     /// <param name="cell">The grid cell where the device is placed.</param>
     /// <param name="placement">Coarse placement results used to compute device bounding boxes and orientation defaults.</param>
     /// <param name="renderByName">Lookup of render entities by name; when present for the device, its orientation overrides defaults.</param>
-    /// <returns>A LayoutDevice with Id, Position (cell center in render units), Orientation (from render entity or cell), and computed Bbox.</returns>
+    /// <param name="terminalsByDevice">Routing terminal positions grouped by device ID, used to compute the terminal centroid as device position.</param>
+    /// <returns>A LayoutDevice with Id, Position (terminal centroid in render units), Orientation (from render entity or cell), and computed Bbox.</returns>
     private static LayoutDevice BuildLayoutDevice(
         Circuit circuit,
         string deviceId,
         GridCell cell,
         CoarseGridResult placement,
-        IReadOnlyDictionary<string, RenderEntity> renderByName
+        IReadOnlyDictionary<string, RenderEntity> renderByName,
+        IReadOnlyDictionary<string, TerminalPosition[]> terminalsByDevice
     )
     {
         var device = circuit.Fill?.Devices.FirstOrDefault(d => d.Id == deviceId);
@@ -224,14 +551,45 @@ internal static class SchematicLayoutProjection
             }
             : new OrientationValue { Rotate = 0, MirrorX = cell.MirrorX };
 
+        // Position is the centroid of the device's routing terminal positions.
+        // This ensures catalog terminal offsets (also centered at terminal centroid)
+        // align exactly with routing-derived wire endpoints.
+        PointValue position;
+        if (
+            terminalsByDevice.TryGetValue(deviceId, out var terminals)
+            && terminals.Length > 0
+        )
+        {
+            position = new PointValue
+            {
+                X = terminals.Average(t => ToRenderUnitsExact(t.X)),
+                Y = terminals.Average(t => ToRenderUnitsExact(t.Y)),
+            };
+        }
+        else
+        {
+            // Fallback to cell center when no routing terminals are available
+            position = new PointValue
+            {
+                X = ToRenderUnitsExact(
+                    (int)Math.Round(
+                        DeviceGeometry.GetCellCenterX(cell.Column),
+                        MidpointRounding.AwayFromZero
+                    )
+                ),
+                Y = ToRenderUnitsExact(
+                    (int)Math.Round(
+                        DeviceGeometry.GetCellCenterY(cell.Row),
+                        MidpointRounding.AwayFromZero
+                    )
+                ),
+            };
+        }
+
         return new LayoutDevice
         {
             Id = deviceId,
-            Position = new PointValue
-            {
-                X = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column))),
-                Y = ToRenderUnits((int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row))),
-            },
+            Position = position,
             Orientation = orientation,
             Bbox = BuildDeviceBbox(type, cell, placement, deviceId),
         };
@@ -274,8 +632,8 @@ internal static class SchematicLayoutProjection
             Name = portName,
             Position = new PointValue
             {
-                X = ToRenderUnits(terminal.X),
-                Y = ToRenderUnits(terminal.Y),
+                X = ToRenderUnitsExact(terminal.X),
+                Y = ToRenderUnitsExact(terminal.Y),
             },
             Side = side,
         };
@@ -362,40 +720,49 @@ internal static class SchematicLayoutProjection
                 );
                 return new BboxValue
                 {
-                    X = ToRenderUnits((int)Math.Round(p.X)),
-                    Y = ToRenderUnits((int)Math.Round(p.Y)),
-                    Width = ToRenderUnits((int)Math.Round(DeviceGeometry.PassiveWidth)),
-                    Height = ToRenderUnits((int)Math.Round(DeviceGeometry.PassiveHeight)),
+                    X = ToRenderUnitsExact(p.X),
+                    Y = ToRenderUnitsExact(p.Y),
+                    Width = DeviceGeometry.PassiveWidth / DeviceGeometry.RoutingPitch,
+                    Height = DeviceGeometry.PassiveHeight / DeviceGeometry.RoutingPitch,
                 };
             }
 
             var passive = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
             return new BboxValue
             {
-                X = ToRenderUnits((int)Math.Round(passive.X)),
-                Y = ToRenderUnits((int)Math.Round(passive.Y)),
-                Width = ToRenderUnits((int)Math.Round(DeviceGeometry.PassiveWidth)),
-                Height = ToRenderUnits((int)Math.Round(DeviceGeometry.PassiveHeight)),
+                X = ToRenderUnitsExact(passive.X),
+                Y = ToRenderUnitsExact(passive.Y),
+                Width = DeviceGeometry.PassiveWidth / DeviceGeometry.RoutingPitch,
+                Height = DeviceGeometry.PassiveHeight / DeviceGeometry.RoutingPitch,
             };
         }
 
         var mos = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
         return new BboxValue
         {
-            X = ToRenderUnits((int)Math.Round(mos.X)),
-            Y = ToRenderUnits((int)Math.Round(mos.Y)),
-            Width = ToRenderUnits((int)Math.Round(DeviceGeometry.MosfetWidth)),
-            Height = ToRenderUnits((int)Math.Round(DeviceGeometry.MosfetHeight)),
+            X = ToRenderUnitsExact(mos.X),
+            Y = ToRenderUnitsExact(mos.Y),
+            Width = DeviceGeometry.MosfetWidth / DeviceGeometry.RoutingPitch,
+            Height = DeviceGeometry.MosfetHeight / DeviceGeometry.RoutingPitch,
         };
     }
 
     /// <summary>
-    /// Convert a pixel measurement to render units using the routing pitch.
+    /// Convert a pixel measurement to exact render units (no rounding).
+    /// Used for positions, terminals, and wire endpoints where sub-pixel precision
+    /// is needed to align symbols with routing.
     /// </summary>
-    /// <returns>The number of render units corresponding to the given pixel value, rounded to the nearest integer with midpoint values rounded away from zero.</returns>
-    private static int ToRenderUnits(int pixels)
+    private static double ToRenderUnitsExact(int pixels)
     {
-        return (int)
-            Math.Round(pixels / (double)DeviceGeometry.RoutingPitch, MidpointRounding.AwayFromZero);
+        return pixels / (double)DeviceGeometry.RoutingPitch;
     }
+
+    /// <inheritdoc cref="ToRenderUnitsExact(int)"/>
+    private static double ToRenderUnitsExact(double pixels)
+    {
+        return pixels / DeviceGeometry.RoutingPitch;
+    }
+
+    [GeneratedRegex(@"([MmLlHhVvCcSsQqTtAaZz])|([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)")]
+    private static partial Regex SvgPathTokenRegex();
 }

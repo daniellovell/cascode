@@ -45,6 +45,8 @@ internal static class SchematicDocumentBuilder
             circuit.Render = effectiveRender;
         }
 
+        var structural = SchematicLayoutProjection.BuildStructural(circuit, render.Graph);
+
         return new SchematicDocumentResponse
         {
             DocumentId = state.DocumentId,
@@ -55,7 +57,7 @@ internal static class SchematicDocumentBuilder
                 HasRenderBlock = effectiveRender is not null,
                 Mode = FormatMode(mode),
             },
-            Structural = SchematicLayoutProjection.BuildStructural(circuit, render.Graph),
+            Structural = structural,
             Layout = SchematicLayoutProjection.BuildLayout(
                 circuit,
                 effectiveRender,
@@ -67,6 +69,7 @@ internal static class SchematicDocumentBuilder
                 render.Placement,
                 render.Routing
             ),
+            SymbolCatalog = SchematicLayoutProjection.BuildSymbolCatalog(structural),
             Diagnostics = render
                 .Diagnostics.Select(message => new ApiDiagnostic
                 {

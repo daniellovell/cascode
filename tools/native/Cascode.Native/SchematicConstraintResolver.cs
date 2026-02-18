@@ -118,8 +118,8 @@ internal static class SchematicConstraintResolver
             constraints.Add(
                 new DevicePlacementConstraint(
                     entity.Name,
-                    point.X,
-                    point.Y,
+                    (int)Math.Round(point.X),
+                    (int)Math.Round(point.Y),
                     entity.Place.Strength ?? RenderConstraintStrength.Soft
                 )
             );
@@ -179,7 +179,7 @@ internal static class SchematicConstraintResolver
                 }
 
                 previous = resolved;
-                points.Add(new GridPoint(ToPixels(resolved.X), ToPixels(resolved.Y)));
+                points.Add(new GridPoint(ToPixels((int)Math.Round(resolved.X)), ToPixels((int)Math.Round(resolved.Y))));
             }
 
             if (points.Count == 0)

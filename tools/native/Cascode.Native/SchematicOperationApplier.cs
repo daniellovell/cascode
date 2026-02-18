@@ -437,7 +437,7 @@ internal static class SchematicOperationApplier
         var nearest = FindNearestAnchor(anchors, subjectName, x, y);
         return nearest is null
             ? new RenderAbsPoint(x, y)
-            : new RenderRefPoint(nearest, x - anchors[nearest].X, y - anchors[nearest].Y);
+            : new RenderRefPoint(nearest, (int)Math.Round(x - anchors[nearest].X), (int)Math.Round(y - anchors[nearest].Y));
     }
 
     /// <summary>
@@ -493,7 +493,7 @@ internal static class SchematicOperationApplier
             && anchors.TryGetValue(anchorName, out var anchor)
         )
         {
-            point = new RenderRefPoint(anchorName, x - anchor.X, y - anchor.Y);
+            point = new RenderRefPoint(anchorName, (int)Math.Round(x - anchor.X), (int)Math.Round(y - anchor.Y));
             return true;
         }
 

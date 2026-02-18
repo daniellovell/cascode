@@ -17,6 +17,7 @@ internal sealed class SchematicDocumentResponse
     public required StructuralInfo Structural { get; init; }
     public required LayoutInfo Layout { get; init; }
     public required RenderCacheInfo RenderCache { get; init; }
+    public required IReadOnlyDictionary<string, SymbolCatalogEntry> SymbolCatalog { get; init; }
     public required IReadOnlyList<ApiDiagnostic> Diagnostics { get; init; }
 }
 
@@ -98,16 +99,16 @@ internal sealed class SegmentValue
 
 internal sealed class PointValue
 {
-    public required int X { get; init; }
-    public required int Y { get; init; }
+    public required double X { get; init; }
+    public required double Y { get; init; }
 }
 
 internal sealed class BboxValue
 {
-    public required int X { get; init; }
-    public required int Y { get; init; }
-    public required int Width { get; init; }
-    public required int Height { get; init; }
+    public required double X { get; init; }
+    public required double Y { get; init; }
+    public required double Width { get; init; }
+    public required double Height { get; init; }
 }
 
 internal sealed class RenderCacheInfo
@@ -124,6 +125,25 @@ internal sealed class ApiDiagnostic
 {
     public required string Code { get; init; }
     public required string Message { get; init; }
+}
+
+internal sealed class SymbolCatalogEntry
+{
+    public required double[] ViewBox { get; init; }
+    public required IReadOnlyList<SymbolPathEntry> Paths { get; init; }
+    public required IReadOnlyDictionary<string, SymbolTerminalEntry> Terminals { get; init; }
+}
+
+internal sealed class SymbolPathEntry
+{
+    public required string D { get; init; }
+    public required string Style { get; init; }
+}
+
+internal sealed class SymbolTerminalEntry
+{
+    public required double X { get; init; }
+    public required double Y { get; init; }
 }
 
 internal sealed class RenderComputationState
