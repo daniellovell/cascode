@@ -29,3 +29,6 @@ error.log
 .spr.yml
 # Bench runtime artifacts (should live in build/, but ignore if they leak)
 *.wrdata
+
+# macOS Finder metadata
+.DS_Store

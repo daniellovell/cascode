@@ -130,6 +130,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(render, "render failed");
 
         var doc = LoadAndLinkIfNeededForTest(cascodePath);
+
         foreach (
             var circuit in doc
                 .Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
