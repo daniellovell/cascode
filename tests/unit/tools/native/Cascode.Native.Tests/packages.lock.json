@@ -225,22 +225,22 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.5.1, )",
+          "Cascode.Bench": "[0.5.2, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       },
       "cascode.native": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Language": "[0.5.1, )",
-          "Cascode.Render": "[0.5.1, )",
-          "Cascode.Workspace": "[0.5.1, )"
+          "Cascode.Language": "[0.5.2, )",
+          "Cascode.Render": "[0.5.2, )",
+          "Cascode.Workspace": "[0.5.2, )"
         }
       },
       "cascode.render": {
         "type": "Project",
         "dependencies": {
-          "Cascode.Language": "[0.5.1, )",
+          "Cascode.Language": "[0.5.2, )",
           "Google.OrTools": "[9.10.4067, )"
         }
       },
