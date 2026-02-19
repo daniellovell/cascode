@@ -178,8 +178,24 @@ public static class CoarseGridPlacer
             }
         }
 
+        // Collect devices with hard render placement constraints so that
+        // structural layout constraints do not override the user's explicit position.
+        var hardPlacedDeviceIds = new HashSet<string>(StringComparer.Ordinal);
+        if (constraints is not null)
+        {
+            foreach (var entry in constraints.DevicePlacements)
+            {
+                if (entry.Strength == RenderConstraintStrength.Hard)
+                {
+                    hardPlacedDeviceIds.Add(entry.DeviceId);
+                }
+            }
+        }
+
         var portYVariables = CreatePortYVariables(model, signalPorts, canvasHeight);
-        AddRailSideOrderingConstraints(model, deviceRow, railConnectedVerticalPassiveIds, graph);
+        AddRailSideOrderingConstraints(
+            model, deviceRow, railConnectedVerticalPassiveIds, graph, hardPlacedDeviceIds
+        );
 
         AddNoOverlapConstraints(model, deviceColumn, deviceRow, deviceIds);
         AddSymmetryConstraints(model, deviceColumn, symmetricGroups, symmetryAxis, graph);
@@ -203,6 +219,7 @@ public static class CoarseGridPlacer
             deviceIds,
             symmetricGroups,
             horizontalPassiveIds,
+            hardPlacedDeviceIds,
             symmetryAxis
         );
 
@@ -227,6 +244,7 @@ public static class CoarseGridPlacer
                 model,
                 deviceColumn,
                 horizontalPassiveIds,
+                hardPlacedDeviceIds,
                 symmetryAxis
             );
 
@@ -236,6 +254,7 @@ public static class CoarseGridPlacer
                 deviceColumn,
                 symmetricGroups,
                 horizontalPassiveIds,
+                hardPlacedDeviceIds,
                 symmetryAxis
             );
         }
@@ -700,11 +719,17 @@ public static class CoarseGridPlacer
         CpModel model,
         Dictionary<string, IntVar> deviceColumn,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
         foreach (var deviceId in horizontalPassiveIds)
         {
+            if (hardPlacedDeviceIds.Contains(deviceId))
+            {
+                continue;
+            }
+
             if (!deviceColumn.TryGetValue(deviceId, out var colVar))
             {
                 continue;
@@ -735,6 +760,7 @@ public static class CoarseGridPlacer
         Dictionary<string, IntVar> deviceColumn,
         IReadOnlyList<SymmetricGroup> symmetricGroups,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
@@ -757,6 +783,11 @@ public static class CoarseGridPlacer
             // Force symmetric MOSFET pairs to edge columns
             foreach (var deviceId in mosfetDevices)
             {
+                if (hardPlacedDeviceIds.Contains(deviceId))
+                {
+                    continue;
+                }
+
                 if (!deviceColumn.TryGetValue(deviceId, out var colVar))
                 {
                     continue;
@@ -772,6 +803,8 @@ public static class CoarseGridPlacer
     /// <summary>
     /// Constrains devices not in any symmetric group to be placed on the symmetry axis.
     /// These "center" devices (like tail transistors) should be centered in the layout.
+    /// Devices with hard render placement constraints are excluded — the user's explicit
+    /// position takes precedence over the centering heuristic.
     /// </summary>
     private static void AddCenterDeviceConstraints(
         CpModel model,
@@ -779,6 +812,7 @@ public static class CoarseGridPlacer
         List<string> deviceIds,
         IReadOnlyList<SymmetricGroup> symmetricGroups,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
@@ -801,6 +835,11 @@ public static class CoarseGridPlacer
             }
 
             if (horizontalPassiveIds.Contains(deviceId))
+            {
+                continue;
+            }
+
+            if (hardPlacedDeviceIds.Contains(deviceId))
             {
                 continue;
             }
@@ -1088,11 +1127,17 @@ public static class CoarseGridPlacer
         CpModel model,
         IReadOnlyDictionary<string, IntVar> deviceRow,
         IReadOnlySet<string> railConnectedVerticalPassiveIds,
-        CircuitGraph graph
+        CircuitGraph graph,
+        IReadOnlySet<string> hardPlacedDeviceIds
     )
     {
         foreach (var passiveId in railConnectedVerticalPassiveIds)
         {
+            if (hardPlacedDeviceIds.Contains(passiveId))
+            {
+                continue;
+            }
+
             if (!deviceRow.TryGetValue(passiveId, out var passiveRow))
             {
                 continue;

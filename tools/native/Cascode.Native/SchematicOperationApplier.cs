@@ -47,6 +47,18 @@ internal static class SchematicOperationApplier
             case "setDeviceParam":
                 ApplySetDeviceParam(state, operation, changed);
                 return;
+            case "addSupply":
+                ApplyAddRail(state, operation, changed, supply: true);
+                return;
+            case "removeSupply":
+                ApplyRemoveRail(state, operation, changed, supply: true);
+                return;
+            case "addGround":
+                ApplyAddRail(state, operation, changed, supply: false);
+                return;
+            case "removeGround":
+                ApplyRemoveRail(state, operation, changed, supply: false);
+                return;
             case "connectTerminals":
                 ApplyConnectionChange(state, operation, changed, disconnect: false);
                 return;
@@ -85,6 +97,63 @@ internal static class SchematicOperationApplier
             Strength = RenderConstraintStrength.Hard,
         };
         changed.Add(deviceId);
+    }
+
+    /// <summary>
+    /// Adds a supply or ground declaration to the active circuit.
+    /// </summary>
+    private static void ApplyAddRail(
+        DocumentState state,
+        JsonElement op,
+        HashSet<string> changed,
+        bool supply
+    )
+    {
+        var name = op.RequireString("name");
+        var circuit = FindCircuit(state);
+        RequireRailNameAvailable(circuit, name);
+        if (supply)
+        {
+            circuit.Supplies.Add(name);
+        }
+        else
+        {
+            circuit.Grounds.Add(name);
+        }
+        changed.Add(name);
+    }
+
+    /// <summary>
+    /// Removes a supply or ground declaration and prunes any connections that reference it.
+    /// </summary>
+    private static void ApplyRemoveRail(
+        DocumentState state,
+        JsonElement op,
+        HashSet<string> changed,
+        bool supply
+    )
+    {
+        var name = op.RequireString("name");
+        var circuit = FindCircuit(state);
+        var rails = supply ? circuit.Supplies : circuit.Grounds;
+        if (!rails.Remove(name))
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Unknown {(supply ? "supply" : "ground")} '{name}'."
+            );
+        }
+
+        if (circuit.Fill is not null)
+        {
+            circuit.Fill.Connections.RemoveAll(conn =>
+                conn.From.Equals(name, StringComparison.Ordinal)
+                || conn.To.Equals(name, StringComparison.Ordinal)
+            );
+        }
+
+        circuit.Render?.Entities.RemoveAll(entity => entity.Name.Equals(name, StringComparison.Ordinal));
+        changed.Add(name);
     }
 
     /// <summary>
@@ -369,6 +438,23 @@ internal static class SchematicOperationApplier
         }
 
         return circuit;
+    }
+
+    /// <summary>
+    /// Ensures a rail name is not already in use by another supply/ground declaration.
+    /// </summary>
+    private static void RequireRailNameAvailable(Circuit circuit, string name)
+    {
+        if (
+            circuit.Supplies.Any(value => value.Equals(name, StringComparison.Ordinal))
+            || circuit.Grounds.Any(value => value.Equals(name, StringComparison.Ordinal))
+        )
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                $"Rail '{name}' already exists."
+            );
+        }
     }
 
     /// <summary>

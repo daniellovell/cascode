@@ -35,6 +35,10 @@ internal static partial class SchematicLayoutProjection
                 Terminals = entry
                     .Value.Bindings.Keys.OrderBy(name => name, StringComparer.Ordinal)
                     .ToArray(),
+                Primitive = entry.Value.Primitive,
+                Size = entry.Value.Size?.Entries
+                    ?? (IReadOnlyDictionary<string, string>)
+                       new Dictionary<string, string>(StringComparer.Ordinal),
             })
             .ToArray();
 
@@ -208,12 +212,47 @@ internal static partial class SchematicLayoutProjection
             );
         }
 
+        // Group routing terminals by device for centroid computation
+        var terminalsByDevice = routing
+            .TerminalPositions.Where(t =>
+                !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
+            )
+            .GroupBy(t => t.DeviceId, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToArray(),
+                StringComparer.Ordinal
+            );
+
         var bboxes = new Dictionary<string, BboxValue>(StringComparer.Ordinal);
         foreach (var (deviceId, cell) in placement.DevicePlacements)
         {
             var device = circuit.Fill?.Devices.FirstOrDefault(d => d.Id == deviceId);
             var type = device?.DeviceType.ToLowerInvariant() ?? "unknown";
-            bboxes[deviceId] = BuildDeviceBbox(type, cell, placement, deviceId);
+
+            PointValue position;
+            if (terminalsByDevice.TryGetValue(deviceId, out var devTerminals) && devTerminals.Length > 0)
+            {
+                position = new PointValue
+                {
+                    X = devTerminals.Average(t => ToRenderUnitsExact(t.X)),
+                    Y = devTerminals.Average(t => ToRenderUnitsExact(t.Y)),
+                };
+            }
+            else
+            {
+                position = new PointValue
+                {
+                    X = ToRenderUnitsExact(
+                        (int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column), MidpointRounding.AwayFromZero)
+                    ),
+                    Y = ToRenderUnitsExact(
+                        (int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row), MidpointRounding.AwayFromZero)
+                    ),
+                };
+            }
+
+            bboxes[deviceId] = BuildDeviceBbox(type, position, placement, deviceId);
         }
 
         return new RenderCacheInfo { TerminalPoints = terminals, ComputedBboxes = bboxes };
@@ -543,13 +582,15 @@ internal static partial class SchematicLayoutProjection
         var device = circuit.Fill?.Devices.FirstOrDefault(d => d.Id == deviceId);
         var type = device?.DeviceType.ToLowerInvariant() ?? "unknown";
 
-        var orientation = renderByName.TryGetValue(deviceId, out var render)
-            ? new OrientationValue
-            {
-                Rotate = render.Orientation?.Rotate ?? 0,
-                MirrorX = render.Orientation?.MirrorX ?? cell.MirrorX,
-            }
-            : new OrientationValue { Rotate = 0, MirrorX = cell.MirrorX };
+        var defaultOrientation = BuildDefaultDeviceOrientation(type, deviceId, cell, placement);
+        var orientation =
+            renderByName.TryGetValue(deviceId, out var render) && render.Orientation is not null
+                ? new OrientationValue
+                {
+                    Rotate = render.Orientation.Rotate,
+                    MirrorX = render.Orientation.MirrorX,
+                }
+                : defaultOrientation;
 
         // Position is the centroid of the device's routing terminal positions.
         // This ensures catalog terminal offsets (also centered at terminal centroid)
@@ -591,7 +632,7 @@ internal static partial class SchematicLayoutProjection
             Id = deviceId,
             Position = position,
             Orientation = orientation,
-            Bbox = BuildDeviceBbox(type, cell, placement, deviceId),
+            Bbox = BuildDeviceBbox(type, position, placement, deviceId),
         };
     }
 
@@ -626,6 +667,7 @@ internal static partial class SchematicLayoutProjection
             renderByName.TryGetValue(portName, out var render) && render.Side is not null
                 ? render.Side.Value.ToString().ToLowerInvariant()
                 : InferPortSide(circuit, portName);
+        var orientation = BuildPortOrientation(side);
 
         return new LayoutPort
         {
@@ -636,6 +678,45 @@ internal static partial class SchematicLayoutProjection
                 Y = ToRenderUnitsExact(terminal.Y),
             },
             Side = side,
+            Orientation = orientation,
+        };
+    }
+
+    /// <summary>
+    /// Computes API orientation defaults from placer output when no explicit render orientation exists.
+    /// </summary>
+    private static OrientationValue BuildDefaultDeviceOrientation(
+        string deviceType,
+        string deviceId,
+        GridCell cell,
+        CoarseGridResult placement
+    )
+    {
+        if (deviceType == "instance")
+        {
+            return new OrientationValue { Rotate = 0, MirrorX = false };
+        }
+
+        if (deviceType is "resistor" or "capacitor" or "inductor")
+        {
+            var horizontal = placement.HorizontalPassiveIds.Contains(deviceId);
+            return new OrientationValue { Rotate = horizontal ? 0 : 90, MirrorX = false };
+        }
+
+        return new OrientationValue { Rotate = 0, MirrorX = cell.MirrorX };
+    }
+
+    /// <summary>
+    /// Maps layout side hints to a frontend orientation transform for port symbols.
+    /// </summary>
+    private static OrientationValue BuildPortOrientation(string side)
+    {
+        return side switch
+        {
+            "right" => new OrientationValue { Rotate = 0, MirrorX = true },
+            "top" => new OrientationValue { Rotate = 270, MirrorX = false },
+            "bottom" => new OrientationValue { Rotate = 90, MirrorX = false },
+            _ => new OrientationValue { Rotate = 0, MirrorX = false },
         };
     }
 
@@ -692,58 +773,56 @@ internal static partial class SchematicLayoutProjection
     }
 
     /// <summary>
-    /// Compute the device bounding box in render units using the device type and placement information.
+    /// Compute the device bounding box in render units, centered on the device position.
     /// </summary>
     /// <param name="deviceType">Device type string (e.g., "resistor", "capacitor", or other types such as MOSFET).</param>
-    /// <param name="cell">Grid cell specifying the device's row, column, and mirror flag.</param>
-    /// <param name="placement">Coarse placement result used to determine orientation, symmetry, and horizontal passive membership.</param>
+    /// <param name="position">Device position in render units (terminal centroid).</param>
+    /// <param name="placement">Coarse placement result used to determine horizontal passive membership.</param>
     /// <param name="deviceId">Identifier of the device; used to look up placement-specific decisions (for example, horizontal passive placement).</param>
     /// <returns>A <see cref="BboxValue"/> whose X, Y, Width, and Height are expressed in render units.</returns>
     private static BboxValue BuildDeviceBbox(
         string deviceType,
-        GridCell cell,
+        PointValue position,
         CoarseGridResult placement,
         string deviceId
     )
     {
+        const double rp = DeviceGeometry.RoutingPitch;
+
         if (deviceType is "resistor" or "capacitor")
         {
             var horizontal = placement.HorizontalPassiveIds.Contains(deviceId);
-            if (horizontal)
-            {
-                var leftOfAxis = cell.Column < placement.SymmetryAxis;
-                var p = DeviceGeometry.GetHorizontalPassivePlacement(
-                    cell.Row,
-                    cell.Column,
-                    placement.ColumnCount,
-                    leftOfAxis
-                );
-                return new BboxValue
-                {
-                    X = ToRenderUnitsExact(p.X),
-                    Y = ToRenderUnitsExact(p.Y),
-                    Width = DeviceGeometry.PassiveWidth / DeviceGeometry.RoutingPitch,
-                    Height = DeviceGeometry.PassiveHeight / DeviceGeometry.RoutingPitch,
-                };
-            }
-
-            var passive = DeviceGeometry.GetPassivePlacement(cell.Row, cell.Column);
+            // Symbol SVG is canonical horizontal (PassiveWidth x PassiveHeight).
+            // Vertical passives are rotated 90°, swapping width/height.
+            var width = horizontal
+                ? DeviceGeometry.PassiveWidth / rp
+                : DeviceGeometry.PassiveHeight / rp;
+            var height = horizontal
+                ? DeviceGeometry.PassiveHeight / rp
+                : DeviceGeometry.PassiveWidth / rp;
             return new BboxValue
             {
-                X = ToRenderUnitsExact(passive.X),
-                Y = ToRenderUnitsExact(passive.Y),
-                Width = DeviceGeometry.PassiveWidth / DeviceGeometry.RoutingPitch,
-                Height = DeviceGeometry.PassiveHeight / DeviceGeometry.RoutingPitch,
+                X = position.X - width / 2,
+                Y = position.Y - height / 2,
+                Width = width,
+                Height = height,
             };
         }
 
-        var mos = DeviceGeometry.GetMosfetPlacement(cell.Row, cell.Column, cell.MirrorX);
+        var mosW = DeviceGeometry.MosfetWidth / rp;
+        var mosH = DeviceGeometry.MosfetHeight / rp;
+        // The MOSFET symbol is asymmetric: Gate sits at topLeft+0.5px while
+        // Drain/Source sit at topLeft+16.5px. Centering the bbox on the centroid
+        // clips the Gate terminal. Use GetMosfetBboxOrigin to derive the correct
+        // top-left from the centroid and the device's mirror state.
+        var mirrorX = placement.DevicePlacements.TryGetValue(deviceId, out var gridCell) && gridCell.MirrorX;
+        var (bboxX, bboxY) = DeviceGeometry.GetMosfetBboxOrigin(position.X, position.Y, mirrorX);
         return new BboxValue
         {
-            X = ToRenderUnitsExact(mos.X),
-            Y = ToRenderUnitsExact(mos.Y),
-            Width = DeviceGeometry.MosfetWidth / DeviceGeometry.RoutingPitch,
-            Height = DeviceGeometry.MosfetHeight / DeviceGeometry.RoutingPitch,
+            X = bboxX,
+            Y = bboxY,
+            Width = mosW,
+            Height = mosH,
         };
     }
 

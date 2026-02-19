@@ -488,7 +488,11 @@ int main(int argc, char** argv) {
   exports.free_string(close_response);
 
   exports.destroy_session(session);
+#if !defined(_WIN32)
   dlclose(exports.handle);
+#else
+  FreeLibrary((HMODULE)exports.handle);
+#endif
   puts("cascode_cabi_harness: ok");
   return 0;
 }

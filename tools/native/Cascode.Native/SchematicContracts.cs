@@ -41,6 +41,8 @@ internal sealed class StructuralDevice
     public required string Id { get; init; }
     public required string Type { get; init; }
     public required IReadOnlyList<string> Terminals { get; init; }
+    public required string Primitive { get; init; }
+    public required IReadOnlyDictionary<string, string> Size { get; init; }
 }
 
 internal sealed class StructuralPort
@@ -82,6 +84,7 @@ internal sealed class LayoutPort
     public required string Name { get; init; }
     public required PointValue Position { get; init; }
     public required string Side { get; init; }
+    public required OrientationValue Orientation { get; init; }
 }
 
 internal sealed class LayoutNet

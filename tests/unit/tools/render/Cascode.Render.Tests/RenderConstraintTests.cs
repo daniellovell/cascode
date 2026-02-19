@@ -85,6 +85,40 @@ public sealed class RenderConstraintTests
         Assert.Contains(segments, segment => IsPointOnSegment(waypoint, segment));
     }
 
+    [Fact]
+    public void Place_HardConstraintOnVerticalPassive_DoesNotConflictWithCenterConstraint()
+    {
+        // RC lowpass: R1 (horizontal passive, IN→OUT), C1 (vertical passive, OUT→GND).
+        // C1 is a rail-connected vertical passive — not in a symmetric group and not
+        // horizontal — so AddCenterDeviceConstraints forces it to col == symmetryAxis.
+        // A hard placement at a different column must override the center constraint.
+        var circuit = TestCircuits.RcLowpass();
+        var graph = CircuitGraph.Build(circuit);
+        var topology = TopologyAnalyzer.Analyze(graph);
+
+        // Render units (2, 4) → cell (row=0, col=0) via MapRenderUnitsToCell.
+        // symmetryAxis = 1 for the default 3-column grid, so col=0 ≠ symmetryAxis.
+        var constraints = new PlacementConstraintSet
+        {
+            DevicePlacements =
+            [
+                new DevicePlacementConstraint(
+                    DeviceId: "C1",
+                    XRu: 2,
+                    YRu: 4,
+                    Strength: RenderConstraintStrength.Hard
+                ),
+            ],
+            AllowConstraintRelaxation = false,
+        };
+
+        // This must not throw RenderConstraintUnsatException.
+        var placement = CoarseGridPlacer.Place(topology, graph, constraints);
+
+        Assert.True(placement.DevicePlacements.TryGetValue("C1", out var c1));
+        Assert.Equal(0, c1.Column);
+    }
+
     private static bool IsPointOnSegment(GridPoint point, WireSegment segment)
     {
         if (segment.From.X == segment.To.X)

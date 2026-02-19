@@ -79,21 +79,17 @@ public static partial class MazeRouter
         // Route power rails first
         foreach (var supply in graph.Supplies)
         {
-            if (terminalsByNet.TryGetValue(supply, out var terms))
-            {
-                var segs = RouteRail(supply, terms, canvasWidth, DeviceGeometry.RailMargin / 2);
-                AddSegments(segs, supply, occupied, allSegments, segmentsByNet);
-            }
+            var terms = terminalsByNet.GetValueOrDefault(supply, new List<TerminalPosition>());
+            var segs = RouteRail(supply, terms, canvasWidth, DeviceGeometry.RailMargin / 2);
+            AddSegments(segs, supply, occupied, allSegments, segmentsByNet);
         }
 
         foreach (var ground in graph.Grounds)
         {
-            if (terminalsByNet.TryGetValue(ground, out var terms))
-            {
-                var railY = canvasHeight - DeviceGeometry.RailMargin / 2;
-                var segs = RouteRail(ground, terms, canvasWidth, railY);
-                AddSegments(segs, ground, occupied, allSegments, segmentsByNet);
-            }
+            var terms = terminalsByNet.GetValueOrDefault(ground, new List<TerminalPosition>());
+            var railY = canvasHeight - DeviceGeometry.RailMargin / 2;
+            var segs = RouteRail(ground, terms, canvasWidth, railY);
+            AddSegments(segs, ground, occupied, allSegments, segmentsByNet);
         }
 
         // Route signal nets ordered by terminal count (simpler nets first)
@@ -178,9 +174,6 @@ public static partial class MazeRouter
     {
         var segments = new List<WireSegment>();
 
-        // Collect X coordinates where terminals connect to the rail
-        var xCoords = new List<int>();
-
         foreach (var term in terminals)
         {
             // Vertical drop from terminal to rail
@@ -194,18 +187,10 @@ public static partial class MazeRouter
                     )
                 );
             }
-            xCoords.Add(term.X);
         }
 
-        // Add horizontal rail segment connecting all drops
-        if (xCoords.Count >= 2)
-        {
-            var minX = xCoords.Min();
-            var maxX = xCoords.Max();
-            segments.Add(
-                new WireSegment(new GridPoint(minX, railY), new GridPoint(maxX, railY), netName)
-            );
-        }
+        // Always emit a full-width rail so declared power nets are visible and connectable.
+        segments.Add(new WireSegment(new GridPoint(0, railY), new GridPoint(canvasWidth, railY), netName));
 
         return segments;
     }
