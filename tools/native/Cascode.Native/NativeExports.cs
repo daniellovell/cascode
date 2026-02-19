@@ -249,6 +249,42 @@ public static unsafe class NativeExports
     }
 
     /// <summary>
+    /// Handles a "pdk.setDir" request for the specified session.
+    /// </summary>
+    /// <param name="session">Numeric session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 JSON request payload (nullable; treated as "{}" when null).</param>
+    /// <returns>A pointer to a UTF-8 JSON response on success, or <see cref="IntPtr.Zero"/> on error.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_pdk_set_dir")]
+    public static IntPtr PdkSetDir(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "pdk.setDir");
+    }
+
+    /// <summary>
+    /// Handles a "pdk.scan" request for the specified session.
+    /// </summary>
+    /// <param name="session">Numeric session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 JSON request payload (nullable; treated as "{}" when null).</param>
+    /// <returns>A pointer to a UTF-8 JSON response on success, or <see cref="IntPtr.Zero"/> on error.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_pdk_scan")]
+    public static IntPtr PdkScan(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "pdk.scan");
+    }
+
+    /// <summary>
+    /// Handles a "pdk.emitPrimitives" request for the specified session.
+    /// </summary>
+    /// <param name="session">Numeric session identifier returned by CreateSession.</param>
+    /// <param name="requestJson">Pointer to a UTF-8 JSON request payload (nullable; treated as "{}" when null).</param>
+    /// <returns>A pointer to a UTF-8 JSON response on success, or <see cref="IntPtr.Zero"/> on error.</returns>
+    [UnmanagedCallersOnly(EntryPoint = "cascode_pdk_emit_primitives")]
+    public static IntPtr PdkEmitPrimitives(int session, byte* requestJson)
+    {
+        return Invoke(session, requestJson, "pdk.emitPrimitives");
+    }
+
+    /// <summary>
     /// Dispatches a JSON request for the specified API method within the given session and returns a pointer to the UTF-8 response.
     /// </summary>
     /// <param name="session">Identifier of the session to use for the request.</param>

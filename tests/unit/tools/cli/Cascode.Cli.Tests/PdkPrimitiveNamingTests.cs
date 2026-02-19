@@ -1,4 +1,4 @@
-using Cascode.Cli.Services;
+using Cascode.Workspace;
 using Xunit;
 
 namespace Cascode.Cli.Tests;

@@ -29,4 +29,13 @@ for rid in "${RIDS[@]}"; do
     -p:EnableTrimAnalyzer=false \
     -p:NoWarn=IL2026%3BIL3050%3BCS3021 \
     -o "$OUT_DIR"
+
+  if [[ "$rid" == darwin-* ]]; then
+    SQLITE_LIB="$OUT_DIR/libe_sqlite3.dylib"
+    if [[ -f "$SQLITE_LIB" ]]; then
+      install_name_tool -id e_sqlite3 "$SQLITE_LIB"
+      ln -sf libe_sqlite3.dylib "$OUT_DIR/e_sqlite3.dylib"
+      ln -sf libe_sqlite3.dylib "$OUT_DIR/e_sqlite3"
+    fi
+  fi
 done

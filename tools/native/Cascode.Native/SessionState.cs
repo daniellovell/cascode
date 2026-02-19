@@ -36,6 +36,23 @@ internal sealed class SessionState
     public required Dictionary<string, DocumentState> Documents { get; init; }
     public required Dictionary<string, BenchJob> Jobs { get; init; }
     public string? LastErrorJson { get; set; }
+    public string? StdlibRoot { get; set; }
+    public string? WorkspaceRoot { get; set; }
+    public string? PdkRoot { get; set; }
+
+    /// <summary>
+    /// Builds an ordered list of search roots for include resolution.
+    /// Workspace root comes first (highest priority), then stdlib.
+    /// </summary>
+    public IReadOnlyList<string> GetSearchRoots()
+    {
+        var roots = new List<string>(2);
+        if (!string.IsNullOrWhiteSpace(WorkspaceRoot))
+            roots.Add(WorkspaceRoot);
+        if (!string.IsNullOrWhiteSpace(StdlibRoot))
+            roots.Add(StdlibRoot);
+        return roots;
+    }
 }
 
 internal sealed class RenderComputation

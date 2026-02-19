@@ -78,6 +78,9 @@ typedef struct cascode_exports_s {
   cascode_session_call_fn job_start;
   cascode_session_call_fn job_poll;
   cascode_session_call_fn job_cancel;
+  cascode_session_call_fn pdk_set_dir;
+  cascode_session_call_fn pdk_scan;
+  cascode_session_call_fn pdk_emit_primitives;
   cascode_version_fn api_version;
   cascode_version_fn schema_version;
 } cascode_exports_t;
@@ -269,10 +272,20 @@ static bool load_exports(void) {
   extract_directory(library_path, library_dir, sizeof(library_dir));
 #if defined(_WIN32)
   SetDllDirectoryA(library_dir);
+  if (!preload_dependency(library_dir, "e_sqlite3.dll")) {
+    goto done;
+  }
+  if (!preload_dependency(library_dir, "libe_sqlite3.dll")) {
+    goto done;
+  }
   if (!preload_dependency(library_dir, "google-ortools-native.dll")) {
     goto done;
   }
 #elif defined(__APPLE__)
+  if (!preload_dependency(library_dir, "libe_sqlite3.dylib")) {
+    goto done;
+  }
+
   if (!preload_dependency(library_dir, "libortools.9.dylib")) {
     goto done;
   }
@@ -281,6 +294,12 @@ static bool load_exports(void) {
     goto done;
   }
 #else
+  if (!preload_dependency(library_dir, "libe_sqlite3.so")) {
+    goto done;
+  }
+  if (!preload_dependency(library_dir, "e_sqlite3.so")) {
+    goto done;
+  }
   if (!preload_dependency(library_dir, "libortools.so.9")) {
     goto done;
   }
@@ -337,6 +356,9 @@ static bool load_exports(void) {
   if (!resolve_symbol((void**)&g_exports.job_start, "cascode_job_start")) goto done;
   if (!resolve_symbol((void**)&g_exports.job_poll, "cascode_job_poll")) goto done;
   if (!resolve_symbol((void**)&g_exports.job_cancel, "cascode_job_cancel")) goto done;
+  if (!resolve_symbol((void**)&g_exports.pdk_set_dir, "cascode_pdk_set_dir")) goto done;
+  if (!resolve_symbol((void**)&g_exports.pdk_scan, "cascode_pdk_scan")) goto done;
+  if (!resolve_symbol((void**)&g_exports.pdk_emit_primitives, "cascode_pdk_emit_primitives")) goto done;
   success = true;
 
 done:
@@ -572,6 +594,9 @@ static cascode_session_call_fn resolve_method_fn(const char* method_name) {
       {"job.start", g_exports.job_start},
       {"job.poll", g_exports.job_poll},
       {"job.cancel", g_exports.job_cancel},
+      {"pdk.setDir", g_exports.pdk_set_dir},
+      {"pdk.scan", g_exports.pdk_scan},
+      {"pdk.emitPrimitives", g_exports.pdk_emit_primitives},
   };
 
   size_t count = sizeof(table) / sizeof(table[0]);

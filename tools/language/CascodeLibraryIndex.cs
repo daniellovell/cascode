@@ -21,26 +21,38 @@ internal sealed class CascodeLibraryIndex
     private CascodeLibraryIndex() { }
 
     public static CascodeLibraryIndex Build(string workspaceRoot)
+        => Build(new[] { workspaceRoot });
+
+    public static CascodeLibraryIndex Build(IReadOnlyList<string> roots)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
-        workspaceRoot = Path.GetFullPath(workspaceRoot);
+        if (roots is null || roots.Count == 0)
+            throw new ArgumentException("At least one search root is required.", nameof(roots));
 
         var index = new CascodeLibraryIndex();
 
-        foreach (var path in EnumerateCascodeSources(workspaceRoot))
+        foreach (var root in roots)
         {
-            var lib = TryReadFileLibraryHeader(path);
-            if (string.IsNullOrWhiteSpace(lib))
-            {
+            if (string.IsNullOrWhiteSpace(root))
                 continue;
-            }
 
-            if (!index._pathsByLibrary.TryGetValue(lib, out var list))
+            var fullRoot = Path.GetFullPath(root);
+            if (!Directory.Exists(fullRoot))
+                continue;
+
+            foreach (var path in EnumerateCascodeSources(fullRoot))
             {
-                list = new List<string>();
-                index._pathsByLibrary[lib] = list;
+                var lib = TryReadFileLibraryHeader(path);
+                if (string.IsNullOrWhiteSpace(lib))
+                    continue;
+
+                if (!index._pathsByLibrary.TryGetValue(lib, out var list))
+                {
+                    list = new List<string>();
+                    index._pathsByLibrary[lib] = list;
+                }
+                if (!list.Contains(path, StringComparer.OrdinalIgnoreCase))
+                    list.Add(path);
             }
-            list.Add(path);
         }
 
         foreach (var list in index._pathsByLibrary.Values)

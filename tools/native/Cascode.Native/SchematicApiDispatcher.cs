@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cascode.Language;
+using Cascode.Language.Validation;
+using Cascode.Workspace;
 
 namespace Cascode.Native;
 
@@ -30,9 +32,12 @@ internal static class SchematicApiDispatcher
             "job.start" => JobStart(session, requestJson),
             "job.poll" => JobPoll(session, requestJson),
             "job.cancel" => JobCancel(session, requestJson),
-            "erc.run" => PassThroughStub("cascode.erc/1.0"),
-            "emit.run" => PassThroughStub("cascode.emit/1.0"),
+            "erc.run" => RunErc(session, requestJson),
+            "emit.run" => RunEmit(session, requestJson),
             "verify.run" => PassThroughStub("cascode.verify/1.0"),
+            "pdk.setDir" => PdkSetDir(session, requestJson),
+            "pdk.scan" => PdkScan(session, requestJson),
+            "pdk.emitPrimitives" => PdkEmitPrimitives(session, requestJson),
             "command.execute" => PassThroughStub("cascode.command/1.0"),
             _ => throw new ApiException(
                 "CASAPI-INVALID-REQUEST",
@@ -348,6 +353,255 @@ internal static class SchematicApiDispatcher
             ["schema"] = "cascode.job.cancel/1.0",
             ["jobId"] = jobId,
             ["ok"] = true,
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    /// <summary>
+    /// Runs ERC on the specified document, linking includes using session search roots.
+    /// </summary>
+    private static string RunErc(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+        var documentId = root.TryGetString("documentId") ?? "doc_1";
+        var requirePdk = TryGetBool(root, "requirePdk") ?? false;
+
+        var state = GetDocumentState(session, documentId);
+        var searchRoots = session.GetSearchRoots();
+
+        CascodeDocument linked;
+        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
+        {
+            var tmpDir = Path.Combine(Path.GetTempPath(), "cascode-erc", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tmpDir);
+            var tmpFile = Path.Combine(tmpDir, "entry.cas");
+            File.WriteAllText(tmpFile, state.SourceText);
+            var linkResult = CascodeLinker.LinkFile(tmpFile, tmpDir, searchRoots, CascodeLinkOptions.Default, null);
+
+            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
+            {
+                var diagnosticsArray = new JsonArray(
+                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
+                );
+                return new JsonObject
+                {
+                    ["schema"] = "cascode.erc/1.0",
+                    ["ok"] = false,
+                    ["diagnostics"] = diagnosticsArray,
+                }.ToJsonString(ApiJson.Options);
+            }
+
+            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
+            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
+            linked = linkedRead.Success && linkedRead.Document is not null ? linkedRead.Document : state.Document;
+        }
+        else
+        {
+            linked = state.Document;
+        }
+
+        var circuits = linked.Circuits
+            .Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
+            .ToList();
+
+        var combinedResult = new ValidationResult();
+        foreach (var circuit in circuits)
+        {
+            combinedResult.Merge(ElectricalRuleChecker.Check(circuit, linked, requirePdk));
+        }
+
+        var errors = new JsonArray();
+        foreach (var error in combinedResult.GetErrors())
+            errors.Add((JsonNode?)error.ToString());
+        var warnings = new JsonArray();
+        foreach (var warning in combinedResult.GetWarnings())
+            warnings.Add((JsonNode?)warning.ToString());
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.erc/1.0",
+            ["ok"] = !combinedResult.HasErrors,
+            ["errorCount"] = combinedResult.ErrorCount,
+            ["warningCount"] = combinedResult.WarningCount,
+            ["errors"] = errors,
+            ["warnings"] = warnings,
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    /// <summary>
+    /// Runs SPICE emit on the specified document, linking includes using session search roots.
+    /// </summary>
+    private static string RunEmit(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+        var documentId = root.TryGetString("documentId") ?? "doc_1";
+
+        var state = GetDocumentState(session, documentId);
+        var searchRoots = session.GetSearchRoots();
+
+        CascodeDocument linked;
+        if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
+        {
+            var tmpDir = Path.Combine(Path.GetTempPath(), "cascode-emit", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tmpDir);
+            var tmpFile = Path.Combine(tmpDir, "entry.cas");
+            File.WriteAllText(tmpFile, state.SourceText);
+            var linkResult = CascodeLinker.LinkFile(tmpFile, tmpDir, searchRoots, CascodeLinkOptions.Default, null);
+
+            if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
+            {
+                var diagnosticsArray = new JsonArray(
+                    linkResult.Diagnostics.Select(d => (JsonNode?)d.Message).ToArray()
+                );
+                return new JsonObject
+                {
+                    ["schema"] = "cascode.emit/1.0",
+                    ["ok"] = false,
+                    ["diagnostics"] = diagnosticsArray,
+                }.ToJsonString(ApiJson.Options);
+            }
+
+            var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
+            var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
+            linked = linkedRead.Success && linkedRead.Document is not null ? linkedRead.Document : state.Document;
+        }
+        else
+        {
+            linked = state.Document;
+        }
+
+        var outputDir = Path.Combine(Path.GetTempPath(), "cascode-emit-out", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(outputDir);
+
+        var emitResult = SpiceEmitter.ValidateAndEmit(linked, outputDir);
+
+        if (!emitResult.Success)
+        {
+            var validationErrors = new JsonArray();
+            foreach (var error in emitResult.Validation.GetErrors())
+                validationErrors.Add((JsonNode?)error.ToString());
+
+            return new JsonObject
+            {
+                ["schema"] = "cascode.emit/1.0",
+                ["ok"] = false,
+                ["errors"] = validationErrors,
+            }.ToJsonString(ApiJson.Options);
+        }
+
+        var files = new JsonArray();
+        foreach (var f in emitResult.Emit.DesignPaths)
+            files.Add((JsonNode?)f);
+        foreach (var f in emitResult.Emit.TestbenchPaths)
+            files.Add((JsonNode?)f);
+
+        var netlist = emitResult.Emit.DesignPaths.Count > 0
+            ? File.ReadAllText(emitResult.Emit.DesignPaths[0])
+            : null;
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.emit/1.0",
+            ["ok"] = true,
+            ["files"] = files,
+            ["netlist"] = netlist,
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    private static string PdkSetDir(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var pdkRoot = doc.RootElement.RequireString("pdkRoot");
+        session.PdkRoot = pdkRoot;
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.pdk.setDir/1.0",
+            ["ok"] = true,
+            ["pdkRoot"] = pdkRoot,
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    private static string PdkScan(SessionState session, string requestJson)
+    {
+        _ = requestJson;
+        if (string.IsNullOrWhiteSpace(session.PdkRoot))
+        {
+            throw new ApiException("CASAPI-INVALID-REQUEST", "No PDK root configured. Call pdk.setDir first.");
+        }
+
+        var scanService = new PdkScanService();
+        var result = scanService.ScanAndPersist(session.PdkRoot);
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.pdk.scan/1.0",
+            ["ok"] = true,
+            ["pdkRoot"] = session.PdkRoot,
+            ["libraryCount"] = result.WorkspaceScan.Libraries.Count,
+            ["modelCount"] = result.WorkspaceScan.Models.Count,
+            ["modelDeckCount"] = result.WorkspaceScan.ModelDecks.Count,
+            ["dbPath"] = result.DatabasePath,
+        }.ToJsonString(ApiJson.Options);
+    }
+
+    private static string PdkEmitPrimitives(SessionState session, string requestJson)
+    {
+        using var doc = JsonDocument.Parse(requestJson);
+        var root = doc.RootElement;
+        var includeFixed = TryGetBool(root, "includeFixed") ?? false;
+
+        if (string.IsNullOrWhiteSpace(session.PdkRoot))
+        {
+            throw new ApiException("CASAPI-INVALID-REQUEST", "No PDK root configured. Call pdk.setDir first.");
+        }
+
+        if (string.IsNullOrWhiteSpace(session.WorkspaceRoot))
+        {
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                "No workspaceRoot configured for this session. Pass workspaceRoot in createSession options."
+            );
+        }
+
+        var pdkName = Path.GetFileName(Path.GetFullPath(session.PdkRoot));
+        if (string.IsNullOrWhiteSpace(pdkName))
+        {
+            pdkName = "pdk";
+        }
+
+        var dbPath = WorkspacePaths.GetDatabasePath(session.PdkRoot);
+        var libraryDir = PdkPrimitiveLibraryLayout.GetLibraryDirectory(session.WorkspaceRoot, pdkName);
+        var result = PdkEmitPrimitivesService.Emit(
+            new PdkEmitPrimitivesService.EmitArgs(
+                PdkName: pdkName,
+                DbPath: dbPath,
+                OutputDirectory: libraryDir,
+                IncludeFixed: includeFixed
+            )
+        );
+
+        var files = new JsonArray();
+        foreach (var f in PdkPrimitiveLibraryLayout.GetExpectedCategoryPaths(libraryDir))
+        {
+            if (File.Exists(f))
+            {
+                files.Add((JsonNode?)f);
+            }
+        }
+
+        return new JsonObject
+        {
+            ["schema"] = "cascode.pdk.emitPrimitives/1.0",
+            ["ok"] = result.Succeeded,
+            ["pdkRoot"] = session.PdkRoot,
+            ["workspaceRoot"] = session.WorkspaceRoot,
+            ["pdkName"] = pdkName,
+            ["outputDirectory"] = libraryDir,
+            ["primitivesWritten"] = result.PrimitivesWritten,
+            ["message"] = result.Message,
+            ["files"] = files,
         }.ToJsonString(ApiJson.Options);
     }
 

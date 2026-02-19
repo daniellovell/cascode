@@ -1,7 +1,7 @@
 {
-  "name": "@cascode/native-darwin-x64",
-  "version": "0.5.0",
-  "description": "Prebuilt macOS x64 runtime bundle for @cascode/native",
+  "name": "@cascode/cascode-js-darwin-x64",
+  "version": "0.5.2",
+  "description": "Prebuilt macOS x64 runtime bundle for @cascode/cascode-js",
   "license": "BSD-3-Clause",
   "private": false,
   "main": "index.js",
@@ -23,6 +23,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/daniellovell/cascode.git",
-    "directory": "editors/node/platform-packages/native-darwin-x64"
+    "directory": "editors/node/platform-packages/cascode-js-darwin-x64"
   }
 }

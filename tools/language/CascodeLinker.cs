@@ -22,7 +22,7 @@ public static class CascodeLinker
         string outputDir,
         string workspaceRoot,
         ILogger? logger = null
-    ) => LinkFile(entryPath, outputDir, workspaceRoot, CascodeLinkOptions.Default, logger);
+    ) => LinkFile(entryPath, outputDir, new[] { workspaceRoot }, CascodeLinkOptions.Default, logger);
 
     public static CascodeLinkResult LinkFile(
         string entryPath,
@@ -30,16 +30,28 @@ public static class CascodeLinker
         string workspaceRoot,
         CascodeLinkOptions options,
         ILogger? logger = null
+    ) => LinkFile(entryPath, outputDir, new[] { workspaceRoot }, options, logger);
+
+    public static CascodeLinkResult LinkFile(
+        string entryPath,
+        string outputDir,
+        IReadOnlyList<string> searchRoots,
+        CascodeLinkOptions options,
+        ILogger? logger = null
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(entryPath);
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
-        ArgumentException.ThrowIfNullOrWhiteSpace(workspaceRoot);
+        ArgumentNullException.ThrowIfNull(searchRoots);
         ArgumentNullException.ThrowIfNull(options);
 
         entryPath = Path.GetFullPath(entryPath);
         outputDir = Path.GetFullPath(outputDir);
-        workspaceRoot = Path.GetFullPath(workspaceRoot);
+        var resolvedRoots = searchRoots
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Select(Path.GetFullPath)
+            .ToList();
+        var workspaceRoot = resolvedRoots.Count > 0 ? resolvedRoots[0] : entryPath;
 
         if (!File.Exists(entryPath))
         {
@@ -71,7 +83,7 @@ public static class CascodeLinker
         //
         // Includes are resolved by file-level "library ..." headers (not by directory alone).
         // This enables namespace inheritance and avoids parsing unrelated files.
-        var libraryIndex = CascodeLibraryIndex.Build(workspaceRoot);
+        var libraryIndex = CascodeLibraryIndex.Build(resolvedRoots);
         var includedDocs = new List<LinkedDocument>();
         var parsedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var candidates = new Dictionary<string, CandidateSelection>(
@@ -832,13 +844,15 @@ public static class CascodeLinker
         string includingFilePath,
         string workspaceRoot,
         CascodeLibraryIndex libraryIndex
+    ) => ResolveIncludeTargets(includeName, includingFilePath, new[] { workspaceRoot }, libraryIndex);
+
+    private static IReadOnlyList<IncludeTarget> ResolveIncludeTargets(
+        string includeName,
+        string includingFilePath,
+        IReadOnlyList<string> searchRoots,
+        CascodeLibraryIndex libraryIndex
     )
     {
-        // Library-based include:
-        // include lib.std -> all files with library lib.std.* (prefix match).
-        //
-        // This mirrors the historical directory-based behavior (lib/std/**) while decoupling
-        // resolution from folder structure and avoiding full parses of unrelated files.
         var normalized = includeName.Trim();
         if (normalized.Contains('.', StringComparison.Ordinal))
         {
@@ -855,29 +869,27 @@ public static class CascodeLinker
             }
         }
 
-        // Directory-based include:
-        // - "lib.std" -> <workspaceRoot>/lib/std/**.cas
-        // - "lib_std" -> <workspaceRoot>/lib/std/**.cas (legacy separator)
+        // Directory-based include: iterate roots in order.
         if (
             includeName.Contains('.', StringComparison.Ordinal)
             || includeName.Contains('_', StringComparison.Ordinal)
         )
         {
-            var targets = TryResolveIncludeAsDirectoryOrFile(workspaceRoot, includeName);
-            if (targets.Count > 0)
-                return targets;
+            foreach (var root in searchRoots)
+            {
+                var targets = TryResolveIncludeAsDirectoryOrFile(root, includeName);
+                if (targets.Count > 0)
+                    return targets;
 
-            // Compatibility shim:
-            // Some library package names don't exactly match the on-disk folder name
-            // (e.g., "lib.std.bench" vs "lib/std/bench").
-            var alt = TryResolveIncludeWithLastSegmentRewrite(
-                workspaceRoot,
-                includeName,
-                fromLast: "benches",
-                toLast: "bench"
-            );
-            if (alt.Count > 0)
-                return alt;
+                var alt = TryResolveIncludeWithLastSegmentRewrite(
+                    root,
+                    includeName,
+                    fromLast: "benches",
+                    toLast: "bench"
+                );
+                if (alt.Count > 0)
+                    return alt;
+            }
         }
         else
         {
@@ -890,14 +902,16 @@ public static class CascodeLinker
                 return new[] { new IncludeTarget(local, null) };
             }
 
-            var root = Path.Combine(workspaceRoot, includeName + ".cas");
-            if (File.Exists(root))
+            foreach (var root in searchRoots)
             {
-                return new[] { new IncludeTarget(root, null) };
+                var candidate = Path.Combine(root, includeName + ".cas");
+                if (File.Exists(candidate))
+                {
+                    return new[] { new IncludeTarget(candidate, null) };
+                }
             }
         }
 
-        // Missing include is reported as a link-time error.
         return Array.Empty<IncludeTarget>();
     }
 

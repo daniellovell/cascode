@@ -16,6 +16,18 @@
           "Google.Protobuf": "3.26.1"
         }
       },
+      "Microsoft.DotNet.ILCompiler": {
+        "type": "Direct",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "0g8tazNW4q0anSYNl1hnaHGc7+BQXwpNBMx3d5T3JboOVzz4OXZgqbuoBYfn60VtDFtBMNVS2Kfopelpo2pLZA=="
+      },
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "sXdDtMf2qcnbygw9OdE535c2lxSxrZP8gO4UhDJ0xiJbl1wIqXS1OTcTDFTIJPOFd6Mhcm8gPEthqWGUxBsTqw=="
+      },
       "Antlr4.Runtime.Standard": {
         "type": "Transitive",
         "resolved": "4.13.1",
@@ -71,12 +83,21 @@
         "type": "Project",
         "dependencies": {
           "Antlr4.Runtime.Standard": "[4.13.1, )",
-          "Cascode.Bench": "[0.5.1, )",
+          "Cascode.Bench": "[0.5.2, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.1, )"
         }
       }
     },
     "net10.0/osx-arm64": {
+      "Microsoft.DotNet.ILCompiler": {
+        "type": "Direct",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "0g8tazNW4q0anSYNl1hnaHGc7+BQXwpNBMx3d5T3JboOVzz4OXZgqbuoBYfn60VtDFtBMNVS2Kfopelpo2pLZA==",
+        "dependencies": {
+          "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": "10.0.2"
+        }
+      },
       "Google.OrTools.runtime.linux-arm64": {
         "type": "Transitive",
         "resolved": "9.10.4067",
@@ -101,6 +122,11 @@
         "type": "Transitive",
         "resolved": "9.10.4067",
         "contentHash": "Lj/3OWN5b24CoPJGGvJAY+pPL6sGUWJDpYglq83/dcHitVIYm8qFcR8v8mqiheeYztZVA102yRIOAh2sUZ4eEg=="
+      },
+      "runtime.osx-arm64.Microsoft.DotNet.ILCompiler": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "i9rGvVmt4CVRGXTohlE8txFqoRB536mHAnxol3esPxoATOZ+BMqi6bV4qWGYGO/Zfj/yUe0K18MJA5b4GSkrtQ=="
       }
     }
   }

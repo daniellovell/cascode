@@ -1,6 +1,6 @@
 {
-  "name": "@cascode/native",
-  "version": "0.5.0",
+  "name": "@cascode/cascode-js",
+  "version": "0.5.2",
   "description": "Synchronous Node binding for libcascode",
   "main": "src/index.js",
   "types": "src/index.d.ts",
@@ -17,6 +17,7 @@
   "files": [
     "src/**/*",
     "native/**/*",
+    "lib/std/**/*.cas",
     "binding.gyp",
     "README.md",
     "platform-packages/**/*",
@@ -27,14 +28,15 @@
   },
   "gypfile": false,
   "optionalDependencies": {
-    "@cascode/native-darwin-arm64": "0.5.0",
-    "@cascode/native-darwin-x64": "0.5.0",
-    "@cascode/native-linux-x64": "0.5.0",
-    "@cascode/native-win32-x64": "0.5.0"
+    "@cascode/cascode-js-darwin-arm64": "0.5.2",
+    "@cascode/cascode-js-darwin-x64": "0.5.2",
+    "@cascode/cascode-js-linux-x64": "0.5.2",
+    "@cascode/cascode-js-win32-x64": "0.5.2"
   },
   "scripts": {
     "build": "node-gyp rebuild",
     "stage:platform": "node ./scripts/stage-platform-package.mjs",
+    "prepack": "node ./scripts/sync-stdlib.mjs",
     "test:integration": "node --test test/integration.test.mjs",
     "test:types": "tsc -p tsconfig.json --noEmit",
     "test": "npm run test:integration && npm run test:types"

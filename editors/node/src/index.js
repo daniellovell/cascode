@@ -4,10 +4,10 @@ const fs = require("fs");
 const path = require("path");
 
 const PLATFORM_PACKAGES = {
-  "darwin-arm64": "@cascode/native-darwin-arm64",
-  "darwin-x64": "@cascode/native-darwin-x64",
-  "linux-x64": "@cascode/native-linux-x64",
-  "win32-x64": "@cascode/native-win32-x64",
+  "darwin-arm64": "@cascode/cascode-js-darwin-arm64",
+  "darwin-x64": "@cascode/cascode-js-darwin-x64",
+  "linux-x64": "@cascode/cascode-js-linux-x64",
+  "win32-x64": "@cascode/cascode-js-win32-x64",
 };
 
 /**
@@ -218,6 +218,23 @@ function loadAddonOrThrow() {
 
 const addon = loadAddonOrThrow();
 
+// Bundled stdlib path — try package-local first, then repo-relative.
+const _bundledStdlib = path.join(__dirname, "..", "lib", "std");
+const _repoStdlib = path.join(__dirname, "..", "..", "..", "lib", "std");
+let stdlibPath = null;
+if (fs.existsSync(_bundledStdlib)) {
+  stdlibPath = _bundledStdlib;
+} else if (fs.existsSync(_repoStdlib)) {
+  stdlibPath = _repoStdlib;
+} else {
+  throw new Error(
+    "[cascode-native] Standard library not found.\n" +
+      `Expected either:\n- ${_bundledStdlib}\n- ${_repoStdlib}\n` +
+      "If you are developing locally, ensure you are inside a cascode-lynx checkout.\n" +
+      "If you installed from npm, the package may be missing bundled lib/std."
+  );
+}
+
 /**
  * Create a new Cascode session using the provided JSON options.
  * @param {string} optionsJson - JSON string containing session options (e.g., "{}", configuration fields).
@@ -415,6 +432,7 @@ const native = {
 
 module.exports = {
   native,
+  stdlibPath,
   createSession,
   destroySession,
   call,

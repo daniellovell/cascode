@@ -206,7 +206,7 @@ jobs:
         if: ${{ !contains(github.ref_name, '-') }}
         run: npm publish --access public
 
-  npm-publish-native-platforms:
+  npm-publish-js-platforms:
     needs: github-release
     strategy:
       fail-fast: false
@@ -215,23 +215,23 @@ jobs:
           - os: ubuntu-latest
             rid: linux-x64
             lib_name: Cascode.Native.so
-            template: native-linux-x64
-            package_name: "@cascode/native-linux-x64"
+            template: cascode-js-linux-x64
+            package_name: "@cascode/cascode-js-linux-x64"
           - os: windows-latest
             rid: win-x64
             lib_name: Cascode.Native.dll
-            template: native-win32-x64
-            package_name: "@cascode/native-win32-x64"
+            template: cascode-js-win32-x64
+            package_name: "@cascode/cascode-js-win32-x64"
           - os: macos-15-intel
             rid: osx-x64
             lib_name: Cascode.Native.dylib
-            template: native-darwin-x64
-            package_name: "@cascode/native-darwin-x64"
+            template: cascode-js-darwin-x64
+            package_name: "@cascode/cascode-js-darwin-x64"
           - os: macos-latest
             rid: osx-arm64
             lib_name: Cascode.Native.dylib
-            template: native-darwin-arm64
-            package_name: "@cascode/native-darwin-arm64"
+            template: cascode-js-darwin-arm64
+            package_name: "@cascode/cascode-js-darwin-arm64"
     runs-on: ${{ matrix.os }}
     permissions:
       id-token: write
@@ -280,8 +280,8 @@ jobs:
         if: ${{ !contains(github.ref_name, '-') }}
         run: npm publish ./editors/node/.dist/${{ matrix.template }} --access public
 
-  npm-publish-native:
-    needs: [github-release, npm-publish-native-platforms]
+  npm-publish-js:
+    needs: [github-release, npm-publish-js-platforms]
     runs-on: ubuntu-latest
     permissions:
       id-token: write

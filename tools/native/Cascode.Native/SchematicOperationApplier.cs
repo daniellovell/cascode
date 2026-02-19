@@ -59,6 +59,9 @@ internal static class SchematicOperationApplier
             case "removeGround":
                 ApplyRemoveRail(state, operation, changed, supply: false);
                 return;
+            case "deleteDevice":
+                ApplyDeleteDevice(state, operation, changed);
+                return;
             case "connectTerminals":
                 ApplyConnectionChange(state, operation, changed, disconnect: false);
                 return;
@@ -96,6 +99,47 @@ internal static class SchematicOperationApplier
             Point = CanonicalizePoint(state, circuit, deviceId, op, x, y),
             Strength = RenderConstraintStrength.Hard,
         };
+        changed.Add(deviceId);
+    }
+
+    /// <summary>
+    /// Remove a device declaration and prune any connections and render entities that reference it.
+    /// </summary>
+    /// <param name="state">Current document state containing the target circuit.</param>
+    /// <param name="op">JSON operation object; must contain a string "deviceId".</param>
+    /// <param name="changed">Set of identifiers to record the deleted deviceId.</param>
+    private static void ApplyDeleteDevice(
+        DocumentState state,
+        JsonElement op,
+        HashSet<string> changed
+    )
+    {
+        var deviceId = op.RequireString("deviceId");
+        var circuit = FindCircuit(state);
+        var fill =
+            circuit.Fill
+            ?? throw new ApiException("CASAPI-INVALID-REQUEST", "Circuit has no fill block.");
+
+        var index = fill.Devices.FindIndex(d => d.Id == deviceId);
+        if (index < 0)
+        {
+            throw new ApiException("CASAPI-INVALID-REQUEST", $"Unknown device '{deviceId}'.");
+        }
+
+        fill.Devices.RemoveAt(index);
+
+        var prefix = deviceId + ".";
+        fill.Connections.RemoveAll(conn =>
+            conn.From.Equals(deviceId, StringComparison.Ordinal)
+            || conn.To.Equals(deviceId, StringComparison.Ordinal)
+            || conn.From.StartsWith(prefix, StringComparison.Ordinal)
+            || conn.To.StartsWith(prefix, StringComparison.Ordinal)
+        );
+
+        circuit.Render?.Entities.RemoveAll(entity =>
+            entity.Name.Equals(deviceId, StringComparison.Ordinal)
+        );
+
         changed.Add(deviceId);
     }
 

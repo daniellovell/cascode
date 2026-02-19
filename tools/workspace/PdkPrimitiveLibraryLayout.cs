@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Cascode.Cli.Services;
+namespace Cascode.Workspace;
 
-internal static class PdkPrimitiveLibraryLayout
+public static class PdkPrimitiveLibraryLayout
 {
     public const string DevicesFileName = "devices.cas";
     public const string ResistorsFileName = "resistors.cas";

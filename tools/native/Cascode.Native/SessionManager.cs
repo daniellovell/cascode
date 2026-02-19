@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using System.Threading;
 
 namespace Cascode.Native;
@@ -10,10 +11,11 @@ internal static class SessionManager
     private static int _nextId;
 
     /// <summary>
-    /// Creates and registers a new session and assigns a unique session id.
+    /// Creates and registers a new session, parsing optional configuration from JSON.
+    /// Supported fields: stdlibRoot, workspaceRoot, pdkRoot.
     /// </summary>
     /// <returns>The newly assigned session id.</returns>
-    public static int CreateSession(string? _)
+    public static int CreateSession(string? optionsJson)
     {
         var id = Interlocked.Increment(ref _nextId);
         var state = new SessionState
@@ -23,6 +25,21 @@ internal static class SessionManager
             Documents = new Dictionary<string, DocumentState>(StringComparer.Ordinal),
             Jobs = new Dictionary<string, BenchJob>(StringComparer.Ordinal),
         };
+
+        if (!string.IsNullOrWhiteSpace(optionsJson))
+        {
+            using var doc = JsonDocument.Parse(optionsJson);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("stdlibRoot", out var stdlib) && stdlib.ValueKind == JsonValueKind.String)
+                state.StdlibRoot = stdlib.GetString();
+
+            if (root.TryGetProperty("workspaceRoot", out var ws) && ws.ValueKind == JsonValueKind.String)
+                state.WorkspaceRoot = ws.GetString();
+
+            if (root.TryGetProperty("pdkRoot", out var pdk) && pdk.ValueKind == JsonValueKind.String)
+                state.PdkRoot = pdk.GetString();
+        }
 
         Sessions[id] = state;
         return id;

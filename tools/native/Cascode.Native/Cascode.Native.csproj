@@ -7,10 +7,13 @@
     <PublishAot>true</PublishAot>
     <DisableImplicitLibraryPacksFolder>true</DisableImplicitLibraryPacksFolder>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../../language/Cascode.Language.csproj" />
     <ProjectReference Include="../../render/Cascode.Render.csproj" />
+    <ProjectReference Include="../../workspace/Cascode.Workspace.csproj" />
   </ItemGroup>
 </Project>
