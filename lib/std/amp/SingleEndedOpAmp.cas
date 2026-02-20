@@ -44,5 +44,15 @@ interface SingleEndedOpAmp {
         measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
       }
     }
+
+    bind DiffToSECMRejection as cmrr_bench {
+      bench.CM--dut.IN.P
+      bench.CM--dut.IN.N
+      bench.OUT--dut.OUT
+
+      measurements {
+        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
+      }
+    }
   }
 }
