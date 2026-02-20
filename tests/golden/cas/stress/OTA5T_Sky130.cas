@@ -40,18 +40,6 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
     attach cm to dp via CurrentMirrorLike::DiffPairLike as mirror_node
   }
 
-  benches {
-    bind DiffToSECMRejection as cmrr_bench {
-      bench.CM--dut.IN.P
-      bench.CM--dut.IN.N
-      bench.OUT--dut.OUT
-
-      measurements {
-        measurement CMRR : dB = base::CMRR(dmGain=transfer_bench::PassbandGain)
-      }
-    }
-  }
-
   constraints {
     numeric {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
