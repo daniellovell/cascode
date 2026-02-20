@@ -37,6 +37,16 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
   - Code: `tools/language/BenchRuntime/**` (bench planning + measurement evaluation)
 - Render (schematic/layout)
   - Code: `tools/render/**`
+- Node native editor API (`@cascode/native`)
+  - Code: `editors/node/**`
+  - Runtime package: `editors/node/package.json`
+  - Platform package templates: `editors/node/platform-packages/**`
+  - Staging script: `editors/node/scripts/stage-platform-package.mjs`
+  - CI release wiring: `.github/workflows/dotnet.yml`, `.github/workflows/release.yml`
+  - Local verify:
+    - `cd editors/node && npm ci --omit=optional && npm run build`
+    - Publish native runtime: `dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj --configuration Release -r <rid> -p:PublishAot=true -o build/native/<rid>`
+    - Set `CASCODE_NATIVE_LIB` to the produced shared library and run `npm test`
 - Tests
   - Read: `tests/README.md`
   - Unit tests: `tests/unit/tools/<area>/Cascode.<Area>.Tests/` (add or update alongside `tools/<area>/` code)
@@ -124,6 +134,17 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - On bump: run `scripts/bump_cascode_version.sh` to sync golden file headers
 - On bump: inspect and update all Cascode versioning in unit/integration tests to be up to date with the latest features.
 - NEVER add conditional parsing for different minors - unknown fields/syntax silently ignored
+
+## Native NPM Versioning
+
+- `@cascode/native` and all `editors/node/platform-packages/*/package.json` versions must match the git tag (`vX.Y.Z`) on release.
+- Keep `editors/node/package.json` optional dependency versions in lockstep with that same version.
+- The release workflow enforces this in `version-check`; do not bypass by editing workflow logic.
+- If a new platform package is added, update all of:
+  - `editors/node/platform-packages/<name>/package.json`
+  - `editors/node/package.json` optionalDependencies
+  - `editors/node/src/index.js` platform mapping
+  - `.github/workflows/release.yml` publish matrix
 
 ## Anti‑Patterns
 - Cross‑layer deps; IO in language core; UI outside CLI.

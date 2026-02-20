@@ -113,6 +113,16 @@ public static class BenchInvocationPlanner
         return roots;
     }
 
+    /// <summary>
+    /// Computes additional bench invocation plans required by dependency resolution for the given circuit constraints.
+    /// </summary>
+    /// <param name="document">The CascodeDocument containing bench definitions used to resolve bench aliases.</param>
+    /// <param name="circuit">The Circuit whose numeric constraints drive dependency graph construction.</param>
+    /// <param name="bindings">The available bench bindings to map binding aliases to concrete bench configurations.</param>
+    /// <param name="rootsByInstance">Existing root invocation plans keyed by bench instance name; instances present here are excluded from dependency results.</param>
+    /// <returns>
+    /// A list of BenchInvocationPlan objects for dependency-driven bench invocations; each plan uses a resolved binding, the target instance name, and invocation arguments derived from the dependency graph. Returns an empty list if no numeric constraints exist or if dependency graph construction fails.
+    /// </returns>
     private static IReadOnlyList<BenchInvocationPlan> CollectDependencyInvocations(
         CascodeDocument document,
         Circuit circuit,
@@ -196,7 +206,7 @@ public static class BenchInvocationPlanner
                 new BenchInvocationPlan(
                     binding,
                     invocation.BenchInstanceName,
-                    Array.Empty<MetricCallArg>()
+                    invocation.Args.Select(arg => new MetricCallArg(arg.Name, arg.Text)).ToList()
                 )
             );
         }

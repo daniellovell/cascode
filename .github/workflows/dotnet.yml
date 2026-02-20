@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-15-intel, windows-latest]
-        dotnet: ['10.0.x']
+        dotnet: ['10.0.102']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -77,3 +77,77 @@ jobs:
           path: |
             **/TestResults/**/*.trx
             **/TestResults/**/coverage.cobertura.xml
+
+  native_node_test:
+    name: native node test (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            lib_name: Cascode.Native.so
+          - os: macos-15-intel
+            rid: osx-x64
+            lib_name: Cascode.Native.dylib
+          - os: macos-15
+            rid: osx-arm64
+            lib_name: Cascode.Native.dylib
+          - os: windows-latest
+            rid: win-x64
+            lib_name: Cascode.Native.dll
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.102'
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            editors/node/package-lock.json
+
+      - name: Publish Cascode.Native
+        run: >
+          dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj
+          --configuration Release
+          -r ${{ matrix.rid }}
+          -p:PublishAot=true
+          -p:EnableAotAnalyzer=false
+          -p:EnableTrimAnalyzer=false
+          -p:NoWarn=IL2026%3BIL3050%3BCS3021
+          -o build/native/${{ matrix.rid }}
+
+      - name: Install node deps
+        run: npm ci --omit=optional
+        working-directory: editors/node
+
+      - name: Build node addon
+        run: npm run build
+        working-directory: editors/node
+
+      - name: Test node package (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export CASCODE_NATIVE_LIB="$GITHUB_WORKSPACE/build/native/${{ matrix.rid }}/${{ matrix.lib_name }}"
+          npm test
+        working-directory: editors/node
+
+      - name: Test node package (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:CASCODE_NATIVE_LIB = "$env:GITHUB_WORKSPACE\build\native\${{ matrix.rid }}\${{ matrix.lib_name }}"
+          npm test
+        working-directory: editors/node

@@ -84,7 +84,6 @@ public sealed class PdkScanService
         cancellationToken.ThrowIfCancellationRequested();
 
         // Stage 4: Device↔Model matching
-        PdkMatchingConfigManager.EnsureInitialized();
         PdkMatchingConfigManager.Load(logger);
 
         logger.LogInformation(

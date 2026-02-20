@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace Cascode.Cli.Services;
+namespace Cascode.Workspace;
 
-internal static class SpiceSubcktOpPathResolver
+public static class SpiceSubcktOpPathResolver
 {
     // Maximum .subckt nesting depth for DFS traversal of wrapper hierarchies.
     private const int MaxSubcktNestingDepth = 6;

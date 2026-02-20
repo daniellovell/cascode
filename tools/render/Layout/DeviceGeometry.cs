@@ -23,11 +23,11 @@ public static class DeviceGeometry
     public const double InstanceBlockWidth = 30.0;
     public const double InstanceBlockHeight = 30.0;
 
-    private const double MosfetGateX = 0.5;
-    private const double MosfetGateY = 12.5;
-    private const double MosfetDrainX = 16.5;
-    private const double MosfetDrainY = 0.5;
-    private const double MosfetSourceY = 25.5;
+    public const double MosfetGateX = 0.5;
+    public const double MosfetGateY = 12.5;
+    public const double MosfetDrainX = 16.5;
+    public const double MosfetDrainY = 0.5;
+    public const double MosfetSourceY = 25.5;
 
     public sealed record MosfetPlacement(
         double X,
@@ -374,5 +374,34 @@ public static class DeviceGeometry
         }
 
         return (0, 0);
+    }
+
+    /// <summary>
+    /// Compute the MOSFET symbol's top-left corner in render units given the
+    /// terminal centroid and mirror state.
+    ///
+    /// The centroid is the average of Gate, Drain, and Source terminal positions.
+    /// Because the MOSFET symbol is asymmetric, centering the bbox on the centroid
+    /// places the left edge to the right of the Gate terminal. This method computes
+    /// the correct origin so that the bbox exactly covers the symbol extent.
+    /// </summary>
+    public static (double X, double Y) GetMosfetBboxOrigin(
+        double centroidX,
+        double centroidY,
+        bool mirrorX
+    )
+    {
+        // Terminal X positions relative to the symbol's top-left:
+        //   unmirrored: Gate=0.5, Drain=16.5, Source=16.5
+        //   mirrored:   Gate=16.5, Drain=0.5, Source=0.5
+        var gateRelX = mirrorX ? MosfetWidth - MosfetGateX : MosfetGateX;
+        var drainRelX = mirrorX ? MosfetWidth - MosfetDrainX : MosfetDrainX;
+        var dx = (gateRelX + 2 * drainRelX) / (3.0 * RoutingPitch);
+
+        // Terminal Y positions relative to the symbol's top-left are the same
+        // regardless of mirrorX: Drain=0.5, Gate=12.5, Source=25.5
+        var dy = (MosfetDrainY + MosfetGateY + MosfetSourceY) / (3.0 * RoutingPitch);
+
+        return (centroidX - dx, centroidY - dy);
     }
 }

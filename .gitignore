@@ -30,5 +30,11 @@ error.log
 # Bench runtime artifacts (should live in build/, but ignore if they leak)
 *.wrdata
 
+# Native build artifacts (platform-specific dylibs/sos)
+editors/node/native/
+
+# Scratch / temp
+tmp/
+
 # macOS Finder metadata
 .DS_Store

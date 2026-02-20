@@ -1,5 +1,6 @@
 namespace Cascode.Render.Placement;
 
+using Cascode.Language;
 using Cascode.Render.Analysis;
 using Cascode.Render.Layout;
 using Cascode.Render.OrTools;
@@ -47,9 +48,32 @@ public static class CoarseGridPlacer
     private const int RailTerminalWeight = 2;
 
     /// <summary>
-    /// Places devices on a coarse grid based on topology analysis.
+    /// Objective multiplier for <see cref="RenderConstraintStrength.Soft"/> placement penalties.
+    /// Keeps soft constraints strong relative to wire-length minimization.
     /// </summary>
-    public static CoarseGridResult Place(TopologyResult topology, CircuitGraph graph)
+    private const int SoftConstraintWeight = 40;
+
+    /// <summary>
+    /// Objective multiplier for <see cref="RenderConstraintStrength.Hint"/> placement penalties.
+    /// Hints influence placement but remain weaker than soft constraints.
+    /// </summary>
+    private const int HintConstraintWeight = 8;
+
+    /// <summary>
+    /// Places devices on a coarse grid based on topology analysis.
+    /// <summary>
+    /// Computes a coarse grid placement for devices described by topology and circuit graph, producing device row/column assignments and symmetry information.
+    /// </summary>
+    /// <param name="topology">Topology rows, device-to-row mapping, symmetric groups, and passive orientations used to determine valid grid positions and fill rows.</param>
+    /// <param name="graph">Circuit connectivity used for symmetry decisions and terminal-aware wire-length evaluation.</param>
+    /// <param name="constraints">Optional render placement constraints (hard, soft, hints) that fix or bias device positions; may be null to disable constraint-based placement.</param>
+    /// <returns>A CoarseGridResult containing row and column counts, per-device GridCell placements, symmetry axis index, and the set of horizontal passive device IDs.</returns>
+    /// <exception cref="RenderConstraintUnsatException">Thrown when provided hard render placement constraints cannot be satisfied and constraint relaxation is not allowed.</exception>
+    public static CoarseGridResult Place(
+        TopologyResult topology,
+        CircuitGraph graph,
+        PlacementConstraintSet? constraints = null
+    )
     {
         if (topology.DeviceRows.Count == 0)
         {
@@ -117,6 +141,7 @@ public static class CoarseGridPlacer
         var signalPorts = GetSignalPorts(graph);
 
         var model = new CpModel();
+        var hardConstraintEntities = new List<string>();
 
         // Create column variables for all devices
         var deviceColumn = new Dictionary<string, IntVar>();
@@ -153,8 +178,28 @@ public static class CoarseGridPlacer
             }
         }
 
+        // Collect devices with hard render placement constraints so that
+        // structural layout constraints do not override the user's explicit position.
+        var hardPlacedDeviceIds = new HashSet<string>(StringComparer.Ordinal);
+        if (constraints is not null)
+        {
+            foreach (var entry in constraints.DevicePlacements)
+            {
+                if (entry.Strength == RenderConstraintStrength.Hard)
+                {
+                    hardPlacedDeviceIds.Add(entry.DeviceId);
+                }
+            }
+        }
+
         var portYVariables = CreatePortYVariables(model, signalPorts, canvasHeight);
-        AddRailSideOrderingConstraints(model, deviceRow, railConnectedVerticalPassiveIds, graph);
+        AddRailSideOrderingConstraints(
+            model,
+            deviceRow,
+            railConnectedVerticalPassiveIds,
+            graph,
+            hardPlacedDeviceIds
+        );
 
         AddNoOverlapConstraints(model, deviceColumn, deviceRow, deviceIds);
         AddSymmetryConstraints(model, deviceColumn, symmetricGroups, symmetryAxis, graph);
@@ -178,7 +223,20 @@ public static class CoarseGridPlacer
             deviceIds,
             symmetricGroups,
             horizontalPassiveIds,
+            hardPlacedDeviceIds,
             symmetryAxis
+        );
+
+        var renderConstraintObjectives = new List<LinearExpr>();
+        var hasHardPlacementConstraints = AddRenderPlacementConstraints(
+            model,
+            deviceRow,
+            deviceColumn,
+            totalRows,
+            estimatedColumns,
+            constraints,
+            hardConstraintEntities,
+            renderConstraintObjectives
         );
 
         // Add constraints for column placement based on device type
@@ -190,6 +248,7 @@ public static class CoarseGridPlacer
                 model,
                 deviceColumn,
                 horizontalPassiveIds,
+                hardPlacedDeviceIds,
                 symmetryAxis
             );
 
@@ -199,6 +258,7 @@ public static class CoarseGridPlacer
                 deviceColumn,
                 symmetricGroups,
                 horizontalPassiveIds,
+                hardPlacedDeviceIds,
                 symmetryAxis
             );
         }
@@ -233,6 +293,7 @@ public static class CoarseGridPlacer
             canvasHeight,
             objectives
         );
+        objectives.AddRange(renderConstraintObjectives);
         AddCompactnessObjective(model, deviceColumn, objectives);
 
         if (objectives.Count > 0)
@@ -246,6 +307,18 @@ public static class CoarseGridPlacer
 
         if (status != CpSolverStatus.Optimal && status != CpSolverStatus.Feasible)
         {
+            if (
+                hasHardPlacementConstraints
+                && constraints is { AllowConstraintRelaxation: false }
+                && hardConstraintEntities.Count > 0
+            )
+            {
+                throw new RenderConstraintUnsatException(
+                    "Hard render placement constraints are unsatisfiable.",
+                    hardConstraintEntities
+                );
+            }
+
             return FallbackPlacement(
                 topology,
                 estimatedColumns,
@@ -276,6 +349,86 @@ public static class CoarseGridPlacer
             HorizontalPassiveIds = horizontalPassiveIds,
             PortYHints = portYHints,
         };
+    }
+
+    /// <summary>
+    /// Applies render-placement constraints from the given PlacementConstraintSet to the CP-SAT model, adding hard fixes or penalty terms as appropriate and recording any hard-constrained device IDs.
+    /// </summary>
+    /// <param name="model">The CP-SAT model to modify.</param>
+    /// <param name="deviceRow">Map from device ID to row IntVar used by the model.</param>
+    /// <param name="deviceColumn">Map from device ID to column IntVar used by the model.</param>
+    /// <param name="totalRows">Number of rows in the placement grid (used to clamp and bound penalties).</param>
+    /// <param name="totalColumns">Number of columns in the placement grid (used to clamp and bound penalties).</param>
+    /// <param name="constraints">Optional placement constraints containing device render coordinates and strengths; if null or empty no constraints are applied.</param>
+    /// <param name="hardConstraintEntities">List to which device IDs fixed by hard constraints will be appended.</param>
+    /// <param name="objectives">List of objective terms to which soft and hint penalty expressions will be appended.</param>
+    /// <returns>`true` if at least one hard render-placement constraint was applied, `false` otherwise.</returns>
+    private static bool AddRenderPlacementConstraints(
+        CpModel model,
+        Dictionary<string, IntVar> deviceRow,
+        Dictionary<string, IntVar> deviceColumn,
+        int totalRows,
+        int totalColumns,
+        PlacementConstraintSet? constraints,
+        List<string> hardConstraintEntities,
+        List<LinearExpr> objectives
+    )
+    {
+        if (constraints is null || constraints.DevicePlacements.Count == 0)
+        {
+            return false;
+        }
+
+        var hasHardConstraints = false;
+        foreach (var entry in constraints.DevicePlacements)
+        {
+            if (
+                !deviceRow.TryGetValue(entry.DeviceId, out var rowVar)
+                || !deviceColumn.TryGetValue(entry.DeviceId, out var colVar)
+            )
+            {
+                continue;
+            }
+
+            var (targetRow, targetCol) = RenderCoordinateMapper.MapRenderUnitsToCell(
+                entry.XRu,
+                entry.YRu
+            );
+            targetRow = Math.Clamp(targetRow, 0, totalRows - 1);
+            targetCol = Math.Clamp(targetCol, 0, totalColumns - 1);
+
+            switch (entry.Strength)
+            {
+                case RenderConstraintStrength.Hard:
+                    model.Add(rowVar == targetRow);
+                    model.Add(colVar == targetCol);
+                    hasHardConstraints = true;
+                    hardConstraintEntities.Add(entry.DeviceId);
+                    break;
+
+                case RenderConstraintStrength.Soft:
+                {
+                    var rowPenalty = model.NewIntVar(0, totalRows, $"rsoft_{entry.DeviceId}");
+                    var colPenalty = model.NewIntVar(0, totalColumns, $"csoft_{entry.DeviceId}");
+                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
+                    model.AddAbsEquality(colPenalty, colVar - targetCol);
+                    objectives.Add((rowPenalty + colPenalty) * SoftConstraintWeight);
+                    break;
+                }
+
+                case RenderConstraintStrength.Hint:
+                {
+                    var rowPenalty = model.NewIntVar(0, totalRows, $"rhint_{entry.DeviceId}");
+                    var colPenalty = model.NewIntVar(0, totalColumns, $"chint_{entry.DeviceId}");
+                    model.AddAbsEquality(rowPenalty, rowVar - targetRow);
+                    model.AddAbsEquality(colPenalty, colVar - targetCol);
+                    objectives.Add((rowPenalty + colPenalty) * HintConstraintWeight);
+                    break;
+                }
+            }
+        }
+
+        return hasHardConstraints;
     }
 
     /// <summary>
@@ -570,11 +723,17 @@ public static class CoarseGridPlacer
         CpModel model,
         Dictionary<string, IntVar> deviceColumn,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
         foreach (var deviceId in horizontalPassiveIds)
         {
+            if (hardPlacedDeviceIds.Contains(deviceId))
+            {
+                continue;
+            }
+
             if (!deviceColumn.TryGetValue(deviceId, out var colVar))
             {
                 continue;
@@ -605,6 +764,7 @@ public static class CoarseGridPlacer
         Dictionary<string, IntVar> deviceColumn,
         IReadOnlyList<SymmetricGroup> symmetricGroups,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
@@ -627,6 +787,11 @@ public static class CoarseGridPlacer
             // Force symmetric MOSFET pairs to edge columns
             foreach (var deviceId in mosfetDevices)
             {
+                if (hardPlacedDeviceIds.Contains(deviceId))
+                {
+                    continue;
+                }
+
                 if (!deviceColumn.TryGetValue(deviceId, out var colVar))
                 {
                     continue;
@@ -642,6 +807,8 @@ public static class CoarseGridPlacer
     /// <summary>
     /// Constrains devices not in any symmetric group to be placed on the symmetry axis.
     /// These "center" devices (like tail transistors) should be centered in the layout.
+    /// Devices with hard render placement constraints are excluded — the user's explicit
+    /// position takes precedence over the centering heuristic.
     /// </summary>
     private static void AddCenterDeviceConstraints(
         CpModel model,
@@ -649,6 +816,7 @@ public static class CoarseGridPlacer
         List<string> deviceIds,
         IReadOnlyList<SymmetricGroup> symmetricGroups,
         IReadOnlySet<string> horizontalPassiveIds,
+        IReadOnlySet<string> hardPlacedDeviceIds,
         int symmetryAxis
     )
     {
@@ -671,6 +839,11 @@ public static class CoarseGridPlacer
             }
 
             if (horizontalPassiveIds.Contains(deviceId))
+            {
+                continue;
+            }
+
+            if (hardPlacedDeviceIds.Contains(deviceId))
             {
                 continue;
             }
@@ -958,11 +1131,17 @@ public static class CoarseGridPlacer
         CpModel model,
         IReadOnlyDictionary<string, IntVar> deviceRow,
         IReadOnlySet<string> railConnectedVerticalPassiveIds,
-        CircuitGraph graph
+        CircuitGraph graph,
+        IReadOnlySet<string> hardPlacedDeviceIds
     )
     {
         foreach (var passiveId in railConnectedVerticalPassiveIds)
         {
+            if (hardPlacedDeviceIds.Contains(passiveId))
+            {
+                continue;
+            }
+
             if (!deviceRow.TryGetValue(passiveId, out var passiveRow))
             {
                 continue;

@@ -512,6 +512,11 @@ internal sealed partial class CascodeAstBuilder
         return expr;
     }
 
+    /// <summary>
+    /// Builds a MeasurementExpr node from a measurement primary parse context.
+    /// </summary>
+    /// <returns>A MeasurementExpr that represents the primary measurement expression described by the context.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the context contains an unsupported measurement primary; the exception message contains the offending text.</exception>
     private MeasurementExpr BuildMeasurementPrimary(CascodeParser.MeasurementPrimaryContext ctx)
     {
         if (ctx.ifExpr() is not null)
@@ -558,7 +563,7 @@ internal sealed partial class CascodeAstBuilder
                 }
             }
 
-            return new MeasurementCall(call.IDENT().GetText(), args);
+            return new MeasurementCall(call.idPart().GetText(), args);
         }
 
         if (ctx.scopedAccess() is not null)

@@ -10,18 +10,21 @@ namespace Cascode.Language;
 public sealed record CascodeParseOptions(
     bool DesugarBundles,
     bool RunBenchSemanticChecks,
-    bool RunBenchBindingChecksWhenNoIncludes
+    bool RunBenchBindingChecksWhenNoIncludes,
+    int CompatibilityMinor = CascodeVersion.Minor
 )
 {
     public static readonly CascodeParseOptions Default = new(
         DesugarBundles: true,
         RunBenchSemanticChecks: true,
-        RunBenchBindingChecksWhenNoIncludes: false
+        RunBenchBindingChecksWhenNoIncludes: false,
+        CompatibilityMinor: CascodeVersion.Minor
     );
 
     public static readonly CascodeParseOptions SyntaxOnly = new(
         DesugarBundles: false,
         RunBenchSemanticChecks: false,
-        RunBenchBindingChecksWhenNoIncludes: false
+        RunBenchBindingChecksWhenNoIncludes: false,
+        CompatibilityMinor: CascodeVersion.Minor
     );
 }

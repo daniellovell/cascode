@@ -306,6 +306,14 @@ cd editors\vscode; .\install.ps1
 
 Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
 
+For native editor/runtime integrations, see `@cascode/native` in `editors/node`:
+
+- Package docs: `editors/node/README.md`
+- Runtime package: `editors/node/package.json`
+- Platform package templates: `editors/node/platform-packages/`
+
+Maintainers: native npm package versions are release-tag aligned and validated in `.github/workflows/release.yml`.
+
 ---
 
 ## 🤝 Contributing

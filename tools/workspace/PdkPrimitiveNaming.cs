@@ -2,9 +2,9 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Cascode.Cli.Services;
+namespace Cascode.Workspace;
 
-internal static partial class PdkPrimitiveNaming
+public static partial class PdkPrimitiveNaming
 {
     private const string DefaultPrimitiveName = "Primitive";
 
@@ -52,7 +52,7 @@ internal static partial class PdkPrimitiveNaming
         return string.Equals(modelType, "model", StringComparison.OrdinalIgnoreCase) ? 0 : 1;
     }
 
-    internal static string SanitizeIdentifier(string name)
+    public static string SanitizeIdentifier(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {

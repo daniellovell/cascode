@@ -5,11 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using Cascode.Workspace;
 
-namespace Cascode.Cli.Services;
+namespace Cascode.Workspace;
 
-internal static class PdkEmitPrimitivesService
+public static class PdkEmitPrimitivesService
 {
     public sealed record EmitArgs(
         string PdkName,
