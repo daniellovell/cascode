@@ -288,6 +288,7 @@ jobs:
         working-directory: editors/node
       - name: publish platform npm (prerelease)
         if: contains(github.ref_name, '-')
+        shell: bash
         run: |
           npm publish ./editors/node/.dist/${{ matrix.template }} --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
             if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
@@ -298,6 +299,7 @@ jobs:
           }
       - name: publish platform npm (latest)
         if: ${{ !contains(github.ref_name, '-') }}
+        shell: bash
         run: |
           npm publish ./editors/node/.dist/${{ matrix.template }} --access public 2>&1 | tee /tmp/npm-publish.log || {
             if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
