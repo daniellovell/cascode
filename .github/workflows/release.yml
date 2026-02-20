@@ -343,7 +343,7 @@ jobs:
           -p:EnableTrimAnalyzer=false
           -p:NoWarn=IL2026%3BIL3050%3BCS3021
           -o ../../build/native/linux-x64
-      - run: npm ci --omit=optional
+      - run: npm install --omit=optional --no-package-lock
       - run: npm run build
       - name: test native npm package
         shell: bash
