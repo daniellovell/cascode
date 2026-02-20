@@ -5,7 +5,7 @@ Authors: Codex (proposed), Daniel Lovell (review)
 Created: 2026-02-10
 Last Updated: 2026-02-16
 Target Version: Cascode 0.6.x (package); format version 3.2
-Related: ide/designer WYSIWYG editing, Node bindings for Cascode toolchain
+Related: WYSIWYG schematic editing, Node bindings for Cascode toolchain
 
 ---
 
@@ -442,7 +442,7 @@ Each wrapper calls `native.call()`, parses the JSON result, and returns a typed 
 
 The addon is a synchronous N-API binding built with prebuildify using N-API version 9 (stable ABI). Prebuilt binaries are provided for darwin-arm64, darwin-x64, and linux-x64. All C ABI calls are blocking within the addon; it introduces no threads, event emitters, or async machinery. Consumers choose their own concurrency model.
 
-In a desktop designer, the addon loads inside a dedicated background process — for example, an Electron utility process or equivalent runtime with full Node.js capabilities and crash isolation, connected to the UI process via MessagePort-based IPC with cross-process callback marshalling. Blocking calls are acceptable in this context because the process exists solely for Cascode work. The process's message handler serializes access to the session — one `call()` at a time — which satisfies the C ABI's single-threaded session requirement from section 12.3.
+In a desktop editor, the addon loads inside a dedicated background process — for example, an Electron utility process or equivalent runtime with full Node.js capabilities and crash isolation, connected to the UI process via MessagePort-based IPC with cross-process callback marshalling. Blocking calls are acceptable in this context because the process exists solely for Cascode work. The process's message handler serializes access to the session — one `call()` at a time — which satisfies the C ABI's single-threaded session requirement from section 12.3.
 
 The recommended topology runs two background processes. `cascode-editor` hosts a session for interactive operations: document open, render, schematic edits, and ERC. These calls are fast (target under 50ms for single-device moves) and return results directly to the UI. `cascode-bench` hosts a separate session for bench simulation jobs, which may run for seconds or minutes. This separation ensures bench work never blocks edit responsiveness.
 

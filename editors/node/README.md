@@ -1,6 +1,6 @@
-# @cascode/native
+# @cascode/cascode-js
 
-Synchronous Node binding for the Cascode native C ABI.
+Synchronous Node binding for the Cascode native C ABI (`libcascode`).
 
 This package exposes a thin N-API wrapper around the `cascode_*` exports from
 `Cascode.Native` and intentionally does not add threading or async behavior.
@@ -8,62 +8,62 @@ This package exposes a thin N-API wrapper around the `cascode_*` exports from
 ## Install
 
 ```bash
-npm install @cascode/native
+npm install @cascode/cascode-js
 ```
 
 ## Runtime Requirements
 
-`@cascode/native` needs two native layers:
+`@cascode/cascode-js` needs two native layers:
 
 1. Node addon (`cascode_native_addon.node`)
-2. Cascode shared library (`Cascode.Native.*`) plus runtime dependencies
+2. Cascode shared library (`libcascode.*`)
 
-At runtime, `@cascode/native` resolves in this order:
+At runtime the loader resolves in this order:
 
-1. Platform package (optional dependency), for example:
-   - `@cascode/native-win32-x64`
-   - `@cascode/native-linux-x64`
-   - `@cascode/native-darwin-x64`
-   - `@cascode/native-darwin-arm64`
-2. Local development build (`editors/node/build/Release`)
+1. Platform package (installed as an optional dependency):
+   - `@cascode/cascode-js-darwin-arm64`
+   - `@cascode/cascode-js-darwin-x64`
+   - `@cascode/cascode-js-linux-x64`
+   - `@cascode/cascode-js-win32-x64`
+2. Local build (`editors/node/build/Release`)
 3. Local native runtime discovery:
-  - `editors/node/native/<rid>/`
-  - `<repo>/build/native/<rid>/`
+   - `editors/node/native/<rid>/`
+   - `<repo>/build/native/<rid>/`
 
 `CASCODE_NATIVE_LIB` always overrides discovered shared-library paths.
 
 RID examples: `win-x64`, `linux-x64`, `darwin-x64`, `darwin-arm64`.
 
-## Local Co-Development With Designer
+## API
 
-For active development across repos, point Designer at your local module path
-instead of waiting for a release:
+The package exports low-level session management and convenience wrappers for each native method.
 
-```powershell
-$env:DESIGNER_CASCODE_NATIVE_MODULE="C:\Projects\Repositories\cascode\editors\node"
+```js
+const cascode = require("@cascode/cascode-js");
+
+const session = cascode.createSession();
+const doc = cascode.open(cascode.native, session, { path: "my_circuit.cas" });
+const schematic = cascode.render(cascode.native, session, { documentId: doc.documentId });
+cascode.destroySession(session);
 ```
 
-Then in `cascode/editors/node`:
+Session lifecycle: `createSession`, `destroySession`, `call`, `lastErrorJson`, `apiVersion`, `schemaVersion`.
 
-```powershell
-npm ci --omit=optional
-npm run build
-```
+Document operations: `open`, `updateText`, `close`.
 
-And publish local native runtime once:
+Schematic: `render`, `applyOps`.
 
-```powershell
-dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj `
-  --configuration Release `
-  -r win-x64 `
-  -p:PublishAot=true `
-  -o build/native/win-x64
-```
+Analysis: `erc`, `emit`, `verify`.
+
+Jobs (long-running): `jobStart`, `jobPoll`, `jobCancel`.
+
+`stdlibPath` provides the absolute path to the bundled standard library.
 
 ## Build
 
 ```bash
-npm ci
+cd editors/node
+npm ci --omit=optional
 npm run build
 ```
 
@@ -92,7 +92,7 @@ dotnet publish tools/native/Cascode.Native/Cascode.Native.csproj `
   -p:PublishAot=true `
   -o build/native/win-x64
 
-$env:CASCODE_NATIVE_LIB="$PWD\\build\\native\\win-x64\\Cascode.Native.dll"
+$env:CASCODE_NATIVE_LIB="$PWD\build\native\win-x64\Cascode.Native.dll"
 cd editors\node
 npm test
 ```

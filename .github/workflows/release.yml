@@ -201,10 +201,24 @@ jobs:
       - run: npm install --ignore-scripts
       - name: publish npm (prerelease)
         if: contains(github.ref_name, '-')
-        run: npm publish --access public --tag next
+        run: |
+          npm publish --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
       - name: publish npm (latest)
         if: ${{ !contains(github.ref_name, '-') }}
-        run: npm publish --access public
+        run: |
+          npm publish --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
 
   npm-publish-js-platforms:
     needs: github-release
@@ -275,10 +289,23 @@ jobs:
       - name: publish platform npm (prerelease)
         if: contains(github.ref_name, '-')
         run: |
-          npm publish ./editors/node/.dist/${{ matrix.template }} --access public --tag next
+          npm publish ./editors/node/.dist/${{ matrix.template }} --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
       - name: publish platform npm (latest)
         if: ${{ !contains(github.ref_name, '-') }}
-        run: npm publish ./editors/node/.dist/${{ matrix.template }} --access public
+        run: |
+          npm publish ./editors/node/.dist/${{ matrix.template }} --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
 
   npm-publish-js:
     needs: [github-release, npm-publish-js-platforms]
@@ -323,10 +350,24 @@ jobs:
           npm test
       - name: publish npm (prerelease)
         if: contains(github.ref_name, '-')
-        run: npm publish --access public --tag next
+        run: |
+          npm publish --access public --tag next 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
       - name: publish npm (latest)
         if: ${{ !contains(github.ref_name, '-') }}
-        run: npm publish --access public
+        run: |
+          npm publish --access public 2>&1 | tee /tmp/npm-publish.log || {
+            if grep -q "You cannot publish over the previously published versions" /tmp/npm-publish.log; then
+              echo "Version already published — skipping."
+            else
+              exit 1
+            fi
+          }
 
   nuget-publish:
     needs: github-release
