@@ -194,7 +194,11 @@ public static class CoarseGridPlacer
 
         var portYVariables = CreatePortYVariables(model, signalPorts, canvasHeight);
         AddRailSideOrderingConstraints(
-            model, deviceRow, railConnectedVerticalPassiveIds, graph, hardPlacedDeviceIds
+            model,
+            deviceRow,
+            railConnectedVerticalPassiveIds,
+            graph,
+            hardPlacedDeviceIds
         );
 
         AddNoOverlapConstraints(model, deviceColumn, deviceRow, deviceIds);

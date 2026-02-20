@@ -372,11 +372,21 @@ internal static class SchematicApiDispatcher
         CascodeDocument linked;
         if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
         {
-            var tmpDir = Path.Combine(Path.GetTempPath(), "cascode-erc", Guid.NewGuid().ToString("N"));
+            var tmpDir = Path.Combine(
+                Path.GetTempPath(),
+                "cascode-erc",
+                Guid.NewGuid().ToString("N")
+            );
             Directory.CreateDirectory(tmpDir);
             var tmpFile = Path.Combine(tmpDir, "entry.cas");
             File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(tmpFile, tmpDir, searchRoots, CascodeLinkOptions.Default, null);
+            var linkResult = CascodeLinker.LinkFile(
+                tmpFile,
+                tmpDir,
+                searchRoots,
+                CascodeLinkOptions.Default,
+                null
+            );
 
             if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
             {
@@ -393,15 +403,18 @@ internal static class SchematicApiDispatcher
 
             var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
             var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked = linkedRead.Success && linkedRead.Document is not null ? linkedRead.Document : state.Document;
+            linked =
+                linkedRead.Success && linkedRead.Document is not null
+                    ? linkedRead.Document
+                    : state.Document;
         }
         else
         {
             linked = state.Document;
         }
 
-        var circuits = linked.Circuits
-            .Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
+        var circuits = linked
+            .Circuits.Where(c => c.Level is CascodeLevel.EL or CascodeLevel.ML)
             .ToList();
 
         var combinedResult = new ValidationResult();
@@ -443,11 +456,21 @@ internal static class SchematicApiDispatcher
         CascodeDocument linked;
         if (searchRoots.Count > 0 && state.Document.Includes.Count > 0)
         {
-            var tmpDir = Path.Combine(Path.GetTempPath(), "cascode-emit", Guid.NewGuid().ToString("N"));
+            var tmpDir = Path.Combine(
+                Path.GetTempPath(),
+                "cascode-emit",
+                Guid.NewGuid().ToString("N")
+            );
             Directory.CreateDirectory(tmpDir);
             var tmpFile = Path.Combine(tmpDir, "entry.cas");
             File.WriteAllText(tmpFile, state.SourceText);
-            var linkResult = CascodeLinker.LinkFile(tmpFile, tmpDir, searchRoots, CascodeLinkOptions.Default, null);
+            var linkResult = CascodeLinker.LinkFile(
+                tmpFile,
+                tmpDir,
+                searchRoots,
+                CascodeLinkOptions.Default,
+                null
+            );
 
             if (!linkResult.Success || string.IsNullOrWhiteSpace(linkResult.LinkedCasPath))
             {
@@ -464,14 +487,21 @@ internal static class SchematicApiDispatcher
 
             var linkedText = File.ReadAllText(linkResult.LinkedCasPath);
             var linkedRead = CascodeReader.TryParse(linkedText, linkResult.LinkedCasPath);
-            linked = linkedRead.Success && linkedRead.Document is not null ? linkedRead.Document : state.Document;
+            linked =
+                linkedRead.Success && linkedRead.Document is not null
+                    ? linkedRead.Document
+                    : state.Document;
         }
         else
         {
             linked = state.Document;
         }
 
-        var outputDir = Path.Combine(Path.GetTempPath(), "cascode-emit-out", Guid.NewGuid().ToString("N"));
+        var outputDir = Path.Combine(
+            Path.GetTempPath(),
+            "cascode-emit-out",
+            Guid.NewGuid().ToString("N")
+        );
         Directory.CreateDirectory(outputDir);
 
         var emitResult = SpiceEmitter.ValidateAndEmit(linked, outputDir);
@@ -496,9 +526,10 @@ internal static class SchematicApiDispatcher
         foreach (var f in emitResult.Emit.TestbenchPaths)
             files.Add((JsonNode?)f);
 
-        var netlist = emitResult.Emit.DesignPaths.Count > 0
-            ? File.ReadAllText(emitResult.Emit.DesignPaths[0])
-            : null;
+        var netlist =
+            emitResult.Emit.DesignPaths.Count > 0
+                ? File.ReadAllText(emitResult.Emit.DesignPaths[0])
+                : null;
 
         return new JsonObject
         {
@@ -528,7 +559,10 @@ internal static class SchematicApiDispatcher
         _ = requestJson;
         if (string.IsNullOrWhiteSpace(session.PdkRoot))
         {
-            throw new ApiException("CASAPI-INVALID-REQUEST", "No PDK root configured. Call pdk.setDir first.");
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                "No PDK root configured. Call pdk.setDir first."
+            );
         }
 
         var scanService = new PdkScanService();
@@ -554,7 +588,10 @@ internal static class SchematicApiDispatcher
 
         if (string.IsNullOrWhiteSpace(session.PdkRoot))
         {
-            throw new ApiException("CASAPI-INVALID-REQUEST", "No PDK root configured. Call pdk.setDir first.");
+            throw new ApiException(
+                "CASAPI-INVALID-REQUEST",
+                "No PDK root configured. Call pdk.setDir first."
+            );
         }
 
         if (string.IsNullOrWhiteSpace(session.WorkspaceRoot))
@@ -572,7 +609,10 @@ internal static class SchematicApiDispatcher
         }
 
         var dbPath = WorkspacePaths.GetDatabasePath(session.PdkRoot);
-        var libraryDir = PdkPrimitiveLibraryLayout.GetLibraryDirectory(session.WorkspaceRoot, pdkName);
+        var libraryDir = PdkPrimitiveLibraryLayout.GetLibraryDirectory(
+            session.WorkspaceRoot,
+            pdkName
+        );
         var result = PdkEmitPrimitivesService.Emit(
             new PdkEmitPrimitivesService.EmitArgs(
                 PdkName: pdkName,

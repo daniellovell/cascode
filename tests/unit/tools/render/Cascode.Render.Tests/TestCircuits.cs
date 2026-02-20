@@ -448,11 +448,7 @@ internal static class TestCircuits
                         Id = "R1",
                         DeviceType = "resistor",
                         Primitive = "Ideal_Resistor",
-                        Bindings = new Dictionary<string, string>
-                        {
-                            ["P"] = "IN",
-                            ["N"] = "OUT",
-                        },
+                        Bindings = new Dictionary<string, string> { ["P"] = "IN", ["N"] = "OUT" },
                         Size = new SizePack
                         {
                             Entries = new Dictionary<string, string> { ["R"] = "4.5k" },
@@ -463,11 +459,7 @@ internal static class TestCircuits
                         Id = "C1",
                         DeviceType = "capacitor",
                         Primitive = "Ideal_Capacitor",
-                        Bindings = new Dictionary<string, string>
-                        {
-                            ["P"] = "OUT",
-                            ["N"] = "GND",
-                        },
+                        Bindings = new Dictionary<string, string> { ["P"] = "OUT", ["N"] = "GND" },
                         Size = new SizePack
                         {
                             Entries = new Dictionary<string, string> { ["C"] = "10n" },

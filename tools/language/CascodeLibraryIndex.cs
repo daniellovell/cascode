@@ -20,8 +20,7 @@ internal sealed class CascodeLibraryIndex
 
     private CascodeLibraryIndex() { }
 
-    public static CascodeLibraryIndex Build(string workspaceRoot)
-        => Build(new[] { workspaceRoot });
+    public static CascodeLibraryIndex Build(string workspaceRoot) => Build(new[] { workspaceRoot });
 
     public static CascodeLibraryIndex Build(IReadOnlyList<string> roots)
     {

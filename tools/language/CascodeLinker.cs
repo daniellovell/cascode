@@ -22,7 +22,8 @@ public static class CascodeLinker
         string outputDir,
         string workspaceRoot,
         ILogger? logger = null
-    ) => LinkFile(entryPath, outputDir, new[] { workspaceRoot }, CascodeLinkOptions.Default, logger);
+    ) =>
+        LinkFile(entryPath, outputDir, new[] { workspaceRoot }, CascodeLinkOptions.Default, logger);
 
     public static CascodeLinkResult LinkFile(
         string entryPath,
@@ -844,7 +845,13 @@ public static class CascodeLinker
         string includingFilePath,
         string workspaceRoot,
         CascodeLibraryIndex libraryIndex
-    ) => ResolveIncludeTargets(includeName, includingFilePath, new[] { workspaceRoot }, libraryIndex);
+    ) =>
+        ResolveIncludeTargets(
+            includeName,
+            includingFilePath,
+            new[] { workspaceRoot },
+            libraryIndex
+        );
 
     private static IReadOnlyList<IncludeTarget> ResolveIncludeTargets(
         string includeName,

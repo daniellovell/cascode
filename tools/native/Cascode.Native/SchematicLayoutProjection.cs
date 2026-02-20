@@ -36,9 +36,10 @@ internal static partial class SchematicLayoutProjection
                     .Value.Bindings.Keys.OrderBy(name => name, StringComparer.Ordinal)
                     .ToArray(),
                 Primitive = entry.Value.Primitive,
-                Size = entry.Value.Size?.Entries
+                Size =
+                    entry.Value.Size?.Entries
                     ?? (IReadOnlyDictionary<string, string>)
-                       new Dictionary<string, string>(StringComparer.Ordinal),
+                        new Dictionary<string, string>(StringComparer.Ordinal),
             })
             .ToArray();
 
@@ -99,15 +100,9 @@ internal static partial class SchematicLayoutProjection
 
         // Group routing terminal positions by device for centroid-based positioning
         var terminalsByDevice = routing
-            .TerminalPositions.Where(t =>
-                !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
-            )
+            .TerminalPositions.Where(t => !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
             .GroupBy(t => t.DeviceId, StringComparer.Ordinal)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToArray(),
-                StringComparer.Ordinal
-            );
+            .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
 
         var devices = placement
             .DevicePlacements.OrderBy(entry => entry.Key, StringComparer.Ordinal)
@@ -214,15 +209,9 @@ internal static partial class SchematicLayoutProjection
 
         // Group routing terminals by device for centroid computation
         var terminalsByDevice = routing
-            .TerminalPositions.Where(t =>
-                !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal)
-            )
+            .TerminalPositions.Where(t => !t.DeviceId.StartsWith("PORT_", StringComparison.Ordinal))
             .GroupBy(t => t.DeviceId, StringComparer.Ordinal)
-            .ToDictionary(
-                g => g.Key,
-                g => g.ToArray(),
-                StringComparer.Ordinal
-            );
+            .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.Ordinal);
 
         var bboxes = new Dictionary<string, BboxValue>(StringComparer.Ordinal);
         foreach (var (deviceId, cell) in placement.DevicePlacements)
@@ -231,7 +220,10 @@ internal static partial class SchematicLayoutProjection
             var type = device?.DeviceType.ToLowerInvariant() ?? "unknown";
 
             PointValue position;
-            if (terminalsByDevice.TryGetValue(deviceId, out var devTerminals) && devTerminals.Length > 0)
+            if (
+                terminalsByDevice.TryGetValue(deviceId, out var devTerminals)
+                && devTerminals.Length > 0
+            )
             {
                 position = new PointValue
                 {
@@ -244,10 +236,18 @@ internal static partial class SchematicLayoutProjection
                 position = new PointValue
                 {
                     X = ToRenderUnitsExact(
-                        (int)Math.Round(DeviceGeometry.GetCellCenterX(cell.Column), MidpointRounding.AwayFromZero)
+                        (int)
+                            Math.Round(
+                                DeviceGeometry.GetCellCenterX(cell.Column),
+                                MidpointRounding.AwayFromZero
+                            )
                     ),
                     Y = ToRenderUnitsExact(
-                        (int)Math.Round(DeviceGeometry.GetCellCenterY(cell.Row), MidpointRounding.AwayFromZero)
+                        (int)
+                            Math.Round(
+                                DeviceGeometry.GetCellCenterY(cell.Row),
+                                MidpointRounding.AwayFromZero
+                            )
                     ),
                 };
             }
@@ -271,9 +271,7 @@ internal static partial class SchematicLayoutProjection
         var catalog = new Dictionary<string, SymbolCatalogEntry>(StringComparer.Ordinal);
 
         // Collect unique device types from structural devices
-        var deviceTypes = structural
-            .Devices.Select(d => d.Type)
-            .Distinct(StringComparer.Ordinal);
+        var deviceTypes = structural.Devices.Select(d => d.Type).Distinct(StringComparer.Ordinal);
 
         foreach (var deviceType in deviceTypes)
         {
@@ -318,12 +316,14 @@ internal static partial class SchematicLayoutProjection
         // Center at terminal centroid so that catalog offsets align exactly with
         // routing terminal positions when added to the device position (also a
         // terminal centroid). Falls back to viewBox center for symbols without terminals.
-        double cx = parsed.Terminals.Count > 0
-            ? parsed.Terminals.Values.Average(t => t.X)
-            : parsed.ViewBox[2] / 2.0;
-        double cy = parsed.Terminals.Count > 0
-            ? parsed.Terminals.Values.Average(t => t.Y)
-            : parsed.ViewBox[3] / 2.0;
+        double cx =
+            parsed.Terminals.Count > 0
+                ? parsed.Terminals.Values.Average(t => t.X)
+                : parsed.ViewBox[2] / 2.0;
+        double cy =
+            parsed.Terminals.Count > 0
+                ? parsed.Terminals.Values.Average(t => t.Y)
+                : parsed.ViewBox[3] / 2.0;
 
         return new SymbolCatalogEntry
         {
@@ -352,13 +352,7 @@ internal static partial class SchematicLayoutProjection
     /// and scaling by <paramref name="sx"/>,<paramref name="sy"/>.
     /// Absolute coordinates are mapped as <c>(x-cx)*sx</c>; relative coordinates are scaled without offset.
     /// </summary>
-    internal static string ScalePathD(
-        string d,
-        double sx,
-        double sy,
-        double cx,
-        double cy
-    )
+    internal static string ScalePathD(string d, double sx, double sy, double cx, double cy)
     {
         // Tokenize into command letters and numbers
         var tokens = new List<object>(); // string for commands, double for numbers
@@ -367,9 +361,7 @@ internal static partial class SchematicLayoutProjection
             if (m.Groups[1].Success)
                 tokens.Add(m.Groups[1].Value);
             else
-                tokens.Add(
-                    double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture)
-                );
+                tokens.Add(double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture));
         }
 
         var result = new StringBuilder();
@@ -377,8 +369,7 @@ internal static partial class SchematicLayoutProjection
 
         double Num() => (double)tokens[i++];
 
-        static string Fmt(double v) =>
-            Math.Round(v, 4).ToString("G", CultureInfo.InvariantCulture);
+        static string Fmt(double v) => Math.Round(v, 4).ToString("G", CultureInfo.InvariantCulture);
 
         void Emit(string s)
         {
@@ -467,9 +458,7 @@ internal static partial class SchematicLayoutProjection
                             x = (x - cx) * sx;
                             y = (y - cy) * sy;
                         }
-                        Emit(
-                            $"{Fmt(x1)} {Fmt(y1)} {Fmt(x2)} {Fmt(y2)} {Fmt(x)} {Fmt(y)}"
-                        );
+                        Emit($"{Fmt(x1)} {Fmt(y1)} {Fmt(x2)} {Fmt(y2)} {Fmt(x)} {Fmt(y)}");
                     }
                     break;
 
@@ -596,10 +585,7 @@ internal static partial class SchematicLayoutProjection
         // This ensures catalog terminal offsets (also centered at terminal centroid)
         // align exactly with routing-derived wire endpoints.
         PointValue position;
-        if (
-            terminalsByDevice.TryGetValue(deviceId, out var terminals)
-            && terminals.Length > 0
-        )
+        if (terminalsByDevice.TryGetValue(deviceId, out var terminals) && terminals.Length > 0)
         {
             position = new PointValue
             {
@@ -613,16 +599,18 @@ internal static partial class SchematicLayoutProjection
             position = new PointValue
             {
                 X = ToRenderUnitsExact(
-                    (int)Math.Round(
-                        DeviceGeometry.GetCellCenterX(cell.Column),
-                        MidpointRounding.AwayFromZero
-                    )
+                    (int)
+                        Math.Round(
+                            DeviceGeometry.GetCellCenterX(cell.Column),
+                            MidpointRounding.AwayFromZero
+                        )
                 ),
                 Y = ToRenderUnitsExact(
-                    (int)Math.Round(
-                        DeviceGeometry.GetCellCenterY(cell.Row),
-                        MidpointRounding.AwayFromZero
-                    )
+                    (int)
+                        Math.Round(
+                            DeviceGeometry.GetCellCenterY(cell.Row),
+                            MidpointRounding.AwayFromZero
+                        )
                 ),
             };
         }
@@ -815,7 +803,8 @@ internal static partial class SchematicLayoutProjection
         // Drain/Source sit at topLeft+16.5px. Centering the bbox on the centroid
         // clips the Gate terminal. Use GetMosfetBboxOrigin to derive the correct
         // top-left from the centroid and the device's mirror state.
-        var mirrorX = placement.DevicePlacements.TryGetValue(deviceId, out var gridCell) && gridCell.MirrorX;
+        var mirrorX =
+            placement.DevicePlacements.TryGetValue(deviceId, out var gridCell) && gridCell.MirrorX;
         var (bboxX, bboxY) = DeviceGeometry.GetMosfetBboxOrigin(position.X, position.Y, mirrorX);
         return new BboxValue
         {

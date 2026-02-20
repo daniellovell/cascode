@@ -190,7 +190,9 @@ public static partial class MazeRouter
         }
 
         // Always emit a full-width rail so declared power nets are visible and connectable.
-        segments.Add(new WireSegment(new GridPoint(0, railY), new GridPoint(canvasWidth, railY), netName));
+        segments.Add(
+            new WireSegment(new GridPoint(0, railY), new GridPoint(canvasWidth, railY), netName)
+        );
 
         return segments;
     }

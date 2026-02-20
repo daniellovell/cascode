@@ -31,13 +31,22 @@ internal static class SessionManager
             using var doc = JsonDocument.Parse(optionsJson);
             var root = doc.RootElement;
 
-            if (root.TryGetProperty("stdlibRoot", out var stdlib) && stdlib.ValueKind == JsonValueKind.String)
+            if (
+                root.TryGetProperty("stdlibRoot", out var stdlib)
+                && stdlib.ValueKind == JsonValueKind.String
+            )
                 state.StdlibRoot = stdlib.GetString();
 
-            if (root.TryGetProperty("workspaceRoot", out var ws) && ws.ValueKind == JsonValueKind.String)
+            if (
+                root.TryGetProperty("workspaceRoot", out var ws)
+                && ws.ValueKind == JsonValueKind.String
+            )
                 state.WorkspaceRoot = ws.GetString();
 
-            if (root.TryGetProperty("pdkRoot", out var pdk) && pdk.ValueKind == JsonValueKind.String)
+            if (
+                root.TryGetProperty("pdkRoot", out var pdk)
+                && pdk.ValueKind == JsonValueKind.String
+            )
                 state.PdkRoot = pdk.GetString();
         }
 

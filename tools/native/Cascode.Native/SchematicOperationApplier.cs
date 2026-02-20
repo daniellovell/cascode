@@ -196,7 +196,9 @@ internal static class SchematicOperationApplier
             );
         }
 
-        circuit.Render?.Entities.RemoveAll(entity => entity.Name.Equals(name, StringComparison.Ordinal));
+        circuit.Render?.Entities.RemoveAll(entity =>
+            entity.Name.Equals(name, StringComparison.Ordinal)
+        );
         changed.Add(name);
     }
 
@@ -494,10 +496,7 @@ internal static class SchematicOperationApplier
             || circuit.Grounds.Any(value => value.Equals(name, StringComparison.Ordinal))
         )
         {
-            throw new ApiException(
-                "CASAPI-INVALID-REQUEST",
-                $"Rail '{name}' already exists."
-            );
+            throw new ApiException("CASAPI-INVALID-REQUEST", $"Rail '{name}' already exists.");
         }
     }
 
@@ -567,7 +566,11 @@ internal static class SchematicOperationApplier
         var nearest = FindNearestAnchor(anchors, subjectName, x, y);
         return nearest is null
             ? new RenderAbsPoint(x, y)
-            : new RenderRefPoint(nearest, (int)Math.Round(x - anchors[nearest].X), (int)Math.Round(y - anchors[nearest].Y));
+            : new RenderRefPoint(
+                nearest,
+                (int)Math.Round(x - anchors[nearest].X),
+                (int)Math.Round(y - anchors[nearest].Y)
+            );
     }
 
     /// <summary>
@@ -623,7 +626,11 @@ internal static class SchematicOperationApplier
             && anchors.TryGetValue(anchorName, out var anchor)
         )
         {
-            point = new RenderRefPoint(anchorName, (int)Math.Round(x - anchor.X), (int)Math.Round(y - anchor.Y));
+            point = new RenderRefPoint(
+                anchorName,
+                (int)Math.Round(x - anchor.X),
+                (int)Math.Round(y - anchor.Y)
+            );
             return true;
         }
 

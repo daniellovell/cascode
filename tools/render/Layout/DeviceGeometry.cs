@@ -385,12 +385,16 @@ public static class DeviceGeometry
     /// places the left edge to the right of the Gate terminal. This method computes
     /// the correct origin so that the bbox exactly covers the symbol extent.
     /// </summary>
-    public static (double X, double Y) GetMosfetBboxOrigin(double centroidX, double centroidY, bool mirrorX)
+    public static (double X, double Y) GetMosfetBboxOrigin(
+        double centroidX,
+        double centroidY,
+        bool mirrorX
+    )
     {
         // Terminal X positions relative to the symbol's top-left:
         //   unmirrored: Gate=0.5, Drain=16.5, Source=16.5
         //   mirrored:   Gate=16.5, Drain=0.5, Source=0.5
-        var gateRelX  = mirrorX ? MosfetWidth - MosfetGateX  : MosfetGateX;
+        var gateRelX = mirrorX ? MosfetWidth - MosfetGateX : MosfetGateX;
         var drainRelX = mirrorX ? MosfetWidth - MosfetDrainX : MosfetDrainX;
         var dx = (gateRelX + 2 * drainRelX) / (3.0 * RoutingPitch);
 

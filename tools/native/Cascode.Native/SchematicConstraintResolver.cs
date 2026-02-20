@@ -179,7 +179,12 @@ internal static class SchematicConstraintResolver
                 }
 
                 previous = resolved;
-                points.Add(new GridPoint(ToPixels((int)Math.Round(resolved.X)), ToPixels((int)Math.Round(resolved.Y))));
+                points.Add(
+                    new GridPoint(
+                        ToPixels((int)Math.Round(resolved.X)),
+                        ToPixels((int)Math.Round(resolved.Y))
+                    )
+                );
             }
 
             if (points.Count == 0)

@@ -16,7 +16,10 @@ public sealed class SchematicLayoutProjectionTests
         // M 2.6 4.5 L 2.6 21.5 with cx=8.55, cy=13, sx=sy=0.1
         var result = SchematicLayoutProjection.ScalePathD(
             "M 2.6 4.5 L 2.6 21.5",
-            0.1, 0.1, 8.55, 13.0
+            0.1,
+            0.1,
+            8.55,
+            13.0
         );
         Assert.Equal("M -0.595 -0.85 L -0.595 0.85", result);
     }
@@ -27,7 +30,10 @@ public sealed class SchematicLayoutProjectionTests
         // Relative c command — deltas scaled, no center offset
         var result = SchematicLayoutProjection.ScalePathD(
             "M 5 5 c 10 0 10 20 0 20",
-            0.1, 0.1, 5.0, 5.0
+            0.1,
+            0.1,
+            5.0,
+            5.0
         );
         // M: (5-5)*0.1=0, (5-5)*0.1=0 → "M 0 0"
         // c: 10*0.1=1, 0*0.1=0, 10*0.1=1, 20*0.1=2, 0*0.1=0, 20*0.1=2
@@ -39,7 +45,10 @@ public sealed class SchematicLayoutProjectionTests
     {
         var result = SchematicLayoutProjection.ScalePathD(
             "M 5.1 4.5 L 5.1 21.5 L 15.1 13 Z",
-            0.1, 0.1, 8.55, 13.0
+            0.1,
+            0.1,
+            8.55,
+            13.0
         );
         Assert.Contains("Z", result);
         Assert.StartsWith("M", result);
@@ -52,7 +61,10 @@ public sealed class SchematicLayoutProjectionTests
         // Just verify it doesn't throw and produces output
         var result = SchematicLayoutProjection.ScalePathD(
             "M12.9881,8.5c-.9491,-.7692,-1.5262,-2.0907,-1.5262,-3.6461",
-            0.1, 0.1, 13.0, 4.515
+            0.1,
+            0.1,
+            13.0,
+            4.515
         );
         Assert.False(string.IsNullOrEmpty(result));
         Assert.StartsWith("M", result);
@@ -63,7 +75,17 @@ public sealed class SchematicLayoutProjectionTests
     {
         var structural = new StructuralInfo
         {
-            Devices = [new StructuralDevice { Id = "M1", Type = "nmos", Terminals = ["G", "D", "S"], Primitive = "nfet_01v8", Size = new Dictionary<string, string>() }],
+            Devices =
+            [
+                new StructuralDevice
+                {
+                    Id = "M1",
+                    Type = "nmos",
+                    Terminals = ["G", "D", "S"],
+                    Primitive = "nfet_01v8",
+                    Size = new Dictionary<string, string>(),
+                },
+            ],
             Ports = [],
             Nets = [],
             Supplies = [],
@@ -100,7 +122,6 @@ public sealed class SchematicLayoutProjectionTests
         Assert.InRange(Math.Abs(termD.Y), 0.5, 2.0);
     }
 
-
     [Fact]
     public void TerminalPositions_AlignBetweenCatalogAndRenderCache()
     {
@@ -108,9 +129,12 @@ public sealed class SchematicLayoutProjectionTests
         // Terminal pixel positions from DeviceGeometry.GetMosfetPlacement(0,0,false):
         // G=(14,40), D=(30,28), S=(30,53)
         var mosfet = Cascode.Render.Layout.DeviceGeometry.GetMosfetPlacement(0, 0, false);
-        int gx = mosfet.GateX, gy = mosfet.GateY;
-        int dx = mosfet.DrainX, dy = mosfet.DrainY;
-        int sx = mosfet.SourceX, sy = mosfet.SourceY;
+        int gx = mosfet.GateX,
+            gy = mosfet.GateY;
+        int dx = mosfet.DrainX,
+            dy = mosfet.DrainY;
+        int sx = mosfet.SourceX,
+            sy = mosfet.SourceY;
 
         var circuit = new Circuit
         {
@@ -135,7 +159,9 @@ public sealed class SchematicLayoutProjectionTests
         {
             Segments = [],
             Junctions = [],
-            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+                StringComparer.Ordinal
+            ),
             CanvasWidth = 100,
             CanvasHeight = 100,
             TerminalPositions =
@@ -149,7 +175,17 @@ public sealed class SchematicLayoutProjectionTests
         // Build all three outputs
         var structural = new StructuralInfo
         {
-            Devices = [new StructuralDevice { Id = "M1", Type = "nmos", Terminals = ["G", "D", "S"], Primitive = "nfet_01v8", Size = new Dictionary<string, string>() }],
+            Devices =
+            [
+                new StructuralDevice
+                {
+                    Id = "M1",
+                    Type = "nmos",
+                    Terminals = ["G", "D", "S"],
+                    Primitive = "nfet_01v8",
+                    Size = new Dictionary<string, string>(),
+                },
+            ],
             Ports = [],
             Nets = [],
             Supplies = [],
@@ -176,13 +212,13 @@ public sealed class SchematicLayoutProjectionTests
 
             Assert.True(
                 Math.Abs(worldX - cacheTerm.X) < tolerance,
-                $"{termName}.X: catalog({catalogTerm.X:F4}) + pos({device.Position.X:F4}) = {worldX:F4}, " +
-                $"cache = {cacheTerm.X:F4}, delta = {Math.Abs(worldX - cacheTerm.X):F4}"
+                $"{termName}.X: catalog({catalogTerm.X:F4}) + pos({device.Position.X:F4}) = {worldX:F4}, "
+                    + $"cache = {cacheTerm.X:F4}, delta = {Math.Abs(worldX - cacheTerm.X):F4}"
             );
             Assert.True(
                 Math.Abs(worldY - cacheTerm.Y) < tolerance,
-                $"{termName}.Y: catalog({catalogTerm.Y:F4}) + pos({device.Position.Y:F4}) = {worldY:F4}, " +
-                $"cache = {cacheTerm.Y:F4}, delta = {Math.Abs(worldY - cacheTerm.Y):F4}"
+                $"{termName}.Y: catalog({catalogTerm.Y:F4}) + pos({device.Position.Y:F4}) = {worldY:F4}, "
+                    + $"cache = {cacheTerm.Y:F4}, delta = {Math.Abs(worldY - cacheTerm.Y):F4}"
             );
         }
     }
@@ -193,8 +229,10 @@ public sealed class SchematicLayoutProjectionTests
         // A vertical capacitor: not in HorizontalPassiveIds, so Rotate=90.
         // Terminal positions define the device position (centroid).
         var passive = DeviceGeometry.GetPassivePlacement(0, 0);
-        int px = passive.PX, py = passive.PY;
-        int nx = passive.NX, ny = passive.NY;
+        int px = passive.PX,
+            py = passive.PY;
+        int nx = passive.NX,
+            ny = passive.NY;
 
         var circuit = new Circuit
         {
@@ -205,7 +243,12 @@ public sealed class SchematicLayoutProjectionTests
             {
                 Devices =
                 [
-                    new DeviceDeclaration { Id = "C1", DeviceType = "Capacitor", Primitive = "Ideal_Capacitor" },
+                    new DeviceDeclaration
+                    {
+                        Id = "C1",
+                        DeviceType = "Capacitor",
+                        Primitive = "Ideal_Capacitor",
+                    },
                 ],
             },
         };
@@ -226,7 +269,9 @@ public sealed class SchematicLayoutProjectionTests
         {
             Segments = [],
             Junctions = [],
-            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+                StringComparer.Ordinal
+            ),
             CanvasWidth = 100,
             CanvasHeight = 100,
             TerminalPositions =
@@ -351,7 +396,12 @@ public sealed class SchematicLayoutProjectionTests
             {
                 Devices =
                 [
-                    new DeviceDeclaration { Id = "M1", DeviceType = "nmos", Primitive = "nfet_01v8" },
+                    new DeviceDeclaration
+                    {
+                        Id = "M1",
+                        DeviceType = "nmos",
+                        Primitive = "nfet_01v8",
+                    },
                 ],
             },
         };
@@ -360,7 +410,10 @@ public sealed class SchematicLayoutProjectionTests
         {
             RowCount = 1,
             ColumnCount = 1,
-            DevicePlacements = new Dictionary<string, GridCell> { ["M1"] = new GridCell(0, 0, MirrorX: false) },
+            DevicePlacements = new Dictionary<string, GridCell>
+            {
+                ["M1"] = new GridCell(0, 0, MirrorX: false),
+            },
             SymmetryAxis = 0,
             HorizontalPassiveIds = new HashSet<string>(),
         };
@@ -369,7 +422,9 @@ public sealed class SchematicLayoutProjectionTests
         {
             Segments = [],
             Junctions = [],
-            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+                StringComparer.Ordinal
+            ),
             CanvasWidth = 200,
             CanvasHeight = 200,
             TerminalPositions =
@@ -384,11 +439,11 @@ public sealed class SchematicLayoutProjectionTests
         var device = Assert.Single(layout.Devices);
 
         var bbox = device.Bbox;
-        double gateX  = placement.GateX  / rp;
-        double gateY  = placement.GateY  / rp;
+        double gateX = placement.GateX / rp;
+        double gateY = placement.GateY / rp;
         double drainX = placement.DrainX / rp;
         double drainY = placement.DrainY / rp;
-        double srcY   = placement.SourceY / rp;
+        double srcY = placement.SourceY / rp;
 
         // Gate is the leftmost terminal (x = topLeft + 0.5px).
         // It must be inside the bbox left edge.
@@ -406,7 +461,10 @@ public sealed class SchematicLayoutProjectionTests
         // Gate Y is mid-symbol; Drain is topmost, Source is bottommost.
         Assert.True(bbox.Y <= drainY, $"bbox top={bbox.Y:F4} is below Drain at {drainY:F4}.");
         Assert.True(bbox.Y + bbox.Height >= srcY, $"bbox bottom is above Source at {srcY:F4}.");
-        Assert.True(bbox.Y <= gateY && gateY <= bbox.Y + bbox.Height, $"Gate Y={gateY:F4} is outside bbox vertically.");
+        Assert.True(
+            bbox.Y <= gateY && gateY <= bbox.Y + bbox.Height,
+            $"Gate Y={gateY:F4} is outside bbox vertically."
+        );
 
         // Dimensions must match the canonical MOSFET symbol size.
         Assert.Equal(DeviceGeometry.MosfetWidth / rp, bbox.Width, 4);
@@ -428,7 +486,12 @@ public sealed class SchematicLayoutProjectionTests
             {
                 Devices =
                 [
-                    new DeviceDeclaration { Id = "M1", DeviceType = "pmos", Primitive = "pfet_01v8" },
+                    new DeviceDeclaration
+                    {
+                        Id = "M1",
+                        DeviceType = "pmos",
+                        Primitive = "pfet_01v8",
+                    },
                 ],
             },
         };
@@ -437,7 +500,10 @@ public sealed class SchematicLayoutProjectionTests
         {
             RowCount = 1,
             ColumnCount = 1,
-            DevicePlacements = new Dictionary<string, GridCell> { ["M1"] = new GridCell(0, 0, MirrorX: true) },
+            DevicePlacements = new Dictionary<string, GridCell>
+            {
+                ["M1"] = new GridCell(0, 0, MirrorX: true),
+            },
             SymmetryAxis = 0,
             HorizontalPassiveIds = new HashSet<string>(),
         };
@@ -446,7 +512,9 @@ public sealed class SchematicLayoutProjectionTests
         {
             Segments = [],
             Junctions = [],
-            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(StringComparer.Ordinal),
+            SegmentsByNet = new Dictionary<string, IReadOnlyList<WireSegment>>(
+                StringComparer.Ordinal
+            ),
             CanvasWidth = 200,
             CanvasHeight = 200,
             TerminalPositions =
@@ -461,11 +529,11 @@ public sealed class SchematicLayoutProjectionTests
         var device = Assert.Single(layout.Devices);
 
         var bbox = device.Bbox;
-        double gateX  = placement.GateX  / rp;
+        double gateX = placement.GateX / rp;
         double drainX = placement.DrainX / rp;
         double drainY = placement.DrainY / rp;
-        double srcY   = placement.SourceY / rp;
-        double gateY  = placement.GateY  / rp;
+        double srcY = placement.SourceY / rp;
+        double gateY = placement.GateY / rp;
 
         // When mirrored, Gate is the rightmost terminal; Drain/Source are leftmost.
         Assert.True(
@@ -478,7 +546,10 @@ public sealed class SchematicLayoutProjectionTests
         );
         Assert.True(bbox.Y <= drainY, $"bbox top={bbox.Y:F4} is below Drain at {drainY:F4}.");
         Assert.True(bbox.Y + bbox.Height >= srcY, $"bbox bottom is above Source at {srcY:F4}.");
-        Assert.True(bbox.Y <= gateY && gateY <= bbox.Y + bbox.Height, $"Gate Y={gateY:F4} is outside bbox vertically.");
+        Assert.True(
+            bbox.Y <= gateY && gateY <= bbox.Y + bbox.Height,
+            $"Gate Y={gateY:F4} is outside bbox vertically."
+        );
 
         Assert.Equal(DeviceGeometry.MosfetWidth / rp, bbox.Width, 4);
         Assert.Equal(DeviceGeometry.MosfetHeight / rp, bbox.Height, 4);

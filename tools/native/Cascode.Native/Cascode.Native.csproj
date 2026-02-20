@@ -9,6 +9,9 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <SuppressAotAnalysisWarnings>true</SuppressAotAnalysisWarnings>
+    <!-- ILCompiler version floats with the installed .NET runtime, making
+         lock files unstable across CI runner images. Disable for this project. -->
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
   </PropertyGroup>
 
   <ItemGroup>

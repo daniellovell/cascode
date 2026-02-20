@@ -44,6 +44,10 @@
 
   <!-- Bundle lib/std alongside the published output so the CLI can resolve includes -->
   <ItemGroup>
-    <Content Include="..\..\lib\std\**\*.cas" LinkBase="lib\std" CopyToOutputDirectory="PreserveNewest" />
+    <Content
+      Include="..\..\lib\std\**\*.cas"
+      LinkBase="lib\std"
+      CopyToOutputDirectory="PreserveNewest"
+    />
   </ItemGroup>
 </Project>

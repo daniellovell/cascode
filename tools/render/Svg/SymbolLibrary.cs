@@ -34,7 +34,9 @@ public static partial class SymbolLibrary
 
     private static readonly Lazy<Dictionary<string, SymbolData>> _symbols = new(LoadSymbols);
 
-    private static readonly Lazy<Dictionary<string, ParsedSymbol>> _parsedSymbols = new(BuildParsedSymbols);
+    private static readonly Lazy<Dictionary<string, ParsedSymbol>> _parsedSymbols = new(
+        BuildParsedSymbols
+    );
 
     /// <summary>
     /// Symbol-local terminal positions for each device type.
@@ -43,39 +45,38 @@ public static partial class SymbolLibrary
     private static readonly Dictionary<
         string,
         IReadOnlyDictionary<string, (double X, double Y)>
-    > TerminalPositionsByType =
-        new(StringComparer.Ordinal)
+    > TerminalPositionsByType = new(StringComparer.Ordinal)
+    {
+        ["nmos"] = new Dictionary<string, (double, double)>
         {
-            ["nmos"] = new Dictionary<string, (double, double)>
-            {
-                ["G"] = (0.5, 12.5),
-                ["D"] = (16.5, 0.5),
-                ["S"] = (16.5, 25.5),
-            },
-            ["pmos"] = new Dictionary<string, (double, double)>
-            {
-                ["G"] = (0.5, 12.5),
-                ["D"] = (16.5, 25.5),
-                ["S"] = (16.5, 0.5),
-            },
-            ["resistor"] = new Dictionary<string, (double, double)>
-            {
-                ["P"] = (0.5, 4.5131),
-                ["N"] = (25.5, 4.5131),
-            },
-            ["capacitor"] = new Dictionary<string, (double, double)>
-            {
-                ["P"] = (0.5, 4.4994),
-                ["N"] = (25.5, 4.4994),
-            },
-            ["inductor"] = new Dictionary<string, (double, double)>
-            {
-                ["P"] = (0.5, 4.8601),
-                ["N"] = (25.5, 4.8601),
-            },
-            ["port"] = new Dictionary<string, (double, double)> { ["Pin"] = (13.0, 2.5) },
-            ["supply"] = new Dictionary<string, (double, double)> { ["Pin"] = (4.5, 8.5) },
-        };
+            ["G"] = (0.5, 12.5),
+            ["D"] = (16.5, 0.5),
+            ["S"] = (16.5, 25.5),
+        },
+        ["pmos"] = new Dictionary<string, (double, double)>
+        {
+            ["G"] = (0.5, 12.5),
+            ["D"] = (16.5, 25.5),
+            ["S"] = (16.5, 0.5),
+        },
+        ["resistor"] = new Dictionary<string, (double, double)>
+        {
+            ["P"] = (0.5, 4.5131),
+            ["N"] = (25.5, 4.5131),
+        },
+        ["capacitor"] = new Dictionary<string, (double, double)>
+        {
+            ["P"] = (0.5, 4.4994),
+            ["N"] = (25.5, 4.4994),
+        },
+        ["inductor"] = new Dictionary<string, (double, double)>
+        {
+            ["P"] = (0.5, 4.8601),
+            ["N"] = (25.5, 4.8601),
+        },
+        ["port"] = new Dictionary<string, (double, double)> { ["Pin"] = (13.0, 2.5) },
+        ["supply"] = new Dictionary<string, (double, double)> { ["Pin"] = (4.5, 8.5) },
+    };
 
     /// <summary>
     /// Gets the NMOS transistor symbol SVG content.
@@ -276,9 +277,7 @@ public static partial class SymbolLibrary
             return null;
         }
 
-        var coords = points
-            .Trim()
-            .Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
+        var coords = points.Trim().Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
         if (coords.Length < 4)
         {
             return null;
@@ -305,10 +304,7 @@ public static partial class SymbolLibrary
             return [0, 0, 0, 0];
         }
 
-        var parts = match.Groups[1].Value.Split(
-            [' ', ','],
-            StringSplitOptions.RemoveEmptyEntries
-        );
+        var parts = match.Groups[1].Value.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 4)
         {
             return [0, 0, 0, 0];
