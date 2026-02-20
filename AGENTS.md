@@ -91,6 +91,7 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - No legacy toggles/shims; migrate and delete.
 - Build artifacts live in `build/` only.
 - Safety: NEVER run `git restore`.
+- Git commits: NEVER add `Co-Authored-By` trailers.
 - No DB migrations: never write code to migrate existing `pdk.db` files. When classification rules or matching change, instruct users to rerun `pdk scan` to regenerate the workspace database.
 - No migrations means no reader shims. Readers must assume the current schema only
 - Logging: when surfacing config or workspace-level errors, prefer dependency-injected `ILogger` so messages reach the CLI/TUI log. Only fall back to `Console.Error` when no logger is available.
