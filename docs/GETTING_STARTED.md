@@ -42,6 +42,9 @@ To verify numeric constraints against the produced results:
 dotnet run --project tools/cli/Cascode.Cli.csproj -- verify tests/golden/cas/bench/RcLowpass.el.cai build/rclowpass/results.json
 ```
 
+`verify` evaluates every declared numeric constraint. If a constraint cannot be measured from the
+provided results, it is reported as failed.
+
 The key idea in this example is that the circuit, the bench, and the constraint reference all live
 in one language with one syntax. The circuit’s `fill {}` block is just explicit connectivity:
 

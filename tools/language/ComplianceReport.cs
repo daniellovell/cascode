@@ -78,6 +78,11 @@ public sealed class ConstraintResult
     /// <summary>Whether the constraint passed.</summary>
     public bool Passed { get; init; }
 
+    /// <summary>
+    /// Optional machine-readable failure reason (for failed constraints).
+    /// </summary>
+    public string? FailureReason { get; init; }
+
     /// <summary>Human-readable message describing the result.</summary>
     public string Message { get; init; } = string.Empty;
 }

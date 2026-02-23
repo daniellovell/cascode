@@ -152,7 +152,11 @@ internal sealed class VerifyCommandModule : ICommandModule
             ) ?? elCircuits[0];
 
         // Check compliance
-        var report = ComplianceChecker.Check(circuit, results);
+        var report = ComplianceChecker.Check(
+            circuit,
+            results,
+            ConstraintEvaluationMode.AllDeclared
+        );
 
         DisplayComplianceReport(output, circuit, results.Bench, report);
 
@@ -291,8 +295,10 @@ internal sealed class VerifyCommandModule : ICommandModule
                 result.Expected,
                 GetUnitFromConstraint(circuit, result.Id)
             );
-            var actualStr = result.Actual.HasValue
-                ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
+            var actualStr =
+                result.Actual.HasValue
+                    ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
+                : result.FailureReason == "bench_error" ? " (measurement error)"
                 : " (not measured)";
 
             output.WriteLine(
