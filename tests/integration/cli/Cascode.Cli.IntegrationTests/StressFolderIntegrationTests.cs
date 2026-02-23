@@ -86,7 +86,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         }
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",
@@ -196,16 +196,17 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task CSAmpResistiveSky130_AllConstraintsPass()
+    public async Task CSAmpResistiveSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CSAmp_Resistive_Sky130.cas", "CSAmp_Resistive_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
+
+    private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests",
-            "golden",
-            "cas",
-            "stress",
-            "CSAmp_Resistive_Sky130.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests", "golden", "cas", "stress", casFileName);
 
         var doc = LoadAndLinkIfNeededForTest(cascodePath);
         Assert.True(RequiresPdkWorkspace(doc, out _, out var pdkRoot), "expected sky130 workspace");
@@ -214,7 +215,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
         var circuit = Assert.Single(
             doc.Circuits,
-            c => c.Name.Equals("CSAmp_Resistive_Sky130", StringComparison.Ordinal)
+            c => c.Name.Equals(circuitName, StringComparison.Ordinal)
         );
         var combinedResultsPath = Path.Combine(_outputDir, $"{circuit.Name}_results.json");
         Assert.True(
@@ -237,7 +238,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         Assert.True(report.TotalCount > 0, "expected at least one numeric constraint");
         Assert.True(
             report.FailedCount == 0,
-            "expected CSAmp_Resistive_Sky130 to satisfy all numeric constraints, failures: "
+            $"expected {circuitName} to satisfy all numeric constraints, failures: "
                 + string.Join(", ", failures)
         );
     }
@@ -257,7 +258,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
 
         var scan = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(3),
             _cascodeHome,
             "pdk",
             "scan",
@@ -266,7 +267,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(120),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",

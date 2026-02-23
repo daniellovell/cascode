@@ -129,7 +129,7 @@ jobs:
           -o build/native/${{ matrix.rid }}
 
       - name: Install node deps
-        run: npm ci --omit=optional
+        run: npm install --omit=optional
         working-directory: editors/node
 
       - name: Build node addon
