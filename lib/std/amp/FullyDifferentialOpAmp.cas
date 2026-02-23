@@ -9,7 +9,6 @@ interface FullyDifferentialOpAmp {
   ground GND
   input IN : Diff
   output OUT : Diff
-  input VTAIL : bias
 
   benches {
     bind QuiescentPower as vdd_pwr {

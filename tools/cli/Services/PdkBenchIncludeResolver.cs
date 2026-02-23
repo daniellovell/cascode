@@ -150,7 +150,7 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
     }
 
     /// <summary>
-    /// Recursively collects PDK device names from a circuit and its inline dependencies.
+    /// Recursively collects PDK device names from a circuit and its instantiated circuit dependencies.
     /// </summary>
     private static string[] CollectPdkDevicesRecursively(Circuit circuit, CascodeDocument? document)
     {
@@ -221,15 +221,12 @@ internal sealed class PdkBenchIncludeResolver : IBenchIncludeResolver
             }
         }
 
-        // Recursively collect from inline circuit instances
+        // Recursively collect from circuit instances (inline or not).
         if (circuit.Fill?.Instances is not null && circuitsByName is not null)
         {
             foreach (var instance in circuit.Fill.Instances)
             {
-                if (
-                    circuitsByName.TryGetValue(instance.Type, out var targetCircuit)
-                    && targetCircuit.Inline
-                )
+                if (circuitsByName.TryGetValue(instance.Type, out var targetCircuit))
                 {
                     CollectPdkDevicesFromCircuit(
                         targetCircuit,
