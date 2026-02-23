@@ -9,7 +9,7 @@ VERSION 3.2
 include lib.std
 include lib.pdk.sky130
 
-circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
+circuit OTA5T_Hierarchical_Attach implements SingleEndedOpAmp {
   level EL
   supply VDD
   ground GND
@@ -25,14 +25,14 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   }
 
   fill {
-    DiffPair_Pdk dp = new DiffPair_Pdk(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
+    DiffPair dp = new DiffPair(InputPair=size(W=2u, L=180n, M=1), Tail=size(W=4u, L=180n, M=1)) {
       .GND--GND
       .VDD--VDD
       .IN--IN
       .OUT.P--OUT
       .TAIL--VTAIL
     }
-    CurrentMirror_Pdk cm = new CurrentMirror_Pdk(ratio=1) {
+    CurrentMirror cm = new CurrentMirror(ratio=1) {
       .GND--GND
       .VDD--VDD
       // TAP[0]--OUT intentionally omitted - covered by attach statement below
@@ -60,7 +60,7 @@ circuit OTA5T_Hierarchical_Attach_Pdk implements SingleEndedOpAmp {
   }
 }
 
-circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
+circuit DiffPair(size InputPair, size Tail) implements DiffPairLike {
   level EL
   inline
   supply VDD
@@ -76,7 +76,7 @@ circuit DiffPair_Pdk(size InputPair, size Tail) implements DiffPairLike {
   }
 }
 
-circuit CurrentMirror_Pdk(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
+circuit CurrentMirror(size Sense=size(W=2u, L=180n, M=1), int ratio=1) implements CurrentMirrorLike {
   level EL
   supply VDD
   ground GND
