@@ -206,10 +206,16 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             return CommandResult.Failure;
         }
 
-        var circuit =
-            runContext.ElCircuits.FirstOrDefault(c =>
-                c.Name.Equals(results.Circuit, StringComparison.OrdinalIgnoreCase)
-            ) ?? runContext.Circuit;
+        Circuit circuit;
+        try
+        {
+            circuit = ResolveResultCircuitOrThrow(runContext, results.Circuit);
+        }
+        catch (InvalidOperationException ex)
+        {
+            output.Error(ex.Message);
+            return CommandResult.Failure;
+        }
 
         var report = ComplianceChecker.Check(
             circuit,
@@ -218,6 +224,33 @@ internal sealed partial class VerifyCommandModule : ICommandModule
         );
         DisplayComplianceReport(output, circuit, results.Bench, report);
         return report.FailedCount == 0 ? CommandResult.Success : CommandResult.Failure;
+    }
+
+    private static Circuit ResolveResultCircuitOrThrow(
+        VerifyRunContext runContext,
+        string requestedCircuitName
+    )
+    {
+        var circuit = runContext.ElCircuits.FirstOrDefault(c =>
+            c.Name.Equals(requestedCircuitName, StringComparison.OrdinalIgnoreCase)
+        );
+        if (circuit is not null)
+        {
+            return circuit;
+        }
+
+        var requested = string.IsNullOrWhiteSpace(requestedCircuitName)
+            ? "(empty circuit name)"
+            : requestedCircuitName;
+        var available = string.Join(
+            ", ",
+            runContext
+                .ElCircuits.Select(c => c.Name)
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+        );
+        throw new InvalidOperationException(
+            $"Verification results request circuit '{requested}', but no matching EL circuit was found in the Cascode source. Available EL circuits: {available}."
+        );
     }
 
     private BenchRunService.MultiCircuitBenchRunResult RunBenchPipeline(

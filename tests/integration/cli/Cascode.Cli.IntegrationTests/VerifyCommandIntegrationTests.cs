@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Cascode.Bench;
 using Cascode.Cli.IntegrationTests.Infrastructure;
 using Xunit;
 
@@ -168,6 +171,41 @@ public sealed class VerifyCommandIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Verify_ResultsCircuitNameMismatch_FailsWithHelpfulError()
+    {
+        using var setup = CreateVerifyFixture("verify-circuit-mismatch");
+        using var cascodeHome = CliIntegrationTestHelper.CreateCascodeHome(
+            setup.RepoRoot,
+            "verify-circuit-mismatch"
+        );
+
+        var jsonOptions = new JsonSerializerOptions { WriteIndented = true };
+
+        var original = JsonSerializer.Deserialize<BenchResult>(File.ReadAllText(setup.ResultsPath));
+        Assert.NotNull(original);
+        var mismatched = new BenchResult
+        {
+            Circuit = "DoesNotExist",
+            Bench = original!.Bench,
+            Measurements = new Dictionary<string, MeasurementResult>(original.Measurements),
+        };
+        File.WriteAllText(setup.ResultsPath, JsonSerializer.Serialize(mismatched, jsonOptions));
+
+        var verify = await CliIntegrationTestHelper.RunCliAsync(
+            TimeSpan.FromSeconds(10),
+            cascodeHome,
+            "verify",
+            setup.CascodePath,
+            setup.ResultsPath
+        );
+
+        Assert.NotEqual(0, verify.ExitCode);
+        Assert.Contains("DoesNotExist", verify.Stderr);
+        Assert.Contains("Available EL circuits", verify.Stderr);
+        Assert.Contains("OTA5TSingleEnded", verify.Stderr);
+    }
+
     private sealed class VerifyFixture : IDisposable
     {
         public VerifyFixture(
@@ -218,6 +256,15 @@ public sealed class VerifyCommandIntegrationTests
         );
         var resultsPath = Path.Combine(resultsDir, "OTA5TSingleEnded_results.json");
         File.Copy(sourceResults, resultsPath, overwrite: true);
+        var copied = JsonSerializer.Deserialize<BenchResult>(File.ReadAllText(resultsPath));
+        Assert.NotNull(copied);
+        var normalized = new BenchResult
+        {
+            Circuit = "OTA5TSingleEnded",
+            Bench = copied!.Bench,
+            Measurements = new Dictionary<string, MeasurementResult>(copied.Measurements),
+        };
+        File.WriteAllText(resultsPath, JsonSerializer.Serialize(normalized));
 
         // Keep results fresher than the Cascode source for tests that should not trigger auto-run.
         File.SetLastWriteTimeUtc(resultsPath, DateTime.UtcNow.AddMinutes(1));
