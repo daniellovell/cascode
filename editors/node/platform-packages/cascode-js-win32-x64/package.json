@@ -1,6 +1,6 @@
 {
   "name": "@cascode/cascode-js-win32-x64",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Prebuilt Windows x64 runtime bundle for @cascode/cascode-js",
   "license": "BSD-3-Clause",
   "private": false,
