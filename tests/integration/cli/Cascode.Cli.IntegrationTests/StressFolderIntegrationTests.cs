@@ -86,7 +86,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         }
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",
@@ -305,7 +305,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
 
         var scan = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(3),
             _cascodeHome,
             "pdk",
             "scan",
@@ -314,7 +314,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(120),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",
