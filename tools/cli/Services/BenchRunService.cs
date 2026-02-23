@@ -1203,6 +1203,7 @@ public class BenchRunService
                         Actual = result.Actual,
                         ActualUnit = result.ActualUnit,
                         Passed = result.Passed,
+                        FailureReason = result.FailureReason,
                         Message = result.Message,
                     }
                 );
