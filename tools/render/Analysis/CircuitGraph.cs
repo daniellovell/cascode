@@ -15,6 +15,7 @@ public sealed class CircuitGraph
     private readonly Dictionary<string, List<TerminalRef>> _netConnections;
     private readonly Dictionary<string, DeviceDeclaration> _devices;
     private readonly IReadOnlyList<InlineInstanceGroup> _inlineInstanceGroups;
+    private readonly IReadOnlyList<InstanceBlockInfo> _instanceBlocks;
     private readonly HashSet<string> _supplies;
     private readonly HashSet<string> _grounds;
     private readonly HashSet<string> _inputPorts;
@@ -26,6 +27,7 @@ public sealed class CircuitGraph
         Dictionary<string, List<TerminalRef>> netConnections,
         Dictionary<string, DeviceDeclaration> devices,
         IReadOnlyList<InlineInstanceGroup> inlineInstanceGroups,
+        IReadOnlyList<InstanceBlockInfo> instanceBlocks,
         HashSet<string> supplies,
         HashSet<string> grounds,
         HashSet<string> inputPorts,
@@ -37,6 +39,7 @@ public sealed class CircuitGraph
         _netConnections = netConnections;
         _devices = devices;
         _inlineInstanceGroups = inlineInstanceGroups;
+        _instanceBlocks = instanceBlocks;
         _supplies = supplies;
         _grounds = grounds;
         _inputPorts = inputPorts;
@@ -56,6 +59,8 @@ public sealed class CircuitGraph
     public IReadOnlyDictionary<string, DeviceDeclaration> Devices => _devices;
 
     public IReadOnlyList<InlineInstanceGroup> InlineInstanceGroups => _inlineInstanceGroups;
+
+    public IReadOnlyList<InstanceBlockInfo> InstanceBlocks => _instanceBlocks;
 
     /// <summary>
     /// Supply net names (e.g., VDD).
@@ -103,7 +108,8 @@ public sealed class CircuitGraph
             circuit,
             devices,
             internalNets,
-            inlineInstanceGroups: Array.Empty<InlineInstanceGroup>()
+            inlineInstanceGroups: Array.Empty<InlineInstanceGroup>(),
+            instanceBlocks: Array.Empty<InstanceBlockInfo>()
         );
     }
 
@@ -114,7 +120,8 @@ public sealed class CircuitGraph
             flattenedCircuit.RootCircuit,
             flattenedCircuit.Devices,
             flattenedCircuit.InternalNets,
-            flattenedCircuit.InlineInstanceGroups
+            flattenedCircuit.InlineInstanceGroups,
+            flattenedCircuit.InstanceBlocks
         );
     }
 
@@ -122,7 +129,8 @@ public sealed class CircuitGraph
         Circuit circuit,
         IReadOnlyDictionary<string, DeviceDeclaration> devices,
         IReadOnlySet<string> internalNets,
-        IReadOnlyList<InlineInstanceGroup> inlineInstanceGroups
+        IReadOnlyList<InlineInstanceGroup> inlineInstanceGroups,
+        IReadOnlyList<InstanceBlockInfo> instanceBlocks
     )
     {
         var netConnections = new Dictionary<string, List<TerminalRef>>();
@@ -185,6 +193,7 @@ public sealed class CircuitGraph
             netConnections,
             deviceMap,
             inlineInstanceGroups,
+            instanceBlocks,
             supplies,
             grounds,
             inputPorts,

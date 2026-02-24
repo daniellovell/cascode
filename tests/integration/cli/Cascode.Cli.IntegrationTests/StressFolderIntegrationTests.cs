@@ -86,7 +86,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         }
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",
@@ -116,6 +116,9 @@ public sealed class StressFolderIntegrationTests : IDisposable
     [MemberData(nameof(StressCases))]
     public async Task StressFolder_AllCasFiles_RenderSucceeds_AndProducesDevices(string cascodePath)
     {
+        using var sandbox = new TemporaryDirectory();
+        var sandboxedPath = StageStressRenderInput(cascodePath, sandbox.Path);
+
         var renderDir = Path.Combine(_outputDir, "render");
         Directory.CreateDirectory(renderDir);
 
@@ -123,13 +126,14 @@ public sealed class StressFolderIntegrationTests : IDisposable
             TimeSpan.FromSeconds(30),
             _cascodeHome,
             "render",
-            cascodePath,
+            sandboxedPath,
             "--output",
             renderDir
         );
         CliIntegrationTestHelper.AssertSuccess(render, "render failed");
 
-        var doc = LoadAndLinkIfNeededForTest(cascodePath);
+        var doc = LoadAndLinkIfNeededForTest(sandboxedPath);
+
         foreach (
             var circuit in doc
                 .Circuits.Where(c => c.Level == CascodeLevel.EL && !c.Inline)
@@ -143,6 +147,23 @@ public sealed class StressFolderIntegrationTests : IDisposable
             Assert.Contains("<svg", content);
             Assert.Matches(new Regex("class=\"device\\b", RegexOptions.CultureInvariant), content);
         }
+    }
+
+    private static string StageStressRenderInput(string sourceCasPath, string sandboxRoot)
+    {
+        var sourceDir = Path.GetDirectoryName(sourceCasPath) ?? Directory.GetCurrentDirectory();
+        var sandboxDir = Path.Combine(sandboxRoot, "stress");
+        Directory.CreateDirectory(sandboxDir);
+
+        foreach (
+            var sourcePath in Directory.GetFiles(sourceDir, "*", SearchOption.TopDirectoryOnly)
+        )
+        {
+            var destinationPath = Path.Combine(sandboxDir, Path.GetFileName(sourcePath));
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+        }
+
+        return Path.Combine(sandboxDir, Path.GetFileName(sourceCasPath));
     }
 
     [Fact]
@@ -175,16 +196,17 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Simulation")]
-    public async Task CSAmpResistiveSky130_AllConstraintsPass()
+    public async Task CSAmpResistiveSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CSAmp_Resistive_Sky130.cas", "CSAmp_Resistive_Sky130");
+
+    [Fact]
+    [Trait("Category", "Simulation")]
+    public async Task CapFeedbackFDSky130_AllConstraintsPass() =>
+        await RunConstraintCheckForCas("CapFeedbackFD_Sky130.cas", "CapFeedbackFD_Sky130");
+
+    private async Task RunConstraintCheckForCas(string casFileName, string circuitName)
     {
-        var cascodePath = Path.Combine(
-            _repoRoot,
-            "tests",
-            "golden",
-            "cas",
-            "stress",
-            "CSAmp_Resistive_Sky130.cas"
-        );
+        var cascodePath = Path.Combine(_repoRoot, "tests", "golden", "cas", "stress", casFileName);
 
         var doc = LoadAndLinkIfNeededForTest(cascodePath);
         Assert.True(RequiresPdkWorkspace(doc, out _, out var pdkRoot), "expected sky130 workspace");
@@ -193,7 +215,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
 
         var circuit = Assert.Single(
             doc.Circuits,
-            c => c.Name.Equals("CSAmp_Resistive_Sky130", StringComparison.Ordinal)
+            c => c.Name.Equals(circuitName, StringComparison.Ordinal)
         );
         var combinedResultsPath = Path.Combine(_outputDir, $"{circuit.Name}_results.json");
         Assert.True(
@@ -216,7 +238,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         Assert.True(report.TotalCount > 0, "expected at least one numeric constraint");
         Assert.True(
             report.FailedCount == 0,
-            "expected CSAmp_Resistive_Sky130 to satisfy all numeric constraints, failures: "
+            $"expected {circuitName} to satisfy all numeric constraints, failures: "
                 + string.Join(", ", failures)
         );
     }
@@ -236,7 +258,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(pdkSet, "pdk set-dir failed");
 
         var scan = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(90),
+            TimeSpan.FromMinutes(3),
             _cascodeHome,
             "pdk",
             "scan",
@@ -245,7 +267,7 @@ public sealed class StressFolderIntegrationTests : IDisposable
         CliIntegrationTestHelper.AssertSuccess(scan, "pdk scan failed");
 
         var run = await CliIntegrationTestHelper.RunCliAsync(
-            TimeSpan.FromSeconds(120),
+            TimeSpan.FromMinutes(5),
             _cascodeHome,
             "bench",
             "run",

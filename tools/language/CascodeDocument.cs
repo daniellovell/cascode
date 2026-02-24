@@ -183,6 +183,9 @@ public sealed class Circuit
     /// <summary>Environment block describing operating intent (used by benches).</summary>
     public EnvBlock? Env { get; init; }
 
+    /// <summary>Render-intent block containing sparse schematic overrides.</summary>
+    public RenderBlock? Render { get; set; }
+
     /// <summary>Bench bindings declared on the circuit (override/extend interface benches).</summary>
     public List<BenchBinding> BenchBindings { get; init; } = new();
 

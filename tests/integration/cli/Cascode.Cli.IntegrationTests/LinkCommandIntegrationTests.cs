@@ -46,7 +46,7 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.std
 
@@ -130,7 +130,7 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -207,7 +207,7 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             circuit Minimal {
               level EL
@@ -260,7 +260,7 @@ public sealed class LinkCommandIntegrationTests : IDisposable
         await File.WriteAllTextAsync(
             entryPath,
             """
-            VERSION 3.1
+            VERSION 3.2
 
             include lib.pdk.sky130.devices.nfet_01v8
 

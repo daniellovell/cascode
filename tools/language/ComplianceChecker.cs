@@ -6,6 +6,12 @@ using Cascode.Bench;
 
 namespace Cascode.Language;
 
+public enum ConstraintEvaluationMode
+{
+    BenchScoped,
+    AllDeclared,
+}
+
 /// <summary>
 /// Checks circuit constraints against bench measurement results.
 /// </summary>
@@ -18,7 +24,21 @@ public static class ComplianceChecker
     /// <param name="circuit">Circuit containing constraints.</param>
     /// <param name="results">Bench measurement results.</param>
     /// <returns>Compliance report with pass/fail status for each constraint.</returns>
-    public static ComplianceReport Check(Circuit circuit, BenchResult results)
+    public static ComplianceReport Check(Circuit circuit, BenchResult results) =>
+        Check(circuit, results, ConstraintEvaluationMode.BenchScoped);
+
+    /// <summary>
+    /// Checks numeric constraints from a circuit against measurement results.
+    /// </summary>
+    /// <param name="circuit">Circuit containing constraints.</param>
+    /// <param name="results">Bench measurement results.</param>
+    /// <param name="mode">Constraint evaluation mode.</param>
+    /// <returns>Compliance report with pass/fail status for each constraint.</returns>
+    public static ComplianceReport Check(
+        Circuit circuit,
+        BenchResult results,
+        ConstraintEvaluationMode mode
+    )
     {
         ArgumentNullException.ThrowIfNull(circuit);
         ArgumentNullException.ThrowIfNull(results);
@@ -30,7 +50,7 @@ public static class ComplianceChecker
             return report;
         }
 
-        // "all" indicates combined results from multiple benches - check all constraints
+        // "all" indicates combined results from multiple benches.
         var isCombinedResults = string.Equals(
             results.Bench,
             "all",
@@ -41,9 +61,10 @@ public static class ComplianceChecker
         {
             var benchForConstraint = constraint.Bench;
 
-            // Skip filtering for combined results ("all") which should check all constraints
+            // Bench-scoped mode skips constraints measured by other benches.
             if (
-                !isCombinedResults
+                mode == ConstraintEvaluationMode.BenchScoped
+                && !isCombinedResults
                 && !string.IsNullOrWhiteSpace(benchForConstraint)
                 && !string.Equals(
                     benchForConstraint,
@@ -52,19 +73,7 @@ public static class ComplianceChecker
                 )
             )
             {
-                // This constraint belongs to a different bench - track as unchecked
-                if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
-                {
-                    uncheckedList = new List<UncheckedConstraint>();
-                    report.UncheckedByBench[benchForConstraint] = uncheckedList;
-                }
-                uncheckedList.Add(
-                    new UncheckedConstraint
-                    {
-                        Id = constraint.Id,
-                        Metric = FormatMetricKey(constraint),
-                    }
-                );
+                AddUncheckedConstraint(report, benchForConstraint, constraint);
                 continue;
             }
 
@@ -74,6 +83,23 @@ public static class ComplianceChecker
         }
 
         return report;
+    }
+
+    private static void AddUncheckedConstraint(
+        ComplianceReport report,
+        string benchForConstraint,
+        NumericConstraint constraint
+    )
+    {
+        if (!report.UncheckedByBench.TryGetValue(benchForConstraint, out var uncheckedList))
+        {
+            uncheckedList = new List<UncheckedConstraint>();
+            report.UncheckedByBench[benchForConstraint] = uncheckedList;
+        }
+
+        uncheckedList.Add(
+            new UncheckedConstraint { Id = constraint.Id, Metric = FormatMetricKey(constraint) }
+        );
     }
 
     private static ConstraintResult EvaluateConstraint(
@@ -100,6 +126,7 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
+                FailureReason = "no_measurement",
                 Message =
                     $"No measurement found for {metricKey}"
                     + (constraint.Node != null ? $" @ {constraint.Node}" : ""),
@@ -122,6 +149,7 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
+                FailureReason = "bench_error",
                 Message = $"Measurement error: {measurement.Error}",
             };
         }
@@ -140,6 +168,7 @@ public static class ComplianceChecker
                 Actual = actual,
                 ActualUnit = measurement.Unit,
                 Passed = false,
+                FailureReason = "non_finite_value",
                 Message =
                     $"Non-finite measurement value: {actual.ToString(CultureInfo.InvariantCulture)}",
             };
@@ -159,6 +188,7 @@ public static class ComplianceChecker
             Actual = actual,
             ActualUnit = measurement.Unit,
             Passed = passed,
+            FailureReason = passed ? null : "constraint_violation",
             Message = passed ? "PASS" : "FAIL",
         };
     }

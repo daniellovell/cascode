@@ -78,8 +78,8 @@ cascode --help
   - dotnet tool: `dotnet tool install -g Cascode.Cli`
 
 - Pre-release (release candidates, nightly tags):
-  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.5.0-rc.1`)
-  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.5.0-rc.1`
+  - npm: `npm install -g @cascode/cascode-cli@next` (or pin a specific tag, e.g. `@0.5.1-rc.1`)
+  - dotnet tool: `dotnet tool install -g Cascode.Cli --version 0.5.1-rc.1`
   - Direct download: grab the matching asset from the GitHub release marked "Pre-release".
 
 ---
@@ -305,6 +305,14 @@ cd editors\vscode; .\install.ps1
 ```
 
 Highlights keywords (`circuit`, `interface`, `bench`, `fill`, `constraints`, `harness`), typed quantities (`1.8V`, `15pF`, `50MHz`), the wire operator (`--`), and more. See [editors/README.md](editors/README.md) for details and GitHub Linguist integration.
+
+For native editor/runtime integrations, see `@cascode/native` in `editors/node`:
+
+- Package docs: `editors/node/README.md`
+- Runtime package: `editors/node/package.json`
+- Platform package templates: `editors/node/platform-packages/`
+
+Maintainers: native npm package versions are release-tag aligned and validated in `.github/workflows/release.yml`.
 
 ---
 

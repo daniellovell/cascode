@@ -20,11 +20,14 @@ public static class DeviceGeometry
     public const double PortPinX = 13.0;
     public const double PortPinY = 2.5;
 
-    private const double MosfetGateX = 0.5;
-    private const double MosfetGateY = 12.5;
-    private const double MosfetDrainX = 16.5;
-    private const double MosfetDrainY = 0.5;
-    private const double MosfetSourceY = 25.5;
+    public const double InstanceBlockWidth = 30.0;
+    public const double InstanceBlockHeight = 30.0;
+
+    public const double MosfetGateX = 0.5;
+    public const double MosfetGateY = 12.5;
+    public const double MosfetDrainX = 16.5;
+    public const double MosfetDrainY = 0.5;
+    public const double MosfetSourceY = 25.5;
 
     public sealed record MosfetPlacement(
         double X,
@@ -48,6 +51,51 @@ public static class DeviceGeometry
         int NX,
         int NY
     );
+
+    public sealed record InstanceBlockPlacement(
+        double X,
+        double Y,
+        IReadOnlyDictionary<string, (int X, int Y)> Terminals
+    );
+
+    /// <summary>
+    /// Computes placement for an instance block.
+    /// Supply/ground bindings map to top/bottom center.
+    /// Signal ports are distributed along the edge facing the connected devices:
+    /// bottom edge for VDD-side blocks, top edge for GND-side blocks.
+    /// </summary>
+    public static InstanceBlockPlacement GetInstanceBlockPlacement(
+        int row,
+        int col,
+        IReadOnlyList<string> signalPorts,
+        IReadOnlySet<string> supplyNames,
+        IReadOnlySet<string> groundNames,
+        IReadOnlyDictionary<string, string> bindings
+    )
+    {
+        var baseX = GetCellCenterX(col);
+        var baseY = GetCellCenterY(row);
+        var topLeftX = baseX - InstanceBlockWidth / 2.0;
+        var topLeftY = baseY - InstanceBlockHeight / 2.0;
+
+        var terminals = new Dictionary<string, (int X, int Y)>(StringComparer.Ordinal);
+        var topY = RoundToInt(topLeftY);
+        var bottomY = RoundToInt(topLeftY + InstanceBlockHeight);
+
+        var isVddSide = bindings.Values.Any(supplyNames.Contains);
+
+        var signalPortsToPlace = signalPorts.ToList();
+        var edgeY = isVddSide ? bottomY : topY;
+        var spacing = InstanceBlockWidth / (signalPortsToPlace.Count + 1);
+
+        for (var i = 0; i < signalPortsToPlace.Count; i++)
+        {
+            var portX = SnapToRoutingGrid(topLeftX + spacing * (i + 1));
+            terminals[signalPortsToPlace[i]] = (portX, edgeY);
+        }
+
+        return new InstanceBlockPlacement(topLeftX, topLeftY, terminals);
+    }
 
     /// <summary>
     /// Terminal positions for any device type, used for terminal-aware wire length calculations.
@@ -234,9 +282,13 @@ public static class DeviceGeometry
                 terminals["N"] = (p.NX, p.NY);
             }
         }
+        else if (type == "instance")
+        {
+            x = GetCellCenterX(col) - InstanceBlockWidth / 2.0;
+            y = GetCellCenterY(row) - InstanceBlockHeight / 2.0;
+        }
         else
         {
-            // Unknown device type - use cell center
             x = GetCellCenterX(col);
             y = GetCellCenterY(row);
         }
@@ -322,5 +374,34 @@ public static class DeviceGeometry
         }
 
         return (0, 0);
+    }
+
+    /// <summary>
+    /// Compute the MOSFET symbol's top-left corner in render units given the
+    /// terminal centroid and mirror state.
+    ///
+    /// The centroid is the average of Gate, Drain, and Source terminal positions.
+    /// Because the MOSFET symbol is asymmetric, centering the bbox on the centroid
+    /// places the left edge to the right of the Gate terminal. This method computes
+    /// the correct origin so that the bbox exactly covers the symbol extent.
+    /// </summary>
+    public static (double X, double Y) GetMosfetBboxOrigin(
+        double centroidX,
+        double centroidY,
+        bool mirrorX
+    )
+    {
+        // Terminal X positions relative to the symbol's top-left:
+        //   unmirrored: Gate=0.5, Drain=16.5, Source=16.5
+        //   mirrored:   Gate=16.5, Drain=0.5, Source=0.5
+        var gateRelX = mirrorX ? MosfetWidth - MosfetGateX : MosfetGateX;
+        var drainRelX = mirrorX ? MosfetWidth - MosfetDrainX : MosfetDrainX;
+        var dx = (gateRelX + 2 * drainRelX) / (3.0 * RoutingPitch);
+
+        // Terminal Y positions relative to the symbol's top-left are the same
+        // regardless of mirrorX: Drain=0.5, Gate=12.5, Source=25.5
+        var dy = (MosfetDrainY + MosfetGateY + MosfetSourceY) / (3.0 * RoutingPitch);
+
+        return (centroidX - dx, centroidY - dy);
     }
 }

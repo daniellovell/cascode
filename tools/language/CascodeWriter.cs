@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using Cascode.Language.Validation;
 
 namespace Cascode.Language;
 
 /// <summary>
 /// Writes Cascode documents to text format following canonical writer rules.
 /// </summary>
-public static class CascodeWriter
+public static partial class CascodeWriter
 {
     /// <summary>
     /// Writes an Cascode document to a text writer.
@@ -223,6 +224,14 @@ public static class CascodeWriter
         writer.WriteLine("}");
     }
 
+    /// <summary>
+    /// Writes a Circuit to the provided TextWriter using the canonical Cascode textual representation.
+    /// </summary>
+    /// <remarks>
+    /// Emits the circuit header (name, size parameters, parameters, implemented traits) and then writes the circuit body sections in canonical order, including level/inline/library, supplies, grounds, ports, slot, fill, constraints, harness, env, any pruned render block, bench bindings/extensions, synth entries, and provenance.
+    /// </remarks>
+    /// <param name="circuit">The Circuit model to serialize.</param>
+    /// <param name="writer">The TextWriter to which the circuit text will be written.</param>
     private static void WriteCircuit(Circuit circuit, TextWriter writer)
     {
         // Circuit header
@@ -332,6 +341,12 @@ public static class CascodeWriter
                 writer.WriteLine($"    {entry.Key} = {entry.Value}");
             }
             writer.WriteLine("  }");
+        }
+
+        var prunedRender = RenderBlockValidator.Prune(circuit);
+        if (prunedRender is not null && prunedRender.Entities.Count > 0)
+        {
+            WriteRenderBlock(prunedRender, writer);
         }
 
         if (circuit.BenchBindings.Count > 0 || circuit.BenchBindingExtensions.Count > 0)

@@ -412,4 +412,60 @@ internal static class TestCircuits
                 },
             },
         };
+
+    /// <summary>
+    /// RC lowpass filter: two passive devices (R1, C1) with no symmetric groups.
+    /// Matches the topology of a typical sample.cas file.
+    /// </summary>
+    public static Circuit RcLowpass() =>
+        new()
+        {
+            Name = "rc_lowpass",
+            Level = CascodeLevel.EL,
+            Supplies = new List<string> { "VDD" },
+            Grounds = new List<string> { "GND" },
+            Ports = new List<PortDeclaration>
+            {
+                new()
+                {
+                    Direction = PortDirection.Input,
+                    Name = "IN",
+                    Type = "signal",
+                },
+                new()
+                {
+                    Direction = PortDirection.Output,
+                    Name = "OUT",
+                    Type = "signal",
+                },
+            },
+            Fill = new FillBlock
+            {
+                Devices = new List<DeviceDeclaration>
+                {
+                    new()
+                    {
+                        Id = "R1",
+                        DeviceType = "resistor",
+                        Primitive = "Ideal_Resistor",
+                        Bindings = new Dictionary<string, string> { ["P"] = "IN", ["N"] = "OUT" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["R"] = "4.5k" },
+                        },
+                    },
+                    new()
+                    {
+                        Id = "C1",
+                        DeviceType = "capacitor",
+                        Primitive = "Ideal_Capacitor",
+                        Bindings = new Dictionary<string, string> { ["P"] = "OUT", ["N"] = "GND" },
+                        Size = new SizePack
+                        {
+                            Entries = new Dictionary<string, string> { ["C"] = "10n" },
+                        },
+                    },
+                },
+            },
+        };
 }

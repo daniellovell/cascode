@@ -31,6 +31,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
+        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -48,6 +49,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
+        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -254,6 +256,43 @@ public class ComplianceCheckerTests
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
         Assert.Contains("No measurement found", report.Results[0].Message);
+        Assert.Equal("no_measurement", report.Results[0].FailureReason);
+    }
+
+    [Fact]
+    public void Check_MeasurementError_ReportsBenchErrorFailureReason()
+    {
+        var circuit = CreateCircuitWithConstraint(
+            "c_test",
+            "GainBandwidth",
+            "OUT",
+            ">=",
+            "100M",
+            "Hz"
+        );
+        var results = new BenchResult
+        {
+            Circuit = "TestCircuit",
+            Bench = "TestBench",
+            Measurements = new Dictionary<string, MeasurementResult>
+            {
+                ["m_gbw"] = new()
+                {
+                    Metric = "GainBandwidth",
+                    Value = double.NaN,
+                    Unit = "Hz",
+                    Node = "OUT",
+                    Error = "bench failed",
+                },
+            },
+        };
+
+        var report = ComplianceChecker.Check(circuit, results);
+
+        Assert.Single(report.Results);
+        Assert.False(report.Results[0].Passed);
+        Assert.Equal("bench_error", report.Results[0].FailureReason);
+        Assert.Contains("Measurement error", report.Results[0].Message);
     }
 
     [Fact]
@@ -659,6 +698,44 @@ public class ComplianceCheckerTests
         Assert.Equal(0, report.FailedCount);
         // No unchecked constraints since we're checking all
         Assert.Empty(report.UncheckedByBench);
+    }
+
+    [Fact]
+    public void Check_AllDeclaredMode_EvaluatesAllDeclaredConstraints()
+    {
+        var repoRoot = TestPathUtilities.GetRepositoryRoot();
+        var cascodePath = Path.Combine(repoRoot, "tests/golden/cas/ota/OTA5TSingleEnded.el.cai");
+        var resultsPath = Path.Combine(
+            repoRoot,
+            "tests/golden/results/ota/OTA5TSingleEnded_DCSwept_vdd_pwr_results.json"
+        );
+
+        using var reader = File.OpenText(cascodePath);
+        var doc = CascodeReader.Read(reader, cascodePath);
+        var circuit = doc.Circuits[0];
+
+        var resultsJson = File.ReadAllText(resultsPath);
+        var results = JsonSerializer.Deserialize<BenchResult>(resultsJson);
+        Assert.NotNull(results);
+
+        var report = ComplianceChecker.Check(
+            circuit,
+            results,
+            ConstraintEvaluationMode.AllDeclared
+        );
+
+        Assert.Equal(5, report.TotalCount);
+        Assert.Equal(1, report.PassedCount);
+        Assert.Equal(4, report.FailedCount);
+        Assert.Empty(report.UncheckedByBench);
+
+        var cPwr = report.Results.Single(r => r.Id == "c_pwr");
+        Assert.True(cPwr.Passed);
+        Assert.Null(cPwr.FailureReason);
+
+        var cGbw = report.Results.Single(r => r.Id == "c_gbw");
+        Assert.False(cGbw.Passed);
+        Assert.Equal("no_measurement", cGbw.FailureReason);
     }
 
     [Fact]
