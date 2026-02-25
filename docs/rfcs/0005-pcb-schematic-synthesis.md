@@ -206,7 +206,7 @@ Concrete part declarations live in a separate `lib/parts/` tree, organized by ca
 The existing primitive syntax uses reserved keyword categories:
 
 ```cascode
-primitive NMOS nfet_01v8(size s) { device "sky130_fd_pr__nfet_01v8" params { ... } }
+primitive nfet_01v8(size s) implements NMOS { device "sky130_fd_pr__nfet_01v8" params { ... } }
 ```
 
 Under the unified model, primitives use `implements` to reference a library-defined interface:
@@ -1081,7 +1081,7 @@ The constraint system uses distinct sub-blocks organized by verification method.
 
 Three constraint sub-blocks are supported:
 
-`bench {}` constrains scalar metrics verified by bench execution (simulation). The bench planner generates a testbench, runs it, extracts a metric value, and compares the result against the stated bound. This replaces the prior `numeric {}` block from the IC-only constraint system.
+`bench {}` constrains scalar metrics verified by bench execution (simulation). The bench planner generates a testbench, runs it, extracts a metric value, and compares the result against the stated bound. This replaces the prior `bench {}` block from the IC-only constraint system.
 
 ```cascode
 constraints {
@@ -1103,7 +1103,7 @@ constraints {
 }
 ```
 
-`physical {}` constrains device and component physical parameters against structural rules. This replaces the prior `tech {}` block. In IC designs, physical constraints enforce geometry rules (minimum channel length). In PCB designs, they can enforce package, operating temperature, or other physical attributes.
+`physical {}` constrains device and component physical parameters against structural rules. This replaces the prior `physical {}` block. In IC designs, physical constraints enforce geometry rules (minimum channel length). In PCB designs, they can enforce package, operating temperature, or other physical attributes.
 
 ```cascode
 constraints {
@@ -1831,7 +1831,7 @@ Ch01: add a brief note in Section 1.5 (Cascode in a Few Examples) that PCB desig
 
 Ch02 new constructs: add `part` to the Section 2.2 top-level declaration list. Add Section 2.5.3 for E-series parameter types (`e6` through `e192`) in the parameter type system, covering the subtype hierarchy and compile-time validation. Add Section 2.6.2 for parts (`mpn`, `footprint`, `spice`, `catalog` fields, variant blocks, part inheritance, mandatory concrete `pins {}` mapping, optional `units {}`, MPN templates, parameterized vs fixed-identity). Add a new section for the metrics system (interface metric declarations, part/circuit metric value blocks, qualifiers and corners, the two named metric kinds, variant-dependent metrics, metric-driven parameter propagation). Add PCB-domain units (`pct`, `SPS`, `bits`, `LSB`, `B`) to Section 2.9.
 
-Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `numeric {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `tech {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
+Ch02 renames and extensions: rewrite Section 2.6 (Primitives) to use `implements` syntax. Rename `bench {}` → `bench {}` in Section 2.7.1. Add a new Section 2.7.x for the `spec {}` sub-block with dot-operator metric lookup and bare-name self-references. Rename `physical {}` → `physical {}`. Add a note to Section 2.5.5 about metric-driven parameter propagation between slot sub-blocks.
 
 Ch03 new syntax: update Section 3.1 to include `partDef`. Add `eSeriesType` grammar rule in the parameter declarations section. Add new sections for part declarations (`partDef`, `partMember`, `catalogBlock`, `catalogOption`, `pinsBlock`, `unitsBlock`, `cornersBlock`), metrics blocks (`metricsValueBlock`, `interfaceMetricsBlock`, `benchBindingMetrics` with qualifiers/corners), metric references (`instanceMetricRef`, `benchMetricRef`), and array ports (`portDecl` with range, `portIndexRef`).
 

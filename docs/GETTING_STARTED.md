@@ -68,7 +68,7 @@ benches {
 }
 
 constraints {
-  numeric { c_fc = lp::LowpassBandwidth >= 50MHz }
+  bench { c_fc = lp::LowpassBandwidth >= 50MHz }
 }
 ```
 
