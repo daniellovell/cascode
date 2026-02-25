@@ -1587,7 +1587,8 @@ public sealed class BenchMeasurementRunner
         return v switch
         {
             BenchNumber n => $"{n.Kind}:{n.Value.ToString("G17", CultureInfo.InvariantCulture)}",
-            BenchComplexNumber c => $"{c.Kind}:{c.Value.Real.ToString("G17", CultureInfo.InvariantCulture)}:{c.Value.Imaginary.ToString("G17", CultureInfo.InvariantCulture)}",
+            BenchComplexNumber c =>
+                $"{c.Kind}:{c.Value.Real.ToString("G17", CultureInfo.InvariantCulture)}:{c.Value.Imaginary.ToString("G17", CultureInfo.InvariantCulture)}",
             BenchSymbol s => "sym:" + s.Name,
             BenchTerminalRef t => "term:" + t.Name,
             BenchAnalysisRef a => "analysis:" + a.Name,
