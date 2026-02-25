@@ -31,7 +31,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -49,7 +49,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("non_finite_value", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NonFiniteValue, report.Results[0].FailureReason);
     }
 
     [Theory]
@@ -86,6 +86,10 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.Equal(expectedPass, report.Results[0].Passed);
+        if (!expectedPass)
+        {
+            Assert.Equal(ConstraintResult.ConstraintViolation, report.Results[0].FailureReason);
+        }
     }
 
     [Theory]
@@ -256,7 +260,7 @@ public class ComplianceCheckerTests
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
         Assert.Contains("No measurement found", report.Results[0].Message);
-        Assert.Equal("no_measurement", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.NoMeasurement, report.Results[0].FailureReason);
     }
 
     [Fact]
@@ -291,7 +295,7 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.False(report.Results[0].Passed);
-        Assert.Equal("bench_error", report.Results[0].FailureReason);
+        Assert.Equal(ConstraintResult.BenchError, report.Results[0].FailureReason);
         Assert.Contains("Measurement error", report.Results[0].Message);
     }
 
@@ -735,7 +739,7 @@ public class ComplianceCheckerTests
 
         var cGbw = report.Results.Single(r => r.Id == "c_gbw");
         Assert.False(cGbw.Passed);
-        Assert.Equal("no_measurement", cGbw.FailureReason);
+        Assert.Equal(ConstraintResult.NoMeasurement, cGbw.FailureReason);
     }
 
     [Fact]
