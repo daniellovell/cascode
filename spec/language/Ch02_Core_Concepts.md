@@ -651,3 +651,7 @@ Common post-processing methods:
 - `H.Mag()` and `H.Phase()` on `TransferFunction`
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
+
+For `VoltageSpectrum` and `CurrentSpectrum`, `ValueAt(x)` produces a complex sample. To get a
+real magnitude, call `.Mag()` explicitly before or after sampling:
+`voltage(ac, OUT).Mag().ValueAt(x)` or `voltage(ac, OUT).ValueAt(x).Mag()`.

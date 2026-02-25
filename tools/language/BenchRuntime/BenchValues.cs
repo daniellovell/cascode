@@ -60,6 +60,14 @@ public sealed record BenchVoltageSpectrum(double[] FrequenciesHz, Complex[] Valu
 
 public sealed record BenchCurrentSpectrum(double[] FrequenciesHz, Complex[] Values) : BenchValue;
 
+public sealed record BenchVoltageMagnitudeSpectrum(double[] FrequenciesHz, double[] Values)
+    : BenchValue;
+
+public sealed record BenchCurrentMagnitudeSpectrum(double[] FrequenciesHz, double[] Values)
+    : BenchValue;
+
+public sealed record BenchComplexNumber(BenchNumericKind Kind, Complex Value) : BenchValue;
+
 public sealed record BenchAnalysisRef(string Name) : BenchValue;
 
 public sealed record BenchBool(bool Value) : BenchValue;

@@ -914,67 +914,32 @@ public sealed class BenchMeasurementRunner
                 }
 
                 var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
-                var mags = vs.Values.Select(v => v.Magnitude).ToArray();
-                var v = InterpolateLogX(vs.FrequenciesHz, mags, f.Value);
-                return new BenchNumber(BenchNumericKind.VoltageV, v);
+                var v = InterpolateLogXComplex(vs.FrequenciesHz, vs.Values, f.Value);
+                return new BenchComplexNumber(BenchNumericKind.VoltageV, v);
             }
 
-            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
             {
                 if (call.Args.Count != 0)
                 {
-                    throw new InvalidOperationException("VoltageSpectrum.Max takes no arguments.");
+                    throw new InvalidOperationException("VoltageSpectrum.Mag takes no arguments.");
                 }
-                return new BenchNumber(BenchNumericKind.VoltageV, vs.Values.Max(v => v.Magnitude));
+
+                var values = vs.Values.Select(v => v.Magnitude).ToArray();
+                return new BenchVoltageMagnitudeSpectrum(vs.FrequenciesHz, values);
             }
 
-            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
             {
                 if (call.Args.Count != 0)
                 {
-                    throw new InvalidOperationException("VoltageSpectrum.Min takes no arguments.");
-                }
-                return new BenchNumber(BenchNumericKind.VoltageV, vs.Values.Min(v => v.Magnitude));
-            }
-
-            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
-            {
-                if (call.Args.Count < 1)
-                {
                     throw new InvalidOperationException(
-                        "VoltageSpectrum.FindCrossing requires a threshold argument."
+                        "VoltageSpectrum.Phase takes no arguments."
                     );
                 }
 
-                var threshold = RequireNumber(
-                    EvaluateExpr(call.Args[0].Value, locals),
-                    "FindCrossing(threshold)"
-                );
-                if (
-                    threshold.Kind != BenchNumericKind.VoltageV
-                    && threshold.Kind != BenchNumericKind.Scalar
-                )
-                {
-                    throw new InvalidOperationException(
-                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match VoltageSpectrum."
-                    );
-                }
-
-                var dir = GetNamedSymbol(call, "dir") ?? "falling";
-                var cross = GetNamedInt(call, "cross") ?? 1;
-                var from = GetNamedFrequency(call, "from", locals) ?? vs.FrequenciesHz.First();
-                var to = GetNamedFrequency(call, "to", locals) ?? vs.FrequenciesHz.Last();
-                var mags = vs.Values.Select(v => v.Magnitude).ToArray();
-                var crossing = FindCrossing(
-                    vs.FrequenciesHz,
-                    mags,
-                    threshold.Value,
-                    dir,
-                    cross,
-                    from,
-                    to
-                );
-                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+                var values = vs.Values.Select(v => v.Phase * 180.0 / Math.PI).ToArray();
+                return new BenchPhaseSpectrum(vs.FrequenciesHz, values);
             }
         }
 
@@ -990,27 +955,49 @@ public sealed class BenchMeasurementRunner
                 }
 
                 var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
-                var mags = cs.Values.Select(v => v.Magnitude).ToArray();
-                var v = InterpolateLogX(cs.FrequenciesHz, mags, f.Value);
-                return new BenchNumber(BenchNumericKind.CurrentA, v);
+                var v = InterpolateLogXComplex(cs.FrequenciesHz, cs.Values, f.Value);
+                return new BenchComplexNumber(BenchNumericKind.CurrentA, v);
             }
 
-            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
             {
                 if (call.Args.Count != 0)
                 {
-                    throw new InvalidOperationException("CurrentSpectrum.Max takes no arguments.");
+                    throw new InvalidOperationException("CurrentSpectrum.Mag takes no arguments.");
                 }
-                return new BenchNumber(BenchNumericKind.CurrentA, cs.Values.Max(v => v.Magnitude));
+
+                var values = cs.Values.Select(v => v.Magnitude).ToArray();
+                return new BenchCurrentMagnitudeSpectrum(cs.FrequenciesHz, values);
             }
 
-            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
             {
                 if (call.Args.Count != 0)
                 {
-                    throw new InvalidOperationException("CurrentSpectrum.Min takes no arguments.");
+                    throw new InvalidOperationException(
+                        "CurrentSpectrum.Phase takes no arguments."
+                    );
                 }
-                return new BenchNumber(BenchNumericKind.CurrentA, cs.Values.Min(v => v.Magnitude));
+
+                var values = cs.Values.Select(v => v.Phase * 180.0 / Math.PI).ToArray();
+                return new BenchPhaseSpectrum(cs.FrequenciesHz, values);
+            }
+        }
+
+        if (recv is BenchVoltageMagnitudeSpectrum vms)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "VoltageMagnitudeSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(vms.FrequenciesHz, vms.Values, f.Value);
+                return new BenchNumber(BenchNumericKind.VoltageV, v);
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -1018,7 +1005,86 @@ public sealed class BenchMeasurementRunner
                 if (call.Args.Count < 1)
                 {
                     throw new InvalidOperationException(
-                        "CurrentSpectrum.FindCrossing requires a threshold argument."
+                        "VoltageMagnitudeSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.VoltageV
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match VoltageMagnitudeSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? vms.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? vms.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    vms.FrequenciesHz,
+                    vms.Values,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "VoltageMagnitudeSpectrum.Max takes no arguments."
+                    );
+                }
+                return new BenchNumber(BenchNumericKind.VoltageV, vms.Values.Max());
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "VoltageMagnitudeSpectrum.Min takes no arguments."
+                    );
+                }
+                return new BenchNumber(BenchNumericKind.VoltageV, vms.Values.Min());
+            }
+        }
+
+        if (recv is BenchCurrentMagnitudeSpectrum cms)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentMagnitudeSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(cms.FrequenciesHz, cms.Values, f.Value);
+                return new BenchNumber(BenchNumericKind.CurrentA, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentMagnitudeSpectrum.FindCrossing requires a threshold argument."
                     );
                 }
 
@@ -1032,18 +1098,18 @@ public sealed class BenchMeasurementRunner
                 )
                 {
                     throw new InvalidOperationException(
-                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match CurrentSpectrum."
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match CurrentMagnitudeSpectrum."
                     );
                 }
 
                 var dir = GetNamedSymbol(call, "dir") ?? "falling";
                 var cross = GetNamedInt(call, "cross") ?? 1;
-                var from = GetNamedFrequency(call, "from", locals) ?? cs.FrequenciesHz.First();
-                var to = GetNamedFrequency(call, "to", locals) ?? cs.FrequenciesHz.Last();
-                var mags = cs.Values.Select(v => v.Magnitude).ToArray();
+                var from = GetNamedFrequency(call, "from", locals) ?? cms.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? cms.FrequenciesHz.Last();
+
                 var crossing = FindCrossing(
-                    cs.FrequenciesHz,
-                    mags,
+                    cms.FrequenciesHz,
+                    cms.Values,
                     threshold.Value,
                     dir,
                     cross,
@@ -1051,6 +1117,52 @@ public sealed class BenchMeasurementRunner
                     to
                 );
                 return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+
+            if (call.Method.Equals("Max", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentMagnitudeSpectrum.Max takes no arguments."
+                    );
+                }
+                return new BenchNumber(BenchNumericKind.CurrentA, cms.Values.Max());
+            }
+
+            if (call.Method.Equals("Min", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException(
+                        "CurrentMagnitudeSpectrum.Min takes no arguments."
+                    );
+                }
+                return new BenchNumber(BenchNumericKind.CurrentA, cms.Values.Min());
+            }
+        }
+
+        if (recv is BenchComplexNumber complex)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("ComplexNumber.Mag takes no arguments.");
+                }
+                return new BenchNumber(complex.Kind, complex.Value.Magnitude);
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("ComplexNumber.Phase takes no arguments.");
+                }
+                return new BenchNumber(
+                    BenchNumericKind.PhaseDeg,
+                    complex.Value.Phase * 180.0 / Math.PI
+                );
             }
         }
 
@@ -2250,6 +2362,26 @@ public sealed class BenchMeasurementRunner
         var x1 = Math.Log10(xs[i1]);
         var t = (Math.Log10(x) - x0) / (x1 - x0);
         return ys[i0] + t * (ys[i1] - ys[i0]);
+    }
+
+    private static Complex InterpolateLogXComplex(double[] xs, Complex[] ys, double x)
+    {
+        if (xs.Length == 0 || ys.Length == 0)
+        {
+            throw new InvalidOperationException("InterpolateLogXComplex: empty input.");
+        }
+        if (xs.Length != ys.Length)
+        {
+            throw new InvalidOperationException(
+                $"InterpolateLogXComplex: length mismatch xs={xs.Length} ys={ys.Length}."
+            );
+        }
+
+        var ysReal = ys.Select(y => y.Real).ToArray();
+        var ysImag = ys.Select(y => y.Imaginary).ToArray();
+        var real = InterpolateLogX(xs, ysReal, x);
+        var imag = InterpolateLogX(xs, ysImag, x);
+        return new Complex(real, imag);
     }
 
     private static double InterpolateLinearX(double[] xs, double[] ys, double x)

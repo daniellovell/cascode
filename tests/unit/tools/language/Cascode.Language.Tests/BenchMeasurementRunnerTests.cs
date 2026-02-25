@@ -692,4 +692,193 @@ bench OpParamBench {{
         Assert.Equal(1.23e-3, values["Gm"].Value, precision: 12);
         Assert.Equal("S", values["Gm"].Unit);
     }
+
+    [Fact]
+    public void ComplexSpectra_RequireExplicitMagnitude_ForScalarMeasurements()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ExplicitMagnitudeBench {{
+  stim VDD : supply
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement VoltageMagFromSpectrum : V {{
+      return voltage(ac, OUT).Mag().ValueAt(10Hz)
+    }}
+
+    measurement VoltageMagFromPoint : V {{
+      return voltage(ac, OUT).ValueAt(10Hz).Mag()
+    }}
+
+    measurement VoltagePhaseFromSpectrum : deg {{
+      return voltage(ac, OUT).Phase().ValueAt(10Hz)
+    }}
+
+    measurement VoltagePhaseFromPoint : deg {{
+      return voltage(ac, OUT).ValueAt(10Hz).Phase()
+    }}
+
+    measurement CurrentMagFromSpectrum : A {{
+      return current(ac, harness.VDD.P).Mag().ValueAt(10Hz)
+    }}
+
+    measurement CurrentMagFromPoint : A {{
+      return current(ac, harness.VDD.P).ValueAt(10Hz).Mag()
+    }}
+
+    measurement CurrentPhaseFromSpectrum : deg {{
+      return current(ac, harness.VDD.P).Phase().ValueAt(10Hz)
+    }}
+
+    measurement CurrentPhaseFromPoint : deg {{
+      return current(ac, harness.VDD.P).ValueAt(10Hz).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "ExplicitMagnitudeBench"
+        );
+        var frequencies = new[] { 1.0, 100.0 };
+        var acVoltage = new AcDataset(
+            FrequenciesHz: frequencies,
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(0.0, 1.0),
+                },
+            }
+        );
+        var acCurrent = new AcDataset(
+            FrequenciesHz: frequencies,
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                // BenchMeasurementRunner applies sign inversion for harness.<supply>.P.
+                ["VhV_VDD"] = new[]
+                {
+                    new System.Numerics.Complex(-1.0, 0.0),
+                    new System.Numerics.Complex(0.0, -1.0),
+                },
+            }
+        );
+        var harnessElements = new[]
+        {
+            new BenchHarnessElement(
+                Type: "VDC",
+                Id: "hV_VDD",
+                Pins: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["P"] = "VDD",
+                    ["N"] = "0",
+                },
+                Parameters: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["V"] = new BenchNumber(BenchNumericKind.VoltageV, 1.8),
+                }
+            ),
+        };
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: acVoltage,
+                    AcCurrents: acCurrent
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harnessElements: harnessElements
+        );
+
+        var values = runner.RunMetrics(
+            new[]
+            {
+                "VoltageMagFromSpectrum",
+                "VoltageMagFromPoint",
+                "VoltagePhaseFromSpectrum",
+                "VoltagePhaseFromPoint",
+                "CurrentMagFromSpectrum",
+                "CurrentMagFromPoint",
+                "CurrentPhaseFromSpectrum",
+                "CurrentPhaseFromPoint",
+            }
+        );
+
+        var expectedMagSpectrum = 1.0;
+        var expectedMagPoint = Math.Sqrt(0.5);
+        var expectedPhase = 45.0;
+        Assert.Equal(expectedMagSpectrum, values["VoltageMagFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedMagPoint, values["VoltageMagFromPoint"].Value, precision: 12);
+        Assert.Equal(expectedPhase, values["VoltagePhaseFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedPhase, values["VoltagePhaseFromPoint"].Value, precision: 12);
+        Assert.Equal(expectedMagSpectrum, values["CurrentMagFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedMagPoint, values["CurrentMagFromPoint"].Value, precision: 12);
+        Assert.Equal(expectedPhase, values["CurrentPhaseFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedPhase, values["CurrentPhaseFromPoint"].Value, precision: 12);
+    }
+
+    [Fact]
+    public void ComplexValueAt_CannotBeReturnedAsVoltageWithoutMag()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench InvalidComplexReturn {{
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement BadVoltage : V {{
+      return voltage(ac, OUT).ValueAt(10Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Code == "CAS2004"
+                && d.Message.Contains("ComplexVoltage", StringComparison.Ordinal)
+        );
+    }
 }

@@ -783,6 +783,42 @@ public static class BenchSemanticChecker
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
+                return MeasurementType.ComplexVoltage();
+            }
+
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.VoltageMagnitudeSpectrum();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.PhaseSpectrum();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.CurrentSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ComplexCurrent();
+            }
+
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.CurrentMagnitudeSpectrum();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.PhaseSpectrum();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.VoltageMagnitudeSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
                 return MeasurementType.Voltage();
             }
 
@@ -800,7 +836,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.CurrentSpectrum)
+        if (recv.Kind == MeasurementTypeKind.CurrentMagnitudeSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -818,6 +854,32 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexVoltage)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Voltage();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Phase();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ComplexCurrent)
+        {
+            if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Current();
+            }
+
+            if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Phase();
             }
         }
 
@@ -1316,11 +1378,15 @@ public static class BenchSemanticChecker
         PhaseSpectrum,
         VoltageSpectrum,
         CurrentSpectrum,
+        VoltageMagnitudeSpectrum,
+        CurrentMagnitudeSpectrum,
         NoiseSpectrum,
         VoltageWaveform,
         CurrentWaveform,
         NoiseSpectralDensity,
         IntegratedNoise,
+        ComplexVoltage,
+        ComplexCurrent,
         Terminal,
         ACAnalysis,
         DCAnalysis,
@@ -1366,6 +1432,12 @@ public static class BenchSemanticChecker
 
         public static MeasurementType CurrentSpectrum() => new(MeasurementTypeKind.CurrentSpectrum);
 
+        public static MeasurementType VoltageMagnitudeSpectrum() =>
+            new(MeasurementTypeKind.VoltageMagnitudeSpectrum);
+
+        public static MeasurementType CurrentMagnitudeSpectrum() =>
+            new(MeasurementTypeKind.CurrentMagnitudeSpectrum);
+
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
 
         public static MeasurementType VoltageWaveform() => new(MeasurementTypeKind.VoltageWaveform);
@@ -1376,6 +1448,10 @@ public static class BenchSemanticChecker
             new(MeasurementTypeKind.NoiseSpectralDensity);
 
         public static MeasurementType IntegratedNoise() => new(MeasurementTypeKind.IntegratedNoise);
+
+        public static MeasurementType ComplexVoltage() => new(MeasurementTypeKind.ComplexVoltage);
+
+        public static MeasurementType ComplexCurrent() => new(MeasurementTypeKind.ComplexCurrent);
 
         public static MeasurementType Terminal(string domain) =>
             new(MeasurementTypeKind.Terminal, TerminalDomain: domain);
