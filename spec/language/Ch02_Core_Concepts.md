@@ -652,6 +652,9 @@ Common post-processing methods:
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
 
-For `VoltageSpectrum` and `CurrentSpectrum`, `ValueAt(x)` produces a complex sample. To get a
-real magnitude, call `.Mag()` explicitly before or after sampling:
-`voltage(ac, OUT).Mag().ValueAt(x)` or `voltage(ac, OUT).ValueAt(x).Mag()`.
+For `VoltageSpectrum` and `CurrentSpectrum`, `ValueAt(x)` produces a complex sample interpolated in
+magnitude/phase space (with shortest-path phase interpolation). To get a real magnitude, call
+`.Mag()` explicitly before or after sampling: `voltage(ac, OUT).Mag().ValueAt(x)` or
+`voltage(ac, OUT).ValueAt(x).Mag()`. These two forms are equivalent for magnitude interpolation.
+When a neighboring complex endpoint has near-zero magnitude, `ValueAt(x)` uses the nearest
+non-zero endpoint phase.

@@ -2366,6 +2366,8 @@ public sealed class BenchMeasurementRunner
 
     private static Complex InterpolateLogXComplex(double[] xs, Complex[] ys, double x)
     {
+        const double NearZeroMagnitudeThreshold = 1e-12;
+
         if (xs.Length == 0 || ys.Length == 0)
         {
             throw new InvalidOperationException("InterpolateLogXComplex: empty input.");
@@ -2376,12 +2378,87 @@ public sealed class BenchMeasurementRunner
                 $"InterpolateLogXComplex: length mismatch xs={xs.Length} ys={ys.Length}."
             );
         }
+        var magnitudes = ys.Select(y => y.Magnitude).ToArray();
+        var magnitude = InterpolateLogX(xs, magnitudes, x);
+        var phases = BuildUnwrappedPhases(ys, NearZeroMagnitudeThreshold);
+        var phase = NormalizeSignedAngle(InterpolateLogX(xs, phases, x));
 
-        var ysReal = ys.Select(y => y.Real).ToArray();
-        var ysImag = ys.Select(y => y.Imaginary).ToArray();
-        var real = InterpolateLogX(xs, ysReal, x);
-        var imag = InterpolateLogX(xs, ysImag, x);
-        return new Complex(real, imag);
+        return Complex.FromPolarCoordinates(magnitude, phase);
+    }
+
+    private static double[] BuildUnwrappedPhases(Complex[] ys, double nearZeroMagnitudeThreshold)
+    {
+        var phases = ys.Select(y => y.Phase).ToArray();
+        var magnitudes = ys.Select(y => y.Magnitude).ToArray();
+
+        // Near-zero magnitude has unstable phase. Fill those points from nearest non-zero neighbors
+        // before unwrapping so interpolation remains deterministic.
+        for (var i = 0; i < phases.Length; i++)
+        {
+            if (magnitudes[i] <= nearZeroMagnitudeThreshold)
+            {
+                phases[i] = FindNearestNonZeroPhase(
+                    phases,
+                    magnitudes,
+                    i,
+                    nearZeroMagnitudeThreshold
+                );
+            }
+        }
+
+        if (phases.Length == 0)
+        {
+            return phases;
+        }
+
+        var unwrapped = new double[phases.Length];
+        unwrapped[0] = phases[0];
+        for (var i = 1; i < phases.Length; i++)
+        {
+            var delta = NormalizeSignedAngle(phases[i] - phases[i - 1]);
+            unwrapped[i] = unwrapped[i - 1] + delta;
+        }
+
+        return unwrapped;
+    }
+
+    private static double FindNearestNonZeroPhase(
+        double[] phases,
+        double[] magnitudes,
+        int index,
+        double nearZeroMagnitudeThreshold
+    )
+    {
+        for (var radius = 1; radius < phases.Length; radius++)
+        {
+            var left = index - radius;
+            if (left >= 0 && magnitudes[left] > nearZeroMagnitudeThreshold)
+            {
+                return phases[left];
+            }
+
+            var right = index + radius;
+            if (right < phases.Length && magnitudes[right] > nearZeroMagnitudeThreshold)
+            {
+                return phases[right];
+            }
+        }
+
+        return phases[index];
+    }
+
+    private static double NormalizeSignedAngle(double radians)
+    {
+        while (radians > Math.PI)
+        {
+            radians -= 2.0 * Math.PI;
+        }
+        while (radians <= -Math.PI)
+        {
+            radians += 2.0 * Math.PI;
+        }
+
+        return radians;
     }
 
     private static double InterpolateLinearX(double[] xs, double[] ys, double x)

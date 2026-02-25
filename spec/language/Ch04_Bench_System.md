@@ -512,10 +512,12 @@ Spectrum methods:
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
-For complex AC spectra (`VoltageSpectrum`, `CurrentSpectrum`), `ValueAt(f)` returns a complex point.
-Magnitude-sensitive operations must be explicit, either by converting the spectrum first
-(`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sampled point
-(`voltage(ac, OUT).ValueAt(f).Mag()`).
+For complex AC spectra (`VoltageSpectrum`, `CurrentSpectrum`), `ValueAt(f)` returns a complex point
+interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
+neighboring points; if one endpoint has near-zero magnitude, the phase is taken from the nearest
+non-zero endpoint. Magnitude-sensitive operations remain explicit, either by converting the
+spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sampled point
+(`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).

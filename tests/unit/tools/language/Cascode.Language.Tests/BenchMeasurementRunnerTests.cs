@@ -836,17 +836,188 @@ bench ExplicitMagnitudeBench {{
             }
         );
 
-        var expectedMagSpectrum = 1.0;
-        var expectedMagPoint = Math.Sqrt(0.5);
+        var expectedMag = 1.0;
         var expectedPhase = 45.0;
-        Assert.Equal(expectedMagSpectrum, values["VoltageMagFromSpectrum"].Value, precision: 12);
-        Assert.Equal(expectedMagPoint, values["VoltageMagFromPoint"].Value, precision: 12);
+        Assert.Equal(expectedMag, values["VoltageMagFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedMag, values["VoltageMagFromPoint"].Value, precision: 12);
         Assert.Equal(expectedPhase, values["VoltagePhaseFromSpectrum"].Value, precision: 12);
         Assert.Equal(expectedPhase, values["VoltagePhaseFromPoint"].Value, precision: 12);
-        Assert.Equal(expectedMagSpectrum, values["CurrentMagFromSpectrum"].Value, precision: 12);
-        Assert.Equal(expectedMagPoint, values["CurrentMagFromPoint"].Value, precision: 12);
+        Assert.Equal(expectedMag, values["CurrentMagFromSpectrum"].Value, precision: 12);
+        Assert.Equal(expectedMag, values["CurrentMagFromPoint"].Value, precision: 12);
         Assert.Equal(expectedPhase, values["CurrentPhaseFromSpectrum"].Value, precision: 12);
         Assert.Equal(expectedPhase, values["CurrentPhaseFromPoint"].Value, precision: 12);
+        Assert.Equal(
+            values["VoltageMagFromSpectrum"].Value,
+            values["VoltageMagFromPoint"].Value,
+            precision: 12
+        );
+        Assert.Equal(
+            values["VoltagePhaseFromSpectrum"].Value,
+            values["VoltagePhaseFromPoint"].Value,
+            precision: 12
+        );
+        Assert.Equal(
+            values["CurrentMagFromSpectrum"].Value,
+            values["CurrentMagFromPoint"].Value,
+            precision: 12
+        );
+        Assert.Equal(
+            values["CurrentPhaseFromSpectrum"].Value,
+            values["CurrentPhaseFromPoint"].Value,
+            precision: 12
+        );
+    }
+
+    [Fact]
+    public void ComplexSpectra_ValueAt_InterpolatesPhaseUsingShortestAngularPath()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench WrappedPhaseBench {{
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement WrappedPhaseDeg : deg {{
+      return voltage(ac, OUT).ValueAt(10Hz).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "WrappedPhaseBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 100.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT"] = new[]
+                {
+                    System.Numerics.Complex.FromPolarCoordinates(1.0, 170.0 * Math.PI / 180.0),
+                    System.Numerics.Complex.FromPolarCoordinates(1.0, -170.0 * Math.PI / 180.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "WrappedPhaseDeg" });
+        var phase = values["WrappedPhaseDeg"].Value;
+        Assert.True(Math.Abs(Math.Abs(phase) - 180.0) < 1e-9);
+        Assert.True(Math.Abs(phase) > 90.0);
+    }
+
+    [Fact]
+    public void ComplexSpectra_ValueAt_UsesNearestNonZeroEndpointPhase_WhenMagnitudeIsZero()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NearZeroPhaseBench {{
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement MagFromSpectrum : V {{
+      return voltage(ac, OUT).Mag().ValueAt(10Hz)
+    }}
+
+    measurement MagFromPoint : V {{
+      return voltage(ac, OUT).ValueAt(10Hz).Mag()
+    }}
+
+    measurement PhaseFromPoint : deg {{
+      return voltage(ac, OUT).ValueAt(10Hz).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NearZeroPhaseBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 100.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(0.0, 0.0),
+                    new System.Numerics.Complex(0.0, 1.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(
+            new[] { "MagFromSpectrum", "MagFromPoint", "PhaseFromPoint" }
+        );
+        Assert.Equal(values["MagFromSpectrum"].Value, values["MagFromPoint"].Value, precision: 12);
+        Assert.Equal(0.5, values["MagFromPoint"].Value, precision: 12);
+        Assert.Equal(90.0, values["PhaseFromPoint"].Value, precision: 12);
     }
 
     [Fact]
