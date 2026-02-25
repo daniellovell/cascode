@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using Cascode.Language.BenchRuntime;
 
 namespace Cascode.Language.Tests;
@@ -1018,6 +1019,114 @@ bench NearZeroPhaseBench {{
         Assert.Equal(values["MagFromSpectrum"].Value, values["MagFromPoint"].Value, precision: 12);
         Assert.Equal(0.5, values["MagFromPoint"].Value, precision: 12);
         Assert.Equal(90.0, values["PhaseFromPoint"].Value, precision: 12);
+    }
+
+    [Fact]
+    public void MeasurementCacheKey_DistinguishesDifferentComplexArguments()
+    {
+        var measurement = new MeasurementDefinition
+        {
+            Name = "M",
+            Unit = "V",
+            Parameters = new List<TypedParameter> { new(BenchValueType.Voltage, "sample") },
+            Body = new List<BenchStatement>(),
+        };
+        var argsA = new Dictionary<string, BenchValue>(StringComparer.Ordinal)
+        {
+            ["sample"] = new BenchComplexNumber(
+                BenchNumericKind.VoltageV,
+                new System.Numerics.Complex(1.0, 2.0)
+            ),
+        };
+        var argsB = new Dictionary<string, BenchValue>(StringComparer.Ordinal)
+        {
+            ["sample"] = new BenchComplexNumber(
+                BenchNumericKind.VoltageV,
+                new System.Numerics.Complex(2.0, 1.0)
+            ),
+        };
+
+        var makeKey = typeof(BenchMeasurementRunner).GetMethod(
+            "MakeMeasurementCacheKey",
+            BindingFlags.NonPublic | BindingFlags.Static
+        );
+        Assert.NotNull(makeKey);
+
+        var keyA = (string)makeKey!.Invoke(null, new object?[] { measurement, argsA })!;
+        var keyB = (string)makeKey.Invoke(null, new object?[] { measurement, argsB })!;
+
+        Assert.NotEqual(keyA, keyB);
+    }
+
+    [Fact]
+    public void ComplexSpectra_ValueAt_UsesRelativeThresholdForNearZeroPhaseStabilization()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TinyMagnitudePhaseBench {{
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement PhaseFromPoint : deg {{
+      return voltage(ac, OUT).ValueAt(10Hz).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "TinyMagnitudePhaseBench"
+        );
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 100.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(-1e-30, 0.0),
+                    new System.Numerics.Complex(0.0, 1e-18),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "PhaseFromPoint" });
+        Assert.Equal(90.0, values["PhaseFromPoint"].Value, precision: 9);
     }
 
     [Fact]

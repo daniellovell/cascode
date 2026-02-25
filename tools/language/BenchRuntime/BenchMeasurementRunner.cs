@@ -1587,6 +1587,7 @@ public sealed class BenchMeasurementRunner
         return v switch
         {
             BenchNumber n => $"{n.Kind}:{n.Value.ToString("G17", CultureInfo.InvariantCulture)}",
+            BenchComplexNumber c => $"{c.Kind}:{c.Value.Real.ToString("G17", CultureInfo.InvariantCulture)}:{c.Value.Imaginary.ToString("G17", CultureInfo.InvariantCulture)}",
             BenchSymbol s => "sym:" + s.Name,
             BenchTerminalRef t => "term:" + t.Name,
             BenchAnalysisRef a => "analysis:" + a.Name,
@@ -2441,8 +2442,8 @@ public sealed class BenchMeasurementRunner
 
     private static Complex InterpolateLogXComplex(double[] xs, Complex[] ys, double x)
     {
-        const double NearZeroMagnitudeThreshold = 1e-12;
-
+        const double RelativeNearZeroMagnitudeThreshold = 1e-12;
+        const double AbsoluteNearZeroMagnitudeFloor = 1e-24;
         if (xs.Length == 0 || ys.Length == 0)
         {
             throw new InvalidOperationException("InterpolateLogXComplex: empty input.");
@@ -2455,7 +2456,12 @@ public sealed class BenchMeasurementRunner
         }
         var magnitudes = ys.Select(y => y.Magnitude).ToArray();
         var magnitude = InterpolateLogX(xs, magnitudes, x);
-        var phases = BuildUnwrappedPhases(ys, NearZeroMagnitudeThreshold);
+        var maxMagnitude = ys.Select(y => y.Magnitude).DefaultIfEmpty(0.0).Max();
+        var nearZeroMagnitudeThreshold = Math.Max(
+            maxMagnitude * RelativeNearZeroMagnitudeThreshold,
+            AbsoluteNearZeroMagnitudeFloor
+        );
+        var phases = BuildUnwrappedPhases(ys, nearZeroMagnitudeThreshold);
         var phase = NormalizeSignedAngle(InterpolateLogX(xs, phases, x));
 
         return Complex.FromPolarCoordinates(magnitude, phase);
