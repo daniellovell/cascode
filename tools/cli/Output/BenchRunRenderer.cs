@@ -370,7 +370,7 @@ internal static class BenchRunRenderer
             var where = string.IsNullOrWhiteSpace(r.Node) ? r.Metric : $"{r.Metric}@{r.Node}";
             var expected = $"{r.Operator} {FormatNumber(r.Expected)} {r.Unit}".TrimEnd();
             var actual = r.Actual is null
-                ? r.FailureReason == "bench_error"
+                ? r.FailureReason == ConstraintResult.BenchError
                     ? "error"
                     : "missing"
                 : $"{FormatNumber(r.Actual.Value)} {r.ActualUnit ?? r.Unit}".TrimEnd();
@@ -500,7 +500,7 @@ internal static class BenchRunRenderer
             : $"{result.Metric}@{result.Node}";
         var expected = $"{result.Operator} {FormatNumber(result.Expected)} {result.Unit}".TrimEnd();
         var actual = result.Actual is null
-            ? result.FailureReason == "bench_error"
+            ? result.FailureReason == ConstraintResult.BenchError
                 ? "error"
                 : "missing"
             : $"{FormatNumber(result.Actual.Value)} {result.ActualUnit ?? result.Unit}".TrimEnd();
