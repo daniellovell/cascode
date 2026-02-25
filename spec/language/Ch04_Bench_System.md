@@ -466,8 +466,8 @@ Common structured result types produced by measurement primitives:
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
 | `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
-| `VoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency |
-| `CurrentSpectrum` | `current(ac, harness_pin)` | Current vs frequency (A) |
+| `VoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
+| `CurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
 
