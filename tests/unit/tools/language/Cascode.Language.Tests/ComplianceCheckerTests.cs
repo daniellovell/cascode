@@ -86,6 +86,10 @@ public class ComplianceCheckerTests
 
         Assert.Single(report.Results);
         Assert.Equal(expectedPass, report.Results[0].Passed);
+        if (!expectedPass)
+        {
+            Assert.Equal(ConstraintResult.ConstraintViolation, report.Results[0].FailureReason);
+        }
     }
 
     [Theory]
