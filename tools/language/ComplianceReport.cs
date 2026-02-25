@@ -78,6 +78,18 @@ public sealed class ConstraintResult
     /// <summary>Whether the constraint passed.</summary>
     public bool Passed { get; init; }
 
+    /// <summary>Machine-readable failure reason: measurement reported an error.</summary>
+    public const string BenchError = "bench_error";
+
+    /// <summary>Machine-readable failure reason: no measurement found for the constraint.</summary>
+    public const string NoMeasurement = "no_measurement";
+
+    /// <summary>Machine-readable failure reason: measurement value was non-finite (NaN/Inf).</summary>
+    public const string NonFiniteValue = "non_finite_value";
+
+    /// <summary>Machine-readable failure reason: measured value violated the constraint.</summary>
+    public const string ConstraintViolation = "constraint_violation";
+
     /// <summary>
     /// Optional machine-readable failure reason (for failed constraints).
     /// </summary>

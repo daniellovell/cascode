@@ -126,7 +126,7 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
-                FailureReason = "no_measurement",
+                FailureReason = ConstraintResult.NoMeasurement,
                 Message =
                     $"No measurement found for {metricKey}"
                     + (constraint.Node != null ? $" @ {constraint.Node}" : ""),
@@ -149,7 +149,7 @@ public static class ComplianceChecker
                 Actual = null,
                 ActualUnit = null,
                 Passed = false,
-                FailureReason = "bench_error",
+                FailureReason = ConstraintResult.BenchError,
                 Message = $"Measurement error: {measurement.Error}",
             };
         }
@@ -168,7 +168,7 @@ public static class ComplianceChecker
                 Actual = actual,
                 ActualUnit = measurement.Unit,
                 Passed = false,
-                FailureReason = "non_finite_value",
+                FailureReason = ConstraintResult.NonFiniteValue,
                 Message =
                     $"Non-finite measurement value: {actual.ToString(CultureInfo.InvariantCulture)}",
             };
@@ -188,7 +188,7 @@ public static class ComplianceChecker
             Actual = actual,
             ActualUnit = measurement.Unit,
             Passed = passed,
-            FailureReason = passed ? null : "constraint_violation",
+            FailureReason = passed ? null : ConstraintResult.ConstraintViolation,
             Message = passed ? "PASS" : "FAIL",
         };
     }

@@ -340,7 +340,7 @@ internal sealed partial class VerifyCommandModule : ICommandModule
             var actualStr =
                 result.Actual.HasValue
                     ? $" (measured: {ValueFormatter.FormatValue(result.Actual.Value, GetUnitFromConstraint(circuit, result.Id))})"
-                : result.FailureReason == "bench_error" ? " (measurement error)"
+                : result.FailureReason == ConstraintResult.BenchError ? " (measurement error)"
                 : " (not measured)";
 
             output.WriteLine(
