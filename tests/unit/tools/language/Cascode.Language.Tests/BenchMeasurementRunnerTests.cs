@@ -1021,6 +1021,128 @@ bench NearZeroPhaseBench {{
     }
 
     [Fact]
+    public void ComplexValueAt_SupportsBinaryArithmetic_AndUnaryNegation()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ComplexBinaryBench {{
+  resp OUT1 : analog
+  resp OUT2 : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=100Hz)
+  }}
+
+  measurements {{
+    measurement AddMag : V {{
+      return (voltage(ac, OUT1).ValueAt(10Hz) + voltage(ac, OUT2).ValueAt(10Hz)).Mag()
+    }}
+
+    measurement SubMag : V {{
+      return (voltage(ac, OUT1).ValueAt(10Hz) - voltage(ac, OUT2).ValueAt(10Hz)).Mag()
+    }}
+
+    measurement MulRightScalarMag : V {{
+      return (voltage(ac, OUT1).ValueAt(10Hz) * 2).Mag()
+    }}
+
+    measurement MulLeftScalarMag : V {{
+      return (2 * voltage(ac, OUT1).ValueAt(10Hz)).Mag()
+    }}
+
+    measurement DivScalarMag : V {{
+      return (voltage(ac, OUT1).ValueAt(10Hz) / 2).Mag()
+    }}
+
+    measurement DivComplexPhase : deg {{
+      return (voltage(ac, OUT1).ValueAt(10Hz) / voltage(ac, OUT2).ValueAt(10Hz)).Phase()
+    }}
+
+    measurement NegatedPhase : deg {{
+      return (-voltage(ac, OUT1).ValueAt(10Hz)).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "ComplexBinaryBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 100.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT1"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 1.0),
+                    new System.Numerics.Complex(3.0, 3.0),
+                },
+                ["OUT2"] = new[]
+                {
+                    new System.Numerics.Complex(2.0, 0.0),
+                    new System.Numerics.Complex(4.0, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 100,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT1"] = new BenchTerminalRef("OUT1", new[] { "OUT1" }),
+                ["OUT2"] = new BenchTerminalRef("OUT2", new[] { "OUT2" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(
+            new[]
+            {
+                "AddMag",
+                "SubMag",
+                "MulRightScalarMag",
+                "MulLeftScalarMag",
+                "DivScalarMag",
+                "DivComplexPhase",
+                "NegatedPhase",
+            }
+        );
+
+        Assert.Equal(Math.Sqrt(29.0), values["AddMag"].Value, precision: 12);
+        Assert.Equal(Math.Sqrt(5.0), values["SubMag"].Value, precision: 12);
+        Assert.Equal(Math.Sqrt(32.0), values["MulRightScalarMag"].Value, precision: 12);
+        Assert.Equal(
+            values["MulRightScalarMag"].Value,
+            values["MulLeftScalarMag"].Value,
+            precision: 12
+        );
+        Assert.Equal(Math.Sqrt(2.0), values["DivScalarMag"].Value, precision: 12);
+        Assert.Equal(45.0, values["DivComplexPhase"].Value, precision: 12);
+        Assert.Equal(-135.0, values["NegatedPhase"].Value, precision: 12);
+    }
+
+    [Fact]
     public void ComplexValueAt_CannotBeReturnedAsVoltageWithoutMag()
     {
         var cascode =

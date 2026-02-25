@@ -443,7 +443,15 @@ public sealed class BenchMeasurementRunner
                 {
                     throw new InvalidOperationException($"Unsupported unary operator '{u.Op}'.");
                 }
-                return Negate(RequireNumber(EvaluateExpr(u.Operand, locals), "unary"));
+                var unaryOperand = EvaluateExpr(u.Operand, locals);
+                return unaryOperand switch
+                {
+                    BenchNumber n => new BenchNumber(n.Kind, -n.Value),
+                    BenchComplexNumber c => new BenchComplexNumber(c.Kind, -c.Value),
+                    _ => throw new InvalidOperationException(
+                        $"Expected number for 'unary', got {unaryOperand.GetType().Name}."
+                    ),
+                };
 
             case MeasurementBinary b:
             {
@@ -2180,8 +2188,6 @@ public sealed class BenchMeasurementRunner
         return false;
     }
 
-    private static BenchNumber Negate(BenchNumber x) => new(x.Kind, -x.Value);
-
     private static BenchNumber ApplyBinary(string op, BenchNumber left, BenchNumber right)
     {
         if (op is "+" or "-")
@@ -2235,6 +2241,21 @@ public sealed class BenchMeasurementRunner
             return ApplyBinary(op, ln, rn);
         }
 
+        if (left is BenchComplexNumber lc && right is BenchComplexNumber rc)
+        {
+            return ApplyBinary(op, lc, rc);
+        }
+
+        if (left is BenchComplexNumber lcn && right is BenchNumber rn2)
+        {
+            return ApplyBinary(op, lcn, ToComplex(rn2));
+        }
+
+        if (left is BenchNumber ln2 && right is BenchComplexNumber rcn)
+        {
+            return ApplyBinary(op, ToComplex(ln2), rcn);
+        }
+
         // Impedance arithmetic is intentionally limited to scaling by a dimensionless scalar.
         // More complex impedance composition should be expressed structurally (e.g. `||` in env)
         // and via explicit helper methods (e.g. DiffToShunt/ShuntToDiff).
@@ -2251,6 +2272,60 @@ public sealed class BenchMeasurementRunner
         throw new InvalidOperationException(
             $"Unsupported binary '{op}' for {left.GetType().Name} and {right.GetType().Name}."
         );
+    }
+
+    private static BenchComplexNumber ToComplex(BenchNumber n) =>
+        new(n.Kind, new Complex(n.Value, 0.0));
+
+    private static BenchComplexNumber ApplyBinary(
+        string op,
+        BenchComplexNumber left,
+        BenchComplexNumber right
+    )
+    {
+        if (op is "+" or "-")
+        {
+            if (left.Kind != right.Kind)
+            {
+                throw new InvalidOperationException(
+                    $"Binary '{op}' requires matching kinds, got {left.Kind} and {right.Kind}."
+                );
+            }
+
+            return op == "+"
+                ? new BenchComplexNumber(left.Kind, left.Value + right.Value)
+                : new BenchComplexNumber(left.Kind, left.Value - right.Value);
+        }
+
+        if (op is "*" or "/")
+        {
+            if (left.Kind == BenchNumericKind.Scalar)
+            {
+                return op == "*"
+                    ? new BenchComplexNumber(right.Kind, left.Value * right.Value)
+                    : new BenchComplexNumber(right.Kind, left.Value / right.Value);
+            }
+
+            if (right.Kind == BenchNumericKind.Scalar)
+            {
+                return op == "*"
+                    ? new BenchComplexNumber(left.Kind, left.Value * right.Value)
+                    : new BenchComplexNumber(left.Kind, left.Value / right.Value);
+            }
+
+            if (left.Kind == right.Kind)
+            {
+                return op == "*"
+                    ? new BenchComplexNumber(BenchNumericKind.Scalar, left.Value * right.Value)
+                    : new BenchComplexNumber(BenchNumericKind.Scalar, left.Value / right.Value);
+            }
+
+            throw new InvalidOperationException(
+                $"Unsupported binary '{op}' for kinds {left.Kind} and {right.Kind}."
+            );
+        }
+
+        throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
     }
 
     private static BenchValue ApplyImpedanceScale(
