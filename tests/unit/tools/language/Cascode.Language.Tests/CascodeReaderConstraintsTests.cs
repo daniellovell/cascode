@@ -16,13 +16,13 @@ circuit Test {{
   input IN : analog
   output OUT : analog
   constraints {{
-    numeric {{
+    bench {{
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 100MHz  // target gain-bandwidth product
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB  // minimum gain requirement
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg  // phase margin for stability
       c_pwr = vdd_pwr::QuiescentPower <= 500uW
     }}
-    tech {{
+    physical {{
       t_lmin : L >= 180nm on *  // minimum length per tech rules
     }}
   }}
@@ -60,7 +60,7 @@ circuit Test {{
   ground GND
   output OUT : analog
   constraints {{
-    numeric {{
+    bench {{
       // This is a full line comment
       // This is another full line comment
       c_test = transfer_bench::Metric at net::OUT >= 100MHz

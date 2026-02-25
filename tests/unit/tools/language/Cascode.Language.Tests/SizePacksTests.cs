@@ -154,7 +154,7 @@ circuit Leaf(size InputPair, size Tail = size(W=4u, L=180n, M=1)) {{
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
+primitive Level1_NMOS(size primSize) implements NMOS {{
   device ""level1_nmos""
   params {{
     W = primSize.W

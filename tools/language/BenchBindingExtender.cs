@@ -55,6 +55,7 @@ public static class BenchBindingExtender
             Traits = document.Traits,
             BenchDefinitions = document.BenchDefinitions,
             Primitives = document.Primitives,
+            Parts = document.Parts,
             Circuits = updatedCircuits,
         };
     }

@@ -69,7 +69,7 @@ circuit Top {
         var cascode = """
 VERSION 3.2
 
-primitive NMOS Wrap(size primSize) {
+primitive Wrap(size primSize) implements NMOS {
   device "wrap_key"
   params {
     w = primSize.W
@@ -100,7 +100,7 @@ circuit Top {
   input B : bias
 
   constraints {
-    numeric {
+    bench {
       c_gm = op::Gm >= 0S
     }
   }

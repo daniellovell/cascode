@@ -1,6 +1,6 @@
 VERSION 3.2
 
-primitive NMOS Level1_NMOS(size primSize) {
+primitive Level1_NMOS(size primSize) implements NMOS {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -9,7 +9,7 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
+primitive Level1_PMOS(size primSize) implements PMOS {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -66,14 +66,14 @@ circuit OTA5TSingleEnded implements SingleEndedOpAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 40dB
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 60deg
       c_pwr = vdd_pwr::QuiescentPower <= 500uW
       c_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 1.2Vpp
     }
-    tech {
+    physical {
       t_lmin : L >= 180nm on *
     }
   }

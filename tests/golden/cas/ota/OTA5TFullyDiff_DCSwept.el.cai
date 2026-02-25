@@ -1,13 +1,13 @@
 VERSION 3.2
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Ideal_Resistor(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive NMOS Level1_NMOS(size primSize) {
+primitive Level1_NMOS(size primSize) implements NMOS {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -16,7 +16,7 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
+primitive Level1_PMOS(size primSize) implements PMOS {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -81,7 +81,7 @@ circuit OTA5TFullyDiff_DCSwept implements FullyDiffOpAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_out_cm_min = dc_bias::OutputDCCommonMode >= 0.3V
       c_out_cm_max = dc_bias::OutputDCCommonMode <= 1.5V
       c_power = vdd_pwr::QuiescentPower <= 800uW

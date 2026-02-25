@@ -25,7 +25,7 @@ interface LoadPairLike {
 
 
 
-primitive NMOS Level1_NMOS(size primSize) {
+primitive Level1_NMOS(size primSize) implements NMOS {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -34,7 +34,7 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
 
-primitive PMOS Level1_PMOS(size primSize) {
+primitive Level1_PMOS(size primSize) implements PMOS {
   device "level1_pmos"
   params {
     W = primSize.W
@@ -71,13 +71,13 @@ circuit TelescopicCascodeFullyDiff_Attach implements FullyDiffOpAmp {
     pl2.SOURCE--VDD
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth >= 500kHz
       c_gain = transfer_bench::PassbandGain >= 2dB
       c_pm = transfer_bench::PhaseMargin >= 60deg
       c_pwr = vdd_pwr::QuiescentPower <= 1mW
     }
-    tech {
+    physical {
       t_lmin : L >= 500nm on *
     }
   }

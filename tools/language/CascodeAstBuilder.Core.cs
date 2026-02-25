@@ -71,6 +71,7 @@ internal sealed partial class CascodeAstBuilder
         var includes = new List<IncludeDirective>();
         var functions = new List<FunctionDefinition>();
         var primitives = new List<PrimitiveDefinition>();
+        var parts = new List<PartDefinition>();
         var circuits = new List<Circuit>();
         string? fileLibrary = null;
 
@@ -143,6 +144,12 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
+            if (decl.partDef() is not null)
+            {
+                parts.Add(BuildPart(decl.partDef()));
+                continue;
+            }
+
             if (decl.circuit() is not null)
             {
                 circuits.Add(BuildCircuit(decl.circuit()));
@@ -160,6 +167,7 @@ internal sealed partial class CascodeAstBuilder
             Traits = traits,
             BenchDefinitions = benches,
             Primitives = primitives,
+            Parts = parts,
             Circuits = circuits,
         };
     }
@@ -192,12 +200,11 @@ internal sealed partial class CascodeAstBuilder
             {
                 case CascodeParser.InterfacePortContext portCtx:
                     interfaceDef.Ports.Add(
-                        new PortDeclaration
-                        {
-                            Direction = BuildPortDirection(portCtx.direction()),
-                            Name = BuildPortName(portCtx.portName()),
-                            Type = BuildPortType(portCtx.portType()),
-                        }
+                        BuildPortDeclaration(
+                            portCtx.direction(),
+                            portCtx.portName(),
+                            portCtx.portType()
+                        )
                     );
                     break;
 
@@ -220,6 +227,13 @@ internal sealed partial class CascodeAstBuilder
                             );
                         }
                         interfaceDef.Connectors.Add(connector);
+                    }
+                    break;
+
+                case CascodeParser.InterfaceMetricsContext metricsCtx:
+                    foreach (var metricDeclCtx in metricsCtx.interfaceMetricsBlock().metricDecl())
+                    {
+                        interfaceDef.Metrics.Add(BuildMetricContract(metricDeclCtx));
                     }
                     break;
 
@@ -350,8 +364,9 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Builds a primitive definition from its parse context.</summary>
     private PrimitiveDefinition BuildPrimitive(CascodeParser.PrimitiveDefContext ctx)
     {
-        var kind = ctx.DEVICE_TYPE().GetText();
         var name = ctx.name.Text;
+        var implements = ctx.implementsList().IDENT().Select(i => i.GetText()).ToList();
+        var kind = implements.Count > 0 ? implements[0] : string.Empty;
 
         var sizeParam = string.Empty;
         if (ctx.paramList() != null)
@@ -415,6 +430,7 @@ internal sealed partial class CascodeAstBuilder
         {
             Kind = kind,
             Name = name,
+            Implements = implements,
             Device = deviceKey,
             SizeParameter = sizeParam,
             Params = mappings,
@@ -443,22 +459,65 @@ internal sealed partial class CascodeAstBuilder
         return CascodeLevel.EL;
     }
 
-    /// <summary>Builds a port name, including dotted and indexed forms.</summary>
+    private static PortDeclaration BuildPortDeclaration(
+        CascodeParser.DirectionContext directionCtx,
+        CascodeParser.PortNameContext portNameCtx,
+        CascodeParser.PortTypeContext portTypeCtx
+    )
+    {
+        var parsedName = ParsePortName(portNameCtx);
+        return new PortDeclaration
+        {
+            Direction = BuildPortDirection(directionCtx),
+            Name = parsedName.Name,
+            Type = BuildPortType(portTypeCtx),
+            ArrayIndex = parsedName.ArrayIndex,
+            ArrayRangeStart = parsedName.ArrayRangeStart,
+            ArrayRangeEnd = parsedName.ArrayRangeEnd,
+            IsArrayWildcard = parsedName.IsArrayWildcard,
+        };
+    }
+
+    /// <summary>Builds a port name, including dotted, ranged, and indexed forms.</summary>
     /// <param name="ctx">Port name context.</param>
     /// <returns>Normalized port name.</returns>
     private static string BuildPortName(CascodeParser.PortNameContext ctx)
     {
-        // Port names can be dotted (e.g., OUT.P)
-        var name = string.Join(".", ctx.IDENT().Select(i => i.GetText()));
-        if (ctx.NUMBER() != null)
+        return ParsePortName(ctx).Name;
+    }
+
+    private static (
+        string Name,
+        int? ArrayIndex,
+        int? ArrayRangeStart,
+        int? ArrayRangeEnd,
+        bool IsArrayWildcard
+    ) ParsePortName(CascodeParser.PortNameContext ctx)
+    {
+        var baseName = string.Join(".", ctx.IDENT().Select(i => i.GetText()));
+        if (ctx.STAR() is not null)
         {
-            return $"{name}[{ctx.NUMBER().GetText()}]";
+            return ($"{baseName}[*]", null, null, null, true);
         }
-        if (ctx.STAR() != null)
+
+        var numbers = ctx.NUMBER();
+        if (numbers.Length == 1)
         {
-            return $"{name}[*]";
+            var raw = numbers[0].GetText();
+            var parsed = int.TryParse(raw, out var index) ? (int?)index : null;
+            return ($"{baseName}[{raw}]", parsed, null, null, false);
         }
-        return name;
+
+        if (numbers.Length == 2)
+        {
+            var startRaw = numbers[0].GetText();
+            var endRaw = numbers[1].GetText();
+            var start = int.TryParse(startRaw, out var parsedStart) ? (int?)parsedStart : null;
+            var end = int.TryParse(endRaw, out var parsedEnd) ? (int?)parsedEnd : null;
+            return ($"{baseName}[{startRaw}:{endRaw}]", null, start, end, false);
+        }
+
+        return (baseName, null, null, null, false);
     }
 
     private static PortDirection BuildPortDirection(CascodeParser.DirectionContext ctx)

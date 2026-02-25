@@ -327,7 +327,7 @@ circuit {circuitName} {{
   }}
 
   constraints {{
-    numeric {{
+    bench {{
       c_seed = {bindingAlias}::Gm >= 0S
     }}
   }}

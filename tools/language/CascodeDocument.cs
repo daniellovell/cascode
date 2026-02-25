@@ -60,6 +60,11 @@ public sealed partial class CascodeDocument
     public List<PrimitiveDefinition> Primitives { get; init; } = new();
 
     /// <summary>
+    /// Part declarations declared at the file level.
+    /// </summary>
+    public List<PartDefinition> Parts { get; init; } = new();
+
+    /// <summary>
     /// Circuit definitions in this document.
     /// </summary>
     public List<Circuit> Circuits { get; init; } = new();
@@ -214,6 +219,18 @@ public sealed class PortDeclaration
 
     /// <summary>Port type (domain or bundle type name).</summary>
     public string Type { get; init; } = string.Empty;
+
+    /// <summary>Optional fixed index (for example, <c>PA[3]</c>).</summary>
+    public int? ArrayIndex { get; init; }
+
+    /// <summary>Optional inclusive range start (for example, <c>PA[0:15]</c>).</summary>
+    public int? ArrayRangeStart { get; init; }
+
+    /// <summary>Optional inclusive range end (for example, <c>PA[0:15]</c>).</summary>
+    public int? ArrayRangeEnd { get; init; }
+
+    /// <summary>True when wildcard array syntax is used (for example, <c>PA[*]</c>).</summary>
+    public bool IsArrayWildcard { get; init; }
 }
 
 /// <summary>
@@ -333,6 +350,9 @@ public sealed class InstanceDeclaration
     /// <summary>Declared instance type from source (for example <c>Some</c> in slot blocks).</summary>
     public string? DeclaredType { get; init; }
 
+    /// <summary>Optional bracket selection arguments (for example <c>[entry]</c> or <c>[axis=option]</c>).</summary>
+    public List<InstanceSelectionArg> SelectionArgs { get; init; } = new();
+
     /// <summary>Terminal bindings.</summary>
     public Dictionary<string, string> Bindings { get; init; } = new();
 
@@ -344,6 +364,18 @@ public sealed class InstanceDeclaration
 
     /// <summary>Instance-level connect statements.</summary>
     public List<ConnectionStatement> Connects { get; init; } = new();
+}
+
+/// <summary>
+/// A single selection argument for instance bracket selection.
+/// </summary>
+public sealed class InstanceSelectionArg
+{
+    /// <summary>Optional axis name for named selections (for example, <c>body</c> in <c>body=_0402</c>).</summary>
+    public string? Axis { get; init; }
+
+    /// <summary>Selected entry or option value.</summary>
+    public string Value { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -380,6 +412,9 @@ public sealed class PrimitiveDefinition
 
     /// <summary>Primitive template name.</summary>
     public string Name { get; init; } = string.Empty;
+
+    /// <summary>Optional interfaces implemented by this primitive.</summary>
+    public List<string> Implements { get; init; } = new();
 
     /// <summary>Concrete device key (model/subckt/P-cell name).</summary>
     public string Device { get; init; } = string.Empty;

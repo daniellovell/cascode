@@ -256,7 +256,7 @@ circuit TestCircuit {{
     }
 
     [Fact]
-    public void TryRead_InstanceWithMismatchedDeclaredType_ReturnsError()
+    public void TryRead_InstanceWithDifferentDeclaredAndConstructedType_ParsesSuccessfully()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -272,10 +272,7 @@ circuit TestCircuit {{
 ";
 
         var result = CascodeReader.TryParse(cascode, "test.cas");
-        Assert.Contains(
-            result.Diagnostics,
-            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0036")
-        );
+        Assert.True(result.Success);
     }
 
     [Fact]

@@ -12,11 +12,35 @@ public sealed class ConstraintsBlock
     /// <summary>Numeric constraints.</summary>
     public List<NumericConstraint> Numeric { get; init; } = new();
 
+    /// <summary>Spec constraints evaluated against declared metrics.</summary>
+    public List<SpecConstraint> Spec { get; init; } = new();
+
     /// <summary>Technology constraints.</summary>
     public List<TechConstraint> Tech { get; init; } = new();
 
     /// <summary>Graph constraints.</summary>
     public List<GraphConstraint> Graph { get; init; } = new();
+}
+
+/// <summary>
+/// Spec constraint expressing a comparison over a declared metric.
+/// </summary>
+public sealed class SpecConstraint
+{
+    /// <summary>Unique identifier for this constraint.</summary>
+    public string Id { get; init; } = string.Empty;
+
+    /// <summary>Metric reference text (for example, "adc.Resolution" or "Resolution").</summary>
+    public string MetricRef { get; init; } = string.Empty;
+
+    /// <summary>Comparison operator: &gt;=, &lt;=, ==, &gt;, or &lt;.</summary>
+    public string Op { get; init; } = string.Empty;
+
+    /// <summary>Numeric bound for the constraint.</summary>
+    public string Value { get; init; } = string.Empty;
+
+    /// <summary>Physical unit for the value.</summary>
+    public string Unit { get; init; } = string.Empty;
 }
 
 /// <summary>
@@ -266,6 +290,9 @@ public sealed class TraitDefinition
 
     /// <summary>Connectors to other interfaces.</summary>
     public List<TraitConnector> Connectors { get; init; } = new();
+
+    /// <summary>Metric contracts declared by the interface.</summary>
+    public List<MetricContract> Metrics { get; init; } = new();
 
     /// <summary>Bench bindings declared on this interface.</summary>
     public List<BenchBinding> BenchBindings { get; init; } = new();

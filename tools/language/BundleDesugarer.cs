@@ -55,6 +55,7 @@ public static class BundleDesugarer
             Traits = document.Traits.Select(t => DesugarTrait(t, bundlesByName)).ToList(),
             BenchDefinitions = document.BenchDefinitions,
             Primitives = document.Primitives,
+            Parts = document.Parts,
             Circuits = document
                 .Circuits.Select(c => DesugarCircuit(c, bundlesByName, circuitsByName))
                 .ToList(),
@@ -83,6 +84,7 @@ public static class BundleDesugarer
             Connectors = interfaceDef
                 .Connectors.Select(c => DesugarConnector(c, portTypes, bundlesByName))
                 .ToList(),
+            Metrics = interfaceDef.Metrics,
             BenchBindings = interfaceDef.BenchBindings,
         };
     }

@@ -21,7 +21,7 @@ circuit MyLNA(int stages) {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_nf   = noise_bench::NoiseFigure <= 2dB
     }
@@ -47,7 +47,7 @@ circuit MyMixer {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::ConversionGain >= 5dB
       c_nf   = noise_bench::NoiseFigure <= 10dB
     }
@@ -94,7 +94,7 @@ circuit MyReceiver {
   }
 
   constraints {
-    numeric {
+    bench {
       c_system_gain = system_bench::Gain >= 20dB
       c_system_nf   = system_bench::NoiseFigure <= 3dB
     }

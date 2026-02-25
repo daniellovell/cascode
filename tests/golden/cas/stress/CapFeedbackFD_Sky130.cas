@@ -103,7 +103,7 @@ circuit OTA5TFD_Sky130 implements FullyDifferentialOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 30dB
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 100MHz
       c_pm = transfer_bench::PhaseMargin at net::OUT >= 45deg
@@ -189,7 +189,7 @@ circuit CapFeedbackFD_Sky130 implements FullyDifferentialOpAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
       c_hp = transfer_bench::HighpassBandwidth at net::OUT <= 10kHz
       c_lp = transfer_bench::LowpassBandwidth at net::OUT >= 67kHz

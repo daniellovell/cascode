@@ -41,7 +41,7 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   }
 
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 5MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 15dB
       c_int_noise = noise_bench::IntegratedInputNoise(from=10Hz, to=10MHz) <= 100uVrms

@@ -18,24 +18,34 @@ internal sealed partial class CascodeAstBuilder
         {
             switch (sectionCtx)
             {
-                case CascodeParser.NumericSectionContext numericCtx:
-                    foreach (var constraintCtx in numericCtx.numericConstraint())
+                case CascodeParser.BenchSectionContext benchCtx:
+                    foreach (var constraintCtx in benchCtx.numericConstraint())
                     {
                         constraints.Numeric.Add(BuildNumericConstraint(constraintCtx));
                     }
                     break;
 
-                case CascodeParser.TechSectionContext techCtx:
-                    foreach (var constraintCtx in techCtx.techConstraint())
+                case CascodeParser.BenchConstraintDirectContext benchDirectCtx:
+                    constraints.Numeric.Add(
+                        BuildNumericConstraint(benchDirectCtx.numericConstraint())
+                    );
+                    break;
+
+                case CascodeParser.SpecSectionContext specCtx:
+                    foreach (var constraintCtx in specCtx.specConstraint())
                     {
-                        constraints.Tech.Add(BuildTechConstraint(constraintCtx));
+                        constraints.Spec.Add(BuildSpecConstraint(constraintCtx));
                     }
                     break;
 
-                case CascodeParser.GraphSectionContext graphCtx:
-                    foreach (var constraintCtx in graphCtx.graphConstraint())
+                case CascodeParser.SpecConstraintDirectContext specDirectCtx:
+                    constraints.Spec.Add(BuildSpecConstraint(specDirectCtx.specConstraint()));
+                    break;
+
+                case CascodeParser.PhysicalSectionContext physicalCtx:
+                    foreach (var constraintCtx in physicalCtx.techConstraint())
                     {
-                        constraints.Graph.Add(BuildGraphConstraint(constraintCtx));
+                        constraints.Tech.Add(BuildTechConstraint(constraintCtx));
                     }
                     break;
             }
@@ -105,6 +115,23 @@ internal sealed partial class CascodeAstBuilder
             Metric = metric,
             MetricArgs = metricArgs,
             Node = node,
+            Op = op,
+            Value = value,
+            Unit = unit,
+        };
+    }
+
+    private static SpecConstraint BuildSpecConstraint(CascodeParser.SpecConstraintContext ctx)
+    {
+        var id = ctx.IDENT().GetText();
+        var metricRef = ctx.specMetricRef().GetText();
+        var op = ctx.COMPARISON_OP().GetText();
+        var quantity = ctx.signedQuantity().GetText();
+        var (value, unit) = ParseQuantity(quantity);
+        return new SpecConstraint
+        {
+            Id = id,
+            MetricRef = metricRef,
             Op = op,
             Value = value,
             Unit = unit,

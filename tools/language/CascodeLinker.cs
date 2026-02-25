@@ -504,6 +504,7 @@ public static class CascodeLinker
                 .BenchDefinitions.Where(b => allowed.Contains(b.Name))
                 .ToList(),
             Primitives = source.Primitives.Where(p => allowed.Contains(p.Name)).ToList(),
+            Parts = source.Parts.Where(p => allowed.Contains(p.Name)).ToList(),
             Circuits = source.Circuits.Where(c => allowed.Contains(c.Name)).ToList(),
         };
     }
@@ -1169,6 +1170,7 @@ public static class CascodeLinker
             Traits = entryDoc.Traits,
             BenchDefinitions = new List<BenchDefinition>(),
             Primitives = entryDoc.Primitives,
+            Parts = entryDoc.Parts,
             Circuits = entryDoc.Circuits,
         };
     }
@@ -1401,6 +1403,7 @@ public static class CascodeLinker
         var benches = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
         var functions = new Dictionary<string, FunctionDefinition>(StringComparer.Ordinal);
         var primitives = new Dictionary<string, PrimitiveDefinition>(StringComparer.Ordinal);
+        var parts = new Dictionary<string, PartDefinition>(StringComparer.Ordinal);
         var circuits = new Dictionary<string, Circuit>(StringComparer.Ordinal);
 
         foreach (var doc in docs)
@@ -1485,6 +1488,22 @@ public static class CascodeLinker
                 }
             }
 
+            foreach (var p in doc.Parts)
+            {
+                if (!parts.TryAdd(p.Name, p))
+                {
+                    diagnostics.Add(
+                        new Diagnostic(
+                            $"CAS1017: Duplicate part '{p.Name}' while linking.",
+                            DiagnosticSeverity.Error,
+                            "<link>",
+                            1,
+                            1
+                        )
+                    );
+                }
+            }
+
             foreach (var c in doc.Circuits)
             {
                 if (!circuits.TryAdd(c.Name, c))
@@ -1517,6 +1536,7 @@ public static class CascodeLinker
             Traits = traits.Values.OrderBy(t => t.Name, StringComparer.Ordinal).ToList(),
             BenchDefinitions = benches.Values.OrderBy(b => b.Name, StringComparer.Ordinal).ToList(),
             Primitives = primitives.Values.OrderBy(p => p.Name, StringComparer.Ordinal).ToList(),
+            Parts = parts.Values.OrderBy(p => p.Name, StringComparer.Ordinal).ToList(),
             Circuits = circuits.Values.OrderBy(c => c.Name, StringComparer.Ordinal).ToList(),
         };
     }
@@ -1639,6 +1659,7 @@ public static class CascodeLinker
             Traits = doc.Traits,
             BenchDefinitions = doc.BenchDefinitions,
             Primitives = doc.Primitives,
+            Parts = doc.Parts,
             Circuits = updatedCircuits,
         };
 

@@ -1,13 +1,13 @@
 VERSION 3.2
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Ideal_Resistor(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive NMOS Level1_NMOS(size primSize) {
+primitive Level1_NMOS(size primSize) implements NMOS {
   device "level1_nmos"
   params {
     W = primSize.W
@@ -36,7 +36,7 @@ circuit CSAmpResistive implements SingleEndedAmp {
     }
   }
   constraints {
-    numeric {
+    bench {
       c_gbw = transfer_bench::GainBandwidth at net::OUT >= 10MHz
       c_gain = transfer_bench::PassbandGain at net::OUT >= 20dB
     }

@@ -15,7 +15,7 @@ internal sealed partial class CascodeAstBuilder
         {
             Name = ctx.name.Text,
             Traits = ctx.implementsClause()
-                ?.interfaceList()
+                ?.implementsList()
                 ?.IDENT()
                 .Select(i => i.GetText())
                 .ToList(),
@@ -77,12 +77,11 @@ internal sealed partial class CascodeAstBuilder
 
                 case CascodeParser.PortDeclContext portCtx:
                     state.Ports.Add(
-                        new PortDeclaration
-                        {
-                            Direction = BuildPortDirection(portCtx.direction()),
-                            Name = BuildPortName(portCtx.portName()),
-                            Type = BuildPortType(portCtx.portType()),
-                        }
+                        BuildPortDeclaration(
+                            portCtx.direction(),
+                            portCtx.portName(),
+                            portCtx.portType()
+                        )
                     );
                     break;
 
@@ -384,7 +383,7 @@ internal sealed partial class CascodeAstBuilder
     /// <summary>Builds a device declaration from its parse context.</summary>
     private DeviceDeclaration BuildDevice(CascodeParser.DeviceDeclContext ctx)
     {
-        var deviceType = ctx.DEVICE_TYPE().GetText();
+        var deviceType = ctx.deviceType.Text;
         var deviceId = BuildDeviceId(ctx.deviceId());
         var primitiveName = ctx.primitiveName.Text;
 
@@ -441,6 +440,7 @@ internal sealed partial class CascodeAstBuilder
             declaredType: ctx.slotDeclaredType().GetText(),
             id: ctx.instanceId.Text,
             type: ctx.instanceTypeName().GetText(),
+            selectionArgList: ctx.selectionArgList(),
             argList: ctx.argList(),
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
@@ -458,6 +458,7 @@ internal sealed partial class CascodeAstBuilder
             declaredType: ctx.declaredType.Text,
             id: ctx.instanceId.Text,
             type: ctx.instanceTypeName().GetText(),
+            selectionArgList: ctx.selectionArgList(),
             argList: ctx.argList(),
             bindingBlock: ctx.bindingBlock(),
             diagnosticCtx: ctx,
@@ -469,28 +470,14 @@ internal sealed partial class CascodeAstBuilder
         string? declaredType,
         string id,
         string type,
+        CascodeParser.SelectionArgListContext? selectionArgList,
         CascodeParser.ArgListContext? argList,
         CascodeParser.BindingBlockContext? bindingBlock,
         Antlr4.Runtime.ParserRuleContext diagnosticCtx,
         bool allowSomeDeclaredType
     )
     {
-        var usesSomeDeclaredType =
-            allowSomeDeclaredType
-            && declaredType is not null
-            && declaredType.Equals("Some", StringComparison.Ordinal);
-        if (
-            !usesSomeDeclaredType
-            && declaredType is not null
-            && !declaredType.Equals(type, StringComparison.Ordinal)
-        )
-        {
-            AddDiagnostic(
-                diagnosticCtx,
-                DiagnosticSeverity.Error,
-                $"CAS0036: Instance '{id}' declares type '{declaredType}' but constructs '{type}'. The declared and constructor types must match exactly."
-            );
-        }
+        _ = allowSomeDeclaredType;
 
         var bindings = bindingBlock is null
             ? new Dictionary<string, string>()
@@ -511,6 +498,25 @@ internal sealed partial class CascodeAstBuilder
 
         var instanceParams = new Dictionary<string, ParamValue>();
         var sizes = new Dictionary<string, SizePack>();
+        var selectionArgs = new List<InstanceSelectionArg>();
+
+        if (selectionArgList is not null)
+        {
+            foreach (var selectionArg in selectionArgList.selectionArg())
+            {
+                selectionArgs.Add(
+                    new InstanceSelectionArg
+                    {
+                        Axis = selectionArg.EQ() is null ? null : selectionArg.IDENT(0).GetText(),
+                        Value =
+                            selectionArg.STRING() is not null
+                                ? Unquote(selectionArg.STRING().GetText())
+                            : selectionArg.EQ() is null ? selectionArg.IDENT(0).GetText()
+                            : selectionArg.IDENT(1).GetText(),
+                    }
+                );
+            }
+        }
 
         if (argList != null)
         {
@@ -560,6 +566,7 @@ internal sealed partial class CascodeAstBuilder
             Id = id,
             Type = type,
             DeclaredType = declaredType,
+            SelectionArgs = selectionArgs,
             Bindings = bindings,
             Params = instanceParams,
             Sizes = sizes,

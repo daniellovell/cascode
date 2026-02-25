@@ -5,14 +5,14 @@ bundle Diff {
   N : analog
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Ideal_Resistor(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R
   }
 }
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Ideal_Capacitor(size primSize) implements Capacitor {
   device "capacitor"
   params {
     C = primSize.C
@@ -78,7 +78,7 @@ circuit RcLowpassA {
   }
 
   constraints {
-    numeric {
+    bench {
       c_bw = lp::LowpassBandwidth >= 1Hz
     }
   }
@@ -111,7 +111,7 @@ circuit RcLowpassB {
   }
 
   constraints {
-    numeric {
+    bench {
       c_bw = lp::LowpassBandwidth >= 1Hz
     }
   }

@@ -143,6 +143,16 @@ internal sealed partial class CascodeAstBuilder
                 continue;
             }
 
+            if (stmt.benchBindingMetrics() is not null)
+            {
+                target.Add(
+                    new BenchBindingMetricsBlock(
+                        BuildBenchBindingMetrics(stmt.benchBindingMetrics())
+                    )
+                );
+                continue;
+            }
+
             if (stmt.dutConnection() is not null)
             {
                 var c = stmt.dutConnection();
@@ -404,6 +414,58 @@ internal sealed partial class CascodeAstBuilder
         }
 
         return BuildIfExpr(ctx.ifExpr());
+    }
+
+    private static List<MetricAssignment> BuildBenchBindingMetrics(
+        CascodeParser.BenchBindingMetricsContext ctx
+    )
+    {
+        var metrics = new List<MetricAssignment>();
+        foreach (var entry in ctx.benchMetricsEntry())
+        {
+            if (entry.metricBind() is not null)
+            {
+                metrics.Add(BuildBenchMetricAssignment(entry.metricBind(), corner: null));
+                continue;
+            }
+
+            var cornerName = entry.cornerBenchMetricsBlock().cornerName.Text;
+            foreach (var bind in entry.cornerBenchMetricsBlock().metricBind())
+            {
+                metrics.Add(BuildBenchMetricAssignment(bind, cornerName));
+            }
+        }
+
+        return metrics;
+    }
+
+    private static MetricAssignment BuildBenchMetricAssignment(
+        CascodeParser.MetricBindContext ctx,
+        string? corner
+    )
+    {
+        var source = ctx.metricSource();
+        var sourceRef = source.benchMetricRef() is not null
+            ? new MetricSourceReference
+            {
+                Kind = "bench",
+                Value = source.benchMetricRef().GetText(),
+            }
+            : new MetricSourceReference
+            {
+                Kind = "instance",
+                Value = source.instanceMetricRef().GetText(),
+            };
+
+        return new MetricAssignment
+        {
+            Name = ctx.IDENT().GetText(),
+            Qualifier = ctx.metricQualifier() is null
+                ? null
+                : ParseMetricQualifier(ctx.metricQualifier()),
+            Corner = corner,
+            Value = new MetricAssignmentValue { Source = sourceRef },
+        };
     }
 
     private MeasurementExpr BuildIfExpr(CascodeParser.IfExprContext ctx)

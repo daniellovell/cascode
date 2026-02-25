@@ -1,6 +1,6 @@
 library lib.std.prim
 
-primitive NMOS Level1_NMOS(size primSize) {
+primitive Level1_NMOS(size primSize) implements NMOS {
   device "level1_nmos"
   params {
       W = primSize.W
@@ -9,7 +9,7 @@ primitive NMOS Level1_NMOS(size primSize) {
   }
 }
   
-primitive PMOS Level1_PMOS(size primSize) {
+primitive Level1_PMOS(size primSize) implements PMOS {
   device "level1_pmos"
   params {
       W = primSize.W

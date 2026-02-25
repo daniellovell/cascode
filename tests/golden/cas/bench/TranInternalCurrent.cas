@@ -36,7 +36,7 @@ circuit TranInternalCurrent {
   }
 
   constraints {
-    numeric {
+    bench {
       c_internal = tran::InternalNodePeak >= 0V
       c_supply = tran::SupplyCurrentPeak >= 0A
     }

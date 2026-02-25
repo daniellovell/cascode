@@ -101,6 +101,13 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitInterfaceGround([NotNull] CascodeParser.InterfaceGroundContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>InterfaceMetrics</c>
+	/// labeled alternative in <see cref="CascodeParser.interfaceMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitInterfaceMetrics([NotNull] CascodeParser.InterfaceMetricsContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>InterfaceConnectors</c>
 	/// labeled alternative in <see cref="CascodeParser.interfaceMember"/>.
 	/// </summary>
@@ -114,6 +121,24 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitInterfaceBenches([NotNull] CascodeParser.InterfaceBenchesContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.interfaceMetricsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitInterfaceMetricsBlock([NotNull] CascodeParser.InterfaceMetricsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricDecl"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricDecl([NotNull] CascodeParser.MetricDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.qualifierRequirement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitQualifierRequirement([NotNull] CascodeParser.QualifierRequirementContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.connectorDef"/>.
 	/// </summary>
@@ -217,6 +242,222 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSizeFieldAccess([NotNull] CascodeParser.SizeFieldAccessContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.partDef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPartDef([NotNull] CascodeParser.PartDefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.partMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPartMember([NotNull] CascodeParser.PartMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.catalogBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCatalogBlock([NotNull] CascodeParser.CatalogBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.catalogMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCatalogMember([NotNull] CascodeParser.CatalogMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.defaultsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitDefaultsBlock([NotNull] CascodeParser.DefaultsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.entryDef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitEntryDef([NotNull] CascodeParser.EntryDefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.entryMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitEntryMember([NotNull] CascodeParser.EntryMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.entryFieldValue"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitEntryFieldValue([NotNull] CascodeParser.EntryFieldValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.catalogOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCatalogOption([NotNull] CascodeParser.CatalogOptionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.catalogOptionField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCatalogOptionField([NotNull] CascodeParser.CatalogOptionFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.mechanicalBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMechanicalBlock([NotNull] CascodeParser.MechanicalBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.mechanicalField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMechanicalField([NotNull] CascodeParser.MechanicalFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.pinsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPinsBlock([NotNull] CascodeParser.PinsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.pinMapEntry"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPinMapEntry([NotNull] CascodeParser.PinMapEntryContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.padMap"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPadMap([NotNull] CascodeParser.PadMapContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.padRange"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPadRange([NotNull] CascodeParser.PadRangeContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.padRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPadRef([NotNull] CascodeParser.PadRefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.unitsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUnitsBlock([NotNull] CascodeParser.UnitsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.unitDef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUnitDef([NotNull] CascodeParser.UnitDefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.unitField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitUnitField([NotNull] CascodeParser.UnitFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.tupleLiteral"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitTupleLiteral([NotNull] CascodeParser.TupleLiteralContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.tupleElement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitTupleElement([NotNull] CascodeParser.TupleElementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.variantBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitVariantBlock([NotNull] CascodeParser.VariantBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.variantOption"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitVariantOption([NotNull] CascodeParser.VariantOptionContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.variantOptionMember"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitVariantOptionMember([NotNull] CascodeParser.VariantOptionMemberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.excludeDirective"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitExcludeDirective([NotNull] CascodeParser.ExcludeDirectiveContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.cornersBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCornersBlock([NotNull] CascodeParser.CornersBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.cornerDef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCornerDef([NotNull] CascodeParser.CornerDefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.cornerField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCornerField([NotNull] CascodeParser.CornerFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricsValueBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricsValueBlock([NotNull] CascodeParser.MetricsValueBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricsEntry"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricsEntry([NotNull] CascodeParser.MetricsEntryContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.cornerMetricsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCornerMetricsBlock([NotNull] CascodeParser.CornerMetricsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricAssign"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricAssign([NotNull] CascodeParser.MetricAssignContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricQualifier"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricQualifier([NotNull] CascodeParser.MetricQualifierContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricValue"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricValue([NotNull] CascodeParser.MetricValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricSource"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricSource([NotNull] CascodeParser.MetricSourceContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.circuit"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -235,11 +476,11 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitImplementsClause([NotNull] CascodeParser.ImplementsClauseContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="CascodeParser.interfaceList"/>.
+	/// Visit a parse tree produced by <see cref="CascodeParser.implementsList"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitInterfaceList([NotNull] CascodeParser.InterfaceListContext context);
+	Result VisitImplementsList([NotNull] CascodeParser.ImplementsListContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>LevelDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.circuitMember"/>.
@@ -395,6 +636,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParamType([NotNull] CascodeParser.ParamTypeContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.eSeriesType"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitESeriesType([NotNull] CascodeParser.ESeriesTypeContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.paramValue"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -448,19 +695,19 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitFillSizeDecl([NotNull] CascodeParser.FillSizeDeclContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>FillInstanceStatement</c>
-	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitFillInstanceStatement([NotNull] CascodeParser.FillInstanceStatementContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>FillDeviceDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitFillDeviceDecl([NotNull] CascodeParser.FillDeviceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>FillInstanceStatement</c>
+	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFillInstanceStatement([NotNull] CascodeParser.FillInstanceStatementContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>FillAttachDecl</c>
 	/// labeled alternative in <see cref="CascodeParser.fillStatement"/>.
@@ -550,6 +797,18 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitInstanceDecl([NotNull] CascodeParser.InstanceDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.selectionArgList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSelectionArgList([NotNull] CascodeParser.SelectionArgListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.selectionArg"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSelectionArg([NotNull] CascodeParser.SelectionArgContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.instanceTypeName"/>.
 	/// </summary>
@@ -701,33 +960,40 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSignedQuantity([NotNull] CascodeParser.SignedQuantityContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>NumericSection</c>
+	/// Visit a parse tree produced by the <c>BenchSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitNumericSection([NotNull] CascodeParser.NumericSectionContext context);
+	Result VisitBenchSection([NotNull] CascodeParser.BenchSectionContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>TechSection</c>
+	/// Visit a parse tree produced by the <c>SpecSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitTechSection([NotNull] CascodeParser.TechSectionContext context);
+	Result VisitSpecSection([NotNull] CascodeParser.SpecSectionContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>GraphSection</c>
+	/// Visit a parse tree produced by the <c>PhysicalSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitGraphSection([NotNull] CascodeParser.GraphSectionContext context);
+	Result VisitPhysicalSection([NotNull] CascodeParser.PhysicalSectionContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>NumericConstraintDirect</c>
+	/// Visit a parse tree produced by the <c>BenchConstraintDirect</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitNumericConstraintDirect([NotNull] CascodeParser.NumericConstraintDirectContext context);
+	Result VisitBenchConstraintDirect([NotNull] CascodeParser.BenchConstraintDirectContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>SpecConstraintDirect</c>
+	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSpecConstraintDirect([NotNull] CascodeParser.SpecConstraintDirectContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.numericConstraint"/>.
 	/// </summary>
@@ -735,11 +1001,29 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitNumericConstraint([NotNull] CascodeParser.NumericConstraintContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.specConstraint"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSpecConstraint([NotNull] CascodeParser.SpecConstraintContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.specMetricRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSpecMetricRef([NotNull] CascodeParser.SpecMetricRefContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.benchMetricRef"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitBenchMetricRef([NotNull] CascodeParser.BenchMetricRefContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.instanceMetricRef"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitInstanceMetricRef([NotNull] CascodeParser.InstanceMetricRefContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.nodeRef"/>.
 	/// </summary>
@@ -1061,6 +1345,30 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitBindingMeasurementDecl([NotNull] CascodeParser.BindingMeasurementDeclContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.benchBindingMetrics"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBenchBindingMetrics([NotNull] CascodeParser.BenchBindingMetricsContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.benchMetricsEntry"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBenchMetricsEntry([NotNull] CascodeParser.BenchMetricsEntryContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.cornerBenchMetricsBlock"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitCornerBenchMetricsBlock([NotNull] CascodeParser.CornerBenchMetricsBlockContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.metricBind"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMetricBind([NotNull] CascodeParser.MetricBindContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="CascodeParser.terminalMapping"/>.
 	/// </summary>

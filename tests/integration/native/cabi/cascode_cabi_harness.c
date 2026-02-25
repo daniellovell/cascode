@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
   const char* source_text =
       "VERSION 3.2\n"
       "\n"
-      "primitive NMOS Level1_NMOS(size primSize) {\n"
+      "primitive Level1_NMOS(size primSize) implements NMOS {\n"
       "  device \"level1_nmos\"\n"
       "  params {\n"
       "    W = primSize.W\n"

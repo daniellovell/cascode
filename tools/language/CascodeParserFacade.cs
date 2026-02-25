@@ -185,6 +185,7 @@ public static class CascodeParserFacade
             Traits = doc.Traits,
             BenchDefinitions = doc.BenchDefinitions,
             Primitives = doc.Primitives,
+            Parts = doc.Parts,
             Circuits = updatedCircuits,
         };
     }

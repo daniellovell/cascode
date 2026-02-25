@@ -1,13 +1,13 @@
 VERSION 3.2
 
-primitive Capacitor Ideal_Capacitor(size primSize) {
+primitive Ideal_Capacitor(size primSize) implements Capacitor {
   device "capacitor"
   params {
     C = primSize.C
   }
 }
 
-primitive Resistor Ideal_Resistor(size primSize) {
+primitive Ideal_Resistor(size primSize) implements Resistor {
   device "resistor"
   params {
     R = primSize.R

@@ -153,7 +153,7 @@ circuit Prune {{
         var source =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
+primitive Level1_NMOS(size primSize) implements NMOS {{
   device ""level1_nmos""
   params {{
     W = primSize.W

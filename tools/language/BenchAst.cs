@@ -222,3 +222,9 @@ public sealed record BenchBindingMeasurementExport(
     string Unit,
     MeasurementBenchMeasurementRef Target
 ) : BenchBindingStatement;
+
+/// <summary>
+/// Bench binding metrics block mapping contract metrics to bench-derived values.
+/// </summary>
+public sealed record BenchBindingMetricsBlock(IReadOnlyList<MetricAssignment> Metrics)
+    : BenchBindingStatement;

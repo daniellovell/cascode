@@ -33,6 +33,7 @@ public static partial class BenchInheritanceResolver
             Traits = document.Traits,
             BenchDefinitions = concrete,
             Primitives = document.Primitives,
+            Parts = document.Parts,
             Circuits = document.Circuits,
         };
     }

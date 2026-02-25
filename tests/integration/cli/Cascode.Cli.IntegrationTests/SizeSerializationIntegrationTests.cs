@@ -64,7 +64,7 @@ public sealed class SizeSerializationIntegrationTests : IDisposable
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
-primitive NMOS Level1_NMOS(size primSize) {{
+primitive Level1_NMOS(size primSize) implements NMOS {{
   device ""level1_nmos""
   params {{
     W = primSize.W
