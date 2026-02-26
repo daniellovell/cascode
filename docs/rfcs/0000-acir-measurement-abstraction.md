@@ -1704,7 +1704,7 @@ Measurements can access internal nodes of the DUT using the `dut.` prefix. This 
 measurements {
   measurement InternalBias : V {
     ComplexVoltageSpectrum v_ac = voltage(ac, dut.mirror_gate)  // Access internal node
-    return v_ac.ValueAt(0Hz)
+    return v_ac.Mag().ValueAt(0Hz)
   }
 
   measurement InternalSwing : dB {
@@ -1890,6 +1890,8 @@ physicalType
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
