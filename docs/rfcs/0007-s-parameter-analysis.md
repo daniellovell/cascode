@@ -531,7 +531,7 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 
 | Condition                                  | Error                                                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Non-real-valued port impedance             | `Port impedance must be real-valued: port {n} declares a complex impedance`        |
+| Non-real-valued port impedance             | `Port impedance must be real-valued: invalid port impeidance on port {n}`          |
 | Duplicate port number in a bench           | `Duplicate port number {n}: '{name1}' and '{name2}'`                               |
 | Mixed-mode accessor on single-ended port   | `S.Sdd({i}, {j}) requires both ports to be differential; port {n} is single-ended` |
 | Derived metric method on differential port | `{method} can only be called on single-ended ports: port {n} is differential`      |
