@@ -435,7 +435,7 @@ public static class PdkEmitPrimitivesService
     )
     {
         var builder = new StringBuilder();
-        builder.AppendLine("VERSION 3.0");
+        builder.AppendLine("VERSION 4.0");
         builder.AppendLine();
         builder.AppendLine($"library {libraryNamespace}.{categorySuffix}");
         builder.AppendLine();

@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.0
 
 primitive Capacitor Ideal_Capacitor(size primSize) {
   device "capacitor"

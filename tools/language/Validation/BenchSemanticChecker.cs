@@ -779,7 +779,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.VoltageSpectrum)
+        if (recv.Kind == MeasurementTypeKind.ComplexVoltageSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -788,7 +788,7 @@ public static class BenchSemanticChecker
 
             if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
             {
-                return MeasurementType.VoltageMagnitudeSpectrum();
+                return MeasurementType.VoltageSpectrum();
             }
 
             if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
@@ -797,7 +797,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.CurrentSpectrum)
+        if (recv.Kind == MeasurementTypeKind.ComplexCurrentSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -806,7 +806,7 @@ public static class BenchSemanticChecker
 
             if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
             {
-                return MeasurementType.CurrentMagnitudeSpectrum();
+                return MeasurementType.CurrentSpectrum();
             }
 
             if (call.Method.Equals("Phase", StringComparison.OrdinalIgnoreCase))
@@ -815,7 +815,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.VoltageMagnitudeSpectrum)
+        if (recv.Kind == MeasurementTypeKind.VoltageSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -836,7 +836,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.CurrentMagnitudeSpectrum)
+        if (recv.Kind == MeasurementTypeKind.CurrentSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -986,7 +986,7 @@ public static class BenchSemanticChecker
                     );
                     return a.Kind switch
                     {
-                        MeasurementTypeKind.ACAnalysis => MeasurementType.VoltageSpectrum(),
+                        MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexVoltageSpectrum(),
                         MeasurementTypeKind.DCAnalysis => MeasurementType.Voltage(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.VoltageWaveform(),
                         _ => MeasurementType.Scalar(),
@@ -1006,7 +1006,7 @@ public static class BenchSemanticChecker
                     );
                     return a.Kind switch
                     {
-                        MeasurementTypeKind.ACAnalysis => MeasurementType.CurrentSpectrum(),
+                        MeasurementTypeKind.ACAnalysis => MeasurementType.ComplexCurrentSpectrum(),
                         MeasurementTypeKind.TranAnalysis => MeasurementType.CurrentWaveform(),
                         _ => MeasurementType.Scalar(),
                     };
@@ -1376,10 +1376,10 @@ public static class BenchSemanticChecker
         TransferFunction,
         GainSpectrum,
         PhaseSpectrum,
+        ComplexVoltageSpectrum,
+        ComplexCurrentSpectrum,
         VoltageSpectrum,
         CurrentSpectrum,
-        VoltageMagnitudeSpectrum,
-        CurrentMagnitudeSpectrum,
         NoiseSpectrum,
         VoltageWaveform,
         CurrentWaveform,
@@ -1428,15 +1428,15 @@ public static class BenchSemanticChecker
 
         public static MeasurementType PhaseSpectrum() => new(MeasurementTypeKind.PhaseSpectrum);
 
+        public static MeasurementType ComplexVoltageSpectrum() =>
+            new(MeasurementTypeKind.ComplexVoltageSpectrum);
+
+        public static MeasurementType ComplexCurrentSpectrum() =>
+            new(MeasurementTypeKind.ComplexCurrentSpectrum);
+
         public static MeasurementType VoltageSpectrum() => new(MeasurementTypeKind.VoltageSpectrum);
 
         public static MeasurementType CurrentSpectrum() => new(MeasurementTypeKind.CurrentSpectrum);
-
-        public static MeasurementType VoltageMagnitudeSpectrum() =>
-            new(MeasurementTypeKind.VoltageMagnitudeSpectrum);
-
-        public static MeasurementType CurrentMagnitudeSpectrum() =>
-            new(MeasurementTypeKind.CurrentMagnitudeSpectrum);
 
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
 
@@ -1474,6 +1474,8 @@ public static class BenchSemanticChecker
                 BenchValueType.TransferFunction => TransferFunction(),
                 BenchValueType.GainSpectrum => GainSpectrum(),
                 BenchValueType.PhaseSpectrum => PhaseSpectrum(),
+                BenchValueType.ComplexVoltageSpectrum => ComplexVoltageSpectrum(),
+                BenchValueType.ComplexCurrentSpectrum => ComplexCurrentSpectrum(),
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
                 BenchValueType.CurrentSpectrum => CurrentSpectrum(),
                 BenchValueType.NoiseSpectrum => NoiseSpectrum(),

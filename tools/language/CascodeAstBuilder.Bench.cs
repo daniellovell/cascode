@@ -686,6 +686,8 @@ internal sealed partial class CascodeAstBuilder
             "TransferFunction" => BenchValueType.TransferFunction,
             "GainSpectrum" => BenchValueType.GainSpectrum,
             "PhaseSpectrum" => BenchValueType.PhaseSpectrum,
+            "ComplexVoltageSpectrum" => BenchValueType.ComplexVoltageSpectrum,
+            "ComplexCurrentSpectrum" => BenchValueType.ComplexCurrentSpectrum,
             "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
             "CurrentSpectrum" => BenchValueType.CurrentSpectrum,
             "NoiseSpectrum" => BenchValueType.NoiseSpectrum,

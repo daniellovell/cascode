@@ -25,7 +25,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 
 | Construct | Example | Section |
 |----------|---------|---------|
-| `VERSION` header | `VERSION 3.0` | 3.1.1 |
+| `VERSION` header | `VERSION 4.0` | 3.1.1 |
 | `library` | `library lib.std.amp` | 3.1.2 |
 | `include` | `include lib.std` | 3.1.3 |
 | `wrap spice` | `wrap spice """...""" map { ... }` | 3.1.5 |
@@ -77,7 +77,7 @@ chapters that introduce those subsystems.
 Files may begin with a version header:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 ```
 
 Source `.cas` files may omit the header, but tool-linked outputs are expected to include it.
@@ -149,7 +149,7 @@ SPICE pin names of the embedded subcircuit.
 The following minimal example shows the main structural forms in a single file:
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 library examples.rc
 
 bundle Diff {

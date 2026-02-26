@@ -378,7 +378,7 @@ int main(int argc, char** argv) {
   require(session > 0, "create_session returned invalid handle");
 
   const char* source_text =
-      "VERSION 3.2\n"
+      "VERSION 4.0\n"
       "\n"
       "primitive NMOS Level1_NMOS(size primSize) {\n"
       "  device \"level1_nmos\"\n"

@@ -466,8 +466,8 @@ Common structured result types produced by measurement primitives:
 | `GainSpectrum` | `TransferFunction.Mag()`, `db20(...)`, `db10(...)` | Magnitude vs frequency (linear or dB) |
 | `PhaseSpectrum` | `TransferFunction.Phase()` | Phase vs frequency (degrees) |
 | `NoiseSpectrum` | `noise(noise_analysis, node)`, `input_referred_noise(...)` | Noise density vs frequency (V/√Hz) |
-| `VoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
-| `CurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
+| `ComplexVoltageSpectrum` | `voltage(ac, node)` | Complex voltage vs frequency (V) |
+| `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
 
@@ -483,8 +483,8 @@ commonly used primitives in the standard library.
 | Function | Result | Notes |
 |----------|--------|-------|
 | `transfer(ac, stim, resp)` | `TransferFunction` | Computes the complex transfer `V(resp)/V(stim)` over an AC sweep |
-| `voltage(analysis, terminal)` | `VoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
-| `current(analysis, element_pin)` | `CurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
+| `voltage(analysis, terminal)` | `ComplexVoltageSpectrum` or `VoltageWaveform` | AC yields a spectrum; transient yields a waveform |
+| `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
 | `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
 | `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
@@ -512,7 +512,7 @@ Spectrum methods:
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
-For complex AC spectra (`VoltageSpectrum`, `CurrentSpectrum`), `ValueAt(f)` returns a complex point
+For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
 neighboring points; if one endpoint has near-zero magnitude, the phase is taken from the nearest
 non-zero endpoint. Magnitude-sensitive operations remain explicit, either by converting the

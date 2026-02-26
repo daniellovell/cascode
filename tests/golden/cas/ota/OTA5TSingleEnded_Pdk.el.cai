@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.0
 
 primitive NMOS nfet_01v8(size primSize) {
   device "sky130_fd_pr__nfet_01v8"

@@ -15,7 +15,7 @@ const schema: string = schemaVersion();
 const err: string | null = lastErrorJson(session);
 void err;
 
-const opened = open(native, session, { documentId: "doc", text: "VERSION 3.2\n" }) as {
+const opened = open(native, session, { documentId: "doc", text: "VERSION 4.0\n" }) as {
   revision: number;
 };
 const applied = applyOps(native, session, {

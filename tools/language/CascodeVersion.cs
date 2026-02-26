@@ -9,13 +9,13 @@ public static class CascodeVersion
     /// Cascode major version. Increment for breaking changes.
     /// Reader rejects files with different major version.
     /// </summary>
-    public const int Major = 3;
+    public const int Major = 4;
 
     /// <summary>
     /// Cascode minor version. Increment for additive changes.
     /// Reader accepts any minor version within same major.
     /// </summary>
-    public const int Minor = 2;
+    public const int Minor = 0;
 
     /// <summary>
     /// Current Cascode version string (MAJOR.MINOR format).

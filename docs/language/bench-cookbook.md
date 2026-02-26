@@ -177,7 +177,7 @@ current/power behavior during AC or transient analysis.
 Internal DUT nets are accessed through `dut.<Name>` when the circuit declares the net:
 
 ```cascode
-VoltageSpectrum v = voltage(dc, dut.mid)
+ComplexVoltageSpectrum v = voltage(ac, dut.mid)
 return v.ValueAt(0Hz)
 ```
 
