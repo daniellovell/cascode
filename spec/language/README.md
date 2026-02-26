@@ -34,8 +34,6 @@ Linking also extracts synthesis guidance into `<name>.synth.yaml`.
 - Chapter 3 (`Ch03_Syntax_Reference.md`) is a syntax-oriented reference aligned to the grammar.
 - Chapter 4 (`Ch04_Bench_System.md`) specifies declarative benches, bindings, and measurement
   expressions.
-- Chapter 5 (`Ch05_SParameter_Analysis.md`) specifies S-parameter analysis: port terminals,
-  `SPAnalysis`, `SParameterMatrix`, mixed-mode parameters, and derived RF metrics.
 
 ## Determinism
 
