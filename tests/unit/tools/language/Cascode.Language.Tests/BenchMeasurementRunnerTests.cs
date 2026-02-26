@@ -1339,7 +1339,10 @@ bench InvalidPortImpedance {{
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Message.Contains("Port impedance must be real-valued: invalid port impedance on port 1.")
+            d =>
+                d.Message.Contains(
+                    "Port impedance must be real-valued: invalid port impedance on port 1."
+                )
         );
     }
 
@@ -1607,6 +1610,113 @@ bench MissingPorts {{
     }
 
     [Fact]
+    public void SPAnalysis_SequentialPortNumbering_Valid_NoErrors()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TwoPortSequential {{
+  port 1 P1 : analog
+  port 2 P2 : analog
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Sanity : dB {{
+      return 1dB
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            d =>
+                d.Severity == DiagnosticSeverity.Error
+                && d.Message.Contains(
+                    "Incorrect port ordering, ports must be numbered sequentially from 1",
+                    StringComparison.Ordinal
+                )
+        );
+    }
+
+    [Fact]
+    public void SPAnalysis_NonSequentialPortNumberingGap_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench GapPortNumbering {{
+  port 1 P1 : analog
+  port 3 P3 : analog
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Sanity : dB {{
+      return 1dB
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains(
+                    "Incorrect port ordering, ports must be numbered sequentially from 1"
+                )
+        );
+    }
+
+    [Fact]
+    public void SPAnalysis_NonSequentialPortNumberingNotStartingAt1_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench StartsAtTwo {{
+  port 2 P2 : analog
+  port 3 P3 : analog
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Sanity : dB {{
+      return 1dB
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains(
+                    "Incorrect port ordering, ports must be numbered sequentially from 1"
+                )
+        );
+    }
+
+    [Fact]
     public void SParameterMatrix_MSGForNonTwoPortNetwork_ProducesSemanticError()
     {
         var cascode =
@@ -1676,7 +1786,6 @@ bench SingleEndedBench {{
                 )
         );
     }
-
 
     [Fact]
     public void SParameterMatrix_DerivedMetricOnDifferentialPort_ProducesSemanticError()

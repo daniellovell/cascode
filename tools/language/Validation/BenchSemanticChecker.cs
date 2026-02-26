@@ -286,6 +286,25 @@ public static class BenchSemanticChecker
                 );
             }
         }
+
+        if (
+            namesByPortNumber.Count > 0
+            && (
+                namesByPortNumber.Keys.Min() != 1
+                || namesByPortNumber.Keys.Max() != namesByPortNumber.Count
+            )
+        )
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    "Incorrect port ordering, ports must be numbered sequentially from 1",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
     }
 
     private static void ValidateSParameterAnalysisDeclarations(
