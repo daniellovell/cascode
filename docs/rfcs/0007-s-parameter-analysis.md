@@ -173,7 +173,7 @@ measurements {
 }
 ```
 
-Mixed-mode accessors are available only when both the response port *i* and the excitation port *j* are differential. Calling `S.Sdd(i, j)` when either port is single-ended is a parse-time error. For benches mixing single-ended and differential ports, use `S.S(i, j)` for the single-ended parameters and the mixed-mode accessors for the differential pairs.
+Mixed-mode accessors are available only when both the response port *i* and the excitation port *j* are differential. Calling `S.Sdd(i, j)` when either port is single-ended is a semantic error. For benches mixing single-ended and differential ports, use `S.S(i, j)` for the single-ended parameters and the mixed-mode accessors for the differential pairs.
 
 ### 3.4 Mixed-Mode Conversion
 
@@ -191,6 +191,8 @@ This conversion is applied pointwise across all frequencies in the sweep.
 ## 4. Derived Metric Methods
 
 `SParameterMatrix` exposes methods for commonly used derived RF metrics. Each method returns a frequency-domain result (a spectrum or transfer function), allowing the caller to evaluate at a specific frequency, find crossings, or extract extrema using the standard spectrum methods.
+
+All of these derived metric methods assume single-ended ports, and calling these derived metric methods on differential ports is a semantic error.
 
 ### 4.1 Return Loss and VSWR
 
@@ -229,7 +231,7 @@ S.RolletK() → GainSpectrum
 S.MuFactor() → GainSpectrum
 ```
 
-The Rollet stability factor *K* and the Edwards-Sinsky *μ* factor are defined for 2-port networks. Calling these methods on an `SParameterMatrix` with more than two ports is a parse-time error.
+The Rollet stability factor *K* and the Edwards-Sinsky *μ* factor are defined for 2-port networks. Calling these methods on an `SParameterMatrix` with more than two ports is a semantic error.
 
 Rollet *K*:
 $$K = \frac{1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2}{2|S_{12}||S_{21}|}$$
@@ -411,9 +413,7 @@ bench DiffSParam {
 
     measurement CommonModeRejection(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
-      VoltageRatio sdd = db20(S.Sdd(2, 1).Mag()).ValueAt(f)
-      VoltageRatio sdc = db20(S.Sdc(2, 1).Mag()).ValueAt(f)
-      return sdd - sdc
+      return db20(S.Sdd(2, 1).Mag()).ValueAt(f) - db20(S.Sdc(2, 1).Mag()).ValueAt(f)
     }
   }
 }
@@ -526,16 +526,18 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 
 ## 7. Error Conditions
 
-### 7.1 Parse-Time Errors
+### 7.1 Semantic Errors
 
 
-| Condition                                | Error                                                                              |
-| ---------------------------------------- | ---------------------------------------------------------------------------------- |
-| Duplicate port number in a bench         | `Duplicate port number {n}: '{name1}' and '{name2}'`                               |
-| Mixed-mode accessor on single-ended port | `S.Sdd({i}, {j}) requires both ports to be differential; port {n} is single-ended` |
-| Stability/gain method on N > 2 ports     | `S.RolletK() is defined for 2-port networks only; bench declares {n} ports`        |
-| Port number ≤ 0                          | `Port number must be a positive integer; got {n}`                                  |
-| SPAnalysis with no port terminals        | `SPAnalysis requires at least one port terminal declaration`                       |
+| Condition                                  | Error                                                                              |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| Non-real-valued port impedance             | `Port impedance must be real-valued: port {n} declares a complex impedance`        |
+| Duplicate port number in a bench           | `Duplicate port number {n}: '{name1}' and '{name2}'`                               |
+| Mixed-mode accessor on single-ended port   | `S.Sdd({i}, {j}) requires both ports to be differential; port {n} is single-ended` |
+| Derived metric method on differential port | `{method} can only be called on single-ended ports: port {n} is differential`      |
+| Stability/gain method on N > 2 ports       | `S.RolletK() is defined for 2-port networks only; bench declares {n} ports`        |
+| Port number ≤ 0                            | `Port number must be a positive integer; got {n}`                                  |
+| SPAnalysis with no port terminals          | `SPAnalysis requires at least one port terminal declaration`                       |
 
 
 ### 7.2 Runtime Errors
@@ -543,7 +545,6 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 
 | Condition                         | Behavior                                                                |
 | --------------------------------- | ----------------------------------------------------------------------- |
-| VSWR at $                         | \Gamma                                                                  |
 | MAG where $K < 1$                 | Falls back to MSG with a diagnostic note                                |
 | Group delay numerical instability | Warning: `Group delay computation may be inaccurate near frequency {f}` |
 
