@@ -263,11 +263,13 @@ cascode --version
 
 ### Git hooks
 
-Enable the repo's pre-commit hook (runs CSharpier on staged C# files):
+Install [pre-commit](https://pre-commit.com/) and enable the repo's hooks:
 
 ```bash
-scripts/setup-hooks.sh
+pre-commit install
 ```
+
+This runs CSharpier on staged C# files before each commit, matching the CI format check.
 
 ## ♻️ Golden fixtures
 
