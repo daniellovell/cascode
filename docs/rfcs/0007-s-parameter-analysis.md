@@ -29,7 +29,7 @@ port <number> <name> : <type>
 port <number> <name> : <type> = <impedance>
 ```
 
-The port number is a positive integer that determines the S-parameter index. Port 1 corresponds to the first index in S-parameter notation, so `S.S(2, 1)` denotes the transmission from port 1 to port 2. Port numbers need not be contiguous but must be unique within a bench.
+The port number is a positive integer that determines the S-parameter index. Port 1 corresponds to the first index in S-parameter notation, so `S.S(2, 1)` denotes the transmission from port 1 to port 2. Port numbers must be sequential starting from 1 (i.e., for an N-port bench the ports are numbered 1, 2, …, N) and must be unique within a bench.
 
 The port name follows the same scoping rules as `stim`/`resp` terminals: it is available by name in the bench's fill block, helper functions, and measurement bodies. If the port type is a bundle, the name exposes the bundle's leaf terminals (for example, `RF_IN.P`, `RF_IN.N`).
 
@@ -537,6 +537,7 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 | Derived metric method on differential port | `{method} can only be called on single-ended ports: port {n} is differential`      |
 | Stability/gain method on N > 2 ports       | `S.RollettK() is defined for 2-port networks only; bench declares {n} ports`       |
 | Port number ≤ 0                            | `Port number must be a positive integer; got {n}`                                  |
+| Non-sequential port numbering              | `Incorrect port ordering, ports must be numbered sequentially from 1`              |
 | SPAnalysis with no port terminals          | `SPAnalysis requires at least one port terminal declaration`                       |
 
 
