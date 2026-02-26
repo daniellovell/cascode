@@ -456,7 +456,7 @@ circuit MyLNA implements LNA {
 
   constraints {
     numeric {
-      c_gain = sparam_bench::ForwardGain(f=2.4GHz) >= 15dB
+      c_gain = sparam_bench::S21(f=2.4GHz) >= 15dB
       c_s11  = sparam_bench::InputReturnLoss(f=2.4GHz) >= 10dB
       c_s22  = sparam_bench::OutputReturnLoss(f=2.4GHz) >= 10dB
       c_k    = sparam_bench::StabilityK(f=2.4GHz) >= 1
