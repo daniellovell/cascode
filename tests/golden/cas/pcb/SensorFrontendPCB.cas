@@ -162,7 +162,7 @@ part ADS1115 implements ADCSubsystem {
 }
 
 // Part inheritance: abstract base for STM32G0 family.
-part abstract STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements IMicrocontroller {
   supply VDD
   supply VDDA
   ground VSS

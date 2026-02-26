@@ -541,7 +541,7 @@ Tolerance-grade entries may further narrow the available series at resolution ti
 Parts support `extends` for sharing electrical identity and shared entry defaults. The `abstract` keyword marks a base part that cannot be directly instantiated. Concrete parts inherit terminals, constructor parameters, interface conformance, and the `catalog.defaults` backing layer from their base.
 
 ```cascode
-part abstract STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements IMicrocontroller {
   supply VDD
   supply VDDA
   ground VSS
@@ -724,7 +724,7 @@ part ADS1115 implements ADCSubsystem {
 An MCU family using inheritance and variants together:
 
 ```cascode
-part abstract STM32G0 implements IMicrocontroller {
+abstract part STM32G0 implements IMicrocontroller {
   supply VDD
   supply VDDA
   ground VSS
