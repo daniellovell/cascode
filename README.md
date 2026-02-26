@@ -261,6 +261,14 @@ After installation, ensure `~/.dotnet/tools` is on your PATH, then verify:
 cascode --version
 ```
 
+### Git hooks
+
+Enable the repo's pre-commit hook (runs CSharpier on staged C# files):
+
+```bash
+scripts/setup-hooks.sh
+```
+
 ## ♻️ Golden fixtures
 
 `tests/golden/` is the canonical store for regression assets that tie Cascode
