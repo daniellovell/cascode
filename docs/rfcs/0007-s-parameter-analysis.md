@@ -227,13 +227,13 @@ Insertion loss from port *j* to port *i* is $-20 \log_{10} |S_{ij}|$. Isolation 
 ### 4.3 Stability Factors
 
 ```
-S.RolletK() → GainSpectrum
+S.RollettK() → GainSpectrum
 S.MuFactor() → GainSpectrum
 ```
 
-The Rollet stability factor *K* and the Edwards-Sinsky *μ* factor are defined for 2-port networks. Calling these methods on an `SParameterMatrix` with more than two ports is a semantic error.
+The Rollett stability factor *K* and the Edwards-Sinsky *μ* factor are defined for 2-port networks. Calling these methods on an `SParameterMatrix` with more than two ports is a semantic error.
 
-Rollet *K*:
+Rollett *K*:
 $$K = \frac{1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2}{2|S_{12}||S_{21}|}$$
 
 where $\Delta = S_{11}S_{22} - S_{12}S_{21}$.
@@ -248,7 +248,7 @@ Unconditional stability requires $\mu > 1$.
 ```cascode
 measurement StabilityK(Frequency f) : Scalar {
   SParameterMatrix S = sparam(sp)
-  return S.RolletK().ValueAt(f)
+  return S.RollettK().ValueAt(f)
 }
 ```
 
@@ -340,7 +340,7 @@ bench TwoPortSParam {
 
     measurement StabilityK(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
-      return S.RolletK().ValueAt(f)
+      return S.RollettK().ValueAt(f)
     }
 
     measurement MaxAvailableGain(Frequency f) : dB {
@@ -531,11 +531,11 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 
 | Condition                                  | Error                                                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| Non-real-valued port impedance             | `Port impedance must be real-valued: invalid port impeidance on port {n}`          |
+| Non-real-valued port impedance             | `Port impedance must be real-valued: invalid port impedance on port {n}`           |
 | Duplicate port number in a bench           | `Duplicate port number {n}: '{name1}' and '{name2}'`                               |
 | Mixed-mode accessor on single-ended port   | `S.Sdd({i}, {j}) requires both ports to be differential; port {n} is single-ended` |
 | Derived metric method on differential port | `{method} can only be called on single-ended ports: port {n} is differential`      |
-| Stability/gain method on N > 2 ports       | `S.RolletK() is defined for 2-port networks only; bench declares {n} ports`        |
+| Stability/gain method on N > 2 ports       | `S.RollettK() is defined for 2-port networks only; bench declares {n} ports`       |
 | Port number ≤ 0                            | `Port number must be a positive integer; got {n}`                                  |
 | SPAnalysis with no port terminals          | `SPAnalysis requires at least one port terminal declaration`                       |
 
