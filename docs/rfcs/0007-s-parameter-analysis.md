@@ -555,3 +555,12 @@ Note: `port` already exists as a keyword in the Cascode grammar for circuit term
 Per-port impedance specified through the environment block (enabling runtime configuration of reference impedances without modifying the bench definition) is deferred to a future revision. The current design requires impedance to be a compile-time constant in the port declaration.
 
 Support for noise figure extraction from S-parameter and noise data (combined `SPAnalysis` + `NoiseAnalysis` bench) is a natural extension and may be specified in a future RFC.
+
+---
+
+## 9. Implementation Plan
+
+Since this RFC cuts across multiple components of the system, requiring changes to the grammar, AST, semantic checker, runtime, and backend integration, the implementation is split into two parts to better manage the implementation.
+
+1. In the first phase, the language and bench definition will be updated to reflect the changes in this RFC. This includes updating the parser, the semantics, and the bench definition. The [core concepts spec](../../spec/language/Ch02_Core_Concepts.md) and the [syntax reference](../../spec/language/Ch03_Syntax_Reference.md) will be updated to reflect the new S-parameter analyses and result syntax. Lastly, the [bench system spec](../../spec/language/Ch04_Bench_System.md) will be updated to reflect the new S-parameter benches.
+2. The backend will be updated to run S-parameter analysis with ngspice, which is possible according to https://ngspice.sourceforge.io/docs/ngspice-html-manual/manual.xhtml#magicparlabel-23387.
