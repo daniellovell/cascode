@@ -117,6 +117,7 @@ benchMember
 
 terminalDecl
     : ABSTRACT_KW? terminalRole IDENT (COLON terminalType)?
+    | PORT_KW NUMBER IDENT COLON terminalType (EQ QUANTITY)?
     ;
 
 terminalRole
@@ -475,6 +476,7 @@ idPart
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     | FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
@@ -497,6 +499,7 @@ idPart
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 // Pin references can contain keywords as parts (e.g., load.D).
@@ -880,6 +883,7 @@ physicalType
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 analysisType
@@ -888,6 +892,7 @@ analysisType
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     ;
 
 functionBody
@@ -1177,12 +1182,14 @@ CURRENT_TYPE                : 'Current' ;
 TIME_TYPE                   : 'Time' ;
 PHASE_TYPE                  : 'Phase' ;
 SCALAR_TYPE                 : 'Scalar' ;
+S_PARAMETER_MATRIX_TYPE     : 'SParameterMatrix' ;
 
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
 DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
 TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
+SP_ANALYSIS_TYPE    : 'SPAnalysis' ;
 
 DEVICE_TYPE
     : 'NMOS'

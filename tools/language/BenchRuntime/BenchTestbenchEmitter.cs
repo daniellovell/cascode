@@ -287,7 +287,11 @@ public static class BenchTestbenchEmitter
             .ToList();
 
         var acIndex = 0;
-        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.ACAnalysis))
+        foreach (
+            var a in plan.Analyses.Where(a =>
+                a.Type == BenchValueType.ACAnalysis || a.Type == BenchValueType.SPAnalysis
+            )
+        )
         {
             acIndex++;
             var start = SiValue.FormatForBackend(a.StartHz, backend);

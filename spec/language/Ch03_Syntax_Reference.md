@@ -33,6 +33,7 @@ as it is used throughout the standard library (`lib/std/**`), examples, and gold
 | `interface` | `interface SingleEndedOpAmp { ... }` | 3.6 |
 | `connectors` | `connectors { to X { A--B } }` | 3.6 |
 | `bench` | `bench DiffToSETransfer { ... }` | Chapter 4 |
+| `port` (bench) | `port 1 P1 : analog = 75Ohm` | Chapter 4 |
 | `function` | `function f(...) : Frequency { ... }` | 3.12 |
 | `primitive` | `primitive NMOS Level1_NMOS(size s) { ... }` | 3.8 |
 | device instance | `NMOS M1 = new Level1_NMOS(S) { ... }` | 3.9 |
@@ -749,5 +750,5 @@ function calc_gain_bandwidth(ACAnalysis ac, stim IN, resp OUT) : Frequency {
 ```
 
 Parameter types may be physical types (such as `Frequency`), analysis types (such as `ACAnalysis`),
-or terminal roles (`stim`, `resp`). A function body consists of variable declarations, `if/else`,
-and a `return` statement.
+or terminal roles (`stim`, `resp`, `port`). A function body consists of variable declarations,
+`if/else`, and a `return` statement.

@@ -43,18 +43,18 @@ internal static class BenchAnalysisCompiler
                 }
             }
 
-            if (a.Type == BenchValueType.ACAnalysis)
+            if (a.Type == BenchValueType.ACAnalysis || a.Type == BenchValueType.SPAnalysis)
             {
                 if (!a.Parameters.TryGetValue("start", out var startExpr))
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' missing required parameter 'start'."
+                        $"{a.Type} '{a.Name}' missing required parameter 'start'."
                     );
                 }
                 if (!a.Parameters.TryGetValue("stop", out var stopExpr))
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' missing required parameter 'stop'."
+                        $"{a.Type} '{a.Name}' missing required parameter 'stop'."
                     );
                 }
 
@@ -65,19 +65,19 @@ internal static class BenchAnalysisCompiler
                 if (startV is null)
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' start did not evaluate to a number."
+                        $"{a.Type} '{a.Name}' start did not evaluate to a number."
                     );
                 }
                 if (stopV is null)
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' stop did not evaluate to a number."
+                        $"{a.Type} '{a.Name}' stop did not evaluate to a number."
                     );
                 }
                 if (startV.Kind != BenchNumericKind.FrequencyHz)
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' start/stop must be Frequency values."
+                        $"{a.Type} '{a.Name}' start/stop must be Frequency values."
                     );
                 }
 

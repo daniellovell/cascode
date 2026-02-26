@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Antlr4.Runtime;
 
@@ -241,14 +242,23 @@ internal sealed partial class CascodeAstBuilder
         var terminals = new List<BenchTerminal>();
         foreach (var t in body.terminalDecl())
         {
+            var isPort = t.terminalRole() is null;
+            var role =
+                isPort ? BenchTerminalRole.Port
+                : t.terminalRole().STIM_KW() != null ? BenchTerminalRole.Stim
+                : BenchTerminalRole.Resp;
+            int? portNumber = isPort
+                ? ParsePortNumber(t.NUMBER()?.GetText() ?? string.Empty)
+                : null;
+            var impedance = isPort ? t.QUANTITY()?.GetText() : null;
             terminals.Add(
                 new BenchTerminal(
-                    t.terminalRole().STIM_KW() != null
-                        ? BenchTerminalRole.Stim
-                        : BenchTerminalRole.Resp,
+                    role,
                     t.IDENT().GetText(),
                     t.terminalType()?.GetText(),
-                    t.ABSTRACT_KW() is not null
+                    t.ABSTRACT_KW() is not null,
+                    portNumber,
+                    impedance
                 )
             );
         }
@@ -429,6 +439,24 @@ internal sealed partial class CascodeAstBuilder
         }
 
         return value;
+    }
+
+    /// <summary>Parses a bench port number token to an integer value.</summary>
+    /// <param name="raw">Raw numeric token text.</param>
+    /// <returns>The parsed port number; -1 when the token is not a positive integer literal.</returns>
+    private static int ParsePortNumber(string raw)
+    {
+        if (!double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return -1;
+        }
+
+        if (parsed != Math.Round(parsed) || parsed < int.MinValue || parsed > int.MaxValue)
+        {
+            return -1;
+        }
+
+        return (int)parsed;
     }
 
     /// <summary>Parses a level keyword into the Cascode level enum.</summary>

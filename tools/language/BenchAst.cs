@@ -9,13 +9,16 @@ public enum BenchTerminalRole
 {
     Stim,
     Resp,
+    Port,
 }
 
 public sealed record BenchTerminal(
     BenchTerminalRole Role,
     string Name,
     string? Type,
-    bool IsAbstract = false
+    bool IsAbstract = false,
+    int? PortNumber = null,
+    string? PortImpedance = null
 );
 
 /// <summary>
@@ -71,6 +74,7 @@ public enum BenchValueType
     Time,
     Phase,
     Scalar,
+    SParameterMatrix,
 
     // Time-domain compound types
     VoltageWaveform,
@@ -85,6 +89,7 @@ public enum BenchValueType
     TranAnalysis,
     NoiseAnalysis,
     STBAnalysis,
+    SPAnalysis,
 }
 
 public sealed record TypedParameter(BenchValueType Type, string Name);

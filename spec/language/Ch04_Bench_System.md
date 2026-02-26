@@ -17,10 +17,10 @@ Practical authoring patterns and worked examples are collected in the [bench coo
 
 A `bench` block contains:
 
-1. Terminal declarations (`stim` / `resp`) that define the bench’s external connection points.
+1. Terminal declarations (`stim` / `resp` / `port`) that define the bench’s external connection points.
 2. A `fill {}` block that constructs the test circuit (instruments, sources, loads, probes).
 3. Optional helper `function` declarations (file-level or bench-local).
-4. An `analysis {}` block declaring analyses (AC, DC, transient, noise, stability).
+4. An `analysis {}` block declaring analyses (AC, DC, transient, noise, stability, S-parameter).
 5. A `measurements {}` block defining typed measurement outputs.
 
 Bench declarations typically live in libraries (for example, [`lib/std/bench/*.cas`](../../lib/std/bench/)). A circuit or
@@ -99,7 +99,7 @@ for the definitions of `env`, `constraints`, and `harness`.)
 Within a bench definition:
 
 - Bench parameters are available by name.
-- Bench terminals declared with `stim`/`resp` are available by name (for example, `IN.P`).
+- Bench terminals declared with `stim`/`resp`/`port` are available by name (for example, `IN.P`).
 - `env.<Name>`: resolved environment values from the bound circuit.
 - `constraints.<Name>`: resolved constraint values from the bound circuit (absent if unconstrained).
 - `harness.<Name>`: resolved harness values used by emission and bench execution.
@@ -226,6 +226,41 @@ bench DiffToDiffTransfer {
 For bundle types with more than two leaves, benches should reference the desired leaves explicitly
 (for example, `OUT.P`).
 
+### 4.2.6 Port terminals (S-parameter benches)
+
+S-parameter analysis requires bidirectional terminals where each terminal is simultaneously a
+potential stimulus and response. The `port` role captures this intent. A port declaration specifies
+a port number, a name, a type, and an optional reference impedance override:
+
+```cascode
+port 1 P1 : analog
+port 2 P2 : analog = 75Ohm
+port 1 RF_IN : Diff
+port 2 RF_OUT : Diff = 150Ohm
+```
+
+The port number is a positive integer that determines the S-parameter index. Port 1 corresponds
+to the first index in S-parameter notation, so `S.S(2, 1)` denotes transmission from port 1 to
+port 2. Port numbers must be unique within a bench but need not be contiguous.
+
+The port name follows the same scoping rules as `stim`/`resp` terminals: it is available by name
+in the fill block, helper functions, and measurement bodies. If the port type is a bundle, the
+name exposes the bundle's leaf terminals (for example, `RF_IN.P`, `RF_IN.N`).
+
+Port type determines the default reference impedance and mixed-mode behavior:
+
+| Type category | Default Z₀ | Mixed-mode |
+|---|---|---|
+| Single-ended (`analog`, `rf`, etc.) | 50Ω | No — produces scalar Sij |
+| Differential bundle (`Diff`) | 100Ω | Yes — automatically produces Sdd, Sdc, Scd, Scc |
+
+An explicit impedance value after `=` overrides the type-driven default. The impedance must be a
+real-valued resistance; complex or frequency-dependent port impedances are not supported.
+
+A bench may declare both `port` terminals and `stim`/`resp` terminals. Port terminals participate
+in S-parameter analysis; `stim`/`resp` terminals remain available for other analyses within the
+same bench.
+
 ---
 
 ## 4.3 Fill Blocks (Test Circuit Construction)
@@ -335,6 +370,7 @@ The current grammar defines the following analysis types:
 | `TranAnalysis` | Time-domain transient simulation |
 | `NoiseAnalysis` | Noise analysis driven by an input source (see [Section 4.4.3](#443-noise-analysis-contract)) |
 | `STBAnalysis` | Stability analysis (backend-dependent) |
+| `SPAnalysis` | S-parameter analysis over a frequency sweep (see [Section 4.4.4](#444-s-parameter-analysis-contract)) |
 
 Each analysis type has its own constructor parameters. Parameters are expressions, and may reference
 `env`, `constraints`, and bench parameters. The analysis parameter value syntax also supports an
@@ -374,6 +410,33 @@ noise by dividing the output noise density by the transfer magnitude:
 ```cascode
 NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 ```
+
+### 4.4.4 S-parameter analysis contract
+
+`SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
+frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) and operates on
+all `port` terminals declared in the bench. There is no explicit parameter linking the analysis to
+specific ports; the runtime discovers all port declarations and configures the simulation
+accordingly.
+
+```cascode
+analysis {
+  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz)
+}
+```
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `start` | `Frequency` | yes | — | Start frequency of the sweep |
+| `stop` | `Frequency` | yes | — | Stop frequency of the sweep |
+| `space` | `Log` or `Lin` | no | `Log` | Frequency spacing |
+| `samples` | integer | no | 100 | Number of frequency points |
+
+The bench fill block provides DC bias, coupling networks, and any other circuit elements required
+for the operating point. The fill block does not need to provide port excitation sources or
+termination impedances — `SPAnalysis` handles those based on the port declarations.
+
+Declaring `SPAnalysis` in a bench with no `port` terminals is a semantic error.
 
 ---
 
@@ -470,6 +533,7 @@ Common structured result types produced by measurement primitives:
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
+| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -487,6 +551,7 @@ commonly used primitives in the standard library.
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
 | `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
 | `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
+| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
 | `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
@@ -521,6 +586,68 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
+
+### 4.7.3 S-Parameter Matrix Methods
+
+`SParameterMatrix` exposes element accessors and derived RF metric methods. All element accessors
+return `TransferFunction` (a complex-valued function of frequency). Derived metric methods return
+`GainSpectrum`.
+
+Element access by port number follows the standard S-parameter convention: `S.S(i, j)` is the
+response at port *i* due to excitation at port *j*.
+
+| Method | Result | Notes |
+|---|---|---|
+| `S.S(i, j)` | `TransferFunction` | Raw S-parameter element Sij |
+| `S.Sdd(i, j)` | `TransferFunction` | Differential-to-differential (requires both ports differential) |
+| `S.Sdc(i, j)` | `TransferFunction` | Common-to-differential mode conversion |
+| `S.Scd(i, j)` | `TransferFunction` | Differential-to-common mode conversion |
+| `S.Scc(i, j)` | `TransferFunction` | Common-to-common |
+
+Mixed-mode accessors (`Sdd`, `Sdc`, `Scd`, `Scc`) are available only when both the response port
+*i* and the excitation port *j* are declared with a `Diff` type. Calling a mixed-mode accessor on
+a single-ended port is a semantic error. The mixed-mode S-parameters are computed from the
+underlying single-ended data using the standard transformation (see RFC-0007 Section 3.4).
+
+Derived metric methods:
+
+| Method | Result | Notes |
+|---|---|---|
+| `S.ReturnLoss(port)` | `GainSpectrum` | −20 log₁₀ \|Snn\| (positive dB for well-matched port) |
+| `S.VSWR(port)` | `GainSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
+| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\| |
+| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, conventionally the reverse path |
+| `S.RolletK()` | `GainSpectrum` | Rollet stability factor (2-port only) |
+| `S.MuFactor()` | `GainSpectrum` | Edwards-Sinsky μ factor (2-port only) |
+| `S.MSG()` | `GainSpectrum` | Maximum stable gain (2-port only) |
+| `S.MAG()` | `GainSpectrum` | Maximum available gain; falls back to MSG where K < 1 (2-port only) |
+| `S.GroupDelay(to, from)` | `GainSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+
+The 2-port-only methods (`RolletK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
+called on an `SParameterMatrix` from a bench with more than two ports.
+
+Example usage:
+
+```cascode
+measurements {
+  measurement ForwardGain(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).ValueAt(f)
+  }
+
+  measurement InputReturnLoss(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return S.ReturnLoss(1).ValueAt(f)
+  }
+
+  measurement StabilityK(Frequency f) : Scalar {
+    SParameterMatrix S = sparam(sp)
+    return S.RolletK().ValueAt(f)
+  }
+}
+```
+
+---
 
 ## 4.8 Bench Binding and Constraint References
 
