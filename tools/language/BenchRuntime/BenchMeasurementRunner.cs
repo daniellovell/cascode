@@ -2530,15 +2530,19 @@ public sealed class BenchMeasurementRunner
 
     private static double NormalizeSignedAngle(double radians)
     {
-        while (radians > Math.PI)
+        if (!double.IsFinite(radians))
+        {
+            return radians;
+        }
+        radians %= 2.0 * Math.PI;
+        if (radians > Math.PI)
         {
             radians -= 2.0 * Math.PI;
         }
-        while (radians <= -Math.PI)
+        else if (radians <= -Math.PI)
         {
             radians += 2.0 * Math.PI;
         }
-
         return radians;
     }
 
