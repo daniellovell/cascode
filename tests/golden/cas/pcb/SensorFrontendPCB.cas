@@ -147,9 +147,9 @@ part ADS1115 implements ADCSubsystem {
       }
 
       metrics {
-        Resolution = 16 bits
-        MaxSampleRate = 860 SPS
-        INL = 0.5 LSB
+        Resolution = 16bit
+        MaxSampleRate = 860SPS
+        INL = 0.5LSB
         FullScaleRange = 6.144V
         SupplyVoltage min = 2.0V
         SupplyVoltage max = 5.5V
@@ -336,7 +336,7 @@ interface ADCSubsystem {
   output DRDY : digital
 
   metrics {
-    Resolution : bits
+    Resolution : bit
     MaxSampleRate : SPS
     InputCapacitance : F
     SupplyVoltage : V { min, max }
@@ -410,8 +410,8 @@ circuit SensorFrontendPCB {
       c_noise = frontend.IntegratedInputNoise <= 1uVrms
     }
     spec {
-      c_adc_res = adc.Resolution >= 16 bits
-      c_adc_rate = adc.MaxSampleRate >= 128 SPS
+      c_adc_res = adc.Resolution >= 16bit
+      c_adc_rate = adc.MaxSampleRate >= 128SPS
       c_mcu_flash = mcu.FlashSize >= 64kB
       c_mcu_clock = mcu.CoreClock >= 48MHz
     }

@@ -633,10 +633,8 @@ harnessStatement
     | PVT_KW pvtList                                                # HarnessPvt
     ;
 
-// Harness value allows legacy format with space between number and unit (e.g., 1.8 V).
 harnessValue
     : signedQuantity
-    | NUMBER IDENT?                                                 // Allow "1.8 V" with space.
     ;
 
 loadSpec
@@ -644,14 +642,12 @@ loadSpec
     | LPAREN loadElement ((COMMA | PIPEPIPE) loadElement)* RPAREN   # ParenLoadSpec
     ;
 
-// Load element allows legacy format with split value and unit (e.g., C=1p F).
 loadElement
-    : IDENT EQ (signedQuantity | NUMBER) IDENT?
+    : IDENT EQ signedQuantity
     ;
 
-// Source spec allows legacy format without unit (e.g., Z=50).
 sourceSpec
-    : Z_KW EQ (signedQuantity | NUMBER)
+    : Z_KW EQ signedQuantity
     ;
 
 sweepSpec
@@ -664,10 +660,8 @@ sweepRange
     | sweepValue COLON sweepValue                                   # AutoStepSweep
     ;
 
-// Sweep value allows legacy format with space between number and unit (e.g., 0.3 V).
 sweepValue
     : signedQuantity
-    | NUMBER IDENT?
     ;
 
 pvtList
@@ -765,7 +759,6 @@ envValue
     : impedanceExpr
     | LPAREN impedanceExpr RPAREN
     | QUANTITY
-    | NUMBER IDENT?
     ;
 
 impedanceExpr

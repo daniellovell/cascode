@@ -707,9 +707,9 @@ part ADS1115 implements ADCSubsystem {
       option { provider = "Mouser" sku = "595-ADS1115IDGSR" priority = 20 }
 
       metrics {
-        Resolution = 16 bits
-        MaxSampleRate = 860 SPS
-        INL = 0.5 LSB
+        Resolution = 16bit
+        MaxSampleRate = 860SPS
+        INL = 0.5LSB
         FullScaleRange = 6.144V
         SupplyVoltage min = 2.0V
         SupplyVoltage max = 5.5V
@@ -969,7 +969,7 @@ constraints {
     c_gbw = frontend.PassbandGain >= 40dB
   }
   spec {
-    c_resolution = adc.Resolution >= 16 bits
+    c_resolution = adc.Resolution >= 16bit
     c_supply = adc.SupplyVoltage == 3.3V
   }
 }
@@ -984,7 +984,7 @@ Interfaces may declare metrics as contracts with declaration-only entries. A met
 ```cascode
 interface ADCSubsystem {
   metrics {
-    Resolution : bits
+    Resolution : bit
     MaxSampleRate : SPS
     InputCapacitance : F
     SupplyVoltage : V { min, max }
@@ -1032,9 +1032,9 @@ The merge order is: inherited metrics (from `extends` chain), overridden by the 
 The PCB domain extends the unit system with the following units:
 
 - `pct` — percentage (e.g., `1pct` for 1% tolerance)
-- `SPS` — samples per second (e.g., `860 SPS`)
-- `bits` — bit count (e.g., `16 bits`)
-- `LSB` — least significant bit (e.g., `0.5 LSB`)
+- `SPS` — samples per second (e.g., `860SPS`)
+- `bit` — bit count (e.g., `16bit`)
+- `LSB` — least significant bit (e.g., `0.5LSB`)
 - `B` — bytes, with standard SI prefixes (e.g., `64kB`, `8kB`)
 
 These will be formally added to the unit tables in spec chapters Ch02 and Ch03 as part of implementation. Existing units (`Hz`, `V`, `A`, `F`, `Ohm`, `dB`, `W`, `Vrms`, `V/us`, etc.) continue to apply to PCB-domain metrics. E-series parameter types (`e6` through `e192`) are part of the parameter type system defined in Section 5.3, not the unit system.
@@ -1097,7 +1097,7 @@ constraints {
 ```cascode
 constraints {
   spec {
-    c_res = adc.Resolution >= 16 bits
+    c_res = adc.Resolution >= 16bit
     c_flash = mcu.FlashSize >= 64kB
   }
 }
@@ -1140,8 +1140,8 @@ circuit SensorBoard {
       c_noise = frontend.IntegratedInputNoise <= 1uVrms
     }
     spec {
-      c_adc_res = adc.Resolution >= 16 bits
-      c_adc_rate = adc.MaxSampleRate >= 128 SPS
+      c_adc_res = adc.Resolution >= 16bit
+      c_adc_rate = adc.MaxSampleRate >= 128SPS
       c_mcu_flash = mcu.FlashSize >= 64kB
     }
   }

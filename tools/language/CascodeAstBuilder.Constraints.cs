@@ -252,15 +252,7 @@ internal sealed partial class CascodeAstBuilder
 
                 case CascodeParser.HarnessSourceContext sourceCtx:
                     var sourceSpec = sourceCtx.sourceSpec();
-                    var zValue =
-                        sourceSpec.signedQuantity()?.GetText()
-                        ?? sourceSpec.NUMBER()?.GetText()
-                        ?? string.Empty;
-                    // Normalize: if no unit, add "Ohm"
-                    if (sourceSpec.NUMBER() != null)
-                    {
-                        zValue = zValue + "Ohm";
-                    }
+                    var zValue = sourceSpec.signedQuantity().GetText();
                     sources.Add(new SourceValue { Net = sourceCtx.IDENT().GetText(), Z = zValue });
                     break;
 
@@ -329,17 +321,8 @@ internal sealed partial class CascodeAstBuilder
     /// <returns>Load element.</returns>
     private static LoadElement BuildLoadElement(CascodeParser.LoadElementContext ctx)
     {
-        var idents = ctx.IDENT();
-        var type = idents[0].GetText();
-        var value = ctx.signedQuantity()?.GetText() ?? ctx.NUMBER()?.GetText() ?? string.Empty;
-        var unit = idents.Length > 1 ? idents[1].GetText() : null;
-
-        // Normalize legacy format: combine value and unit (e.g., "1p" + "F" -> "1pF")
-        if (unit != null)
-        {
-            value = value + unit;
-        }
-
+        var type = ctx.IDENT().GetText();
+        var value = ctx.signedQuantity().GetText();
         return new LoadElement(type, value);
     }
 
@@ -389,42 +372,20 @@ internal sealed partial class CascodeAstBuilder
         }
     }
 
-    /// <summary>Builds a sweep value string, normalizing units when needed.</summary>
+    /// <summary>Builds a sweep value string.</summary>
     /// <param name="ctx">Sweep value context.</param>
-    /// <returns>Normalized sweep value.</returns>
+    /// <returns>Sweep value.</returns>
     private static string BuildSweepValue(CascodeParser.SweepValueContext ctx)
     {
-        if (ctx.signedQuantity() != null)
-        {
-            return ctx.signedQuantity().GetText();
-        }
-        // Normalize: combine NUMBER and optional IDENT unit (e.g., "0.3" + "V" -> "0.3V")
-        var value = ctx.NUMBER()?.GetText() ?? string.Empty;
-        var unit = ctx.IDENT()?.GetText();
-        if (unit != null)
-        {
-            return value + unit;
-        }
-        return value;
+        return ctx.signedQuantity().GetText();
     }
 
-    /// <summary>Builds a harness value string, normalizing units when needed.</summary>
+    /// <summary>Builds a harness value string.</summary>
     /// <param name="ctx">Harness value context.</param>
-    /// <returns>Normalized harness value.</returns>
+    /// <returns>Harness value.</returns>
     private static string BuildHarnessValue(CascodeParser.HarnessValueContext ctx)
     {
-        if (ctx.signedQuantity() != null)
-        {
-            return ctx.signedQuantity().GetText();
-        }
-        // Normalize: combine NUMBER and optional IDENT unit (e.g., "1.8" + "V" -> "1.8V")
-        var value = ctx.NUMBER()?.GetText() ?? string.Empty;
-        var unit = ctx.IDENT()?.GetText();
-        if (unit != null)
-        {
-            return value + unit;
-        }
-        return value;
+        return ctx.signedQuantity().GetText();
     }
 
     /// <summary>Builds the provenance block with sources, transforms, and aliases.</summary>
