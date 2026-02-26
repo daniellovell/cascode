@@ -508,7 +508,7 @@ Transfer function methods:
 
 Spectrum methods:
 
-- `S.ValueAt(f)` → interpolated scalar at frequency `f`
+- `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
 
