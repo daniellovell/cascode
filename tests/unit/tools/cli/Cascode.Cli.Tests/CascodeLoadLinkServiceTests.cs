@@ -120,7 +120,7 @@ public sealed class CascodeLoadLinkServiceTests
     private static string BuildIncludeBearingDocument(string circuitName)
     {
         return """
-            VERSION 3.2
+            VERSION 4.0
 
             include lib.pdk.sky130.devices.nfet_01v8
 
@@ -146,7 +146,7 @@ public sealed class CascodeLoadLinkServiceTests
     private static string BuildIncludeFreeDocument(string circuitName)
     {
         return """
-            VERSION 3.2
+            VERSION 4.0
 
             circuit __CIRCUIT_NAME__ {
               level EL

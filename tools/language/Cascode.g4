@@ -46,7 +46,7 @@ includeDecl
     : INCLUDE_KW qualifiedName
     ;
 
-// Version declaration like "VERSION 3.0"
+// Version declaration like "VERSION 4.0"
 versionDecl
     : VERSION_KW NUMBER
     ;
@@ -480,6 +480,8 @@ idPart
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
@@ -860,6 +862,8 @@ physicalType
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | COMPLEX_VOLTAGE_SPECTRUM_TYPE
+    | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
     | CURRENT_SPECTRUM_TYPE
     | NOISE_SPECTRUM_TYPE
@@ -1155,6 +1159,8 @@ VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
 GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
 PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+COMPLEX_VOLTAGE_SPECTRUM_TYPE : 'ComplexVoltageSpectrum' ;
+COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
 CURRENT_SPECTRUM_TYPE       : 'CurrentSpectrum' ;
 NOISE_SPECTRUM_TYPE         : 'NoiseSpectrum' ;

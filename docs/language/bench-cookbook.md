@@ -177,8 +177,8 @@ current/power behavior during AC or transient analysis.
 Internal DUT nets are accessed through `dut.<Name>` when the circuit declares the net:
 
 ```cascode
-VoltageSpectrum v = voltage(dc, dut.mid)
-return v.ValueAt(0Hz)
+ComplexVoltageSpectrum v = voltage(ac, dut.mid)
+return v.Mag().ValueAt(0Hz)
 ```
 
 Harness-injected rail currents are accessed through the harness element pin:

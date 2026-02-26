@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.0
 
 // Stress test: fully-differential OTA with capacitive feedback (fixed 10 V/V closed-loop gain).
 //

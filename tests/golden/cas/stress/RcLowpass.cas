@@ -1,4 +1,4 @@
-VERSION 3.2
+VERSION 4.0
 
 // Diff bundle is included from lib.std
 // Ideal_Resistor and Ideal_Capacitor come from lib.std.prim

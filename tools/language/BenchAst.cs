@@ -56,6 +56,8 @@ public enum BenchValueType
     TransferFunction,
     GainSpectrum,
     PhaseSpectrum,
+    ComplexVoltageSpectrum,
+    ComplexCurrentSpectrum,
     VoltageSpectrum,
     CurrentSpectrum,
     NoiseSpectrum,

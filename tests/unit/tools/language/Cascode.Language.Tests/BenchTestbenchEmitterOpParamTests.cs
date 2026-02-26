@@ -46,7 +46,7 @@ public sealed class BenchTestbenchEmitterOpParamTests
     public void CompileAllPlans_SkipsUnconstrainedBenchBindings()
     {
         var cascode = """
-VERSION 3.2
+VERSION 4.0
 bench UnusedBench { stim IN : analog measurements { measurement Dummy : V { return 1V } } }
 circuit Top {
   level EL
@@ -67,7 +67,7 @@ circuit Top {
     public void EmitPlans_UsesPrimitiveOpPath_ForWrapperSubckt()
     {
         var cascode = """
-VERSION 3.2
+VERSION 4.0
 
 primitive NMOS Wrap(size primSize) {
   device "wrap_key"

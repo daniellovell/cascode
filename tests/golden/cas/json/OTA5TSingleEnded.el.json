@@ -1,5 +1,5 @@
 {
-  "cascodeVersion": "3.2",
+  "cascodeVersion": "4.0",
   "primitives": [
     {
       "name": "Level1_NMOS",

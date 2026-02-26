@@ -18,7 +18,7 @@ Linked outputs (`.cai`) include a `VERSION` header as the first line. The defaul
 self-contained; include-pruned bench mode intentionally retains a minimal include set.
 
 ```cascode
-VERSION 3.0
+VERSION 4.0
 library lib.std.amp
 include lib.std.bench
 ```
@@ -619,7 +619,8 @@ analysis products) rather than being generic numeric arrays.
 | `Scalar` | `0.5`, `2` |
 
 Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `NoiseSpectrum`,
-`VoltageSpectrum`, `CurrentSpectrum`, `VoltageWaveform`, and `CurrentWaveform`.
+`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`,
+`VoltageWaveform`, and `CurrentWaveform`.
 
 ### Structured types
 
@@ -629,8 +630,8 @@ Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectr
 | `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)` |
 | `PhaseSpectrum` | `H.Phase()` |
 | `NoiseSpectrum` | `noise(noise_analysis, OUT)` and `input_referred_noise(...)` |
-| `VoltageSpectrum` | `voltage(ac, OUT)` |
-| `CurrentSpectrum` | `current(ac, harness.VDD.P)` |
+| `ComplexVoltageSpectrum` | `voltage(ac, OUT)` |
+| `ComplexCurrentSpectrum` | `current(ac, harness.VDD.P)` |
 | `VoltageWaveform` | `voltage(tran, OUT)` |
 | `CurrentWaveform` | `current(tran, harness.VDD.P)` |
 
@@ -641,8 +642,8 @@ Built-in constructors and conversions commonly used in the standard library incl
 - `transfer(ac, stim, resp)` → `TransferFunction`
 - `noise(noise_analysis, terminal)` → `NoiseSpectrum`
 - `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` → `NoiseSpectrum`
-- `voltage(analysis, terminal)` → `VoltageSpectrum` or `VoltageWaveform`
-- `current(analysis, harness_pin)` → `CurrentSpectrum` or `CurrentWaveform`
+- `voltage(analysis, terminal)` → `ComplexVoltageSpectrum` or `VoltageWaveform`
+- `current(analysis, harness_pin)` → `ComplexCurrentSpectrum` or `CurrentWaveform`
 - `db20(GainSpectrum)` / `db10(GainSpectrum)` → `GainSpectrum` in dB
 - `quiescent_power(PWR, RET)` → rail power (for power benches)
 
@@ -651,3 +652,10 @@ Common post-processing methods:
 - `H.Mag()` and `H.Phase()` on `TransferFunction`
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
+
+For `ComplexVoltageSpectrum` and `ComplexCurrentSpectrum`, `ValueAt(x)` produces a complex sample interpolated in
+magnitude/phase space (with shortest-path phase interpolation). To get a real magnitude, call
+`.Mag()` explicitly before or after sampling: `voltage(ac, OUT).Mag().ValueAt(x)` or
+`voltage(ac, OUT).ValueAt(x).Mag()`. These two forms are equivalent for magnitude interpolation.
+When a neighboring complex endpoint has near-zero magnitude, `ValueAt(x)` uses the nearest
+non-zero endpoint phase.

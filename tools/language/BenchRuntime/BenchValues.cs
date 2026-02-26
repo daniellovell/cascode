@@ -56,9 +56,17 @@ public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees
 public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
     : BenchValue;
 
-public sealed record BenchVoltageSpectrum(double[] FrequenciesHz, Complex[] Values) : BenchValue;
+public sealed record BenchComplexVoltageSpectrum(double[] FrequenciesHz, Complex[] Values)
+    : BenchValue;
 
-public sealed record BenchCurrentSpectrum(double[] FrequenciesHz, Complex[] Values) : BenchValue;
+public sealed record BenchComplexCurrentSpectrum(double[] FrequenciesHz, Complex[] Values)
+    : BenchValue;
+
+public sealed record BenchVoltageSpectrum(double[] FrequenciesHz, double[] Values) : BenchValue;
+
+public sealed record BenchCurrentSpectrum(double[] FrequenciesHz, double[] Values) : BenchValue;
+
+public sealed record BenchComplexNumber(BenchNumericKind Kind, Complex Value) : BenchValue;
 
 public sealed record BenchAnalysisRef(string Name) : BenchValue;
 
