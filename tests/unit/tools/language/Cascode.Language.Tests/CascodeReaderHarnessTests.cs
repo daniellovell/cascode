@@ -17,9 +17,9 @@ circuit Test implements SingleEndedAmp {{
   input IN : analog
   output OUT : analog
   harness {{
-    supply VDD = 1.8 V
-    sweep InputDCBias [0.3 V:100 mV:1.5 V]
-    load OUT C=1 pF
+    supply VDD = 1.8V
+    sweep InputDCBias [0.3V:100mV:1.5V]
+    load OUT C=1pF
   }}
 }}
 ";
@@ -37,32 +37,6 @@ circuit Test implements SingleEndedAmp {{
     }
 
     [Fact]
-    public void TryParse_HarnessWithLegacyFormat_NormalizesToCompactSI()
-    {
-        var content =
-            $@"VERSION {CascodeVersion.Current}
-circuit Test {{
-  level EL
-  harness {{
-    supply VDD = 1.8V
-    bias VTAIL = 0.6V
-    load OUT C=1p F
-    source IN Z=50
-  }}
-}}
-";
-        var result = CascodeReader.TryParse(content);
-        Assert.True(result.Success);
-        var harness = result.Document!.Circuits[0].Harness!;
-        Assert.Equal("1.8V", harness.Supplies[0].Value);
-        Assert.Equal("0.6V", harness.Biases[0].Value);
-        Assert.Single(harness.Loads[0].Elements);
-        Assert.Equal("C", harness.Loads[0].Elements[0].Type);
-        Assert.Equal("1pF", harness.Loads[0].Elements[0].Value);
-        Assert.Equal("50Ohm", harness.Sources[0].Z);
-    }
-
-    [Fact]
     public void TryParse_HarnessWithAutoSweep_ParsesAutoFlag()
     {
         var content =
@@ -74,7 +48,7 @@ circuit Test implements SingleEndedAmp {{
   input IN : analog
   output OUT : analog
   harness {{
-    supply VDD = 1.8 V
+    supply VDD = 1.8V
     sweep InputDCBias [Auto]
   }}
 }}
@@ -98,7 +72,7 @@ circuit Test implements SingleEndedAmp {{
   input IN : analog
   output OUT : analog
   harness {{
-    sweep InputDCBias [0.3 V:1.5 V]
+    sweep InputDCBias [0.3V:1.5V]
   }}
 }}
 ";
@@ -120,7 +94,7 @@ circuit Test implements SingleEndedAmp {{
 circuit Test {{
   level EL
   harness {{
-    load OUT (C=1 pF || R=1 MOhm)
+    load OUT (C=1pF || R=1MOhm)
   }}
 }}
 ";
@@ -142,7 +116,7 @@ circuit Test {{
 circuit Test {{
   level EL
   harness {{
-    load OUT (R=10 kOhm || C=10 pF)
+    load OUT (R=10kOhm || C=10pF)
   }}
 }}
 ";
@@ -188,11 +162,11 @@ circuit Test {{
 circuit Test {{
   level EL
   harness {{
-    load OUT (C=1 pF || )
-    load OUT (|| R=1 MOhm)
-    load OUT (C=1 pF R=1 MOhm)
-    load OUT C=1 pF || R=1 MOhm
-    load OUT (C= || R=1 MOhm)
+    load OUT (C=1pF || )
+    load OUT (|| R=1MOhm)
+    load OUT (C=1pF R=1MOhm)
+    load OUT C=1pF || R=1MOhm
+    load OUT (C= || R=1MOhm)
   }}
 }}
 ";
@@ -232,6 +206,46 @@ circuit Test implements SingleEndedAmp {{
         );
         Assert.NotNull(errorDiag);
         Assert.True(errorDiag.Line >= 9, "Error should be on or after line 9 (sweep line)");
+    }
+
+    [Fact]
+    public void TryParse_SpaceSeparatedValueUnit_IsParseError()
+    {
+        var content =
+            $@"VERSION {CascodeVersion.Current}
+circuit Test {{
+  level EL
+  harness {{
+    supply VDD = 1.8 V
+  }}
+}}
+";
+        var result = CascodeReader.TryParse(content);
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
+    }
+
+    [Fact]
+    public void TryParse_SourceWithoutUnit_IsParseError()
+    {
+        var content =
+            $@"VERSION {CascodeVersion.Current}
+circuit Test {{
+  level EL
+  harness {{
+    source IN Z=50
+  }}
+}}
+";
+        var result = CascodeReader.TryParse(content);
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Severity == DiagnosticSeverity.Error && d.Message.Contains("CAS0001")
+        );
     }
 
     [Fact]
