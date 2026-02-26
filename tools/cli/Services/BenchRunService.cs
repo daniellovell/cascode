@@ -1820,6 +1820,28 @@ public class BenchRunService
                         Noise: noise
                     );
                 }
+                else if (a.Type == BenchValueType.SPAnalysis)
+                {
+                    var wrdataPath = BenchRuntimePaths.GetSpWrdataPath(
+                        Path.GetDirectoryName(testbenchPath)!,
+                        plan.CircuitName,
+                        plan.InstanceName,
+                        a.Name
+                    );
+                    var numPorts = plan.HarnessElements.Count(e =>
+                        e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
+                    );
+                    var sp = NgspiceWrdataSpParser.Parse(wrdataPath, numPorts);
+
+                    analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
+                        a.Name,
+                        a.StartHz,
+                        a.StopHz,
+                        StartS: 0,
+                        StopS: 0,
+                        SParameters: sp
+                    );
+                }
                 else if (a.Type == BenchValueType.TranAnalysis)
                 {
                     var wrdataPath = BenchRuntimePaths.GetTranWrdataPath(
