@@ -1382,7 +1382,7 @@ bench SParamBench {{
         );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "SParamBench");
-        var sp = new BenchSParameterDataset(
+        var sp = new BenchSParameterMatrix(
             FrequenciesHz: new[] { 1e9, 2e9 },
             Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
             {
@@ -1461,7 +1461,7 @@ bench MixedModeBench {{
         );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "MixedModeBench");
-        var sp = new BenchSParameterDataset(
+        var sp = new BenchSParameterMatrix(
             FrequenciesHz: new[] { 1e9 },
             Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
             {
@@ -1540,7 +1540,7 @@ bench StabilityBench {{
         );
 
         var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "StabilityBench");
-        var sp = new BenchSParameterDataset(
+        var sp = new BenchSParameterMatrix(
             FrequenciesHz: new[] { 1e9 },
             Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
             {

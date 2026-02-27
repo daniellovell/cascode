@@ -53,18 +53,9 @@ public readonly record struct BenchPortPair(int ToPort, int FromPort);
 /// <summary>
 /// Captures S-parameter samples for a frequency sweep.
 /// </summary>
-public sealed record BenchSParameterDataset(
-    double[] FrequenciesHz,
-    IReadOnlyDictionary<BenchPortPair, Complex[]> Elements
-);
-
-/// <summary>
-/// Runtime value backing the SParameterMatrix language type.
-/// </summary>
 public sealed record BenchSParameterMatrix(
     double[] FrequenciesHz,
-    IReadOnlyDictionary<BenchPortPair, Complex[]> Elements,
-    IReadOnlySet<int> DifferentialPorts
+    IReadOnlyDictionary<BenchPortPair, Complex[]> Elements
 ) : BenchValue;
 
 public sealed record BenchGainSpectrum(

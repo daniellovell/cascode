@@ -53,7 +53,7 @@ public sealed class BenchMeasurementRunner
         TranDataset? Tran = null,
         TranDataset? TranCurrents = null,
         AcDataset? AcCurrents = null,
-        BenchSParameterDataset? SParameters = null,
+        BenchSParameterMatrix? SParameters = null,
         IReadOnlyDictionary<string, double>? Op = null
     );
 
@@ -1590,20 +1590,7 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var differentialPorts = _bench
-            .Terminals.Where(t =>
-                t.Role == BenchTerminalRole.Port
-                && string.Equals(t.Type, "Diff", StringComparison.OrdinalIgnoreCase)
-                && t.PortNumber is not null
-            )
-            .Select(t => t.PortNumber!.Value)
-            .ToHashSet();
-
-        return new BenchSParameterMatrix(
-            analysis.SParameters.FrequenciesHz,
-            analysis.SParameters.Elements,
-            differentialPorts
-        );
+        return analysis.SParameters;
     }
 
     private bool TryResolveHarnessPin(string raw, out BenchElementPinRef pin)
