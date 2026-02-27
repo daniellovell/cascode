@@ -2543,12 +2543,19 @@ public sealed class BenchMeasurementRunner
     private static int RequirePortIndex(BenchValue value, string context)
     {
         var n = RequireNumber(value, context);
-        if (n.Kind != BenchNumericKind.Scalar || n.Value != Math.Round(n.Value))
+        var rounded = Math.Round(n.Value);
+        if (
+            n.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(n.Value)
+            || Math.Abs(n.Value - rounded) > 1e-9
+            || rounded < 1
+            || rounded > int.MaxValue
+        )
         {
-            throw new InvalidOperationException($"{context}: expected integer port index.");
+            throw new InvalidOperationException($"{context}: expected positive integer port index.");
         }
 
-        return (int)n.Value;
+        return (int)rounded;
     }
 
     private static BenchTransferFunction BuildTransferFunction(

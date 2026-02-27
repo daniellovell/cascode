@@ -291,6 +291,7 @@ Other instances are treated as normal structural instances in the test circuit.
 | `VAC` | `A=Voltage`, `phase=Phase` | `.P`, `.N` | Small-signal AC source (AC magnitude and phase) |
 | `VSIN` | `DC=Voltage`, `A=Voltage`, `freq=Frequency`, `phase=Phase` | `.P`, `.N` | Time-domain sinusoidal source for transient benches |
 | `Impedor` / `Impedance` | `Z=Impedance` | `.P`, `.N` | Impedance element; emits as R/C/L or a parallel combination |
+| `Port` | `N=Integer`, `Z=Impedance`, `V=Voltage` | `.P`, `.N` | S-parameter reference plane (see [Section 4.2.6](#426-port-harness-primitives-s-parameter-benches)) |
 
 Notes:
 
@@ -298,6 +299,9 @@ Notes:
   element kind.
 - An impedance value may be a numeric impedance, a numeric capacitance/inductance, or a parallel
   composite expressed with `||` (for example, `1GOhm || 15pF`).
+- `Port` declares an S-parameter reference plane with a unique sequential index `N` starting at 1,
+  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered automatically
+  by `SPAnalysis` at runtime.
 
 ### 4.3.3 Example: Differential AC Stimulus with Source/Load Impedances
 

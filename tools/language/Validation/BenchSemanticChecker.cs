@@ -734,6 +734,7 @@ public static class BenchSemanticChecker
             {
                 case BenchVarDecl v:
                     ValidateBuiltinCalls(
+                        bench,
                         v.Expr,
                         scope,
                         measurementTypes,
@@ -784,6 +785,7 @@ public static class BenchSemanticChecker
 
                 case BenchReturn r:
                     ValidateBuiltinCalls(
+                        bench,
                         r.Expr,
                         scope,
                         measurementTypes,
@@ -1306,6 +1308,7 @@ public static class BenchSemanticChecker
     }
 
     private static void ValidateBuiltinCalls(
+        BenchDefinition bench,
         MeasurementExpr expr,
         TypeScope scope,
         IReadOnlyDictionary<string, MeasurementType> measurementTypes,
@@ -1316,11 +1319,26 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case MeasurementBinary b:
-                ValidateBuiltinCalls(b.Left, scope, measurementTypes, benchesByName, diagnostics);
-                ValidateBuiltinCalls(b.Right, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    b.Left,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    bench,
+                    b.Right,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 return;
             case MeasurementUnary u:
                 ValidateBuiltinCalls(
+                    bench,
                     u.Operand,
                     scope,
                     measurementTypes,
@@ -1330,6 +1348,7 @@ public static class BenchSemanticChecker
                 return;
             case MeasurementConditional c:
                 ValidateBuiltinCallsInBoolExpr(
+                    bench,
                     c.Condition,
                     scope,
                     measurementTypes,
@@ -1337,6 +1356,7 @@ public static class BenchSemanticChecker
                     diagnostics
                 );
                 ValidateBuiltinCalls(
+                    bench,
                     c.ThenExpr,
                     scope,
                     measurementTypes,
@@ -1344,6 +1364,7 @@ public static class BenchSemanticChecker
                     diagnostics
                 );
                 ValidateBuiltinCalls(
+                    bench,
                     c.ElseExpr,
                     scope,
                     measurementTypes,
@@ -1356,6 +1377,7 @@ public static class BenchSemanticChecker
                 foreach (var a in call.Args)
                 {
                     ValidateBuiltinCalls(
+                        bench,
                         a.Value,
                         scope,
                         measurementTypes,
@@ -1366,6 +1388,7 @@ public static class BenchSemanticChecker
                 return;
             case MeasurementMethodCall m:
                 ValidateBuiltinCalls(
+                    bench,
                     m.Receiver,
                     scope,
                     measurementTypes,
@@ -1375,6 +1398,7 @@ public static class BenchSemanticChecker
                 foreach (var a in m.Args)
                 {
                     ValidateBuiltinCalls(
+                        bench,
                         a.Value,
                         scope,
                         measurementTypes,
@@ -1383,6 +1407,7 @@ public static class BenchSemanticChecker
                     );
                 }
                 ValidateSParameterMethodCall(
+                    bench,
                     m,
                     scope,
                     measurementTypes,
@@ -1394,6 +1419,7 @@ public static class BenchSemanticChecker
     }
 
     private static void ValidateBuiltinCallsInBoolExpr(
+        BenchDefinition bench,
         BoolExpr expr,
         TypeScope scope,
         IReadOnlyDictionary<string, MeasurementType> measurementTypes,
@@ -1404,11 +1430,32 @@ public static class BenchSemanticChecker
         switch (expr)
         {
             case BoolCompare c:
-                ValidateBuiltinCalls(c.Left, scope, measurementTypes, benchesByName, diagnostics);
-                ValidateBuiltinCalls(c.Right, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    c.Left,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
+                ValidateBuiltinCalls(
+                    bench,
+                    c.Right,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 break;
             case BoolTruthy t:
-                ValidateBuiltinCalls(t.Expr, scope, measurementTypes, benchesByName, diagnostics);
+                ValidateBuiltinCalls(
+                    bench,
+                    t.Expr,
+                    scope,
+                    measurementTypes,
+                    benchesByName,
+                    diagnostics
+                );
                 break;
         }
     }
@@ -1497,6 +1544,7 @@ public static class BenchSemanticChecker
     }
 
     private static void ValidateSParameterMethodCall(
+        BenchDefinition bench,
         MeasurementMethodCall call,
         TypeScope scope,
         IReadOnlyDictionary<string, MeasurementType> measurementTypes,
@@ -1566,23 +1614,18 @@ public static class BenchSemanticChecker
 
         if (twoPortOnlyMethods.Contains(call.Method))
         {
-            foreach (var bench in benchesByName.Values)
+            var numPorts = EnumeratePortInstances(bench).Count();
+            if (numPorts != 2)
             {
-                var portCount = EnumeratePortInstances(bench).Count();
-                if (portCount != 2)
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"{call.Method} is defined for 2-port networks only; bench declares {portCount} ports.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                }
-
-                break;
+                diagnostics.Add(
+                    new Diagnostic(
+                        $"{call.Method} is defined for 2-port networks only; bench declares {numPorts} ports.",
+                        DiagnosticSeverity.Error,
+                        "<bench>",
+                        1,
+                        1
+                    )
+                );
             }
         }
     }
