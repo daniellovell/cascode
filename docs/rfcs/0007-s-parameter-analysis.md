@@ -271,7 +271,7 @@ bench TwoPortSParam {
       return db20(S.MAG()).ValueAt(f)
     }
 
-    measurement ForwardGroupDelay(Frequency f) : Time {
+    measurement ForwardGroupDelay(Frequency f) : s {
       SParameterMatrix S = sparam(sp)
       return S.GroupDelay(2, 1).ValueAt(f)
     }

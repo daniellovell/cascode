@@ -575,7 +575,7 @@ margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/in
 
 `SParameterMatrix` exposes element accessors and derived RF metric methods. All element accessors
 return `TransferFunction` (a complex-valued function of frequency). Derived metric methods return
-`GainSpectrum`.
+typed spectra (`GainSpectrum`, `ScalarSpectrum`, or `TimeSpectrum`) based on the metric.
 
 Element access by port number follows the standard S-parameter convention: `S.S(i, j)` is the
 response at port *i* due to excitation at port *j*.
@@ -589,14 +589,14 @@ Derived metric methods:
 | Method | Result | Notes |
 |---|---|---|
 | `S.ReturnLoss(port)` | `GainSpectrum` | −20 log₁₀ \|Snn\| (positive dB for well-matched port) |
-| `S.VSWR(port)` | `GainSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
-| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\| |
-| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, conventionally the reverse path |
-| `S.StabilityK()` | `GainSpectrum` | Stability factor (2-port only) |
-| `S.MuFactor()` | `GainSpectrum` | Edwards-Sinsky μ factor (2-port only) |
-| `S.MSG()` | `GainSpectrum` | Maximum stable gain (2-port only) |
-| `S.MAG()` | `GainSpectrum` | Maximum available gain; falls back to MSG where K < 1 (2-port only) |
-| `S.GroupDelay(to, from)` | `GainSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+| `S.VSWR(port)` | `ScalarSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
+| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\|, refers to forward-path loss |
+| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, but refers to the reverse-path leakage |
+| `S.StabilityK()` | `ScalarSpectrum` | Stability factor (2-port only) |
+| `S.MuFactor()` | `ScalarSpectrum` | Edwards-Sinsky μ factor (2-port only) |
+| `S.MSG()` | `GainSpectrum` | Maximum stable gain in dB (2-port only) |
+| `S.MAG()` | `GainSpectrum` | Maximum available gain in dB; falls back to MSG where K < 1 (2-port only) |
+| `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
 called on an `SParameterMatrix` from a bench with more than two ports.

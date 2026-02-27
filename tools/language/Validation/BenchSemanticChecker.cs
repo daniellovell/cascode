@@ -960,17 +960,27 @@ public static class BenchSemanticChecker
 
             if (
                 call.Method.Equals("ReturnLoss", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase)
             )
             {
                 return MeasurementType.GainSpectrum();
+            }
+
+            if (
+                call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return MeasurementType.ScalarSpectrum();
+            }
+
+            if (call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.TimeSpectrum();
             }
         }
 
@@ -987,6 +997,32 @@ public static class BenchSemanticChecker
             )
             {
                 return MeasurementType.VoltageRatio();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ScalarSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Scalar();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.TimeSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Time();
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -1795,7 +1831,9 @@ public static class BenchSemanticChecker
         Time,
         TransferFunction,
         GainSpectrum,
+        ScalarSpectrum,
         PhaseSpectrum,
+        TimeSpectrum,
         ComplexVoltageSpectrum,
         ComplexCurrentSpectrum,
         VoltageSpectrum,
@@ -1848,7 +1886,11 @@ public static class BenchSemanticChecker
 
         public static MeasurementType GainSpectrum() => new(MeasurementTypeKind.GainSpectrum);
 
+        public static MeasurementType ScalarSpectrum() => new(MeasurementTypeKind.ScalarSpectrum);
+
         public static MeasurementType PhaseSpectrum() => new(MeasurementTypeKind.PhaseSpectrum);
+
+        public static MeasurementType TimeSpectrum() => new(MeasurementTypeKind.TimeSpectrum);
 
         public static MeasurementType ComplexVoltageSpectrum() =>
             new(MeasurementTypeKind.ComplexVoltageSpectrum);
@@ -1898,7 +1940,9 @@ public static class BenchSemanticChecker
                 BenchValueType.Inductance => Inductance(),
                 BenchValueType.TransferFunction => TransferFunction(),
                 BenchValueType.GainSpectrum => GainSpectrum(),
+                BenchValueType.ScalarSpectrum => ScalarSpectrum(),
                 BenchValueType.PhaseSpectrum => PhaseSpectrum(),
+                BenchValueType.TimeSpectrum => TimeSpectrum(),
                 BenchValueType.ComplexVoltageSpectrum => ComplexVoltageSpectrum(),
                 BenchValueType.ComplexCurrentSpectrum => ComplexCurrentSpectrum(),
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
@@ -1954,6 +1998,10 @@ public static class BenchSemanticChecker
             if (unit.Equals("deg", StringComparison.OrdinalIgnoreCase))
             {
                 return Phase();
+            }
+            if (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            {
+                return Time();
             }
             return Scalar();
         }

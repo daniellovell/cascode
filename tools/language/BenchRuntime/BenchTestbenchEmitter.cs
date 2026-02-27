@@ -756,11 +756,7 @@ public static class BenchTestbenchEmitter
         if (raw is BenchNumber number)
         {
             var rounded = Math.Round(number.Value);
-            if (
-                Math.Abs(number.Value - rounded) > 1e-9
-                || rounded < 1
-                || rounded > int.MaxValue
-            )
+            if (Math.Abs(number.Value - rounded) > 1e-9 || rounded < 1 || rounded > int.MaxValue)
             {
                 return false;
             }

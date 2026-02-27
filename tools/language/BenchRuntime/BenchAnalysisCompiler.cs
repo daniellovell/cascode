@@ -74,7 +74,10 @@ internal static class BenchAnalysisCompiler
                         $"{a.Type} '{a.Name}' stop did not evaluate to a number."
                     );
                 }
-                if (startV.Kind != BenchNumericKind.FrequencyHz || stopV.Kind != BenchNumericKind.FrequencyHz)
+                if (
+                    startV.Kind != BenchNumericKind.FrequencyHz
+                    || stopV.Kind != BenchNumericKind.FrequencyHz
+                )
                 {
                     throw new InvalidOperationException(
                         $"{a.Type} '{a.Name}' start/stop must be Frequency values."
@@ -136,7 +139,10 @@ internal static class BenchAnalysisCompiler
                     ?? throw new InvalidOperationException(
                         $"NoiseAnalysis '{a.Name}' output did not evaluate to a terminal."
                     );
-                if (startV.Kind != BenchNumericKind.FrequencyHz || stopV.Kind != BenchNumericKind.FrequencyHz)
+                if (
+                    startV.Kind != BenchNumericKind.FrequencyHz
+                    || stopV.Kind != BenchNumericKind.FrequencyHz
+                )
                 {
                     throw new InvalidOperationException(
                         $"NoiseAnalysis '{a.Name}' start/stop must be Frequency values."
