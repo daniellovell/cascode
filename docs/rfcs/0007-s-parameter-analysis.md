@@ -251,7 +251,7 @@ bench TwoPortSParam {
 
     measurement StabilityK(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
-      return S.RollettK().ValueAt(f)
+      return S.StabilityK().ValueAt(f)
     }
 
     measurement MaxAvailableGain(Frequency f) : dB {
@@ -359,7 +359,7 @@ Runtime and linker primitive lists must therefore include `Port` (for example in
 | Port number <= 0 | `Port number must be a positive integer; got {n}` |
 | Non-sequential port numbering | `Incorrect port ordering, ports must be numbered sequentially from 1` |
 | SPAnalysis with no Port instances | `SPAnalysis requires at least one Port instance` |
-| Stability/gain method on N > 2 ports | `S.RollettK() is defined for 2-port networks only; bench declares {n} ports` |
+| Stability/gain method on N > 2 ports | `S.StabilityK() is defined for 2-port networks only; bench declares {n} ports` |
 
 ### 7.2 Runtime Errors
 

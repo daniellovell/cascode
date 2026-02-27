@@ -85,12 +85,7 @@ are also used as bench terminals (for example, `stim IN : Diff`).
 Direction is part of the terminal declaration where the terminal is used:
 
 - Interfaces and circuits declare `input`, `output`, or `io` terminals.
-- Bench terminals declare `stim`, `resp`, or `port` roles.
-
-The `stim` and `resp` roles express unidirectional stimulus and response intent. The `port` role
-is bidirectional: each port is simultaneously a potential stimulus and response. Ports are used
-for S-parameter analysis, where the simulator drives each port in turn while terminating the
-others. See Chapter 4 for the full port terminal specification.
+- Bench terminals declare `stim` or `resp` roles.
 
 Bundle field declarations do not carry direction.
 
@@ -659,8 +654,8 @@ Common post-processing methods:
 - `H.Mag()` and `H.Phase()` on `TransferFunction`
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
-- `S.S(i, j)`, `S.Sdd(i, j)`, and other element accessors on `SParameterMatrix`
-- `S.ReturnLoss(port)`, `S.VSWR(port)`, `S.RolletK()`, and other derived metrics on `SParameterMatrix`
+- `S.S(i, j)` and other element accessors on `SParameterMatrix`
+- `S.ReturnLoss(port)`, `S.VSWR(port)`, `S.StabilityK()`, and other derived metrics on `SParameterMatrix`
 
 For `ComplexVoltageSpectrum` and `ComplexCurrentSpectrum`, `ValueAt(x)` produces a complex sample interpolated in
 magnitude/phase space (with shortest-path phase interpolation). To get a real magnitude, call

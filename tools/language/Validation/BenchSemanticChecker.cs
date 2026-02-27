@@ -234,13 +234,13 @@ public static class BenchSemanticChecker
     )
     {
         var namesByPortNumber = new Dictionary<int, string>();
-        foreach (var terminal in bench.Terminals.Where(t => t.Role == BenchTerminalRole.Port))
+        foreach (var portInstance in EnumeratePortInstances(bench))
         {
-            if (terminal.PortNumber is null || terminal.PortNumber.Value <= 0)
+            if (!TryReadPositivePortNumber(portInstance, out var portNumber))
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"Port number must be a positive integer; got {terminal.PortNumber ?? -1}.",
+                        $"Port number must be a positive integer; got {ReadPortNumberToken(portInstance) ?? "-1"}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -251,13 +251,13 @@ public static class BenchSemanticChecker
             }
 
             if (
-                namesByPortNumber.TryGetValue(terminal.PortNumber.Value, out var priorName)
-                && !string.Equals(priorName, terminal.Name, StringComparison.Ordinal)
+                namesByPortNumber.TryGetValue(portNumber, out var priorName)
+                && !string.Equals(priorName, portInstance.Id, StringComparison.Ordinal)
             )
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"Duplicate port number {terminal.PortNumber.Value}: '{priorName}' and '{terminal.Name}'",
+                        $"Duplicate port number {portNumber}: '{priorName}' and '{portInstance.Id}'",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -267,17 +267,17 @@ public static class BenchSemanticChecker
             }
             else
             {
-                namesByPortNumber[terminal.PortNumber.Value] = terminal.Name;
+                namesByPortNumber[portNumber] = portInstance.Id;
             }
 
             if (
-                terminal.PortImpedance is not null
-                && !terminal.PortImpedance.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase)
+                TryReadPortImpedanceToken(portInstance, out var impedanceText)
+                && !impedanceText.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase)
             )
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"Port impedance must be real-valued: invalid port impedance on port {terminal.PortNumber.Value}.",
+                        $"Port impedance must be real-valued: invalid port impedance on port {portNumber}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -312,14 +312,14 @@ public static class BenchSemanticChecker
         List<Diagnostic> diagnostics
     )
     {
-        var hasPorts = bench.Terminals.Any(t => t.Role == BenchTerminalRole.Port);
+        var hasPorts = EnumeratePortInstances(bench).Any();
         foreach (var analysis in bench.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
         {
             if (!hasPorts)
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        "SPAnalysis requires at least one port terminal declaration.",
+                        "SPAnalysis requires at least one Port instance.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -328,6 +328,112 @@ public static class BenchSemanticChecker
                 );
             }
         }
+    }
+
+    private static IEnumerable<InstanceDeclaration> EnumeratePortInstances(BenchDefinition bench)
+    {
+        if (bench.Fill is null)
+        {
+            yield break;
+        }
+
+        foreach (var instance in bench.Fill.Instances)
+        {
+            if (instance.Type.Equals("Port", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return instance;
+            }
+        }
+    }
+
+    private static bool TryReadPositivePortNumber(
+        InstanceDeclaration portInstance,
+        out int portNumber
+    )
+    {
+        portNumber = 0;
+        if (!portInstance.Params.TryGetValue("N", out var nValue))
+        {
+            return false;
+        }
+
+        if (!TryReadIntegerText(ReadParamToken(nValue), out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed <= 0)
+        {
+            return false;
+        }
+
+        portNumber = parsed;
+        return true;
+    }
+
+    private static string? ReadPortNumberToken(InstanceDeclaration portInstance)
+    {
+        return portInstance.Params.TryGetValue("N", out var nValue) ? ReadParamToken(nValue) : null;
+    }
+
+    private static bool TryReadPortImpedanceToken(
+        InstanceDeclaration portInstance,
+        out string impedanceText
+    )
+    {
+        impedanceText = string.Empty;
+        if (!portInstance.Params.TryGetValue("Z", out var zValue))
+        {
+            return false;
+        }
+
+        var raw = ReadParamToken(zValue);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        impedanceText = raw;
+        return true;
+    }
+
+    private static string? ReadParamToken(ParamValue value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.Numeric))
+        {
+            return value.Numeric;
+        }
+
+        if (!string.IsNullOrWhiteSpace(value.Symbolic))
+        {
+            return value.Symbolic;
+        }
+
+        return value.Literal;
+    }
+
+    private static bool TryReadIntegerText(string? text, out int value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        if (
+            !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+        )
+        {
+            return false;
+        }
+
+        if (parsed != Math.Round(parsed) || parsed < int.MinValue || parsed > int.MaxValue)
+        {
+            return false;
+        }
+
+        value = (int)parsed;
+        return true;
     }
 
     private static bool TryFindCycle(
@@ -845,13 +951,7 @@ public static class BenchSemanticChecker
 
         if (recv.Kind == MeasurementTypeKind.SParameterMatrix)
         {
-            if (
-                call.Method.Equals("S", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("Sdd", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("Sdc", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("Scd", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("Scc", StringComparison.OrdinalIgnoreCase)
-            )
+            if (call.Method.Equals("S", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.TransferFunction();
             }
@@ -861,7 +961,7 @@ public static class BenchSemanticChecker
                 || call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("RolletK", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
@@ -1413,10 +1513,6 @@ public static class BenchSemanticChecker
         var indexPairMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "S",
-            "Sdd",
-            "Sdc",
-            "Scd",
-            "Scc",
             "InsertionLoss",
             "Isolation",
             "GroupDelay",
@@ -1428,19 +1524,7 @@ public static class BenchSemanticChecker
         };
         var twoPortOnlyMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "RolletK",
-            "MuFactor",
-            "MSG",
-            "MAG",
-        };
-        var derivedSingleEndedMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "ReturnLoss",
-            "VSWR",
-            "InsertionLoss",
-            "Isolation",
-            "GroupDelay",
-            "RolletK",
+            "StabilityK",
             "MuFactor",
             "MSG",
             "MAG",
@@ -1484,7 +1568,7 @@ public static class BenchSemanticChecker
         {
             foreach (var bench in benchesByName.Values)
             {
-                var portCount = bench.Terminals.Count(t => t.Role == BenchTerminalRole.Port);
+                var portCount = EnumeratePortInstances(bench).Count();
                 if (portCount != 2)
                 {
                     diagnostics.Add(
@@ -1501,153 +1585,6 @@ public static class BenchSemanticChecker
                 break;
             }
         }
-
-        if (
-            call.Method.Equals("Sdd", StringComparison.OrdinalIgnoreCase)
-            || call.Method.Equals("Sdc", StringComparison.OrdinalIgnoreCase)
-            || call.Method.Equals("Scd", StringComparison.OrdinalIgnoreCase)
-            || call.Method.Equals("Scc", StringComparison.OrdinalIgnoreCase)
-        )
-        {
-            // Parse-time differential port validation is only possible when both indices are integer literals.
-            if (
-                !TryReadIntegerLiteral(call.Args[0].Value, out var toPort)
-                || !TryReadIntegerLiteral(call.Args[1].Value, out var fromPort)
-            )
-            {
-                return;
-            }
-
-            // Resolve differential port numbers from bench declarations in the current source graph.
-            foreach (var bench in benchesByName.Values)
-            {
-                var diffPorts = bench
-                    .Terminals.Where(t =>
-                        t.Role == BenchTerminalRole.Port
-                        && string.Equals(t.Type, "Diff", StringComparison.OrdinalIgnoreCase)
-                        && t.PortNumber is not null
-                    )
-                    .Select(t => t.PortNumber!.Value)
-                    .ToHashSet();
-                if (!diffPorts.Contains(toPort))
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"{call.Method}({toPort}, {fromPort}) requires both ports to be differential; port {toPort} is single-ended.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                }
-                else if (!diffPorts.Contains(fromPort))
-                {
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"{call.Method}({toPort}, {fromPort}) requires both ports to be differential; port {fromPort} is single-ended.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                }
-
-                // Validation performed against the first bench with differential ports.
-                break;
-            }
-        }
-
-        if (derivedSingleEndedMethods.Contains(call.Method))
-        {
-            foreach (var bench in benchesByName.Values)
-            {
-                var diffPorts = bench
-                    .Terminals.Where(t =>
-                        t.Role == BenchTerminalRole.Port
-                        && string.Equals(t.Type, "Diff", StringComparison.OrdinalIgnoreCase)
-                        && t.PortNumber is not null
-                    )
-                    .Select(t => t.PortNumber!.Value)
-                    .ToHashSet();
-                if (diffPorts.Count == 0)
-                {
-                    break;
-                }
-
-                if (call.Args.Count == 0)
-                {
-                    var firstDiff = bench.Terminals.First(t =>
-                        t.Role == BenchTerminalRole.Port
-                        && string.Equals(t.Type, "Diff", StringComparison.OrdinalIgnoreCase)
-                        && t.PortNumber is not null
-                    );
-                    diagnostics.Add(
-                        new Diagnostic(
-                            $"{call.Method} can only be called on single-ended ports: port {firstDiff.PortNumber!.Value} is differential.",
-                            DiagnosticSeverity.Error,
-                            "<bench>",
-                            1,
-                            1
-                        )
-                    );
-                }
-                else
-                {
-                    foreach (var arg in call.Args)
-                    {
-                        if (
-                            TryReadIntegerLiteral(arg.Value, out var portNum)
-                            && diffPorts.Contains(portNum)
-                        )
-                        {
-                            diagnostics.Add(
-                                new Diagnostic(
-                                    $"{call.Method} can only be called on single-ended ports: port {portNum} is differential.",
-                                    DiagnosticSeverity.Error,
-                                    "<bench>",
-                                    1,
-                                    1
-                                )
-                            );
-                            break;
-                        }
-                    }
-                }
-
-                break;
-            }
-        }
-    }
-
-    private static bool TryReadIntegerLiteral(MeasurementExpr expr, out int value)
-    {
-        value = 0;
-        if (expr is not MeasurementNumber number)
-        {
-            return false;
-        }
-
-        if (
-            !double.TryParse(
-                number.Raw,
-                NumberStyles.Float,
-                CultureInfo.InvariantCulture,
-                out var parsed
-            )
-        )
-        {
-            return false;
-        }
-
-        if (parsed != Math.Round(parsed) || parsed < int.MinValue || parsed > int.MaxValue)
-        {
-            return false;
-        }
-
-        value = (int)parsed;
-        return true;
     }
 
     private static void ValidateAnalysisParams(

@@ -687,30 +687,6 @@ public sealed class BenchMeasurementRunner
                 return BuildTransferFunction(sm, new BenchPortPair(toPort, fromPort), "S");
             }
 
-            if (call.Method.Equals("Sdd", StringComparison.OrdinalIgnoreCase))
-            {
-                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "Sdd");
-                return BuildMixedMode(sm, toPort, fromPort, mode: "dd");
-            }
-
-            if (call.Method.Equals("Sdc", StringComparison.OrdinalIgnoreCase))
-            {
-                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "Sdc");
-                return BuildMixedMode(sm, toPort, fromPort, mode: "dc");
-            }
-
-            if (call.Method.Equals("Scd", StringComparison.OrdinalIgnoreCase))
-            {
-                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "Scd");
-                return BuildMixedMode(sm, toPort, fromPort, mode: "cd");
-            }
-
-            if (call.Method.Equals("Scc", StringComparison.OrdinalIgnoreCase))
-            {
-                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "Scc");
-                return BuildMixedMode(sm, toPort, fromPort, mode: "cc");
-            }
-
             if (call.Method.Equals("ReturnLoss", StringComparison.OrdinalIgnoreCase))
             {
                 var (port, _) = RequireSinglePortArg(call, locals, "ReturnLoss");
@@ -762,9 +738,9 @@ public sealed class BenchMeasurementRunner
                 return ToNegativeDbSpectrum(transfer);
             }
 
-            if (call.Method.Equals("RolletK", StringComparison.OrdinalIgnoreCase))
+            if (call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase))
             {
-                return BuildRolletKSpectrum(sm);
+                return BuildStabilityKSpectrum(sm);
             }
 
             if (call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase))
@@ -2591,49 +2567,12 @@ public sealed class BenchMeasurementRunner
         return new BenchTransferFunction(sm.FrequenciesHz, values);
     }
 
-    private static BenchTransferFunction BuildMixedMode(
-        BenchSParameterMatrix sm,
-        int toPort,
-        int fromPort,
-        string mode
-    )
-    {
-        var (ai, bi) = DifferentialLegPair(toPort);
-        var (aj, bj) = DifferentialLegPair(fromPort);
-
-        var saa = GetElement(sm, ai, aj, mode);
-        var sab = GetElement(sm, ai, bj, mode);
-        var sba = GetElement(sm, bi, aj, mode);
-        var sbb = GetElement(sm, bi, bj, mode);
-
-        var result = new Complex[sm.FrequenciesHz.Length];
-        for (var i = 0; i < result.Length; i++)
-        {
-            result[i] = mode switch
-            {
-                "dd" => 0.5 * (saa[i] - sab[i] - sba[i] + sbb[i]),
-                "dc" => 0.5 * (saa[i] + sab[i] - sba[i] - sbb[i]),
-                "cd" => 0.5 * (saa[i] - sab[i] + sba[i] - sbb[i]),
-                "cc" => 0.5 * (saa[i] + sab[i] + sba[i] + sbb[i]),
-                _ => throw new InvalidOperationException($"Unknown mixed-mode selector '{mode}'."),
-            };
-        }
-
-        return new BenchTransferFunction(sm.FrequenciesHz, result);
-    }
-
-    private static (int A, int B) DifferentialLegPair(int portNumber)
-    {
-        var baseIndex = (portNumber - 1) * 2 + 1;
-        return (baseIndex, baseIndex + 1);
-    }
-
-    private static Complex[] GetElement(BenchSParameterMatrix sm, int to, int from, string mode)
+    private static Complex[] GetElement(BenchSParameterMatrix sm, int to, int from, string accessor)
     {
         if (!sm.Elements.TryGetValue(new BenchPortPair(to, from), out var values))
         {
             throw new InvalidOperationException(
-                $"{mode}: missing single-ended leg element S({to}, {from}) required for mixed-mode conversion."
+                $"{accessor}: missing S-parameter element S({to}, {from})."
             );
         }
 
@@ -2646,7 +2585,7 @@ public sealed class BenchMeasurementRunner
         return new BenchGainSpectrum(tf.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
     }
 
-    private static BenchGainSpectrum BuildRolletKSpectrum(BenchSParameterMatrix sm)
+    private static BenchGainSpectrum BuildStabilityKSpectrum(BenchSParameterMatrix sm)
     {
         var s11 = GetElement(sm, 1, 1, "K");
         var s12 = GetElement(sm, 1, 2, "K");
@@ -2709,7 +2648,7 @@ public sealed class BenchMeasurementRunner
     private static BenchGainSpectrum BuildMagSpectrum(BenchSParameterMatrix sm)
     {
         var msg = BuildMsgSpectrum(sm).Values;
-        var k = BuildRolletKSpectrum(sm).Values;
+        var k = BuildStabilityKSpectrum(sm).Values;
         var values = new double[sm.FrequenciesHz.Length];
         for (var i = 0; i < values.Length; i++)
         {

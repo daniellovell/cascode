@@ -117,7 +117,6 @@ benchMember
 
 terminalDecl
     : ABSTRACT_KW? terminalRole IDENT (COLON terminalType)?
-    | PORT_KW NUMBER IDENT COLON terminalType (EQ QUANTITY)?
     ;
 
 terminalRole

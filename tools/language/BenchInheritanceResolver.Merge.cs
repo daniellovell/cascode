@@ -249,9 +249,7 @@ public static partial class BenchInheritanceResolver
                 terminal.Role,
                 terminal.Name,
                 terminal.Type,
-                terminal.IsAbstract,
-                terminal.PortNumber,
-                terminal.PortImpedance
+                terminal.IsAbstract
             );
         }
 

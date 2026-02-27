@@ -1318,8 +1318,21 @@ bench InvalidComplexReturn {{
             $@"VERSION {CascodeVersion.Current}
 
 bench InvalidPortImpedance {{
-  port 1 P1 : analog = 50MHz
-  port 2 P2 : analog
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50MHz, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1353,8 +1366,21 @@ bench InvalidPortImpedance {{
             $@"VERSION {CascodeVersion.Current}
 
 bench SParamBench {{
-  port 1 IN : analog
-  port 2 OUT : analog
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz)
@@ -1431,88 +1457,27 @@ bench SParamBench {{
     }
 
     [Fact]
-    public void SParameterMatrix_MixedModeConversion_ComputesSddFromLegMatrix()
-    {
-        var cascode =
-            $@"VERSION {CascodeVersion.Current}
-
-bench MixedModeBench {{
-  port 1 IN : Diff
-  port 2 OUT : Diff
-
-  analysis {{
-    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
-  }}
-
-  measurements {{
-    measurement SddAt1G : dB {{
-      SParameterMatrix S = sparam(sp)
-      return db20(S.Sdd(2, 1).Mag()).ValueAt(1GHz)
-    }}
-  }}
-}}
-";
-
-        using var reader = new StringReader(cascode);
-        var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.True(
-            result.Success,
-            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
-        );
-
-        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "MixedModeBench");
-        var sp = new BenchSParameterMatrix(
-            FrequenciesHz: new[] { 1e9 },
-            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
-            {
-                // Differential port 1 legs: 1/2, differential port 2 legs: 3/4.
-                [new BenchPortPair(3, 1)] = new[] { new System.Numerics.Complex(0.8, 0.0) },
-                [new BenchPortPair(3, 2)] = new[] { new System.Numerics.Complex(0.1, 0.0) },
-                [new BenchPortPair(4, 1)] = new[] { new System.Numerics.Complex(0.2, 0.0) },
-                [new BenchPortPair(4, 2)] = new[] { new System.Numerics.Complex(0.7, 0.0) },
-            }
-        );
-
-        var runner = new BenchMeasurementRunner(
-            bench,
-            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
-            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
-                StringComparer.OrdinalIgnoreCase
-            )
-            {
-                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
-                    Name: "sp",
-                    StartHz: 1e9,
-                    StopHz: 1e9,
-                    StartS: 0,
-                    StopS: 0,
-                    SParameters: sp
-                ),
-            },
-            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["IN"] = new BenchTerminalRef("IN", new[] { "IN.P", "IN.N" }),
-                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT.P", "OUT.N" }),
-            },
-            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
-            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
-            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
-        );
-
-        // Sdd = 0.5 * (0.8 - 0.1 - 0.2 + 0.7) = 0.6
-        var values = runner.RunMetrics(new[] { "SddAt1G" });
-        Assert.Equal(-4.436974992327127, values["SddAt1G"].Value, precision: 9);
-    }
-
-    [Fact]
     public void SParameterMatrix_MAG_FallsBackToMSG_WhenKIsBelowOne()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
 
 bench StabilityBench {{
-  port 1 IN : analog
-  port 2 OUT : analog
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1605,7 +1570,7 @@ bench MissingPorts {{
         Assert.False(result.Success);
         Assert.Contains(
             result.Diagnostics,
-            d => d.Message.Contains("SPAnalysis requires at least one port terminal declaration.")
+            d => d.Message.Contains("SPAnalysis requires at least one Port instance.")
         );
     }
 
@@ -1616,8 +1581,21 @@ bench MissingPorts {{
             $@"VERSION {CascodeVersion.Current}
 
 bench TwoPortSequential {{
-  port 1 P1 : analog
-  port 2 P2 : analog
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1655,8 +1633,21 @@ bench TwoPortSequential {{
             $@"VERSION {CascodeVersion.Current}
 
 bench GapPortNumbering {{
-  port 1 P1 : analog
-  port 3 P3 : analog
+  resp P1 : analog
+  resp P3 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port port3 = new Port(N=3, Z=50Ohm, V=0V) {{
+      .P--P3
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1689,8 +1680,21 @@ bench GapPortNumbering {{
             $@"VERSION {CascodeVersion.Current}
 
 bench StartsAtTwo {{
-  port 2 P2 : analog
-  port 3 P3 : analog
+  resp P2 : analog
+  resp P3 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+    Port port3 = new Port(N=3, Z=50Ohm, V=0V) {{
+      .P--P3
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1723,9 +1727,26 @@ bench StartsAtTwo {{
             $@"VERSION {CascodeVersion.Current}
 
 bench ThreePortBench {{
-  port 1 P1 : analog
-  port 2 P2 : analog
-  port 3 P3 : analog
+  resp P1 : analog
+  resp P2 : analog
+  resp P3 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+    Port port3 = new Port(N=3, Z=50Ohm, V=0V) {{
+      .P--P3
+      .N--gnd
+    }}
+  }}
 
   analysis {{
     SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
@@ -1748,76 +1769,6 @@ bench ThreePortBench {{
             d =>
                 d.Message.Contains(
                     "MSG is defined for 2-port networks only; bench declares 3 ports."
-                )
-        );
-    }
-
-    [Fact]
-    public void SParameterMatrix_MixedModeWithoutDifferentialPorts_ProducesSemanticError()
-    {
-        var cascode =
-            $@"VERSION {CascodeVersion.Current}
-
-bench SingleEndedBench {{
-  port 1 P1 : analog
-  port 2 P2 : analog
-
-  analysis {{
-    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
-  }}
-
-  measurements {{
-    measurement SddVal : dB {{
-      SParameterMatrix S = sparam(sp)
-      return db20(S.Sdd(1, 2).Mag()).ValueAt(1GHz)
-    }}
-  }}
-}}
-";
-
-        using var reader = new StringReader(cascode);
-        var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.False(result.Success);
-        Assert.Contains(
-            result.Diagnostics,
-            d =>
-                d.Message.Contains(
-                    "Sdd(1, 2) requires both ports to be differential; port 1 is single-ended."
-                )
-        );
-    }
-
-    [Fact]
-    public void SParameterMatrix_DerivedMetricOnDifferentialPort_ProducesSemanticError()
-    {
-        var cascode =
-            $@"VERSION {CascodeVersion.Current}
-
-bench DifferentialBench {{
-  port 1 IN : Diff
-  port 2 OUT : Diff
-
-  analysis {{
-    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
-  }}
-
-  measurements {{
-    measurement InputReturnLoss : dB {{
-      SParameterMatrix S = sparam(sp)
-      return S.ReturnLoss(1).ValueAt(1GHz)
-    }}
-  }}
-}}
-";
-
-        using var reader = new StringReader(cascode);
-        var result = CascodeReader.TryRead(reader, "test.cas");
-        Assert.False(result.Success);
-        Assert.Contains(
-            result.Diagnostics,
-            d =>
-                d.Message.Contains(
-                    "ReturnLoss can only be called on single-ended ports: port 1 is differential."
                 )
         );
     }
