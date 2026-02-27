@@ -117,11 +117,19 @@ Because ports are explicit harness components, the bench definition is responsib
 
 ### 3.1 Constructor
 
-The `sparam` constructor extracts matrix results from a completed `SPAnalysis`:
+The `sparam` constructor has the following signature:
+
+```
+sparam(SPAnalysis) → SParameterMatrix
+```
+
+`sparam` extracts matrix results from a completed `SPAnalysis`:
 
 ```cascode
 SParameterMatrix S = sparam(sp)
 ```
+
+It is a semantic error if the argument does not reference a declared `SPAnalysis`.
 
 ### 3.2 Element Access
 
@@ -147,7 +155,7 @@ The index order follows standard convention: response index first, excitation in
 
 ```
 S.ReturnLoss(port) → GainSpectrum
-S.VSWR(port) → GainSpectrum
+S.VSWR(port) → ScalarSpectrum
 ```
 
 Return loss at port `n` is `-20*log10(|Snn|)`. VSWR uses `Gamma = Snn` and `(1 + |Gamma|)/(1 - |Gamma|)`.
@@ -164,8 +172,8 @@ Both methods use `-20*log10(|Sij|)` with response-first argument ordering.
 ### 4.3 Stability Factors
 
 ```
-S.StabilityK() → GainSpectrum
-S.MuFactor() → GainSpectrum
+S.StabilityK() → ScalarSpectrum
+S.MuFactor() → ScalarSpectrum
 ```
 
 These are defined only for two-port networks.
@@ -178,11 +186,12 @@ S.MAG() → GainSpectrum
 ```
 
 `MAG` uses the standard two-port expression and falls back to `MSG` where `K < 1`.
+The output is given in dB.
 
 ### 4.5 Group Delay
 
 ```
-S.GroupDelay(to, from) → GainSpectrum
+S.GroupDelay(to, from) → TimeSpectrum
 ```
 
 Group delay uses the phase derivative of `Sij` with respect to angular frequency.
@@ -191,7 +200,7 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 
 ## 5. Complete Examples
 
-### 5.1 Two-Port LNA Bench
+### 5. Two-Port S-Parameter Bench
 
 ```cascode
 library lib.std.bench
@@ -203,13 +212,16 @@ bench TwoPortSParam {
   fill {
     net gnd : ground
 
-    GND g = new GND() { .GND--gnd }
+    GND _ = new GND() {
+      .GND--gnd
+    }
 
-    Port port1 = new Port(N=1, Z=50Ohm, V=1V) {
+    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
       .P--P1
       .N--gnd
     }
-    Port port2 = new Port(N=2, Z=50Ohm, V=1V) {
+
+    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
     }
@@ -218,9 +230,9 @@ bench TwoPortSParam {
   analysis {
     SPAnalysis sp = new SPAnalysis(
       space=Log,
-      samples=200,
-      start=100MHz,
-      stop=10GHz)
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
   }
 
   measurements {
@@ -267,28 +279,26 @@ bench TwoPortSParam {
 }
 ```
 
+Mixed-mode S-parameters for differential ports can be derived from the single-ended S-parameters.
+A `TwoDiffPortSParam` bench could perform this derivation using four single-ended ports, but mixed-mode S-parameters are out of scope of this RFC.
+
 ### 5.2 Interface Binding
 
 S-parameter benches are bound like other benches. Bench terminals are mapped to DUT terminals; the bench's `Port` instances already sit on those terminal nets.
 
 ```cascode
-interface LNA {
+interface SingleEndedAmp {
   supply VDD
-  ground VSS
-  input RF_IN : analog
-  output RF_OUT : analog
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  ...
 
   benches {
     bind TwoPortSParam as sparam_bench {
-      bench.P1--dut.RF_IN
-      bench.P2--dut.RF_OUT
-
-      GND localGnd = new GND()
-      VDC dc = new VDC(V=harness.VDD) {
-        .P--dut.VDD
-        .N--localGnd
-      }
-      dut.VSS--localGnd
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
     }
   }
 }
@@ -299,9 +309,9 @@ Constraints reference measurements through the bind name:
 ```cascode
 constraints {
   numeric {
-    c_gain = sparam_bench::ForwardGain(f=2.4GHz) >= 15dB
-    c_s11  = sparam_bench::InputReturnLoss(f=2.4GHz) >= 10dB
-    c_k    = sparam_bench::StabilityK(f=2.4GHz) >= 1
+    c_forward_gain      = sparam_bench::ForwardGain(f=2.4GHz) >= 15dB
+    c_input_return_loss = sparam_bench::InputReturnLoss(f=2.4GHz) >= 10dB
+    c_k                 = sparam_bench::StabilityK(f=2.4GHz) >= 1
   }
 }
 ```
@@ -354,6 +364,7 @@ Runtime and linker primitive lists must therefore include `Port` (for example in
 
 | Condition | Error |
 | --- | --- |
+| `sparam()` argument is not a declared `SPAnalysis` | `sparam() requires an SPAnalysis argument; '{name}' is not a declared SPAnalysis` |
 | Non-real-valued port impedance | `Port impedance must be real-valued: invalid port impedance on port {n}` |
 | Duplicate port number in a bench | `Duplicate port number {n}` |
 | Port number <= 0 | `Port number must be a positive integer; got {n}` |
