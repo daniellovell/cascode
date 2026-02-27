@@ -13,12 +13,12 @@ bench TwoPortSParam {
       .GND--gnd
     }
 
-    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {
+    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
       .P--P1
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {
+    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
     }

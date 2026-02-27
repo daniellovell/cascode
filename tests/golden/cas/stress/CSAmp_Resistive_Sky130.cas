@@ -20,6 +20,7 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
   env {
     // Required by lib.std transfer/noise/tran/psrr benches.
     InputCommonModeRange = 0.9V
+    OutputCommonModeRange = 0.9V
     SourceImpedance = 50Ohm
     LoadImpedance = (1GOhm || 15pF)
   }
