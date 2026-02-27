@@ -863,7 +863,9 @@ physicalType
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
+    | SCALAR_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | TIME_SPECTRUM_TYPE
     | COMPLEX_VOLTAGE_SPECTRUM_TYPE
     | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
@@ -953,6 +955,8 @@ unitType
     : IDENT
     | NOISE_DENSITY_UNIT
     | INTEGRATED_RMS_UNIT
+    | SCALAR_TYPE
+    | TIME_TYPE
     ;
 
 measurementBody
@@ -1162,7 +1166,9 @@ FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
 GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+SCALAR_SPECTRUM_TYPE        : 'ScalarSpectrum' ;
 PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+TIME_SPECTRUM_TYPE          : 'TimeSpectrum' ;
 COMPLEX_VOLTAGE_SPECTRUM_TYPE : 'ComplexVoltageSpectrum' ;
 COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;

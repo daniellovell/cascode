@@ -960,17 +960,27 @@ public static class BenchSemanticChecker
 
             if (
                 call.Method.Equals("ReturnLoss", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
-                || call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase)
             )
             {
                 return MeasurementType.GainSpectrum();
+            }
+
+            if (
+                call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                return MeasurementType.ScalarSpectrum();
+            }
+
+            if (call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.TimeSpectrum();
             }
         }
 
@@ -987,6 +997,32 @@ public static class BenchSemanticChecker
             )
             {
                 return MeasurementType.VoltageRatio();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ScalarSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Scalar();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.TimeSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Time();
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -1512,7 +1548,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"sparam requires exactly 1 argument, got {call.Args.Count}.",
+                        $"CAS2010: sparam requires exactly 1 argument, got {call.Args.Count}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -1532,7 +1568,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"sparam first argument must be an SPAnalysis, got '{analysisType}'.",
+                        $"CAS2011: sparam first argument must be an SPAnalysis, got '{analysisType}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -1593,6 +1629,26 @@ public static class BenchSemanticChecker
                 );
                 return;
             }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[1].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            return;
         }
 
         if (singlePortMethods.Contains(call.Method))
@@ -1610,6 +1666,17 @@ public static class BenchSemanticChecker
                 );
                 return;
             }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            return;
         }
 
         if (twoPortOnlyMethods.Contains(call.Method))
@@ -1627,7 +1694,83 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+
+            return;
         }
+
+        diagnostics.Add(
+            new Diagnostic(
+                $"Unknown SParameterMatrix method '{call.Method}'.",
+                DiagnosticSeverity.Error,
+                "<bench>",
+                1,
+                1
+            )
+        );
+    }
+
+    private static void ValidatePortArgument(
+        BenchDefinition bench,
+        string methodName,
+        MeasurementExpr arg,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var argType = InferExprType(arg, scope, measurementTypes, benchesByName);
+        if (argType.Kind != MeasurementTypeKind.Scalar)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port argument to {methodName} must be an integer, got '{argType}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        if (!TryResolveConstantInt(arg, out var portIndex))
+        {
+            return;
+        }
+
+        var maxPort = EnumeratePortInstances(bench).Count();
+        if (portIndex < 1 || portIndex > maxPort)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port index {portIndex} is out of range; bench declares ports 1..{maxPort}.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
+    }
+
+    private static bool TryResolveConstantInt(MeasurementExpr expr, out int value)
+    {
+        if (
+            expr is MeasurementNumber number
+            && int.TryParse(
+                number.Raw,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out value
+            )
+        )
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
     }
 
     private static void ValidateAnalysisParams(
@@ -1795,7 +1938,9 @@ public static class BenchSemanticChecker
         Time,
         TransferFunction,
         GainSpectrum,
+        ScalarSpectrum,
         PhaseSpectrum,
+        TimeSpectrum,
         ComplexVoltageSpectrum,
         ComplexCurrentSpectrum,
         VoltageSpectrum,
@@ -1848,7 +1993,11 @@ public static class BenchSemanticChecker
 
         public static MeasurementType GainSpectrum() => new(MeasurementTypeKind.GainSpectrum);
 
+        public static MeasurementType ScalarSpectrum() => new(MeasurementTypeKind.ScalarSpectrum);
+
         public static MeasurementType PhaseSpectrum() => new(MeasurementTypeKind.PhaseSpectrum);
+
+        public static MeasurementType TimeSpectrum() => new(MeasurementTypeKind.TimeSpectrum);
 
         public static MeasurementType ComplexVoltageSpectrum() =>
             new(MeasurementTypeKind.ComplexVoltageSpectrum);
@@ -1898,7 +2047,9 @@ public static class BenchSemanticChecker
                 BenchValueType.Inductance => Inductance(),
                 BenchValueType.TransferFunction => TransferFunction(),
                 BenchValueType.GainSpectrum => GainSpectrum(),
+                BenchValueType.ScalarSpectrum => ScalarSpectrum(),
                 BenchValueType.PhaseSpectrum => PhaseSpectrum(),
+                BenchValueType.TimeSpectrum => TimeSpectrum(),
                 BenchValueType.ComplexVoltageSpectrum => ComplexVoltageSpectrum(),
                 BenchValueType.ComplexCurrentSpectrum => ComplexCurrentSpectrum(),
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
@@ -1954,6 +2105,10 @@ public static class BenchSemanticChecker
             if (unit.Equals("deg", StringComparison.OrdinalIgnoreCase))
             {
                 return Phase();
+            }
+            if (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase))
+            {
+                return Time();
             }
             return Scalar();
         }

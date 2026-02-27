@@ -618,9 +618,10 @@ analysis products) rather than being generic numeric arrays.
 | `Inductance` | `10nH` |
 | `Scalar` | `0.5`, `2` |
 
-Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `NoiseSpectrum`,
-`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`,
-`VoltageWaveform`, `CurrentWaveform`, and `SParameterMatrix`.
+Common structured types include `TransferFunction`, `GainSpectrum`, `ScalarSpectrum`,
+`PhaseSpectrum`, `TimeSpectrum`, `NoiseSpectrum`, `ComplexVoltageSpectrum`,
+`ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `VoltageWaveform`,
+`CurrentWaveform`, and `SParameterMatrix`.
 
 ### Structured types
 
@@ -628,7 +629,9 @@ Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectr
 |------|------------------------------|
 | `TransferFunction` | `transfer(ac, stim, resp)`, `S.S(i, j)` |
 | `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)`, `S.ReturnLoss(port)` |
+| `ScalarSpectrum` | `S.VSWR(port)`, `S.StabilityK()`, `S.MuFactor()` |
 | `PhaseSpectrum` | `H.Phase()` |
+| `TimeSpectrum` | `S.GroupDelay(to, from)` |
 | `NoiseSpectrum` | `noise(noise_analysis, OUT)` and `input_referred_noise(...)` |
 | `ComplexVoltageSpectrum` | `voltage(ac, OUT)` |
 | `ComplexCurrentSpectrum` | `current(ac, harness.VDD.P)` |
