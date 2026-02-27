@@ -1,0 +1,390 @@
+# RFC-0007: S-Parameter Analysis
+
+Status: Draft
+Authors: Claude (proposed), Titan Yuan (review)
+Created: 2026-02-25
+Last Updated: 2026-02-26
+Target Version: Cascode 4.x
+
+---
+
+## Abstract
+
+This RFC proposes S-parameter support within Cascode's bench system. The design introduces `SPAnalysis`, `SParameterMatrix`, and a `Port` harness primitive that is instantiated in bench wiring just like `VDC` or `Impedor`.
+
+Ports are single-ended by definition. Each `Port` provides an ngspice S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
+
+---
+
+## 1. Port Harness Primitive
+
+### 1.1 Primitive Form
+
+S-parameter reference planes are modeled as harness primitive instances in `fill {}` (or bench `bind {}`), not as a new terminal role.
+
+```cascode
+Port <instance> = new Port(N=<integer>, Z=<Impedance>, V=<Voltage>) {
+  .P--<signal_net>
+  .N--<reference_net>
+}
+```
+
+Parameters are required:
+
+| Parameter | Type | Meaning |
+| --- | --- | --- |
+| `N` | integer | S-parameter port index (`1..Nports`) |
+| `Z` | `Impedance` | Port reference impedance (`z0`) |
+| `V` | `Voltage` | DC source value for the port source |
+
+Pins:
+
+| Pin | Meaning |
+| --- | --- |
+| `.P` | Signal side of the port |
+| `.N` | Reference side of the port |
+
+### 1.2 Port Numbering and Validation
+
+Port numbers must be positive, unique within a bench, and sequential starting at 1. For example, a two-port bench must declare `N=1` and `N=2`.
+
+The numbering determines matrix indexing, so `S.S(2, 1)` is the response at port 2 due to excitation at port 1.
+
+### 1.3 Single-Ended Semantics
+
+`Port` is intentionally single-ended. The typical usage ties `.N` to a ground net through `GND` and connects `.P` to a bench terminal net that is bound to the DUT.
+
+```cascode
+fill {
+  net gnd : ground
+  GND g = new GND() { .GND--gnd }
+
+  Port p1 = new Port(N=1, Z=50Ohm, V=1V) {
+    .P--P1
+    .N--gnd
+  }
+}
+```
+
+### 1.4 Interaction with `stim` and `resp`
+
+Bench interface terminals remain `stim` and `resp`. `Port` instances connect to those terminal nets in `fill {}` and provide the S-parameter behavior at simulation time.
+
+---
+
+## 2. SPAnalysis
+
+### 2.1 Declaration
+
+`SPAnalysis` is declared in `analysis {}` like other analysis types:
+
+```cascode
+analysis {
+  SPAnalysis sp = new SPAnalysis(
+    space=Log,
+    samples=200,
+    start=100MHz,
+    stop=10GHz)
+}
+```
+
+### 2.2 Parameters
+
+| Parameter | Type           | Required | Default | Description                  |
+| --------- | -------------- | -------- | ------- | ---------------------------- |
+| `start`   | `Frequency`    | yes      | —       | Start frequency of the sweep |
+| `stop`    | `Frequency`    | yes      | —       | Stop frequency of the sweep  |
+| `space`   | `Log` or `Lin` | no       | `Log`   | Frequency spacing            |
+| `samples` | integer        | no       | 100     | Number of frequency points   |
+
+Like other analyses, arguments may use expressions over `constraints` and `env`.
+
+### 2.3 Port Discovery
+
+`SPAnalysis` discovers all `Port` primitive instances available in the compiled bench harness (bench `fill {}` plus interface `bind {}` composition). There is no additional analysis argument for selecting ports.
+
+For each discovered port, the runtime reads `N`, `Z`, and `V`, validates numbering, and configures the simulator.
+
+### 2.4 Simulation Semantics
+
+For an N-port bench, the simulator performs N single-port excitations. On each run, one port is excited while all ports are terminated at their declared reference impedances, and the resulting wave quantities are assembled into `S(i,j)`.
+
+Because ports are explicit harness components, the bench definition is responsible for providing them; `SPAnalysis` does not synthesize hidden port sources.
+
+---
+
+## 3. SParameterMatrix
+
+### 3.1 Constructor
+
+The `sparam` constructor has the following signature:
+
+```
+sparam(SPAnalysis) → SParameterMatrix
+```
+
+`sparam` extracts matrix results from a completed `SPAnalysis`:
+
+```cascode
+SParameterMatrix S = sparam(sp)
+```
+
+It is a semantic error if the argument does not reference a declared `SPAnalysis`.
+
+### 3.2 Element Access
+
+Each `S.S(i, j)` element is a `TransferFunction` over frequency:
+
+```cascode
+TransferFunction s21 = S.S(2, 1)
+TransferFunction s11 = S.S(1, 1)
+
+GainSpectrum magS21 = db20(s21.Mag())
+Phase phaseAt1g = s21.Phase().ValueAt(1GHz)
+```
+
+The index order follows standard convention: response index first, excitation index second.
+
+---
+
+## 4. Derived Metric Methods
+
+`SParameterMatrix` exposes derived RF metrics as frequency-domain results.
+
+### 4.1 Return Loss and VSWR
+
+```
+S.ReturnLoss(port) → GainSpectrum
+S.VSWR(port) → ScalarSpectrum
+```
+
+Return loss at port `n` is `-20*log10(|Snn|)`. VSWR uses `Gamma = Snn` and `(1 + |Gamma|)/(1 - |Gamma|)`.
+
+### 4.2 Insertion Loss and Isolation
+
+```
+S.InsertionLoss(to, from) → GainSpectrum
+S.Isolation(to, from) → GainSpectrum
+```
+
+Both methods use `-20*log10(|Sij|)` with response-first argument ordering.
+
+### 4.3 Stability Factors
+
+```
+S.StabilityK() → ScalarSpectrum
+S.MuFactor() → ScalarSpectrum
+```
+
+These are defined only for two-port networks.
+
+### 4.4 Maximum Gain
+
+```
+S.MSG() → GainSpectrum
+S.MAG() → GainSpectrum
+```
+
+`MAG` uses the standard two-port expression and falls back to `MSG` where `K < 1`.
+The output is given in dB.
+
+### 4.5 Group Delay
+
+```
+S.GroupDelay(to, from) → TimeSpectrum
+```
+
+Group delay uses the phase derivative of `Sij` with respect to angular frequency.
+
+---
+
+## 5. Complete Examples
+
+### 5. Two-Port S-Parameter Bench
+
+```cascode
+library lib.std.bench
+
+bench TwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
+      .P--P1
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
+      .P--P2
+      .N--gnd
+    }
+  }
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement ForwardGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement InputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).ValueAt(f)
+    }
+
+    measurement OutputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).ValueAt(f)
+    }
+
+    measurement ReverseIsolation(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).ValueAt(f)
+    }
+
+    measurement InputVSWR(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).ValueAt(f)
+    }
+
+    measurement StabilityK(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.StabilityK().ValueAt(f)
+    }
+
+    measurement ForwardGroupDelay(Frequency f) : Time {
+      SParameterMatrix S = sparam(sp)
+      return S.GroupDelay(2, 1).ValueAt(f)
+    }
+  }
+}
+```
+
+Mixed-mode S-parameters for differential ports can be derived from the single-ended S-parameters.
+A `TwoDiffPortSParam` bench could perform this derivation using four single-ended ports, but mixed-mode S-parameters are out of scope of this RFC.
+
+### 5.2 Interface Binding
+
+S-parameter benches are bound like other benches. Bench terminals are mapped to DUT terminals; the bench's `Port` instances already sit on those terminal nets.
+
+```cascode
+interface SingleEndedAmp {
+  supply VDD
+  ground GND
+  input IN : analog
+  output OUT : analog
+
+  ...
+
+  benches {
+    bind TwoPortSParam as sparam_bench {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+}
+```
+
+Constraints reference measurements through the bind name:
+
+```cascode
+constraints {
+  numeric {
+    c_forward_gain      = sparam_bench::ForwardGain(f=2.4GHz) >= 15dB
+    c_input_return_loss = sparam_bench::InputReturnLoss(f=2.4GHz) >= 10dB
+    c_k                 = sparam_bench::StabilityK(f=2.4GHz) >= 1
+  }
+}
+```
+
+---
+
+## 6. Grammar and Recognition Changes
+
+### 6.1 SPAnalysis Type
+
+`SPAnalysis` is added to analysis type alternatives:
+
+```antlr
+analysisType
+    : AC_ANALYSIS_TYPE
+    | DC_ANALYSIS_TYPE
+    | TRAN_ANALYSIS_TYPE
+    | NOISE_ANALYSIS_TYPE
+    | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
+    ;
+
+SP_ANALYSIS_TYPE : 'SPAnalysis' ;
+```
+
+### 6.2 SParameterMatrix Type
+
+`SParameterMatrix` is added to the physical type alternatives:
+
+```antlr
+physicalType
+    : // ... existing types ...
+    | S_PARAMETER_MATRIX_TYPE
+    ;
+
+S_PARAMETER_MATRIX_TYPE : 'SParameterMatrix' ;
+```
+
+### 6.3 Harness Primitive Recognition
+
+No new terminal declaration grammar is needed. `Port` is recognized as a harness primitive type name, consistent with `GND`, `VDC`, `VAC`, `VSIN`, and `Impedance`/`Impedor`.
+
+Runtime and linker primitive lists must therefore include `Port` (for example in `IsHarnessPrimitive` and in bench harness element compilation).
+
+---
+
+## 7. Error Conditions
+
+### 7.1 Semantic Errors
+
+| Condition | Error |
+| --- | --- |
+| `sparam()` argument is not a declared `SPAnalysis` | `sparam() requires an SPAnalysis argument; '{name}' is not a declared SPAnalysis` |
+| Non-real-valued port impedance | `Port impedance must be real-valued: invalid port impedance on port {n}` |
+| Duplicate port number in a bench | `Duplicate port number {n}` |
+| Port number <= 0 | `Port number must be a positive integer; got {n}` |
+| Non-sequential port numbering | `Incorrect port ordering, ports must be numbered sequentially from 1` |
+| SPAnalysis with no Port instances | `SPAnalysis requires at least one Port instance` |
+| Stability/gain method on N > 2 ports | `S.StabilityK() is defined for 2-port networks only; bench declares {n} ports` |
+
+### 7.2 Runtime Errors
+
+| Condition | Behavior |
+| --- | --- |
+| MAG where `K < 1` | Falls back to MSG with a diagnostic note |
+| Group delay numerical instability | Warning: `Group delay computation may be inaccurate near frequency {f}` |
+
+---
+
+## 8. Future Work
+
+Support for noise figure extraction from combined S-parameter and noise data (`SPAnalysis` + `NoiseAnalysis`) remains a natural follow-on extension.
+
+---
+
+## 9. Implementation Plan
+
+1. Update language/runtime recognition, so `Port` is treated as a harness primitive in bench compilation and linking.
+2. Extend bench harness element compilation and testbench emission to map `Port(N, Z, V)` to ngspice `portnum`/`z0` source cards.
+3. Implement `SPAnalysis` execution and result extraction to consume discovered `Port` instances.
+4. Add and update unit and integration coverage, including stress golden outputs (for example `CSAmp_Resistive_Sky130_sparam_bench.sp`) to verify emitted port cards and matrix data extraction.
