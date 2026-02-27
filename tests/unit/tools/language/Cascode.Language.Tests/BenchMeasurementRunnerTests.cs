@@ -1721,6 +1721,64 @@ bench StartsAtTwo {{
     }
 
     [Fact]
+    public void SParameterMatrix_StabilityK_UsesOwningBenchPortCount()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoPortsBench {{
+  resp A : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=1, start=1Hz, stop=1Hz)
+  }}
+
+  measurements {{
+    measurement Sanity : dB {{
+      return 1dB
+    }}
+  }}
+}}
+
+bench TwoPortBench {{
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement KAt1G : dB {{
+      SParameterMatrix S = sparam(sp)
+      return db20(S.StabilityK()).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
     public void SParameterMatrix_MSGForNonTwoPortNetwork_ProducesSemanticError()
     {
         var cascode =
