@@ -75,7 +75,7 @@ bench TwoPortSParam {
   }
 }
 
-bench TwoDiffPortSParam {
+bench TwoPortMixedModeSParam {
   resp P1 : Diff
   resp P2 : Diff
 
