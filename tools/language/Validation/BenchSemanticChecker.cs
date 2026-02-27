@@ -1548,7 +1548,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"sparam requires exactly 1 argument, got {call.Args.Count}.",
+                        $"CAS2010: sparam requires exactly 1 argument, got {call.Args.Count}.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,
@@ -1568,7 +1568,7 @@ public static class BenchSemanticChecker
             {
                 diagnostics.Add(
                     new Diagnostic(
-                        $"sparam first argument must be an SPAnalysis, got '{analysisType}'.",
+                        $"CAS2011: sparam first argument must be an SPAnalysis, got '{analysisType}'.",
                         DiagnosticSeverity.Error,
                         "<bench>",
                         1,

@@ -594,8 +594,8 @@ Derived metric methods:
 | `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, but refers to the reverse-path leakage |
 | `S.StabilityK()` | `ScalarSpectrum` | Stability factor (2-port only) |
 | `S.MuFactor()` | `ScalarSpectrum` | Edwards-Sinsky μ factor (2-port only) |
-| `S.MSG()` | `GainSpectrum` | Maximum stable gain in dB (2-port only) |
-| `S.MAG()` | `GainSpectrum` | Maximum available gain in dB; falls back to MSG where K < 1 (2-port only) |
+| `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
+| `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
