@@ -1629,6 +1629,26 @@ public static class BenchSemanticChecker
                 );
                 return;
             }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[1].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            return;
         }
 
         if (singlePortMethods.Contains(call.Method))
@@ -1646,6 +1666,17 @@ public static class BenchSemanticChecker
                 );
                 return;
             }
+
+            ValidatePortArgument(
+                bench,
+                call.Method,
+                call.Args[0].Value,
+                scope,
+                measurementTypes,
+                benchesByName,
+                diagnostics
+            );
+            return;
         }
 
         if (twoPortOnlyMethods.Contains(call.Method))
@@ -1663,7 +1694,83 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+
+            return;
         }
+
+        diagnostics.Add(
+            new Diagnostic(
+                $"Unknown SParameterMatrix method '{call.Method}'.",
+                DiagnosticSeverity.Error,
+                "<bench>",
+                1,
+                1
+            )
+        );
+    }
+
+    private static void ValidatePortArgument(
+        BenchDefinition bench,
+        string methodName,
+        MeasurementExpr arg,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
+        List<Diagnostic> diagnostics
+    )
+    {
+        var argType = InferExprType(arg, scope, measurementTypes, benchesByName);
+        if (argType.Kind != MeasurementTypeKind.Scalar)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port argument to {methodName} must be an integer, got '{argType}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
+
+        if (!TryResolveConstantInt(arg, out var portIndex))
+        {
+            return;
+        }
+
+        var maxPort = EnumeratePortInstances(bench).Count();
+        if (portIndex < 1 || portIndex > maxPort)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Port index {portIndex} is out of range; bench declares ports 1..{maxPort}.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+        }
+    }
+
+    private static bool TryResolveConstantInt(MeasurementExpr expr, out int value)
+    {
+        if (
+            expr is MeasurementNumber number
+            && int.TryParse(
+                number.Raw,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out value
+            )
+        )
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
     }
 
     private static void ValidateAnalysisParams(

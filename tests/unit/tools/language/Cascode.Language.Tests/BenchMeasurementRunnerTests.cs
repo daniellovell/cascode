@@ -1988,4 +1988,124 @@ bench ThreePortBench {{
                 )
         );
     }
+
+    [Fact]
+    public void SParameterMatrix_UnknownMethod_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnknownSParamMethodBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Bogus : Scalar {{
+      SParameterMatrix S = sparam(sp)
+      return S.Bogus()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Unknown SParameterMatrix method 'Bogus'.")
+        );
+    }
+
+    [Fact]
+    public void SParameterMatrix_PortIndexOutOfRange_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PortRangeBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement OutOfRange : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Port index 2 is out of range; bench declares ports 1..1.")
+        );
+    }
+
+    [Fact]
+    public void SParameterMatrix_PortArgNotInteger_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PortTypeBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement WrongType : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1GHz).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Port argument to ReturnLoss must be an integer")
+        );
+    }
 }

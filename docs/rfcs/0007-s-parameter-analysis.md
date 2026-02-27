@@ -186,7 +186,7 @@ S.MAG() → GainSpectrum
 ```
 
 `MAG` uses the standard two-port expression and falls back to `MSG` where `K < 1`.
-The output is given in dB.
+The output is given in linear units.
 
 ### 4.5 Group Delay
 
