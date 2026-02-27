@@ -1457,6 +1457,222 @@ bench SParamBench {{
     }
 
     [Fact]
+    public void SParameterMatrix_VSWR_ReturnsScalarSpectrum_AndValueAtIsScalar()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench VswrBench {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz)
+  }}
+
+  measurements {{
+    measurement VswrAt1G : Scalar {{
+      SParameterMatrix S = sparam(sp)
+      ScalarSpectrum vswr = S.VSWR(1)
+      return vswr.ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "VswrBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[]
+                {
+                    new System.Numerics.Complex(0.5, 0.0),
+                    new System.Numerics.Complex(0.6, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 2e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var evaluateExpr = typeof(BenchMeasurementRunner).GetMethod(
+            "EvaluateExpr",
+            BindingFlags.NonPublic | BindingFlags.Instance
+        );
+        Assert.NotNull(evaluateExpr);
+        var locals = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["S"] = sp,
+        };
+        var vswrExpr = new MeasurementMethodCall(
+            new MeasurementPath("S"),
+            "VSWR",
+            new[] { new MeasurementCallArg(null, new MeasurementNumber("1")) }
+        );
+        var vswrSpectrum = (BenchValue)
+            evaluateExpr!.Invoke(runner, new object[] { vswrExpr, locals })!;
+        Assert.IsType<BenchScalarSpectrum>(vswrSpectrum);
+
+        var values = runner.RunMetrics(new[] { "VswrAt1G" });
+        Assert.Equal(3.0, values["VswrAt1G"].Value, precision: 9);
+        Assert.Equal("Scalar", values["VswrAt1G"].Unit);
+    }
+
+    [Fact]
+    public void SParameterMatrix_GroupDelay_ReturnsTimeSpectrum_AndValueAtIsTime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench GroupDelayBench {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz)
+  }}
+
+  measurements {{
+    measurement DelayAt1G : s {{
+      SParameterMatrix S = sparam(sp)
+      TimeSpectrum gd = S.GroupDelay(2, 1)
+      return gd.ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "GroupDelayBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(2, 1)] = new[]
+                {
+                    new System.Numerics.Complex(0.0, -1.0),
+                    new System.Numerics.Complex(-1.0, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 2e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var evaluateExpr = typeof(BenchMeasurementRunner).GetMethod(
+            "EvaluateExpr",
+            BindingFlags.NonPublic | BindingFlags.Instance
+        );
+        Assert.NotNull(evaluateExpr);
+        var locals = new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["S"] = sp,
+        };
+        var groupDelayExpr = new MeasurementMethodCall(
+            new MeasurementPath("S"),
+            "GroupDelay",
+            new[]
+            {
+                new MeasurementCallArg(null, new MeasurementNumber("2")),
+                new MeasurementCallArg(null, new MeasurementNumber("1")),
+            }
+        );
+        var groupDelaySpectrum = (BenchValue)
+            evaluateExpr!.Invoke(runner, new object[] { groupDelayExpr, locals })!;
+        Assert.IsType<BenchTimeSpectrum>(groupDelaySpectrum);
+
+        var values = runner.RunMetrics(new[] { "DelayAt1G" });
+        Assert.Equal(2.5e-10, values["DelayAt1G"].Value, precision: 15);
+        Assert.Equal("s", values["DelayAt1G"].Unit);
+    }
+
+    [Fact]
     public void SParameterMatrix_MAG_FallsBackToMSG_WhenKIsBelowOne()
     {
         var cascode =
@@ -1770,6 +1986,126 @@ bench ThreePortBench {{
                 d.Message.Contains(
                     "MSG is defined for 2-port networks only; bench declares 3 ports."
                 )
+        );
+    }
+
+    [Fact]
+    public void SParameterMatrix_UnknownMethod_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench UnknownSParamMethodBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Bogus : Scalar {{
+      SParameterMatrix S = sparam(sp)
+      return S.Bogus()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Unknown SParameterMatrix method 'Bogus'.")
+        );
+    }
+
+    [Fact]
+    public void SParameterMatrix_PortIndexOutOfRange_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PortRangeBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement OutOfRange : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Port index 2 is out of range; bench declares ports 1..1.")
+        );
+    }
+
+    [Fact]
+    public void SParameterMatrix_PortArgNotInteger_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench PortTypeBench {{
+  resp P1 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement WrongType : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1GHz).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d => d.Message.Contains("Port argument to ReturnLoss must be an integer")
         );
     }
 }

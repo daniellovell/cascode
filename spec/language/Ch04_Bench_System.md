@@ -291,6 +291,7 @@ Other instances are treated as normal structural instances in the test circuit.
 | `VAC` | `A=Voltage`, `phase=Phase` | `.P`, `.N` | Small-signal AC source (AC magnitude and phase) |
 | `VSIN` | `DC=Voltage`, `A=Voltage`, `freq=Frequency`, `phase=Phase` | `.P`, `.N` | Time-domain sinusoidal source for transient benches |
 | `Impedor` / `Impedance` | `Z=Impedance` | `.P`, `.N` | Impedance element; emits as R/C/L or a parallel combination |
+| `Port` | `N=Integer`, `Z=Impedance`, `V=Voltage` | `.P`, `.N` | S-parameter reference plane (see [Section 4.2.6](#426-port-harness-primitives-s-parameter-benches)) |
 
 Notes:
 
@@ -298,6 +299,9 @@ Notes:
   element kind.
 - An impedance value may be a numeric impedance, a numeric capacitance/inductance, or a parallel
   composite expressed with `||` (for example, `1GOhm || 15pF`).
+- `Port` declares an S-parameter reference plane with a unique sequential index `N` starting at 1,
+  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered automatically
+  by `SPAnalysis` at runtime.
 
 ### 4.3.3 Example: Differential AC Stimulus with Source/Load Impedances
 
@@ -571,7 +575,7 @@ margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/in
 
 `SParameterMatrix` exposes element accessors and derived RF metric methods. All element accessors
 return `TransferFunction` (a complex-valued function of frequency). Derived metric methods return
-`GainSpectrum`.
+typed spectra (`GainSpectrum`, `ScalarSpectrum`, or `TimeSpectrum`) based on the metric.
 
 Element access by port number follows the standard S-parameter convention: `S.S(i, j)` is the
 response at port *i* due to excitation at port *j*.
@@ -585,14 +589,14 @@ Derived metric methods:
 | Method | Result | Notes |
 |---|---|---|
 | `S.ReturnLoss(port)` | `GainSpectrum` | −20 log₁₀ \|Snn\| (positive dB for well-matched port) |
-| `S.VSWR(port)` | `GainSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
-| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\| |
-| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, conventionally the reverse path |
-| `S.StabilityK()` | `GainSpectrum` | Stability factor (2-port only) |
-| `S.MuFactor()` | `GainSpectrum` | Edwards-Sinsky μ factor (2-port only) |
-| `S.MSG()` | `GainSpectrum` | Maximum stable gain (2-port only) |
-| `S.MAG()` | `GainSpectrum` | Maximum available gain; falls back to MSG where K < 1 (2-port only) |
-| `S.GroupDelay(to, from)` | `GainSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+| `S.VSWR(port)` | `ScalarSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
+| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\|, refers to forward-path loss |
+| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, but refers to the reverse-path leakage |
+| `S.StabilityK()` | `ScalarSpectrum` | Stability factor (2-port only) |
+| `S.MuFactor()` | `ScalarSpectrum` | Edwards-Sinsky μ factor (2-port only) |
+| `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
+| `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
+| `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
 called on an `SParameterMatrix` from a bench with more than two ports.

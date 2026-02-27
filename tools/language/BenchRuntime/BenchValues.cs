@@ -64,6 +64,10 @@ public sealed record BenchGainSpectrum(
     BenchNumericKind ValueKind
 ) : BenchValue;
 
+public sealed record BenchScalarSpectrum(double[] FrequenciesHz, double[] Values) : BenchValue;
+
+public sealed record BenchTimeSpectrum(double[] FrequenciesHz, double[] ValuesS) : BenchValue;
+
 public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees) : BenchValue;
 
 public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
