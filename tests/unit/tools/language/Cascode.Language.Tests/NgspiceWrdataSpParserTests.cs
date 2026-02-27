@@ -1,7 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Numerics;
+using Cascode.Language;
 using Cascode.Language.BenchRuntime;
+using Cascode.TestSupport;
 using Xunit;
 
 namespace Cascode.Language.Tests;
@@ -80,5 +83,102 @@ public sealed class NgspiceWrdataSpParserTests
             NgspiceWrdataSpParser.Parse(path, numPorts: 2)
         );
         Assert.Contains("expected 12, got 9", ex.Message);
+    }
+
+    [Fact]
+    public void Parse_SpVectorOrder_ConsistentWithEmitterWrdataOrder()
+    {
+        const string cascode = """
+            VERSION 4.0
+
+            bench SBench {
+              resp P1 : analog
+              resp P2 : analog
+
+              fill {
+                net gnd : ground
+                GND g = new GND() { .GND--gnd }
+                Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
+                  .P--P1
+                  .N--gnd
+                }
+                Port p2 = new Port(N=2, Z=50Ohm, V=0V) {
+                  .P--P2
+                  .N--gnd
+                }
+              }
+
+              analysis {
+                SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+              }
+
+              measurements {
+                measurement Dummy : V {
+                  return 1V
+                }
+              }
+            }
+
+            circuit Top {
+              level EL
+              input P1 : analog
+              input P2 : analog
+
+              constraints {
+                numeric {
+                  c_dummy = sp::Dummy >= 0V
+                }
+              }
+
+              benches {
+                bind SBench as sp {
+                  bench.P1--dut.P1
+                  bench.P2--dut.P2
+                }
+              }
+
+              fill { }
+            }
+            """;
+
+        var parsed = CascodeReader.TryParse(cascode, "sp_order_contract.cas");
+        Assert.True(parsed.Success, parsed.Diagnostics.ToString());
+        var doc = parsed.Document!;
+
+        using var tmpDir = new TemporaryDirectory();
+        var designPath = Path.Combine(tmpDir.Path, "Top.sp");
+        File.WriteAllText(designPath, "* dummy design deck");
+        BenchTestbenchEmitter.EmitAll(
+            doc,
+            tmpDir.Path,
+            Cascode.Bench.BenchBackendType.Ngspice,
+            designPaths: new[] { designPath }
+        );
+
+        var tbPath = Path.Combine(tmpDir.Path, "Top_sp.sp");
+        Assert.True(File.Exists(tbPath), "Expected SP testbench to be written.");
+        var wrdataLine = File.ReadAllLines(tbPath)
+            .Single(line =>
+                line.Contains("wrdata", StringComparison.OrdinalIgnoreCase)
+                && line.Contains("S_1_1", StringComparison.OrdinalIgnoreCase)
+            );
+
+        var s11 = wrdataLine.IndexOf("S_1_1", StringComparison.OrdinalIgnoreCase);
+        var s12 = wrdataLine.IndexOf("S_1_2", StringComparison.OrdinalIgnoreCase);
+        var s21 = wrdataLine.IndexOf("S_2_1", StringComparison.OrdinalIgnoreCase);
+        var s22 = wrdataLine.IndexOf("S_2_2", StringComparison.OrdinalIgnoreCase);
+        Assert.True(s11 >= 0 && s12 > s11 && s21 > s12 && s22 > s21);
+
+        var wrdataPath = Path.Combine(tmpDir.Path, "sp.wrdata");
+        File.WriteAllText(
+            wrdataPath,
+            "1.00000000e+09  1.10000000e+01  -1.10000000e+01  1.00000000e+09  1.20000000e+01  -1.20000000e+01  1.00000000e+09  2.10000000e+01  -2.10000000e+01  1.00000000e+09  2.20000000e+01  -2.20000000e+01"
+        );
+        var ds = NgspiceWrdataSpParser.Parse(wrdataPath, numPorts: 2);
+
+        Assert.Equal(new Complex(11.0, -11.0), ds.Elements[new BenchPortPair(1, 1)][0]);
+        Assert.Equal(new Complex(12.0, -12.0), ds.Elements[new BenchPortPair(1, 2)][0]);
+        Assert.Equal(new Complex(21.0, -21.0), ds.Elements[new BenchPortPair(2, 1)][0]);
+        Assert.Equal(new Complex(22.0, -22.0), ds.Elements[new BenchPortPair(2, 2)][0]);
     }
 }
