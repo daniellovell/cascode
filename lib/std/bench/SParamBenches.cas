@@ -60,7 +60,7 @@ bench TwoPortSParam {
 
     measurement StabilityK(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
-      return S.RollettK().ValueAt(f)
+      return S.StabilityK().ValueAt(f)
     }
 
     measurement ForwardGroupDelay(Frequency f) : dB {
