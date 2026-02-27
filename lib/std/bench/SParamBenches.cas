@@ -53,17 +53,22 @@ bench TwoPortSParam {
       return S.Isolation(1, 2).ValueAt(f)
     }
 
-    measurement InputVSWR(Frequency f) : dB {
+    measurement InputVSWR(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.VSWR(1).ValueAt(f)
     }
 
-    measurement StabilityK(Frequency f) : dB {
+    measurement StabilityK(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.StabilityK().ValueAt(f)
     }
 
-    measurement ForwardGroupDelay(Frequency f) : dB {
+    measurement MaxAvailableGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.MAG()).ValueAt(f)
+    }
+
+    measurement ForwardGroupDelay(Frequency f) : s {
       SParameterMatrix S = sparam(sp)
       return S.GroupDelay(2, 1).ValueAt(f)
     }
