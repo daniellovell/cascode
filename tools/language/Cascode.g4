@@ -573,6 +573,11 @@ signedQuantity
     : MINUS? QUANTITY
     ;
 
+signedThreshold
+    : signedQuantity
+    | MINUS? NUMBER
+    ;
+
 constraintSection
     : NUMERIC_KW LBRACE numericConstraint* RBRACE                   # NumericSection
     | TECH_KW LBRACE techConstraint* RBRACE                         # TechSection
@@ -582,7 +587,7 @@ constraintSection
 
 // id = Bench(args)::Metric(args) at Node >= ValueUnit
 numericConstraint
-    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedQuantity
+    : IDENT EQ benchMetricRef (AT_KW nodeRef)? COMPARISON_OP signedThreshold
     ;
 
 benchMetricRef
@@ -601,7 +606,7 @@ nodeScope
 
 // id : Param >= ValueUnit on Scope
 techConstraint
-    : IDENT COLON IDENT COMPARISON_OP signedQuantity ON_KW techConstraintScope
+    : IDENT COLON IDENT COMPARISON_OP signedThreshold ON_KW techConstraintScope
     ;
 
 techConstraintScope

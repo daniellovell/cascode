@@ -87,8 +87,8 @@ internal sealed partial class CascodeAstBuilder
 
         var node = ctx.nodeRef() != null ? BuildNodeRef(ctx.nodeRef()) : null;
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.signedQuantity().GetText();
-        var (value, unit) = ParseQuantity(quantity);
+        var threshold = ParseThreshold(ctx.signedThreshold());
+        var (value, unit) = ParseQuantity(threshold);
 
         // Compute the bench instance name from BenchBase + BenchArgs.
         var bench =
@@ -140,8 +140,8 @@ internal sealed partial class CascodeAstBuilder
         var param = ctx.IDENT(1).GetText();
         var scope = ctx.techConstraintScope().GetText();
         var op = ctx.COMPARISON_OP().GetText();
-        var quantity = ctx.signedQuantity().GetText();
-        var (value, unit) = ParseQuantity(quantity);
+        var threshold = ParseThreshold(ctx.signedThreshold());
+        var (value, unit) = ParseQuantity(threshold);
 
         return new TechConstraint
         {
@@ -468,6 +468,14 @@ internal sealed partial class CascodeAstBuilder
         }
 
         return provenance;
+    }
+
+    /// <summary>Splits a quantity string into numeric value and unit.</summary>
+    /// <param name="quantity">Quantity text such as "1.8V".</param>
+    /// <returns>Tuple of numeric value and unit.</returns>
+    private static string ParseThreshold(CascodeParser.SignedThresholdContext threshold)
+    {
+        return threshold.signedQuantity()?.GetText() ?? threshold.GetText();
     }
 
     /// <summary>Splits a quantity string into numeric value and unit.</summary>
