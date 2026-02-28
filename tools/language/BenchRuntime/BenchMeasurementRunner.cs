@@ -40,6 +40,7 @@ public sealed class BenchMeasurementRunner
     /// <param name="Tran">Transient analysis dataset when available.</param>
     /// <param name="TranCurrents">Transient current dataset when available.</param>
     /// <param name="AcCurrents">AC current dataset when available.</param>
+    /// <param name="SParameters">S-parameter dataset when available.</param>
     /// <param name="Op">DC operating-point node voltages keyed by node name.</param>
     public sealed record AnalysisContext(
         string Name,
@@ -52,6 +53,7 @@ public sealed class BenchMeasurementRunner
         TranDataset? Tran = null,
         TranDataset? TranCurrents = null,
         AcDataset? AcCurrents = null,
+        BenchSParameterMatrix? SParameters = null,
         IReadOnlyDictionary<string, double>? Op = null
     );
 
@@ -568,6 +570,8 @@ public sealed class BenchMeasurementRunner
                 return EvalVoltage(call, locals);
             case "current":
                 return EvalCurrent(call, locals);
+            case "sparam":
+                return EvalSParam(call, locals);
             case "db20":
                 return EvalDb20(call, locals);
             case "db10":
@@ -675,6 +679,93 @@ public sealed class BenchMeasurementRunner
             }
         }
 
+        if (recv is BenchSParameterMatrix sm)
+        {
+            if (call.Method.Equals("S", StringComparison.OrdinalIgnoreCase))
+            {
+                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "S");
+                return BuildTransferFunction(sm, new BenchPortPair(toPort, fromPort), "S");
+            }
+
+            if (call.Method.Equals("ReturnLoss", StringComparison.OrdinalIgnoreCase))
+            {
+                var (port, _) = RequireSinglePortArg(call, locals, "ReturnLoss");
+                var transfer = BuildTransferFunction(
+                    sm,
+                    new BenchPortPair(port, port),
+                    "ReturnLoss"
+                );
+                return ToNegativeDbSpectrum(transfer);
+            }
+
+            if (call.Method.Equals("VSWR", StringComparison.OrdinalIgnoreCase))
+            {
+                var (port, _) = RequireSinglePortArg(call, locals, "VSWR");
+                var transfer = BuildTransferFunction(sm, new BenchPortPair(port, port), "VSWR");
+                var values = transfer
+                    .Values.Select(v =>
+                    {
+                        var gamma = v.Magnitude;
+                        return gamma >= 1.0
+                            ? double.PositiveInfinity
+                            : (1.0 + gamma) / (1.0 - gamma);
+                    })
+                    .ToArray();
+                return new BenchScalarSpectrum(transfer.FrequenciesHz, values);
+            }
+
+            if (
+                call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
+            )
+            {
+                var (toPort, fromPort) = RequirePortPairArgs(
+                    call,
+                    locals,
+                    call.Method.Equals("InsertionLoss", StringComparison.OrdinalIgnoreCase)
+                        ? "InsertionLoss"
+                        : "Isolation"
+                );
+                var transfer = BuildTransferFunction(
+                    sm,
+                    new BenchPortPair(toPort, fromPort),
+                    call.Method
+                );
+                return ToNegativeDbSpectrum(transfer);
+            }
+
+            if (call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildStabilityKSpectrum(sm);
+            }
+
+            if (call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildMuSpectrum(sm);
+            }
+
+            if (call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildMsgSpectrum(sm);
+            }
+
+            if (call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase))
+            {
+                return BuildMagSpectrum(sm);
+            }
+
+            if (call.Method.Equals("GroupDelay", StringComparison.OrdinalIgnoreCase))
+            {
+                var (toPort, fromPort) = RequirePortPairArgs(call, locals, "GroupDelay");
+                var transfer = BuildTransferFunction(
+                    sm,
+                    new BenchPortPair(toPort, fromPort),
+                    "GroupDelay"
+                );
+                return BuildGroupDelaySpectrum(transfer);
+            }
+        }
+
         // TransferFunction methods
         if (recv is BenchTransferFunction tf)
         {
@@ -769,6 +860,119 @@ public sealed class BenchMeasurementRunner
                     throw new InvalidOperationException("GainSpectrum.Min takes no arguments.");
                 }
                 return new BenchNumber(g.ValueKind, g.Values.Min());
+            }
+        }
+
+        // ScalarSpectrum methods
+        if (recv is BenchScalarSpectrum ss)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "ScalarSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(ss.FrequenciesHz, ss.Values, f.Value);
+                return new BenchNumber(BenchNumericKind.Scalar, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "ScalarSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (threshold.Kind != BenchNumericKind.Scalar)
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match ScalarSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? ss.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? ss.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    ss.FrequenciesHz,
+                    ss.Values,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+        }
+
+        // TimeSpectrum methods
+        if (recv is BenchTimeSpectrum ts)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "TimeSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(ts.FrequenciesHz, ts.ValuesS, f.Value);
+                return new BenchNumber(BenchNumericKind.TimeS, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "TimeSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.TimeS
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match TimeSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? ts.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? ts.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    ts.FrequenciesHz,
+                    ts.ValuesS,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
             }
         }
 
@@ -1449,6 +1653,29 @@ public sealed class BenchMeasurementRunner
         }
 
         throw new InvalidOperationException($"current: missing current for '{sourceName}'.");
+    }
+
+    private BenchValue EvalSParam(MeasurementCall call, Dictionary<string, BenchValue> locals)
+    {
+        if (call.Args.Count != 1)
+        {
+            throw new InvalidOperationException("sparam requires (sp_analysis).");
+        }
+
+        var analysisName = ResolveAnalysisName(call.Args[0].Value, locals);
+        if (!_analyses.TryGetValue(analysisName, out var analysis))
+        {
+            throw new InvalidOperationException($"sparam: unknown analysis '{analysisName}'.");
+        }
+
+        if (analysis.SParameters is null)
+        {
+            throw new InvalidOperationException(
+                $"sparam: analysis '{analysisName}' has no S-parameter dataset."
+            );
+        }
+
+        return analysis.SParameters;
     }
 
     private bool TryResolveHarnessPin(string raw, out BenchElementPinRef pin)
@@ -2389,6 +2616,210 @@ public sealed class BenchMeasurementRunner
         }
 
         return new BenchImpedanceParallel(scaled);
+    }
+
+    private (int ToPort, int FromPort) RequirePortPairArgs(
+        MeasurementMethodCall call,
+        Dictionary<string, BenchValue> locals,
+        string methodName
+    )
+    {
+        if (call.Args.Count != 2)
+        {
+            throw new InvalidOperationException($"{methodName} requires (to, from).");
+        }
+
+        var to = RequirePortIndex(EvaluateExpr(call.Args[0].Value, locals), $"{methodName}.to");
+        var from = RequirePortIndex(EvaluateExpr(call.Args[1].Value, locals), $"{methodName}.from");
+        return (to, from);
+    }
+
+    private (int Port, int _) RequireSinglePortArg(
+        MeasurementMethodCall call,
+        Dictionary<string, BenchValue> locals,
+        string methodName
+    )
+    {
+        if (call.Args.Count != 1)
+        {
+            throw new InvalidOperationException($"{methodName} requires (port).");
+        }
+
+        var port = RequirePortIndex(EvaluateExpr(call.Args[0].Value, locals), $"{methodName}.port");
+        return (port, 0);
+    }
+
+    private static int RequirePortIndex(BenchValue value, string context)
+    {
+        var n = RequireNumber(value, context);
+        var rounded = Math.Round(n.Value);
+        if (
+            n.Kind != BenchNumericKind.Scalar
+            || !double.IsFinite(n.Value)
+            || Math.Abs(n.Value - rounded) > 1e-9
+            || rounded < 1
+            || rounded > int.MaxValue
+        )
+        {
+            throw new InvalidOperationException(
+                $"{context}: expected positive integer port index."
+            );
+        }
+
+        return (int)rounded;
+    }
+
+    private static BenchTransferFunction BuildTransferFunction(
+        BenchSParameterMatrix sm,
+        BenchPortPair pair,
+        string accessor
+    )
+    {
+        if (!sm.Elements.TryGetValue(pair, out var values))
+        {
+            throw new InvalidOperationException(
+                $"{accessor}: missing S-parameter element S({pair.ToPort}, {pair.FromPort})."
+            );
+        }
+
+        return new BenchTransferFunction(sm.FrequenciesHz, values);
+    }
+
+    private static Complex[] GetElement(BenchSParameterMatrix sm, int to, int from, string accessor)
+    {
+        if (!sm.Elements.TryGetValue(new BenchPortPair(to, from), out var values))
+        {
+            throw new InvalidOperationException(
+                $"{accessor}: missing S-parameter element S({to}, {from})."
+            );
+        }
+
+        return values;
+    }
+
+    private static BenchGainSpectrum ToNegativeDbSpectrum(BenchTransferFunction tf)
+    {
+        var values = tf.Values.Select(v => -ToDb20(v.Magnitude)).ToArray();
+        return new BenchGainSpectrum(tf.FrequenciesHz, values, BenchNumericKind.VoltageRatioDb);
+    }
+
+    private static BenchScalarSpectrum BuildStabilityKSpectrum(BenchSParameterMatrix sm)
+    {
+        var s11 = GetElement(sm, 1, 1, "K");
+        var s12 = GetElement(sm, 1, 2, "K");
+        var s21 = GetElement(sm, 2, 1, "K");
+        var s22 = GetElement(sm, 2, 2, "K");
+
+        var values = new double[sm.FrequenciesHz.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            var delta = s11[i] * s22[i] - s12[i] * s21[i];
+            var numerator =
+                1.0
+                - Math.Pow(s11[i].Magnitude, 2)
+                - Math.Pow(s22[i].Magnitude, 2)
+                + Math.Pow(delta.Magnitude, 2);
+            var denominator = 2.0 * s12[i].Magnitude * s21[i].Magnitude;
+            values[i] = denominator == 0.0 ? double.PositiveInfinity : numerator / denominator;
+        }
+
+        return new BenchScalarSpectrum(sm.FrequenciesHz, values);
+    }
+
+    private static BenchScalarSpectrum BuildMuSpectrum(BenchSParameterMatrix sm)
+    {
+        var s11 = GetElement(sm, 1, 1, "MuFactor");
+        var s12 = GetElement(sm, 1, 2, "MuFactor");
+        var s21 = GetElement(sm, 2, 1, "MuFactor");
+        var s22 = GetElement(sm, 2, 2, "MuFactor");
+
+        var values = new double[sm.FrequenciesHz.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            var delta = s11[i] * s22[i] - s12[i] * s21[i];
+            var numerator = 1.0 - Math.Pow(s11[i].Magnitude, 2);
+            var denominator =
+                (s22[i] - delta * Complex.Conjugate(s11[i])).Magnitude
+                + (s12[i] * s21[i]).Magnitude;
+            values[i] = denominator == 0.0 ? double.PositiveInfinity : numerator / denominator;
+        }
+
+        return new BenchScalarSpectrum(sm.FrequenciesHz, values);
+    }
+
+    private static BenchGainSpectrum BuildMsgSpectrum(BenchSParameterMatrix sm)
+    {
+        var s12 = GetElement(sm, 1, 2, "MSG");
+        var s21 = GetElement(sm, 2, 1, "MSG");
+        var values = new double[sm.FrequenciesHz.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] =
+                s12[i].Magnitude == 0.0
+                    ? double.PositiveInfinity
+                    : s21[i].Magnitude / s12[i].Magnitude;
+        }
+
+        return new BenchGainSpectrum(sm.FrequenciesHz, values, BenchNumericKind.VoltageRatioLinear);
+    }
+
+    private static BenchGainSpectrum BuildMagSpectrum(BenchSParameterMatrix sm)
+    {
+        var msg = BuildMsgSpectrum(sm).Values;
+        var k = BuildStabilityKSpectrum(sm).Values;
+        var values = new double[sm.FrequenciesHz.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (k[i] < 1.0)
+            {
+                values[i] = msg[i];
+                continue;
+            }
+
+            var root = Math.Sqrt(Math.Max(0.0, (k[i] * k[i]) - 1.0));
+            values[i] = msg[i] * (k[i] - root);
+        }
+
+        return new BenchGainSpectrum(sm.FrequenciesHz, values, BenchNumericKind.VoltageRatioLinear);
+    }
+
+    private static BenchTimeSpectrum BuildGroupDelaySpectrum(BenchTransferFunction tf)
+    {
+        if (tf.FrequenciesHz.Length < 2)
+        {
+            return new BenchTimeSpectrum(
+                tf.FrequenciesHz,
+                Enumerable.Repeat(0.0, tf.FrequenciesHz.Length).ToArray()
+            );
+        }
+
+        var phases = BuildUnwrappedPhases(tf.Values, nearZeroMagnitudeThreshold: 1e-12);
+        var omega = tf.FrequenciesHz.Select(f => 2.0 * Math.PI * f).ToArray();
+        var values = new double[tf.FrequenciesHz.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            if (i == 0)
+            {
+                values[i] = -(phases[1] - phases[0]) / (omega[1] - omega[0]);
+                continue;
+            }
+
+            if (i == values.Length - 1)
+            {
+                values[i] = -(phases[i] - phases[i - 1]) / (omega[i] - omega[i - 1]);
+                continue;
+            }
+
+            values[i] = -(phases[i + 1] - phases[i - 1]) / (omega[i + 1] - omega[i - 1]);
+        }
+
+        return new BenchTimeSpectrum(tf.FrequenciesHz, values);
+    }
+
+    private static double ToDb20(double v)
+    {
+        const double MinMag = 1e-15;
+        return 20.0 * Math.Log10(Math.Max(v, MinMag));
     }
 
     private static double InterpolateLogX(double[] xs, double[] ys, double x)

@@ -55,7 +55,9 @@ public enum BenchValueType
     VoltageRatio,
     TransferFunction,
     GainSpectrum,
+    ScalarSpectrum,
     PhaseSpectrum,
+    TimeSpectrum,
     ComplexVoltageSpectrum,
     ComplexCurrentSpectrum,
     VoltageSpectrum,
@@ -71,6 +73,7 @@ public enum BenchValueType
     Time,
     Phase,
     Scalar,
+    SParameterMatrix,
 
     // Time-domain compound types
     VoltageWaveform,
@@ -85,6 +88,7 @@ public enum BenchValueType
     TranAnalysis,
     NoiseAnalysis,
     STBAnalysis,
+    SPAnalysis,
 }
 
 public sealed record TypedParameter(BenchValueType Type, string Name);

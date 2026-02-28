@@ -43,18 +43,18 @@ internal static class BenchAnalysisCompiler
                 }
             }
 
-            if (a.Type == BenchValueType.ACAnalysis)
+            if (a.Type == BenchValueType.ACAnalysis || a.Type == BenchValueType.SPAnalysis)
             {
                 if (!a.Parameters.TryGetValue("start", out var startExpr))
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' missing required parameter 'start'."
+                        $"{a.Type} '{a.Name}' missing required parameter 'start'."
                     );
                 }
                 if (!a.Parameters.TryGetValue("stop", out var stopExpr))
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' missing required parameter 'stop'."
+                        $"{a.Type} '{a.Name}' missing required parameter 'stop'."
                     );
                 }
 
@@ -65,19 +65,22 @@ internal static class BenchAnalysisCompiler
                 if (startV is null)
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' start did not evaluate to a number."
+                        $"{a.Type} '{a.Name}' start did not evaluate to a number."
                     );
                 }
                 if (stopV is null)
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' stop did not evaluate to a number."
+                        $"{a.Type} '{a.Name}' stop did not evaluate to a number."
                     );
                 }
-                if (startV.Kind != BenchNumericKind.FrequencyHz)
+                if (
+                    startV.Kind != BenchNumericKind.FrequencyHz
+                    || stopV.Kind != BenchNumericKind.FrequencyHz
+                )
                 {
                     throw new InvalidOperationException(
-                        $"ACAnalysis '{a.Name}' start/stop must be Frequency values."
+                        $"{a.Type} '{a.Name}' start/stop must be Frequency values."
                     );
                 }
 
@@ -136,7 +139,10 @@ internal static class BenchAnalysisCompiler
                     ?? throw new InvalidOperationException(
                         $"NoiseAnalysis '{a.Name}' output did not evaluate to a terminal."
                     );
-                if (startV.Kind != BenchNumericKind.FrequencyHz)
+                if (
+                    startV.Kind != BenchNumericKind.FrequencyHz
+                    || stopV.Kind != BenchNumericKind.FrequencyHz
+                )
                 {
                     throw new InvalidOperationException(
                         $"NoiseAnalysis '{a.Name}' start/stop must be Frequency values."
@@ -175,23 +181,16 @@ internal static class BenchAnalysisCompiler
                     ? evalRunner.EvaluateExpressionForPlan(stepExpr, benchParams) as BenchNumber
                     : null;
 
-                if (stopV is null)
-                {
-                    throw new InvalidOperationException(
-                        $"TranAnalysis '{a.Name}' stop did not evaluate to a number."
-                    );
-                }
-
-                if (stopV.Kind != BenchNumericKind.TimeS)
-                {
-                    throw new InvalidOperationException(
-                        $"TranAnalysis '{a.Name}' stop must be a Time value."
-                    );
-                }
                 if (startV is null || startV.Kind != BenchNumericKind.TimeS)
                 {
                     throw new InvalidOperationException(
                         $"TranAnalysis '{a.Name}' start must be a Time value."
+                    );
+                }
+                if (stopV is null || stopV.Kind != BenchNumericKind.TimeS)
+                {
+                    throw new InvalidOperationException(
+                        $"TranAnalysis '{a.Name}' stop must be a Time value."
                     );
                 }
 

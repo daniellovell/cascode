@@ -186,7 +186,7 @@ S.MAG() → GainSpectrum
 ```
 
 `MAG` uses the standard two-port expression and falls back to `MSG` where `K < 1`.
-The output is given in dB.
+The output is given in linear units.
 
 ### 4.5 Group Delay
 
@@ -266,7 +266,12 @@ bench TwoPortSParam {
       return S.StabilityK().ValueAt(f)
     }
 
-    measurement ForwardGroupDelay(Frequency f) : Time {
+    measurement MaxAvailableGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.MAG()).ValueAt(f)
+    }
+
+    measurement ForwardGroupDelay(Frequency f) : s {
       SParameterMatrix S = sparam(sp)
       return S.GroupDelay(2, 1).ValueAt(f)
     }

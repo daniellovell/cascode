@@ -20,7 +20,7 @@ A `bench` block contains:
 1. Terminal declarations (`stim` / `resp`) that define the bench’s external connection points.
 2. A `fill {}` block that constructs the test circuit (instruments, sources, loads, probes).
 3. Optional helper `function` declarations (file-level or bench-local).
-4. An `analysis {}` block declaring analyses (AC, DC, transient, noise, stability).
+4. An `analysis {}` block declaring analyses (AC, DC, transient, noise, stability, S-parameter).
 5. A `measurements {}` block defining typed measurement outputs.
 
 Bench declarations typically live in libraries (for example, [`lib/std/bench/*.cas`](../../lib/std/bench/)). A circuit or
@@ -226,6 +226,23 @@ bench DiffToDiffTransfer {
 For bundle types with more than two leaves, benches should reference the desired leaves explicitly
 (for example, `OUT.P`).
 
+### 4.2.6 Port harness primitives (S-parameter benches)
+
+S-parameter reference planes are modeled as harness primitive instances in `fill {}` (or in bench
+binding `bind {}` composition), not as a terminal role. A port instance declares a positive
+integer index `N`, a reference impedance `Z`, and a DC bias source value `V`:
+
+```cascode
+Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
+  .P--P1
+  .N--gnd
+}
+```
+
+`Port` is single-ended by definition. Port numbers must be unique and sequential starting at 1.
+The index order in `S.S(i, j)` follows standard convention: response index first, excitation index
+second.
+
 ---
 
 ## 4.3 Fill Blocks (Test Circuit Construction)
@@ -274,6 +291,7 @@ Other instances are treated as normal structural instances in the test circuit.
 | `VAC` | `A=Voltage`, `phase=Phase` | `.P`, `.N` | Small-signal AC source (AC magnitude and phase) |
 | `VSIN` | `DC=Voltage`, `A=Voltage`, `freq=Frequency`, `phase=Phase` | `.P`, `.N` | Time-domain sinusoidal source for transient benches |
 | `Impedor` / `Impedance` | `Z=Impedance` | `.P`, `.N` | Impedance element; emits as R/C/L or a parallel combination |
+| `Port` | `N=Integer`, `Z=Impedance`, `V=Voltage` | `.P`, `.N` | S-parameter reference plane (see [Section 4.2.6](#426-port-harness-primitives-s-parameter-benches)) |
 
 Notes:
 
@@ -281,6 +299,9 @@ Notes:
   element kind.
 - An impedance value may be a numeric impedance, a numeric capacitance/inductance, or a parallel
   composite expressed with `||` (for example, `1GOhm || 15pF`).
+- `Port` declares an S-parameter reference plane with a unique sequential index `N` starting at 1,
+  a reference impedance `Z`, and a DC bias voltage `V`. Port instances are discovered automatically
+  by `SPAnalysis` at runtime.
 
 ### 4.3.3 Example: Differential AC Stimulus with Source/Load Impedances
 
@@ -335,6 +356,7 @@ The current grammar defines the following analysis types:
 | `TranAnalysis` | Time-domain transient simulation |
 | `NoiseAnalysis` | Noise analysis driven by an input source (see [Section 4.4.3](#443-noise-analysis-contract)) |
 | `STBAnalysis` | Stability analysis (backend-dependent) |
+| `SPAnalysis` | S-parameter analysis over a frequency sweep (see [Section 4.4.4](#444-s-parameter-analysis-contract)) |
 
 Each analysis type has its own constructor parameters. Parameters are expressions, and may reference
 `env`, `constraints`, and bench parameters. The analysis parameter value syntax also supports an
@@ -374,6 +396,31 @@ noise by dividing the output noise density by the transfer magnitude:
 ```cascode
 NoiseSpectrum n_in = input_referred_noise(noise_ac, ac, IN, OUT)
 ```
+
+### 4.4.4 S-parameter analysis contract
+
+`SPAnalysis` requests a multiport S-parameter sweep over frequency. It accepts the same
+frequency-sweep parameters as `ACAnalysis` (`start`, `stop`, `space`, `samples`) and operates on
+all `Port` instances declared in the bench. There is no explicit parameter linking the analysis to
+specific ports; the runtime discovers all port instances and configures the simulation
+accordingly.
+
+```cascode
+analysis {
+  SPAnalysis sp = new SPAnalysis(space=Log, samples=200, start=100MHz, stop=10GHz)
+}
+```
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `start` | `Frequency` | yes | — | Start frequency of the sweep |
+| `stop` | `Frequency` | yes | — | Stop frequency of the sweep |
+| `space` | `Log` or `Lin` | no | `Log` | Frequency spacing |
+| `samples` | integer | no | 100 | Number of frequency points |
+
+The bench fill block provides DC bias, coupling networks, and any other circuit elements required
+for the operating point. The fill block does not need to provide port excitation sources or
+termination impedances — `SPAnalysis` handles those based on the port declarations.
 
 ---
 
@@ -470,6 +517,7 @@ Common structured result types produced by measurement primitives:
 | `ComplexCurrentSpectrum` | `current(ac, harness_pin)` | Complex current vs frequency (A) |
 | `VoltageWaveform` | `voltage(tran, node)` | Voltage vs time (V) |
 | `CurrentWaveform` | `current(tran, harness_pin)` | Current vs time (A) |
+| `SParameterMatrix` | `sparam(sp_analysis)` | Frequency-indexed matrix of complex S-parameters |
 
 ---
 
@@ -487,6 +535,7 @@ commonly used primitives in the standard library.
 | `current(analysis, element_pin)` | `ComplexCurrentSpectrum` or `CurrentWaveform` | Reads current through a harness-injected source pin |
 | `noise(noise_analysis, terminal)` | `NoiseSpectrum` | Output noise spectral density for the analysis output |
 | `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` | `NoiseSpectrum` | Divides output noise density by |transfer| |
+| `sparam(sp_analysis)` | `SParameterMatrix` | Extracts the full S-parameter matrix from a completed `SPAnalysis` |
 | `db20(GainSpectrum)` | `GainSpectrum` | 20·log10(magnitude) |
 | `db10(GainSpectrum)` | `GainSpectrum` | 10·log10(magnitude) |
 | `quiescent_power(PWR, RET)` | `W` | Computes DC rail power from the applied supply source |
@@ -521,6 +570,59 @@ spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sample
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).
+
+### 4.7.3 S-Parameter Matrix Methods
+
+`SParameterMatrix` exposes element accessors and derived RF metric methods. All element accessors
+return `TransferFunction` (a complex-valued function of frequency). Derived metric methods return
+typed spectra (`GainSpectrum`, `ScalarSpectrum`, or `TimeSpectrum`) based on the metric.
+
+Element access by port number follows the standard S-parameter convention: `S.S(i, j)` is the
+response at port *i* due to excitation at port *j*.
+
+| Method | Result | Notes |
+|---|---|---|
+| `S.S(i, j)` | `TransferFunction` | Raw S-parameter element Sij |
+
+Derived metric methods:
+
+| Method | Result | Notes |
+|---|---|---|
+| `S.ReturnLoss(port)` | `GainSpectrum` | −20 log₁₀ \|Snn\| (positive dB for well-matched port) |
+| `S.VSWR(port)` | `ScalarSpectrum` | (1 + \|Γ\|) / (1 − \|Γ\|) where Γ = Snn |
+| `S.InsertionLoss(to, from)` | `GainSpectrum` | −20 log₁₀ \|Sij\|, refers to forward-path loss |
+| `S.Isolation(to, from)` | `GainSpectrum` | Same formula as insertion loss, but refers to the reverse-path leakage |
+| `S.StabilityK()` | `ScalarSpectrum` | Stability factor (2-port only) |
+| `S.MuFactor()` | `ScalarSpectrum` | Edwards-Sinsky μ factor (2-port only) |
+| `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
+| `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
+| `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
+
+The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
+called on an `SParameterMatrix` from a bench with more than two ports.
+
+Example usage:
+
+```cascode
+measurements {
+  measurement ForwardGain(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return db20(S.S(2, 1).Mag()).ValueAt(f)
+  }
+
+  measurement InputReturnLoss(Frequency f) : dB {
+    SParameterMatrix S = sparam(sp)
+    return S.ReturnLoss(1).ValueAt(f)
+  }
+
+  measurement StabilityK(Frequency f) : Scalar {
+    SParameterMatrix S = sparam(sp)
+    return S.StabilityK().ValueAt(f)
+  }
+}
+```
+
+---
 
 ## 4.8 Bench Binding and Constraint References
 

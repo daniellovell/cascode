@@ -671,6 +671,7 @@ internal sealed partial class CascodeAstBuilder
         {
             "stim" => BenchValueType.Terminal,
             "resp" => BenchValueType.Terminal,
+            "port" => BenchValueType.Terminal,
             _ => throw new InvalidOperationException(
                 $"Unknown typed parameter type: {ctx.GetText()}"
             ),
@@ -685,7 +686,9 @@ internal sealed partial class CascodeAstBuilder
             "VoltageRatio" => BenchValueType.VoltageRatio,
             "TransferFunction" => BenchValueType.TransferFunction,
             "GainSpectrum" => BenchValueType.GainSpectrum,
+            "ScalarSpectrum" => BenchValueType.ScalarSpectrum,
             "PhaseSpectrum" => BenchValueType.PhaseSpectrum,
+            "TimeSpectrum" => BenchValueType.TimeSpectrum,
             "ComplexVoltageSpectrum" => BenchValueType.ComplexVoltageSpectrum,
             "ComplexCurrentSpectrum" => BenchValueType.ComplexCurrentSpectrum,
             "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
@@ -704,6 +707,7 @@ internal sealed partial class CascodeAstBuilder
             "Time" => BenchValueType.Time,
             "Phase" => BenchValueType.Phase,
             "Scalar" => BenchValueType.Scalar,
+            "SParameterMatrix" => BenchValueType.SParameterMatrix,
             _ => throw new InvalidOperationException($"Unknown physical type: {ctx.GetText()}"),
         };
     }
@@ -717,6 +721,7 @@ internal sealed partial class CascodeAstBuilder
             "TranAnalysis" => BenchValueType.TranAnalysis,
             "NoiseAnalysis" => BenchValueType.NoiseAnalysis,
             "STBAnalysis" => BenchValueType.STBAnalysis,
+            "SPAnalysis" => BenchValueType.SPAnalysis,
             _ => throw new InvalidOperationException($"Unknown analysis type: {ctx.GetText()}"),
         };
     }

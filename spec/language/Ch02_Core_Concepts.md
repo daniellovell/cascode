@@ -618,22 +618,26 @@ analysis products) rather than being generic numeric arrays.
 | `Inductance` | `10nH` |
 | `Scalar` | `0.5`, `2` |
 
-Common structured types include `TransferFunction`, `GainSpectrum`, `PhaseSpectrum`, `NoiseSpectrum`,
-`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`,
-`VoltageWaveform`, and `CurrentWaveform`.
+Common structured types include `TransferFunction`, `GainSpectrum`, `ScalarSpectrum`,
+`PhaseSpectrum`, `TimeSpectrum`, `NoiseSpectrum`, `ComplexVoltageSpectrum`,
+`ComplexCurrentSpectrum`, `VoltageSpectrum`, `CurrentSpectrum`, `VoltageWaveform`,
+`CurrentWaveform`, and `SParameterMatrix`.
 
 ### Structured types
 
 | Type | How it is commonly produced |
 |------|------------------------------|
-| `TransferFunction` | `transfer(ac, stim, resp)` |
-| `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)` |
+| `TransferFunction` | `transfer(ac, stim, resp)`, `S.S(i, j)` |
+| `GainSpectrum` | `H.Mag()`, `db20(...)`, `db10(...)`, `S.ReturnLoss(port)` |
+| `ScalarSpectrum` | `S.VSWR(port)`, `S.StabilityK()`, `S.MuFactor()` |
 | `PhaseSpectrum` | `H.Phase()` |
+| `TimeSpectrum` | `S.GroupDelay(to, from)` |
 | `NoiseSpectrum` | `noise(noise_analysis, OUT)` and `input_referred_noise(...)` |
 | `ComplexVoltageSpectrum` | `voltage(ac, OUT)` |
 | `ComplexCurrentSpectrum` | `current(ac, harness.VDD.P)` |
 | `VoltageWaveform` | `voltage(tran, OUT)` |
 | `CurrentWaveform` | `current(tran, harness.VDD.P)` |
+| `SParameterMatrix` | `sparam(sp)` |
 
 ### Common built-ins and methods
 
@@ -644,6 +648,7 @@ Built-in constructors and conversions commonly used in the standard library incl
 - `input_referred_noise(noise_analysis, ac_analysis, stim, resp)` → `NoiseSpectrum`
 - `voltage(analysis, terminal)` → `ComplexVoltageSpectrum` or `VoltageWaveform`
 - `current(analysis, harness_pin)` → `ComplexCurrentSpectrum` or `CurrentWaveform`
+- `sparam(sp_analysis)` → `SParameterMatrix`
 - `db20(GainSpectrum)` / `db10(GainSpectrum)` → `GainSpectrum` in dB
 - `quiescent_power(PWR, RET)` → rail power (for power benches)
 
@@ -652,6 +657,8 @@ Common post-processing methods:
 - `H.Mag()` and `H.Phase()` on `TransferFunction`
 - `S.ValueAt(x)` and `S.FindCrossing(...)` on spectra
 - `N.Integrate(from, to)` on `NoiseSpectrum` (returns integrated RMS noise)
+- `S.S(i, j)` and other element accessors on `SParameterMatrix`
+- `S.ReturnLoss(port)`, `S.VSWR(port)`, `S.StabilityK()`, and other derived metrics on `SParameterMatrix`
 
 For `ComplexVoltageSpectrum` and `ComplexCurrentSpectrum`, `ValueAt(x)` produces a complex sample interpolated in
 magnitude/phase space (with shortest-path phase interpolation). To get a real magnitude, call

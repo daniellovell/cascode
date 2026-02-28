@@ -241,11 +241,13 @@ internal sealed partial class CascodeAstBuilder
         var terminals = new List<BenchTerminal>();
         foreach (var t in body.terminalDecl())
         {
+            var role =
+                t.terminalRole().STIM_KW() != null
+                    ? BenchTerminalRole.Stim
+                    : BenchTerminalRole.Resp;
             terminals.Add(
                 new BenchTerminal(
-                    t.terminalRole().STIM_KW() != null
-                        ? BenchTerminalRole.Stim
-                        : BenchTerminalRole.Resp,
+                    role,
                     t.IDENT().GetText(),
                     t.terminalType()?.GetText(),
                     t.ABSTRACT_KW() is not null

@@ -45,11 +45,28 @@ public sealed record BenchMissing : BenchValue
 
 public sealed record BenchTransferFunction(double[] FrequenciesHz, Complex[] Values) : BenchValue;
 
+/// <summary>
+/// Identifies a matrix element by response port (ToPort) and excitation port (FromPort).
+/// </summary>
+public readonly record struct BenchPortPair(int ToPort, int FromPort);
+
+/// <summary>
+/// Captures S-parameter samples for a frequency sweep.
+/// </summary>
+public sealed record BenchSParameterMatrix(
+    double[] FrequenciesHz,
+    IReadOnlyDictionary<BenchPortPair, Complex[]> Elements
+) : BenchValue;
+
 public sealed record BenchGainSpectrum(
     double[] FrequenciesHz,
     double[] Values,
     BenchNumericKind ValueKind
 ) : BenchValue;
+
+public sealed record BenchScalarSpectrum(double[] FrequenciesHz, double[] Values) : BenchValue;
+
+public sealed record BenchTimeSpectrum(double[] FrequenciesHz, double[] ValuesS) : BenchValue;
 
 public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees) : BenchValue;
 

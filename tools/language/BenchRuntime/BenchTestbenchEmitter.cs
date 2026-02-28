@@ -282,6 +282,7 @@ public static class BenchTestbenchEmitter
                 e.Type.Equals("VDC", StringComparison.OrdinalIgnoreCase)
                 || e.Type.Equals("VAC", StringComparison.OrdinalIgnoreCase)
                 || e.Type.Equals("VSIN", StringComparison.OrdinalIgnoreCase)
+                || e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
             )
             .OrderBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -327,6 +328,17 @@ public static class BenchTestbenchEmitter
                 }
                 sb.AppendLine();
             }
+        }
+
+        var spIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
+        {
+            spIndex++;
+            var start = SiValue.FormatForBackend(a.StartHz, backend);
+            var stop = SiValue.FormatForBackend(a.StopHz, backend);
+            var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
+            sb.AppendLine($"sp {space} {a.Samples} {start} {stop}");
+            sb.AppendLine($"setplot sp{spIndex}");
         }
 
         var noiseIndex = 0;
@@ -609,6 +621,26 @@ public static class BenchTestbenchEmitter
             EmitImpedance(sb, element.Id, p, n, z, backend);
             return;
         }
+
+        if (type.Equals("Port", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!TryGetPinPair(element, out var p, out var n))
+            {
+                return;
+            }
+
+            var z = GetParam(element, "Z") ?? new BenchNumber(BenchNumericKind.ImpedanceOhm, 50);
+            var v = GetParam(element, "V") ?? new BenchNumber(BenchNumericKind.VoltageV, 0);
+            if (!TryGetPortNumber(element, out var portNumber))
+            {
+                return;
+            }
+
+            var dc = FormatScalarForSpice(v, backend);
+            var z0 = FormatScalarForSpice(z, backend);
+            sb.AppendLine($"V{element.Id} {p} {n} DC {dc} portnum={portNumber} z0={z0}");
+            return;
+        }
     }
 
     private static void EmitImpedance(
@@ -715,6 +747,36 @@ public static class BenchTestbenchEmitter
     private static BenchValue? GetFirstParam(BenchHarnessElement e)
     {
         return e.Parameters.Count == 1 ? e.Parameters.Values.First() : null;
+    }
+
+    private static bool TryGetPortNumber(BenchHarnessElement e, out int portNumber)
+    {
+        portNumber = 0;
+        var raw = GetParam(e, "N") ?? GetParam(e, "portnum") ?? GetFirstParam(e);
+        if (raw is BenchNumber number)
+        {
+            var rounded = Math.Round(number.Value);
+            if (
+                !double.IsFinite(number.Value)
+                || Math.Abs(number.Value - rounded) > 1e-9
+                || rounded < 1
+                || rounded > int.MaxValue
+            )
+            {
+                return false;
+            }
+
+            portNumber = (int)rounded;
+            return true;
+        }
+
+        if (raw is BenchSymbol symbol && int.TryParse(symbol.Name, out var parsed) && parsed > 0)
+        {
+            portNumber = parsed;
+            return true;
+        }
+
+        return false;
     }
 
     private static string FormatScalarForSpice(BenchValue? v, BenchBackendType backend)

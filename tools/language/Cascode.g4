@@ -475,6 +475,7 @@ idPart
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     | FREQUENCY_TYPE
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
@@ -497,6 +498,7 @@ idPart
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 // Pin references can contain keywords as parts (e.g., load.D).
@@ -861,7 +863,9 @@ physicalType
     | VOLTAGE_RATIO_TYPE
     | TRANSFER_FUNCTION_TYPE
     | GAIN_SPECTRUM_TYPE
+    | SCALAR_SPECTRUM_TYPE
     | PHASE_SPECTRUM_TYPE
+    | TIME_SPECTRUM_TYPE
     | COMPLEX_VOLTAGE_SPECTRUM_TYPE
     | COMPLEX_CURRENT_SPECTRUM_TYPE
     | VOLTAGE_SPECTRUM_TYPE
@@ -880,6 +884,7 @@ physicalType
     | TIME_TYPE
     | PHASE_TYPE
     | SCALAR_TYPE
+    | S_PARAMETER_MATRIX_TYPE
     ;
 
 analysisType
@@ -888,6 +893,7 @@ analysisType
     | TRAN_ANALYSIS_TYPE
     | NOISE_ANALYSIS_TYPE
     | STB_ANALYSIS_TYPE
+    | SP_ANALYSIS_TYPE
     ;
 
 functionBody
@@ -949,6 +955,8 @@ unitType
     : IDENT
     | NOISE_DENSITY_UNIT
     | INTEGRATED_RMS_UNIT
+    | SCALAR_TYPE
+    | TIME_TYPE
     ;
 
 measurementBody
@@ -1158,7 +1166,9 @@ FREQUENCY_TYPE              : 'Frequency' ;
 VOLTAGE_RATIO_TYPE          : 'VoltageRatio' ;
 TRANSFER_FUNCTION_TYPE      : 'TransferFunction' ;
 GAIN_SPECTRUM_TYPE          : 'GainSpectrum' ;
+SCALAR_SPECTRUM_TYPE        : 'ScalarSpectrum' ;
 PHASE_SPECTRUM_TYPE         : 'PhaseSpectrum' ;
+TIME_SPECTRUM_TYPE          : 'TimeSpectrum' ;
 COMPLEX_VOLTAGE_SPECTRUM_TYPE : 'ComplexVoltageSpectrum' ;
 COMPLEX_CURRENT_SPECTRUM_TYPE : 'ComplexCurrentSpectrum' ;
 VOLTAGE_SPECTRUM_TYPE       : 'VoltageSpectrum' ;
@@ -1177,12 +1187,14 @@ CURRENT_TYPE                : 'Current' ;
 TIME_TYPE                   : 'Time' ;
 PHASE_TYPE                  : 'Phase' ;
 SCALAR_TYPE                 : 'Scalar' ;
+S_PARAMETER_MATRIX_TYPE     : 'SParameterMatrix' ;
 
 AC_ANALYSIS_TYPE    : 'ACAnalysis' ;
 DC_ANALYSIS_TYPE    : 'DCAnalysis' ;
 TRAN_ANALYSIS_TYPE  : 'TranAnalysis' ;
 NOISE_ANALYSIS_TYPE : 'NoiseAnalysis' ;
 STB_ANALYSIS_TYPE   : 'STBAnalysis' ;
+SP_ANALYSIS_TYPE    : 'SPAnalysis' ;
 
 DEVICE_TYPE
     : 'NMOS'
