@@ -190,8 +190,8 @@ public sealed class NgspiceWrdataSpParserTests
         File.WriteAllText(
             path,
             """
-            1.00000000e+09  2.00000000e+00
-            2.00000000e+09  1.50000000e+00
+            1.00000000e+09  2.00000000e+00  0.00000000e+00
+            2.00000000e+09  1.50000000e+00  0.00000000e+00
             """
         );
 
@@ -205,11 +205,11 @@ public sealed class NgspiceWrdataSpParserTests
     {
         using var tmpDir = new TemporaryDirectory();
         var path = Path.Combine(tmpDir.Path, "bad.nf.wrdata");
-        File.WriteAllText(path, "1.00000000e+09  2.0  3.0");
+        File.WriteAllText(path, "1.00000000e+09  2.0");
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             NgspiceWrdataSpParser.ParseNoiseFactor(path)
         );
-        Assert.Contains("expected 2, got 3", ex.Message);
+        Assert.Contains("expected 3, got 2", ex.Message);
     }
 }

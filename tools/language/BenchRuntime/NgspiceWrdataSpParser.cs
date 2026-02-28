@@ -75,10 +75,10 @@ public static class NgspiceWrdataSpParser
         for (var row = 0; row < lines.Length; row++)
         {
             var parts = lines[row].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2)
+            if (parts.Length != 3)
             {
                 throw new InvalidOperationException(
-                    $"Unexpected wrdata column count in '{path}' at line {row + 1}: expected 2, got {parts.Length}."
+                    $"Unexpected wrdata column count in '{path}' at line {row + 1}: expected 3, got {parts.Length}."
                 );
             }
 

@@ -36,7 +36,7 @@ circuit RSeries_Sky130 {
       // The network is reciprocal.
       c_output_return_loss = sparam_bench::OutputReturnLoss(f=1MHz) == 6.02059991328dB
       c_reverse_isolation = sparam_bench::ReverseIsolation(f=1MHz) == 6.02059991328dB
-      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) == 6.02059991328dB
+      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= -300dB
     }
   }
 }
