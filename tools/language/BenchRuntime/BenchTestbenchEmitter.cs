@@ -119,7 +119,8 @@ public static class BenchTestbenchEmitter
 
         foreach (var path in designPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by filename.
+            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by
+            // filename.
             sb.AppendLine($".include \"{Path.GetFileName(path)}\"");
         }
 
@@ -383,9 +384,7 @@ public static class BenchTestbenchEmitter
             );
             sb.Append($"wrdata {Path.GetFileName(wrdata)}");
             // The ports are required to be numbered sequentially starting from 1.
-            var numPorts = plan.HarnessElements.Count(e =>
-                e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
-            );
+            var numPorts = plan.NumPorts;
             for (var i = 1; i <= numPorts; i++)
             {
                 for (var j = 1; j <= numPorts; j++)

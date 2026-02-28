@@ -1360,6 +1360,98 @@ bench InvalidPortImpedance {{
     }
 
     [Fact]
+    public void Port_ImpedanceBenchParameter_AllowsTypedImpedanceReference()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TypedPortImpedance(Impedance zref = 50Ohm) {{
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=zref, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Dummy : dB {{
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
+    public void Port_NonImpedanceBenchParameter_ProducesSemanticError()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench InvalidTypedPortImpedance(Frequency wrong = 50MHz) {{
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=wrong, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement Dummy : dB {{
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.False(result.Success);
+        Assert.Contains(
+            result.Diagnostics,
+            d =>
+                d.Message.Contains(
+                    "Port impedance must be real-valued: invalid port impedance on port 1."
+                )
+        );
+    }
+
+    [Fact]
     public void SParameterMatrix_SAccessAndReturnLoss_UseMatrixData()
     {
         var cascode =
