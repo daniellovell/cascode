@@ -1828,10 +1828,7 @@ public class BenchRunService
                         plan.InstanceName,
                         a.Name
                     );
-                    var numPorts = plan.HarnessElements.Count(e =>
-                        e.Type.Equals("Port", StringComparison.OrdinalIgnoreCase)
-                    );
-                    var sp = NgspiceWrdataSpParser.Parse(wrdataPath, numPorts);
+                    var sp = NgspiceWrdataSpParser.Parse(wrdataPath, plan.NumPorts);
 
                     analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
                         a.Name,

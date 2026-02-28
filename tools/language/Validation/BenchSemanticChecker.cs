@@ -67,14 +67,6 @@ public static class BenchSemanticChecker
             }
         }
 
-        ValidatePortDeclarations(bench, diagnostics);
-        ValidateSParameterAnalysisDeclarations(bench, diagnostics);
-
-        foreach (var analysis in bench.Analyses)
-        {
-            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
-        }
-
         // Seed measurement types from declaration units for cross-measurement references.
         var measurementTypes = new Dictionary<string, MeasurementType>(StringComparer.Ordinal);
         foreach (var m in bench.Measurements)
@@ -91,6 +83,14 @@ public static class BenchSemanticChecker
                     )
                 );
             }
+        }
+
+        ValidatePortDeclarations(bench, scope, measurementTypes, benchesByName, diagnostics);
+        ValidateSParameterAnalysisDeclarations(bench, diagnostics);
+
+        foreach (var analysis in bench.Analyses)
+        {
+            scope.Values[analysis.Name] = MeasurementType.FromBenchValueType(analysis.Type);
         }
 
         foreach (var m in bench.Measurements)
@@ -230,6 +230,9 @@ public static class BenchSemanticChecker
 
     private static void ValidatePortDeclarations(
         BenchDefinition bench,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName,
         List<Diagnostic> diagnostics
     )
     {
@@ -272,7 +275,7 @@ public static class BenchSemanticChecker
 
             if (
                 TryReadPortImpedanceToken(portInstance, out var impedanceText)
-                && !impedanceText.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase)
+                && !IsRealValuedPortImpedance(impedanceText, scope, measurementTypes, benchesByName)
             )
             {
                 diagnostics.Add(
@@ -305,6 +308,25 @@ public static class BenchSemanticChecker
                 )
             );
         }
+    }
+
+    private static bool IsRealValuedPortImpedance(
+        string impedanceText,
+        TypeScope scope,
+        IReadOnlyDictionary<string, MeasurementType> measurementTypes,
+        IReadOnlyDictionary<string, BenchDefinition> benchesByName
+    )
+    {
+        if (
+            !CascodeAstBuilder.TryParseMeasurementExprText(impedanceText, out var expr, out _)
+            || expr is null
+        )
+        {
+            return false;
+        }
+
+        var inferredType = InferExprType(expr, scope, measurementTypes, benchesByName);
+        return inferredType.Kind == MeasurementTypeKind.Impedance;
     }
 
     private static void ValidateSParameterAnalysisDeclarations(
