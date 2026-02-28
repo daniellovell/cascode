@@ -332,7 +332,7 @@ interface SingleEndedAmp {
   ...
 
   benches {
-    bind TwoPortSParam as sparam_bench {
+    bind TwoPortSParamNoise as sparam_bench {
       bench.P1--dut.IN
       bench.P2--dut.OUT
     }
