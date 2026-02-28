@@ -33,8 +33,11 @@ BEFORE MAKING ANY CHANGE, ASK YOURSELF IN YOUR CHAIN OF THOUGHT: "How can I maxi
   - Code/data: `lib/std/**`, `examples/**`
   - Verify: minimal runnable examples; keep outputs under `build/`
 - Bench system (harnesses + execution)
+  - Spec: `spec/language/Ch04_Bench_System.md` (normative bench/binding contract)
+  - Read: `docs/language/bench-cookbook.md` (practical patterns and pitfalls)
   - Code: `tools/bench/**` (harness discovery, testbench generation, simulator backends)
   - Code: `tools/language/BenchRuntime/**` (bench planning + measurement evaluation)
+  - Stdlib benches: `lib/std/bench/**`; interface bindings: `lib/std/amp/**`
 - Render (schematic/layout)
   - Code: `tools/render/**`
 - Node native editor API (`@cascode/native`)
@@ -81,6 +84,12 @@ Bold formatting should be reserved for technical terms being defined, critical w
 - `tools/bench`: harness discovery + testbench generation + simulator backends; no workspace DB.
 - `tools/render`: rendering; depends on `tools/language`.
 - No cycles or cross‑layer shortcuts.
+
+## Bench / Binding Design Contract
+- Bench definitions (`lib/std/bench/`) must remain topology-agnostic. A bench declares only the terminals it directly measures or stimulates (e.g. `QuiescentPower` declares `PWR` and `RET`, not input pins). Do not add input/output topology awareness to bench definitions.
+- Interface bindings (`lib/std/amp/`) are responsible for topology-specific context. When a bench omits a terminal that the DUT exposes (e.g. analog inputs), the binding must provide bias using binding-scoped instances (`GND`, `VDC`, `Impedor`). Floating analog nodes cause incorrect simulation results: 0 W power, wrong DC operating points, or singular matrices.
+- Every bench binding must ensure all DUT analog terminals have a defined DC path. Use the patterns in `docs/language/bench-cookbook.md` and the existing fill blocks in `lib/std/bench/TransferBenches.cas` and `lib/std/bench/PowerBenches.cas` as reference.
+- When modifying bench bindings, check stress test constraints in `tests/golden/cas/stress/` — changing the bias context shifts operating points and may require updating constraint thresholds.
 
 ## Hard Rules
 - ≤400 added LOC per patch; split if larger.

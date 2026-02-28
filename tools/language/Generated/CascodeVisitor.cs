@@ -701,6 +701,12 @@ public interface ICascodeVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitSignedQuantity([NotNull] CascodeParser.SignedQuantityContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="CascodeParser.signedThreshold"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitSignedThreshold([NotNull] CascodeParser.SignedThresholdContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>NumericSection</c>
 	/// labeled alternative in <see cref="CascodeParser.constraintSection"/>.
 	/// </summary>

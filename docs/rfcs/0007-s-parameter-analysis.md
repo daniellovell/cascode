@@ -37,6 +37,10 @@ Parameters are required:
 | `Z` | `Impedance` | Port reference impedance (`z0`) |
 | `V` | `Voltage` | DC source value for the port source |
 
+`Z` is collapsed to its resistive component at emission time. If the impedance is a parallel
+composite (for example `1GOhm || 15pF`), only the resistive terms contribute to `z0`; reactive
+elements are discarded.
+
 Pins:
 
 | Pin | Meaning |

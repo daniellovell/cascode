@@ -10,7 +10,7 @@ emitted testbench.
 
 ## Quick references
 
-- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas)
+- Standard benches: [`TransferBenches.cas`](../../lib/std/bench/TransferBenches.cas), [`NoiseBenches.cas`](../../lib/std/bench/NoiseBenches.cas), [`TranBenches.cas`](../../lib/std/bench/TranBenches.cas), [`PowerBenches.cas`](../../lib/std/bench/PowerBenches.cas), [`SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas)
 - Standard interface bindings: [`SingleEndedOpAmp.cas`](../../lib/std/amp/SingleEndedOpAmp.cas), [`FullyDifferentialOpAmp.cas`](../../lib/std/amp/FullyDifferentialOpAmp.cas), [`SingleEndedAmp.cas`](../../lib/std/amp/SingleEndedAmp.cas)
 - Short, complete example: [`RcLowpass.el.cai`](../../tests/golden/cas/bench/RcLowpass.el.cai)
 - Coverage stress cases: [`tests/golden/cas/stress/`](../../tests/golden/cas/stress/)
@@ -163,6 +163,68 @@ interfaces](../../lib/std/amp/).
 
 - Ensure the circuit’s `harness { ... }` provides the referenced supply and return rails (for example
   `supply VDD = 1.8V` and `ground GND = 0V`) and that the bench is bound to those terminals.
+- The `QuiescentPower` bench is intentionally topology-agnostic: it only declares supply and return
+  terminals. If the DUT has analog inputs (gates), the binding must bias them to avoid floating nodes.
+  Without bias, transistors remain OFF and the bench reports 0 W. The standard amplifier interfaces
+  solve this with binding-scoped instances that apply a common-mode VDC and source impedance:
+
+```cascode
+bind QuiescentPower as vdd_pwr {
+  bench.PWR--dut.VDD
+  bench.RET--dut.GND
+
+  GND g = new GND() { .GND--gnd }
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+  Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+}
+```
+
+  The same pattern applies to `SEDCBias` and `DiffDCBias` bindings, which also omit input terminals
+  from their bench definitions.
+
+## Recipe: S-parameter benches (forward gain, return loss, stability)
+
+### When to use
+
+Use an S-parameter bench when you need RF metrics derived from an `SPAnalysis`, such as forward
+gain, return loss, VSWR, isolation, stability factor, or group delay.
+
+### Minimal pattern
+
+S-parameter benches place `Port` harness primitives on the bench's response terminals. Each port
+declares a sequential index, a reference impedance, and a DC bias. The standard library's
+`TwoPortSParam` uses env-backed helpers to allow per-circuit impedance overrides with a `50Ohm`
+fallback:
+
+```cascode
+Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+  .P--P1
+  .N--gnd
+}
+
+Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+  .P--P2
+  .N--gnd
+}
+```
+
+Measurements are built from an `SParameterMatrix` extracted from the analysis:
+
+```cascode
+SParameterMatrix S = sparam(sp)
+return db20(S.S(2, 1).Mag()).ValueAt(f)
+```
+
+Reference implementation: [`lib/std/bench/SParamBenches.cas`](../../lib/std/bench/SParamBenches.cas).
+
+> [!IMPORTANT]
+> Port reference impedances (`z0`) are real-valued. When the `Z` parameter resolves to a parallel
+> impedance expression such as `1GOhm || 15pF`, only the resistive terms contribute to `z0`;
+> reactive components (capacitance or inductance) are discarded. A purely reactive impedance with
+> no resistive term produces `z0=0`, which is invalid for simulator RF ports.
+
+- Port numbers must be sequential starting at 1. Gaps or duplicates are rejected at compile time.
 
 ## Recipe: Probing internal nodes and measuring harness currents
 

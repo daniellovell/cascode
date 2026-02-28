@@ -14,10 +14,18 @@ interface SingleEndedAmp {
     bind QuiescentPower as vdd_pwr {
       bench.PWR--dut.VDD
       bench.RET--dut.GND
+
+      GND g = new GND() { .GND--gnd }
+      VDC biasDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { .P--vcm, .N--dut.IN }
     }
 
     bind SEDCBias as dc_bias {
       bench.OUT--dut.OUT
+
+      GND g = new GND() { .GND--gnd }
+      VDC biasDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+      Impedor sourceZ = new Impedor(Z=env.SourceImpedance) { .P--vcm, .N--dut.IN }
     }
 
     bind SEToSETransfer as transfer_bench {

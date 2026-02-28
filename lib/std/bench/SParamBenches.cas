@@ -7,8 +7,8 @@ function get_source_impedance(Impedance fallback) : Impedance {
   return fallback
 }
 
-function get_output_impedance(Impedance fallback) : Impedance {
-  if env.OutputImpedance { return env.OutputImpedance }
+function get_load_impedance(Impedance fallback) : Impedance {
+  if env.LoadImpedance { return env.LoadImpedance }
   return fallback
 }
 
@@ -83,7 +83,7 @@ bench TwoPortSParam extends AbstractTwoPortSParam {
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=get_output_impedance(50Ohm), V=env.OutputCommonModeRange) {
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
     }
@@ -103,13 +103,6 @@ bench TwoPortSParamNoise extends AbstractTwoPortSParam {
       noise=1)
   }
 
-  measurements {
-    measurement NoiseFigure(Frequency f) : dB {
-      SParameterMatrix S = sparam(sp)
-      return S.NF().ValueAt(f)
-    }
-  }
-
   fill {
     net gnd : ground
 
@@ -122,9 +115,139 @@ bench TwoPortSParamNoise extends AbstractTwoPortSParam {
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=get_output_impedance(50Ohm), V=env.OutputCommonModeRange) {
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
+    }
+  }
+
+  measurements {
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
+    }
+  }
+}
+
+bench TwoPortMixedModeSParam {
+  resp P1 : Diff
+  resp P2 : Diff
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.P
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.P
+      .N--gnd
+    }
+
+    Port port3 = new Port(N=3, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
+      .P--P1.N
+      .N--gnd
+    }
+
+    Port port4 = new Port(N=4, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
+      .P--P2.N
+      .N--gnd
+    }
+  }
+
+  measurements {
+    measurement Sdd11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) - S.S(1, 3) - S.S(3, 1) + S.S(3, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdd12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 2) - S.S(1, 4) - S.S(3, 2) + S.S(3, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdd21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 1) - S.S(2, 3) - S.S(4, 1) + S.S(4, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdd22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 2) - S.S(2, 4) - S.S(4, 2) + S.S(4, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdc11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) + S.S(1, 3) - S.S(3, 1) - S.S(3, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdc12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 2) + S.S(1, 4) - S.S(3, 2) - S.S(3, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdc21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 1) + S.S(2, 3) - S.S(4, 1) - S.S(4, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Sdc22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 2) + S.S(2, 4) - S.S(4, 2) - S.S(4, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scd11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) - S.S(1, 3) + S.S(3, 1) - S.S(3, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scd12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 2) - S.S(1, 4) + S.S(3, 2) - S.S(3, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scd21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 1) - S.S(2, 3) + S.S(4, 1) - S.S(4, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scd22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 2) - S.S(2, 4) + S.S(4, 2) - S.S(4, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scc11(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 1) + S.S(1, 3) + S.S(3, 1) + S.S(3, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scc12(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(1, 2) + S.S(1, 4) + S.S(3, 2) + S.S(3, 4)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scc21(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 1) + S.S(2, 3) + S.S(4, 1) + S.S(4, 3)) / 2).Mag()).ValueAt(f)
+    }
+
+    measurement Scc22(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(((S.S(2, 2) + S.S(2, 4) + S.S(4, 2) + S.S(4, 4)) / 2).Mag()).ValueAt(f)
     }
   }
 }
