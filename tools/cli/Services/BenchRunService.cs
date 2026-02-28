@@ -1829,6 +1829,17 @@ public class BenchRunService
                         a.Name
                     );
                     var sp = NgspiceWrdataSpParser.Parse(wrdataPath, plan.NumPorts);
+                    SpNoiseDataset? spNoise = null;
+                    if (a.EnableNoise)
+                    {
+                        var nfWrdataPath = BenchRuntimePaths.GetSpNfWrdataPath(
+                            Path.GetDirectoryName(testbenchPath)!,
+                            plan.CircuitName,
+                            plan.InstanceName,
+                            a.Name
+                        );
+                        spNoise = NgspiceWrdataSpParser.ParseNoiseFactor(nfWrdataPath);
+                    }
 
                     analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(
                         a.Name,
@@ -1836,7 +1847,8 @@ public class BenchRunService
                         a.StopHz,
                         StartS: 0,
                         StopS: 0,
-                        SParameters: sp
+                        SParameters: sp,
+                        SpNoise: spNoise
                     );
                 }
                 else if (a.Type == BenchValueType.TranAnalysis)

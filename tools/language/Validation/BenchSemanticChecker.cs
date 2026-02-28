@@ -986,6 +986,7 @@ public static class BenchSemanticChecker
                 || call.Method.Equals("Isolation", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase)
             )
             {
                 return MeasurementType.GainSpectrum();
@@ -1616,6 +1617,20 @@ public static class BenchSemanticChecker
             return;
         }
 
+        var sParamMatrixMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "S",
+            "InsertionLoss",
+            "Isolation",
+            "GroupDelay",
+            "ReturnLoss",
+            "VSWR",
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+        };
         var indexPairMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "S",
@@ -1628,13 +1643,36 @@ public static class BenchSemanticChecker
             "ReturnLoss",
             "VSWR",
         };
+        var zeroPortMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "StabilityK",
+            "MuFactor",
+            "MSG",
+            "MAG",
+            "NF",
+        };
         var twoPortOnlyMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "StabilityK",
             "MuFactor",
             "MSG",
             "MAG",
+            "NF",
         };
+
+        if (!sParamMatrixMethods.Contains(call.Method))
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"Unknown SParameterMatrix method '{call.Method}'.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
+            return;
+        }
 
         if (indexPairMethods.Contains(call.Method))
         {
@@ -1670,7 +1708,6 @@ public static class BenchSemanticChecker
                 benchesByName,
                 diagnostics
             );
-            return;
         }
 
         if (singlePortMethods.Contains(call.Method))
@@ -1698,6 +1735,19 @@ public static class BenchSemanticChecker
                 benchesByName,
                 diagnostics
             );
+        }
+
+        if (zeroPortMethods.Contains(call.Method) && call.Args.Count != 0)
+        {
+            diagnostics.Add(
+                new Diagnostic(
+                    $"{call.Method} requires exactly 0 arguments.",
+                    DiagnosticSeverity.Error,
+                    "<bench>",
+                    1,
+                    1
+                )
+            );
             return;
         }
 
@@ -1715,20 +1765,9 @@ public static class BenchSemanticChecker
                         1
                     )
                 );
+                return;
             }
-
-            return;
         }
-
-        diagnostics.Add(
-            new Diagnostic(
-                $"Unknown SParameterMatrix method '{call.Method}'.",
-                DiagnosticSeverity.Error,
-                "<bench>",
-                1,
-                1
-            )
-        );
     }
 
     private static void ValidatePortArgument(

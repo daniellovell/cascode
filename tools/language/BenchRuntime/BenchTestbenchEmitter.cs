@@ -395,6 +395,17 @@ public static class BenchTestbenchEmitter
                 }
             }
             sb.AppendLine();
+
+            if (a.EnableNoise)
+            {
+                var nfWrdata = BenchRuntimePaths.GetSpNfWrdataPath(
+                    outputDir,
+                    plan.CircuitName,
+                    plan.InstanceName,
+                    a.Name
+                );
+                sb.AppendLine($"wrdata {Path.GetFileName(nfWrdata)} NF");
+            }
         }
 
         var tranIndex = 0;

@@ -210,6 +210,73 @@ circuit Top {
         var tb = EmitTestbench(cascode, instanceName: "sp");
 
         Assert.Contains("sp dec 10 1 1K 1", tb, StringComparison.Ordinal);
+        Assert.Contains("wrdata Top_sp__sp.sp.nf.wrdata NF", tb, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void EmitAll_DoesNotEmitNoiseFactorWrdata_WhenSpNoiseIsDisabled()
+    {
+        var cascode = """
+VERSION 4.0
+
+bench SpBench {
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {
+    net gnd : ground
+
+    GND g = new GND() {
+      .GND--gnd
+    }
+
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
+      .P--P1
+      .N--gnd
+    }
+
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {
+      .P--P2
+      .N--gnd
+    }
+  }
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=10, start=1Hz, stop=1kHz, noise=0)
+  }
+
+  measurements {
+    measurement Dummy : V {
+      return 1V
+    }
+  }
+}
+
+circuit Top {
+  level EL
+  input IN : analog
+  output OUT : analog
+
+  constraints {
+    numeric {
+      c1 = sp::Dummy >= 0V
+    }
+  }
+
+  benches {
+    bind SpBench as sp {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+
+  fill { }
+}
+""";
+
+        var tb = EmitTestbench(cascode, instanceName: "sp");
+
+        Assert.DoesNotContain(".sp.nf.wrdata", tb, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -181,4 +181,35 @@ public sealed class NgspiceWrdataSpParserTests
         Assert.Equal(new Complex(21.0, -21.0), ds.Elements[new BenchPortPair(2, 1)][0]);
         Assert.Equal(new Complex(22.0, -22.0), ds.Elements[new BenchPortPair(2, 2)][0]);
     }
+
+    [Fact]
+    public void ParseNoiseFactor_ReadsFrequencyAndNoiseFactor()
+    {
+        using var tmpDir = new TemporaryDirectory();
+        var path = Path.Combine(tmpDir.Path, "sp.nf.wrdata");
+        File.WriteAllText(
+            path,
+            """
+            1.00000000e+09  2.00000000e+00
+            2.00000000e+09  1.50000000e+00
+            """
+        );
+
+        var ds = NgspiceWrdataSpParser.ParseNoiseFactor(path);
+        Assert.Equal(new[] { 1e9, 2e9 }, ds.FrequenciesHz);
+        Assert.Equal(new[] { 2.0, 1.5 }, ds.NoiseFactor);
+    }
+
+    [Fact]
+    public void ParseNoiseFactor_ThrowsWhenColumnCountIsInvalid()
+    {
+        using var tmpDir = new TemporaryDirectory();
+        var path = Path.Combine(tmpDir.Path, "bad.nf.wrdata");
+        File.WriteAllText(path, "1.00000000e+09  2.0  3.0");
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            NgspiceWrdataSpParser.ParseNoiseFactor(path)
+        );
+        Assert.Contains("expected 2, got 3", ex.Message);
+    }
 }

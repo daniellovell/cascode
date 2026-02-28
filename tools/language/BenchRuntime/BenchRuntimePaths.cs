@@ -112,6 +112,21 @@ public static class BenchRuntimePaths
         return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.sp.wrdata");
     }
 
+    public static string GetSpNfWrdataPath(
+        string outputDir,
+        string circuitName,
+        string bindingName,
+        string analysisName
+    )
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outputDir);
+        ArgumentException.ThrowIfNullOrWhiteSpace(circuitName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bindingName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(analysisName);
+
+        return Path.Combine(outputDir, $"{circuitName}_{bindingName}__{analysisName}.sp.nf.wrdata");
+    }
+
     public static string GetTranWrdataPath(
         string outputDir,
         string circuitName,

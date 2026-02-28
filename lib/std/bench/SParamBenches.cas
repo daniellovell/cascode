@@ -12,7 +12,7 @@ function get_output_impedance(Impedance fallback) : Impedance {
   return fallback
 }
 
-bench AbstractTwoPortSParam {
+abstract bench AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog
 
@@ -67,7 +67,7 @@ bench AbstractTwoPortSParam {
   }
 }
 
-bench TwoPortSParam() {
+bench TwoPortSParam extends AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog
 
@@ -90,7 +90,7 @@ bench TwoPortSParam() {
   }
 }
 
-bench TwoPortSParamNoise() {
+bench TwoPortSParamNoise extends AbstractTwoPortSParam {
   resp P1 : analog
   resp P2 : analog
 
@@ -101,6 +101,13 @@ bench TwoPortSParamNoise() {
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
       stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
       noise=1)
+  }
+
+  measurements {
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
+    }
   }
 
   fill {

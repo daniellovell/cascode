@@ -97,7 +97,7 @@ analysis {
 | `stop`    | `Frequency`    | yes      | —       | Stop frequency of the sweep  |
 | `space`   | `Log` or `Lin` | no       | `Log`   | Frequency spacing            |
 | `samples` | integer        | no       | 100     | Number of frequency points   |
-| `noise`   | `0` or `1`     | no       | `0`     | Enable correlated noise parameter computation during the sweep |
+| `noise`   | `0` or `1`     | no       | `0`     | Enable correlated noise parameter computation during the sweep, including `NF` extraction |
 
 Like other analyses, arguments may use expressions over `constraints` and `env`.
 
@@ -198,6 +198,15 @@ S.GroupDelay(to, from) → TimeSpectrum
 
 Group delay uses the phase derivative of `Sij` with respect to angular frequency.
 
+### 4.6 Noise Figure
+
+```
+S.NF() → GainSpectrum
+```
+
+When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale using
+`10*log10(NoiseFactor)` for each sampled frequency.
+
 ---
 
 ## 5. Complete Examples
@@ -234,7 +243,8 @@ bench TwoPortSParam {
       space=Log,
       samples=100,
       start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
-      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }),
+      noise=1)
   }
 
   measurements {
@@ -276,6 +286,11 @@ bench TwoPortSParam {
     measurement ForwardGroupDelay(Frequency f) : s {
       SParameterMatrix S = sparam(sp)
       return S.GroupDelay(2, 1).ValueAt(f)
+    }
+
+    measurement NoiseFigure(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().ValueAt(f)
     }
   }
 }
@@ -381,15 +396,7 @@ Runtime and linker primitive lists must therefore include `Port` (for example in
 | MAG where `K < 1` | Falls back to MSG with a diagnostic note |
 | Group delay numerical instability | Warning: `Group delay computation may be inaccurate near frequency {f}` |
 
----
-
-## 8. Future Work
-
-Support for noise figure extraction from combined S-parameter and noise data (`SPAnalysis` + `NoiseAnalysis`) remains a natural follow-on extension.
-
----
-
-## 9. Implementation Plan
+## 8. Implementation Plan
 
 1. Update language/runtime recognition, so `Port` is treated as a harness primitive in bench compilation and linking.
 2. Extend bench harness element compilation and testbench emission to map `Port(N, Z, V)` to ngspice `portnum`/`z0` source cards.
