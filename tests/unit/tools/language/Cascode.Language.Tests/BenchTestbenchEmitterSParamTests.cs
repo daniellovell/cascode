@@ -212,7 +212,7 @@ circuit Top {
     }
 
     [Fact]
-    public void EmitAll_ResolvesEnvImpedanceParallel_ForPortImpedance()
+    public void EmitAll_ResolvesEnvImpedance_ForPortImpedance()
     {
         var cascode = """
 VERSION 4.0

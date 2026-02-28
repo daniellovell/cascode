@@ -818,8 +818,11 @@ public static class BenchTestbenchEmitter
             double reciprocal = 0;
             foreach (var r in resistive)
             {
-                if (r.Value != 0)
-                    reciprocal += 1.0 / r.Value;
+                if (r.Value == 0)
+                {
+                    return SiValue.FormatForBackend(0, backend);
+                }
+                reciprocal += 1.0 / r.Value;
             }
 
             var ohms = reciprocal > 0 ? 1.0 / reciprocal : 0;
