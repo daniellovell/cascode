@@ -84,7 +84,8 @@ analysis {
     space=Log,
     samples=200,
     start=100MHz,
-    stop=10GHz)
+    stop=10GHz,
+    noise=1)
 }
 ```
 
@@ -96,6 +97,7 @@ analysis {
 | `stop`    | `Frequency`    | yes      | —       | Stop frequency of the sweep  |
 | `space`   | `Log` or `Lin` | no       | `Log`   | Frequency spacing            |
 | `samples` | integer        | no       | 100     | Number of frequency points   |
+| `noise`   | `0` or `1`     | no       | `0`     | Enable correlated noise parameter computation during the sweep |
 
 Like other analyses, arguments may use expressions over `constraints` and `env`.
 

@@ -373,7 +373,8 @@ public static class BenchTestbenchEmitter
             var stop = SiValue.FormatForBackend(a.StopHz, backend);
 
             var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
-            sb.AppendLine($"sp {space} {a.Samples} {start} {stop}");
+            var noiseFlag = a.EnableNoise ? "1" : "0";
+            sb.AppendLine($"sp {space} {a.Samples} {start} {stop} {noiseFlag}");
             sb.AppendLine($"setplot sp{spIndex}");
 
             var wrdata = BenchRuntimePaths.GetSpWrdataPath(
