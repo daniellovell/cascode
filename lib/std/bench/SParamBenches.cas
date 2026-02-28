@@ -2,6 +2,16 @@ VERSION 4.0
 
 library lib.std.bench
 
+function get_source_impedance(Impedance fallback) : Impedance {
+  if env.SourceImpedance { return env.SourceImpedance }
+  return fallback
+}
+
+function get_load_impedance(Impedance fallback) : Impedance {
+  if env.LoadImpedance { return env.LoadImpedance }
+  return fallback
+}
+
 bench TwoPortSParam {
   resp P1 : analog
   resp P2 : analog
@@ -13,12 +23,12 @@ bench TwoPortSParam {
       .GND--gnd
     }
 
-    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
+    Port port1 = new Port(N=1, Z=get_source_impedance(50Ohm), V=env.InputCommonModeRange) {
       .P--P1
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
     }

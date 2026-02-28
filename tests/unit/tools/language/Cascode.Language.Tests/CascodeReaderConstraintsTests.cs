@@ -77,4 +77,54 @@ circuit Test {{
         Assert.Single(constraints.Numeric);
         Assert.Equal("c_test", constraints.Numeric[0].Id);
     }
+
+    [Fact]
+    public void TryParse_NumericConstraints_BareScalarThresholds_ParseAndRoundTrip()
+    {
+        var content =
+            $@"VERSION {CascodeVersion.Current}
+circuit Test {{
+  level EL
+  supply VDD
+  ground GND
+  output OUT : analog
+  constraints {{
+    numeric {{
+      c_k = sparam_bench::StabilityK(f=1kHz) >= 1
+      c_neg = some_bench::SomeMetric <= -0.5
+    }}
+  }}
+}}
+";
+        var result = CascodeReader.TryParse(content);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Document);
+
+        var constraints = result.Document.Circuits[0].Constraints;
+        Assert.NotNull(constraints);
+        Assert.Equal(2, constraints.Numeric.Count);
+
+        var cK = constraints.Numeric.Single(c => c.Id == "c_k");
+        Assert.Equal("1", cK.Value);
+        Assert.Equal(string.Empty, cK.Unit);
+
+        var cNeg = constraints.Numeric.Single(c => c.Id == "c_neg");
+        Assert.Equal("-0.5", cNeg.Value);
+        Assert.Equal(string.Empty, cNeg.Unit);
+
+        using var writer = new StringWriter();
+        CascodeWriter.Write(result.Document, writer);
+        var rendered = writer.ToString();
+        Assert.Contains(
+            "c_k = sparam_bench::StabilityK(f=1kHz) >= 1",
+            rendered,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "c_neg = some_bench::SomeMetric <= -0.5",
+            rendered,
+            StringComparison.Ordinal
+        );
+    }
 }
