@@ -163,6 +163,25 @@ interfaces](../../lib/std/amp/).
 
 - Ensure the circuit’s `harness { ... }` provides the referenced supply and return rails (for example
   `supply VDD = 1.8V` and `ground GND = 0V`) and that the bench is bound to those terminals.
+- The `QuiescentPower` bench is intentionally topology-agnostic: it only declares supply and return
+  terminals. If the DUT has analog inputs (gates), the binding must bias them to avoid floating nodes.
+  Without bias, transistors remain OFF and the bench reports 0 W. The standard amplifier interfaces
+  solve this with binding-scoped instances that apply a common-mode VDC and source impedance:
+
+```cascode
+bind QuiescentPower as vdd_pwr {
+  bench.PWR--dut.VDD
+  bench.RET--dut.GND
+
+  GND g = new GND() { .GND--gnd }
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+  Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+}
+```
+
+  The same pattern applies to `SEDCBias` and `DiffDCBias` bindings, which also omit input terminals
+  from their bench definitions.
 
 ## Recipe: Probing internal nodes and measuring harness currents
 

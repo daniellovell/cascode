@@ -686,6 +686,34 @@ A binding body contains zero or more binding statements:
 Mappings and connections use the same `--` wiring operator as `fill {}` blocks. `pinRef` supports
 bundle field access and indices (for example, `IN.P`, `TAP[0]`).
 
+Binding-scoped instances serve a specific design role: they adapt topology-agnostic benches to
+circuits whose terminal structures require additional bias or stimulus context. Standard library
+benches such as `QuiescentPower` and `SEDCBias` intentionally declare only the terminals they
+directly measure, leaving input biasing to the binding. When a bench omits terminals that the
+DUT exposes as analog inputs, the binding must provide a DC path for those terminals; otherwise,
+floating nodes produce incorrect simulation results (zero current through OFF devices, wrong DC
+operating points, or singular matrices during AC analysis).
+
+The standard amplifier interfaces use this pattern to bind topology-agnostic power and DC bias
+benches with common-mode bias and source impedance:
+
+```cascode
+bind QuiescentPower as vdd_pwr {
+  bench.PWR--dut.VDD
+  bench.RET--dut.GND
+
+  GND g = new GND() { .GND--gnd }
+  VDC commonModeVDC = new VDC(V=env.InputCommonModeRange) { .P--vcm, .N--gnd }
+  Impedor sourceP = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.P }
+  Impedor sourceN = new Impedor(Z=env.SourceImpedance.DiffToShunt()) { .P--vcm, .N--dut.IN.N }
+}
+```
+
+The implicit nets `gnd` and `vcm` and the three harness primitive instances elaborate into the same
+testbench netlist as the bench's `fill {}` block (see [Section 4.1.3](#413-scope-and-availability)).
+The bench definition remains reusable across input topologies; the binding adapts it to the specific
+interface contract.
+
 ### 4.8.3 Referencing Measurements from Constraints
 
 Numeric constraints reference bench measurements via the binding name:
