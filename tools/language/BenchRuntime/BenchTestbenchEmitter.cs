@@ -119,7 +119,8 @@ public static class BenchTestbenchEmitter
 
         foreach (var path in designPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by filename.
+            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by
+            // filename.
             sb.AppendLine($".include \"{Path.GetFileName(path)}\"");
         }
 
@@ -330,17 +331,6 @@ public static class BenchTestbenchEmitter
             }
         }
 
-        var spIndex = 0;
-        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
-        {
-            spIndex++;
-            var start = SiValue.FormatForBackend(a.StartHz, backend);
-            var stop = SiValue.FormatForBackend(a.StopHz, backend);
-            var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
-            sb.AppendLine($"sp {space} {a.Samples} {start} {stop}");
-            sb.AppendLine($"setplot sp{spIndex}");
-        }
-
         var noiseIndex = 0;
         foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.NoiseAnalysis))
         {
@@ -373,6 +363,37 @@ public static class BenchTestbenchEmitter
                 a.Name
             );
             sb.AppendLine($"wrdata {Path.GetFileName(wrdata)} onoise_spectrum");
+        }
+
+        var spIndex = 0;
+        foreach (var a in plan.Analyses.Where(a => a.Type == BenchValueType.SPAnalysis))
+        {
+            spIndex++;
+            var start = SiValue.FormatForBackend(a.StartHz, backend);
+            var stop = SiValue.FormatForBackend(a.StopHz, backend);
+
+            var space = a.Space.Equals("lin", StringComparison.OrdinalIgnoreCase) ? "lin" : "dec";
+            sb.AppendLine($"sp {space} {a.Samples} {start} {stop}");
+            sb.AppendLine($"setplot sp{spIndex}");
+
+            var wrdata = BenchRuntimePaths.GetSpWrdataPath(
+                outputDir,
+                plan.CircuitName,
+                plan.InstanceName,
+                a.Name
+            );
+            sb.Append($"wrdata {Path.GetFileName(wrdata)}");
+            // The ports are required to be numbered sequentially starting from 1.
+            var numPorts = plan.NumPorts;
+            for (var i = 1; i <= numPorts; i++)
+            {
+                for (var j = 1; j <= numPorts; j++)
+                {
+                    sb.Append(' ');
+                    sb.Append($"S_{i}_{j}");
+                }
+            }
+            sb.AppendLine();
         }
 
         var tranIndex = 0;
