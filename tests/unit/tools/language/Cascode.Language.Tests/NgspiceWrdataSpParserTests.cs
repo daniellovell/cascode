@@ -183,21 +183,23 @@ public sealed class NgspiceWrdataSpParserTests
     }
 
     [Fact]
-    public void ParseNoiseFactor_ReadsFrequencyAndNoiseFactor()
+    public void ParseNoiseFactor_ReadsNoiseVectors()
     {
         using var tmpDir = new TemporaryDirectory();
         var path = Path.Combine(tmpDir.Path, "sp.nf.wrdata");
         File.WriteAllText(
             path,
             """
-            1.00000000e+09  2.00000000e+00  0.00000000e+00
-            2.00000000e+09  1.50000000e+00  0.00000000e+00
+            1.00000000e+09  2.00000000e+00  0.00000000e+00  1.00000000e+09  1.20000000e+00  0.00000000e+00  1.00000000e+09  3.00000000e+01  0.00000000e+00
+            2.00000000e+09  1.50000000e+00  0.00000000e+00  2.00000000e+09  1.10000000e+00  0.00000000e+00  2.00000000e+09  4.00000000e+01  0.00000000e+00
             """
         );
 
         var ds = NgspiceWrdataSpParser.ParseNoiseFactor(path);
         Assert.Equal(new[] { 1e9, 2e9 }, ds.FrequenciesHz);
         Assert.Equal(new[] { 2.0, 1.5 }, ds.NoiseFactor);
+        Assert.Equal(new[] { 1.2, 1.1 }, ds.MinNoiseFactor);
+        Assert.Equal(new[] { 30.0, 40.0 }, ds.NoiseResistance);
     }
 
     [Fact]
@@ -210,6 +212,6 @@ public sealed class NgspiceWrdataSpParserTests
         var ex = Assert.Throws<InvalidOperationException>(() =>
             NgspiceWrdataSpParser.ParseNoiseFactor(path)
         );
-        Assert.Contains("expected 3, got 2", ex.Message);
+        Assert.Contains("expected 9, got 2", ex.Message);
     }
 }

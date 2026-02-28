@@ -791,6 +791,52 @@ public sealed class BenchMeasurementRunner
                     BenchNumericKind.VoltageRatioDb
                 );
             }
+
+            if (call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("NFmin requires exactly 0 arguments.");
+                }
+
+                var noiseData = FindSpNoiseDataset(sm);
+                if (noiseData is null)
+                {
+                    throw new InvalidOperationException(
+                        "NFmin: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+                    );
+                }
+
+                var values = noiseData
+                    .MinNoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
+                    .ToArray();
+                return new BenchGainSpectrum(
+                    noiseData.FrequenciesHz,
+                    values,
+                    BenchNumericKind.VoltageRatioDb
+                );
+            }
+
+            if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 0)
+                {
+                    throw new InvalidOperationException("Rn requires exactly 0 arguments.");
+                }
+
+                var noiseData = FindSpNoiseDataset(sm);
+                if (noiseData is null)
+                {
+                    throw new InvalidOperationException(
+                        "Rn: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+                    );
+                }
+
+                return new BenchResistanceSpectrum(
+                    noiseData.FrequenciesHz,
+                    noiseData.NoiseResistance
+                );
+            }
         }
 
         // TransferFunction methods
@@ -993,6 +1039,64 @@ public sealed class BenchMeasurementRunner
                 var crossing = FindCrossing(
                     ts.FrequenciesHz,
                     ts.ValuesS,
+                    threshold.Value,
+                    dir,
+                    cross,
+                    from,
+                    to
+                );
+                return new BenchNumber(BenchNumericKind.FrequencyHz, crossing);
+            }
+        }
+
+        // ResistanceSpectrum methods
+        if (recv is BenchResistanceSpectrum rs)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count != 1)
+                {
+                    throw new InvalidOperationException(
+                        "ResistanceSpectrum.ValueAt requires 1 argument."
+                    );
+                }
+
+                var f = RequireFrequency(EvaluateExpr(call.Args[0].Value, locals), "ValueAt");
+                var v = InterpolateLogX(rs.FrequenciesHz, rs.ValuesOhm, f.Value);
+                return new BenchNumber(BenchNumericKind.ImpedanceOhm, v);
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                if (call.Args.Count < 1)
+                {
+                    throw new InvalidOperationException(
+                        "ResistanceSpectrum.FindCrossing requires a threshold argument."
+                    );
+                }
+
+                var threshold = RequireNumber(
+                    EvaluateExpr(call.Args[0].Value, locals),
+                    "FindCrossing(threshold)"
+                );
+                if (
+                    threshold.Kind != BenchNumericKind.ImpedanceOhm
+                    && threshold.Kind != BenchNumericKind.Scalar
+                )
+                {
+                    throw new InvalidOperationException(
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match ResistanceSpectrum."
+                    );
+                }
+
+                var dir = GetNamedSymbol(call, "dir") ?? "falling";
+                var cross = GetNamedInt(call, "cross") ?? 1;
+                var from = GetNamedFrequency(call, "from", locals) ?? rs.FrequenciesHz.First();
+                var to = GetNamedFrequency(call, "to", locals) ?? rs.FrequenciesHz.Last();
+
+                var crossing = FindCrossing(
+                    rs.FrequenciesHz,
+                    rs.ValuesOhm,
                     threshold.Value,
                     dir,
                     cross,

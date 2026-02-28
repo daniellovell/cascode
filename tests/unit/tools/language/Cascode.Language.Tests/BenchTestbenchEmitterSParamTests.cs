@@ -210,7 +210,7 @@ circuit Top {
         var tb = EmitTestbench(cascode, instanceName: "sp");
 
         Assert.Contains("sp dec 10 1 1K 1", tb, StringComparison.Ordinal);
-        Assert.Contains("wrdata Top_sp__sp.sp.nf.wrdata NF", tb, StringComparison.Ordinal);
+        Assert.Contains("wrdata Top_sp__sp.sp.nf.wrdata NF NFmin Rn", tb, StringComparison.Ordinal);
     }
 
     [Fact]

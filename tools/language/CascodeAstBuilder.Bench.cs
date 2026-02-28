@@ -694,6 +694,7 @@ internal sealed partial class CascodeAstBuilder
             "VoltageSpectrum" => BenchValueType.VoltageSpectrum,
             "CurrentSpectrum" => BenchValueType.CurrentSpectrum,
             "NoiseSpectrum" => BenchValueType.NoiseSpectrum,
+            "ResistanceSpectrum" => BenchValueType.ResistanceSpectrum,
             "VoltageWaveform" => BenchValueType.VoltageWaveform,
             "CurrentWaveform" => BenchValueType.CurrentWaveform,
             "NoiseSpectralDensity" => BenchValueType.NoiseSpectralDensity,

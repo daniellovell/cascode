@@ -987,9 +987,15 @@ public static class BenchSemanticChecker
                 || call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase)
                 || call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase)
             )
             {
                 return MeasurementType.GainSpectrum();
+            }
+
+            if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.ResistanceSpectrum();
             }
 
             if (
@@ -1046,6 +1052,19 @@ public static class BenchSemanticChecker
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
                 return MeasurementType.Time();
+            }
+
+            if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Frequency();
+            }
+        }
+
+        if (recv.Kind == MeasurementTypeKind.ResistanceSpectrum)
+        {
+            if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
+            {
+                return MeasurementType.Impedance();
             }
 
             if (call.Method.Equals("FindCrossing", StringComparison.OrdinalIgnoreCase))
@@ -1630,6 +1649,8 @@ public static class BenchSemanticChecker
             "MSG",
             "MAG",
             "NF",
+            "NFmin",
+            "Rn",
         };
         var indexPairMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1650,6 +1671,8 @@ public static class BenchSemanticChecker
             "MSG",
             "MAG",
             "NF",
+            "NFmin",
+            "Rn",
         };
         var twoPortOnlyMethods = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -1658,6 +1681,8 @@ public static class BenchSemanticChecker
             "MSG",
             "MAG",
             "NF",
+            "NFmin",
+            "Rn",
         };
 
         if (!sParamMatrixMethods.Contains(call.Method))
@@ -2007,6 +2032,7 @@ public static class BenchSemanticChecker
         VoltageSpectrum,
         CurrentSpectrum,
         NoiseSpectrum,
+        ResistanceSpectrum,
         VoltageWaveform,
         CurrentWaveform,
         NoiseSpectralDensity,
@@ -2072,6 +2098,9 @@ public static class BenchSemanticChecker
 
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
 
+        public static MeasurementType ResistanceSpectrum() =>
+            new(MeasurementTypeKind.ResistanceSpectrum);
+
         public static MeasurementType VoltageWaveform() => new(MeasurementTypeKind.VoltageWaveform);
 
         public static MeasurementType CurrentWaveform() => new(MeasurementTypeKind.CurrentWaveform);
@@ -2116,6 +2145,7 @@ public static class BenchSemanticChecker
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
                 BenchValueType.CurrentSpectrum => CurrentSpectrum(),
                 BenchValueType.NoiseSpectrum => NoiseSpectrum(),
+                BenchValueType.ResistanceSpectrum => ResistanceSpectrum(),
                 BenchValueType.VoltageWaveform => VoltageWaveform(),
                 BenchValueType.CurrentWaveform => CurrentWaveform(),
                 BenchValueType.NoiseSpectralDensity => NoiseSpectralDensity(),
@@ -2166,6 +2196,10 @@ public static class BenchSemanticChecker
             if (unit.Equals("deg", StringComparison.OrdinalIgnoreCase))
             {
                 return Phase();
+            }
+            if (unit.EndsWith("Ohm", StringComparison.OrdinalIgnoreCase))
+            {
+                return Impedance();
             }
             if (unit.EndsWith("s", StringComparison.OrdinalIgnoreCase))
             {

@@ -1620,7 +1620,9 @@ bench NoiseFigureBench {{
         );
         var spNoise = new SpNoiseDataset(
             FrequenciesHz: new[] { 1e9, 2e9 },
-            NoiseFactor: new[] { 2.0, 4.0 }
+            NoiseFactor: new[] { 2.0, 4.0 },
+            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseResistance: new[] { 20.0, 40.0 }
         );
 
         var runner = new BenchMeasurementRunner(
@@ -1652,6 +1654,223 @@ bench NoiseFigureBench {{
 
         var values = runner.RunMetrics(new[] { "NFAt1G" });
         Assert.Equal(3.010299956639812, values["NFAt1G"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void SParameterMatrix_NFmin_ConvertsMinimumNoiseFactorToDb()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoiseFigureBench {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz, noise=1)
+  }}
+
+  measurements {{
+    measurement NFminAt1G : dB {{
+      SParameterMatrix S = sparam(sp)
+      return S.NFmin().ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NoiseFigureBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[]
+                {
+                    new System.Numerics.Complex(0.2, 0.0),
+                    new System.Numerics.Complex(0.3, 0.0),
+                },
+                [new BenchPortPair(1, 2)] = new[]
+                {
+                    new System.Numerics.Complex(0.0, 0.0),
+                    new System.Numerics.Complex(0.0, 0.0),
+                },
+                [new BenchPortPair(2, 1)] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+                [new BenchPortPair(2, 2)] = new[]
+                {
+                    new System.Numerics.Complex(0.1, 0.0),
+                    new System.Numerics.Complex(0.1, 0.0),
+                },
+            }
+        );
+        var spNoise = new SpNoiseDataset(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            NoiseFactor: new[] { 2.0, 4.0 },
+            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseResistance: new[] { 20.0, 40.0 }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 2e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp,
+                    SpNoise: spNoise
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "NFminAt1G" });
+        Assert.Equal(0.7918124604762482, values["NFminAt1G"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void SParameterMatrix_Rn_ReturnsResistanceInOhms()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoiseFigureBench {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--IN
+      .N--gnd
+    }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--OUT
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=2, start=1GHz, stop=2GHz, noise=1)
+  }}
+
+  measurements {{
+    measurement RnAt1_5G : Ohm {{
+      SParameterMatrix S = sparam(sp)
+      ResistanceSpectrum rn = S.Rn()
+      return rn.ValueAt(1.5GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "NoiseFigureBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[]
+                {
+                    new System.Numerics.Complex(0.2, 0.0),
+                    new System.Numerics.Complex(0.3, 0.0),
+                },
+                [new BenchPortPair(1, 2)] = new[]
+                {
+                    new System.Numerics.Complex(0.0, 0.0),
+                    new System.Numerics.Complex(0.0, 0.0),
+                },
+                [new BenchPortPair(2, 1)] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+                [new BenchPortPair(2, 2)] = new[]
+                {
+                    new System.Numerics.Complex(0.1, 0.0),
+                    new System.Numerics.Complex(0.1, 0.0),
+                },
+            }
+        );
+        var spNoise = new SpNoiseDataset(
+            FrequenciesHz: new[] { 1e9, 2e9 },
+            NoiseFactor: new[] { 2.0, 4.0 },
+            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseResistance: new[] { 20.0, 40.0 }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 2e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp,
+                    SpNoise: spNoise
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "RnAt1_5G" });
+        Assert.Equal(31.69925001442313, values["RnAt1_5G"].Value, precision: 9);
     }
 
     [Fact]

@@ -12,7 +12,7 @@ Target Version: Cascode 4.x
 
 This RFC proposes S-parameter support within Cascode's bench system. The design introduces `SPAnalysis`, `SParameterMatrix`, and a `Port` harness primitive that is instantiated in bench wiring just like `VDC` or `Impedor`.
 
-Ports are single-ended by definition. Each `Port` provides an ngspice S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
+Ports are single-ended by definition. Each `Port` provides an S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
 
 ---
 
@@ -206,10 +206,15 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 
 ```
 S.NF() → GainSpectrum
+S.NFmin() → GainSpectrum
+S.Rn() → ResistanceSpectrum
 ```
 
 When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale using
 `10*log10(NoiseFactor)` for each sampled frequency.
+`S.NFmin()` returns minimum noise figure in dB scale using
+`10*log10(NoiseFactorMin)` for each sampled frequency.
+`S.Rn()` returns unnormalized input noise resistance in Ohms.
 
 ---
 
@@ -220,7 +225,7 @@ When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale
 ```cascode
 library lib.std.bench
 
-bench TwoPortSParam {
+bench TwoPortSParamNoise {
   resp P1 : analog
   resp P2 : analog
 
@@ -292,9 +297,19 @@ bench TwoPortSParam {
       return S.GroupDelay(2, 1).ValueAt(f)
     }
 
-    measurement NoiseFigure(Frequency f) : dB {
+    measurement NF(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NF().ValueAt(f)
+    }
+
+    measurement NFmin(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NFmin().ValueAt(f)
+    }
+
+    measurement Rn(Frequency f) : Ohm {
+      SParameterMatrix S = sparam(sp)
+      return S.Rn().ValueAt(f)
     }
   }
 }

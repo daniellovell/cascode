@@ -58,7 +58,12 @@ public sealed record BenchSParameterMatrix(
     IReadOnlyDictionary<BenchPortPair, Complex[]> Elements
 ) : BenchValue;
 
-public sealed record SpNoiseDataset(double[] FrequenciesHz, double[] NoiseFactor);
+public sealed record SpNoiseDataset(
+    double[] FrequenciesHz,
+    double[] NoiseFactor,
+    double[] MinNoiseFactor,
+    double[] NoiseResistance
+);
 
 public sealed record BenchGainSpectrum(
     double[] FrequenciesHz,
@@ -73,6 +78,9 @@ public sealed record BenchTimeSpectrum(double[] FrequenciesHz, double[] ValuesS)
 public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees) : BenchValue;
 
 public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
+    : BenchValue;
+
+public sealed record BenchResistanceSpectrum(double[] FrequenciesHz, double[] ValuesOhm)
     : BenchValue;
 
 public sealed record BenchComplexVoltageSpectrum(double[] FrequenciesHz, Complex[] Values)

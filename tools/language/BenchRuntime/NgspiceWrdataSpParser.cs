@@ -71,22 +71,26 @@ public static class NgspiceWrdataSpParser
         var lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
         var frequencies = new double[lines.Length];
         var noiseFactor = new double[lines.Length];
+        var minNoiseFactor = new double[lines.Length];
+        var noiseResistance = new double[lines.Length];
 
         for (var row = 0; row < lines.Length; row++)
         {
             var parts = lines[row].Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 3)
+            if (parts.Length != 9)
             {
                 throw new InvalidOperationException(
-                    $"Unexpected wrdata column count in '{path}' at line {row + 1}: expected 3, got {parts.Length}."
+                    $"Unexpected wrdata column count in '{path}' at line {row + 1}: expected 9, got {parts.Length}."
                 );
             }
 
             frequencies[row] = ParseDouble(parts[0]);
             noiseFactor[row] = ParseDouble(parts[1]);
+            minNoiseFactor[row] = ParseDouble(parts[4]);
+            noiseResistance[row] = ParseDouble(parts[7]);
         }
 
-        return new SpNoiseDataset(frequencies, noiseFactor);
+        return new SpNoiseDataset(frequencies, noiseFactor, minNoiseFactor, noiseResistance);
     }
 
     private static double ParseDouble(string raw)
