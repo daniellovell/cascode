@@ -655,7 +655,7 @@ constraints { numeric { c_gbw = transfer_bench::GainBandwidth at net::OUT >= 20M
 Informally, a numeric constraint has the shape:
 
 ```
-<id> = <binding>(<bench-args>)? :: <measurement>(<measurement-args>)? (at <scope>::<pinRef>)? <op> <quantity>
+<id> = <binding>(<bench-args>)? :: <measurement>(<measurement-args>)? (at <scope>::<pinRef>)? <op> <threshold>
 ```
 
 Where:
@@ -665,13 +665,15 @@ Where:
 - `<measurement>` is a measurement name declared inside the bench.
 - `<measurement-args>` supply parameters for a parameterized measurement.
 - `at <scope>::<pinRef>` attaches the constraint to a node reference such as `net::OUT` or `port::IN.P`.
+- `<threshold>` is either a quantity literal (for example `20MHz`, `60deg`, `0dB`) or a bare scalar number (for example `1`, `-0.5`).
 
 The grammar-level building blocks are:
 
 ```
 benchMetricRef = IDENT ( "(" measurementArgList? ")" )? "::" IDENT ( "(" measurementArgList? ")" )?
 nodeRef        = (IDENT | "net" | "port") "::" pinRef
-numericConstraint = IDENT "=" benchMetricRef ("at" nodeRef)? COMPARISON_OP signedQuantity
+numericConstraint = IDENT "=" benchMetricRef ("at" nodeRef)? COMPARISON_OP signedThreshold
+signedThreshold  = signedQuantity | ["-"] NUMBER
 ```
 
 Parameter and call forms are supported both at the bench and measurement level:
