@@ -119,7 +119,8 @@ public static class BenchTestbenchEmitter
 
         foreach (var path in designPaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by filename.
+            // Testbenches run with WorkingDirectory set to the output dir; include local design decks by
+            // filename.
             sb.AppendLine($".include \"{Path.GetFileName(path)}\"");
         }
 
