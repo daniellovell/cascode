@@ -59,7 +59,7 @@ public partial class CascodeParser : Parser {
 		SCALAR_SPECTRUM_TYPE=112, PHASE_SPECTRUM_TYPE=113, TIME_SPECTRUM_TYPE=114, 
 		COMPLEX_VOLTAGE_SPECTRUM_TYPE=115, COMPLEX_CURRENT_SPECTRUM_TYPE=116, 
 		VOLTAGE_SPECTRUM_TYPE=117, CURRENT_SPECTRUM_TYPE=118, NOISE_SPECTRUM_TYPE=119, 
-		RESISTANCE_SPECTRUM_TYPE=120, VOLTAGE_WAVEFORM_TYPE=121, CURRENT_WAVEFORM_TYPE=122, 
+		IMPEDANCE_SPECTRUM_TYPE=120, VOLTAGE_WAVEFORM_TYPE=121, CURRENT_WAVEFORM_TYPE=122, 
 		NOISE_SPECTRAL_DENSITY_TYPE=123, INTEGRATED_NOISE_TYPE=124, ELEMENT_PIN_TYPE=125, 
 		IMPEDANCE_TYPE=126, CAPACITANCE_TYPE=127, INDUCTANCE_TYPE=128, VOLTAGE_TYPE=129, 
 		CURRENT_TYPE=130, TIME_TYPE=131, PHASE_TYPE=132, SCALAR_TYPE=133, S_PARAMETER_MATRIX_TYPE=134, 
@@ -177,7 +177,7 @@ public partial class CascodeParser : Parser {
 		"'return'", "'Frequency'", "'VoltageRatio'", "'TransferFunction'", "'GainSpectrum'", 
 		"'ScalarSpectrum'", "'PhaseSpectrum'", "'TimeSpectrum'", "'ComplexVoltageSpectrum'", 
 		"'ComplexCurrentSpectrum'", "'VoltageSpectrum'", "'CurrentSpectrum'", 
-		"'NoiseSpectrum'", "'ResistanceSpectrum'", "'VoltageWaveform'", "'CurrentWaveform'", 
+		"'NoiseSpectrum'", "'ImpedanceSpectrum'", "'VoltageWaveform'", "'CurrentWaveform'", 
 		"'NoiseSpectralDensity'", "'IntegratedNoise'", "'ElementPin'", "'Impedance'", 
 		"'Capacitance'", "'Inductance'", "'Voltage'", "'Current'", "'Time'", "'Phase'", 
 		"'Scalar'", "'SParameterMatrix'", "'ACAnalysis'", "'DCAnalysis'", "'TranAnalysis'", 
@@ -207,7 +207,7 @@ public partial class CascodeParser : Parser {
 		"FREQUENCY_TYPE", "VOLTAGE_RATIO_TYPE", "TRANSFER_FUNCTION_TYPE", "GAIN_SPECTRUM_TYPE", 
 		"SCALAR_SPECTRUM_TYPE", "PHASE_SPECTRUM_TYPE", "TIME_SPECTRUM_TYPE", "COMPLEX_VOLTAGE_SPECTRUM_TYPE", 
 		"COMPLEX_CURRENT_SPECTRUM_TYPE", "VOLTAGE_SPECTRUM_TYPE", "CURRENT_SPECTRUM_TYPE", 
-		"NOISE_SPECTRUM_TYPE", "RESISTANCE_SPECTRUM_TYPE", "VOLTAGE_WAVEFORM_TYPE", 
+		"NOISE_SPECTRUM_TYPE", "IMPEDANCE_SPECTRUM_TYPE", "VOLTAGE_WAVEFORM_TYPE", 
 		"CURRENT_WAVEFORM_TYPE", "NOISE_SPECTRAL_DENSITY_TYPE", "INTEGRATED_NOISE_TYPE", 
 		"ELEMENT_PIN_TYPE", "IMPEDANCE_TYPE", "CAPACITANCE_TYPE", "INDUCTANCE_TYPE", 
 		"VOLTAGE_TYPE", "CURRENT_TYPE", "TIME_TYPE", "PHASE_TYPE", "SCALAR_TYPE", 
@@ -4476,7 +4476,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:
@@ -5223,7 +5223,7 @@ public partial class CascodeParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode VOLTAGE_SPECTRUM_TYPE() { return GetToken(CascodeParser.VOLTAGE_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CURRENT_SPECTRUM_TYPE() { return GetToken(CascodeParser.CURRENT_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOISE_SPECTRUM_TYPE() { return GetToken(CascodeParser.NOISE_SPECTRUM_TYPE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RESISTANCE_SPECTRUM_TYPE() { return GetToken(CascodeParser.RESISTANCE_SPECTRUM_TYPE, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IMPEDANCE_SPECTRUM_TYPE() { return GetToken(CascodeParser.IMPEDANCE_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode VOLTAGE_WAVEFORM_TYPE() { return GetToken(CascodeParser.VOLTAGE_WAVEFORM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CURRENT_WAVEFORM_TYPE() { return GetToken(CascodeParser.CURRENT_WAVEFORM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOISE_SPECTRAL_DENSITY_TYPE() { return GetToken(CascodeParser.NOISE_SPECTRAL_DENSITY_TYPE, 0); }
@@ -8617,7 +8617,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:
@@ -10106,7 +10106,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:
@@ -10200,7 +10200,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:
@@ -10256,7 +10256,7 @@ public partial class CascodeParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode VOLTAGE_SPECTRUM_TYPE() { return GetToken(CascodeParser.VOLTAGE_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CURRENT_SPECTRUM_TYPE() { return GetToken(CascodeParser.CURRENT_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOISE_SPECTRUM_TYPE() { return GetToken(CascodeParser.NOISE_SPECTRUM_TYPE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RESISTANCE_SPECTRUM_TYPE() { return GetToken(CascodeParser.RESISTANCE_SPECTRUM_TYPE, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IMPEDANCE_SPECTRUM_TYPE() { return GetToken(CascodeParser.IMPEDANCE_SPECTRUM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode VOLTAGE_WAVEFORM_TYPE() { return GetToken(CascodeParser.VOLTAGE_WAVEFORM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode CURRENT_WAVEFORM_TYPE() { return GetToken(CascodeParser.CURRENT_WAVEFORM_TYPE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode NOISE_SPECTRAL_DENSITY_TYPE() { return GetToken(CascodeParser.NOISE_SPECTRAL_DENSITY_TYPE, 0); }
@@ -10464,7 +10464,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:
@@ -11764,7 +11764,7 @@ public partial class CascodeParser : Parser {
 			case VOLTAGE_SPECTRUM_TYPE:
 			case CURRENT_SPECTRUM_TYPE:
 			case NOISE_SPECTRUM_TYPE:
-			case RESISTANCE_SPECTRUM_TYPE:
+			case IMPEDANCE_SPECTRUM_TYPE:
 			case VOLTAGE_WAVEFORM_TYPE:
 			case CURRENT_WAVEFORM_TYPE:
 			case NOISE_SPECTRAL_DENSITY_TYPE:

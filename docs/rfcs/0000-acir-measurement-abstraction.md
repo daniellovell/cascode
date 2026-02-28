@@ -1380,7 +1380,6 @@ The measurement system uses semantic types representing physical quantities. All
 | `CurrentRatio` | linear | dB, A/A | Current gain or attenuation |
 | `Impedance` | Ohm | kOhm, MOhm | Complex impedance; supports `\|\|` for parallel combinations |
 | `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
-| `Resistance` | Ohm | kOhm, MOhm | Pure resistance (real component of impedance) |
 | `Capacitance` | F | pF, fF, nF, uF | Capacitance values |
 | `Inductance` | H | nH, uH, mH | Inductance values |
 | `Voltage` | V | mV, uV, nV | Voltage values |

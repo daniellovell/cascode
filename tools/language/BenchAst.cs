@@ -63,7 +63,7 @@ public enum BenchValueType
     VoltageSpectrum,
     CurrentSpectrum,
     NoiseSpectrum,
-    ResistanceSpectrum,
+    ImpedanceSpectrum,
     NoiseSpectralDensity,
     IntegratedNoise,
     Impedance,

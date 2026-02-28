@@ -80,7 +80,7 @@ public sealed record BenchPhaseSpectrum(double[] FrequenciesHz, double[] Degrees
 public sealed record BenchNoiseSpectrum(double[] FrequenciesHz, double[] ValuesVPerRtHz)
     : BenchValue;
 
-public sealed record BenchResistanceSpectrum(double[] FrequenciesHz, double[] ValuesOhm)
+public sealed record BenchImpedanceSpectrum(double[] FrequenciesHz, double[] ValuesOhm)
     : BenchValue;
 
 public sealed record BenchComplexVoltageSpectrum(double[] FrequenciesHz, Complex[] Values)

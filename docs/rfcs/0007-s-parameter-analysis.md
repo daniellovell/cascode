@@ -207,7 +207,7 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 ```
 S.NF() → GainSpectrum
 S.NFmin() → GainSpectrum
-S.Rn() → ResistanceSpectrum
+S.Rn() → ImpedanceSpectrum
 ```
 
 When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale using

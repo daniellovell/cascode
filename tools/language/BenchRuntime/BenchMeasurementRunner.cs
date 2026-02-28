@@ -832,7 +832,7 @@ public sealed class BenchMeasurementRunner
                     );
                 }
 
-                return new BenchResistanceSpectrum(
+                return new BenchImpedanceSpectrum(
                     noiseData.FrequenciesHz,
                     noiseData.NoiseResistance
                 );
@@ -1049,15 +1049,15 @@ public sealed class BenchMeasurementRunner
             }
         }
 
-        // ResistanceSpectrum methods
-        if (recv is BenchResistanceSpectrum rs)
+        // ImpedanceSpectrum methods
+        if (recv is BenchImpedanceSpectrum rs)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
                 if (call.Args.Count != 1)
                 {
                     throw new InvalidOperationException(
-                        "ResistanceSpectrum.ValueAt requires 1 argument."
+                        "ImpedanceSpectrum.ValueAt requires 1 argument."
                     );
                 }
 
@@ -1071,7 +1071,7 @@ public sealed class BenchMeasurementRunner
                 if (call.Args.Count < 1)
                 {
                     throw new InvalidOperationException(
-                        "ResistanceSpectrum.FindCrossing requires a threshold argument."
+                        "ImpedanceSpectrum.FindCrossing requires a threshold argument."
                     );
                 }
 
@@ -1085,7 +1085,7 @@ public sealed class BenchMeasurementRunner
                 )
                 {
                     throw new InvalidOperationException(
-                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match ResistanceSpectrum."
+                        $"FindCrossing: threshold kind '{threshold.Kind}' does not match ImpedanceSpectrum."
                     );
                 }
 

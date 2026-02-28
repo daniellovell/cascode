@@ -1794,7 +1794,7 @@ bench NoiseFigureBench {{
   measurements {{
     measurement RnAt1_5G : Ohm {{
       SParameterMatrix S = sparam(sp)
-      ResistanceSpectrum rn = S.Rn()
+      ImpedanceSpectrum rn = S.Rn()
       return rn.ValueAt(1.5GHz)
     }}
   }}

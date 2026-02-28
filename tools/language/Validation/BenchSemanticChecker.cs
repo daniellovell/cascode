@@ -995,7 +995,7 @@ public static class BenchSemanticChecker
 
             if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
             {
-                return MeasurementType.ResistanceSpectrum();
+                return MeasurementType.ImpedanceSpectrum();
             }
 
             if (
@@ -1060,7 +1060,7 @@ public static class BenchSemanticChecker
             }
         }
 
-        if (recv.Kind == MeasurementTypeKind.ResistanceSpectrum)
+        if (recv.Kind == MeasurementTypeKind.ImpedanceSpectrum)
         {
             if (call.Method.Equals("ValueAt", StringComparison.OrdinalIgnoreCase))
             {
@@ -2032,7 +2032,7 @@ public static class BenchSemanticChecker
         VoltageSpectrum,
         CurrentSpectrum,
         NoiseSpectrum,
-        ResistanceSpectrum,
+        ImpedanceSpectrum,
         VoltageWaveform,
         CurrentWaveform,
         NoiseSpectralDensity,
@@ -2098,8 +2098,8 @@ public static class BenchSemanticChecker
 
         public static MeasurementType NoiseSpectrum() => new(MeasurementTypeKind.NoiseSpectrum);
 
-        public static MeasurementType ResistanceSpectrum() =>
-            new(MeasurementTypeKind.ResistanceSpectrum);
+        public static MeasurementType ImpedanceSpectrum() =>
+            new(MeasurementTypeKind.ImpedanceSpectrum);
 
         public static MeasurementType VoltageWaveform() => new(MeasurementTypeKind.VoltageWaveform);
 
@@ -2145,7 +2145,7 @@ public static class BenchSemanticChecker
                 BenchValueType.VoltageSpectrum => VoltageSpectrum(),
                 BenchValueType.CurrentSpectrum => CurrentSpectrum(),
                 BenchValueType.NoiseSpectrum => NoiseSpectrum(),
-                BenchValueType.ResistanceSpectrum => ResistanceSpectrum(),
+                BenchValueType.ImpedanceSpectrum => ImpedanceSpectrum(),
                 BenchValueType.VoltageWaveform => VoltageWaveform(),
                 BenchValueType.CurrentWaveform => CurrentWaveform(),
                 BenchValueType.NoiseSpectralDensity => NoiseSpectralDensity(),
