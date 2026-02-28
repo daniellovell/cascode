@@ -7,8 +7,8 @@ function get_source_impedance(Impedance fallback) : Impedance {
   return fallback
 }
 
-function get_output_impedance(Impedance fallback) : Impedance {
-  if env.OutputImpedance { return env.OutputImpedance }
+function get_load_impedance(Impedance fallback) : Impedance {
+  if env.LoadImpedance { return env.LoadImpedance }
   return fallback
 }
 
@@ -28,7 +28,7 @@ bench TwoPortSParam {
       .N--gnd
     }
 
-    Port port2 = new Port(N=2, Z=get_output_impedance(50Ohm), V=env.OutputCommonModeRange) {
+    Port port2 = new Port(N=2, Z=get_load_impedance(50Ohm), V=env.OutputCommonModeRange) {
       .P--P2
       .N--gnd
     }

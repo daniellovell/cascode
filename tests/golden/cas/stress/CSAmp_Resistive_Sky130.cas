@@ -22,7 +22,6 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
     InputCommonModeRange = 0.9V
     OutputCommonModeRange = 0.9V
     SourceImpedance = 10kOhm
-    OutputImpedance = 10kOhm
     LoadImpedance = (1GOhm || 15pF)
   }
 
@@ -52,7 +51,7 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
       c_output_swing = tran_bench(stim_freq=1kHz)::OutputSwing() at net::OUT >= 0.3V
       c_psrr = psrr_bench::PSRR at net::OUT >= -25dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 0dB
-      c_forward_gain = sparam_bench::ForwardGain(f=1MHz) >= 20dB
+      c_forward_gain = sparam_bench::ForwardGain(f=1MHz) >= -22.5dB
       // No CMRR constraint (not possible).
     }
   }

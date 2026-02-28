@@ -326,7 +326,6 @@ internal static class BenchHarnessCompiler
 
         var isImpedanceKey =
             key.Equals("SourceImpedance", StringComparison.OrdinalIgnoreCase)
-            || key.Equals("OutputImpedance", StringComparison.OrdinalIgnoreCase)
             || key.Equals("LoadImpedance", StringComparison.OrdinalIgnoreCase);
 
         if (raw.Contains("||", StringComparison.Ordinal))
