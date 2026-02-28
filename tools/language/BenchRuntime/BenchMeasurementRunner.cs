@@ -2499,6 +2499,21 @@ public sealed class BenchMeasurementRunner
             return ApplyImpedanceScale(op, rz, left, leftOnLhs: false);
         }
 
+        if (left is BenchTransferFunction ltf && right is BenchTransferFunction rtf)
+        {
+            return ApplyTransferFunctionBinary(op, ltf, rtf);
+        }
+
+        if (left is BenchTransferFunction ltf2 && right is BenchNumber rScalar)
+        {
+            return ScaleTransferFunction(op, ltf2, rScalar, leftOnLhs: true);
+        }
+
+        if (left is BenchNumber lScalar && right is BenchTransferFunction rtf2)
+        {
+            return ScaleTransferFunction(op, rtf2, lScalar, leftOnLhs: false);
+        }
+
         throw new InvalidOperationException(
             $"Unsupported binary '{op}' for {left.GetType().Name} and {right.GetType().Name}."
         );
@@ -2554,6 +2569,71 @@ public sealed class BenchMeasurementRunner
         }
 
         throw new InvalidOperationException($"Unsupported binary operator '{op}'.");
+    }
+
+    private static BenchTransferFunction ApplyTransferFunctionBinary(
+        string op,
+        BenchTransferFunction left,
+        BenchTransferFunction right
+    )
+    {
+        if (op is not ("+" or "-"))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported binary '{op}' between two transfer functions."
+            );
+        }
+
+        if (
+            !ReferenceEquals(left.FrequenciesHz, right.FrequenciesHz)
+            && !left.FrequenciesHz.SequenceEqual(right.FrequenciesHz)
+        )
+        {
+            throw new InvalidOperationException(
+                "Transfer function arithmetic requires identical frequency arrays."
+            );
+        }
+
+        var values = new Complex[left.Values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] =
+                op == "+" ? left.Values[i] + right.Values[i] : left.Values[i] - right.Values[i];
+        }
+
+        return new BenchTransferFunction(left.FrequenciesHz, values);
+    }
+
+    private static BenchTransferFunction ScaleTransferFunction(
+        string op,
+        BenchTransferFunction tf,
+        BenchNumber scalar,
+        bool leftOnLhs
+    )
+    {
+        if (scalar.Kind != BenchNumericKind.Scalar)
+        {
+            throw new InvalidOperationException(
+                $"Transfer function scaling requires a scalar operand, got {scalar.Kind}."
+            );
+        }
+
+        var s = new Complex(scalar.Value, 0.0);
+        var values = new Complex[tf.Values.Length];
+        for (var i = 0; i < values.Length; i++)
+        {
+            values[i] = op switch
+            {
+                "*" => tf.Values[i] * s,
+                "/" when leftOnLhs => tf.Values[i] / s,
+                "/" => s / tf.Values[i],
+                _ => throw new InvalidOperationException(
+                    $"Unsupported binary '{op}' for transfer function and scalar."
+                ),
+            };
+        }
+
+        return new BenchTransferFunction(tf.FrequenciesHz, values);
     }
 
     private static BenchValue ApplyImpedanceScale(
