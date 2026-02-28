@@ -44,5 +44,10 @@ interface SingleEndedAmp {
         measurement InputReferredPSRR : dB = base::InputReferredPSRR(dmGain=transfer_bench::PassbandGain)
       }
     }
+
+    bind TwoPortSParam as sparam_bench {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
   }
 }

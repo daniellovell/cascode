@@ -2029,6 +2029,106 @@ bench StartsAtTwo {{
     }
 
     [Fact]
+    public void SParameterMatrix_StabilityK_UsesOwningBenchPortCount()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench NoPortsBench {{
+  resp A : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=1, start=1Hz, stop=1Hz)
+  }}
+
+  measurements {{
+    measurement Sanity : dB {{
+      return 1dB
+    }}
+  }}
+}}
+
+bench TwoPortBench {{
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port port1 = new Port(N=1, Z=50Ohm, V=0V) {{
+      .P--P1
+      .N--gnd
+    }}
+    Port port2 = new Port(N=2, Z=50Ohm, V=0V) {{
+      .P--P2
+      .N--gnd
+    }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=1, start=1GHz, stop=1GHz)
+  }}
+
+  measurements {{
+    measurement KAt1G : Scalar {{
+      SParameterMatrix S = sparam(sp)
+      return S.StabilityK().ValueAt(1GHz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "TwoPortBench");
+        var sp = new BenchSParameterMatrix(
+            FrequenciesHz: new[] { 1e9 },
+            Elements: new Dictionary<BenchPortPair, System.Numerics.Complex[]>
+            {
+                [new BenchPortPair(1, 1)] = new[] { new System.Numerics.Complex(0.3, 0.0) },
+                [new BenchPortPair(1, 2)] = new[] { new System.Numerics.Complex(0.1, 0.0) },
+                [new BenchPortPair(2, 1)] = new[] { new System.Numerics.Complex(2.0, 0.0) },
+                [new BenchPortPair(2, 2)] = new[] { new System.Numerics.Complex(0.3, 0.0) },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["sp"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "sp",
+                    StartHz: 1e9,
+                    StopHz: 1e9,
+                    StartS: 0,
+                    StopS: 0,
+                    SParameters: sp
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["P1"] = new BenchTerminalRef("P1", new[] { "P1" }),
+                ["P2"] = new BenchTerminalRef("P2", new[] { "P2" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "KAt1G" });
+        Assert.Equal(2.08025, values["KAt1G"].Value, precision: 12);
+        Assert.Equal("Scalar", values["KAt1G"].Unit);
+    }
+
+    [Fact]
     public void SParameterMatrix_MSGForNonTwoPortNetwork_ProducesSemanticError()
     {
         var cascode =

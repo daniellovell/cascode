@@ -1,0 +1,76 @@
+VERSION 4.0
+
+library lib.std.bench
+
+bench TwoPortSParam {
+  resp P1 : analog
+  resp P2 : analog
+
+  fill {
+    net gnd : ground
+
+    GND _ = new GND() {
+      .GND--gnd
+    }
+
+    Port port1 = new Port(N=1, Z=50Ohm, V=env.InputCommonModeRange) {
+      .P--P1
+      .N--gnd
+    }
+
+    Port port2 = new Port(N=2, Z=50Ohm, V=env.OutputCommonModeRange) {
+      .P--P2
+      .N--gnd
+    }
+  }
+
+  analysis {
+    SPAnalysis sp = new SPAnalysis(
+      space=Log,
+      samples=100,
+      start=(if constraints.HighpassBandwidth { constraints.HighpassBandwidth * 0.1 } else { 1Hz }),
+      stop=(if constraints.GainBandwidth { constraints.GainBandwidth * 10 } else { 10GHz }))
+  }
+
+  measurements {
+    measurement ForwardGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).ValueAt(f)
+    }
+
+    measurement InputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).ValueAt(f)
+    }
+
+    measurement OutputReturnLoss(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).ValueAt(f)
+    }
+
+    measurement ReverseIsolation(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).ValueAt(f)
+    }
+
+    measurement InputVSWR(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).ValueAt(f)
+    }
+
+    measurement StabilityK(Frequency f) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.StabilityK().ValueAt(f)
+    }
+
+    measurement MaxAvailableGain(Frequency f) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.MAG()).ValueAt(f)
+    }
+
+    measurement ForwardGroupDelay(Frequency f) : s {
+      SParameterMatrix S = sparam(sp)
+      return S.GroupDelay(2, 1).ValueAt(f)
+    }
+  }
+}

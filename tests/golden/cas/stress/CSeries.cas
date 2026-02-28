@@ -1,0 +1,50 @@
+VERSION 4.0
+
+include lib.std
+
+
+circuit CSeries_Sky130 {
+  level EL
+
+  input IN : analog
+  output OUT : analog
+  ground GND
+
+  env {
+    InputCommonModeRange = 0V
+    OutputCommonModeRange = 0V
+  }
+
+  fill {
+    Capacitor C1 = new Ideal_Capacitor(size(C=3.18309886184n)) {
+      .P--IN
+      .N--OUT
+    }
+  }
+
+  benches {
+    bind TwoPortSParam as sparam {
+      bench.P1--dut.IN
+      bench.P2--dut.OUT
+    }
+  }
+
+  constraints {
+    numeric {
+      // The capacitor impedance is 50Ohm at 1MHz.
+      c_input_return_loss_low = sparam::InputReturnLoss(f=100kHz) <= 0.2dB
+      c_input_return_loss_50_min = sparam::InputReturnLoss(f=1MHz) >= 6.98dB
+      c_input_return_loss_50_max = sparam::InputReturnLoss(f=1MHz) <= 6.99dB
+      c_input_return_loss_high = sparam::InputReturnLoss(f=10MHz) >= 26dB
+      c_forward_gain_min = sparam::ForwardGain(f=1MHz) >= -0.97dB
+      c_forward_gain_max = sparam::ForwardGain(f=1MHz) <= -0.96dB
+      // The network is reciprocal.
+      c_output_return_loss_low = sparam::OutputReturnLoss(f=100kHz) <= 0.2dB
+      c_output_return_loss_50_min = sparam::OutputReturnLoss(f=1MHz) >= 6.98dB
+      c_output_return_loss_50_max = sparam::OutputReturnLoss(f=1MHz) <= 6.99dB
+      c_output_return_loss_high = sparam::OutputReturnLoss(f=10MHz) >= 26dB
+      c_reverse_isolation_min = sparam::ReverseIsolation(f=1MHz) >= 0.96dB
+      c_reverse_isolation_max = sparam::ReverseIsolation(f=1MHz) <= 0.97dB
+    }
+  }
+}
