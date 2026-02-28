@@ -243,6 +243,11 @@ Port p1 = new Port(N=1, Z=50Ohm, V=0V) {
 The index order in `S.S(i, j)` follows standard convention: response index first, excitation index
 second.
 
+S-parameter reference impedances are real-valued by convention. When the `Z` parameter resolves to
+a parallel impedance expression (for example `1GOhm || 15pF`), the emitter extracts only the
+resistive terms and discards any reactive components (capacitance or inductance). A purely reactive
+impedance with no resistive term produces `z0=0`, which is invalid for simulator RF ports.
+
 ---
 
 ## 4.3 Fill Blocks (Test Circuit Construction)
