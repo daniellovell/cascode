@@ -297,17 +297,17 @@ bench TwoPortSParamNoise {
       return S.GroupDelay(2, 1).ValueAt(f)
     }
 
-    measurement NF(Frequency f) : dB {
+    measurement NoiseFigure(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NF().ValueAt(f)
     }
 
-    measurement NFmin(Frequency f) : dB {
+    measurement MinNoiseFigure(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NFmin().ValueAt(f)
     }
 
-    measurement Rn(Frequency f) : Ohm {
+    measurement NoiseResistance(Frequency f) : Ohm {
       SParameterMatrix S = sparam(sp)
       return S.Rn().ValueAt(f)
     }
