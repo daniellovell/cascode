@@ -276,6 +276,7 @@ circuit Top {
 
         var tb = EmitTestbench(cascode, instanceName: "sp");
 
+        Assert.Contains("sp dec 10 1 1K 0", tb, StringComparison.Ordinal);
         Assert.DoesNotContain(".sp.nf.wrdata", tb, StringComparison.Ordinal);
     }
 
