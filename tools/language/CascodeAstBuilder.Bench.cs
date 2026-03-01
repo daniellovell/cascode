@@ -615,7 +615,7 @@ internal sealed partial class CascodeAstBuilder
             }
         }
 
-        return new MeasurementBenchMeasurementRef(r.IDENT(0).GetText(), r.IDENT(1).GetText(), args);
+        return new MeasurementBenchMeasurementRef(r.IDENT().GetText(), r.idPart().GetText(), args);
     }
 
     private ScopedValueRef BuildScopedValueRef(CascodeParser.ScopedAccessContext ctx)
