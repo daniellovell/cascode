@@ -58,9 +58,19 @@ bench TwoPortSParam {
       return S.ReturnLoss(1).ValueAt(f)
     }
 
+    measurement InputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(1).From(from).To(to)
+    }
+
     measurement OutputReturnLoss(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(2).ValueAt(f)
+    }
+
+    measurement OutputReturnLossSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.ReturnLoss(2).From(from).To(to)
     }
 
     measurement ReverseIsolation(Frequency f) : dB {
@@ -68,9 +78,19 @@ bench TwoPortSParam {
       return S.Isolation(1, 2).ValueAt(f)
     }
 
+    measurement ReverseIsolationSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.Isolation(1, 2).From(from).To(to)
+    }
+
     measurement InputVSWR(Frequency f) : Scalar {
       SParameterMatrix S = sparam(sp)
       return S.VSWR(1).ValueAt(f)
+    }
+
+    measurement InputVSWRSpectrum(Frequency from, Frequency to) : Scalar {
+      SParameterMatrix S = sparam(sp)
+      return S.VSWR(1).From(from).To(to)
     }
 
     measurement StabilityK(Frequency f) : Scalar {
