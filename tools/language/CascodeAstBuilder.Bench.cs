@@ -284,7 +284,7 @@ internal sealed partial class CascodeAstBuilder
     {
         var measurement = new MeasurementDefinition
         {
-            Name = decl.name.Text,
+            Name = decl.name.GetText(),
             IsOverride = decl.OVERRIDE_KW() is not null,
             Unit = decl.unitType().GetText(),
         };
