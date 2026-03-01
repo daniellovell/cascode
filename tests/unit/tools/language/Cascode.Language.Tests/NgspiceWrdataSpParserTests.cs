@@ -14,13 +14,8 @@ public sealed class NgspiceWrdataSpParserTests
     [Fact]
     public void Parse_ReadsTwoPortComplexWrdata()
     {
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-sp-wrdata-" + Guid.NewGuid().ToString("N")
-        );
-        Directory.CreateDirectory(tmp);
-
-        var path = Path.Combine(tmp, "sp.wrdata");
+        using var tmpDir = new TemporaryDirectory();
+        var path = Path.Combine(tmpDir.Path, "sp.wrdata");
         File.WriteAllText(
             path,
             """
@@ -48,13 +43,8 @@ public sealed class NgspiceWrdataSpParserTests
     [Fact]
     public void Parse_ReadsSinglePortComplexWrdata()
     {
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-sp-wrdata-" + Guid.NewGuid().ToString("N")
-        );
-        Directory.CreateDirectory(tmp);
-
-        var path = Path.Combine(tmp, "sp1.wrdata");
+        using var tmpDir = new TemporaryDirectory();
+        var path = Path.Combine(tmpDir.Path, "sp.wrdata");
         File.WriteAllText(path, "1.00000000e+06  2.50000000e-01  -1.25000000e-01");
 
         var ds = NgspiceWrdataSpParser.Parse(path, numPorts: 1);
@@ -67,13 +57,8 @@ public sealed class NgspiceWrdataSpParserTests
     [Fact]
     public void Parse_ThrowsWhenColumnCountDoesNotMatchPortCount()
     {
-        var tmp = Path.Combine(
-            Path.GetTempPath(),
-            "cascode-sp-wrdata-" + Guid.NewGuid().ToString("N")
-        );
-        Directory.CreateDirectory(tmp);
-
-        var path = Path.Combine(tmp, "bad.wrdata");
+        using var tmpDir = new TemporaryDirectory();
+        var path = Path.Combine(tmpDir.Path, "bad.wrdata");
         File.WriteAllText(
             path,
             "1.00000000e+09  1.0  0.0  1.00000000e+09  2.0  0.0  1.00000000e+09  3.0  0.0"
