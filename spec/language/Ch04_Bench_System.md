@@ -563,8 +563,14 @@ Transfer function methods:
 Spectrum methods:
 
 - `S.ValueAt(f)` → interpolated real-valued or complex-valued scalar at frequency `f`
+- `S.From(f)` / `S.To(f)` → truncated spectrum with frequency range `>= f` or `<= f` (same spectrum type)
 - `S.FindCrossing(threshold, dir=falling|rising, cross=1, from=..., to=...)` → crossing frequency
 - `S.Integrate(from, to)` → (noise spectra only) integrated RMS noise over a band
+
+Waveform methods:
+
+- `W.ValueAt(t)` → interpolated scalar at time `t`
+- `W.From(t)` / `W.To(t)` → truncated waveform with time range `>= t` or `<= t` (same waveform type)
 
 For complex AC spectra (`ComplexVoltageSpectrum`, `ComplexCurrentSpectrum`), `ValueAt(f)` returns a complex point
 interpolated in magnitude/phase space. Phase interpolation uses the shortest angular path between
@@ -572,6 +578,8 @@ neighboring points; if one endpoint has near-zero magnitude, the phase is taken 
 non-zero endpoint. Magnitude-sensitive operations remain explicit, either by converting the
 spectrum first (`voltage(ac, OUT).Mag().ValueAt(f)`) or by converting the sampled point
 (`voltage(ac, OUT).ValueAt(f).Mag()`). These two forms are equivalent for magnitude interpolation.
+`From` and `To` are chainable with each other and with `ValueAt`, for example
+`voltage(ac, OUT).From(100Hz).To(1MHz).ValueAt(500kHz)`.
 
 The [standard library](../../lib/std/bench/) uses these methods to implement measurements such as gain-bandwidth and phase
 margin ([transfer benches](../../lib/std/bench/TransferBenches.cas)) and spot/integrated noise ([noise benches](../../lib/std/bench/NoiseBenches.cas)).

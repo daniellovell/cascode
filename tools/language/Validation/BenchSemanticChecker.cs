@@ -960,6 +960,16 @@ public static class BenchSemanticChecker
     {
         var recv = InferExprType(call.Receiver, scope, measurementTypes, benchesByName);
 
+        if (
+            (
+                call.Method.Equals("From", StringComparison.OrdinalIgnoreCase)
+                || call.Method.Equals("To", StringComparison.OrdinalIgnoreCase)
+            ) && IsArrayKind(recv.Kind)
+        )
+        {
+            return recv;
+        }
+
         if (recv.Kind == MeasurementTypeKind.TransferFunction)
         {
             if (call.Method.Equals("Mag", StringComparison.OrdinalIgnoreCase))
@@ -1256,6 +1266,20 @@ public static class BenchSemanticChecker
         // Unknown methods: treat as scalar for now and let runtime produce a better error.
         return MeasurementType.Scalar();
     }
+
+    private static bool IsArrayKind(MeasurementTypeKind kind) =>
+        kind == MeasurementTypeKind.GainSpectrum
+        || kind == MeasurementTypeKind.ScalarSpectrum
+        || kind == MeasurementTypeKind.TimeSpectrum
+        || kind == MeasurementTypeKind.PhaseSpectrum
+        || kind == MeasurementTypeKind.ComplexVoltageSpectrum
+        || kind == MeasurementTypeKind.ComplexCurrentSpectrum
+        || kind == MeasurementTypeKind.VoltageSpectrum
+        || kind == MeasurementTypeKind.CurrentSpectrum
+        || kind == MeasurementTypeKind.NoiseSpectrum
+        || kind == MeasurementTypeKind.VoltageWaveform
+        || kind == MeasurementTypeKind.CurrentWaveform
+        || kind == MeasurementTypeKind.TransferFunction;
 
     private static MeasurementType InferCallType(
         MeasurementCall call,

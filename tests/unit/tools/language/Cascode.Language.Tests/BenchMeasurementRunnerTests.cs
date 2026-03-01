@@ -2300,4 +2300,567 @@ bench PortTypeBench {{
             d => d.Message.Contains("Port argument to ReturnLoss must be an integer")
         );
     }
+
+    [Fact]
+    public void Spectrum_FromTo_Chaining_TruncatesBand()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench SpectrumRangeBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=4, start=1Hz, stop=1000Hz)
+  }}
+
+  measurements {{
+    measurement GainBandMax : dB {{
+      GainSpectrum G = db20(transfer(ac, IN, OUT).Mag()).From(10Hz).To(100Hz)
+      return G.Max()
+    }}
+
+    measurement GainBandAt10 : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).From(10Hz).To(100Hz).ValueAt(10Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "SpectrumRangeBench");
+        var frequencies = new[] { 1.0, 10.0, 100.0, 1000.0 };
+        var ac = new AcDataset(
+            FrequenciesHz: frequencies,
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["IN"] = Enumerable
+                    .Repeat(new System.Numerics.Complex(1.0, 0.0), frequencies.Length)
+                    .ToArray(),
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(0.1, 0.0),
+                    new System.Numerics.Complex(0.5, 0.0),
+                    new System.Numerics.Complex(2.0, 0.0),
+                    new System.Numerics.Complex(10.0, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 1000,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "GainBandMax", "GainBandAt10" });
+        Assert.Equal(ToDb20(2.0), values["GainBandMax"].Value, precision: 9);
+        Assert.Equal(ToDb20(0.5), values["GainBandAt10"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void ComplexSpectrum_FromTo_Chaining_PreservesComplexPointOperations()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench ComplexRangeBench {{
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=4, start=1Hz, stop=1000Hz)
+  }}
+
+  measurements {{
+    measurement ComplexBandMag : V {{
+      return voltage(ac, OUT).From(10Hz).To(100Hz).ValueAt(10Hz).Mag()
+    }}
+
+    measurement ComplexBandPhase : deg {{
+      return voltage(ac, OUT).From(10Hz).To(100Hz).ValueAt(10Hz).Phase()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "ComplexRangeBench");
+        var frequencies = new[] { 1.0, 10.0, 100.0, 1000.0 };
+        var ac = new AcDataset(
+            FrequenciesHz: frequencies,
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(0.0, 0.0),
+                    System.Numerics.Complex.FromPolarCoordinates(2.0, Math.PI / 4.0),
+                    System.Numerics.Complex.FromPolarCoordinates(4.0, Math.PI / 2.0),
+                    System.Numerics.Complex.FromPolarCoordinates(8.0, 3.0 * Math.PI / 4.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 1000,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "ComplexBandMag", "ComplexBandPhase" });
+        Assert.Equal(2.0, values["ComplexBandMag"].Value, precision: 9);
+        Assert.Equal(45.0, values["ComplexBandPhase"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void Waveform_FromTo_Chaining_TruncatesWindowAndInterpolates()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench WaveformRangeBench {{
+  resp OUT : analog
+
+  analysis {{
+    TranAnalysis tran = new TranAnalysis(step=1ns, start=0ns, stop=5ns)
+  }}
+
+  measurements {{
+    measurement WindowMax : V {{
+      return voltage(tran, OUT).From(2ns).To(4ns).Max()
+    }}
+
+    measurement WindowAt3ns : V {{
+      return voltage(tran, OUT).From(2ns).To(4ns).ValueAt(3ns)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "WaveformRangeBench");
+        var tran = new TranDataset(
+            TimePoints: new[] { 0.0, 1e-9, 2e-9, 3e-9, 4e-9, 5e-9 },
+            NodeVoltages: new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new[] { 0.0, 1.0, 4.0, 9.0, 16.0, 25.0 },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["tran"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "tran",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 5e-9,
+                    Tran: tran
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var values = runner.RunMetrics(new[] { "WindowMax", "WindowAt3ns" });
+        Assert.Equal(16.0, values["WindowMax"].Value, precision: 9);
+        Assert.Equal(9.0, values["WindowAt3ns"].Value, precision: 9);
+    }
+
+    [Fact]
+    public void FromTo_TypeInference_AllowsTypedChainingForSpectrumAndWaveform()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench TypedFromToBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=10Hz)
+    TranAnalysis tran = new TranAnalysis(step=1ns, start=0ns, stop=2ns)
+  }}
+
+  measurements {{
+    measurement SpectrumTypeOk : dB {{
+      GainSpectrum G = db20(transfer(ac, IN, OUT).Mag()).From(1Hz).To(10Hz)
+      return G.ValueAt(1Hz)
+    }}
+
+    measurement WaveformTypeOk : V {{
+      VoltageWaveform W = voltage(tran, OUT).From(0ns).To(2ns)
+      return W.ValueAt(1ns)
+    }}
+
+    measurement ComplexSpectrumTypeOk : V {{
+      ComplexVoltageSpectrum CV = voltage(ac, OUT).From(1Hz).To(10Hz)
+      return CV.ValueAt(1Hz).Mag()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
+    public void Spectrum_From_WithTimeArgument_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadSpectrumFromBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=10Hz)
+  }}
+
+  measurements {{
+    measurement Bad : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).From(1ns).ValueAt(10Hz)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "BadSpectrumFromBench");
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["IN"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 10,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Expected Frequency for From", ex.Message);
+    }
+
+    [Fact]
+    public void Waveform_To_WithFrequencyArgument_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench BadWaveformToBench {{
+  resp OUT : analog
+
+  analysis {{
+    TranAnalysis tran = new TranAnalysis(step=1ns, start=0ns, stop=2ns)
+  }}
+
+  measurements {{
+    measurement Bad : V {{
+      return voltage(tran, OUT).To(10Hz).ValueAt(1ns)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b => b.Name == "BadWaveformToBench");
+        var tran = new TranDataset(
+            TimePoints: new[] { 0.0, 1e-9, 2e-9 },
+            NodeVoltages: new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new[] { 0.0, 1.0, 2.0 },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["tran"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "tran",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 0,
+                    StopS: 2e-9,
+                    Tran: tran
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Expected Time for To", ex.Message);
+    }
+
+    [Fact]
+    public void Spectrum_From_ThatProducesEmptyBand_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench EmptySpectrumBandBench {{
+  stim IN : analog
+  resp OUT : analog
+
+  analysis {{
+    ACAnalysis ac = new ACAnalysis(space=Log, samples=2, start=1Hz, stop=10Hz)
+  }}
+
+  measurements {{
+    measurement EmptyMax : dB {{
+      return db20(transfer(ac, IN, OUT).Mag()).From(1000Hz).Max()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "EmptySpectrumBandBench"
+        );
+        var ac = new AcDataset(
+            FrequenciesHz: new[] { 1.0, 10.0 },
+            NodeVoltages: new Dictionary<string, System.Numerics.Complex[]>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["IN"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+                ["OUT"] = new[]
+                {
+                    new System.Numerics.Complex(1.0, 0.0),
+                    new System.Numerics.Complex(1.0, 0.0),
+                },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["ac"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "ac",
+                    StartHz: 1,
+                    StopHz: 10,
+                    StartS: 0,
+                    StopS: 0,
+                    Ac: ac
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IN"] = new BenchTerminalRef("IN", new[] { "IN" }),
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Sequence contains no elements", ex.Message);
+    }
+
+    [Fact]
+    public void Waveform_To_ThatProducesEmptyWindow_ThrowsAtRuntime()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench EmptyWaveformWindowBench {{
+  resp OUT : analog
+
+  analysis {{
+    TranAnalysis tran = new TranAnalysis(step=1ns, start=1ns, stop=3ns)
+  }}
+
+  measurements {{
+    measurement EmptyMax : V {{
+      return voltage(tran, OUT).To(0ns).Max()
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+        Assert.True(result.Success);
+
+        var bench = result.Document!.BenchDefinitions.Single(b =>
+            b.Name == "EmptyWaveformWindowBench"
+        );
+        var tran = new TranDataset(
+            TimePoints: new[] { 1e-9, 2e-9, 3e-9 },
+            NodeVoltages: new Dictionary<string, double[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new[] { 1.0, 2.0, 3.0 },
+            }
+        );
+
+        var runner = new BenchMeasurementRunner(
+            bench,
+            functions: result.Document.Functions.ToDictionary(f => f.Name, StringComparer.Ordinal),
+            analyses: new Dictionary<string, BenchMeasurementRunner.AnalysisContext>(
+                StringComparer.OrdinalIgnoreCase
+            )
+            {
+                ["tran"] = new BenchMeasurementRunner.AnalysisContext(
+                    Name: "tran",
+                    StartHz: 0,
+                    StopHz: 0,
+                    StartS: 1e-9,
+                    StopS: 3e-9,
+                    Tran: tran
+                ),
+            },
+            terminals: new Dictionary<string, BenchTerminalRef>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["OUT"] = new BenchTerminalRef("OUT", new[] { "OUT" }),
+            },
+            env: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            harness: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase),
+            constraints: new Dictionary<string, BenchValue>(StringComparer.OrdinalIgnoreCase)
+        );
+
+        var ex = Assert.Throws<InvalidOperationException>(() => runner.RunAll());
+        Assert.Contains("Sequence contains no elements", ex.Message);
+    }
+
+    private static double ToDb20(double magnitude) => 20.0 * Math.Log10(Math.Max(1e-15, magnitude));
 }
