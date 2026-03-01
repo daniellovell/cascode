@@ -12,7 +12,7 @@ Target Version: Cascode 4.x
 
 This RFC proposes S-parameter support within Cascode's bench system. The design introduces `SPAnalysis`, `SParameterMatrix`, and a `Port` harness primitive that is instantiated in bench wiring just like `VDC` or `Impedor`.
 
-Ports are single-ended by definition. Each `Port` provides an ngspice S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
+Ports are single-ended by definition. Each `Port` provides an S-parameter source/termination point with explicit port number, reference impedance, and DC bias voltage.
 
 ---
 
@@ -208,8 +208,8 @@ Group delay uses the phase derivative of `Sij` with respect to angular frequency
 S.NF() → GainSpectrum
 ```
 
-When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale using
-`10*log10(NoiseFactor)` for each sampled frequency.
+When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns the sampled noise figure
+values in dB.
 
 ---
 

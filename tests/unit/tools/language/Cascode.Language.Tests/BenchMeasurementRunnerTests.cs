@@ -1549,7 +1549,7 @@ bench SParamBench {{
     }
 
     [Fact]
-    public void SParameterMatrix_NF_ConvertsNoiseFactorToDb()
+    public void SParameterMatrix_NF_PassesThroughNoiseFigure()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -1620,7 +1620,7 @@ bench NoiseFigureBench {{
         );
         var spNoise = new SpNoiseDataset(
             FrequenciesHz: new[] { 1e9, 2e9 },
-            NoiseFactor: new[] { 2.0, 4.0 }
+            NoiseFigure: new[] { 3.25, 5.75 }
         );
 
         var runner = new BenchMeasurementRunner(
@@ -1651,7 +1651,7 @@ bench NoiseFigureBench {{
         );
 
         var values = runner.RunMetrics(new[] { "NFAt1G" });
-        Assert.Equal(3.010299956639812, values["NFAt1G"].Value, precision: 9);
+        Assert.Equal(3.25, values["NFAt1G"].Value, precision: 9);
     }
 
     [Fact]

@@ -782,9 +782,7 @@ public sealed class BenchMeasurementRunner
                     );
                 }
 
-                var values = noiseData
-                    .NoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
-                    .ToArray();
+                var values = noiseData.NoiseFigure.ToArray();
                 return new BenchGainSpectrum(
                     noiseData.FrequenciesHz,
                     values,

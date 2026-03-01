@@ -183,32 +183,32 @@ public sealed class NgspiceWrdataSpParserTests
     }
 
     [Fact]
-    public void ParseNoiseFactor_ReadsFrequencyAndNoiseFactor()
+    public void ParseNoiseFigure_ReadsFrequencyAndNoiseFigure()
     {
         using var tmpDir = new TemporaryDirectory();
         var path = Path.Combine(tmpDir.Path, "sp.nf.wrdata");
         File.WriteAllText(
             path,
             """
-            1.00000000e+09  2.00000000e+00  0.00000000e+00
-            2.00000000e+09  1.50000000e+00  0.00000000e+00
+            1.00000000e+09  2.75000000e+00  0.00000000e+00
+            2.00000000e+09  4.25000000e+00  0.00000000e+00
             """
         );
 
-        var ds = NgspiceWrdataSpParser.ParseNoiseFactor(path);
+        var ds = NgspiceWrdataSpParser.ParseNoiseFigure(path);
         Assert.Equal(new[] { 1e9, 2e9 }, ds.FrequenciesHz);
-        Assert.Equal(new[] { 2.0, 1.5 }, ds.NoiseFactor);
+        Assert.Equal(new[] { 2.75, 4.25 }, ds.NoiseFigure);
     }
 
     [Fact]
-    public void ParseNoiseFactor_ThrowsWhenColumnCountIsInvalid()
+    public void ParseNoiseFigure_ThrowsWhenColumnCountIsInvalid()
     {
         using var tmpDir = new TemporaryDirectory();
         var path = Path.Combine(tmpDir.Path, "bad.nf.wrdata");
         File.WriteAllText(path, "1.00000000e+09  2.0");
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            NgspiceWrdataSpParser.ParseNoiseFactor(path)
+            NgspiceWrdataSpParser.ParseNoiseFigure(path)
         );
         Assert.Contains("expected 3, got 2", ex.Message);
     }

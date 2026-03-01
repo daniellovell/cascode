@@ -605,7 +605,7 @@ Derived metric methods:
 | `S.MSG()` | `GainSpectrum` | Maximum stable gain in linear units (2-port only) |
 | `S.MAG()` | `GainSpectrum` | Maximum available gain in linear units; falls back to MSG where K < 1 (2-port only) |
 | `S.GroupDelay(to, from)` | `TimeSpectrum` | −dφij/dω (time-valued samples indexed by frequency) |
-| `S.NF()` | `GainSpectrum` | Noise figure in dB, computed as 10·log₁₀(noise factor); requires `SPAnalysis(noise=1)` |
+| `S.NF()` | `GainSpectrum` | Noise figure in dB; requires `SPAnalysis(noise=1)` |
 
 The 2-port-only methods (`StabilityK`, `MuFactor`, `MSG`, `MAG`) produce a semantic error when
 called on an `SParameterMatrix` from a bench with more than two ports.
