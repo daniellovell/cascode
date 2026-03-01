@@ -214,7 +214,7 @@ circuit Top {
     }
 
     [Fact]
-    public void EmitAll_DoesNotEmitNoiseFactorWrdata_WhenSpNoiseIsDisabled()
+    public void EmitAll_DoesNotEmitNoiseWrdata_WhenSpNoiseIsDisabled()
     {
         var cascode = """
 VERSION 4.0

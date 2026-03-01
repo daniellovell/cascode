@@ -1549,7 +1549,7 @@ bench SParamBench {{
     }
 
     [Fact]
-    public void SParameterMatrix_NF_ConvertsNoiseFactorToDb()
+    public void SParameterMatrix_NF_PassesThroughNoiseFigure()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -1620,8 +1620,8 @@ bench NoiseFigureBench {{
         );
         var spNoise = new SpNoiseDataset(
             FrequenciesHz: new[] { 1e9, 2e9 },
-            NoiseFactor: new[] { 2.0, 4.0 },
-            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseFigure: new[] { 3.25, 5.75 },
+            MinNoiseFigure: new[] { 1.2, 1.1 },
             NoiseResistance: new[] { 20.0, 40.0 }
         );
 
@@ -1653,11 +1653,11 @@ bench NoiseFigureBench {{
         );
 
         var values = runner.RunMetrics(new[] { "NFAt1G" });
-        Assert.Equal(3.010299956639812, values["NFAt1G"].Value, precision: 9);
+        Assert.Equal(3.25, values["NFAt1G"].Value, precision: 9);
     }
 
     [Fact]
-    public void SParameterMatrix_NFmin_ConvertsMinimumNoiseFactorToDb()
+    public void SParameterMatrix_NFmin_PassesThroughMinNoiseFigure()
     {
         var cascode =
             $@"VERSION {CascodeVersion.Current}
@@ -1728,8 +1728,8 @@ bench NoiseFigureBench {{
         );
         var spNoise = new SpNoiseDataset(
             FrequenciesHz: new[] { 1e9, 2e9 },
-            NoiseFactor: new[] { 2.0, 4.0 },
-            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseFigure: new[] { 3.25, 5.75 },
+            MinNoiseFigure: new[] { 1.2, 1.1 },
             NoiseResistance: new[] { 20.0, 40.0 }
         );
 
@@ -1761,7 +1761,7 @@ bench NoiseFigureBench {{
         );
 
         var values = runner.RunMetrics(new[] { "NFminAt1G" });
-        Assert.Equal(0.7918124604762482, values["NFminAt1G"].Value, precision: 9);
+        Assert.Equal(1.2, values["NFminAt1G"].Value, precision: 9);
     }
 
     [Fact]
@@ -1837,8 +1837,8 @@ bench NoiseFigureBench {{
         );
         var spNoise = new SpNoiseDataset(
             FrequenciesHz: new[] { 1e9, 2e9 },
-            NoiseFactor: new[] { 2.0, 4.0 },
-            MinNoiseFactor: new[] { 1.2, 1.1 },
+            NoiseFigure: new[] { 3.25, 5.75 },
+            MinNoiseFigure: new[] { 1.2, 1.1 },
             NoiseResistance: new[] { 20.0, 40.0 }
         );
 

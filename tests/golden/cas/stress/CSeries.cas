@@ -45,8 +45,8 @@ circuit CSeries_Sky130 {
       c_output_return_loss_high = sparam_bench::OutputReturnLoss(f=10MHz) >= 26dB
       c_reverse_isolation_min = sparam_bench::ReverseIsolation(f=1MHz) >= 0.96dB
       c_reverse_isolation_max = sparam_bench::ReverseIsolation(f=1MHz) <= 0.97dB
-      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= -300dB
-      c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) <= -300dB
+      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) == 0dB
+      c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) == 0dB
       c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) == 0Ohm
     }
   }

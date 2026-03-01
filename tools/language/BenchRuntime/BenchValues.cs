@@ -60,8 +60,8 @@ public sealed record BenchSParameterMatrix(
 
 public sealed record SpNoiseDataset(
     double[] FrequenciesHz,
-    double[] NoiseFactor,
-    double[] MinNoiseFactor,
+    double[] NoiseFigure,
+    double[] MinNoiseFigure,
     double[] NoiseResistance
 );
 

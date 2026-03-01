@@ -64,14 +64,14 @@ public static class NgspiceWrdataSpParser
         return new BenchSParameterMatrix(frequencies, elements);
     }
 
-    public static SpNoiseDataset ParseNoiseFactor(string path)
+    public static SpNoiseDataset ParseNoiseFigure(string path)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
         var lines = File.ReadAllLines(path).Where(l => !string.IsNullOrWhiteSpace(l)).ToArray();
         var frequencies = new double[lines.Length];
-        var noiseFactor = new double[lines.Length];
-        var minNoiseFactor = new double[lines.Length];
+        var noiseFigure = new double[lines.Length];
+        var minNoiseFigure = new double[lines.Length];
         var noiseResistance = new double[lines.Length];
 
         for (var row = 0; row < lines.Length; row++)
@@ -85,12 +85,12 @@ public static class NgspiceWrdataSpParser
             }
 
             frequencies[row] = ParseDouble(parts[0]);
-            noiseFactor[row] = ParseDouble(parts[1]);
-            minNoiseFactor[row] = ParseDouble(parts[4]);
+            noiseFigure[row] = ParseDouble(parts[1]);
+            minNoiseFigure[row] = ParseDouble(parts[4]);
             noiseResistance[row] = ParseDouble(parts[7]);
         }
 
-        return new SpNoiseDataset(frequencies, noiseFactor, minNoiseFactor, noiseResistance);
+        return new SpNoiseDataset(frequencies, noiseFigure, minNoiseFigure, noiseResistance);
     }
 
     private static double ParseDouble(string raw)

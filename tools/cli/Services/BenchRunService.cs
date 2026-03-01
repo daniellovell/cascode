@@ -1838,7 +1838,7 @@ public class BenchRunService
                             plan.InstanceName,
                             a.Name
                         );
-                        spNoise = NgspiceWrdataSpParser.ParseNoiseFactor(nfWrdataPath);
+                        spNoise = NgspiceWrdataSpParser.ParseNoiseFigure(nfWrdataPath);
                     }
 
                     analyses[a.Name] = new BenchMeasurementRunner.AnalysisContext(

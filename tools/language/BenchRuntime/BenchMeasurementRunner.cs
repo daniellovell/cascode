@@ -2896,12 +2896,9 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var values = noiseData
-            .NoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
-            .ToArray();
         return new BenchGainSpectrum(
             noiseData.FrequenciesHz,
-            values,
+            noiseData.NoiseFigure,
             BenchNumericKind.VoltageRatioDb
         );
     }
@@ -2916,12 +2913,9 @@ public sealed class BenchMeasurementRunner
             );
         }
 
-        var values = noiseData
-            .MinNoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
-            .ToArray();
         return new BenchGainSpectrum(
             noiseData.FrequenciesHz,
-            values,
+            noiseData.MinNoiseFigure,
             BenchNumericKind.VoltageRatioDb
         );
     }

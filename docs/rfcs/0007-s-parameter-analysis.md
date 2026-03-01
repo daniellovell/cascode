@@ -210,10 +210,9 @@ S.NFmin() → GainSpectrum
 S.Rn() → ImpedanceSpectrum
 ```
 
-When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns noise figure in dB scale using
-`10*log10(NoiseFactor)` for each sampled frequency.
-`S.NFmin()` returns minimum noise figure in dB scale using
-`10*log10(NoiseFactorMin)` for each sampled frequency.
+When `SPAnalysis(noise=1)` is enabled, `S.NF()` returns the sampled noise figure
+values in dB.
+`S.NFmin()` returns the minimum noise figure in dB.
 `S.Rn()` returns unnormalized input noise resistance in Ohms.
 
 ---

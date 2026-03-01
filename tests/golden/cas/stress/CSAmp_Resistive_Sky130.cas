@@ -52,7 +52,9 @@ circuit CSAmp_Resistive_Sky130 implements SingleEndedAmp {
       c_psrr = psrr_bench::PSRR at net::OUT >= -25dB
       c_input_psrr = psrr_bench::InputReferredPSRR at net::OUT >= 0dB
       c_forward_gain = sparam_bench::ForwardGain(f=1MHz) >= -22.5dB
-      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= 0dB
+      c_noise_figure = sparam_bench::NoiseFigure(f=1MHz) <= 0.4dB
+      c_min_noise_figure = sparam_bench::MinNoiseFigure(f=1MHz) <= 1e-4dB
+      c_noise_resistance = sparam_bench::NoiseResistance(f=1MHz) <= 1kOhm
       // No CMRR constraint (not possible).
     }
   }
