@@ -48,6 +48,11 @@ bench TwoPortSParam {
       return db20(S.S(2, 1).Mag()).ValueAt(f)
     }
 
+    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }
+
     measurement InputReturnLoss(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.ReturnLoss(1).ValueAt(f)

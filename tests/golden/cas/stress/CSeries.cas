@@ -38,6 +38,7 @@ circuit CSeries_Sky130 {
       c_input_return_loss_high = sparam::InputReturnLoss(f=10MHz) >= 26dB
       c_forward_gain_min = sparam::ForwardGain(f=1MHz) >= -0.97dB
       c_forward_gain_max = sparam::ForwardGain(f=1MHz) <= -0.96dB
+      c_forward_gain_spectrum = sparam::ForwardGainSpectrum(from=100kHz, to=10MHz) >= -0.97dB
       // The network is reciprocal.
       c_output_return_loss_low = sparam::OutputReturnLoss(f=100kHz) <= 0.2dB
       c_output_return_loss_50_min = sparam::OutputReturnLoss(f=1MHz) >= 6.98dB

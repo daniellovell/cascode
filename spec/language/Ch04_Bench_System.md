@@ -752,6 +752,17 @@ The general form is:
 Bench arguments specialize a parameterized bench binding (see [Section 4.1.2](#412-bench-parameters)). Measurement arguments invoke a parameterized
 measurement within the selected bench (see [Section 4.5.3](#453-calling-other-measurements)).
 
+When a constrained measurement returns a scalar value, the operator applies to that scalar directly.
+When a constrained measurement returns a spectrum or waveform, the operator applies element-wise to
+all returned samples. The constraint passes only if every sample satisfies the comparison. Compliance
+reports expose a single `Actual` value for these constraints as a worst-case sample:
+
+- `>=` / `>` reports the minimum sample.
+- `<=` / `<` reports the maximum sample.
+- `==` reports the sample with the largest absolute error from the expected value.
+
+An empty spectrum or waveform result fails unconditionally because there are no samples to validate.
+
 ### 4.8.4 Emission and Execution Model
 
 Bench simulation is constraint-driven: benches are emitted and executed when at least one of their

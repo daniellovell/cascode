@@ -1312,6 +1312,75 @@ bench InvalidComplexReturn {{
     }
 
     [Fact]
+    public void GainSpectrumRange_CanBeReturnedFromDbMeasurement()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench SpectrumRangeAsDb {{
+  resp IN : analog
+  resp OUT : analog
+
+  fill {{
+    net gnd : ground
+    GND g = new GND() {{ .GND--gnd }}
+    Port p1 = new Port(N=1, Z=50Ohm, V=0V) {{ .P--IN, .N--gnd }}
+    Port p2 = new Port(N=2, Z=50Ohm, V=0V) {{ .P--OUT, .N--gnd }}
+  }}
+
+  analysis {{
+    SPAnalysis sp = new SPAnalysis(space=Log, samples=3, start=1MHz, stop=10MHz)
+  }}
+
+  measurements {{
+    measurement ForwardGainSpectrum(Frequency from, Frequency to) : dB {{
+      SParameterMatrix S = sparam(sp)
+      return db20(S.S(2, 1).Mag()).From(from).To(to)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
+    public void VoltageWaveform_CanBeReturnedFromVoltageMeasurement()
+    {
+        var cascode =
+            $@"VERSION {CascodeVersion.Current}
+
+bench WaveformAsVoltage {{
+  resp OUT : analog
+
+  analysis {{
+    TranAnalysis tr = new TranAnalysis(start=0s, stop=1us)
+  }}
+
+  measurements {{
+    measurement OutWaveform : V {{
+      return voltage(tr, OUT)
+    }}
+  }}
+}}
+";
+
+        using var reader = new StringReader(cascode);
+        var result = CascodeReader.TryRead(reader, "test.cas");
+
+        Assert.True(
+            result.Success,
+            string.Join(Environment.NewLine, result.Diagnostics.Select(d => d.Message))
+        );
+    }
+
+    [Fact]
     public void Port_NonRealImpedance_ProducesSemanticError()
     {
         var cascode =
