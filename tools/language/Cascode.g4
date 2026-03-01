@@ -1012,7 +1012,7 @@ measurementPrimary
 // Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
 // Syntax: binding_alias::Measurement(args)
 benchMeasurementRef
-    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall

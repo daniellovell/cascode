@@ -211,7 +211,7 @@ public class ComplianceCheckerTests
             "ArrayMetric",
             null,
             op,
-            threshold.ToString("G17"),
+            threshold.ToString("G17", System.Globalization.CultureInfo.InvariantCulture),
             ""
         );
         var results = CreateResultsWithArrayMeasurement("ArrayMetric", measured, "", null);

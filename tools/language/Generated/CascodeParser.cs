@@ -12054,11 +12054,11 @@ public partial class CascodeParser : Parser {
 	}
 
 	public partial class BenchMeasurementRefContext : ParserRuleContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode[] IDENT() { return GetTokens(CascodeParser.IDENT); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT(int i) {
-			return GetToken(CascodeParser.IDENT, i);
-		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENT() { return GetToken(CascodeParser.IDENT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLONCOLON() { return GetToken(CascodeParser.COLONCOLON, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public IdPartContext idPart() {
+			return GetRuleContext<IdPartContext>(0);
+		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode LPAREN() { return GetToken(CascodeParser.LPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode RPAREN() { return GetToken(CascodeParser.RPAREN, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public MeasurementArgListContext measurementArgList() {
@@ -12090,7 +12090,7 @@ public partial class CascodeParser : Parser {
 			State = 1700;
 			Match(COLONCOLON);
 			State = 1701;
-			Match(IDENT);
+			idPart();
 			State = 1707;
 			ErrorHandler.Sync(this);
 			switch ( Interpreter.AdaptivePredict(TokenStream,160,Context) ) {
@@ -13258,7 +13258,7 @@ public partial class CascodeParser : Parser {
 		0,0,1697,1685,1,0,0,0,1697,1686,1,0,0,0,1697,1690,1,0,0,0,1697,1691,1,
 		0,0,0,1697,1692,1,0,0,0,1697,1693,1,0,0,0,1697,1694,1,0,0,0,1697,1695,
 		1,0,0,0,1697,1696,1,0,0,0,1698,305,1,0,0,0,1699,1700,5,165,0,0,1700,1701,
-		5,143,0,0,1701,1707,5,165,0,0,1702,1704,5,150,0,0,1703,1705,3,310,155,
+		5,143,0,0,1701,1707,3,126,63,0,1702,1704,5,150,0,0,1703,1705,3,310,155,
 		0,1704,1703,1,0,0,0,1704,1705,1,0,0,0,1705,1706,1,0,0,0,1706,1708,5,151,
 		0,0,1707,1702,1,0,0,0,1707,1708,1,0,0,0,1708,307,1,0,0,0,1709,1710,3,126,
 		63,0,1710,1712,5,150,0,0,1711,1713,3,310,155,0,1712,1711,1,0,0,0,1712,
