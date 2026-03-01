@@ -738,21 +738,25 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("StabilityK", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "StabilityK");
                 return BuildStabilityKSpectrum(sm);
             }
 
             if (call.Method.Equals("MuFactor", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MuFactor");
                 return BuildMuSpectrum(sm);
             }
 
             if (call.Method.Equals("MSG", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MSG");
                 return BuildMsgSpectrum(sm);
             }
 
             if (call.Method.Equals("MAG", StringComparison.OrdinalIgnoreCase))
             {
+                RequireNoPortsArg(call, "MAG");
                 return BuildMagSpectrum(sm);
             }
 
@@ -769,73 +773,20 @@ public sealed class BenchMeasurementRunner
 
             if (call.Method.Equals("NF", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 0)
-                {
-                    throw new InvalidOperationException("NF requires exactly 0 arguments.");
-                }
-
-                var noiseData = FindSpNoiseDataset(sm);
-                if (noiseData is null)
-                {
-                    throw new InvalidOperationException(
-                        "NF: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
-                    );
-                }
-
-                var values = noiseData
-                    .NoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
-                    .ToArray();
-                return new BenchGainSpectrum(
-                    noiseData.FrequenciesHz,
-                    values,
-                    BenchNumericKind.VoltageRatioDb
-                );
+                RequireNoPortsArg(call, "NF");
+                return BuildNfSpectrum(sm);
             }
 
             if (call.Method.Equals("NFmin", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 0)
-                {
-                    throw new InvalidOperationException("NFmin requires exactly 0 arguments.");
-                }
-
-                var noiseData = FindSpNoiseDataset(sm);
-                if (noiseData is null)
-                {
-                    throw new InvalidOperationException(
-                        "NFmin: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
-                    );
-                }
-
-                var values = noiseData
-                    .MinNoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
-                    .ToArray();
-                return new BenchGainSpectrum(
-                    noiseData.FrequenciesHz,
-                    values,
-                    BenchNumericKind.VoltageRatioDb
-                );
+                RequireNoPortsArg(call, "NFmin");
+                return BuildNfMinSpectrum(sm);
             }
 
             if (call.Method.Equals("Rn", StringComparison.OrdinalIgnoreCase))
             {
-                if (call.Args.Count != 0)
-                {
-                    throw new InvalidOperationException("Rn requires exactly 0 arguments.");
-                }
-
-                var noiseData = FindSpNoiseDataset(sm);
-                if (noiseData is null)
-                {
-                    throw new InvalidOperationException(
-                        "Rn: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
-                    );
-                }
-
-                return new BenchImpedanceSpectrum(
-                    noiseData.FrequenciesHz,
-                    noiseData.NoiseResistance
-                );
+                RequireNoPortsArg(call, "Rn");
+                return BuildRnSpectrum(sm);
             }
         }
 
@@ -2860,6 +2811,14 @@ public sealed class BenchMeasurementRunner
         return (port, 0);
     }
 
+    private static void RequireNoPortsArg(MeasurementMethodCall call, string methodName)
+    {
+        if (call.Args.Count != 0)
+        {
+            throw new InvalidOperationException($"{methodName} requires exactly 0 arguments.");
+        }
+    }
+
     private static int RequirePortIndex(BenchValue value, string context)
     {
         var n = RequireNumber(value, context);
@@ -2925,6 +2884,59 @@ public sealed class BenchMeasurementRunner
         }
 
         return null;
+    }
+
+    private BenchGainSpectrum BuildNfSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "NF: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        var values = noiseData
+            .NoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
+            .ToArray();
+        return new BenchGainSpectrum(
+            noiseData.FrequenciesHz,
+            values,
+            BenchNumericKind.VoltageRatioDb
+        );
+    }
+
+    private BenchGainSpectrum BuildNfMinSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "NFmin: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        var values = noiseData
+            .MinNoiseFactor.Select(v => v > 0 ? 10.0 * Math.Log10(v) : DbFloor)
+            .ToArray();
+        return new BenchGainSpectrum(
+            noiseData.FrequenciesHz,
+            values,
+            BenchNumericKind.VoltageRatioDb
+        );
+    }
+
+    private BenchImpedanceSpectrum BuildRnSpectrum(BenchSParameterMatrix sm)
+    {
+        var noiseData = FindSpNoiseDataset(sm);
+        if (noiseData is null)
+        {
+            throw new InvalidOperationException(
+                "Rn: SPAnalysis noise data is not available; enable SPAnalysis noise=1."
+            );
+        }
+
+        return new BenchImpedanceSpectrum(noiseData.FrequenciesHz, noiseData.NoiseResistance);
     }
 
     private static BenchScalarSpectrum BuildStabilityKSpectrum(BenchSParameterMatrix sm)
