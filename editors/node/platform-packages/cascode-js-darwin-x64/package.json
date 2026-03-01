@@ -1,6 +1,6 @@
 {
   "name": "@cascode/cascode-js-darwin-x64",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Prebuilt macOS x64 runtime bundle for @cascode/cascode-js",
   "license": "BSD-3-Clause",
   "private": false,
