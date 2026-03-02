@@ -91,6 +91,10 @@ abstract bench AbstractTransfer {
   }
 
   measurements {
+    measurement GainSpectrum(Frequency from, Frequency to) : dB {
+      return db20(transfer(ac, IN, OUT).Mag()).From(from).To(to)
+    }
+
     measurement PassbandGain : dB {
       return calc_passband_gain(ac, IN, OUT, constraints.LowpassBandwidth, constraints.GainBandwidth)
     }

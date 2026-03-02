@@ -53,11 +53,11 @@ internal sealed partial class CascodeAstBuilder
     {
         var id = ctx.IDENT().GetText();
         var benchRef = ctx.benchMetricRef();
-        var benchBase = benchRef.IDENT(0).GetText();
-        var metric = benchRef.IDENT(1).GetText();
+        var benchBase = benchRef.IDENT().GetText();
+        var metric = benchRef.idPart().GetText();
 
         // Extract bench args and metric args from the grammar:
-        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+        //   benchMetricRef: IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
         // The measurementArgList() array contains 0-2 elements depending on which arg lists are present.
         var argLists = benchRef.measurementArgList();
         var benchArgs = new List<MetricCallArg>();

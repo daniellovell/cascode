@@ -591,7 +591,7 @@ numericConstraint
     ;
 
 benchMetricRef
-    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT (LPAREN measurementArgList? RPAREN)? COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 nodeRef
@@ -953,7 +953,7 @@ measurementsBlock
     ;
 
 measurementDecl
-    : OVERRIDE_KW? MEASUREMENT_KW name=IDENT (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
+    : OVERRIDE_KW? MEASUREMENT_KW name=idPart (LPAREN typedParamList? RPAREN)? COLON unitType LBRACE measurementBody RBRACE
     ;
 
 unitType
@@ -1012,7 +1012,7 @@ measurementPrimary
 // Cross-bench measurement reference used in constraint arguments (and allowed anywhere a measurementExpr is allowed).
 // Syntax: binding_alias::Measurement(args)
 benchMeasurementRef
-    : IDENT COLONCOLON IDENT (LPAREN measurementArgList? RPAREN)?
+    : IDENT COLONCOLON idPart (LPAREN measurementArgList? RPAREN)?
     ;
 
 measurementFunctionCall
