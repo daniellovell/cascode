@@ -152,6 +152,11 @@ bench TwoPortSParamNoise extends AbstractTwoPortSParam {
       return S.NF().ValueAt(f)
     }
 
+    measurement NoiseFigureSpectrum(Frequency from, Frequency to) : dB {
+      SParameterMatrix S = sparam(sp)
+      return S.NF().From(from).To(to)
+    }
+
     measurement MinNoiseFigure(Frequency f) : dB {
       SParameterMatrix S = sparam(sp)
       return S.NFmin().ValueAt(f)
